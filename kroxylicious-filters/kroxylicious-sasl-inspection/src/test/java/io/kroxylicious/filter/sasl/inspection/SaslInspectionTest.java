@@ -6,7 +6,9 @@
 
 package io.kroxylicious.filter.sasl.inspection;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -21,10 +23,15 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
 import io.kroxylicious.proxy.internal.subject.Map;
 import io.kroxylicious.proxy.internal.subject.PrincipalAdderConf;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
+import io.kroxylicious.test.schema.SchemaValidationAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +39,9 @@ class SaslInspectionTest {
 
     @Mock
     FilterFactoryContext filterFactoryContext;
+
+    @Mock
+    ResolvedPluginRegistry resolvedPluginRegistry;
 
     @Mock
     SaslObserverFactory insecure;
@@ -143,6 +153,91 @@ class SaslInspectionTest {
         public SaslObserver createObserver() {
             throw new UnsupportedOperationException();
         }
+    }
+
+    @Test
+    void shouldHaveLegacyAndConfig2PluginAnnotations() {
+        Plugin[] annotations = SaslInspection.class.getAnnotationsByType(Plugin.class);
+
+        assertThat(annotations).hasSize(2);
+
+        var versionToConfigType = java.util.Arrays.stream(annotations)
+                .collect(java.util.stream.Collectors.toMap(Plugin::configVersion, Plugin::configType));
+
+        assertThat(versionToConfigType).containsOnly(
+                entry("", Config.class),
+                entry("v1alpha1", ConfigV1.class));
+    }
+
+    @Test
+    void fullConfigShouldPassSchemaValidation() {
+        // Config with all fields populated that Java accepts
+        new ConfigV1(
+                Set.of("PLAIN", "SCRAM-SHA-256"),
+                "my-subject-builder",
+                true);
+
+        // Same config in raw YAML form
+        SchemaValidationAssert.assertSchemaAccepts("SaslInspection", "v1alpha1", java.util.Map.of(
+                "enabledMechanisms", List.of("PLAIN", "SCRAM-SHA-256"),
+                "subjectBuilder", "my-subject-builder",
+                "requireAuthentication", true));
+    }
+
+    @Test
+    void minimalConfigShouldPassSchemaValidation() {
+        // Minimal config — all fields optional
+        new ConfigV1(null, null, null);
+
+        SchemaValidationAssert.assertSchemaAccepts("SaslInspection", "v1alpha1", Collections.emptyMap());
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Test
+    void shouldInitializeWithV1Config() {
+        // Given
+        var factory = new SaslInspection();
+        when(filterFactoryContext.pluginImplementationNames(SaslObserverFactory.class)).thenReturn(Set.of("Secure"));
+        when(filterFactoryContext.pluginInstance(SaslObserverFactory.class, "Secure")).thenReturn(secure);
+        when(secure.mechanismName()).thenReturn("SECURE_MECH");
+
+        var v1Config = new ConfigV1(
+                Set.of("SECURE_MECH"),
+                "my-subject-builder",
+                false);
+
+        when(filterFactoryContext.resolvedPluginRegistry()).thenReturn(Optional.of(resolvedPluginRegistry));
+        when(resolvedPluginRegistry.pluginInstance(SaslSubjectBuilderService.class, "my-subject-builder"))
+                .thenReturn(new DefaultSaslSubjectBuilderService());
+        when(resolvedPluginRegistry.pluginConfig(
+                eq("io.kroxylicious.proxy.authentication.SaslSubjectBuilderService"), eq("my-subject-builder")))
+                .thenReturn(new DefaultSaslSubjectBuilderService.Config(List.of(new PrincipalAdderConf("saslAuthorizedId",
+                        List.of(new Map("/(.*)/$1/U", null)),
+                        UserFactory.class.getName()))));
+
+        // When/Then
+        factory.initialize(filterFactoryContext, v1Config);
+        Filter filter = factory.createFilter(filterFactoryContext, null);
+        assertThat(filter).isNotNull();
+    }
+
+    @Test
+    void shouldRejectV1ConfigWithoutRegistry() {
+        // Given
+        var factory = new SaslInspection();
+        when(filterFactoryContext.pluginImplementationNames(SaslObserverFactory.class)).thenReturn(Set.of("Secure"));
+        when(filterFactoryContext.pluginInstance(SaslObserverFactory.class, "Secure")).thenReturn(secure);
+        when(secure.mechanismName()).thenReturn("SECURE_MECH");
+
+        var v1Config = new ConfigV1(
+                Set.of("SECURE_MECH"),
+                "my-subject-builder",
+                false);
+
+        // When/Then
+        assertThatThrownBy(() -> factory.initialize(filterFactoryContext, v1Config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("ResolvedPluginRegistry");
     }
 
     @Test

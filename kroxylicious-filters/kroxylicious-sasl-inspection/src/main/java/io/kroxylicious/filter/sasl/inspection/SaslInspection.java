@@ -29,6 +29,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -38,8 +39,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Factory for {@link SaslInspectionFilter}.
  */
 @Plugin(configType = Config.class)
+@Plugin(configVersion = "v1alpha1", configType = ConfigV1.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.SaslInspection", since = "0.19.0")
-public class SaslInspection implements FilterFactory<Config, Void> {
+public class SaslInspection implements FilterFactory<Object, Void> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);
 
@@ -51,17 +53,56 @@ public class SaslInspection implements FilterFactory<Config, Void> {
 
     @Override
     public Void initialize(FilterFactoryContext context,
-                           @Nullable Config config)
+                           @Nullable Object config)
             throws PluginConfigurationException {
+        if (config instanceof ConfigV1 v1) {
+            return initializeV1(context, v1);
+        }
+        else {
+            return initializeLegacy(context, config instanceof Config c ? c : null);
+        }
+    }
+
+    @Nullable
+    private Void initializeLegacy(FilterFactoryContext context,
+                                  @Nullable Config config) {
         observerFactoryMap = buildEnabledObserverFactoryMap(context, config);
-        subjectBuilder = buildSubjectBuilder(context, config);
+        subjectBuilder = buildSubjectBuilderLegacy(context, config);
         authenticationRequired = config != null && config.requireAuthentication() != null && config.requireAuthentication();
         return null;
     }
 
+    @Nullable
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private Void initializeV1(FilterFactoryContext context,
+                              @NonNull ConfigV1 config) {
+        // V1 configs use the legacy observer map mechanism (observers are discovered, not referenced)
+        observerFactoryMap = buildEnabledObserverFactoryMap(context,
+                new Config(config.enabledMechanisms(), null, null, config.requireAuthentication()));
+
+        if (config.subjectBuilder() != null) {
+            ResolvedPluginRegistry registry = context.resolvedPluginRegistry()
+                    .orElseThrow(() -> new PluginConfigurationException(
+                            "v1alpha1 config requires a ResolvedPluginRegistry but none is available"));
+            SaslSubjectBuilderService subjectBuilderFactory = registry.pluginInstance(
+                    SaslSubjectBuilderService.class, config.subjectBuilder());
+            Object subjectBuilderConfig = registry.pluginConfig(
+                    SaslSubjectBuilderService.class.getName(), config.subjectBuilder());
+            ((SaslSubjectBuilderService) subjectBuilderFactory).initialize(subjectBuilderConfig);
+            subjectBuilder = subjectBuilderFactory.build();
+        }
+        else {
+            LOGGER.debug("No `subjectBuilder` configured. The default SaslSubjectBuilder will be used.");
+            subjectBuilder = DEFAULT_SUBJECT_BUILDER;
+        }
+
+        authenticationRequired = config.requireAuthentication() != null && config.requireAuthentication();
+        return null;
+    }
+
     @NonNull
-    private static SaslSubjectBuilder buildSubjectBuilder(FilterFactoryContext context,
-                                                          @Nullable Config config) {
+    private static SaslSubjectBuilder buildSubjectBuilderLegacy(FilterFactoryContext context,
+                                                                @Nullable Config config) {
         if (config == null || config.subjectBuilder() == null) {
             LOGGER.atDebug()
                     .log("No `subjectBuilder` configured. The default SaslSubjectBuilder will be used");

@@ -1,0 +1,37 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Record Encryption Filter Configuration (v1)
+description: >-
+  Config2 configuration for the record encryption filter. References KmsService
+  and KekSelectorService plugin instances rather than embedding their configuration.
+
+type: object
+properties:
+  kms:
+    type: string
+    description: Name of the KmsService plugin instance.
+  selector:
+    type: string
+    description: Name of the KekSelectorService plugin instance.
+  experimental:
+    type: object
+    description: >-
+      Experimental tuning parameters. Keys include cache sizes,
+      timeouts (in seconds), buffer sizes (in bytes), and DEK limits.
+    additionalProperties: true
+  unresolvedKeyPolicy:
+    type: string
+    description: >-
+      What to do when a key cannot be resolved for a record.
+      PASSTHROUGH_UNENCRYPTED passes the record through unencrypted (default).
+      REJECT rejects the entire ProduceRequest.
+    enum:
+      - PASSTHROUGH_UNENCRYPTED
+      - REJECT
+required:
+  - kms
+  - selector
+additionalProperties: false

@@ -1,0 +1,20 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: TemplateKekSelector Configuration (v1)
+description: >-
+  Configuration for the template-based KEK selector, which resolves
+  KEK aliases using a topic-name template pattern.
+
+type: object
+properties:
+  template:
+    type: string
+    description: >-
+      Template pattern for KEK alias selection. Use "$(topicName)" to
+      select a KEK based on the topic name of the record being encrypted.
+required:
+  - template
+additionalProperties: false

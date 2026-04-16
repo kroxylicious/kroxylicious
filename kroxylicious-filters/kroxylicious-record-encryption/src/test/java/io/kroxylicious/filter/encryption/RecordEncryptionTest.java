@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 
 import javax.crypto.Cipher;
@@ -22,6 +23,7 @@ import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfigV1;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.dek.DekException;
@@ -30,13 +32,19 @@ import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
+import io.kroxylicious.test.schema.SchemaValidationAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -214,6 +222,99 @@ class RecordEncryptionTest {
     @Test
     void checkCipherSuiteSuccess() {
         assertThatCode(() -> RecordEncryption.checkCipherSuite(cipherSpec -> arbitraryCipher)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void shouldHaveLegacyAndConfig2PluginAnnotations() {
+        Plugin[] annotations = RecordEncryption.class.getAnnotationsByType(Plugin.class);
+
+        assertThat(annotations).hasSize(2);
+
+        var versionToConfigType = java.util.Arrays.stream(annotations)
+                .collect(java.util.stream.Collectors.toMap(Plugin::configVersion, Plugin::configType));
+
+        assertThat(versionToConfigType).containsOnly(
+                entry("", RecordEncryptionConfig.class),
+                entry("v1", RecordEncryptionConfigV1.class));
+    }
+
+    @Test
+    void fullConfigShouldPassSchemaValidation() {
+        new RecordEncryptionConfigV1(
+                "aws-kms",
+                "template-selector",
+                Map.of("decryptedDekCacheSize", 500),
+                UnresolvedKeyPolicy.REJECT);
+
+        SchemaValidationAssert.assertSchemaAccepts("RecordEncryption", "v1", Map.of(
+                "kms", "aws-kms",
+                "selector", "template-selector",
+                "experimental", Map.of("decryptedDekCacheSize", 500),
+                "unresolvedKeyPolicy", "REJECT"));
+    }
+
+    @Test
+    void minimalConfigShouldPassSchemaValidation() {
+        new RecordEncryptionConfigV1(
+                "aws-kms",
+                "template-selector",
+                null, null);
+
+        SchemaValidationAssert.assertSchemaAccepts("RecordEncryption", "v1", Map.of(
+                "kms", "aws-kms",
+                "selector", "template-selector"));
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Test
+    void shouldInitializeWithV1Config() {
+        var v1Config = new RecordEncryptionConfigV1(
+                "aws-kms",
+                "template-selector",
+                null, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        var recordEncryption = new RecordEncryption<>();
+        var fc = mock(FilterFactoryContext.class);
+        var registry = mock(ResolvedPluginRegistry.class);
+        var kmsService = mock(KmsService.class);
+        var kms = mock(Kms.class);
+        var kekSelectorService = mock(KekSelectorService.class);
+        var kekSelector = mock(TopicNameBasedKekSelector.class);
+        var edekSerde = mock(Serde.class);
+
+        doReturn(Optional.of(registry)).when(fc).resolvedPluginRegistry();
+        doReturn(kmsService).when(registry).pluginInstance(KmsService.class, "aws-kms");
+        doReturn(Map.of("region", "eu-west-1")).when(registry)
+                .pluginConfig(eq("io.kroxylicious.kms.service.KmsService"), eq("aws-kms"));
+        doReturn(kms).when(kmsService).buildKms();
+        doReturn(edekSerde).when(kms).edekSerde();
+
+        doReturn(Map.of("template", "${topicName}")).when(registry)
+                .pluginConfig(eq("io.kroxylicious.filter.encryption.config.KekSelectorService"), eq("template-selector"));
+
+        doReturn(kekSelectorService).when(registry).pluginInstance(KekSelectorService.class, "template-selector");
+        // createFilter() looks up the KekSelectorService by synthesised class name
+        doReturn(kekSelectorService).when(fc).pluginInstance(eq(KekSelectorService.class), any());
+        doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());
+        doReturn(mock(FilterDispatchExecutor.class)).when(fc).filterDispatchExecutor();
+
+        var sec = recordEncryption.initialize(fc, v1Config);
+        var filter = recordEncryption.createFilter(fc, sec);
+        assertThat(filter).isNotNull();
+        recordEncryption.close(sec);
+    }
+
+    @Test
+    void shouldRejectV1ConfigWithoutRegistry() {
+        var v1Config = new RecordEncryptionConfigV1(
+                "aws-kms",
+                "template-selector",
+                null, null);
+        var recordEncryption = new RecordEncryption<>();
+        var fc = mock(FilterFactoryContext.class);
+
+        assertThatThrownBy(() -> recordEncryption.initialize(fc, v1Config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("ResolvedPluginRegistry");
     }
 
 }

@@ -45,6 +45,13 @@
             <artifactId>jose4j</artifactId>
         </dependency>
 
+        <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- third party dependencies - test -->
 
         <dependency>
