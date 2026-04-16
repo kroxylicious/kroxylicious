@@ -61,6 +61,7 @@ public class MockFilterContext implements FilterContext {
     public static final String DEFAULT_SNI_HOSTNAME = "sniHostname";
     public static final String DEFAULT_VIRTUAL_CLUSTER_NAME = "virtualCluster";
     public static final Subject DEFAULT_AUTHENTICATED_SUBJECT = Subject.anonymous();
+
     private static TopicNameMappingException notConfiguredException() {
         return new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR, "no mapping for topicId configured in MockFilterContext");
     }
