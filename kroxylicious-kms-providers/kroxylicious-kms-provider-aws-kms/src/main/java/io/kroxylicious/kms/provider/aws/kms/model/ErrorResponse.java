@@ -31,7 +31,7 @@ public record ErrorResponse(@JsonProperty(value = "__type") String type,
 
     public boolean isNotFound() {
         return type().equalsIgnoreCase("NotFoundException") ||
-                type().equalsIgnoreCase("KMSInvalidStateException") && String.valueOf(message()).toLowerCase(Locale.ROOT).contains("is pending deletion");
+                (type().equalsIgnoreCase("KMSInvalidStateException") && String.valueOf(message()).toLowerCase(Locale.ROOT).contains("is pending deletion"));
     }
 
     @Override

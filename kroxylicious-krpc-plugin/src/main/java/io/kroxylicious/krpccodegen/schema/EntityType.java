@@ -12,24 +12,24 @@ public enum EntityType {
     UNKNOWN(null),
 
     @JsonProperty("transactionalId")
-    TRANSACTIONAL_ID(FieldType.StringFieldType.INSTANCE),
+    TRANSACTIONAL_ID(FieldType.StringFieldType.INSTANCE.toString()),
 
     @JsonProperty("producerId")
-    PRODUCER_ID(FieldType.Int64FieldType.INSTANCE),
+    PRODUCER_ID(FieldType.Int64FieldType.INSTANCE.toString()),
 
     @JsonProperty("groupId")
-    GROUP_ID(FieldType.StringFieldType.INSTANCE),
+    GROUP_ID(FieldType.StringFieldType.INSTANCE.toString()),
 
     @JsonProperty("topicName")
-    TOPIC_NAME(FieldType.StringFieldType.INSTANCE),
+    TOPIC_NAME(FieldType.StringFieldType.INSTANCE.toString()),
 
     @JsonProperty("brokerId")
-    BROKER_ID(FieldType.Int32FieldType.INSTANCE);
+    BROKER_ID(FieldType.Int32FieldType.INSTANCE.toString());
 
-    private final FieldType baseType;
+    private final String baseTypeName;
 
-    EntityType(FieldType baseType) {
-        this.baseType = baseType;
+    EntityType(String baseTypeName) {
+        this.baseTypeName = baseTypeName;
     }
 
     public void verifyTypeMatches(String fieldName, FieldType type) {
@@ -40,8 +40,8 @@ public enum EntityType {
             verifyTypeMatches(fieldName, arrayType.elementType());
         }
         else {
-            if (!type.toString().equals(baseType.toString())) {
-                throw new RuntimeException("Field " + fieldName + " has field type " +
+            if (!type.toString().equals(baseTypeName)) {
+                throw new IllegalArgumentException("Field " + fieldName + " has field type " +
                         name() + ", but field type " + type.toString() + ", which does " +
                         "not match.");
             }

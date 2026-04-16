@@ -91,12 +91,15 @@ class KafkaServiceBootstrapReconcilerIT {
         var kafkaService = testActor.create(
                 new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().withNewSpec().withBootstrapServers(FOO_BOOTSTRAP_9090).endSpec().build());
 
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, false);
+
         // When
-        final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build();
-        testActor.replace(updated);
+        testActor.resources(KafkaService.class)
+                .withName(SERVICE_A)
+                .edit(current -> new KafkaServiceBuilder(current).withNewSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build());
 
         // Then
-        assertResolvedRefsTrue(updated, BAR_BOOTSTRAP_9090, false);
+        assertResolvedRefsTrue(kafkaService, BAR_BOOTSTRAP_9090, false);
     }
 
     @Test
@@ -292,8 +295,10 @@ class KafkaServiceBootstrapReconcilerIT {
         AWAIT.untilAsserted(() -> {
             final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
-            Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
-            assertThat(kafkaService.getStatus())
+            var status = kafkaService.getStatus();
+            Assertions.assertThat(status).isNotNull();
+            Assertions.assertThat(status.getBootstrapServers()).isEqualTo(expectedBootstrap);
+            assertThat(status)
                     .isNotNull()
                     .conditionList()
                     .singleElement()

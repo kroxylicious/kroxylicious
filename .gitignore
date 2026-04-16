@@ -106,5 +106,7 @@ docs/*.html
 .sdkmanrc
 .releaseNotes
 
-.claude/
+.claude/settings.local.json
+.claude/agent-memory
 .op/
+.claude/projects/

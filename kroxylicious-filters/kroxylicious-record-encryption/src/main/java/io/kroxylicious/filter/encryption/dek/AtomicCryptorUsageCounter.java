@@ -109,7 +109,7 @@ class AtomicCryptorUsageCounter {
 
     /** Combine two int reference counts into a single long */
     private static long combine(int encryptors, int decryptors) {
-        return ((long) encryptors) << Integer.SIZE | 0xFFFFFFFFL & decryptors;
+        return (((long) encryptors) << Integer.SIZE) | (0xFFFFFFFFL & decryptors);
     }
 
     /** Extract the encryptor reference count from a long */

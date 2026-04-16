@@ -39,12 +39,8 @@ public final class StructSpec {
     }
 
     private static Versions parseVersions(String versions, String name) {
-        Versions parsed = Versions.parse(versions, null);
-        if (parsed == null) {
-            throw new RuntimeException("You must specify the version of the " +
-                    name + " structure.");
-        }
-        return parsed;
+        return Objects.requireNonNull(Versions.parse(versions, null),
+                "You must specify the version of the " + name + " structure.");
     }
 
     private static List<FieldSpec> validateFields(List<FieldSpec> fields, String name) {
@@ -70,7 +66,7 @@ public final class StructSpec {
     private static void validateTagUniqueness(FieldSpec field, Set<Integer> tags, String name) {
         field.tag().ifPresent(tag -> {
             if (!tags.add(tag)) {
-                throw new RuntimeException("In " + name + ", field " + field.name() +
+                throw new IllegalArgumentException("In " + name + ", field " + field.name() +
                         " has a duplicate tag ID " + tag + ". All tags IDs " +
                         "must be unique.");
             }
@@ -79,7 +75,7 @@ public final class StructSpec {
 
     private static void validateNameUniqueness(FieldSpec field, Set<String> names, String name) {
         if (!names.add(field.name())) {
-            throw new RuntimeException("In " + name + ", field " + field.name() +
+            throw new IllegalStateException("In " + name + ", field " + field.name() +
                     " has a duplicate name " + field.name() + ". All field names " +
                     "must be unique.");
         }
@@ -88,7 +84,7 @@ public final class StructSpec {
     private static void validateTagContiguity(Set<Integer> tags, String name) {
         for (int i = 0; i < tags.size(); i++) {
             if (!tags.contains(i)) {
-                throw new RuntimeException("In " + name + ", the tag IDs are not " +
+                throw new IllegalStateException("In " + name + ", the tag IDs are not " +
                         "contiguous.  Make use of tag " + i + " before using any " +
                         "higher tag IDs.");
             }
