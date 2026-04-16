@@ -22,7 +22,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.NetworkClient;
-import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.common.config.SslConfigs;
@@ -68,11 +68,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(KafkaClusterExtension.class)
 class TlsIT extends AbstractTlsIT {
 
+    // Injected once by KafkaClusterExtension - shared across all tests that need a plain (non-TLS) broker
+    static KafkaCluster cluster;
+
+    // Injected once by KafkaClusterExtension - shared across all tests that need a TLS-enabled broker
+    static @Tls KafkaCluster tlsCluster;
+
     @Test
-    void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstreamUsesSelfSignedTls_TrustStore() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -96,16 +102,15 @@ class TlsIT extends AbstractTlsIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void upstreamConnectionValidatesHostnames(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstreamConnectionValidatesHostnames() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -129,21 +134,15 @@ class TlsIT extends AbstractTlsIT {
         // @formatter:on
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
-            // do some work to ensure connection is opened
-            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId())
-                    .failsWithin(Duration.ofSeconds(30))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(TimeoutException.class)
-                    .havingCause()
-                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+            performClusterOperationExpectingNodeAssignmentTimeout(admin);
         }
     }
 
     @Test
-    void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstreamUsesSelfSignedTls_TrustX509() throws Exception {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -177,14 +176,13 @@ class TlsIT extends AbstractTlsIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
+    void upstreamUsesTlsInsecure() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
@@ -202,8 +200,7 @@ class TlsIT extends AbstractTlsIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
@@ -239,18 +236,17 @@ class TlsIT extends AbstractTlsIT {
 
             try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
                 // do some work to ensure connection is opened
-                final var result = admin.describeCluster().clusterId();
-                assertThat(result).as("Unable to get the clusterId from the Kafka cluster").succeedsWithin(Duration.ofSeconds(10));
+                performClusterOperation(admin);
             }
         }
     }
 
     @ParameterizedTest
     @ValueSource(classes = { InlinePassword.class, FilePassword.class })
-    void downstreamAndUpstreamTls(Class<? extends PasswordProvider> providerClazz, @Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void downstreamAndUpstreamTls(Class<? extends PasswordProvider> providerClazz) {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
         var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
@@ -289,13 +285,12 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void downstream_SuccessfulTlsWithProtocolsAllowed(KafkaCluster cluster) {
+    void downstream_SuccessfulTlsWithProtocolsAllowed() {
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(List.of("TLSv1.2"), null);
 
@@ -324,8 +319,7 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, "TLSv1.2"))) {
 
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
 
             // verify that the admin is actually using the intended protocol
             assertThat(admin).isInstanceOfSatisfying(CloseableAdmin.class, closeableAdmin -> {
@@ -349,7 +343,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstream_UnrecognizedSniHostNameClosesConnection(KafkaCluster cluster) {
+    void downstream_UnrecognizedSniHostNameClosesConnection() {
         var duffBootstrap = "bootstrap." + IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("duff") + ":" + SNI_BOOTSTRAP_ADDRESS.port();
 
         // @formatter:off
@@ -380,7 +374,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstream_UntrustedCertificateClosesConnection(KafkaCluster cluster) {
+    void downstream_UntrustedCertificateClosesConnection() {
 
         // @formatter:off
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
@@ -409,7 +403,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstream_UnsuccessfulTlsWithProtocolsAllowed(KafkaCluster cluster) {
+    void downstream_UnsuccessfulTlsWithProtocolsAllowed() {
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(List.of("TLSv1.2"), null);
 
@@ -445,7 +439,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstream_SuccessfulTlsWithProtocolsDenied(KafkaCluster cluster) {
+    void downstream_SuccessfulTlsWithProtocolsDenied() {
         // Protocol we want to use
         AllowDeny<String> protocols = new AllowDeny<>(null, Set.of("TLSv1.2"));
 
@@ -473,16 +467,15 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Protocol matches what we want to use even with a denied protocol
                                 SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, "TLSv1.2, TLSv1.3"))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void upstream_SuccessfulTlsWithProtocolsAllowed(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstream_SuccessfulTlsWithProtocolsAllowed() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -512,16 +505,15 @@ class TlsIT extends AbstractTlsIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void upstream_UnsuccessfulTlsWithProtocolsAllowed(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstream_UnsuccessfulTlsWithProtocolsAllowed() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -551,17 +543,12 @@ class TlsIT extends AbstractTlsIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
             // Upstream only wants us to use TLSv1.1
-            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId())
-                    .failsWithin(Duration.ofSeconds(30))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(TimeoutException.class)
-                    .havingCause()
-                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+            performClusterOperationExpectingNodeAssignmentTimeout(admin);
         }
     }
 
     @Test
-    void downstream_SuccessfulTlsWithCipherSuitesAllowed(KafkaCluster cluster) {
+    void downstream_SuccessfulTlsWithCipherSuitesAllowed() {
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_CHACHA20_POLY1305_SHA256"), null);
 
@@ -589,8 +576,7 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Cipher matches what we want to use
                                 SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
 
             // verify that the admin is actually using the intended cipher
 
@@ -616,7 +602,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstream_UnsuccessfulTlsWithCipherSuitesAllowed(KafkaCluster cluster) {
+    void downstream_UnsuccessfulTlsWithCipherSuitesAllowed() {
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_AES_128_GCM_SHA256"), null);
 
@@ -652,7 +638,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstream_SuccessfulTlsWithCipherSuitesAllowedAndDenied(KafkaCluster cluster) {
+    void downstream_SuccessfulTlsWithCipherSuitesAllowedAndDenied() {
         // Cipher we want to use
         AllowDeny<String> cipherSuites = new AllowDeny<>(List.of("TLS_CHACHA20_POLY1305_SHA256"), Set.of("TLS_AES_128_GCM_SHA256"));
 
@@ -680,16 +666,15 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Cipher matches what we want to use
                                 SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void upstream_SuccessfulTlsWithCipherSuitesAllowed(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstream_SuccessfulTlsWithCipherSuitesAllowed() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -719,16 +704,15 @@ class TlsIT extends AbstractTlsIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void upstream_UnsuccessfulTlsWithCipherSuitesAllowed(@Tls KafkaCluster cluster) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
-        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+    void upstream_UnsuccessfulTlsWithCipherSuitesAllowed() {
+        var bootstrapServers = tlsCluster.getBootstrapServers();
+        var brokerTruststore = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) tlsCluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
         assertThat(brokerTruststore).isNotEmpty();
         assertThat(brokerTruststorePassword).isNotEmpty();
 
@@ -758,17 +742,12 @@ class TlsIT extends AbstractTlsIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo")) {
             // Upstream trying to use invalid cipher
-            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId())
-                    .failsWithin(Duration.ofSeconds(30))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(TimeoutException.class)
-                    .havingCause()
-                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+            performClusterOperationExpectingNodeAssignmentTimeout(admin);
         }
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequiredByDefault() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, null));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -778,13 +757,12 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) {
+    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequiredByDefault() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, null));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -801,7 +779,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequired(KafkaCluster cluster) {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequired() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -811,13 +789,12 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequired(KafkaCluster cluster) {
+    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequired() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -834,7 +811,7 @@ class TlsIT extends AbstractTlsIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndProvided(KafkaCluster cluster) {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndProvided() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUESTED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -844,13 +821,12 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndNotProvided(KafkaCluster cluster) {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndNotProvided() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUESTED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -858,13 +834,12 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndProvided(KafkaCluster cluster) {
+    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndProvided() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.NONE));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -874,13 +849,12 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndNotProvided(KafkaCluster cluster) {
+    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndNotProvided() {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.NONE));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -888,14 +862,13 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
-            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
-            assertThat(createTopicsResult.all()).isDone();
+            performClusterOperation(admin);
         }
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "REQUIRED", "REQUESTED" })
-    void downstreamMutualTls_RejectsClientWithInvalidCertificate(TlsClientAuth clientAuthMode, KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_RejectsClientWithInvalidCertificate(TlsClientAuth clientAuthMode) throws Exception {
         // Generate a new client certificate
         var invalidClientCert = new KeytoolCertificateGenerator();
         // With Issuer Subject matching the Issuer Subject trusted by the proxy. So that when the server requests a Certificate from the trusted
@@ -941,6 +914,23 @@ class TlsIT extends AbstractTlsIT {
                                         .build())
                         .build());
         // @formatter:on
+    }
+
+    /**
+     * Pings the cluster in order to assert connectivity. We don't care about the result.
+     * @param admin admin
+     */
+    private void performClusterOperation(Admin admin) {
+        assertThat(admin.describeCluster().nodes()).succeedsWithin(10, TimeUnit.SECONDS).isNotNull();
+    }
+
+    private static void performClusterOperationExpectingNodeAssignmentTimeout(Admin admin) {
+        assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(5_000)).clusterId())
+                .failsWithin(Duration.ofSeconds(30))
+                .withThrowableThat()
+                .withCauseInstanceOf(TimeoutException.class)
+                .havingCause()
+                .withMessageStartingWith("Timed out waiting for a node assignment.");
     }
 
 }
