@@ -92,7 +92,7 @@ jobs:
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: PR_NUMBER
           path: PR_NUMBER.txt
