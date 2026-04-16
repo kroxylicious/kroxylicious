@@ -1,0 +1,4 @@
+name: my-encryption-filter
+type: com.example.plugins.RequiresConfigFactory
+version: v1alpha1
+config: {}

@@ -20,11 +20,13 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -40,6 +42,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
+ * @param resolvedPluginRegistry The resolved plugin registry, or null if not yet resolved.
  */
 @JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
 public record Configuration(
@@ -50,7 +53,8 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            @Nullable NetworkDefinition network) {
+                            @Nullable NetworkDefinition network,
+                            @JsonIgnore @Nullable ResolvedPluginRegistry resolvedPluginRegistry) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 

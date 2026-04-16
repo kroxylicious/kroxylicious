@@ -110,7 +110,7 @@ class KafkaProxyInitializerTest {
         virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(endpointBinding);
-        filterChainFactory = new FilterChainFactory(pfr, List.of());
+        filterChainFactory = new FilterChainFactory(pfr, List.of(), null);
         proxyNettySettings = null; // use defaults
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();

@@ -94,6 +94,16 @@ class FilterChainFactoryTest {
                         }
 
                         @Override
+                        public java.util.Map<String, Class<?>> configVersions(String instanceName) {
+                            return java.util.Map.of("", configType(instanceName));
+                        }
+
+                        @Override
+                        public Class<?> implementationType(String instanceName) {
+                            return configType(instanceName).getDeclaringClass();
+                        }
+
+                        @Override
                         public Set<String> registeredInstanceNames() {
                             return Set.of(TestFilterFactory.class.getSimpleName(),
                                     RequiresConfigFactory.class.getSimpleName(),
@@ -113,7 +123,7 @@ class FilterChainFactoryTest {
 
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
-        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
+        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null, null);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr), null);
         assertThat(filters)
                 .isNotNull()
@@ -141,7 +151,7 @@ class FilterChainFactoryTest {
     @Test
     void reportsUseOfFiltersWithMethodsOverridingDeprecatedApi() {
         var nameFilterDefinitions = List.of(new NamedFilterDefinition("myFilterDef", DeprecatedMethodsFilterFactory.class.getName(), null));
-        try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
+        try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions, null)) {
             var context = new NettyFilterContext(eventLoop, pfr);
             filterChainFactory.createFilters(context, nameFilterDefinitions);
             assertThat(logCaptor.getLogEvents())
@@ -201,7 +211,7 @@ class FilterChainFactoryTest {
                 new NamedFilterDefinition("myInvalidFilterDef", TestFilterFactory.class.getName(), null));
 
         // When/Then
-        assertThatThrownBy(() -> new FilterChainFactory(pfr, filters))
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, filters, null))
                 .hasMessageContaining("Exception initializing filter factory myInvalidFilterDef with config null");
     }
 
@@ -213,7 +223,7 @@ class FilterChainFactoryTest {
                 new NamedFilterDefinition("myValidFilterDef2", OptionalConfigFactory.class.getName(), null));
 
         // When/Then
-        assertThatThrownBy(() -> new FilterChainFactory(pfr, filters))
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, filters, null))
                 .hasMessageContaining("Exception initializing filter factory myInvalidFilterDef1 with config null");
     }
 
@@ -226,7 +236,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, filterDefinitions)).isNotNull();
+        assertThat(new FilterChainFactory(pfr, filterDefinitions, null)).isNotNull();
     }
 
     @Test
@@ -239,7 +249,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, filterDefinitions)).isNotNull();
+        assertThat(new FilterChainFactory(pfr, filterDefinitions, null)).isNotNull();
     }
 
     @Test
@@ -250,7 +260,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThatThrownBy(() -> new FilterChainFactory(pfr, list))
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, list, null))
                 .isInstanceOf(PluginConfigurationException.class);
     }
 
@@ -262,7 +272,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, list)).isNotNull();
+        assertThat(new FilterChainFactory(pfr, list, null)).isNotNull();
     }
 
     @Test
@@ -273,7 +283,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, list)).isNotNull();
+        assertThat(new FilterChainFactory(pfr, list, null)).isNotNull();
     }
 
     @Test
@@ -284,11 +294,11 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, list)).isNotNull();
+        assertThat(new FilterChainFactory(pfr, list, null)).isNotNull();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<NamedFilterDefinition> nameFilterDefinitions) {
-        try (FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
+        try (FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions, null)) {
             NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
             List<FilterAndInvoker> filters = filterChainFactory.createFilters(context, nameFilterDefinitions);
             return assertThat(filters).hasSameSizeAs(nameFilterDefinitions);
@@ -319,7 +329,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThatThrownBy(() -> new FilterChainFactory(pfr, list))
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, list, null))
                 .isExactlyInstanceOf(PluginConfigurationException.class)
                 .cause()
                 .isExactlyInstanceOf(RuntimeException.class)
@@ -344,7 +354,7 @@ class FilterChainFactoryTest {
                         onInitialize2::increment, onClose2::increment)));
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
 
-        try (var fcf = new FilterChainFactory(pfr, list)) {
+        try (var fcf = new FilterChainFactory(pfr, list, null)) {
             assertThat(onInitialize1.count).isEqualTo(1);
             assertThat(onClose1.count).isZero();
             assertThat(onInitialize2.count).isEqualTo(1);
@@ -388,7 +398,7 @@ class FilterChainFactoryTest {
         List<NamedFilterDefinition> list = List.of(
                 new NamedFilterDefinition("flakyFilterDef1", FlakyFactory.class.getName(), flakyConfig1),
                 new NamedFilterDefinition("flakyFilterDef2", FlakyFactory.class.getName(), flakyConfig2));
-        try (var fcf = new FilterChainFactory(pfr, list)) {
+        try (var fcf = new FilterChainFactory(pfr, list, null)) {
             // When
             assertThat(onInitialize1.count).isEqualTo(1);
             assertThat(onClose1.count).isZero();

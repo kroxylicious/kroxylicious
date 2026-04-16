@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,6 +33,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -148,7 +150,9 @@ public class FilterChainFactory implements AutoCloseable {
 
     private final Map<String, Wrapper> initialized;
 
-    public FilterChainFactory(PluginFactoryRegistry pfr, @Nullable List<NamedFilterDefinition> filterDefinitions) {
+    public FilterChainFactory(PluginFactoryRegistry pfr,
+                              @Nullable List<NamedFilterDefinition> filterDefinitions,
+                              @Nullable ResolvedPluginRegistry resolvedPluginRegistry) {
         @SuppressWarnings({ "unchecked", "rawtypes" })
         Class<FilterFactory<? super Object, ? super Object>> type = (Class) FilterFactory.class;
         PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(type);
@@ -172,19 +176,27 @@ public class FilterChainFactory implements AutoCloseable {
                 public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
                     return pfr.pluginFactory(pluginClass).registeredInstanceNames();
                 }
+
+                @Override
+                public Optional<ResolvedPluginRegistry> resolvedPluginRegistry() {
+                    return Optional.ofNullable(resolvedPluginRegistry);
+                }
             };
             this.initialized = new LinkedHashMap<>(filterDefinitions.size());
             try {
                 for (var fd : filterDefinitions) {
                     FilterFactory<? super Object, ? super Object> filterFactory = pluginFactory.pluginInstance(fd.type());
-                    Class<?> configType = pluginFactory.configType(fd.type());
-                    if (fd.config() == null || configType.isInstance(fd.config())) {
+                    Map<String, Class<?>> configVersions = pluginFactory.configVersions(fd.type());
+                    boolean configAccepted = fd.config() == null
+                            || configVersions.values().stream().anyMatch(ct -> ct.isInstance(fd.config()));
+                    if (configAccepted) {
                         Wrapper uninitializedFilterFactory = new Wrapper(context, fd, filterFactory);
                         this.initialized.put(fd.name(), uninitializedFilterFactory);
                     }
                     else {
-                        throw new PluginConfigurationException("Filter " + fd.name() + " accepts config of type " +
-                                configType.getName() + " but provided with config of type " + fd.config().getClass().getName() + "]");
+                        throw new PluginConfigurationException("Filter " + fd.name() + " accepts config of types " +
+                                configVersions.values().stream().map(Class::getName).toList()
+                                + " but provided with config of type " + fd.config().getClass().getName() + "]");
                     }
                 }
             }

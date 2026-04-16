@@ -441,7 +441,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                               DelegatingDecodePredicate dp) {
         var pfr = mock(PluginFactoryRegistry.class);
         return new KafkaProxyFrontendHandler(pfr,
-                new FilterChainFactory(pfr, List.of()),
+                new FilterChainFactory(pfr, List.of(), null),
                 List.of(),
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
