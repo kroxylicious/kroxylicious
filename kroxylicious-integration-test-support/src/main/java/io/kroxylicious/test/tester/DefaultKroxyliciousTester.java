@@ -69,7 +69,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
                               @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
-        this.kroxyliciousConfig = configurationBuilder.build();
+        this(configurationBuilder.build(), kroxyliciousFactory, clientFactory, trustStoreConfiguration);
+    }
+
+    DefaultKroxyliciousTester(Configuration configuration, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
+                              @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
+        this.kroxyliciousConfig = configuration;
         this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
         this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
         this.clients = new ConcurrentHashMap<>();

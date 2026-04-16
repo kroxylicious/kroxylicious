@@ -28,6 +28,7 @@ public class KroxyliciousTesterBuilder {
     private Features features = Features.defaultFeatures();
     private DefaultKroxyliciousTester.ClientFactory clientFactory = (clusterName, defaultConfiguration) -> new KroxyliciousClients(defaultConfiguration);
     private ConfigurationBuilder configurationBuilder;
+    private Configuration configuration;
 
     /**
      * Supplies the builder used to configure the kroxylicious instance to be used in tests.
@@ -36,6 +37,19 @@ public class KroxyliciousTesterBuilder {
      */
     public KroxyliciousTesterBuilder setConfigurationBuilder(ConfigurationBuilder configurationBuilder) {
         this.configurationBuilder = configurationBuilder;
+        this.configuration = null;
+        return this;
+    }
+
+    /**
+     * Supplies a pre-built configuration for the kroxylicious instance.
+     * Mutually exclusive with {@link #setConfigurationBuilder(ConfigurationBuilder)}.
+     * @param configuration the configuration for the kroxylicious instance.
+     * @return the current instance of the builder for chaining in a fluent fashion.
+     */
+    public KroxyliciousTesterBuilder setConfiguration(Configuration configuration) {
+        this.configuration = configuration;
+        this.configurationBuilder = null;
         return this;
     }
 
@@ -68,9 +82,25 @@ public class KroxyliciousTesterBuilder {
      * @return A {@link DefaultKroxyliciousTester} configured with the options specified by the builder.
      */
     public DefaultKroxyliciousTester createDefaultKroxyliciousTester() {
-        final TrustStoreConfiguration trustStoreConfiguration = trustStoreLocation != null ? new TrustStoreConfiguration(trustStoreLocation, trustStorePassword) : null;
-        return new DefaultKroxyliciousTester(configurationBuilder, configuration -> kroxyliciousFactory.apply(configuration, features), clientFactory,
-                trustStoreConfiguration);
+        final TrustStoreConfiguration trustStoreConfiguration = trustStoreLocation != null
+                ? new TrustStoreConfiguration(trustStoreLocation, trustStorePassword)
+                : null;
+        if (configuration != null) {
+            return new DefaultKroxyliciousTester(
+                    configuration,
+                    config -> kroxyliciousFactory.apply(config, features),
+                    clientFactory,
+                    trustStoreConfiguration);
+        }
+        if (configurationBuilder != null) {
+            return new DefaultKroxyliciousTester(
+                    configurationBuilder,
+                    config -> kroxyliciousFactory.apply(config, features),
+                    clientFactory,
+                    trustStoreConfiguration);
+        }
+        throw new IllegalStateException(
+                "Either setConfigurationBuilder() or setConfiguration() must be called");
     }
 
     /**
