@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestFilterResultBuilderTest {
 
-    private static final UnknownServerException FILTER_RUNTIME_EXCEPTION = new UnknownServerException("Filter says yeah, nah!");
+    private final UnknownServerException FILTER_RUNTIME_EXCEPTION = new UnknownServerException("Filter says yeah, nah!");
     private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
 
     @Test

@@ -61,8 +61,9 @@ public class MockFilterContext implements FilterContext {
     public static final String DEFAULT_SNI_HOSTNAME = "sniHostname";
     public static final String DEFAULT_VIRTUAL_CLUSTER_NAME = "virtualCluster";
     public static final Subject DEFAULT_AUTHENTICATED_SUBJECT = Subject.anonymous();
-    private static final TopicNameMappingException NOT_CONFIGURED_EXCEPTION = new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR,
-            "no mapping for topicId configured in MockFilterContext");
+    private static TopicNameMappingException notConfiguredException() {
+        return new TopicNameMappingException(Errors.UNKNOWN_SERVER_ERROR, "no mapping for topicId configured in MockFilterContext");
+    }
 
     private final ApiMessage header;
     private final ApiMessage message;
@@ -341,7 +342,7 @@ public class MockFilterContext implements FilterContext {
     public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
         Map<Boolean, List<Uuid>> partitioned = topicIds.stream().collect(Collectors.partitioningBy(topicNames::containsKey));
         Map<Uuid, TopicNameMappingException> errors = partitioned.get(false).stream()
-                .collect(Collectors.toMap(topicId -> topicId, topicId -> topicNameFailures.getOrDefault(topicId, NOT_CONFIGURED_EXCEPTION)));
+                .collect(Collectors.toMap(topicId -> topicId, topicId -> topicNameFailures.getOrDefault(topicId, notConfiguredException())));
         Map<Uuid, String> names = partitioned.get(true).stream().collect(Collectors.toMap(topicId -> topicId, topicNames::get));
         return CompletableFuture.completedStage(
                 new MockTopicNameMapping(!errors.isEmpty(), names, errors));

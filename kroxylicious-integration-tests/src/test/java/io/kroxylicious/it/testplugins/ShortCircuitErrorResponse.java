@@ -31,28 +31,30 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 @Plugin(configType = ShortCircuitErrorResponse.Config.class)
 public class ShortCircuitErrorResponse implements FilterFactory<ShortCircuitErrorResponse.Config, ShortCircuitErrorResponse.ResponseMechanism> {
 
-    private static final UnknownServerException EXCEPTION = new UnknownServerException(ShortCircuitErrorResponse.class.getName() + ": responding error to all requests");
+    private static UnknownServerException exception() {
+        return new UnknownServerException(ShortCircuitErrorResponse.class.getName() + ": responding error to all requests");
+    }
 
     public enum ResponseMechanism implements RequestFilter {
         ERROR {
             @Override
             public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
                 return context.requestFilterResultBuilder()
-                        .errorResponse(header, request, EXCEPTION)
+                        .errorResponse(header, request, exception())
                         .completed();
             }
         },
         SHORTCIRCUIT_MESSAGE {
             @Override
             public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
-                final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, EXCEPTION);
+                final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, exception());
                 return context.requestFilterResultBuilder().shortCircuitResponse(errorResponseMessage.data()).completed();
             }
         },
         SHORTCIRCUIT_MESSAGE_AND_HEADER {
             @Override
             public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage request, FilterContext context) {
-                final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, EXCEPTION);
+                final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, exception());
                 final ResponseHeaderData responseHeaders = new ResponseHeaderData();
                 responseHeaders.setCorrelationId(header.correlationId());
                 return context.requestFilterResultBuilder().shortCircuitResponse(responseHeaders, errorResponseMessage.data()).completed();
