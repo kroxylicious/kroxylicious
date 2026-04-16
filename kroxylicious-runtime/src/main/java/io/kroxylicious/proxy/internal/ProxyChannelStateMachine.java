@@ -6,8 +6,12 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import javax.net.ssl.SSLSession;
@@ -113,7 +117,11 @@ public class ProxyChannelStateMachine {
         /** Client initiated connection close */
         CLIENT_CLOSED("client_closed"),
         /** Server (backend Kafka broker) initiated connection close */
-        SERVER_CLOSED("server_closed");
+        SERVER_CLOSED("server_closed"),
+        /** Connection closed after graceful drain completed (all in-flight requests responded) */
+        DRAIN_COMPLETED("drain_completed"),
+        /** Connection force-closed after drain timeout expired */
+        DRAIN_TIMEOUT("drain_timeout");
 
         private final String label;
 
@@ -187,23 +195,27 @@ public class ProxyChannelStateMachine {
     private KafkaProxyBackendHandler backendHandler;
 
     @Nullable
-    private final ConnectionTracker connectionTracker;
+    private final DrainCoordinator drainCoordinator;
+    /** Tracks requests sent to the server that haven't received a response yet (proxy↔server). */
+    private int serverMessageInFlight;
+    /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
+    private int clientMessageInFlight;
     @Nullable
-    private final InFlightRequestTracker inFlightRequestTracker;
+    private ScheduledFuture<?> drainTimeoutFuture;
+    @Nullable
+    private CompletableFuture<Void> drainFuture;
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder) {
-        this(endpointBinding, transportSubjectBuilder, null, null);
+        this(endpointBinding, transportSubjectBuilder, null);
     }
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder,
-                                    @Nullable ConnectionTracker connectionTracker,
-                                    @Nullable InFlightRequestTracker inFlightRequestTracker) {
+                                    @Nullable DrainCoordinator drainCoordinator) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
-        this.connectionTracker = connectionTracker;
-        this.inFlightRequestTracker = inFlightRequestTracker;
+        this.drainCoordinator = drainCoordinator;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
         kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
@@ -279,6 +291,33 @@ public class ProxyChannelStateMachine {
 
     VirtualClusterModel virtualCluster() {
         return endpointBinding.endpointGateway().virtualCluster();
+    }
+
+    /**
+     * Returns the downstream client channel, or null if the frontend handler is not yet active.
+     */
+    @Nullable
+    Channel frontendChannel() {
+        return frontendHandler != null ? frontendHandler.clientChannel() : null;
+    }
+
+    private String frontendChannelAddress() {
+        Channel ch = frontendChannel();
+        if (ch == null) {
+            return "unknown";
+        }
+        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
+    }
+
+    private String backendChannelAddress() {
+        if (backendHandler == null) {
+            return "unknown";
+        }
+        Channel ch = backendHandler.serverChannel();
+        if (ch == null) {
+            return "unknown";
+        }
+        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
     }
 
     boolean isTlsListener() {
@@ -404,13 +443,34 @@ public class ProxyChannelStateMachine {
      * @param msg the object received from the upstream
      */
     void messageFromServer(Object msg) {
-        if (inFlightRequestTracker != null && frontendHandler != null) {
-            Channel ch = frontendHandler.clientChannel();
-            if (ch != null) {
-                inFlightRequestTracker.onResponseReceived(clusterName(), ch);
+        // Decrement server-side counter: response received from Kafka
+        serverMessageInFlight = Math.max(0, serverMessageInFlight - 1);
+
+        // Forward response to client (goes through filter pipeline)
+        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+
+        // Decrement client-side counter: response delivered to client
+        clientMessageInFlight = Math.max(0, clientMessageInFlight - 1);
+
+        // If draining, check whether all client-side responses have been delivered
+        if (state instanceof ProxyChannelState.Draining) {
+            if (clientMessageInFlight <= 0) {
+                LOGGER.atInfo()
+                        .addKeyValue("virtualCluster", clusterName())
+                        .addKeyValue("frontendChannel", frontendChannelAddress())
+                        .addKeyValue("backendChannel", backendChannelAddress())
+                        .log("All in-flight requests drained — closing connection gracefully");
+                toClosed(null, DisconnectCause.DRAIN_COMPLETED);
+             }
+            else {
+                LOGGER.atTrace()
+                        .addKeyValue("virtualCluster", clusterName())
+                        .addKeyValue("frontendChannel", frontendChannelAddress())
+                        .addKeyValue("backendChannel", backendChannelAddress())
+                        .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                        .log("Response delivered to client during drain — still waiting for remaining in-flight requests");
             }
         }
-        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
     }
 
     /**
@@ -425,11 +485,9 @@ public class ProxyChannelStateMachine {
      * @param msg the RPC received from the upstream
      */
     void messageFromClient(Object msg) {
-        if (inFlightRequestTracker != null && frontendHandler != null && msg instanceof RequestFrame) {
-            Channel ch = frontendHandler.clientChannel();
-            if (ch != null) {
-                inFlightRequestTracker.onRequestSent(clusterName(), ch);
-            }
+        if (msg instanceof RequestFrame) {
+            // Increment server-side counter: request being forwarded to Kafka
+            serverMessageInFlight++;
         }
         Objects.requireNonNull(backendHandler).forwardToServer(msg);
     }
@@ -450,8 +508,17 @@ public class ProxyChannelStateMachine {
     void onClientRequest(
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
-        if (state() instanceof Forwarding) { // post-backend connection
+        // Increment client-side counter: request received from client
+        if (msg instanceof RequestFrame) {
+            clientMessageInFlight++;
+        }
+        if (state() instanceof Forwarding) {
             messageFromClient(msg);
+        }
+        else if (state() instanceof ProxyChannelState.Draining) {
+            // In draining state — autoRead is disabled so this shouldn't happen,
+            // but guard defensively by releasing the message
+            io.netty.util.ReferenceCountUtil.release(msg);
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -507,6 +574,70 @@ public class ProxyChannelStateMachine {
      */
     void onClientIdle() {
         toClosed(null, DisconnectCause.IDLE_TIMEOUT);
+    }
+
+    /**
+     * Initiates graceful connection draining. Disables autoRead on the downstream channel,
+     * transitions to the {@link ProxyChannelState.Draining} state, and schedules a force-close
+     * after the timeout. If no requests are in-flight, closes immediately.
+     * <p>
+     * Must be called on the channel's event loop thread.
+     *
+     * @param timeout maximum time to wait for in-flight requests to complete
+     * @param completionFuture future completed when this connection reaches Closed
+     */
+    void startDraining(Duration timeout, CompletableFuture<Void> completionFuture) {
+        if (!(state instanceof Forwarding)) {
+            LOGGER.atDebug()
+                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue("state", state.getClass().getSimpleName())
+                    .log("Cannot start draining — not in Forwarding state");
+            completionFuture.complete(null);
+            return;
+        }
+
+        this.drainFuture = completionFuture;
+
+        // Disable downstream reads — no new requests from client
+        Objects.requireNonNull(frontendHandler).applyBackpressure();
+
+        setState(new ProxyChannelState.Draining());
+        LOGGER.atInfo()
+                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue("frontendChannel", frontendChannelAddress())
+                .addKeyValue("backendChannel", backendChannelAddress())
+                .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                .addKeyValue("serverMessageInFlight", serverMessageInFlight)
+                .log("Connection draining started — autoRead disabled, waiting for in-flight responses with timeoutMs : {}",
+                        timeout.toMillis());
+
+        if (clientMessageInFlight <= 0) {
+            LOGGER.atInfo()
+                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue("frontendChannel", frontendChannelAddress())
+                    .addKeyValue("backendChannel", backendChannelAddress())
+                    .log("No in-flight requests — closing immediately");
+            toClosed(null, DisconnectCause.DRAIN_COMPLETED);
+            return;
+        }
+
+        // Schedule force-close after timeout
+        Channel ch = frontendHandler.clientChannel();
+        if (ch != null) {
+            drainTimeoutFuture = ch.eventLoop().schedule(
+                    () -> {
+                        if (state instanceof ProxyChannelState.Draining) {
+                            LOGGER.atWarn()
+                                    .addKeyValue("virtualCluster", clusterName())
+                                    .addKeyValue("frontendChannel", frontendChannelAddress())
+                                    .addKeyValue("backendChannel", backendChannelAddress())
+                                    .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                                    .log("Drain timeout expired — force-closing connection");
+                            toClosed(null, DisconnectCause.DRAIN_TIMEOUT);
+                        }
+                    },
+                    timeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
     }
 
     /**
@@ -624,11 +755,8 @@ public class ProxyChannelStateMachine {
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
 
-        if (connectionTracker != null) {
-            Channel ch = frontendHandler.clientChannel();
-            if (ch != null) {
-                connectionTracker.onDownstreamConnectionEstablished(clusterName(), ch);
-            }
+        if (drainCoordinator != null) {
+            drainCoordinator.register(clusterName(), this);
         }
     }
 
@@ -672,13 +800,6 @@ public class ProxyChannelStateMachine {
         // once buffered message has been forwarded we enable auto-read to start accepting further messages
         maybeUnblock();
         proxyToServerConnectionToken.acquire();
-
-        if (connectionTracker != null && backendHandler != null) {
-            Channel serverCh = backendHandler.serverChannel();
-            if (serverCh != null) {
-                connectionTracker.onUpstreamConnectionEstablished(clusterName(), serverCh);
-            }
-        }
     }
 
     /**
@@ -751,36 +872,44 @@ public class ProxyChannelStateMachine {
             return;
         }
 
+        // Cancel drain timeout if active
+        if (drainTimeoutFuture != null) {
+            drainTimeoutFuture.cancel(false);
+            drainTimeoutFuture = null;
+        }
+
         setState(new Closed());
 
         incrementAppropriateDisconnectsMetric(disconnectCause);
 
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
-        // Close the server connection and track upstream closure
+        // Close the server connection
         if (backendHandler != null) {
-            if (connectionTracker != null) {
-                Channel serverCh = backendHandler.serverChannel();
-                if (serverCh != null) {
-                    connectionTracker.onUpstreamConnectionClosed(clusterName(), serverCh);
-                }
-            }
             backendHandler.inClosed();
             proxyToServerConnectionToken.release();
         }
 
-        // Close the client connection and track downstream closure
+        // Close the client connection
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
-            Channel ch = frontendHandler.clientChannel();
-            if (ch != null) {
-                if (connectionTracker != null) {
-                    connectionTracker.onDownstreamConnectionClosed(clusterName(), ch);
-                }
-                if (inFlightRequestTracker != null) {
-                    inFlightRequestTracker.onChannelClosed(clusterName(), ch);
-                }
-            }
             frontendHandler.inClosed(errorCodeEx);
             clientToProxyConnectionToken.release();
+        }
+
+        // Deregister from drain coordinator
+        if (drainCoordinator != null) {
+            drainCoordinator.deregister(clusterName(), this);
+        }
+
+        // Complete drain future if active — signals DrainCoordinator that this connection is closed
+        if (drainFuture != null) {
+            LOGGER.atDebug()
+                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue("frontendChannel", frontendChannelAddress())
+                    .addKeyValue("backendChannel", backendChannelAddress())
+                    .addKeyValue("disconnectCause", disconnectCause)
+                    .log("Drain future completed — connection closed");
+            drainFuture.complete(null);
+            drainFuture = null;
         }
     }
 
@@ -791,6 +920,8 @@ public class ProxyChannelStateMachine {
                 case IDLE_TIMEOUT -> clientToProxyDisconnectsIdleCounter.increment();
                 case CLIENT_CLOSED -> clientToProxyDisconnectsClientClosedCounter.increment();
                 case SERVER_CLOSED -> clientToProxyDisconnectsServerClosedCounter.increment();
+                case DRAIN_COMPLETED, DRAIN_TIMEOUT -> {
+                    /* drain metrics can be added later */ }
             }
         }
     }

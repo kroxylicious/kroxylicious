@@ -348,7 +348,6 @@ class KafkaProxyInitializerTest {
                 false,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
-                null,
                 null);
     }
 

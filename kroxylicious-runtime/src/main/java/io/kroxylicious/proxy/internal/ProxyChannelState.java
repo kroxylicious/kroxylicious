@@ -20,6 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Draining;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
@@ -35,6 +36,7 @@ sealed interface ProxyChannelState permits
         SelectingServer,
         Connecting,
         Forwarding,
+        Draining,
         Closed {
 
     /**
@@ -205,6 +207,15 @@ sealed interface ProxyChannelState permits
                     "clientSoftwareName=" + clientSoftwareName + ", " +
                     "clientSoftwareVersion=" + clientSoftwareVersion + ']';
         }
+
+    }
+
+    /**
+     * Connections are being drained. autoRead is disabled on the client channel,
+     * but responses to in-flight requests continue flowing. When the in-flight count
+     * reaches zero, the state transitions to {@link Closed}.
+     */
+    record Draining() implements ProxyChannelState {
 
     }
 
