@@ -1,0 +1,30 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Entity Isolation Filter Configuration (v1alpha1)
+description: >-
+  Config2 configuration for the entity isolation filter. References an
+  EntityNameMapperService plugin instance rather than embedding its configuration.
+
+type: object
+properties:
+  entityTypes:
+    type: array
+    description: The set of entity types to isolate.
+    items:
+      type: string
+      enum:
+        - TOPIC_NAME
+        - GROUP_ID
+        - TRANSACTIONAL_ID
+    uniqueItems: true
+    minItems: 1
+  mapper:
+    type: string
+    description: Name of the EntityNameMapperService plugin instance.
+required:
+  - entityTypes
+  - mapper
+additionalProperties: false

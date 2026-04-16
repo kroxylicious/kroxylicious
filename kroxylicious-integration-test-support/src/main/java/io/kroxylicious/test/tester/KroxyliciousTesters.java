@@ -38,6 +38,17 @@ public class KroxyliciousTesters {
     }
 
     /**
+     * Creates a kroxylicious tester for a pre-built configuration (e.g. from config2 parsing).
+     * This will create and start an in-process kroxylicious instance, it is
+     * up to the client to close it.
+     * @param configuration the proxy configuration
+     * @return KroxyliciousTester
+     */
+    public static KroxyliciousTester kroxyliciousTester(Configuration configuration) {
+        return new KroxyliciousTesterBuilder().setConfiguration(configuration).createDefaultKroxyliciousTester();
+    }
+
+    /**
      * Creates a builder of kroxylicious testers with given KroxyliciousConfigBuilder.
      * This will create and start an in-process kroxylicious instance, it is
      * up to the client to close it.
@@ -46,6 +57,15 @@ public class KroxyliciousTesters {
      */
     public static KroxyliciousTesterBuilder newBuilder(ConfigurationBuilder builder) {
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(builder);
+    }
+
+    /**
+     * Creates a builder of kroxylicious testers with a pre-built configuration.
+     * @param configuration the proxy configuration
+     * @return KroxyliciousTesterBuilder
+     */
+    public static KroxyliciousTesterBuilder newBuilder(Configuration configuration) {
+        return new KroxyliciousTesterBuilder().setConfiguration(configuration);
     }
 
     /**

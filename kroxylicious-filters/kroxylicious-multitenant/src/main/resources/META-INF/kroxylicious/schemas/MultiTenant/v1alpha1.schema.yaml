@@ -1,0 +1,18 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: MultiTenant Filter Configuration
+description: >-
+  Configuration for the multi-tenant filter, which prefixes resource names
+  with the authenticated tenant identifier.
+
+type: object
+properties:
+  prefixResourceNameSeparator:
+    type: string
+    description: >-
+      Separator character used between the tenant prefix and the resource name.
+      Defaults to "-" if not specified.
+additionalProperties: false

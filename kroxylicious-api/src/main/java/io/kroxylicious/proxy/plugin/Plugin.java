@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.plugin;
 
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -19,9 +20,22 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+@Repeatable(Plugin.List.class)
 public @interface Plugin {
+
+    /**
+     * @return The version of the configuration associated with the plugin implementation.
+     */
+    String configVersion() default "";
+
     /**
      * @return The type of configuration associated with the plugin implementation.
      */
     Class<?> configType();
+
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @interface List {
+        Plugin[] value();
+    }
 }

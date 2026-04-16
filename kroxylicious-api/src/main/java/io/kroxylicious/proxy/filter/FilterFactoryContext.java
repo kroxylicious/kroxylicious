@@ -6,8 +6,10 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.Optional;
 import java.util.Set;
 
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 /**
@@ -44,4 +46,15 @@ public interface FilterFactoryContext {
      * @param <P> The plugin manager type
      */
     <P> Set<String> pluginImplementationNames(Class<P> pluginClass);
+
+    /**
+     * Returns the resolved plugin registry, if this context was created during
+     * config2 processing. Filters with versioned configs use this to obtain
+     * their plugin dependencies by reference rather than by inline configuration.
+     *
+     * @return the registry, or empty if running in legacy configuration mode
+     */
+    default Optional<ResolvedPluginRegistry> resolvedPluginRegistry() {
+        return Optional.empty();
+    }
 }

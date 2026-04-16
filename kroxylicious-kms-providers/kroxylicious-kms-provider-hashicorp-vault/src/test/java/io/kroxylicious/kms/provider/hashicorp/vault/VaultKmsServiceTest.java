@@ -42,7 +42,7 @@ class VaultKmsServiceTest {
     @Test
     void detectsMissingInitialization() {
         assertThatThrownBy(() -> vaultKmsService.buildKms())
-                .isInstanceOf(NullPointerException.class);
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

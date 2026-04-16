@@ -10,13 +10,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.DockerClientFactory;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
-class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, VaultEdek> {
+class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Object, String, VaultEdek> {
 
     VaultTestKmsFacadeTest() {
         super(new VaultTestKmsFacadeFactory());
@@ -32,7 +31,8 @@ class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, V
         try (var facade = factory.build()) {
             facade.start();
             assertThat(facade.getKmsServiceClass()).isEqualTo(VaultKmsService.class);
-            assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
+            assertThat(facade.getKmsServiceConfig())
+                    .isInstanceOf(io.kroxylicious.kms.provider.hashicorp.vault.config.Config.class);
         }
     }
 }

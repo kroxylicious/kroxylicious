@@ -1,0 +1,49 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: OauthBearerValidation Filter Configuration
+description: >-
+  Configuration for the OAuth Bearer token validation filter, which validates
+  SASL/OAUTHBEARER tokens using a JWKS endpoint.
+
+type: object
+properties:
+  jwksEndpointUrl:
+    type: string
+    format: uri
+    description: The URL of the JWKS endpoint used to validate OAuth Bearer tokens.
+  jwksEndpointRefreshMs:
+    type: integer
+    description: How often to refresh the JWKS endpoint (milliseconds).
+  jwksEndpointRetryBackoffMs:
+    type: integer
+    description: Initial backoff time for retrying JWKS endpoint requests (milliseconds).
+  jwksEndpointRetryBackoffMaxMs:
+    type: integer
+    description: Maximum backoff time for retrying JWKS endpoint requests (milliseconds).
+  scopeClaimName:
+    type: string
+    description: The claim name for the scope in the JWT token.
+  subClaimName:
+    type: string
+    description: The claim name for the subject in the JWT token.
+  authenticateBackOffMaxMs:
+    type: integer
+    description: Maximum time window for rate-limiting authentication attempts (milliseconds).
+  authenticateCacheMaxSize:
+    type: integer
+    description: Maximum number of entries in the authentication rate-limiter cache.
+  expectedAudience:
+    type: string
+    description: Comma-separated list of expected audience values in the JWT token.
+  expectedIssuer:
+    type: string
+    description: The expected issuer of the JWT token.
+  jwtValidatorClass:
+    type: string
+    description: Fully qualified class name of the JWT validator implementation.
+required:
+  - jwksEndpointUrl
+additionalProperties: false

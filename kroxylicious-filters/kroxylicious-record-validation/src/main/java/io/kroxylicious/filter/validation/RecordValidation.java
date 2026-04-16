@@ -19,6 +19,7 @@ import io.kroxylicious.proxy.plugin.Plugins;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = ValidationConfig.class)
+@Plugin(configVersion = "v1alpha1", configType = ValidationConfig.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.validation.RecordValidation", since = "0.19.0")
 public class RecordValidation implements FilterFactory<ValidationConfig, ValidationConfig> {
 

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.Map;
 import java.util.Set;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
@@ -31,6 +32,26 @@ public interface PluginFactory<P> {
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
     Class<?> configType(String instanceName);
+
+    /**
+     * Returns the supported config versions and their corresponding config types for a plugin implementation.
+     * The map keys are config version strings (e.g. {@code "v1alpha1"}, {@code "v1"}).
+     * An empty string key represents the legacy (unversioned) config type.
+     *
+     * @param instanceName The name of the plugin implementation
+     * @return An immutable map of config version to config type
+     * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
+     */
+    Map<String, Class<?>> configVersions(String instanceName);
+
+    /**
+     * Returns the implementation class for the given plugin instance name.
+     *
+     * @param instanceName The name of the plugin implementation
+     * @return The implementation class
+     * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
+     */
+    Class<?> implementationType(String instanceName);
 
     /**
      * Returns the names of the registered instances of this plugin.

@@ -17,9 +17,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -34,7 +36,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A {@link FilterFactory} for {@link EntityIsolationFilter}.
  */
 @Plugin(configType = EntityIsolation.Config.class)
-public class EntityIsolation implements FilterFactory<EntityIsolation.Config, EntityIsolation.Config> {
+@Plugin(configVersion = "v1alpha1", configType = EntityIsolationConfigV1.class)
+public class EntityIsolation implements FilterFactory<Object, EntityIsolation.Config> {
 
     @Nullable
     private EntityNameMapper mapper;
@@ -49,12 +52,37 @@ public class EntityIsolation implements FilterFactory<EntityIsolation.Config, En
     @NonNull
     @Override
     @SuppressWarnings({ "java:S2638", "unchecked" }) // Tightening Unknown Nullness
-    public Config initialize(FilterFactoryContext context, @NonNull Config config) {
+    public Config initialize(FilterFactoryContext context, @NonNull Object config) {
         var configuration = Plugins.requireConfig(this, config);
+        if (configuration instanceof EntityIsolationConfigV1 v1) {
+            return initializeV1(context, v1);
+        }
+        else if (configuration instanceof Config legacy) {
+            return initializeLegacy(context, legacy);
+        }
+        throw new PluginConfigurationException("Unsupported config type: " + configuration.getClass().getName());
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private Config initializeLegacy(FilterFactoryContext context,
+                                    Config configuration) {
         EntityNameMapperService<Object> mapperService = context.pluginInstance(EntityNameMapperService.class, configuration.mapper());
         mapperService.initialize(configuration.mapperConfig());
         mapper = mapperService.build();
-        return config;
+        return configuration;
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private Config initializeV1(FilterFactoryContext context,
+                                EntityIsolationConfigV1 configuration) {
+        ResolvedPluginRegistry registry = context.resolvedPluginRegistry()
+                .orElseThrow(() -> new PluginConfigurationException(
+                        "v1alpha1 config requires a ResolvedPluginRegistry but none is available"));
+        EntityNameMapperService mapperService = registry.pluginInstance(EntityNameMapperService.class, configuration.mapper());
+        Object mapperConfig = registry.pluginConfig(EntityNameMapperService.class.getName(), configuration.mapper());
+        mapperService.initialize(mapperConfig);
+        mapper = mapperService.build();
+        return new Config(configuration.entityTypes(), configuration.mapper(), mapperConfig);
     }
 
     @NonNull

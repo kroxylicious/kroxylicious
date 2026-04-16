@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.Map;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -21,12 +22,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.threeten.extra.MutableClock;
 
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.test.assertj.MockFilterContextAssert;
 import io.kroxylicious.test.context.MockFilterContext;
+import io.kroxylicious.test.schema.SchemaValidationAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 
 @ExtendWith(MockitoExtension.class)
 class ConnectionExpirationTest {
@@ -119,6 +123,32 @@ class ConnectionExpirationTest {
         MockFilterContext ctxAfter = MockFilterContext.builder(header, request).build();
         assertThat(filter.onRequest(ApiKeys.API_VERSIONS, (short) 0, header, request, ctxAfter))
                 .succeedsWithin(Duration.ZERO).satisfies(r -> MockFilterContextAssert.assertThat(r).isCloseConnection());
+    }
+
+    @Test
+    void shouldHaveLegacyAndConfig2PluginAnnotations() {
+        Plugin[] annotations = ConnectionExpiration.class.getAnnotationsByType(Plugin.class);
+
+        assertThat(annotations).hasSize(2);
+
+        // Build a map of configVersion -> configType from the annotations
+        var versionToConfigType = java.util.Arrays.stream(annotations)
+                .collect(java.util.stream.Collectors.toMap(Plugin::configVersion, Plugin::configType));
+
+        assertThat(versionToConfigType).containsOnly(
+                entry("", ConnectionExpirationFilterConfig.class),
+                entry("v1alpha1", ConnectionExpirationFilterConfig.class));
+    }
+
+    @Test
+    void fullConfigShouldPassSchemaValidation() {
+        // A config with all fields populated that Java accepts
+        new ConnectionExpirationFilterConfig(Duration.ofHours(1), Duration.ofMinutes(5));
+
+        // The same config in its raw YAML representation — must also pass schema validation
+        SchemaValidationAssert.assertSchemaAccepts("ConnectionExpiration", "v1alpha1", Map.of(
+                "maxAge", "1h",
+                "jitter", "5m"));
     }
 
     @Test

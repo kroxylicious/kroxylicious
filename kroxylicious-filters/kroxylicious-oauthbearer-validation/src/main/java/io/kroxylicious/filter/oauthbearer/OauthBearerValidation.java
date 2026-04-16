@@ -48,6 +48,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
 @Plugin(configType = OauthBearerValidation.Config.class)
+@Plugin(configVersion = "v1alpha1", configType = OauthBearerValidation.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation", since = "0.19.0")
 public class OauthBearerValidation implements FilterFactory<OauthBearerValidation.Config, SharedOauthBearerValidationContext> {
 

@@ -37,7 +37,6 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -100,11 +99,14 @@
             <artifactId>disruptor</artifactId>
             <scope>runtime</scope>
         </dependency>
-        <!--support yaml logging configuration-->
+        <!--support yaml logging configuration and config migration tool-->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>

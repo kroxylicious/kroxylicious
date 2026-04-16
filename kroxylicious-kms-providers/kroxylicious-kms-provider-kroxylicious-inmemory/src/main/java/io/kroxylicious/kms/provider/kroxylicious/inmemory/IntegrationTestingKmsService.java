@@ -38,6 +38,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @see UnitTestingKmsService
  */
 @Plugin(configType = IntegrationTestingKmsService.Config.class)
+@Plugin(configVersion = "v1", configType = IntegrationTestingKmsService.Config.class)
 public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
 
     public static IntegrationTestingKmsService newInstance() {

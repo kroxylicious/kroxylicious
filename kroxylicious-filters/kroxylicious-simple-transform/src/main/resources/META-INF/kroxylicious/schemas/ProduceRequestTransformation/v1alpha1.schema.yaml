@@ -1,0 +1,19 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Produce Request Transformation Filter Configuration (v1alpha1)
+description: >-
+  Config2 configuration for the produce request transformation filter. References
+  a ByteBufferTransformationFactory plugin instance rather than embedding its
+  configuration.
+
+type: object
+properties:
+  transformation:
+    type: string
+    description: Name of the ByteBufferTransformationFactory plugin instance.
+required:
+  - transformation
+additionalProperties: false

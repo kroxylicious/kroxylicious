@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * randomized within the configured jitter range to avoid thundering herd reconnections.
  */
 @Plugin(configType = ConnectionExpirationFilterConfig.class)
+@Plugin(configVersion = "v1alpha1", configType = ConnectionExpirationFilterConfig.class)
 public class ConnectionExpiration
         implements FilterFactory<ConnectionExpirationFilterConfig, ConnectionExpirationFilterConfig> {
 

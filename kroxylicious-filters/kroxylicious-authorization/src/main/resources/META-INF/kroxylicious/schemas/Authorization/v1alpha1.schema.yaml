@@ -1,0 +1,18 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Authorization Filter Configuration (v1alpha1)
+description: >-
+  Config2 configuration for the authorization filter. References an
+  AuthorizerService plugin instance rather than embedding its configuration.
+
+type: object
+properties:
+  authorizer:
+    type: string
+    description: Name of the AuthorizerService plugin instance.
+required:
+  - authorizer
+additionalProperties: false

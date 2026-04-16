@@ -15,6 +15,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = TemplateConfig.class)
+@Plugin(configVersion = "v1", configType = TemplateConfig.class)
 public class TemplateKekSelector<K> implements KekSelectorService<TemplateConfig, K> {
 
     @NonNull

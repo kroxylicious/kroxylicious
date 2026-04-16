@@ -1,0 +1,30 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: SASL Inspection Filter Configuration (v1alpha1)
+description: >-
+  Config2 configuration for the SASL inspection filter. Optionally references
+  a SaslSubjectBuilderService plugin instance rather than embedding its
+  configuration.
+
+type: object
+properties:
+  enabledMechanisms:
+    type: array
+    description: >-
+      Set of SASL mechanisms to enable, identified by IANA registered name.
+      If omitted, all non-cleartext mechanisms are enabled automatically.
+    items:
+      type: string
+    uniqueItems: true
+  subjectBuilder:
+    type: string
+    description: Optional name of a SaslSubjectBuilderService plugin instance.
+  requireAuthentication:
+    type: boolean
+    description: >-
+      If true, successful authentication is required before the filter
+      will forward non-authentication requests. Defaults to false.
+additionalProperties: false

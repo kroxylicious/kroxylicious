@@ -10,7 +10,6 @@ import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,6 +32,7 @@ import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfigV1;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
@@ -55,6 +55,8 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.ResolvedPluginRegistry;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -64,8 +66,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
-@Plugin(configType = RecordEncryptionConfig.class)
-public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionConfig, SharedEncryptionContext<K, E>> {
+@Plugin(configVersion = "", configType = RecordEncryptionConfig.class)
+@Plugin(configVersion = "v1", configType = RecordEncryptionConfigV1.class)
+public class RecordEncryption<K, E> implements FilterFactory<Object, SharedEncryptionContext<K, E>> {
 
     static final ScheduledExecutorService RETRY_POOL = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread retryThread = new Thread(r, "kmsRetry");
@@ -111,17 +114,60 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     }
 
     @Override
-    @SuppressWarnings("java:S2638") // Tightening UnknownNullness
+    @SuppressWarnings({ "java:S2638", "unchecked", "rawtypes" }) // Tightening UnknownNullness
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
-                                                    @NonNull RecordEncryptionConfig configuration)
+                                                    @NonNull Object config)
             throws PluginConfigurationException {
-        Objects.requireNonNull(configuration, "configuration must not be null");
+        var configuration = Plugins.requireConfig(this, config);
+        if (configuration instanceof RecordEncryptionConfigV1 v1) {
+            return initializeV1(context, v1);
+        }
+        else if (configuration instanceof RecordEncryptionConfig legacy) {
+            return initializeLegacy(context, legacy);
+        }
+        throw new PluginConfigurationException("Unsupported config type: " + configuration.getClass().getName());
+    }
+
+    @SuppressWarnings("unchecked")
+    private SharedEncryptionContext<K, E> initializeLegacy(FilterFactoryContext context,
+                                                           RecordEncryptionConfig configuration) {
         LOGGER.atDebug()
                 .addKeyValue("encryptionBuffer", configuration.encryptionBuffer())
                 .log("Record encryption buffer size configuration");
         checkCipherSuite();
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         kmsPlugin.initialize(configuration.kmsConfig());
+        return buildSharedContext(configuration, kmsPlugin);
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private SharedEncryptionContext<K, E> initializeV1(FilterFactoryContext context,
+                                                       RecordEncryptionConfigV1 v1) {
+        ResolvedPluginRegistry registry = context.resolvedPluginRegistry()
+                .orElseThrow(() -> new PluginConfigurationException(
+                        "v1 config requires a ResolvedPluginRegistry but none is available"));
+        KmsService kmsPlugin = registry.pluginInstance(KmsService.class, v1.kms());
+        Object kmsConfig = registry.pluginConfig(KmsService.class.getName(), v1.kms());
+        kmsPlugin.initialize(kmsConfig);
+
+        KekSelectorService selectorPlugin = registry.pluginInstance(KekSelectorService.class, v1.selector());
+        Object selectorConfig = registry.pluginConfig(KekSelectorService.class.getName(), v1.selector());
+
+        // Synthesise a RecordEncryptionConfig using implementation class names so that
+        // createFilter() can look up plugins from the PluginFactoryRegistry
+        var synthesised = new RecordEncryptionConfig(
+                kmsPlugin.getClass().getSimpleName(), kmsConfig,
+                selectorPlugin.getClass().getSimpleName(), selectorConfig,
+                v1.experimental(),
+                v1.unresolvedKeyPolicy());
+
+        LOGGER.debug("Record encryption buffer size configuration: {}", synthesised.encryptionBuffer());
+        checkCipherSuite();
+        return buildSharedContext(synthesised, kmsPlugin);
+    }
+
+    private SharedEncryptionContext<K, E> buildSharedContext(RecordEncryptionConfig configuration,
+                                                             KmsService<Object, K, E> kmsPlugin) {
         Kms<K, E> kms = buildKms(configuration, kmsPlugin);
 
         var dekConfig = configuration.dekManager();

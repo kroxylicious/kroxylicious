@@ -70,6 +70,7 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
+        <json-schema-validator.version>1.5.7</json-schema-validator.version>
         <apicurio-schema-validation.version>0.1.3</apicurio-schema-validation.version>
         <apicurio-registry.version>3.2.1</apicurio-registry.version>
         <kiota.version>0.0.34</kiota.version>
@@ -295,6 +296,11 @@
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-java-sdk</artifactId>
                 <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.networknt</groupId>
+                <artifactId>json-schema-validator</artifactId>
+                <version>${json-schema-validator.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
@@ -1533,6 +1539,7 @@
                 <enforcer.skip>true</enforcer.skip>
                 <formatter.skip>true</formatter.skip>
                 <impsort.skip>true</impsort.skip>
+                <errorprone.skip>true</errorprone.skip>
             </properties>
         </profile>
         <profile>
