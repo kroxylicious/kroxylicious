@@ -12,5 +12,14 @@ HashiCorp Cloud Platform (HCP) .
 
 See the record encryption book with the Kroxylicious documentation.
 
+## Config2 (Versioned Configuration)
+
+`VaultKmsService` supports both legacy and versioned (config2) configuration via dual `@Plugin` annotations:
+
+- **Legacy** (`Config`): Inline `Tls` object with embedded key/trust provider definitions and `PasswordProvider` for the vault token.
+- **v1** (`VaultKmsConfigV1`): References `KeyMaterialProvider` and `TrustMaterialProvider` plugin instances by name via `HasPluginReferences`. The vault token is a plain string (sourced from a Kubernetes Secret or restricted-permission config file in production).
+
+A v1 JSON Schema is at `META-INF/kroxylicious/schemas/VaultKmsService/v1.schema.yaml`.
+
 HashiCorp, HashiCorp Cloud Platform and HashiCorp Vault are registered trademarks of HashiCorp Inc.
 

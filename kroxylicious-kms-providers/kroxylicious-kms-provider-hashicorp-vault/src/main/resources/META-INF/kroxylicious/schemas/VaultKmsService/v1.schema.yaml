@@ -1,0 +1,35 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://kroxylicious.io/schemas/kms/vault-kms-service-v1.schema.yaml
+title: HashiCorp Vault KMS Service Configuration (v1)
+description: >-
+  Versioned configuration for the HashiCorp Vault KMS service provider.
+  TLS key and trust material are referenced by plugin instance name rather
+  than embedded inline.
+
+type: object
+properties:
+  vaultTransitEngineUrl:
+    type: string
+    format: uri
+    description: URL of the Vault Transit Engine (e.g. https://myhashicorpvault:8200/v1/transit)
+  vaultToken:
+    type: string
+    description: Vault authentication token
+  keyMaterial:
+    type: string
+    description: >-
+      Name of a KeyMaterialProvider plugin instance providing TLS client
+      key material for Vault connections. Omit if client TLS is not required.
+  trustMaterial:
+    type: string
+    description: >-
+      Name of a TrustMaterialProvider plugin instance providing TLS trust
+      material for Vault connections. Omit to use the system default trust store.
+required:
+  - vaultTransitEngineUrl
+  - vaultToken
+additionalProperties: false

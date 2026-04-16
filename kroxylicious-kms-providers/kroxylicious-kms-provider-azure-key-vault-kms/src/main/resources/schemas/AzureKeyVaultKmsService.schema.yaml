@@ -1,0 +1,230 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://kroxylicious.io/schemas/kms/azure-key-vault-kms-service.schema.yaml
+title: Azure Key Vault KMS Service Configuration
+description: Configuration for the Azure Key Vault KMS service provider
+
+type: object
+properties:
+  keyVaultName:
+    type: string
+    pattern: '^[a-zA-Z0-9][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$|^[a-zA-Z0-9]{3}$'
+    description: Name of the key vault (3-24 alphanumeric characters and hyphens, cannot start or end with hyphen)
+  keyVaultHost:
+    type: string
+    minLength: 1
+    description: Host of key vault without the vault name (e.g. vault.azure.net)
+  keyVaultScheme:
+    type: string
+    description: Scheme for HTTP requests to key vault (default is https)
+  keyVaultPort:
+    type: integer
+    minimum: 1
+    maximum: 65535
+    description: Port for key vault (typically only used for testing)
+  tls:
+    $ref: '#/$defs/Tls'
+    description: TLS configuration for key vault requests
+required:
+  - keyVaultName
+  - keyVaultHost
+additionalProperties: false
+oneOf:
+  - required:
+      - oauth2ClientCredentials
+    properties:
+      oauth2ClientCredentials:
+        type: object
+        description: OAuth2 client credentials for authenticating with Entra
+        properties:
+          oauthEndpoint:
+            type: string
+            format: uri
+            description: OAuth endpoint URL
+          tenantId:
+            type: string
+            description: Azure tenant ID
+          clientId:
+            $ref: '#/$defs/PasswordProvider'
+            description: OAuth client ID
+          clientSecret:
+            $ref: '#/$defs/PasswordProvider'
+            description: OAuth client secret
+          scope:
+            type: string
+            format: uri
+            description: OAuth scope URI
+          tls:
+            $ref: '#/$defs/Tls'
+            description: TLS configuration for OAuth endpoint
+        required:
+          - oauthEndpoint
+          - tenantId
+          - clientId
+          - clientSecret
+          - scope
+        additionalProperties: false
+      managedIdentityCredentials:
+        type: 'null'
+  - required:
+      - managedIdentityCredentials
+    properties:
+      managedIdentityCredentials:
+        type: object
+        description: Azure Managed Identity credentials for authenticating with Entra
+        properties:
+          targetResource:
+            type: string
+            description: App ID URI of the target resource
+          identityServiceEndpoint:
+            type: string
+            format: uri
+            description: Base URI for Managed Identity Service endpoint (defaults to Azure IMDS, only configure for testing)
+        required:
+          - targetResource
+        additionalProperties: false
+      oauth2ClientCredentials:
+        type: 'null'
+
+$defs:
+  PasswordProvider:
+    description: A provider for passwords, either inline or from a file
+    oneOf:
+      - type: object
+        description: Inline password (not recommended for production)
+        properties:
+          password:
+            type: string
+            description: The password in plain text
+        required:
+          - password
+        additionalProperties: false
+      - type: object
+        description: Password stored in a file
+        properties:
+          passwordFile:
+            type: string
+            description: Path to file containing the password
+        required:
+          - passwordFile
+        additionalProperties: false
+
+  Tls:
+    type: object
+    description: TLS configuration for this peer
+    properties:
+      key:
+        $ref: '#/$defs/KeyProvider'
+        description: Certificate/key used to identify this peer
+      trust:
+        $ref: '#/$defs/TrustProvider'
+        description: Trust provider to determine whether to trust the peer
+      cipherSuites:
+        $ref: '#/$defs/AllowDeny_String'
+        description: Allowed and denied cipher suites
+      protocols:
+        $ref: '#/$defs/AllowDeny_String'
+        description: Allowed and denied TLS protocols
+    additionalProperties: false
+
+  KeyProvider:
+    description: Provider of TLS private key and certificate
+    oneOf:
+      - type: object
+        description: Key pair in PEM format
+        properties:
+          privateKeyFile:
+            type: string
+            description: Path to file containing the private key
+          certificateFile:
+            type: string
+            description: Path to file containing the certificate and intermediates
+          keyPassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the private key file
+        required:
+          - privateKeyFile
+          - certificateFile
+        additionalProperties: false
+      - type: object
+        description: Java KeyStore
+        properties:
+          storeFile:
+            type: string
+            description: Path to the key store file
+          storePassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the key store
+          keyPassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the key (uses storePassword if not specified)
+          storeType:
+            type: string
+            description: Key store type (e.g. JKS, PKCS12, PEM)
+        required:
+          - storeFile
+        additionalProperties: false
+
+  TrustProvider:
+    description: Provider of trust anchors for validating peer certificates
+    oneOf:
+      - type: object
+        description: Java TrustStore
+        properties:
+          storeFile:
+            type: string
+            description: Path to the trust store file
+          storePassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the trust store
+          storeType:
+            type: string
+            description: Trust store type (e.g. JKS, PKCS12, PEM)
+          trustOptions:
+            $ref: '#/$defs/TrustOptions'
+            description: Trust options for this peer
+        required:
+          - storeFile
+        additionalProperties: false
+      - type: object
+        description: Insecure TLS (disables trust verification - not recommended for production)
+        properties:
+          insecure:
+            type: boolean
+            description: Whether to disable trust verification
+        required:
+          - insecure
+        additionalProperties: false
+
+  TrustOptions:
+    description: Options controlling TLS negotiation
+    type: object
+    properties:
+      clientAuth:
+        type: string
+        enum:
+          - REQUIRED
+          - REQUESTED
+          - NONE
+        description: TLS client authentication mode
+    additionalProperties: false
+
+  AllowDeny_String:
+    type: object
+    description: Allow and deny lists for string values
+    properties:
+      allowed:
+        type: array
+        items:
+          type: string
+        description: List of allowed values (ordered by preference)
+      denied:
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+        description: Set of denied values
+    additionalProperties: false

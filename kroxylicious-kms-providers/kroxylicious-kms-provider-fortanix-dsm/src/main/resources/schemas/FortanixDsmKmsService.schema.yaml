@@ -1,0 +1,176 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://kroxylicious.io/schemas/kms/fortanix-dsm-kms-service.schema.yaml
+title: Fortanix DSM KMS Service Configuration
+description: Configuration for the Fortanix DSM KMS service provider
+
+type: object
+properties:
+  endpointUrl:
+    type: string
+    format: uri
+    description: URL of the Fortanix DSM endpoint (e.g. https://api.uk.smartkey.io)
+  apiKeySessionProvider:
+    type: object
+    description: API key authenticated session provider
+    properties:
+      apiKey:
+        $ref: '#/$defs/PasswordProvider'
+        description: Fortanix API key
+      sessionLifetimeFactor:
+        type: number
+        description: Factor applied to determine how long until a session is preemptively refreshed
+        exclusiveMinimum: 0
+        maximum: 1
+    required:
+      - apiKey
+    additionalProperties: false
+  tls:
+    $ref: '#/$defs/Tls'
+    description: TLS configuration for Fortanix DSM connections
+required:
+  - endpointUrl
+additionalProperties: false
+
+$defs:
+  PasswordProvider:
+    description: A provider for passwords, either inline or from a file
+    oneOf:
+      - type: object
+        description: Inline password (not recommended for production)
+        properties:
+          password:
+            type: string
+            description: The password in plain text
+        required:
+          - password
+        additionalProperties: false
+      - type: object
+        description: Password stored in a file
+        properties:
+          passwordFile:
+            type: string
+            description: Path to file containing the password
+        required:
+          - passwordFile
+        additionalProperties: false
+
+  Tls:
+    type: object
+    description: TLS configuration for this peer
+    properties:
+      key:
+        $ref: '#/$defs/KeyProvider'
+        description: Certificate/key used to identify this peer
+      trust:
+        $ref: '#/$defs/TrustProvider'
+        description: Trust provider to determine whether to trust the peer
+      cipherSuites:
+        $ref: '#/$defs/AllowDeny_String'
+        description: Allowed and denied cipher suites
+      protocols:
+        $ref: '#/$defs/AllowDeny_String'
+        description: Allowed and denied TLS protocols
+    additionalProperties: false
+
+  KeyProvider:
+    description: Provider of TLS private key and certificate
+    oneOf:
+      - type: object
+        description: Key pair in PEM format
+        properties:
+          privateKeyFile:
+            type: string
+            description: Path to file containing the private key
+          certificateFile:
+            type: string
+            description: Path to file containing the certificate and intermediates
+          keyPassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the private key file
+        required:
+          - privateKeyFile
+          - certificateFile
+        additionalProperties: false
+      - type: object
+        description: Java KeyStore
+        properties:
+          storeFile:
+            type: string
+            description: Path to the key store file
+          storePassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the key store
+          keyPassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the key (uses storePassword if not specified)
+          storeType:
+            type: string
+            description: Key store type (e.g. JKS, PKCS12, PEM)
+        required:
+          - storeFile
+        additionalProperties: false
+
+  TrustProvider:
+    description: Provider of trust anchors for validating peer certificates
+    oneOf:
+      - type: object
+        description: Java TrustStore
+        properties:
+          storeFile:
+            type: string
+            description: Path to the trust store file
+          storePassword:
+            $ref: '#/$defs/PasswordProvider'
+            description: Password for the trust store
+          storeType:
+            type: string
+            description: Trust store type (e.g. JKS, PKCS12, PEM)
+          trustOptions:
+            $ref: '#/$defs/TrustOptions'
+            description: Trust options for this peer
+        required:
+          - storeFile
+        additionalProperties: false
+      - type: object
+        description: Insecure TLS (disables trust verification - not recommended for production)
+        properties:
+          insecure:
+            type: boolean
+            description: Whether to disable trust verification
+        required:
+          - insecure
+        additionalProperties: false
+
+  TrustOptions:
+    description: Options controlling TLS negotiation
+    type: object
+    properties:
+      clientAuth:
+        type: string
+        enum:
+          - REQUIRED
+          - REQUESTED
+          - NONE
+        description: TLS client authentication mode
+    additionalProperties: false
+
+  AllowDeny_String:
+    type: object
+    description: Allow and deny lists for string values
+    properties:
+      allowed:
+        type: array
+        items:
+          type: string
+        description: List of allowed values (ordered by preference)
+      denied:
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+        description: Set of denied values
+    additionalProperties: false

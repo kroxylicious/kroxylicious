@@ -1,0 +1,20 @@
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+$schema: https://json-schema.org/draft/2020-12/schema
+title: IntegrationTestingKmsService Configuration (v1)
+description: >-
+  Configuration for the in-memory KMS service used in integration tests.
+  Instances sharing the same name share the same key state.
+
+type: object
+properties:
+  name:
+    type: string
+    description: >-
+      Name identifying the shared in-memory KMS state. Use a random UUID
+      and call IntegrationTestingKmsService.delete(name) during test teardown.
+required:
+  - name
+additionalProperties: false

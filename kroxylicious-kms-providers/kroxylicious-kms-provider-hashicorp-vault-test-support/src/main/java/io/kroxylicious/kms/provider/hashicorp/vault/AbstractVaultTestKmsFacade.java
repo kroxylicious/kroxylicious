@@ -40,7 +40,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
+public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Object, String, VaultEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVaultTestKmsFacade.class);
 
