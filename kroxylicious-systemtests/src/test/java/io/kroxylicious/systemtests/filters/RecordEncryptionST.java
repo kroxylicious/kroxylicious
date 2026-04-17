@@ -198,7 +198,7 @@ class RecordEncryptionST extends AbstractSystemTests {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         // Deploy kroxylicious operand only the first compression iteration (1 per testKmsFacade)
-        if(compressionType.ordinal() == 0) {
+        if (compressionType.ordinal() == 0) {
             deployPortIdentifiesNodeWithRecordEncryptionFilter(testKmsFacade);
         }
         bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
