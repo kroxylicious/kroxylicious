@@ -9,6 +9,7 @@ package io.kroxylicious.it;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -56,22 +57,15 @@ public class MyTransportSubjectBuilderService implements TransportSubjectBuilder
                 }
             }
             else {
-                var fut = new CompletableFuture<Subject>();
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(delayMs);
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                    if (completeSuccessfully) {
-                        fut.complete(subject);
-                    }
-                    else {
-                        fut.completeExceptionally(new RuntimeException("Oops"));
-                    }
-                }).start();
-                return fut;
+                if (completeSuccessfully) {
+                    return CompletableFuture.supplyAsync(() -> subject,
+                            CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS));
+                }
+                else {
+                    return CompletableFuture.supplyAsync(() -> {
+                        throw new RuntimeException("Oops");
+                    }, CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS));
+                }
             }
         }
     }
