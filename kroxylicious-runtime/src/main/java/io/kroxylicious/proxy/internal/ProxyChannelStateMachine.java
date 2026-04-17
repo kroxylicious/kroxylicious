@@ -139,6 +139,8 @@ public class ProxyChannelStateMachine {
     private final Counter clientToProxyDisconnectsIdleCounter;
     private final Counter clientToProxyDisconnectsClientClosedCounter;
     private final Counter clientToProxyDisconnectsServerClosedCounter;
+    private final Counter clientToProxyDisconnectsDrainCompletedCounter;
+    private final Counter clientToProxyDisconnectsDrainTimeoutCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
@@ -227,6 +229,8 @@ public class ProxyChannelStateMachine {
         clientToProxyDisconnectsIdleCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.IDLE_TIMEOUT.label()).withTags();
         clientToProxyDisconnectsClientClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.CLIENT_CLOSED.label()).withTags();
         clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
+        clientToProxyDisconnectsDrainCompletedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_COMPLETED.label()).withTags();
+        clientToProxyDisconnectsDrainTimeoutCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_TIMEOUT.label()).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
@@ -920,8 +924,8 @@ public class ProxyChannelStateMachine {
                 case IDLE_TIMEOUT -> clientToProxyDisconnectsIdleCounter.increment();
                 case CLIENT_CLOSED -> clientToProxyDisconnectsClientClosedCounter.increment();
                 case SERVER_CLOSED -> clientToProxyDisconnectsServerClosedCounter.increment();
-                case DRAIN_COMPLETED, DRAIN_TIMEOUT -> {
-                    /* drain metrics can be added later */ }
+                case DRAIN_COMPLETED -> clientToProxyDisconnectsDrainCompletedCounter.increment();
+                case DRAIN_TIMEOUT -> clientToProxyDisconnectsDrainTimeoutCounter.increment();
             }
         }
     }
