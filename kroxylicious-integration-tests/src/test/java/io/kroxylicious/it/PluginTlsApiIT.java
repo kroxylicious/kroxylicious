@@ -22,6 +22,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.api.InstanceOfAssertFactory;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -38,6 +39,7 @@ import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -47,7 +49,11 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIde
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(KafkaClusterExtension.class)
 class PluginTlsApiIT extends AbstractTlsIT {
+
+    // Injected once by KafkaClusterExtension - shared across all tests
+    static KafkaCluster cluster;
 
     static List<Arguments> subjectBuilderServiceConfigs() {
         return List.of(
@@ -62,7 +68,6 @@ class PluginTlsApiIT extends AbstractTlsIT {
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextPlainTcp(
                                   MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-                                  KafkaCluster cluster,
                                   Topic topic) {
         assertClientTlsContext(
                 buildGatewayTls(TlsClientAuth.NONE, null),
@@ -81,7 +86,6 @@ class PluginTlsApiIT extends AbstractTlsIT {
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextMutualTls(
                                    MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-                                   KafkaCluster cluster,
                                    Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
@@ -106,7 +110,6 @@ class PluginTlsApiIT extends AbstractTlsIT {
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextUnilateralTls(
                                        MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-                                       KafkaCluster cluster,
                                        Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
