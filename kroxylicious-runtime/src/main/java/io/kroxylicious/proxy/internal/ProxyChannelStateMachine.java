@@ -306,6 +306,7 @@ public class ProxyChannelStateMachine {
         return endpointBinding.endpointGateway();
     }
 
+    @NonNull
     VirtualClusterModel virtualCluster() {
         return endpointBinding.endpointGateway().virtualCluster();
     }

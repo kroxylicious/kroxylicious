@@ -255,7 +255,7 @@ class TlsHttpClientConfiguratorTest {
 
     @Test
     void detectsNoEnabledProtocols() {
-        var tls = new TlsHttpClientConfigurator(new Tls(null, null, null, new AllowDeny<>(List.of(TLS_V1_3), Set.of(TLS_V1_3))));
+        var tls = new TlsHttpClientConfigurator(new Tls(null, null, null, new AllowDeny<>(List.of(TLS_V1_3), Set.of(TLS_V1_3)), null));
         assertThatThrownBy(() -> tls.apply(builder))
                 .isInstanceOf(SslConfigurationException.class);
     }
@@ -288,7 +288,7 @@ class TlsHttpClientConfiguratorTest {
 
     @Test
     void detectsNoEnabledCipherSuites() {
-        var tls = new TlsHttpClientConfigurator(new Tls(null, null, new AllowDeny<>(List.of(KNOWN_CIPHER_SUITE1), Set.of(KNOWN_CIPHER_SUITE1)), null));
+        var tls = new TlsHttpClientConfigurator(new Tls(null, null, new AllowDeny<>(List.of(KNOWN_CIPHER_SUITE1), Set.of(KNOWN_CIPHER_SUITE1)), null, null));
         assertThatThrownBy(() -> tls.apply(builder))
                 .isInstanceOf(SslConfigurationException.class);
     }
