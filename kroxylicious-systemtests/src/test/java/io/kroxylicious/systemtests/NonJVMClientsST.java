@@ -27,8 +27,13 @@ import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
@@ -46,6 +51,21 @@ class NonJVMClientsST extends AbstractSystemTests {
     private final String clusterName = "non-jvm-clients-cluster";
     private static final String MESSAGE = "Hello-world";
     private KroxyliciousOperator kroxyliciousOperator;
+    private Kroxylicious kroxylicious;
+    private String bootstrap;
+
+    private void deployPortIdentifiesNodeWithNoFilters() {
+        kroxylicious = new KroxyliciousBuilder()
+                .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
+                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
+                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .build();
+        kroxylicious.createOrUpdateResources();
+    }
 
     /**
      * Provides all combinations of Kafka clients for interoperability testing.
@@ -97,10 +117,6 @@ class NonJVMClientsST extends AbstractSystemTests {
     @MethodSource("clientCombinations")
     void produceConsumeMessagesWithClients(KafkaClient producer, KafkaClient consumer, String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
-        final String bootstrap = kroxylicious.getBootstrap(clusterName);
-
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
@@ -139,6 +155,9 @@ class NonJVMClientsST extends AbstractSystemTests {
 
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
+
+        deployPortIdentifiesNodeWithNoFilters();
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
     }
 
     private void preloadImages() {

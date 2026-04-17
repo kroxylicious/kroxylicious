@@ -23,17 +23,25 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
+import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -87,6 +95,25 @@ class EntityIsolationST extends AbstractSystemTests {
         }
     }
 
+    private void deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(Map<String, String> usernamePasswords,
+                                                                                                Set<EntityIsolation.EntityType> entityTypes) {
+        KafkaUtils.createKafkaUsers(clusterName, usernamePasswords);
+        kroxylicious = new KroxyliciousBuilder()
+                .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
+                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
+                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
+                .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(Constants.KROXYLICIOUS_NAMESPACE).build())
+                .addKafkaProtocolFilter(KroxyliciousFilterTemplates
+                        .kroxyliciousEntityIsolationFilter(Constants.KROXYLICIOUS_NAMESPACE, entityTypes, PrincipalEntityNameMapperService.class).build())
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                        List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME)).build())
+                .build();
+        kroxylicious.createOrUpdateResources();
+    }
+
     @Test
     void testIsolationByGroupIdWithPrincipalEntityNameMapperService(String namespace) {
         // kcat does not support scram-sha-512 authentication: https://github.com/edenhill/kcat/issues/462
@@ -101,10 +128,9 @@ class EntityIsolationST extends AbstractSystemTests {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(clusterName, usernamePasswords,
+        deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(usernamePasswords,
                 Set.of(EntityIsolation.EntityType.GROUP_ID));
-        bootstrap = kroxylicious.getBootstrap(clusterName);
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopicWithAuthentication(namespace, topicName, bootstrap, 1, 1, usernamePasswords);

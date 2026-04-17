@@ -21,6 +21,7 @@ public final class Constants {
      */
     public static final String KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME = "kroxylicious-operator";
     public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
+    public static final String KROXYLICIOUS_NAMESPACE = "kroxylicious";
     public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
     public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
