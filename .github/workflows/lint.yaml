@@ -45,7 +45,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=true
+          # This is the authoritative QA check for all PRs. Explicitly enable the qa profile and errorprone
+          # to ensure all quality checks (formatting, licensing, checkstyle, spotbugs, dependency analysis, enforcer)
+          # run across all modules. Other workflows skip QA to avoid duplication.
+          mvn --batch-mode \
+            --activate-profiles ci,qa \
+            --threads 1.5C \
+            -Derrorprone.skip=false \
+            -DskipTests \
+            -Djapicmp.skip=true \
+            verify
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number
