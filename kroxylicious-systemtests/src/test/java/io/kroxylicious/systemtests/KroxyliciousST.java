@@ -79,7 +79,10 @@ class KroxyliciousST extends AbstractSystemTests {
     void produceAndConsumeCompressedMessages(CompressionType compressionType, String namespace) {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(Constants.KROXYLICIOUS_NAMESPACE).addArgument(1).log();
-        deployPortIdentifiesNodeWithNoFilters();
+        // Deploy kroxylicious operand only the first compression iteration (1 per testKmsFacade)
+        if (compressionType.ordinal() == 0) {
+            deployPortIdentifiesNodeWithNoFilters();
+        }
         String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
         produceAndConsumeMessage(namespace, bootstrap, compressionType);
