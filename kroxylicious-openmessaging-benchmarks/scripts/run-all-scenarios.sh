@@ -14,20 +14,21 @@ WORKLOADS=(1topic-1kb 10topics-1kb 100topics-1kb)
 
 usage() {
     cat >&2 <<EOF
-Usage: $(basename "$0") [options] [<baseline> <candidate>] <output-dir>
+Usage: $(basename "$0") [options] [<scenario>...] <output-dir>
 
-Runs two benchmark scenarios across all workloads and produces a side-by-side
-comparison to quantify overhead.
+Runs one or more benchmark scenarios across all workloads and produces
+side-by-side comparisons against the first (baseline) scenario.
 
 For each scenario/workload combination, run-benchmark.sh is called.
 Each benchmark deploys fresh infrastructure, runs to completion, collects
 results, then tears down before the next run starts.
 
-After all runs complete, compare-results.sh is called for each workload.
+After all runs complete, compare-results.sh is called for each non-baseline
+scenario vs the baseline, for each workload.
 
 Arguments:
-  baseline   Baseline scenario name (default: baseline)
-  candidate  Candidate scenario name (default: proxy-no-filters)
+  scenario   Scenario names (default: baseline proxy-no-filters).
+             The first scenario is used as the baseline for comparisons.
   output-dir Root directory for all results. Results are organised as:
                <output-dir>/<scenario>/<workload>/
 
@@ -46,6 +47,7 @@ Environment:
 
 Examples:
   $(basename "$0") ./results/run-$(date +%Y%m%d-%H%M%S)/
+  $(basename "$0") baseline proxy-no-filters encryption ./results/run-$(date +%Y%m%d-%H%M%S)/
   $(basename "$0") baseline encryption \
     --cluster-overrides ~/my-cluster.yaml ./results/run-$(date +%Y%m%d-%H%M%S)/
 EOF
@@ -80,20 +82,19 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ${#POSITIONAL[@]} -eq 1 ]]; then
-    BASELINE_SCENARIO="baseline"
-    CANDIDATE_SCENARIO="proxy-no-filters"
-    OUTPUT_DIR="${POSITIONAL[0]}"
-elif [[ ${#POSITIONAL[@]} -eq 3 ]]; then
-    BASELINE_SCENARIO="${POSITIONAL[0]}"
-    CANDIDATE_SCENARIO="${POSITIONAL[1]}"
-    OUTPUT_DIR="${POSITIONAL[2]}"
-else
-    echo "Error: expected 1 or 3 positional arguments, got ${#POSITIONAL[@]}" >&2
+if [[ ${#POSITIONAL[@]} -eq 0 ]]; then
+    echo "Error: output-dir is required" >&2
     usage
+elif [[ ${#POSITIONAL[@]} -eq 1 ]]; then
+    SCENARIOS=(baseline proxy-no-filters)
+    OUTPUT_DIR="${POSITIONAL[0]}"
+else
+    # Last positional arg is output-dir, everything before is a scenario
+    OUTPUT_DIR="${POSITIONAL[${#POSITIONAL[@]}-1]}"
+    SCENARIOS=("${POSITIONAL[@]:0:${#POSITIONAL[@]}-1}")
 fi
 
-SCENARIOS=("${BASELINE_SCENARIO}" "${CANDIDATE_SCENARIO}")
+BASELINE_SCENARIO="${SCENARIOS[0]}"
 
 for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do
     if [[ ! -f "${profile_file}" ]]; then
@@ -108,9 +109,9 @@ if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
 fi
 
 echo "=== Running benchmark scenarios ==="
-echo "Baseline:  ${BASELINE_SCENARIO}"
-echo "Candidate: ${CANDIDATE_SCENARIO}"
-echo "Workloads: ${WORKLOADS[*]}"
+echo "Baseline:   ${BASELINE_SCENARIO}"
+echo "Candidates: ${SCENARIOS[*]:1}"
+echo "Workloads:  ${WORKLOADS[*]}"
 echo "Output:    ${OUTPUT_DIR}"
 if [[ ${#PROFILE_VALUES[@]} -gt 0 ]]; then
     echo "Profiles:  ${PROFILE_VALUES[*]}"
@@ -143,46 +144,48 @@ done
 echo "Generating result tooling sources..."
 mvn -q process-sources -pl kroxylicious-openmessaging-benchmarks -f "${SCRIPT_DIR}/../../pom.xml"
 
-# --- Compare baseline vs proxy-no-filters ---
-
-echo "=== Comparing ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ==="
-echo ""
+# --- Compare each candidate scenario against the baseline ---
 
 FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/cli/CompareResults.java"
 if [[ ! -f "${FILTERED}" ]]; then
     echo "Warning: comparison tooling not available after mvn process-sources, skipping." >&2
 else
-    for WORKLOAD in "${WORKLOADS[@]}"; do
-        # Filter out run-metadata.json — we want the OMB result files only
-        BASELINE_OMB=()
-        for f in "${OUTPUT_DIR}/${BASELINE_SCENARIO}/${WORKLOAD}/"*.json; do
-            [[ -f "${f}" && "$(basename "$f")" != "run-metadata.json" ]] && BASELINE_OMB+=("${f}")
-        done
-        CANDIDATE_OMB=()
-        for f in "${OUTPUT_DIR}/${CANDIDATE_SCENARIO}/${WORKLOAD}/"*.json; do
-            [[ -f "${f}" && "$(basename "$f")" != "run-metadata.json" ]] && CANDIDATE_OMB+=("${f}")
-        done
-
-        if [[ ${#BASELINE_OMB[@]} -eq 0 || ${#CANDIDATE_OMB[@]} -eq 0 ]]; then
-            echo "  ${WORKLOAD}: skipping (missing results for one or both scenarios)"
-            continue
-        fi
-
-        echo "--- ${WORKLOAD}: ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ---"
-        "${SCRIPT_DIR}/compare-results.sh" "${BASELINE_OMB[0]}" "${CANDIDATE_OMB[0]}"
+    for CANDIDATE_SCENARIO in "${SCENARIOS[@]:1}"; do
+        echo "=== Comparing ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ==="
         echo ""
 
-        # Check all scenarios for producer back-pressure and suggest a rate sweep if detected.
-        _BP_RESULTS=()
-        for _bp_scenario in "${SCENARIOS[@]}"; do
-            for _bp_f in "${OUTPUT_DIR}/${_bp_scenario}/${WORKLOAD}/"*.json; do
-                [[ -f "${_bp_f}" && "$(basename "${_bp_f}")" != "run-metadata.json" ]] && _BP_RESULTS+=("${_bp_f}")
+        for WORKLOAD in "${WORKLOADS[@]}"; do
+            # Filter out run-metadata.json — we want the OMB result files only
+            BASELINE_OMB=()
+            for f in "${OUTPUT_DIR}/${BASELINE_SCENARIO}/${WORKLOAD}/"*.json; do
+                [[ -f "${f}" && "$(basename "$f")" != "run-metadata.json" ]] && BASELINE_OMB+=("${f}")
             done
-        done
-        if [[ ${#_BP_RESULTS[@]} -gt 0 ]]; then
-            "${SCRIPT_DIR}/check-backpressure.sh" --workload "${WORKLOAD}" "${_BP_RESULTS[@]}" || true
+            CANDIDATE_OMB=()
+            for f in "${OUTPUT_DIR}/${CANDIDATE_SCENARIO}/${WORKLOAD}/"*.json; do
+                [[ -f "${f}" && "$(basename "$f")" != "run-metadata.json" ]] && CANDIDATE_OMB+=("${f}")
+            done
+
+            if [[ ${#BASELINE_OMB[@]} -eq 0 || ${#CANDIDATE_OMB[@]} -eq 0 ]]; then
+                echo "  ${WORKLOAD}: skipping (missing results for one or both scenarios)"
+                continue
+            fi
+
+            echo "--- ${WORKLOAD}: ${BASELINE_SCENARIO} vs ${CANDIDATE_SCENARIO} ---"
+            "${SCRIPT_DIR}/compare-results.sh" "${BASELINE_OMB[0]}" "${CANDIDATE_OMB[0]}"
             echo ""
-        fi
+
+            # Check all scenarios for producer back-pressure and suggest a rate sweep if detected.
+            _BP_RESULTS=()
+            for _bp_scenario in "${SCENARIOS[@]}"; do
+                for _bp_f in "${OUTPUT_DIR}/${_bp_scenario}/${WORKLOAD}/"*.json; do
+                    [[ -f "${_bp_f}" && "$(basename "${_bp_f}")" != "run-metadata.json" ]] && _BP_RESULTS+=("${_bp_f}")
+                done
+            done
+            if [[ ${#_BP_RESULTS[@]} -gt 0 ]]; then
+                "${SCRIPT_DIR}/check-backpressure.sh" --workload "${WORKLOAD}" "${_BP_RESULTS[@]}" || true
+                echo ""
+            fi
+        done
     done
 fi
 

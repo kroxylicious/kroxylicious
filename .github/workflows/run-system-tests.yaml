@@ -42,6 +42,35 @@ on:
     inputs: *workflow-inputs
 
 jobs:
+  build_artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Build Kroxylicious proxy system tests'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The dist' profile builds the kroxylicious-operator artefact.  This is needed by the systemtests.
+          mvn --batch-mode --activate-profiles 'dist,!qa' -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -DskipContainerImageBuild -Derrorprone.skip=true install
+      - name: 'Package Kroxylicious Maven artifacts'
+        run: |
+          mkdir -p /tmp/kroxylicious-artifacts
+          cd "$HOME/.m2/repository"
+          tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
+      - name: 'Upload Kroxylicious Maven artifacts'
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        with:
+          name: kroxylicious-maven-artifacts
+          path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+          retention-days: 1
+
   discover_system_test_chunks:
     runs-on: ubuntu-latest
     outputs:
@@ -59,7 +88,7 @@ jobs:
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
 
   run_system_tests:
-    needs: discover_system_test_chunks
+    needs: [build_artifacts, discover_system_test_chunks]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -85,18 +114,28 @@ jobs:
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: Download kroxylicious proxy artifact
+      - name: 'Download Kroxylicious Maven artifacts'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        with:
+          name: kroxylicious-maven-artifacts
+          path: /tmp/kroxylicious-artifacts
+      - name: Download kroxylicious proxy container artifact
         uses: dawidd6/action-download-artifact@8305c0f1062bb0d184d09ef4493ecb9288447732
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
-      - name: Download kroxylicious proxy artifact
+      - name: Download kroxylicious operator container artifact
         uses: dawidd6/action-download-artifact@8305c0f1062bb0d184d09ef4493ecb9288447732
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-operator
           run_id: ${{github.run_id}}
+      - name: 'Extract Kroxylicious Maven artifacts'
+        run: |
+          mkdir -p "$HOME/.m2/repository"
+          cd "$HOME/.m2/repository"
+          tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-proxy.img.tar.gz
@@ -113,6 +152,7 @@ jobs:
       - name: 'Run system tests'
         id: run_system_tests
         timeout-minutes: 90
+        working-directory: kroxylicious-systemtests
         env:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ format('{0}', inputs.testFortanixKMS) == 'true' && vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT || '' }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ format('{0}', inputs.testFortanixKMS) == 'true' && secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY || '' }}
@@ -122,11 +162,15 @@ jobs:
           TESTS_OPT: ${{ matrix.tests != '' && format('-Dtest={0}',  matrix.tests)  || '' }}
           EXCLUDED_GROUPS_OPT: ${{ inputs.excludedGroups != '' && format('-DexcludedGroups={0}', inputs.excludedGroups) || '' }}
         run: |
-          mvn --quiet --batch-mode verify -Psystemtest -Pdist -DskipDocs=true $TESTS_OPT $EXCLUDED_GROUPS_OPT $GROUPS_OPT
+          # Run the tests from the ./kroxylicious-systemtest directory
+          # This avoids mvn compiling the other modules.
+          # Dependencies (including Kroxylicious's own jars and operator artefact) will be got from .m2/repo
+          # QA & errorprone are disabled to avoid any unnecessary work
+          mvn --batch-mode --activate-profiles 'systemtest,!qa' -Derrorprone.skip=true verify $TESTS_OPT $EXCLUDED_GROUPS_OPT $GROUPS_OPT
 
       - name: Archive JUnit test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml
@@ -134,7 +178,7 @@ jobs:
 
       - name: Archive systemtest logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: systemtest-logs-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           path: kroxylicious-systemtests/target/logs
