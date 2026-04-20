@@ -64,6 +64,9 @@ public record Configuration(
         if (virtualClusters == null || virtualClusters.isEmpty()) {
             throw new IllegalConfigurationException("At least one virtual cluster must be defined.");
         }
+        if (proxy == null) {
+            proxy = ProxyConfig.DEFAULT;
+        }
 
         validateNoDuplicatedClusterNames(virtualClusters);
 
@@ -205,10 +208,6 @@ public record Configuration(
                 // Note: filterDefinitionsByName.get() returns non-null because of constructor post condition
                 .map(filterDefinitionsByName::get)
                 .toList();
-    }
-
-    public ProxyConfig effectiveProxyConfig() {
-        return proxy != null ? proxy : ProxyConfig.DEFAULT;
     }
 
 }

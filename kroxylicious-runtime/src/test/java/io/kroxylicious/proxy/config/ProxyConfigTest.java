@@ -19,7 +19,12 @@ class ProxyConfigTest {
     @Test
     void shouldAcceptNullDrainTimeoutAndDefault() {
         assertThatCode(() -> new ProxyConfig(null)).doesNotThrowAnyException();
-        assertThat(new ProxyConfig(null).effectiveDrainTimeout()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(new ProxyConfig(null).drainTimeout()).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void shouldPreserveUserSuppliedDrainTimeout() {
+        assertThat(new ProxyConfig(Duration.ofSeconds(5)).drainTimeout()).isEqualTo(Duration.ofSeconds(5));
     }
 
     @Test

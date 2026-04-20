@@ -26,15 +26,11 @@ public record ProxyConfig(@Nullable Duration drainTimeout) {
     public static final ProxyConfig DEFAULT = new ProxyConfig(null);
 
     public ProxyConfig {
-        if (drainTimeout != null && (drainTimeout.isZero() || drainTimeout.isNegative())) {
+        if (drainTimeout == null) {
+            drainTimeout = DEFAULT_DRAIN_TIMEOUT;
+        }
+        else if (drainTimeout.isZero() || drainTimeout.isNegative()) {
             throw new IllegalConfigurationException("proxy.drainTimeout must be positive, got: " + drainTimeout);
         }
-    }
-
-    /**
-     * Returns the effective drain timeout, defaulting to 30 seconds if not configured.
-     */
-    public Duration effectiveDrainTimeout() {
-        return drainTimeout != null ? drainTimeout : DEFAULT_DRAIN_TIMEOUT;
     }
 }
