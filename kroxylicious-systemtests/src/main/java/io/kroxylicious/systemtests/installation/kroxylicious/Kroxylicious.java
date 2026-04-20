@@ -129,16 +129,16 @@ public class Kroxylicious {
      * @return the bootstrap server of the cluster
      */
     public String getBootstrap(String namespace, String clusterName) {
-        var bootstrapServer = await("poll for bootstrap").atMost(Duration.ofSeconds(30))
+        String bootstrapServer = await("poll for bootstrap").atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofSeconds(1))
                 .until(() -> {
-                    var virtualKafkaCluster = kubeClient().getClient()
+                    VirtualKafkaCluster vkc = kubeClient().getClient()
                             .resources(VirtualKafkaCluster.class)
                             .inNamespace(namespace)
                             .withName(clusterName)
                             .get();
 
-                    var first = Optional.ofNullable(virtualKafkaCluster)
+                    Optional<Ingresses> first = Optional.ofNullable(vkc)
                             .map(VirtualKafkaCluster::getStatus)
                             .map(VirtualKafkaClusterStatus::getIngresses)
                             .stream()

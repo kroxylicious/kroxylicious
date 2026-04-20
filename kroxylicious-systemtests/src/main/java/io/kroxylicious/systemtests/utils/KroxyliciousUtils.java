@@ -21,6 +21,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class KroxyliciousUtils {
     private static final ResourceManager resourceManager = ResourceManager.getInstance();
 
+    private KroxyliciousUtils() {
+    }
+
     /**
      * Create certificate config map from listener.
      *
