@@ -41,7 +41,7 @@ public class DrainCoordinator {
         Set<ProxyChannelStateMachine> set = activeConnections.get(clusterName);
         if (set != null) {
             set.remove(pcsm);
-            if(set.isEmpty()) {
+            if (set.isEmpty()) {
                 activeConnections.remove(clusterName);
             }
         }

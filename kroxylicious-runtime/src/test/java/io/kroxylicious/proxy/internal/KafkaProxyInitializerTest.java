@@ -348,7 +348,7 @@ class KafkaProxyInitializerTest {
                 false,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
-                null);
+                new DrainCoordinator());
     }
 
     private void assertErrorHandlerAdded() {

@@ -67,7 +67,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
-    @Nullable
     private final DrainCoordinator drainCoordinator;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -79,7 +78,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  boolean haproxyProtocol,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings,
-                                 @Nullable DrainCoordinator drainCoordinator) {
+                                 DrainCoordinator drainCoordinator) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -90,7 +89,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
-        this.drainCoordinator = drainCoordinator;
+        this.drainCoordinator = Objects.requireNonNull(drainCoordinator);
     }
 
     @Override

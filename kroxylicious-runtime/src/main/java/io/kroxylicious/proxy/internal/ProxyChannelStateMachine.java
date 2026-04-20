@@ -196,7 +196,6 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    @Nullable
     private final DrainCoordinator drainCoordinator;
     /** Tracks requests sent to the server that haven't received a response yet (proxy↔server). */
     private int serverMessageInFlight;
@@ -208,16 +207,11 @@ public class ProxyChannelStateMachine {
     private CompletableFuture<Void> drainFuture;
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
-                                    TransportSubjectBuilder transportSubjectBuilder) {
-        this(endpointBinding, transportSubjectBuilder, null);
-    }
-
-    public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder,
-                                    @Nullable DrainCoordinator drainCoordinator) {
+                                    DrainCoordinator drainCoordinator) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
-        this.drainCoordinator = drainCoordinator;
+        this.drainCoordinator = Objects.requireNonNull(drainCoordinator);
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
         kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
@@ -465,7 +459,7 @@ public class ProxyChannelStateMachine {
                         .addKeyValue("backendChannel", backendChannelAddress())
                         .log("All in-flight requests drained — closing connection gracefully");
                 toClosed(null, DisconnectCause.DRAIN_COMPLETED);
-             }
+            }
             else {
                 LOGGER.atTrace()
                         .addKeyValue("virtualCluster", clusterName())
@@ -759,9 +753,7 @@ public class ProxyChannelStateMachine {
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
 
-        if (drainCoordinator != null) {
-            drainCoordinator.register(clusterName(), this);
-        }
+        drainCoordinator.register(clusterName(), this);
     }
 
     void onTransportSubjectBuilt() {
@@ -900,9 +892,7 @@ public class ProxyChannelStateMachine {
         }
 
         // Deregister from drain coordinator
-        if (drainCoordinator != null) {
-            drainCoordinator.deregister(clusterName(), this);
-        }
+        drainCoordinator.deregister(clusterName(), this);
 
         // Complete drain future if active — signals DrainCoordinator that this connection is closed
         if (drainFuture != null) {

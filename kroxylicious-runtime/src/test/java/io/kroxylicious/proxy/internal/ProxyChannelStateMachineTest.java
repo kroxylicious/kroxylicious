@@ -112,7 +112,7 @@ class ProxyChannelStateMachineTest {
         when(endpointBinding.nodeId()).thenReturn(null);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new DrainCoordinator());
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 

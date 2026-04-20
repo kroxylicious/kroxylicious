@@ -95,7 +95,7 @@ public abstract class FilterHarness {
         when(gw.virtualCluster()).thenReturn(testVirtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new DrainCoordinator());
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
