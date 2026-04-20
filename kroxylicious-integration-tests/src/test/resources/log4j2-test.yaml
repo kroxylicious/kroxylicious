@@ -39,24 +39,6 @@ Configuration:
          AppenderRef:
            - ref: Console
 
-      -  name: io.kroxylicious.proxy.internal.ProxyChannelStateMachine
-         additivity: false
-         level: INFO
-         AppenderRef:
-           - ref: Console
-
-      - name: io.kroxylicious.proxy.internal.DrainCoordinator
-        additivity: false
-        level: INFO
-        AppenderRef:
-          - ref: Console
-
-      -  name: io.kroxylicious.it
-         additivity: false
-         level: INFO
-         AppenderRef:
-           - ref: Console
-
       -  name: io.kroxylicious.proxy.testcluster
          additivity: false
          level: INFO
