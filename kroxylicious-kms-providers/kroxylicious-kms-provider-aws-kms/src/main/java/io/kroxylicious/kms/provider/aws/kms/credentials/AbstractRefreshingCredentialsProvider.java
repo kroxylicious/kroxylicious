@@ -64,6 +64,9 @@ abstract class AbstractRefreshingCredentialsProvider<C extends Credentials> impl
         Objects.requireNonNull(threadName);
         Objects.requireNonNull(logger);
         Objects.requireNonNull(systemClock);
+        if (lifetimeFactor <= 0 || lifetimeFactor >= 1) {
+            throw new IllegalArgumentException("credentialLifetimeFactor must be in the range (0, 1), got: " + lifetimeFactor);
+        }
         this.logger = logger;
         this.systemClock = systemClock;
         this.lifetimeFactor = lifetimeFactor;

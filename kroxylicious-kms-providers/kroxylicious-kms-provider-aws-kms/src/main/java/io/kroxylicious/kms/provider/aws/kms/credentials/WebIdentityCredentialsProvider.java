@@ -119,6 +119,9 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
                 firstNonBlank(config.roleSessionName(), env.apply(ENV_ROLE_SESSION_NAME), generatedSessionName()));
 
         this.durationSeconds = config.durationSeconds();
+        if (durationSeconds != null && (durationSeconds < 900 || durationSeconds > 43200)) {
+            throw new KmsException("webIdentityCredentials 'durationSeconds' must be in [900, 43200], got: " + durationSeconds);
+        }
 
         this.client = createClient();
     }
