@@ -100,6 +100,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 @SuppressWarnings("java:S1133")
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
+    private static final String SESSION_ID_KEY = "sessionId";
+    private static final String VIRTUAL_CLUSTER_KEY = "virtualCluster";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
     /**
@@ -220,8 +222,8 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
         LOGGER.atInfo()
-                .addKeyValue("sessionId", kafkaSession.sessionId())
-                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
                 .addKeyValue("backendHandler", backendHandler)
@@ -330,8 +332,8 @@ public class ProxyChannelStateMachine {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
             LOGGER.atDebug()
-                    .addKeyValue("sessionId", kafkaSession.sessionId())
-                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                    .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                     .addKeyValue("address", HostPort.asString(Objects.requireNonNull(this.frontendHandler).remoteHost(), this.frontendHandler.remotePort()))
                     .log("Allocated session ID for downstream connection");
             ProxyChannelState.ClientActive clientActive = STARTING_STATE.toClientActive();
@@ -385,8 +387,8 @@ public class ProxyChannelStateMachine {
     void illegalState(String msg) {
         if (!(state instanceof Closed)) {
             LOGGER.atError()
-                    .addKeyValue("sessionId", kafkaSession.sessionId())
-                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                    .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                     .addKeyValue("state", state)
                     .addKeyValue("message", msg)
                     .log("Unexpected event, closing channels with no client response");
@@ -499,8 +501,8 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     void onServerException(@Nullable Throwable cause) {
         LOGGER.atWarn()
-                .addKeyValue("sessionId", kafkaSession.sessionId())
-                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                 .addKeyValue("error", cause != null ? cause.getMessage() : "")
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .log(LOGGER.isDebugEnabled()
@@ -527,8 +529,8 @@ public class ProxyChannelStateMachine {
                             + StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)
                             + ").";
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", kafkaSession.sessionId())
-                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                    .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                     .addKeyValue("maxFrameSizeBytes", e.getMaxFrameSizeBytes())
                     .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
                     .addKeyValue("hint", tlsHint)
@@ -537,8 +539,8 @@ public class ProxyChannelStateMachine {
         }
         else {
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", kafkaSession.sessionId())
-                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                    .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                     .addKeyValue("error", cause != null ? cause.getMessage() : "")
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                     .log(LOGGER.isDebugEnabled()
@@ -641,8 +643,8 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
         LOGGER.atDebug()
-                .addKeyValue("sessionId", kafkaSession.sessionId())
-                .addKeyValue("virtualCluster", clusterName())
+                .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
+                .addKeyValue(VIRTUAL_CLUSTER_KEY, clusterName())
                 .addKeyValue("remote", connecting.remote())
                 .addKeyValue("clientAddress", HostPort.asString(Objects.requireNonNull(this.frontendHandler).remoteHost(), this.frontendHandler.remotePort()))
                 .log("Upstream connection established for client");
@@ -753,7 +755,7 @@ public class ProxyChannelStateMachine {
 
     private void setState(ProxyChannelState state) {
         LOGGER.atTrace()
-                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue(SESSION_ID_KEY, kafkaSession.sessionId())
                 .addKeyValue("stateMachine", this)
                 .addKeyValue("targetState", state)
                 .log("Transitioning to state");
