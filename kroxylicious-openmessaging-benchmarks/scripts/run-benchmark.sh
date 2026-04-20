@@ -169,6 +169,12 @@ if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
     exit 1
 fi
 
+# Preflight: verify we can talk to the cluster
+if ! kubectl auth can-i get pods -n "${NAMESPACE}" &>/dev/null; then
+    echo "Error: not authenticated to cluster — check kubectl/oc login" >&2
+    exit 1
+fi
+
 METRICS_PID=""
 LOGS_PID=""
 
