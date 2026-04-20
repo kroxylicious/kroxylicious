@@ -86,18 +86,52 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
       - name: Preinstall prior to SonarCloud scan
         if: env.SONAR_TOKEN_SET == 'true'
-        run: mvn -B install -Pci -DskipITs=true -DskipTests
+        run: |
+          mvn --batch-mode \
+            --activate-profiles 'ci,!qa' \
+            -Derrorprone.skip=true \
+            -DskipITs=true \
+            -DskipTests \
+            install
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Proxy Runtime
         if: env.SONAR_TOKEN_SET == 'true'
-        run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Djapicmp.skip=true -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}  -pl ''!:kroxylicious-operator,!:kroxylicious-operator-dist''
+        run: |
+          mvn --batch-mode \
+            --activate-profiles 'ci,!qa' \
+            --projects ''!:kroxylicious-operator,!:kroxylicious-operator-dist'' \
+            -Derrorprone.skip=true \
+            -DskipITs=true \
+            -Djapicmp.skip=true \
+            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
+            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
+            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
+            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+            clean \
+            verify \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: SonarCloud scan on PR for the Operator
         if: env.SONAR_TOKEN_SET == 'true'
-        run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Djapicmp.skip=true  -Dsonar.projectName='Kroxylicious Operator' -Dsonar.projectKey='kroxylicious_operator' -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} -pl ':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist'
+        run: |
+          mvn --batch-mode \
+            --activate-profiles 'ci,!qa' \
+            --projects ':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist' \
+            -Derrorprone.skip=true \
+            -DskipITs=true \
+            -Djapicmp.skip=true \
+            -Dsonar.projectName='Kroxylicious Operator' \
+            -Dsonar.projectKey='kroxylicious_operator' \
+            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} \
+            -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} \
+            -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} \
+            -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }} \
+            clean \
+            verify \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
