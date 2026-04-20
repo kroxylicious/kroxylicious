@@ -27,6 +27,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
@@ -467,6 +468,7 @@ public class ProxyChannelStateMachine {
         if (state instanceof ProxyChannelState.Draining draining) {
             if (clientMessageInFlight <= 0) {
                 LOGGER.atInfo()
+                        .addKeyValue("sessionId", kafkaSession.sessionId())
                         .addKeyValue("virtualCluster", clusterName())
                         .addKeyValue("frontendChannel", frontendChannelAddress())
                         .addKeyValue("backendChannel", backendChannelAddress())
@@ -475,6 +477,7 @@ public class ProxyChannelStateMachine {
             }
             else {
                 LOGGER.atTrace()
+                        .addKeyValue("sessionId", kafkaSession.sessionId())
                         .addKeyValue("virtualCluster", clusterName())
                         .addKeyValue("frontendChannel", frontendChannelAddress())
                         .addKeyValue("backendChannel", backendChannelAddress())
@@ -519,17 +522,31 @@ public class ProxyChannelStateMachine {
     void onClientRequest(
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
-        // Increment client-side counter: request received from client
+        // Count every request received from the client. Increment unconditionally
+        // here (not only in the Forwarding branch) because pre-Forwarding requests are buffered
+        // by the frontend handler and later replayed via messageFromClient directly (bypassing
+        // onClientRequest) — so this is the single place where each client request is counted.
         if (msg instanceof RequestFrame) {
             clientMessageInFlight++;
         }
         if (state() instanceof Forwarding) {
             messageFromClient(msg);
         }
-        else if (state() instanceof ProxyChannelState.Draining) {
-            // In draining state — autoRead is disabled so this shouldn't happen,
-            // but guard defensively by releasing the message
-            io.netty.util.ReferenceCountUtil.release(msg);
+        else if (state() instanceof ProxyChannelState.Draining draining) {
+            // autoRead is disabled once we enter Draining, but Netty can still deliver frames
+            // that were already buffered/decoded before that took effect. Drop them — we've
+            // promised not to forward new client requests once draining. Since no response will
+            // arrive from the broker for a dropped message, we must compensate by decrementing
+            // the counter here, otherwise the drain-completion check (clientMessageInFlight <= 0)
+            // could never fire and the connection would hang until the drain timeout force-closes
+            // it. Then check if this drop just brought us to zero — if so, fire the drain policy.
+            ReferenceCountUtil.release(msg);
+            if (msg instanceof RequestFrame) {
+                clientMessageInFlight--;
+                if (clientMessageInFlight <= 0) {
+                    draining.onDrained().run();
+                }
+            }
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -606,6 +623,7 @@ public class ProxyChannelStateMachine {
     void onDraining(Runnable onDrained) {
         if (!(state instanceof Forwarding)) {
             LOGGER.atWarn()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
                     .log("Cannot start draining — not in Forwarding state");
@@ -618,6 +636,7 @@ public class ProxyChannelStateMachine {
 
         setState(new ProxyChannelState.Draining(onDrained));
         LOGGER.atInfo()
+                .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("frontendChannel", frontendChannelAddress())
                 .addKeyValue("backendChannel", backendChannelAddress())
@@ -627,6 +646,7 @@ public class ProxyChannelStateMachine {
 
         if (clientMessageInFlight <= 0) {
             LOGGER.atInfo()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("frontendChannel", frontendChannelAddress())
                     .addKeyValue("backendChannel", backendChannelAddress())
@@ -655,6 +675,7 @@ public class ProxyChannelStateMachine {
     void onDrainTimeout() {
         if (state instanceof ProxyChannelState.Draining) {
             LOGGER.atWarn()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("frontendChannel", frontendChannelAddress())
                     .addKeyValue("backendChannel", backendChannelAddress())
