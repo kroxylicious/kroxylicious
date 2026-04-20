@@ -72,16 +72,29 @@ mvn clean verify
 
 The running of the tests can be controlled with the following Maven properties:
 
-| property           | description                                                                               |
-|--------------------|-------------------------------------------------------------------------------------------|
-| `-DskipUTs=true`   | skip unit tests                                                                           |
-| `-DskipKTs=true`   | skip container image tests                                                                |
-| `-DskipITs=true`   | skip integration tests                                                                    |
-| `-DskipSTs=true`   | skip system tests                                                                         |
-| `-DskipDTs=true`   | skip documentation tests                                                                  |
-| `-DskipTests=true` | skip all tests                                                                            |
-| `-DfailOnWarnings` | fail on javac warnings (ignored if `-Dquick`, see below)                                  |
-| `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
+| property                  | description                                                                                                                                                                                                               |
+|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-DskipUTs=true`          | skip unit tests                                                                                                                                                                                                           |
+| `-DskipKTs=true`          | skip container image tests                                                                                                                                                                                                |
+| `-DskipITs=true`          | skip integration tests                                                                                                                                                                                                    |
+| `-DskipSTs=true`          | skip system tests                                                                                                                                                                                                         |
+| `-DskipDTs=true`          | skip documentation tests                                                                                                                                                                                                  |
+| `-DskipTests=true`        | skip all tests                                                                                                                                                                                                            |
+| `-DfailOnWarnings`        | fail on javac warnings (ignored if `-Dquick`, see below)                                                                                                                                                                  |
+| `-Derrorprone.skip=true`  | Disable ErrorProne static analysis. **Semantics:** Setting this property (even to `false`) disables the `errorprone-jdk-compatible` profile, which activates when the property is undefined (`<name>!errorprone.skip</name>`). To enable ErrorProne, omit this property entirely. |
+| `-Pdebug`                 | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to.                                                                                                                                 |
+
+The build behavior can be controlled with the following Maven profiles:
+
+| profile                    | description                                                                                                                                                                                           |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `-Pqa` (active by default) | Runs quality assurance checks: dependency analysis, code formatting, import sorting, license headers, checkstyle, spotbugs, japicmp API compatibility, and enforcer rules. Use `-P '!qa'` to disable. |
+| `-Pci`                     | CI-specific configuration: validates formatting instead of applying it, runs jacoco code coverage, switches license plugin to check mode instead of format mode.                                      |
+| `-Pdist`                   | Creates distribution artifacts including tarball, container images. Required for building deployable packages.                                                                                        |
+| `-Pquick`                  | Fast build mode: skips all tests, QA checks, javadoc, and documentation. Activates with `-Dquick`. Excludes integration/system test modules from reactor.                                             |
+| `-Psystemtest`             | Enables system test module and skips all other test types. Use with `-Pdist` to run Kubernetes-based system tests.                                                                                    |
+| `-P-withAdditionalFilters` | Excludes Kroxylicious-maintained filter implementations from the distribution. Only use with `-Pdist`.                                                                                                |
+| `errorprone-jdk-compatible` (auto-activated on JDK 17+) | Runs Error Prone static analysis during compilation to detect bug patterns. Adds ~15-30% to compilation time. Disable with `-Derrorprone.skip=true` for faster builds (see property table above for semantics). |
 
 The kafka environment used by the integrations tests can be _defaulted_ with these two environment variables.
 

@@ -109,3 +109,4 @@ docs/*.html
 .claude/settings.local.json
 .claude/agent-memory
 .op/
+.claude/projects/

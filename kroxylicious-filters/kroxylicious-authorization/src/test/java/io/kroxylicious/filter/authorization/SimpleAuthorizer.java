@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.authorizer.service.Action;
@@ -57,19 +56,18 @@ class SimpleAuthorizer implements Authorizer {
     }
 
     enum TargetResourceType {
-        TOPIC(TopicResource::valueOf),
-        TRANSACTIONAL_ID(TransactionalIdResource::valueOf),
-        CLUSTER(ClusterResource::valueOf),
-        GROUP(GroupResource::valueOf);
-
-        private final Function<String, ResourceType<?>> resourceTypeFunction;
-
-        TargetResourceType(Function<String, ResourceType<?>> resourceTypeFunction) {
-            this.resourceTypeFunction = resourceTypeFunction;
-        }
+        TOPIC,
+        TRANSACTIONAL_ID,
+        CLUSTER,
+        GROUP;
 
         public ResourceType<?> toResourceType(String resourceName) {
-            return resourceTypeFunction.apply(resourceName);
+            return switch (this) {
+                case TOPIC -> TopicResource.valueOf(resourceName);
+                case TRANSACTIONAL_ID -> TransactionalIdResource.valueOf(resourceName);
+                case CLUSTER -> ClusterResource.valueOf(resourceName);
+                case GROUP -> GroupResource.valueOf(resourceName);
+            };
         }
     }
 

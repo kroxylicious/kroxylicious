@@ -143,47 +143,62 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>com.github.siom79.japicmp</groupId>
-                <artifactId>japicmp-maven-plugin</artifactId>
-                <version>0.25.4</version>
-                <configuration>
-                    <oldVersion>
-                        <!-- specify the old version directly so its deterministic -->
-                        <dependency>
-                            <groupId>${project.groupId}</groupId>
-                            <artifactId>${project.artifactId}</artifactId>
-                            <version>${ApiCompatability.ReferenceVersion}</version>
-                            <type>jar</type>
-                        </dependency>
-                    </oldVersion>
-                    <parameter>
-                        <accessModifier>public</accessModifier>
-                        <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
-                        <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
-                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
-                        <excludes>
-                            <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
-                            <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter</exclude>
-                            <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter</exclude>
-                            <!-- The following methods become deprecated and are given a default implementation at 0.19.0 which throws UnsupportedOperationException -->
-                            <exclude>io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
-                            <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
-                            <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
-                            <exclude>io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String, java.lang.String)</exclude>
-                        </excludes>
-                        <!-- see documentation -->
-                    </parameter>
-                </configuration>
-                <executions>
-                    <execution>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>cmp</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>qa</id>
+            <activation>
+                <property>
+                    <name>!quick</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>0.25.5</version>
+                        <configuration>
+                            <oldVersion>
+                                <!-- specify the old version directly so its deterministic -->
+                                <dependency>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${ApiCompatability.ReferenceVersion}</version>
+                                    <type>jar</type>
+                                </dependency>
+                            </oldVersion>
+                            <parameter>
+                                <accessModifier>public</accessModifier>
+                                <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
+                                <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                                <excludes>
+                                    <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
+                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter</exclude>
+                                    <!-- The following methods become deprecated and are given a default implementation at 0.19.0 which throws UnsupportedOperationException -->
+                                    <exclude>io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                                    <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
+                                    <exclude>io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String, java.lang.String)</exclude>
+                                </excludes>
+                                <!-- see documentation -->
+                            </parameter>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>cmp</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

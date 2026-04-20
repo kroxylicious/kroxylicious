@@ -260,110 +260,63 @@ public class KafkaProxyExceptionMapper {
      * which creates and response with error codes set appropriately.
      */
     private static AbstractRequest errorResponse(ApiKeys apiKey, ApiMessage reqBody, short apiVersion) {
-        final AbstractRequest req;
-        switch (apiKey) {
-            case SASL_HANDSHAKE:
-                req = new SaslHandshakeRequest((SaslHandshakeRequestData) reqBody, apiVersion);
-                break;
-            case SASL_AUTHENTICATE:
-                req = new SaslAuthenticateRequest((SaslAuthenticateRequestData) reqBody, apiVersion);
-                break;
-            case PRODUCE:
-                req = new ProduceRequest((ProduceRequestData) reqBody, apiVersion);
-                break;
-            case FETCH:
-                req = new FetchRequest((FetchRequestData) reqBody, apiVersion);
-                break;
-            case LIST_OFFSETS:
+        return switch (apiKey) {
+            case SASL_HANDSHAKE -> new SaslHandshakeRequest((SaslHandshakeRequestData) reqBody, apiVersion);
+            case SASL_AUTHENTICATE -> new SaslAuthenticateRequest((SaslAuthenticateRequestData) reqBody, apiVersion);
+            case PRODUCE -> new ProduceRequest((ProduceRequestData) reqBody, apiVersion);
+            case FETCH -> new FetchRequest((FetchRequestData) reqBody, apiVersion);
+            case LIST_OFFSETS -> {
                 ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) reqBody;
                 if (listOffsetsRequestData.replicaId() == ListOffsetsRequest.CONSUMER_REPLICA_ID) {
-                    req = ListOffsetsRequest.Builder.forConsumer(true,
+                    yield ListOffsetsRequest.Builder.forConsumer(true,
                             IsolationLevel.forId(listOffsetsRequestData.isolationLevel()))
                             .setTargetTimes(listOffsetsRequestData.topics())
                             .build(apiVersion);
                 }
                 else {
-                    req = ListOffsetsRequest.Builder.forReplica(apiVersion, listOffsetsRequestData.replicaId())
+                    yield ListOffsetsRequest.Builder.forReplica(apiVersion, listOffsetsRequestData.replicaId())
                             .setTargetTimes(listOffsetsRequestData.topics())
                             .build(apiVersion);
                 }
-                break;
-            case METADATA:
-                req = new MetadataRequest((MetadataRequestData) reqBody, apiVersion);
-                break;
-            case OFFSET_COMMIT:
-                req = new OffsetCommitRequest((OffsetCommitRequestData) reqBody, apiVersion);
-                break;
-            case OFFSET_FETCH:
+            }
+            case METADATA -> new MetadataRequest((MetadataRequestData) reqBody, apiVersion);
+            case OFFSET_COMMIT -> new OffsetCommitRequest((OffsetCommitRequestData) reqBody, apiVersion);
+            case OFFSET_FETCH -> {
                 OffsetFetchRequestData offsetFetchRequestData = (OffsetFetchRequestData) reqBody;
-                req = OffsetFetchRequest.Builder.forTopicIdsOrNames(offsetFetchRequestData, false).build(apiVersion);
-                break;
-            case FIND_COORDINATOR:
-                req = new FindCoordinatorRequest.Builder((FindCoordinatorRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case JOIN_GROUP:
-                req = new JoinGroupRequest((JoinGroupRequestData) reqBody, apiVersion);
-                break;
-            case HEARTBEAT:
-                req = new HeartbeatRequest.Builder((HeartbeatRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case LEAVE_GROUP:
+                yield OffsetFetchRequest.Builder.forTopicIdsOrNames(offsetFetchRequestData, false).build(apiVersion);
+            }
+            case FIND_COORDINATOR -> new FindCoordinatorRequest.Builder((FindCoordinatorRequestData) reqBody)
+                    .build(apiVersion);
+            case JOIN_GROUP -> new JoinGroupRequest((JoinGroupRequestData) reqBody, apiVersion);
+            case HEARTBEAT -> new HeartbeatRequest.Builder((HeartbeatRequestData) reqBody)
+                    .build(apiVersion);
+            case LEAVE_GROUP -> {
                 LeaveGroupRequest.Builder builder = toLeaveGroupBuilder((LeaveGroupRequestData) reqBody);
-                req = builder.build(apiVersion);
-                break;
-            case SYNC_GROUP:
-                req = new SyncGroupRequest((SyncGroupRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_GROUPS:
-                req = new DescribeGroupsRequest.Builder((DescribeGroupsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case LIST_GROUPS:
-                req = new ListGroupsRequest((ListGroupsRequestData) reqBody, apiVersion);
-                break;
-            case API_VERSIONS:
-                req = new ApiVersionsRequest((ApiVersionsRequestData) reqBody, apiVersion);
-                break;
-            case CREATE_TOPICS:
-                req = new CreateTopicsRequest((CreateTopicsRequestData) reqBody, apiVersion);
-                break;
-            case DELETE_TOPICS:
-                req = new DeleteTopicsRequest.Builder((DeleteTopicsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case DELETE_RECORDS:
-                req = new DeleteRecordsRequest.Builder((DeleteRecordsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case INIT_PRODUCER_ID:
-                req = new InitProducerIdRequest.Builder((InitProducerIdRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case OFFSET_FOR_LEADER_EPOCH:
-                req = new OffsetsForLeaderEpochRequest((OffsetForLeaderEpochRequestData) reqBody, apiVersion);
-                break;
-            case ADD_PARTITIONS_TO_TXN:
-                req = new AddPartitionsToTxnRequest((AddPartitionsToTxnRequestData) reqBody, apiVersion);
-                break;
-            case ADD_OFFSETS_TO_TXN:
-                req = new AddOffsetsToTxnRequest((AddOffsetsToTxnRequestData) reqBody, apiVersion);
-                break;
-            case END_TXN:
-                req = new EndTxnRequest.Builder((EndTxnRequestData) reqBody, apiVersion > EndTxnRequest.LAST_STABLE_VERSION_BEFORE_TRANSACTION_V2)
-                        .build(apiVersion);
-                break;
-            case WRITE_TXN_MARKERS:
-                req = new WriteTxnMarkersRequest.Builder((WriteTxnMarkersRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case TXN_OFFSET_COMMIT:
-                req = new TxnOffsetCommitRequest((TxnOffsetCommitRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_ACLS:
+                yield builder.build(apiVersion);
+            }
+            case SYNC_GROUP -> new SyncGroupRequest((SyncGroupRequestData) reqBody, apiVersion);
+            case DESCRIBE_GROUPS -> new DescribeGroupsRequest.Builder((DescribeGroupsRequestData) reqBody)
+                    .build(apiVersion);
+            case LIST_GROUPS -> new ListGroupsRequest((ListGroupsRequestData) reqBody, apiVersion);
+            case API_VERSIONS -> new ApiVersionsRequest((ApiVersionsRequestData) reqBody, apiVersion);
+            case CREATE_TOPICS -> new CreateTopicsRequest((CreateTopicsRequestData) reqBody, apiVersion);
+            case DELETE_TOPICS -> new DeleteTopicsRequest.Builder((DeleteTopicsRequestData) reqBody)
+                    .build(apiVersion);
+            case DELETE_RECORDS -> new DeleteRecordsRequest.Builder((DeleteRecordsRequestData) reqBody)
+                    .build(apiVersion);
+            case INIT_PRODUCER_ID -> new InitProducerIdRequest.Builder((InitProducerIdRequestData) reqBody)
+                    .build(apiVersion);
+            case OFFSET_FOR_LEADER_EPOCH -> new OffsetsForLeaderEpochRequest((OffsetForLeaderEpochRequestData) reqBody, apiVersion);
+            case ADD_PARTITIONS_TO_TXN -> new AddPartitionsToTxnRequest((AddPartitionsToTxnRequestData) reqBody, apiVersion);
+            case ADD_OFFSETS_TO_TXN -> new AddOffsetsToTxnRequest((AddOffsetsToTxnRequestData) reqBody, apiVersion);
+            case END_TXN -> new EndTxnRequest.Builder((EndTxnRequestData) reqBody, apiVersion > EndTxnRequest.LAST_STABLE_VERSION_BEFORE_TRANSACTION_V2)
+                    .build(apiVersion);
+            case WRITE_TXN_MARKERS -> new WriteTxnMarkersRequest.Builder((WriteTxnMarkersRequestData) reqBody)
+                    .build(apiVersion);
+            case TXN_OFFSET_COMMIT -> new TxnOffsetCommitRequest((TxnOffsetCommitRequestData) reqBody, apiVersion);
+            case DESCRIBE_ACLS -> {
                 DescribeAclsRequestData d = (DescribeAclsRequestData) reqBody;
-                req = new DescribeAclsRequest.Builder(new AclBindingFilter(
+                yield new DescribeAclsRequest.Builder(new AclBindingFilter(
                         new ResourcePatternFilter(
                                 ResourceType.fromCode(d.resourceTypeFilter()),
                                 d.resourceNameFilter(),
@@ -374,54 +327,32 @@ public class KafkaProxyExceptionMapper {
                                 AclOperation.fromCode(d.operation()),
                                 AclPermissionType.fromCode(d.permissionType()))))
                         .build(apiVersion);
-                break;
-            case CREATE_ACLS:
-                req = new CreateAclsRequest.Builder((CreateAclsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case DELETE_ACLS:
-                req = new DeleteAclsRequest.Builder((DeleteAclsRequestData) reqBody).build(apiVersion);
-                break;
-            case DESCRIBE_CONFIGS:
-                req = new DescribeConfigsRequest((DescribeConfigsRequestData) reqBody, apiVersion);
-                break;
-            case ALTER_CONFIGS:
-                req = new AlterConfigsRequest((AlterConfigsRequestData) reqBody, apiVersion);
-                break;
-            case ALTER_REPLICA_LOG_DIRS:
-                req = new AlterReplicaLogDirsRequest((AlterReplicaLogDirsRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_LOG_DIRS:
-                req = new DescribeLogDirsRequest((DescribeLogDirsRequestData) reqBody, apiVersion);
-                break;
-            case CREATE_PARTITIONS:
-                req = new CreatePartitionsRequest.Builder((CreatePartitionsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case CREATE_DELEGATION_TOKEN:
-                req = new CreateDelegationTokenRequest.Builder((CreateDelegationTokenRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case RENEW_DELEGATION_TOKEN:
-                req = new RenewDelegationTokenRequest.Builder((RenewDelegationTokenRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case EXPIRE_DELEGATION_TOKEN:
-                req = new ExpireDelegationTokenRequest.Builder((ExpireDelegationTokenRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case DESCRIBE_DELEGATION_TOKEN:
+            }
+            case CREATE_ACLS -> new CreateAclsRequest.Builder((CreateAclsRequestData) reqBody)
+                    .build(apiVersion);
+            case DELETE_ACLS -> new DeleteAclsRequest.Builder((DeleteAclsRequestData) reqBody).build(apiVersion);
+            case DESCRIBE_CONFIGS -> new DescribeConfigsRequest((DescribeConfigsRequestData) reqBody, apiVersion);
+            case ALTER_CONFIGS -> new AlterConfigsRequest((AlterConfigsRequestData) reqBody, apiVersion);
+            case ALTER_REPLICA_LOG_DIRS -> new AlterReplicaLogDirsRequest((AlterReplicaLogDirsRequestData) reqBody, apiVersion);
+            case DESCRIBE_LOG_DIRS -> new DescribeLogDirsRequest((DescribeLogDirsRequestData) reqBody, apiVersion);
+            case CREATE_PARTITIONS -> new CreatePartitionsRequest.Builder((CreatePartitionsRequestData) reqBody)
+                    .build(apiVersion);
+            case CREATE_DELEGATION_TOKEN -> new CreateDelegationTokenRequest.Builder((CreateDelegationTokenRequestData) reqBody)
+                    .build(apiVersion);
+            case RENEW_DELEGATION_TOKEN -> new RenewDelegationTokenRequest.Builder((RenewDelegationTokenRequestData) reqBody)
+                    .build(apiVersion);
+            case EXPIRE_DELEGATION_TOKEN -> new ExpireDelegationTokenRequest.Builder((ExpireDelegationTokenRequestData) reqBody)
+                    .build(apiVersion);
+            case DESCRIBE_DELEGATION_TOKEN -> {
                 DescribeDelegationTokenRequestData tokenRequestData = (DescribeDelegationTokenRequestData) reqBody;
-                req = new DescribeDelegationTokenRequest.Builder(
+                yield new DescribeDelegationTokenRequest.Builder(
                         tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).toList())
                         .build(apiVersion);
-                break;
-            case DELETE_GROUPS:
-                req = new DeleteGroupsRequest((DeleteGroupsRequestData) reqBody, apiVersion);
-                break;
-            case ELECT_LEADERS:
+            }
+            case DELETE_GROUPS -> new DeleteGroupsRequest((DeleteGroupsRequestData) reqBody, apiVersion);
+            case ELECT_LEADERS -> {
                 ElectLeadersRequestData electLeaders = (ElectLeadersRequestData) reqBody;
-                req = new ElectLeadersRequest.Builder(
+                yield new ElectLeadersRequest.Builder(
                         ElectionType.valueOf(electLeaders.electionType()),
                         electLeaders.topicPartitions().stream().flatMap(
                                 t -> t.partitions().stream().map(
@@ -429,169 +360,68 @@ public class KafkaProxyExceptionMapper {
                                 .toList(),
                         electLeaders.timeoutMs())
                         .build(apiVersion);
-                break;
-            case INCREMENTAL_ALTER_CONFIGS:
-                req = new IncrementalAlterConfigsRequest((IncrementalAlterConfigsRequestData) reqBody, apiVersion);
-                break;
-            case ALTER_PARTITION_REASSIGNMENTS:
-                req = new AlterPartitionReassignmentsRequest.Builder((AlterPartitionReassignmentsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case LIST_PARTITION_REASSIGNMENTS:
-                req = new ListPartitionReassignmentsRequest.Builder((ListPartitionReassignmentsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case OFFSET_DELETE:
-                req = new OffsetDeleteRequest((OffsetDeleteRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_CLIENT_QUOTAS:
-                req = new DescribeClientQuotasRequest((DescribeClientQuotasRequestData) reqBody, apiVersion);
-                break;
-            case ALTER_CLIENT_QUOTAS:
-                req = new AlterClientQuotasRequest((AlterClientQuotasRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_USER_SCRAM_CREDENTIALS:
-                req = new DescribeUserScramCredentialsRequest.Builder((DescribeUserScramCredentialsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case ALTER_USER_SCRAM_CREDENTIALS:
-                req = new AlterUserScramCredentialsRequest.Builder((AlterUserScramCredentialsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case DESCRIBE_QUORUM:
-                req = new DescribeQuorumRequest.Builder((DescribeQuorumRequestData) reqBody).build(apiVersion);
-                break;
-            case ALTER_PARTITION:
-                req = new AlterPartitionRequest((AlterPartitionRequestData) reqBody, apiVersion);
-                break;
-            case UPDATE_FEATURES:
-                req = new UpdateFeaturesRequest((UpdateFeaturesRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_CLUSTER:
-                req = new DescribeClusterRequest((DescribeClusterRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_PRODUCERS:
-                req = new DescribeProducersRequest.Builder((DescribeProducersRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case DESCRIBE_TRANSACTIONS:
-                req = new DescribeTransactionsRequest.Builder((DescribeTransactionsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case LIST_TRANSACTIONS:
-                req = new ListTransactionsRequest.Builder((ListTransactionsRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case ALLOCATE_PRODUCER_IDS:
-                req = new AllocateProducerIdsRequest((AllocateProducerIdsRequestData) reqBody, apiVersion);
-                break;
-            case VOTE:
-                req = new VoteRequest.Builder((VoteRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case BEGIN_QUORUM_EPOCH:
-                req = new BeginQuorumEpochRequest.Builder((BeginQuorumEpochRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case END_QUORUM_EPOCH:
-                req = new EndQuorumEpochRequest.Builder((EndQuorumEpochRequestData) reqBody)
-                        .build(apiVersion);
-                break;
-            case ENVELOPE:
-                req = new EnvelopeRequest((EnvelopeRequestData) reqBody, apiVersion);
-                break;
-            case FETCH_SNAPSHOT:
-                req = new FetchSnapshotRequest((FetchSnapshotRequestData) reqBody, apiVersion);
-                break;
-            case BROKER_REGISTRATION:
-                req = new BrokerRegistrationRequest((BrokerRegistrationRequestData) reqBody, apiVersion);
-                break;
-            case BROKER_HEARTBEAT:
-                req = new BrokerHeartbeatRequest((BrokerHeartbeatRequestData) reqBody, apiVersion);
-                break;
-            case UNREGISTER_BROKER:
-                req = new UnregisterBrokerRequest((UnregisterBrokerRequestData) reqBody, apiVersion);
-                break;
-            case CONSUMER_GROUP_HEARTBEAT:
-                req = new ConsumerGroupHeartbeatRequest((ConsumerGroupHeartbeatRequestData) reqBody, apiVersion);
-                break;
-            case CONSUMER_GROUP_DESCRIBE:
-                req = new ConsumerGroupDescribeRequest((ConsumerGroupDescribeRequestData) reqBody, apiVersion);
-                break;
-            case CONTROLLER_REGISTRATION:
-                req = new ControllerRegistrationRequest((ControllerRegistrationRequestData) reqBody, apiVersion);
-                break;
-            case GET_TELEMETRY_SUBSCRIPTIONS:
-                req = new GetTelemetrySubscriptionsRequest((GetTelemetrySubscriptionsRequestData) reqBody, apiVersion);
-                break;
-            case PUSH_TELEMETRY:
-                req = new PushTelemetryRequest((PushTelemetryRequestData) reqBody, apiVersion);
-                break;
-            case ASSIGN_REPLICAS_TO_DIRS:
-                req = new AssignReplicasToDirsRequest((AssignReplicasToDirsRequestData) reqBody, apiVersion);
-                break;
-            case LIST_CONFIG_RESOURCES:
-                req = new ListConfigResourcesRequest.Builder((ListConfigResourcesRequestData) reqBody).build(apiVersion);
-                break;
-            case DESCRIBE_TOPIC_PARTITIONS:
-                req = new DescribeTopicPartitionsRequest((DescribeTopicPartitionsRequestData) reqBody, apiVersion);
-                break;
-            case ADD_RAFT_VOTER:
-                req = new AddRaftVoterRequest((AddRaftVoterRequestData) reqBody, apiVersion);
-                break;
-            case REMOVE_RAFT_VOTER:
-                req = new RemoveRaftVoterRequest((RemoveRaftVoterRequestData) reqBody, apiVersion);
-                break;
-            case UPDATE_RAFT_VOTER:
-                req = new UpdateRaftVoterRequest((UpdateRaftVoterRequestData) reqBody, apiVersion);
-                break;
-            case SHARE_GROUP_HEARTBEAT:
-                req = new ShareGroupHeartbeatRequest((ShareGroupHeartbeatRequestData) reqBody, apiVersion);
-                break;
-            case SHARE_GROUP_DESCRIBE:
-                req = new ShareGroupDescribeRequest((ShareGroupDescribeRequestData) reqBody, apiVersion);
-
-                break;
-            case SHARE_FETCH:
-                req = new ShareFetchRequest((ShareFetchRequestData) reqBody, apiVersion);
-                break;
-            case SHARE_ACKNOWLEDGE:
-                req = new ShareAcknowledgeRequest((ShareAcknowledgeRequestData) reqBody, apiVersion);
-                break;
-            case INITIALIZE_SHARE_GROUP_STATE:
-                req = new InitializeShareGroupStateRequest((InitializeShareGroupStateRequestData) reqBody, apiVersion);
-                break;
-            case READ_SHARE_GROUP_STATE:
-                req = new ReadShareGroupStateRequest((ReadShareGroupStateRequestData) reqBody, apiVersion);
-                break;
-            case WRITE_SHARE_GROUP_STATE:
-                req = new WriteShareGroupStateRequest((WriteShareGroupStateRequestData) reqBody, apiVersion);
-                break;
-            case DELETE_SHARE_GROUP_STATE:
-                req = new DeleteShareGroupStateRequest((DeleteShareGroupStateRequestData) reqBody, apiVersion);
-                break;
-            case READ_SHARE_GROUP_STATE_SUMMARY:
-                req = new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) reqBody, apiVersion);
-                break;
-            case STREAMS_GROUP_HEARTBEAT:
-                req = new StreamsGroupHeartbeatRequest((StreamsGroupHeartbeatRequestData) reqBody, apiVersion);
-                break;
-            case STREAMS_GROUP_DESCRIBE:
-                req = new StreamsGroupDescribeRequest((StreamsGroupDescribeRequestData) reqBody, apiVersion);
-                break;
-            case DESCRIBE_SHARE_GROUP_OFFSETS:
-                req = new DescribeShareGroupOffsetsRequest((DescribeShareGroupOffsetsRequestData) reqBody, apiVersion);
-                break;
-            case ALTER_SHARE_GROUP_OFFSETS:
-                req = new AlterShareGroupOffsetsRequest.Builder((AlterShareGroupOffsetsRequestData) reqBody).build(apiVersion);
-                break;
-            case DELETE_SHARE_GROUP_OFFSETS:
-                req = new DeleteShareGroupOffsetsRequest((DeleteShareGroupOffsetsRequestData) reqBody, apiVersion);
-                break;
-            default:
-                throw new IllegalStateException("Unable to generate error for APIKey: " + apiKey);
-        }
-        return req;
+            }
+            case INCREMENTAL_ALTER_CONFIGS -> new IncrementalAlterConfigsRequest((IncrementalAlterConfigsRequestData) reqBody, apiVersion);
+            case ALTER_PARTITION_REASSIGNMENTS -> new AlterPartitionReassignmentsRequest.Builder((AlterPartitionReassignmentsRequestData) reqBody)
+                    .build(apiVersion);
+            case LIST_PARTITION_REASSIGNMENTS -> new ListPartitionReassignmentsRequest.Builder((ListPartitionReassignmentsRequestData) reqBody)
+                    .build(apiVersion);
+            case OFFSET_DELETE -> new OffsetDeleteRequest((OffsetDeleteRequestData) reqBody, apiVersion);
+            case DESCRIBE_CLIENT_QUOTAS -> new DescribeClientQuotasRequest((DescribeClientQuotasRequestData) reqBody, apiVersion);
+            case ALTER_CLIENT_QUOTAS -> new AlterClientQuotasRequest((AlterClientQuotasRequestData) reqBody, apiVersion);
+            case DESCRIBE_USER_SCRAM_CREDENTIALS -> new DescribeUserScramCredentialsRequest.Builder((DescribeUserScramCredentialsRequestData) reqBody)
+                    .build(apiVersion);
+            case ALTER_USER_SCRAM_CREDENTIALS -> new AlterUserScramCredentialsRequest.Builder((AlterUserScramCredentialsRequestData) reqBody)
+                    .build(apiVersion);
+            case DESCRIBE_QUORUM -> new DescribeQuorumRequest.Builder((DescribeQuorumRequestData) reqBody).build(apiVersion);
+            case ALTER_PARTITION -> new AlterPartitionRequest((AlterPartitionRequestData) reqBody, apiVersion);
+            case UPDATE_FEATURES -> new UpdateFeaturesRequest((UpdateFeaturesRequestData) reqBody, apiVersion);
+            case DESCRIBE_CLUSTER -> new DescribeClusterRequest((DescribeClusterRequestData) reqBody, apiVersion);
+            case DESCRIBE_PRODUCERS -> new DescribeProducersRequest.Builder((DescribeProducersRequestData) reqBody)
+                    .build(apiVersion);
+            case DESCRIBE_TRANSACTIONS -> new DescribeTransactionsRequest.Builder((DescribeTransactionsRequestData) reqBody)
+                    .build(apiVersion);
+            case LIST_TRANSACTIONS -> new ListTransactionsRequest.Builder((ListTransactionsRequestData) reqBody)
+                    .build(apiVersion);
+            case ALLOCATE_PRODUCER_IDS -> new AllocateProducerIdsRequest((AllocateProducerIdsRequestData) reqBody, apiVersion);
+            case VOTE -> new VoteRequest.Builder((VoteRequestData) reqBody)
+                    .build(apiVersion);
+            case BEGIN_QUORUM_EPOCH -> new BeginQuorumEpochRequest.Builder((BeginQuorumEpochRequestData) reqBody)
+                    .build(apiVersion);
+            case END_QUORUM_EPOCH -> new EndQuorumEpochRequest.Builder((EndQuorumEpochRequestData) reqBody)
+                    .build(apiVersion);
+            case ENVELOPE -> new EnvelopeRequest((EnvelopeRequestData) reqBody, apiVersion);
+            case FETCH_SNAPSHOT -> new FetchSnapshotRequest((FetchSnapshotRequestData) reqBody, apiVersion);
+            case BROKER_REGISTRATION -> new BrokerRegistrationRequest((BrokerRegistrationRequestData) reqBody, apiVersion);
+            case BROKER_HEARTBEAT -> new BrokerHeartbeatRequest((BrokerHeartbeatRequestData) reqBody, apiVersion);
+            case UNREGISTER_BROKER -> new UnregisterBrokerRequest((UnregisterBrokerRequestData) reqBody, apiVersion);
+            case CONSUMER_GROUP_HEARTBEAT -> new ConsumerGroupHeartbeatRequest((ConsumerGroupHeartbeatRequestData) reqBody, apiVersion);
+            case CONSUMER_GROUP_DESCRIBE -> new ConsumerGroupDescribeRequest((ConsumerGroupDescribeRequestData) reqBody, apiVersion);
+            case CONTROLLER_REGISTRATION -> new ControllerRegistrationRequest((ControllerRegistrationRequestData) reqBody, apiVersion);
+            case GET_TELEMETRY_SUBSCRIPTIONS -> new GetTelemetrySubscriptionsRequest((GetTelemetrySubscriptionsRequestData) reqBody, apiVersion);
+            case PUSH_TELEMETRY -> new PushTelemetryRequest((PushTelemetryRequestData) reqBody, apiVersion);
+            case ASSIGN_REPLICAS_TO_DIRS -> new AssignReplicasToDirsRequest((AssignReplicasToDirsRequestData) reqBody, apiVersion);
+            case LIST_CONFIG_RESOURCES -> new ListConfigResourcesRequest.Builder((ListConfigResourcesRequestData) reqBody).build(apiVersion);
+            case DESCRIBE_TOPIC_PARTITIONS -> new DescribeTopicPartitionsRequest((DescribeTopicPartitionsRequestData) reqBody, apiVersion);
+            case ADD_RAFT_VOTER -> new AddRaftVoterRequest((AddRaftVoterRequestData) reqBody, apiVersion);
+            case REMOVE_RAFT_VOTER -> new RemoveRaftVoterRequest((RemoveRaftVoterRequestData) reqBody, apiVersion);
+            case UPDATE_RAFT_VOTER -> new UpdateRaftVoterRequest((UpdateRaftVoterRequestData) reqBody, apiVersion);
+            case SHARE_GROUP_HEARTBEAT -> new ShareGroupHeartbeatRequest((ShareGroupHeartbeatRequestData) reqBody, apiVersion);
+            case SHARE_GROUP_DESCRIBE -> new ShareGroupDescribeRequest((ShareGroupDescribeRequestData) reqBody, apiVersion);
+            case SHARE_FETCH -> new ShareFetchRequest((ShareFetchRequestData) reqBody, apiVersion);
+            case SHARE_ACKNOWLEDGE -> new ShareAcknowledgeRequest((ShareAcknowledgeRequestData) reqBody, apiVersion);
+            case INITIALIZE_SHARE_GROUP_STATE -> new InitializeShareGroupStateRequest((InitializeShareGroupStateRequestData) reqBody, apiVersion);
+            case READ_SHARE_GROUP_STATE -> new ReadShareGroupStateRequest((ReadShareGroupStateRequestData) reqBody, apiVersion);
+            case WRITE_SHARE_GROUP_STATE -> new WriteShareGroupStateRequest((WriteShareGroupStateRequestData) reqBody, apiVersion);
+            case DELETE_SHARE_GROUP_STATE -> new DeleteShareGroupStateRequest((DeleteShareGroupStateRequestData) reqBody, apiVersion);
+            case READ_SHARE_GROUP_STATE_SUMMARY -> new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) reqBody, apiVersion);
+            case STREAMS_GROUP_HEARTBEAT -> new StreamsGroupHeartbeatRequest((StreamsGroupHeartbeatRequestData) reqBody, apiVersion);
+            case STREAMS_GROUP_DESCRIBE -> new StreamsGroupDescribeRequest((StreamsGroupDescribeRequestData) reqBody, apiVersion);
+            case DESCRIBE_SHARE_GROUP_OFFSETS -> new DescribeShareGroupOffsetsRequest((DescribeShareGroupOffsetsRequestData) reqBody, apiVersion);
+            case ALTER_SHARE_GROUP_OFFSETS -> new AlterShareGroupOffsetsRequest.Builder((AlterShareGroupOffsetsRequestData) reqBody).build(apiVersion);
+            case DELETE_SHARE_GROUP_OFFSETS -> new DeleteShareGroupOffsetsRequest((DeleteShareGroupOffsetsRequestData) reqBody, apiVersion);
+            default -> throw new IllegalStateException("Unable to generate error for APIKey: " + apiKey);
+        };
     }
 
     private static LeaveGroupRequest.Builder toLeaveGroupBuilder(LeaveGroupRequestData reqBody) {

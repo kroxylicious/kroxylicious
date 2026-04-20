@@ -211,7 +211,7 @@ print_summary() {
     while IFS= read -r rate; do
         rates+=("${rate}")
     done < <(find "${ref_dir}" -maxdepth 1 -name 'rate-*' -type d 2>/dev/null \
-        | xargs -n1 basename | sed 's/^rate-//' | sort -n)
+        | xargs -r -n1 basename | sed 's/^rate-//' | sort -n)
 
     if [[ ${#rates[@]} -eq 0 ]]; then
         echo "No results found in ${ref_dir} — cannot produce summary" >&2

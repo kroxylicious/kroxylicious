@@ -732,15 +732,9 @@ public class ProxyChannelStateMachine {
         // Increment disconnect counter based on cause (if not an error)
         if (disconnectCause != null) {
             switch (disconnectCause) {
-                case IDLE_TIMEOUT:
-                    clientToProxyDisconnectsIdleCounter.increment();
-                    break;
-                case CLIENT_CLOSED:
-                    clientToProxyDisconnectsClientClosedCounter.increment();
-                    break;
-                case SERVER_CLOSED:
-                    clientToProxyDisconnectsServerClosedCounter.increment();
-                    break;
+                case IDLE_TIMEOUT -> clientToProxyDisconnectsIdleCounter.increment();
+                case CLIENT_CLOSED -> clientToProxyDisconnectsClientClosedCounter.increment();
+                case SERVER_CLOSED -> clientToProxyDisconnectsServerClosedCounter.increment();
             }
         }
     }
