@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.filters;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.record.CompressionType;
@@ -135,6 +136,7 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     private void deployPortIdentifiesNodeWithRecordEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME + "-" + testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase(Locale.ROOT);
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
@@ -142,10 +144,11 @@ class RecordEncryptionST extends AbstractSystemTests {
                         .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .addKafkaProtocolFilter(
-                        KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(Constants.KROXYLICIOUS_NAMESPACE, testKmsFacade, experimentalKmsConfig).build())
+                        KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(Constants.KROXYLICIOUS_NAMESPACE,
+                                filterName, testKmsFacade, experimentalKmsConfig).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
-                        List.of(Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)).build())
+                        List.of(filterName)).build())
                 .build();
         kroxylicious.createOrUpdateResources();
     }

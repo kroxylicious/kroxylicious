@@ -89,11 +89,11 @@ public final class KroxyliciousFilterTemplates {
      * @param experimentalKmsConfig the experimental kms config
      * @return the kafka protocol filter builder
      */
-    public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
+    public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, String filterName, TestKmsFacade<?, ?, ?> testKmsFacade,
                                                                                 ExperimentalKmsConfig experimentalKmsConfig) {
         DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.KEYSTORE_SECRET_NAME);
         DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.TRUSTSTORE_SECRET_NAME);
-        return baseFilterDeployment(namespaceName, Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)
+        return baseFilterDeployment(namespaceName, filterName)
                 .withNewSpec()
                 .withType(RecordEncryption.class.getTypeName())
                 .withConfigTemplate(getRecordEncryptionConfigMap(testKmsFacade, experimentalKmsConfig))
