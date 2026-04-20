@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -201,10 +200,6 @@ public class ProxyChannelStateMachine {
     private int serverMessageInFlight;
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
     private int clientMessageInFlight;
-    @Nullable
-    private ScheduledFuture<?> drainTimeoutFuture;
-    @Nullable
-    private CompletableFuture<Void> drainFuture;
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder,
@@ -292,15 +287,34 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Returns the downstream client channel, or null if the frontend handler is not yet active.
+     * Dispatch a task onto this PCSM's event loop. External callers (e.g. {@code DrainCoordinator})
+     * use this to invoke {@code on*()} methods from outside the event loop thread — the PCSM owns
+     * the dispatch mechanism rather than handing out its backing channel.
+     * @throws IllegalStateException if the PCSM has no frontend channel attached yet
      */
-    @Nullable
-    Channel frontendChannel() {
-        return frontendHandler != null ? frontendHandler.clientChannel() : null;
+    void executeOnEventLoop(Runnable task) {
+        requireFrontendChannel().eventLoop().execute(task);
+    }
+
+    /**
+     * Schedule a delayed task onto this PCSM's event loop. Returns the scheduled-future handle
+     * so callers can cancel it. Used by external timers (e.g. drain timeout).
+     * @throws IllegalStateException if the PCSM has no frontend channel attached yet
+     */
+    ScheduledFuture<?> scheduleOnEventLoop(Runnable task, Duration delay) {
+        return requireFrontendChannel().eventLoop().schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    private Channel requireFrontendChannel() {
+        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
+        if (ch == null) {
+            throw new IllegalStateException("PCSM has no frontend channel attached — dispatch not possible in state " + state.getClass().getSimpleName());
+        }
+        return ch;
     }
 
     private String frontendChannelAddress() {
-        Channel ch = frontendChannel();
+        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
         if (ch == null) {
             return "unknown";
         }
@@ -450,15 +464,14 @@ public class ProxyChannelStateMachine {
         // Decrement client-side counter: response delivered to client
         clientMessageInFlight = Math.max(0, clientMessageInFlight - 1);
 
-        // If draining, check whether all client-side responses have been delivered
-        if (state instanceof ProxyChannelState.Draining) {
+        if (state instanceof ProxyChannelState.Draining draining) {
             if (clientMessageInFlight <= 0) {
                 LOGGER.atInfo()
                         .addKeyValue("virtualCluster", clusterName())
                         .addKeyValue("frontendChannel", frontendChannelAddress())
                         .addKeyValue("backendChannel", backendChannelAddress())
-                        .log("All in-flight requests drained — closing connection gracefully");
-                toClosed(null, DisconnectCause.DRAIN_COMPLETED);
+                        .log("All in-flight requests drained — signalling drain policy");
+                draining.onDrained().run();
             }
             else {
                 LOGGER.atTrace()
@@ -575,66 +588,79 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Initiates graceful connection draining. Disables autoRead on the downstream channel,
-     * transitions to the {@link ProxyChannelState.Draining} state, and schedules a force-close
-     * after the timeout. If no requests are in-flight, closes immediately.
+     * External event: begin draining this connection. Disables autoRead on the downstream
+     * channel and transitions to {@link ProxyChannelState.Draining}, carrying the injected
+     * {@code onDrained} policy. If no requests are already in-flight, the policy fires
+     * immediately.
+     * <p>
+     * The PCSM does not schedule timers or track completion state — those are owned by the
+     * caller (typically {@code DrainCoordinator}), which also fires {@link #onDrainTimeout()}
+     * if its own timer expires.
      * <p>
      * Must be called on the channel's event loop thread.
      *
-     * @param timeout maximum time to wait for in-flight requests to complete
-     * @param completionFuture future completed when this connection reaches Closed
+     * @param onDrained policy to invoke when the in-flight counter reaches zero; responsible
+     *                  for closing the connection (typically via {@link #onDrainCompleted()})
+     *                  and any external bookkeeping (future completion, timer cancellation)
      */
-    void startDraining(Duration timeout, CompletableFuture<Void> completionFuture) {
+    void onDraining(Runnable onDrained) {
         if (!(state instanceof Forwarding)) {
-            LOGGER.atDebug()
+            LOGGER.atWarn()
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
                     .log("Cannot start draining — not in Forwarding state");
-            completionFuture.complete(null);
+            onDrained.run();
             return;
         }
-
-        this.drainFuture = completionFuture;
 
         // Disable downstream reads — no new requests from client
         Objects.requireNonNull(frontendHandler).applyBackpressure();
 
-        setState(new ProxyChannelState.Draining());
+        setState(new ProxyChannelState.Draining(onDrained));
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("frontendChannel", frontendChannelAddress())
                 .addKeyValue("backendChannel", backendChannelAddress())
                 .addKeyValue("clientMessageInFlight", clientMessageInFlight)
                 .addKeyValue("serverMessageInFlight", serverMessageInFlight)
-                .log("Connection draining started — autoRead disabled, waiting for in-flight responses with timeoutMs : {}",
-                        timeout.toMillis());
+                .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
 
         if (clientMessageInFlight <= 0) {
             LOGGER.atInfo()
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("frontendChannel", frontendChannelAddress())
                     .addKeyValue("backendChannel", backendChannelAddress())
-                    .log("No in-flight requests — closing immediately");
-            toClosed(null, DisconnectCause.DRAIN_COMPLETED);
-            return;
+                    .log("No in-flight requests — signalling drain policy immediately");
+            onDrained.run();
         }
+    }
 
-        // Schedule force-close after timeout
-        Channel ch = frontendHandler.clientChannel();
-        if (ch != null) {
-            drainTimeoutFuture = ch.eventLoop().schedule(
-                    () -> {
-                        if (state instanceof ProxyChannelState.Draining) {
-                            LOGGER.atWarn()
-                                    .addKeyValue("virtualCluster", clusterName())
-                                    .addKeyValue("frontendChannel", frontendChannelAddress())
-                                    .addKeyValue("backendChannel", backendChannelAddress())
-                                    .addKeyValue("clientMessageInFlight", clientMessageInFlight)
-                                    .log("Drain timeout expired — force-closing connection");
-                            toClosed(null, DisconnectCause.DRAIN_TIMEOUT);
-                        }
-                    },
-                    timeout.toMillis(), TimeUnit.MILLISECONDS);
+    /**
+     * External event: drain completed naturally. Invoked by the caller's {@code onDrained}
+     * policy to close the connection with the {@code DRAIN_COMPLETED} cause for metrics.
+     * No-op if the state has already transitioned away from {@link ProxyChannelState.Draining}.
+     */
+    void onDrainCompleted() {
+        if (state instanceof ProxyChannelState.Draining) {
+            toClosed(null, DisconnectCause.DRAIN_COMPLETED);
+        }
+    }
+
+    /**
+     * External event: the caller's drain timeout timer expired. Force-closes the connection
+     * with the {@code DRAIN_TIMEOUT} cause for metrics. No-op if the state has already
+     * transitioned away from {@link ProxyChannelState.Draining} (e.g. drain already completed
+     * or the connection closed for another reason).
+     */
+    void onDrainTimeout() {
+        if (state instanceof ProxyChannelState.Draining) {
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue("frontendChannel", frontendChannelAddress())
+                    .addKeyValue("backendChannel", backendChannelAddress())
+                    .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                    .log("Drain timeout expired — force-closing connection");
+            toClosed(null, DisconnectCause.DRAIN_TIMEOUT);
         }
     }
 
@@ -868,11 +894,14 @@ public class ProxyChannelStateMachine {
             return;
         }
 
-        // Cancel drain timeout if active
-        if (drainTimeoutFuture != null) {
-            drainTimeoutFuture.cancel(false);
-            drainTimeoutFuture = null;
-        }
+        // Capture the drain-completion callback when transitioning out of Draining for
+        // reasons OTHER than natural drain completion. The DRAIN_COMPLETED path reaches
+        // toClosed from inside the callback itself (messageFromServer → onDrained → pcsm.onDrainCompleted
+        // → toClosed) — re-firing here would invoke the callback twice. For any other cause
+        // (DRAIN_TIMEOUT, orphan server/client errors during drain) the callback has NOT run yet
+        // and must fire so the coordinator's future unblocks and its timer cancels.
+        Runnable pendingDrainCallback = (state instanceof ProxyChannelState.Draining draining
+                && disconnectCause != DisconnectCause.DRAIN_COMPLETED) ? draining.onDrained() : null;
 
         setState(new Closed());
 
@@ -894,16 +923,11 @@ public class ProxyChannelStateMachine {
         // Deregister from drain coordinator
         drainCoordinator.deregister(clusterName(), this);
 
-        // Complete drain future if active — signals DrainCoordinator that this connection is closed
-        if (drainFuture != null) {
-            LOGGER.atDebug()
-                    .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", frontendChannelAddress())
-                    .addKeyValue("backendChannel", backendChannelAddress())
-                    .addKeyValue("disconnectCause", disconnectCause)
-                    .log("Drain future completed — connection closed");
-            drainFuture.complete(null);
-            drainFuture = null;
+        // Fire the drain policy if we were draining when we entered toClosed — signals the
+        // coordinator that this connection is closed regardless of whether drain completed
+        // naturally or the connection was torn down for another reason.
+        if (pendingDrainCallback != null) {
+            pendingDrainCallback.run();
         }
     }
 

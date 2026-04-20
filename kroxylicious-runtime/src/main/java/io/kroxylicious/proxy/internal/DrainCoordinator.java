@@ -10,19 +10,23 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.channel.Channel;
 
 /**
  * Lightweight registry that bridges proxy-level drain requests to per-connection
  * {@link ProxyChannelStateMachine} instances.
  * <p>
  * Each PCSM registers on {@code toClientActive()} and deregisters on {@code toClosed()}.
- * {@link #drainCluster(String, Duration)} dispatches {@code startDraining()} to each PCSM's
- * event loop and returns a future that completes when all connections have closed.
+ * {@link #drainCluster(String, Duration)} dispatches {@code onDraining(Runnable)} to each
+ * PCSM's event loop, injecting a policy that completes the per-connection future, cancels
+ * the timeout timer, and asks the PCSM to close with the {@code DRAIN_COMPLETED} cause.
+ * <p>
+ * The coordinator also owns the per-connection timeout timer. When it expires, the
+ * coordinator fires {@link ProxyChannelStateMachine#onDrainTimeout()} so the PCSM records
+ * the {@code DRAIN_TIMEOUT} cause before closing.
  * <p>
  * Works for both proxy shutdown (drain all clusters) and hot-reload (drain one cluster
  * while others keep serving).
@@ -77,22 +81,23 @@ public class DrainCoordinator {
             CompletableFuture<Void> closedFuture = new CompletableFuture<>();
             closedFutures.add(closedFuture);
 
-            // Get the downstream (client→proxy) channel to access its event loop
-            Channel ch = pcsm.frontendChannel();
-            if (ch != null && ch.isActive()) {
-                // Dispatch startDraining onto the channel's event loop thread.
-                // PCSM state changes are not thread-safe — they must run on the event loop.
-                // The PCSM stores the closedFuture and completes it in toClosed() when
-                // the connection actually closes (after in-flight responses complete or timeout).
-                ch.eventLoop().execute(() -> pcsm.startDraining(timeout, closedFuture));
-            }
-            else {
-                // Channel already closed — nothing to drain
+            // Schedule the force-close timer. Fires pcsm.onDrainTimeout() on the event loop,
+            // which transitions the PCSM to Closed with DRAIN_TIMEOUT if it's still Draining.
+            ScheduledFuture<?> timeoutTask = pcsm.scheduleOnEventLoop(pcsm::onDrainTimeout, timeout);
+
+            // Policy injected into the PCSM's Draining state. Fires when the PCSM evaluates
+            // "counter hit zero" OR when toClosed transitions out of Draining for any reason.
+            // Idempotent: cancel and complete are no-ops when already invoked; onDrainCompleted
+            // no-ops when state is already Closed.
+            Runnable onDrained = () -> {
+                timeoutTask.cancel(false);
                 closedFuture.complete(null);
-            }
+                pcsm.onDrainCompleted();
+            };
+
+            pcsm.executeOnEventLoop(() -> pcsm.onDraining(onDrained));
         }
 
-        // Return a future that completes when ALL connections for this cluster have closed
         return CompletableFuture.allOf(closedFutures.toArray(CompletableFuture[]::new));
     }
 }

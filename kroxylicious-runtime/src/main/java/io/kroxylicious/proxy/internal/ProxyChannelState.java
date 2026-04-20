@@ -213,9 +213,12 @@ sealed interface ProxyChannelState permits
     /**
      * Connections are being drained. autoRead is disabled on the client channel,
      * but responses to in-flight requests continue flowing. When the in-flight count
-     * reaches zero, the state transitions to {@link Closed}.
+     * reaches zero, the PCSM invokes {@code onDrained} — an externally-injected policy
+     * (typically wired by {@code DrainCoordinator}) that decides what to do next
+     * (cancel the timeout timer, complete the per-connection future, close the
+     * connection with {@code DisconnectCause.DRAIN_COMPLETED}).
      */
-    record Draining() implements ProxyChannelState {
+    record Draining(Runnable onDrained) implements ProxyChannelState {
 
     }
 
