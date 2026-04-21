@@ -192,6 +192,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
             }
         });
+        ch.pipeline().addLast("buffering gateway", new BufferingGatewayHandler());
     }
 
     @VisibleForTesting
@@ -299,4 +300,5 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             cause.getClass().getSimpleName(), cause.getMessage());
         }
     }
+
 }

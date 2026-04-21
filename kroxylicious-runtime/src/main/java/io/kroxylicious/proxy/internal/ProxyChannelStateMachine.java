@@ -603,6 +603,7 @@ public class ProxyChannelStateMachine {
             onSessionTransportAuthenticated();
         }
         maybeUnblock();
+        frontendHandler.onTransportSubjectBuilt();
     }
 
     Subject authenticatedSubject() {

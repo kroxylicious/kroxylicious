@@ -754,6 +754,18 @@ class ProxyChannelStateMachineTest {
         verify(frontendHandler).onSessionAuthenticated();
     }
 
+    @Test
+    void shouldNotifyFrontendHandlerWhenTransportSubjectBuilt() {
+        // Given
+        stateMachineInClientActive();
+
+        // When
+        proxyChannelStateMachine.onTransportSubjectBuilt();
+
+        // Then
+        verify(frontendHandler).onTransportSubjectBuilt();
+    }
+
     public Stream<Arguments> clientErrorStates() {
         return Stream.of(
                 argumentSet("STARTING TLS on", (Runnable) () -> {

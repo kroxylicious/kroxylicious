@@ -639,4 +639,7 @@ public class KafkaProxyFrontendHandler
         return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::toMillis).orElse(NO_TIMEOUT);
     }
 
+    public void onTransportSubjectBuilt() {
+        Objects.requireNonNull(clientCtx).channel().pipeline().fireUserEventTriggered(new TransportSubjectBuilt());
+    }
 }

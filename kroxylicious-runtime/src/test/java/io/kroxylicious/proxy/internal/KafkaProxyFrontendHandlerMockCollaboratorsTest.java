@@ -337,4 +337,17 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.ESTABLISHING);
     }
+
+    @Test
+    void shouldFireTransportSubjectBuiltEventWhenOnTransportSubjectBuilt() throws Exception {
+        // Given
+        handler.channelActive(clientCtx);
+        when(clientCtx.channel().pipeline()).thenReturn(channelPipeline);
+
+        // When
+        handler.onTransportSubjectBuilt();
+
+        // Then
+        verify(channelPipeline).fireUserEventTriggered(any(TransportSubjectBuilt.class));
+    }
 }
