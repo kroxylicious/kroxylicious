@@ -111,3 +111,4 @@ docs/*.html
 .claude/agent-memory
 .op/
 .claude/projects/
+.claude/worktrees
