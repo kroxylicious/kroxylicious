@@ -29,8 +29,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param tls TLS settings
  */
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(value = "longTermCredentials", required = false) @Nullable LongTermCredentialsProviderConfig longTermCredentialsProviderConfig,
-                     @JsonProperty(value = "ec2MetadataCredentials", required = false) @Nullable Ec2MetadataCredentialsProviderConfig ec2MetadataCredentialsProviderConfig,
+                     @Deprecated(since = "0.21.0", forRemoval = true) @JsonProperty(value = "longTermCredentials", required = false) @Nullable LongTermCredentialsProviderConfig longTermCredentialsProviderConfig,
+                     @Deprecated(since = "0.21.0", forRemoval = true) @JsonProperty(value = "ec2MetadataCredentials", required = false) @Nullable Ec2MetadataCredentialsProviderConfig ec2MetadataCredentialsProviderConfig,
                      @JsonProperty(value = "credentials", required = false) @Nullable CredentialsConfig credentials,
                      @JsonProperty(value = "region", required = true) String region,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
@@ -41,21 +41,24 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
 
         // Migrate deprecated flat credential fields into the credentials node.
         // Old-style YAML (longTermCredentials / ec2MetadataCredentials at the top level)
-        // continues to work but cannot be combined with the new credentials node.
-        var migrated = credentials;
-        if (longTermCredentialsProviderConfig != null) {
-            if (migrated != null) {
-                throw new KmsException("Cannot specify both 'credentials' and deprecated 'longTermCredentials' — use 'credentials.longTerm' instead");
-            }
-            migrated = new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null);
+        // continues to work but cannot be combined with each other or with the new credentials node.
+        if (longTermCredentialsProviderConfig != null && ec2MetadataCredentialsProviderConfig != null) {
+            throw new KmsException(
+                    "Cannot specify both deprecated 'longTermCredentials' and 'ec2MetadataCredentials' — use the 'credentials' node with a single provider instead");
         }
-        if (ec2MetadataCredentialsProviderConfig != null) {
-            if (migrated != null) {
-                throw new KmsException("Cannot specify both 'credentials' and deprecated 'ec2MetadataCredentials' — use 'credentials.ec2Metadata' instead");
-            }
-            migrated = new CredentialsConfig(null, ec2MetadataCredentialsProviderConfig, null, null);
+        if (credentials != null && (longTermCredentialsProviderConfig != null || ec2MetadataCredentialsProviderConfig != null)) {
+            var deprecatedField = longTermCredentialsProviderConfig != null ? "longTermCredentials" : "ec2MetadataCredentials";
+            throw new KmsException(
+                    "Cannot specify both 'credentials' and deprecated '" + deprecatedField + "' — use the 'credentials' node only");
         }
-        credentials = migrated;
+        if (credentials == null) {
+            if (longTermCredentialsProviderConfig != null) {
+                credentials = new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null);
+            }
+            else if (ec2MetadataCredentialsProviderConfig != null) {
+                credentials = new CredentialsConfig(null, ec2MetadataCredentialsProviderConfig, null, null);
+            }
+        }
     }
 
 }

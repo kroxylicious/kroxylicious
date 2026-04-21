@@ -57,9 +57,10 @@ your Kafka client off-EC2.
          kmsConfig:
            region: us-east-1
            endpointUrl: https://kms.us-east-1.amazonaws.com
-           ec2MetadataCredentials:
-             iamRole: KroxyliciousInstance
-             # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
+           credentials:
+             ec2Metadata:
+               iamRole: KroxyliciousInstance
+               # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
          selector: TemplateKekSelector
          selectorConfig:
            template: "KEK-$(topicName)"
@@ -81,3 +82,52 @@ your Kafka client off-EC2.
     2
     ```
 14. Don't forget to de-provision everything you've created in AWS once you are done.
+
+# Testing the ability to authenticate with IRSA (IAM Roles for Service Accounts) on EKS
+
+To test IRSA, you need an EKS cluster with an OIDC identity provider enabled.  The EKS
+pod-identity webhook will inject `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE`
+environment variables into the Kroxylicious pod, and the provider reads them automatically.
+
+1. Create an EKS cluster (or use an existing one) and enable its OIDC provider:
+   ```bash
+   eksctl utils associate-iam-oidc-provider --cluster <cluster_name> --approve
+   ```
+2. Follow the 'Authenticating using IAM Roles for Service Accounts (IRSA)' instructions in
+   the user docs to create the trust policy, IAM role, and annotate the Kubernetes service
+   account.
+3. Build and publish a Kroxylicious container image to a registry accessible from the
+   cluster.
+4. Deploy Kroxylicious to EKS with the annotated service account. Minimal `kmsConfig`:
+   ```yaml
+   kms: AwsKmsService
+   kmsConfig:
+     region: us-east-1
+     endpointUrl: https://kms.us-east-1.amazonaws.com
+     credentials:
+       webIdentity: {}    # picks up env vars injected by the EKS webhook
+   ```
+5. Create a KEK in AWS KMS and send/receive some messages through the proxy.
+6. Check the Kroxylicious logs for `WebIdentityCredentialsProvider` entries confirming
+   the STS AssumeRoleWithWebIdentity call succeeded.
+
+# Testing the ability to authenticate with EKS Pod Identity
+
+Pod Identity is the AWS-recommended alternative to IRSA. It requires the Pod Identity
+Agent add-on installed on the EKS cluster. The agent injects
+`AWS_CONTAINER_CREDENTIALS_FULL_URI` and `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`
+environment variables.
+
+1. Install the EKS Pod Identity Agent add-on on the cluster.
+2. Follow the 'Authenticating using EKS Pod Identity' instructions in the user docs to
+   create the trust policy, IAM role, and the pod-identity association.
+3. Deploy Kroxylicious to EKS with the associated service account. Minimal `kmsConfig`:
+   ```yaml
+   kms: AwsKmsService
+   kmsConfig:
+     region: us-east-1
+     endpointUrl: https://kms.us-east-1.amazonaws.com
+     credentials:
+       podIdentity: {}    # picks up env vars injected by the agent
+   ```
+4. Send/receive messages and check the logs for `PodIdentityCredentialsProvider` entries.

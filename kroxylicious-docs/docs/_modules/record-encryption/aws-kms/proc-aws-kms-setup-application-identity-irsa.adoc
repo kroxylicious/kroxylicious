@@ -22,7 +22,7 @@ The credentials are refreshed automatically before they expire.
 
 .Prerequisites
 
-* An EKS cluster with an https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html[OIDC identity provider] enabled.
+* An EKS cluster with an {aws}/eks/latest/userguide/enable-iam-roles-for-service-accounts.html[OIDC identity provider] enabled.
 * Access to the AWS CLI with sufficient permissions to create and manage IAM roles.
 * xref:con-aws-kms-setup-policy-{context}[An alias-based policy created for the Record Encryption filter].
 
