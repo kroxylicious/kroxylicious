@@ -10,6 +10,7 @@ import java.net.URI;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonProperty.Access;
 
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -29,8 +30,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param tls TLS settings
  */
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @Deprecated(since = "0.21.0", forRemoval = true) @JsonProperty(value = "longTermCredentials", required = false) @Nullable LongTermCredentialsProviderConfig longTermCredentialsProviderConfig,
-                     @Deprecated(since = "0.21.0", forRemoval = true) @JsonProperty(value = "ec2MetadataCredentials", required = false) @Nullable Ec2MetadataCredentialsProviderConfig ec2MetadataCredentialsProviderConfig,
+                     @Deprecated(since = "0.21.0", forRemoval = true) @JsonProperty(value = "longTermCredentials", required = false, access = Access.WRITE_ONLY) @Nullable LongTermCredentialsProviderConfig longTermCredentialsProviderConfig,
+                     @Deprecated(since = "0.21.0", forRemoval = true) @JsonProperty(value = "ec2MetadataCredentials", required = false, access = Access.WRITE_ONLY) @Nullable Ec2MetadataCredentialsProviderConfig ec2MetadataCredentialsProviderConfig,
                      @JsonProperty(value = "credentials", required = false) @Nullable CredentialsConfig credentials,
                      @JsonProperty(value = "region", required = true) String region,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
@@ -42,6 +43,8 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
         // Migrate deprecated flat credential fields into the credentials node.
         // Old-style YAML (longTermCredentials / ec2MetadataCredentials at the top level)
         // continues to work but cannot be combined with each other or with the new credentials node.
+        // On serialization these deprecated fields are omitted (JsonProperty.Access.WRITE_ONLY),
+        // so round-trip through YAML always produces the new 'credentials' form.
         if (longTermCredentialsProviderConfig != null && ec2MetadataCredentialsProviderConfig != null) {
             throw new KmsException(
                     "Cannot specify both deprecated 'longTermCredentials' and 'ec2MetadataCredentials' — use the 'credentials' node with a single provider instead");

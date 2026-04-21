@@ -16,7 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -47,6 +47,7 @@ class WebIdentityCredentialsProviderTest {
     private static final String STS_PATH = "/";
     private static final String ROLE_ARN = "arn:aws:iam::123456789012:role/KroxyliciousIRSA";
     private static final String DEFAULT_REGION = "us-east-1";
+    private static final Clock SYSTEM_CLOCK = Clock.systemUTC();
 
     private static WireMockServer stsServer;
 
@@ -59,7 +60,7 @@ class WebIdentityCredentialsProviderTest {
         return null;
     }
 
-    private final Function<String, String> emptyEnv = WebIdentityCredentialsProviderTest::emptyEnv;
+    private final UnaryOperator<String> emptyEnv = WebIdentityCredentialsProviderTest::emptyEnv;
 
     @BeforeAll
     static void initStsServer() {
@@ -86,7 +87,7 @@ class WebIdentityCredentialsProviderTest {
     @Test
     void rejectsMissingRoleArn() {
         var cfg = config(null, tokenFile, null, null);
-        assertThatThrownBy(() -> new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC()))
+        assertThatThrownBy(() -> new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK))
                 .isInstanceOf(KmsException.class)
                 .hasMessageContaining("roleArn");
     }
@@ -94,7 +95,7 @@ class WebIdentityCredentialsProviderTest {
     @Test
     void rejectsMissingTokenFile() {
         var cfg = config(ROLE_ARN, null, null, null);
-        assertThatThrownBy(() -> new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC()))
+        assertThatThrownBy(() -> new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK))
                 .isInstanceOf(KmsException.class)
                 .hasMessageContaining("webIdentityTokenFile");
     }
@@ -103,7 +104,7 @@ class WebIdentityCredentialsProviderTest {
     void resolvesRoleArnFromEnv() {
         var cfg = config(null, tokenFile, null, null);
         var env = envOf(Map.of(WebIdentityCredentialsProvider.ENV_ROLE_ARN, ROLE_ARN));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, env, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, env, SYSTEM_CLOCK)) {
             assertThat(provider.roleArn()).isEqualTo(ROLE_ARN);
         }
     }
@@ -112,7 +113,7 @@ class WebIdentityCredentialsProviderTest {
     void resolvesTokenFileFromEnv() {
         var cfg = config(ROLE_ARN, null, null, null);
         var env = envOf(Map.of(WebIdentityCredentialsProvider.ENV_WEB_IDENTITY_TOKEN_FILE, tokenFile.toString()));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, env, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, env, SYSTEM_CLOCK)) {
             assertThat(provider.roleArn()).isEqualTo(ROLE_ARN);
         }
     }
@@ -120,7 +121,7 @@ class WebIdentityCredentialsProviderTest {
     @Test
     void defaultsStsEndpointToRegionalUrl() {
         var cfg = config(ROLE_ARN, tokenFile, null, null);
-        try (var provider = new WebIdentityCredentialsProvider(cfg, "eu-west-2", emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, "eu-west-2", emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.stsEndpointUrl()).isEqualTo(URI.create("https://sts.eu-west-2.amazonaws.com"));
         }
     }
@@ -128,7 +129,7 @@ class WebIdentityCredentialsProviderTest {
     @Test
     void generatesSessionNameWhenAbsent() {
         var cfg = config(ROLE_ARN, tokenFile, null, null);
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.roleSessionName()).startsWith("kroxylicious-").hasSizeLessThanOrEqualTo(64);
         }
     }
@@ -136,7 +137,7 @@ class WebIdentityCredentialsProviderTest {
     @Test
     void sanitisesIllegalCharsInSessionName() {
         var cfg = config(ROLE_ARN, tokenFile, "bad name!", null);
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.roleSessionName()).matches("[\\w+=,.@-]+").doesNotContain(" ", "!");
         }
     }
@@ -146,7 +147,7 @@ class WebIdentityCredentialsProviderTest {
         stubStsSuccess("ASIATESTKEY", "secretValue", "sessionTokenValue", Instant.parse("2099-01-01T00:00:00Z"));
 
         var cfg = config(ROLE_ARN, tokenFile, "my-session", URI.create(stsServer.baseUrl() + STS_PATH));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             var stage = provider.getCredentials();
             assertThat(stage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -185,7 +186,7 @@ class WebIdentityCredentialsProviderTest {
                 .willReturn(aResponse().withBody(stsBody("ASIA2", "s2", "t2", refreshedExp))));
 
         var cfg = config(ROLE_ARN, tokenFile, "session", URI.create(stsServer.baseUrl() + STS_PATH));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             var stage = provider.getCredentials();
             assertThat(stage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -221,7 +222,7 @@ class WebIdentityCredentialsProviderTest {
                 .willReturn(aResponse().withStatus(400).withBody(errorBody)));
 
         var cfg = config(ROLE_ARN, tokenFile, "s", URI.create(stsServer.baseUrl() + STS_PATH));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             var stage = provider.getCredentials();
             assertThat(stage)
                     .failsWithin(Duration.ofSeconds(5))
@@ -238,7 +239,7 @@ class WebIdentityCredentialsProviderTest {
                 .willReturn(aResponse().withStatus(500).withBody("upstream boom")));
 
         var cfg = config(ROLE_ARN, tokenFile, "s", URI.create(stsServer.baseUrl() + STS_PATH));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.getCredentials())
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableThat()
@@ -252,7 +253,7 @@ class WebIdentityCredentialsProviderTest {
     void rejectsMissingTokenFileOnRefresh() throws IOException {
         Files.delete(tokenFile);
         var cfg = config(ROLE_ARN, tokenFile, "s", URI.create(stsServer.baseUrl() + STS_PATH));
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.getCredentials())
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableThat()
@@ -267,7 +268,7 @@ class WebIdentityCredentialsProviderTest {
 
         var cfg = new WebIdentityCredentialsProviderConfig(ROLE_ARN, tokenFile, "s",
                 URI.create(stsServer.baseUrl() + STS_PATH), 1800, null);
-        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new WebIdentityCredentialsProvider(cfg, DEFAULT_REGION, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.getCredentials()).succeedsWithin(Duration.ofSeconds(5));
         }
 
@@ -279,7 +280,7 @@ class WebIdentityCredentialsProviderTest {
         return new WebIdentityCredentialsProviderConfig(roleArn, tokenFile, sessionName, stsEndpoint, null, null);
     }
 
-    private static Function<String, String> envOf(Map<String, String> values) {
+    private static UnaryOperator<String> envOf(Map<String, String> values) {
         var copy = new HashMap<>(values);
         return copy::get;
     }

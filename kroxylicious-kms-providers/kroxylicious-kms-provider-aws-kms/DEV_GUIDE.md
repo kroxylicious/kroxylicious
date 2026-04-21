@@ -118,11 +118,38 @@ Agent add-on installed on the EKS cluster. The agent injects
 `AWS_CONTAINER_CREDENTIALS_FULL_URI` and `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE`
 environment variables.
 
-1. Install the EKS Pod Identity Agent add-on on the cluster.
-`aws eks create-addon --cluster-name <cluster_name>  --addon-name eks-pod-identity-agent --region <region>`
-2. Follow the 'Authenticating using EKS Pod Identity' instructions in the user docs to
-   create the trust policy, IAM role, and the pod-identity association.
-3. Deploy Kroxylicious to EKS with the associated service account. Minimal `kmsConfig`:
+1. Create an EKS cluster (if not already available):
+   ```bash
+   eksctl create cluster --name my-test-cluster --region us-east-1 --node-type t3.small --nodes 1
+   ```
+2. Install the EKS Pod Identity Agent add-on on the cluster:
+   ```bash
+   aws eks create-addon --cluster-name <cluster_name>  --addon-name eks-pod-identity-agent --region <region>
+   ```
+3. Create the IAM role with a trust policy allowing `pods.eks.amazonaws.com` to assume it, and attach the alias-based KMS policy:
+   ```bash
+   AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+   cat > trust.json <<EOF
+   { "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Principal": { "Service": "pods.eks.amazonaws.com" },
+       "Action": [ "sts:AssumeRole", "sts:TagSession" ]
+     }] }
+   EOF
+   aws iam create-role --role-name KroxyliciousPodIdentity --assume-role-policy-document file://trust.json
+   aws iam attach-role-policy --role-name KroxyliciousPodIdentity \
+       --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption
+   ```
+4. Create the pod-identity association binding the role to a Kubernetes service account:
+   ```bash
+   aws eks create-pod-identity-association \
+       --cluster-name <cluster_name> \
+       --namespace <namespace> \
+       --service-account <service_account> \
+       --role-arn arn:aws:iam::${AWS_ACCOUNT_ID}:role/KroxyliciousPodIdentity
+   ```
+5. Deploy Kroxylicious to EKS with the associated service account. Minimal `kmsConfig`:
    ```yaml
    kms: AwsKmsService
    kmsConfig:
@@ -131,4 +158,15 @@ environment variables.
      credentials:
        podIdentity: {}    # picks up env vars injected by the agent
    ```
-4. Send/receive messages and check the logs for `PodIdentityCredentialsProvider` entries.
+6. Send/receive messages and check the logs for `PodIdentityCredentialsProvider` entries.
+
+> **Note on IPv6**: On some EKS cluster configurations the Pod Identity agent webhook
+> injects an IPv6 link-local endpoint (`http://[fd00:ec2::23]/v1/credentials`) into
+> the `AWS_CONTAINER_CREDENTIALS_FULL_URI` env var.  If your pods don't have IPv6
+> connectivity to that address, override the URI explicitly in YAML to the IPv4
+> endpoint:
+> ```yaml
+> credentials:
+>   podIdentity:
+>     credentialsFullUri: http://169.254.170.23/v1/credentials
+> ```

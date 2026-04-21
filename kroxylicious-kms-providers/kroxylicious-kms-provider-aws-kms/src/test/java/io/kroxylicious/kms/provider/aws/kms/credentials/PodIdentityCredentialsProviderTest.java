@@ -16,7 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -44,6 +44,7 @@ import static org.awaitility.Awaitility.await;
 class PodIdentityCredentialsProviderTest {
 
     private static final String CREDENTIALS_PATH = "/v1/credentials";
+    private static final Clock SYSTEM_CLOCK = Clock.systemUTC();
 
     private static WireMockServer agentServer;
 
@@ -57,7 +58,7 @@ class PodIdentityCredentialsProviderTest {
         return null;
     }
 
-    private final Function<String, String> emptyEnv = PodIdentityCredentialsProviderTest::emptyEnv;
+    private final UnaryOperator<String> emptyEnv = PodIdentityCredentialsProviderTest::emptyEnv;
 
     @BeforeAll
     static void initAgent() {
@@ -85,7 +86,7 @@ class PodIdentityCredentialsProviderTest {
     @Test
     void rejectsMissingUri() {
         var cfg = config(null, tokenFile);
-        assertThatThrownBy(() -> new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC()))
+        assertThatThrownBy(() -> new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK))
                 .isInstanceOf(KmsException.class)
                 .hasMessageContaining("credentialsFullUri");
     }
@@ -93,7 +94,7 @@ class PodIdentityCredentialsProviderTest {
     @Test
     void rejectsMissingTokenFile() {
         var cfg = config(credentialsUri, null);
-        assertThatThrownBy(() -> new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC()))
+        assertThatThrownBy(() -> new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK))
                 .isInstanceOf(KmsException.class)
                 .hasMessageContaining("authorizationTokenFile");
     }
@@ -101,7 +102,7 @@ class PodIdentityCredentialsProviderTest {
     @Test
     void rejectsNonHttpScheme() {
         var cfg = config(URI.create("file:///etc/passwd"), tokenFile);
-        assertThatThrownBy(() -> new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC()))
+        assertThatThrownBy(() -> new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK))
                 .isInstanceOf(KmsException.class)
                 .hasMessageContaining("http or https");
     }
@@ -110,7 +111,7 @@ class PodIdentityCredentialsProviderTest {
     void resolvesUriFromEnv() {
         var cfg = config(null, tokenFile);
         var env = envOf(Map.of(PodIdentityCredentialsProvider.ENV_FULL_URI, credentialsUri.toString()));
-        try (var provider = new PodIdentityCredentialsProvider(cfg, env, Clock.systemUTC())) {
+        try (var provider = new PodIdentityCredentialsProvider(cfg, env, SYSTEM_CLOCK)) {
             assertThat(provider.credentialsFullUri()).isEqualTo(credentialsUri);
         }
     }
@@ -119,7 +120,7 @@ class PodIdentityCredentialsProviderTest {
     void resolvesTokenFileFromEnv() {
         var cfg = config(credentialsUri, null);
         var env = envOf(Map.of(PodIdentityCredentialsProvider.ENV_AUTH_TOKEN_FILE, tokenFile.toString()));
-        try (var provider = new PodIdentityCredentialsProvider(cfg, env, Clock.systemUTC())) {
+        try (var provider = new PodIdentityCredentialsProvider(cfg, env, SYSTEM_CLOCK)) {
             assertThat(provider.authorizationTokenFile()).isEqualTo(tokenFile);
         }
     }
@@ -129,7 +130,7 @@ class PodIdentityCredentialsProviderTest {
         stubAgentSuccess("ASIATESTKEY", "secretValue", "tokenValue", Instant.parse("2099-01-01T00:00:00Z"));
 
         var cfg = config(credentialsUri, tokenFile);
-        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
             var stage = provider.getCredentials();
             assertThat(stage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -161,7 +162,7 @@ class PodIdentityCredentialsProviderTest {
                 .willReturn(aResponse().withBody(agentBody("ASIA2", "s2", "t2", refreshedExp))));
 
         var cfg = config(credentialsUri, tokenFile);
-        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.getCredentials())
                     .succeedsWithin(Duration.ofSeconds(5))
                     .returns("ASIA1", PodIdentityCredentials::accessKeyId);
@@ -182,7 +183,7 @@ class PodIdentityCredentialsProviderTest {
                 .willReturn(aResponse().withStatus(500).withBody("agent down")));
 
         var cfg = config(credentialsUri, tokenFile);
-        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.getCredentials())
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableThat()
@@ -196,7 +197,7 @@ class PodIdentityCredentialsProviderTest {
     void rejectsMissingTokenFileOnRefresh() throws IOException {
         Files.delete(tokenFile);
         var cfg = config(credentialsUri, tokenFile);
-        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, Clock.systemUTC())) {
+        try (var provider = new PodIdentityCredentialsProvider(cfg, emptyEnv, SYSTEM_CLOCK)) {
             assertThat(provider.getCredentials())
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableThat()
@@ -209,7 +210,7 @@ class PodIdentityCredentialsProviderTest {
         return new PodIdentityCredentialsProviderConfig(uri, tokenFile, null);
     }
 
-    private static Function<String, String> envOf(Map<String, String> values) {
+    private static UnaryOperator<String> envOf(Map<String, String> values) {
         var copy = new HashMap<>(values);
         return copy::get;
     }

@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +68,8 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
     private static final String STS_ACTION = "AssumeRoleWithWebIdentity";
     private static final int MAX_SESSION_NAME_LENGTH = 64;
 
+    private static final String ROLE_ARN_FIELD = "roleArn";
+
     static final String ENV_ROLE_ARN = "AWS_ROLE_ARN";
     static final String ENV_WEB_IDENTITY_TOKEN_FILE = "AWS_WEB_IDENTITY_TOKEN_FILE";
     static final String ENV_ROLE_SESSION_NAME = "AWS_ROLE_SESSION_NAME";
@@ -93,7 +95,7 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
     @VisibleForTesting
     WebIdentityCredentialsProvider(WebIdentityCredentialsProviderConfig config,
                                    String defaultRegion,
-                                   Function<String, String> env,
+                                   UnaryOperator<String> env,
                                    Clock systemClock) {
         super(WebIdentityCredentialsProvider.class.getName() + "thread",
                 LOGGER,
@@ -102,8 +104,8 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
         Objects.requireNonNull(defaultRegion);
         Objects.requireNonNull(env);
 
-        this.roleArn = requireValue(config.roleArn(), env.apply(ENV_ROLE_ARN), "roleArn",
-                "set 'roleArn' in webIdentityCredentials or the AWS_ROLE_ARN environment variable");
+        this.roleArn = requireValue(config.roleArn(), env.apply(ENV_ROLE_ARN), ROLE_ARN_FIELD,
+                "set '" + ROLE_ARN_FIELD + "' in webIdentityCredentials or the AWS_ROLE_ARN environment variable");
         var tokenFileString = config.webIdentityTokenFile() != null ? config.webIdentityTokenFile().toString() : env.apply(ENV_WEB_IDENTITY_TOKEN_FILE);
         if (tokenFileString == null || tokenFileString.isEmpty()) {
             throw new KmsException(
@@ -190,7 +192,7 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
     protected void onRefreshFailure(Throwable t) {
         LOGGER.atWarn()
                 .setCause(LOGGER.isDebugEnabled() ? t : null)
-                .addKeyValue("roleArn", roleArn)
+                .addKeyValue(ROLE_ARN_FIELD, roleArn)
                 .addKeyValue("error", t.getMessage())
                 .log(LOGGER.isDebugEnabled()
                         ? "refresh of IRSA credentials failed; check the IAM trust policy on the role and that the projected service-account token is valid"
@@ -200,7 +202,7 @@ public class WebIdentityCredentialsProvider extends AbstractRefreshingCredential
     @Override
     protected void onRefreshSuccess(AssumedRoleCredentials credentials) {
         LOGGER.atDebug()
-                .addKeyValue("roleArn", roleArn)
+                .addKeyValue(ROLE_ARN_FIELD, roleArn)
                 .addKeyValue("expiration", credentials.expiration())
                 .log("Obtained AWS credentials from STS AssumeRoleWithWebIdentity");
     }

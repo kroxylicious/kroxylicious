@@ -21,7 +21,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +79,7 @@ public class PodIdentityCredentialsProvider extends AbstractRefreshingCredential
 
     @VisibleForTesting
     PodIdentityCredentialsProvider(PodIdentityCredentialsProviderConfig config,
-                                   Function<String, String> env,
+                                   UnaryOperator<String> env,
                                    Clock systemClock) {
         super(PodIdentityCredentialsProvider.class.getName() + "thread",
                 LOGGER,
