@@ -61,16 +61,16 @@ public class KroxyliciousResource<T extends HasMetadata> implements ResourceType
     public boolean isReady(T resource) {
         if (resource != null) {
             if (resource instanceof VirtualKafkaCluster) {
-                return ((VirtualKafkaCluster)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+                return ((VirtualKafkaCluster) resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
             }
             if (resource instanceof KafkaProxyIngress) {
-                return ((KafkaProxyIngress)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+                return ((KafkaProxyIngress) resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
             }
             if (resource instanceof KafkaService) {
-                return ((KafkaService)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+                return ((KafkaService) resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
             }
             if (resource instanceof KafkaProtocolFilter) {
-                return ((KafkaProtocolFilter)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+                return ((KafkaProtocolFilter) resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
             }
         }
 
