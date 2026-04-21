@@ -332,13 +332,12 @@ public class ProxyChannelStateMachine {
                     .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
                     .addKeyValue("remotePort", this.frontendHandler.remotePort())
                     .log("Allocated session ID for downstream connection");
-            toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
+            ProxyChannelState.ClientActive clientActive = STARTING_STATE.toClientActive();
+            toClientActive(clientActive, frontendHandler);
             // If an HaProxy context was stored in KafkaSession (by the detection/message
             // handlers before PCSM was created), transition ClientActive → HaProxy.
             if (kafkaSession.haProxyContext() != null) {
-                if (state instanceof ProxyChannelState.ClientActive clientActive) {
-                    toHaProxy(clientActive.toHaProxy());
-                }
+                toHaProxy(clientActive.toHaProxy());
             }
         }
         else {

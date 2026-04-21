@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
@@ -21,13 +21,12 @@ import io.kroxylicious.proxy.internal.net.HaProxyContext;
  * <p>
  * This handler prevents {@link HAProxyMessage} from propagating further down
  * the pipeline to handlers (like {@link FilterHandler}) that only expect
- * Kafka protocol messages.
- * </p>
- * <p>
- * All other messages are passed through unchanged to the next handler in the pipeline.
+ * Kafka protocol messages. Extending {@link SimpleChannelInboundHandler} ensures
+ * the ref-counted {@link HAProxyMessage} is released automatically after
+ * {@link #channelRead0} returns; all other messages are forwarded unchanged.
  * </p>
  */
-public class HaProxyMessageHandler extends ChannelInboundHandlerAdapter {
+public class HaProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMessage> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HaProxyMessageHandler.class);
 
@@ -38,20 +37,14 @@ public class HaProxyMessageHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof HAProxyMessage haProxyMessage) {
-            LOGGER.atDebug()
-                    .addKeyValue("channelId", () -> ctx.channel().toString())
-                    .addKeyValue("sourceAddress", haProxyMessage.sourceAddress())
-                    .addKeyValue("sourcePort", haProxyMessage.sourcePort())
-                    .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
-                    .addKeyValue("destinationPort", haProxyMessage.destinationPort())
-                    .log("Received HAProxy message");
-            kafkaSession.setHaProxyContext(HaProxyContext.from(haProxyMessage));
-        }
-        else {
-            // Pass all other messages (Kafka frames) to the next handler
-            ctx.fireChannelRead(msg);
-        }
+    protected void channelRead0(ChannelHandlerContext ctx, HAProxyMessage haProxyMessage) {
+        LOGGER.atDebug()
+                .addKeyValue("channelId", () -> ctx.channel().toString())
+                .addKeyValue("sourceAddress", haProxyMessage.sourceAddress())
+                .addKeyValue("sourcePort", haProxyMessage.sourcePort())
+                .addKeyValue("destinationAddress", haProxyMessage.destinationAddress())
+                .addKeyValue("destinationPort", haProxyMessage.destinationPort())
+                .log("Received HAProxy message");
+        kafkaSession.setHaProxyContext(HaProxyContext.from(haProxyMessage));
     }
 }

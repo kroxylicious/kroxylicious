@@ -34,7 +34,7 @@ virtualClusters:
     subjectBuilder:
       # ...
 proxyProtocol: # <10>
-  enabled: false
+  mode: disabled
 
 # ...
 ----
