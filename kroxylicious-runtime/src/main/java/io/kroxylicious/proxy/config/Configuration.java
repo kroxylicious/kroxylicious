@@ -52,8 +52,7 @@ public record Configuration(
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
                             @Nullable NetworkDefinition network,
-                            @Nullable ProxyProtocolConfig proxyProtocol) {
-                            @Nullable NetworkDefinition network,
+                            @Nullable ProxyProtocolConfig proxyProtocol,
                             @Nullable ProxyConfig proxy) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
