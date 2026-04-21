@@ -10,6 +10,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -86,10 +87,11 @@ public class ClientSubjectManager implements
 
     public void subjectFromTransport(@Nullable SSLSession session,
                                      TransportSubjectBuilder transportSubjectBuilder,
+                                     Executor eventLoopExecutor,
                                      Runnable whenDoneCallback) {
         this.clientCertificate = peerTlsCertificate(session);
         this.proxyCertificate = localTlsCertificate(session);
-        transportSubjectBuilder.buildTransportSubject(this).whenComplete((newSubject, error) -> {
+        transportSubjectBuilder.buildTransportSubject(this).whenCompleteAsync((newSubject, error) -> {
             if (error == null) {
                 this.subject = newSubject;
             }
@@ -101,7 +103,7 @@ public class ClientSubjectManager implements
             }
             this.mechanismName = null;
             whenDoneCallback.run();
-        });
+        }, eventLoopExecutor);
     }
 
     void clientSaslAuthenticationSuccess(

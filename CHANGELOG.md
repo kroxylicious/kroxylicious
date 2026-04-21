@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3745](https://github.com/kroxylicious/kroxylicious/issues/3745): fix(runtime): ensure async TransportSubjectBuilder callbacks execute on Netty event loop to prevent race conditions
 * [#3620](https://github.com/kroxylicious/kroxylicious/issues/3620): Removed Deprecated clientSaslAuthenticationSuccess from FilterContext
 * [#3624](https://github.com/kroxylicious/kroxylicious/pull/3624): feat(operator): set Kubernetes client User-Agent to `kroxylicious-operator/<version>` for API server audit log identification
 * [#3565](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): bump kubernetes-client.version from 7.5.2 to 7.6.1
