@@ -99,8 +99,8 @@ import static org.slf4j.LoggerFactory.getLogger;
  * several of the session states and is independent of them.</p>
  *
  * <p>
- *     When either side of the proxy stats applying back pressure the proxy should propagate that fact to teh other peer.
- *     Thus when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer.
+ *     Thus, when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
  * </p>
  */
 @SuppressWarnings("java:S1133")
@@ -204,12 +204,13 @@ public class ProxyChannelStateMachine {
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder,
+                                    KafkaSession kafkaSession,
                                     DrainCoordinator drainCoordinator) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
         this.drainCoordinator = Objects.requireNonNull(drainCoordinator);
+        this.kafkaSession = kafkaSession;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
-        kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
 
         var nodeId = endpointBinding.nodeId();
         String clusterName = virtualCluster.getClusterName();
@@ -399,7 +400,13 @@ public class ProxyChannelStateMachine {
                     .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
                     .addKeyValue("remotePort", this.frontendHandler.remotePort())
                     .log("Allocated session ID for downstream connection");
-            toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
+            ProxyChannelState.ClientActive clientActive = STARTING_STATE.toClientActive();
+            toClientActive(clientActive, frontendHandler);
+            // If an HaProxy context was stored in KafkaSession (by the detection/message
+            // handlers before PCSM was created), transition ClientActive → HaProxy.
+            if (kafkaSession.haProxyContext() != null) {
+                toHaProxy(clientActive.toHaProxy());
+            }
         }
         else {
             illegalState("Client activation while not in the start state");
@@ -747,7 +754,7 @@ public class ProxyChannelStateMachine {
     /**
      * @return Return the session for this connection.
      */
-    public KafkaSession getKafkaSession() {
+    public KafkaSession kafkaSession() {
         return kafkaSession;
     }
 
@@ -888,13 +895,7 @@ public class ProxyChannelStateMachine {
     }
 
     private boolean onClientRequestInClientActiveState(Object msg, ProxyChannelState.ClientActive clientActive) {
-        if (msg instanceof HAProxyMessage haProxyMessage) {
-            toHaProxy(clientActive.toHaProxy(haProxyMessage));
-            return true;
-        }
-        else {
-            return transitionClientRequest(msg, clientActive::toSelectingServer);
-        }
+        return transitionClientRequest(msg, clientActive::toSelectingServer);
     }
 
     private void toHaProxy(ProxyChannelState.HaProxy haProxy) {

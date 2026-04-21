@@ -294,7 +294,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         Subject subject = new Subject(new User("bob"));
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
-        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, new DrainCoordinator());
+        var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session, new DrainCoordinator());
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -303,14 +304,14 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                proxyChannelStateMachine,
+                pcsm,
                 Optional.empty());
 
         // When
         handler.channelActive(clientCtx);
 
         // Then
-        assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
+        assertThat(pcsm.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
     }
 
@@ -318,7 +319,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     void shouldNotMarkSessionAuthenticatedWhenSessionTransportAuthenticatedIsAnonymous() throws Exception {
         // Given
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(Subject.anonymous()));
-        var proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, new DrainCoordinator());
+        var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session, new DrainCoordinator());
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -334,7 +336,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
 
         // Then
-        assertThat(proxyChannelStateMachine.getKafkaSession().currentState())
+        assertThat(pcsm.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.ESTABLISHING);
     }
 }

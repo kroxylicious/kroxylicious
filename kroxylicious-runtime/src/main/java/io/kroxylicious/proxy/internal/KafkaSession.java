@@ -9,13 +9,23 @@ package io.kroxylicious.proxy.internal;
 import java.util.Objects;
 import java.util.UUID;
 
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaSession {
+
     private final String sessionId;
     private KafkaSessionState currentState;
+
+    /**
+     * The HaProxy PROXY-protocol message received for this session, if any.
+     * Captured by {@link HaProxyMessageHandler} before the SSL/binding handshake
+     * completes so it is available when the state machine becomes active.
+     */
+    @Nullable
+    private HaProxyContext haProxyContext;
 
     public KafkaSession(KafkaSessionState currentState) {
         this(null, currentState);
@@ -43,6 +53,23 @@ public class KafkaSession {
 
     public KafkaSessionState currentState() {
         return currentState;
+    }
+
+    /**
+     * Store the HaProxy PROXY-protocol context for this session.
+     *
+     * @param context the immutable context extracted from the decoded message
+     */
+    public void setHaProxyContext(HaProxyContext context) {
+        haProxyContext = context;
+    }
+
+    /**
+     * @return the HaProxy message received for this session, or {@code null} if none.
+     */
+    @Nullable
+    public HaProxyContext haProxyContext() {
+        return haProxyContext;
     }
 
     @Override

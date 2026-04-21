@@ -689,6 +689,42 @@ class ConfigurationTest {
                 .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar"));
     }
 
+    @Test
+    void proxyProtocolModeShouldReturnRequiredWhenRequired() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.REQUIRED);
+    }
+
+    @Test
+    void proxyProtocolModeShouldReturnAllowedWhenAllowed() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.ALLOWED);
+    }
+
+    @Test
+    void proxyProtocolModeShouldReturnDisabledWhenDisabled() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
+    }
+
+    @Test
+    void proxyProtocolDefaultsToDisabledWhenNull() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                null);
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
+    }
+
     @NonNull
     private static VirtualCluster buildVirtualCluster(String virtualClusterName, String targetBootstrap, @Nullable List<String> filterNames) {
         return new VirtualCluster(virtualClusterName, new TargetCluster(targetBootstrap, Optional.empty()),

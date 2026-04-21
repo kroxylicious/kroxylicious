@@ -40,8 +40,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param useIoUring true to use iouring
  * @param development Development options
  * @param network Controls aspects of network configuration for the proxy.
+ * @param proxyProtocol PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxy" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxyProtocol", "proxy" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -50,6 +51,8 @@ public record Configuration(
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
+                            @Nullable NetworkDefinition network,
+                            @Nullable ProxyProtocolConfig proxyProtocol) {
                             @Nullable NetworkDefinition network,
                             @Nullable ProxyConfig proxy) {
 
@@ -172,6 +175,10 @@ public record Configuration(
 
     public boolean isUseIoUring() {
         return useIoUring();
+    }
+
+    public ProxyProtocolMode proxyProtocolMode() {
+        return proxyProtocol != null ? proxyProtocol.mode() : ProxyProtocolMode.DISABLED;
     }
 
     public List<VirtualClusterModel> virtualClusterModel() {
