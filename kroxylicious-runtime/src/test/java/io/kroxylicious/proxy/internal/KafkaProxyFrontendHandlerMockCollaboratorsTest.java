@@ -28,6 +28,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
@@ -46,6 +47,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -90,6 +92,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Mock(strictness = Mock.Strictness.LENIENT)
     TransportSubjectBuilder subjectBuilder;
 
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    EventExecutor executor;
+
     private KafkaProxyFrontendHandler handler;
 
     @BeforeEach
@@ -99,6 +104,14 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(proxyChannelStateMachine.endpointBinding()).thenReturn(endpointBinding);
         when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualCluster);
+        // Make the executor run tasks synchronously
+        doAnswer(invocation -> {
+            Runnable runnable = invocation.getArgument(0);
+            runnable.run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        when(clientCtx.executor()).thenReturn(executor);
+
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -338,5 +351,17 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Then
         assertThat(pcsm.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.ESTABLISHING);
+    }
+
+    @Test
+    void eventLoopExecutorReturnsContextExecutor() throws Exception {
+        // Given
+        handler.channelActive(clientCtx);
+
+        // When
+        var result = handler.eventLoopExecutor();
+
+        // Then
+        assertThat(result).isSameAs(executor);
     }
 }

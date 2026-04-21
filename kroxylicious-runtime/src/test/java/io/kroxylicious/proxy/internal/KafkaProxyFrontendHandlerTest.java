@@ -588,6 +588,7 @@ class KafkaProxyFrontendHandlerTest {
         ChannelPipeline mockPipeline = mock(ChannelPipeline.class);
         doReturn(inboundChannel).when(mockChannelCtx).channel();
         doReturn(mockPipeline).when(mockChannelCtx).pipeline();
+        doReturn(inboundChannel.eventLoop()).when(mockChannelCtx).executor();
         return mockChannelCtx;
     }
 
