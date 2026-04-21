@@ -15,6 +15,11 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.skodjob.testframe.interfaces.ResourceType;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 
 public class KroxyliciousResource<T extends HasMetadata> implements ResourceType<T> {
@@ -54,8 +59,21 @@ public class KroxyliciousResource<T extends HasMetadata> implements ResourceType
 
     @Override
     public boolean isReady(T resource) {
-        // Avoiding this warning message as we don't make use of the proposed resources:
-        // XXX is not a Readiable resource. It needs to be one of [Node, Deployment, ReplicaSet, StatefulSet, Pod, ReplicationController]
+        if (resource != null) {
+            if (resource instanceof VirtualKafkaCluster) {
+                return ((VirtualKafkaCluster)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+            }
+            if (resource instanceof KafkaProxyIngress) {
+                return ((KafkaProxyIngress)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+            }
+            if (resource instanceof KafkaService) {
+                return ((KafkaService)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+            }
+            if (resource instanceof KafkaProtocolFilter) {
+                return ((KafkaProtocolFilter)resource).getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+            }
+        }
+
         return resource != null;
     }
 

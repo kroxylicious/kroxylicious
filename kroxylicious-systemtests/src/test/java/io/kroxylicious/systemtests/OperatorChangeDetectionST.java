@@ -371,7 +371,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         await().atMost(ASERTION_DURATION).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying(Constants.CHECKSUM_ANNOTATION,
                     value -> {
                         newChecksumFromAnnotation.set(value);
                         assertThat(value).isNotEqualTo(originalChecksum);
@@ -436,13 +436,13 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                                     .singleElement()
                                     .extracting(Pod::getMetadata)
                                     .satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
-                                            .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
+                                            .hasAnnotationSatisfying(Constants.CHECKSUM_ANNOTATION, value -> assertThat(value).isNotBlank()));
 
                             String checksumFromPod = getChecksumFromAnnotation(proxyPods.get(0));
                             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
                             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata())
                                     .hasAnnotationSatisfying(
-                                            "kroxylicious.io/referent-checksum",
+                                            Constants.CHECKSUM_ANNOTATION,
                                             value -> assertThat(value).isEqualTo(checksumFromPod));
                             checksumFromAnnotation.set(checksumFromPod);
                         });
@@ -451,7 +451,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     }
 
     private String getChecksumFromAnnotation(HasMetadata entity) {
-        return KubernetesResourceUtil.getOrCreateAnnotations(entity).get("kroxylicious.io/referent-checksum");
+        return KubernetesResourceUtil.getOrCreateAnnotations(entity).get(Constants.CHECKSUM_ANNOTATION);
     }
 
     private static boolean isVirtualClusterReady(VirtualKafkaCluster virtualKafkaCluster) {

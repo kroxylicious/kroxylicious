@@ -175,4 +175,9 @@ public final class Constants {
     public static final String TRUSTSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + TRUSTSTORE_SECRET_NAME + "/";
     public static final String KAF_CONFIG_TEMP_DIR = "/tmp/.kaf/";
     public static final String KAF_CONFIG_FILE_NAME = "config";
+
+    /*
+     * Kroxylicious annotations
+     */
+    public static final String CHECKSUM_ANNOTATION = "kroxylicious.io/referent-checksum";
 }

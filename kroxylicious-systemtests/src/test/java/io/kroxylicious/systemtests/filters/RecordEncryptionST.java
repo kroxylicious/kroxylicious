@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests.filters;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.record.CompressionType;
@@ -136,7 +135,7 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     private void deployPortIdentifiesNodeWithRecordEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
-        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME + "-" + testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase(Locale.ROOT);
+        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME;
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
