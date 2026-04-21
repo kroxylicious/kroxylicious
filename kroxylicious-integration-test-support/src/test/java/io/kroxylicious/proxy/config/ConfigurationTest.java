@@ -584,6 +584,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
@@ -601,6 +602,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
@@ -621,6 +623,7 @@ class ConfigurationTest {
                 virtualClusters,
                 null, false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
@@ -647,6 +650,7 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
+                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
@@ -670,6 +674,7 @@ class ConfigurationTest {
                 null,
                 false,
                 Optional.empty(),
+                null,
                 null);
 
         // When
@@ -682,6 +687,42 @@ class ConfigurationTest {
         assertThat(model.stream().filter(x -> x.getClusterName().equals("defaulted")).findFirst())
                 .isPresent()
                 .hasValueSatisfying(vcm -> assertThat(vcm.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar"));
+    }
+
+    @Test
+    void proxyProtocolModeShouldReturnRequiredWhenRequired() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.REQUIRED);
+    }
+
+    @Test
+    void proxyProtocolModeShouldReturnAllowedWhenAllowed() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.ALLOWED);
+    }
+
+    @Test
+    void proxyProtocolModeShouldReturnDisabledWhenDisabled() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
+    }
+
+    @Test
+    void proxyProtocolDefaultsToDisabledWhenNull() {
+        Configuration configuration = new Configuration(null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                null);
+        assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
     }
 
     @NonNull

@@ -106,7 +106,8 @@ class ProxyChannelStateMachineEndToEndTest {
     private boolean activateOutboundChannelAutomatically = true;
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding binding) {
-        return new ProxyChannelStateMachine(binding, new DefaultSubjectBuilder(List.of()));
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        return new ProxyChannelStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession);
     }
 
     @AfterEach
@@ -190,7 +191,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
         if (haProxy) {
             proxyChannelStateMachine.forceState(
-                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    new ProxyChannelState.HaProxy(),
                     handler,
                     backendHandler,
                     TEST_SESSION);
@@ -214,7 +215,7 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertHandlerInConnectingState(proxyChannelStateMachine, haProxy, List.of(firstMessage));
+        assertHandlerInConnectingState(proxyChannelStateMachine, List.of(firstMessage));
     }
 
     private ProxyChannelStateMachine buildHandlerInClientActiveState(boolean sni) {
@@ -237,7 +238,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                   ApiKeys firstMessage) {
         // Given
         activateOutboundChannelAutomatically = false;
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         firstRequest(firstMessage);
 
         // When
@@ -263,7 +264,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                    Throwable serverException) {
         // Given
         activateOutboundChannelAutomatically = false;
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
 
         // When
@@ -289,7 +290,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         firstRequest(firstMessage);
 
         // When
@@ -308,7 +309,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                 boolean haProxy,
                                                 ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         var firstRequest = firstRequest(firstMessage);
 
         // When
@@ -336,7 +337,7 @@ class ProxyChannelStateMachineEndToEndTest {
                           boolean haProxy,
                           ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
@@ -363,7 +364,7 @@ class ProxyChannelStateMachineEndToEndTest {
                              boolean haProxy,
                              ApiKeys firstMessage) {
         // Given
-        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        var proxyChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
@@ -610,11 +611,9 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private void assertHandlerInConnectingState(
                                                 ProxyChannelStateMachine proxyChannelStateMachine,
-                                                boolean haProxy,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
         var stateAssert = assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class));
-        stateAssert.extracting(ProxyChannelState.Connecting::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
         stateAssert.extracting(ProxyChannelState.Connecting::clientSoftwareName)
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_NAME : null);
         stateAssert.extracting(ProxyChannelState.Connecting::clientSoftwareVersion)
@@ -693,7 +692,6 @@ class ProxyChannelStateMachineEndToEndTest {
 
     private ProxyChannelStateMachine buildHandlerInConnectingState(
                                                                    boolean sni,
-                                                                   boolean haProxy,
                                                                    boolean tlsConfigured,
                                                                    ApiKeys firstMessage) {
         var proxyChannelStateMachine = buildFrontendHandler(tlsConfigured);
@@ -704,7 +702,6 @@ class ProxyChannelStateMachineEndToEndTest {
         }
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(
-                        haProxy ? HA_PROXY_MESSAGE : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
@@ -770,7 +767,7 @@ class ProxyChannelStateMachineEndToEndTest {
      * Integration test to verify handler ordering in the complete pipeline after filters are installed.
      *
      * Critical ordering requirements:
-     * - HAProxyMessageHandler (if present) must come before FilterHandler instances
+     * - HaProxyMessageHandler (if present) must come before FilterHandler instances
      * - FilterHandler instances must come before KafkaProxyFrontendHandler
      *
      * This ensures:
@@ -791,7 +788,7 @@ class ProxyChannelStateMachineEndToEndTest {
         List<String> handlerNames = pipeline.names();
 
         // Find positions of critical handlers
-        int haProxyHandlerIndex = handlerNames.indexOf("HAProxyMessageHandler");
+        int haProxyHandlerIndex = handlerNames.indexOf("HaProxyMessageHandler");
         int frontendHandlerIndex = findHandlerIndex(handlerNames, handler);
 
         // Find first filter handler (they're named "filter-N-FilterName")
@@ -800,7 +797,7 @@ class ProxyChannelStateMachineEndToEndTest {
         // Assert ordering if handlers exist
         if (haProxyHandlerIndex >= 0 && firstFilterIndex >= 0) {
             assertThat(haProxyHandlerIndex)
-                    .as("HAProxyMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
+                    .as("HaProxyMessageHandler (at index %d) must come before first filter (at index %d) in pipeline: %s",
                             haProxyHandlerIndex, firstFilterIndex, handlerNames)
                     .isLessThan(firstFilterIndex);
         }

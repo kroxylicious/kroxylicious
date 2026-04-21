@@ -840,6 +840,7 @@ class ConfigParserTest {
                 null,
                 false,
                 Optional.empty(),
+                null,
                 null);
 
         ConfigParser cp = new ConfigParser();

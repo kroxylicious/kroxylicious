@@ -44,10 +44,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
 import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.haproxy.HAProxyCommand;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
-import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
-import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -58,6 +54,7 @@ import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -82,8 +79,7 @@ import static org.mockito.Mockito.when;
 class ProxyChannelStateMachineTest {
 
     private static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
-    private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-            "1.1.1.1", "2.2.2.2", 46421, 9092);
+    private static final HaProxyContext HA_PROXY_CONTEXT = new HaProxyContext("1.1.1.1", "2.2.2.2", 46421, 9092, java.util.Map.of());
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
@@ -112,7 +108,7 @@ class ProxyChannelStateMachineTest {
         when(endpointBinding.nodeId()).thenReturn(null);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()));
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new KafkaSession(KafkaSessionState.ESTABLISHING));
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
@@ -325,18 +321,17 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inClientActiveShouldCaptureHaProxyState() {
-        // Given
-        stateMachineInClientActive();
+    void onClientActiveShouldTransitionToHaProxyWhenContextPresentInSession() {
+        // Given - HaProxy context stored in KafkaSession (by HaProxyMessageHandler before PCSM was created)
+        proxyChannelStateMachine.kafkaSession().setHaProxyContext(HA_PROXY_CONTEXT);
 
         // When
-        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientActive(frontendHandler);
 
-        // Then
-        assertThat(proxyChannelStateMachine.state())
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
-                .extracting(ProxyChannelState.HaProxy::haProxyMessage)
-                .isSameAs(HA_PROXY_MESSAGE);
+        // Then - state machine transitions through ClientActive → HaProxy
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
+        assertThat(proxyChannelStateMachine.kafkaSession().haProxyContext()).isNotNull();
+        verify(frontendHandler).inClientActive();
     }
 
     @Test
@@ -374,12 +369,12 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inHaProxyShouldCloseOnHaProxyMsg() {
+    void inHaProxyShouldCloseOnUnexpectedMessage() {
         // Given
         stateMachineInHaProxy();
 
-        // When
-        proxyChannelStateMachine.onClientRequest(HA_PROXY_MESSAGE);
+        // When - an unexpected (non-Kafka) message arrives
+        proxyChannelStateMachine.onClientRequest(new Object());
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -594,7 +589,7 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        assertThat(proxyChannelStateMachine.getKafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
+        assertThat(proxyChannelStateMachine.kafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
         verify(frontendHandler).inClosed(null);
         verify(backendHandler).inClosed();
     }
@@ -762,8 +757,8 @@ class ProxyChannelStateMachineTest {
                 argumentSet("STARTING TLS off ", (Runnable) () -> {
                     // no Op
                 }, false),
-                argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
-                argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
+                argumentSet("Ha Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
+                argumentSet("Ha Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
                 argumentSet("Selecting Server TLS on", (Runnable) this::stateMachineInSelectingServer, true),
                 argumentSet("Selecting Server TLS off ", (Runnable) this::stateMachineInSelectingServer, false),
                 argumentSet("Connecting TLS on", (Runnable) this::stateMachineInConnecting, true),
@@ -778,7 +773,7 @@ class ProxyChannelStateMachineTest {
 
     public Stream<Arguments> givenStates() {
         return Stream.of(
-                argumentSet("HA Proxy", (Runnable) this::stateMachineInHaProxy),
+                argumentSet("Ha Proxy", (Runnable) this::stateMachineInHaProxy),
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
                 argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
@@ -802,7 +797,7 @@ class ProxyChannelStateMachineTest {
 
     private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                new ProxyChannelState.HaProxy(),
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION);
@@ -810,7 +805,7 @@ class ProxyChannelStateMachineTest {
 
     private void stateMachineInSelectingServer() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.SelectingServer(null, null, null),
+                new ProxyChannelState.SelectingServer(null, null),
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION);
@@ -818,14 +813,14 @@ class ProxyChannelStateMachineTest {
 
     private void stateMachineInConnecting() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
+                new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler,
                 TEST_KAFKA_SESSION);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
-        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
+        var forwarding = new ProxyChannelState.Forwarding(null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
                 frontendHandler,
