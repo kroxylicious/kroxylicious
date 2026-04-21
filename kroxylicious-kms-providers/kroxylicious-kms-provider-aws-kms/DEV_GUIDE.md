@@ -119,6 +119,7 @@ Agent add-on installed on the EKS cluster. The agent injects
 environment variables.
 
 1. Install the EKS Pod Identity Agent add-on on the cluster.
+`aws eks create-addon --cluster-name <cluster_name>  --addon-name eks-pod-identity-agent --region <region>`
 2. Follow the 'Authenticating using EKS Pod Identity' instructions in the user docs to
    create the trust policy, IAM role, and the pod-identity association.
 3. Deploy Kroxylicious to EKS with the associated service account. Minimal `kmsConfig`:
