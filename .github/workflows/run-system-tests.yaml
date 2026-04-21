@@ -57,8 +57,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # The dist' profile builds the kroxylicious-operator artefact.  This is needed by the systemtests.
-          mvn --batch-mode --activate-profiles 'dist,!qa' -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -DskipContainerImageBuild -Derrorprone.skip=true install
+          # The 'dist' profile builds the kroxylicious-operator artefact. This is needed by the systemtests.
+          mvn --batch-mode \
+            --activate-profiles 'dist,!qa' \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            -DskipContainerImageBuild \
+            -Derrorprone.skip=true \
+            install
       - name: 'Package Kroxylicious Maven artifacts'
         run: |
           mkdir -p /tmp/kroxylicious-artifacts
@@ -166,7 +173,13 @@ jobs:
           # This avoids mvn compiling the other modules.
           # Dependencies (including Kroxylicious's own jars and operator artefact) will be got from .m2/repo
           # QA & errorprone are disabled to avoid any unnecessary work
-          mvn --batch-mode --activate-profiles 'systemtest,!qa' -Derrorprone.skip=true verify $TESTS_OPT $EXCLUDED_GROUPS_OPT $GROUPS_OPT
+          mvn --batch-mode \
+            --activate-profiles 'systemtest,!qa' \
+            -Derrorprone.skip=true \
+            $TESTS_OPT \
+            $EXCLUDED_GROUPS_OPT \
+            $GROUPS_OPT \
+            verify
 
       - name: Archive JUnit test results
         if: ${{ always() }}

@@ -79,7 +79,14 @@ jobs:
           echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
-          mvn -B install -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -Dspotbugs.skip=true
+          # On PRs, skip QA checks (already run in lint.yaml). On push to main, run QA checks.
+          QA_OPTS="${{ github.event_name == 'pull_request' && '--activate-profiles !qa -Derrorprone.skip=true' || '' }}"
+          mvn --batch-mode \
+            --activate-profiles ci \
+            ${QA_OPTS} \
+            -DskipITs \
+            -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
+            install
       - name: Cache SonarCloud packages
         uses: actions/cache@v5
         if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
@@ -95,7 +102,14 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
-        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar  -pl ''!:kroxylicious-operator''
+        run: |
+          mvn --batch-mode \
+            --activate-profiles 'ci,!qa' \
+            --projects ''!:kroxylicious-operator'' \
+            -Derrorprone.skip=true \
+            -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
+            verify \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
       - name: Slack Notification on Failure
         if: failure() && env.SLACK_WEBHOOK_SET == 'true' && github.event_name == 'push'
         uses: ./.github/actions/common/slack-notification
