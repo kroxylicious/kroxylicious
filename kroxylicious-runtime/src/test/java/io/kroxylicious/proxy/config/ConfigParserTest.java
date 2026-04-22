@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
@@ -327,15 +328,20 @@ class ConfigParserTest {
         var configuration = configParser.parseConfiguration(config);
         var roundTripped = configParser.toYaml(configuration);
 
-        var originalJsonNode = (ObjectNode) MAPPER.reader().readValue(config, JsonNode.class);
+        var originalJsonNode = MAPPER.reader().readValue(config, JsonNode.class);
         var roundTrippedJsonNode = MAPPER.reader().readValue(roundTripped, JsonNode.class);
 
-        // Configuration normalises `proxy` to ProxyConfig.DEFAULT in its compact constructor, so
-        // serialization always emits a `proxy` block. If the original YAML omitted it, inject the
-        // default on the expected side so the comparison is "original == round-tripped, modulo
-        // known defaulting".
-        if (!originalJsonNode.has("proxy")) {
-            originalJsonNode.set("proxy", ConfigParser.createObjectMapper().valueToTree(ProxyConfig.DEFAULT));
+        // VirtualCluster normalises `drainTimeout` to the 10 s default in its compact constructor,
+        // so serialization always emits it. Inject the default into any virtualCluster in the
+        // expected tree that didn't specify one, so the comparison remains
+        // "original == round-tripped, modulo known defaulting".
+        JsonNode originalVirtualClusters = originalJsonNode.get("virtualClusters");
+        if (originalVirtualClusters instanceof ArrayNode arr) {
+            for (JsonNode vc : arr) {
+                if (vc instanceof ObjectNode obj && !obj.has("drainTimeout")) {
+                    obj.put("drainTimeout", "10s");
+                }
+            }
         }
 
         var diff = JsonDiff.asJson(originalJsonNode, roundTrippedJsonNode);

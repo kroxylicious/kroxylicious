@@ -42,7 +42,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param network Controls aspects of network configuration for the proxy.
  * @param proxyProtocol PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxyProtocol", "proxy" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -52,8 +52,7 @@ public record Configuration(
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
                             @Nullable NetworkDefinition network,
-                            @Nullable ProxyProtocolConfig proxyProtocol,
-                            @Nullable ProxyConfig proxy) {
+                            @Nullable ProxyProtocolConfig proxyProtocol) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
@@ -65,9 +64,6 @@ public record Configuration(
         Objects.requireNonNull(development);
         if (virtualClusters == null || virtualClusters.isEmpty()) {
             throw new IllegalConfigurationException("At least one virtual cluster must be defined.");
-        }
-        if (proxy == null) {
-            proxy = ProxyConfig.DEFAULT;
         }
 
         validateNoDuplicatedClusterNames(virtualClusters);
@@ -145,7 +141,8 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions,
                 virtualCluster.topicNameCacheConfig(),
-                virtualCluster.subjectBuilder());
+                virtualCluster.subjectBuilder(),
+                virtualCluster.drainTimeout());
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();

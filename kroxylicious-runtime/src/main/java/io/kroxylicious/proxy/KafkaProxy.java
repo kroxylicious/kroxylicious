@@ -434,10 +434,10 @@ public final class KafkaProxy implements AutoCloseable {
         if (drainCoordinator == null) {
             return;
         }
-        Duration drainTimeout = config.proxy().drainTimeout();
+        // Each virtual cluster carries its own drainTimeout — different clusters may
+        // have different workload profiles.
         var drainFutures = virtualClusterModels.stream()
-                .map(VirtualClusterModel::getClusterName)
-                .map(name -> drainCoordinator.drainCluster(name, drainTimeout))
+                .map(model -> drainCoordinator.drainCluster(model.getClusterName(), model.getDrainTimeout()))
                 .toArray(CompletableFuture[]::new);
         try {
             CompletableFuture.allOf(drainFutures).join();

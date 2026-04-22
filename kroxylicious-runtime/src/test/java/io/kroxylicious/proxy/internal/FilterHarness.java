@@ -97,7 +97,7 @@ public abstract class FilterHarness {
 
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession, new DrainCoordinator());
-        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
+        var forwarding = new ProxyChannelState.Forwarding(null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),

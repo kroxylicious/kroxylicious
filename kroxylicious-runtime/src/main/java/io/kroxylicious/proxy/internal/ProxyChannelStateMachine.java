@@ -26,7 +26,6 @@ import io.micrometer.core.instrument.Timer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
@@ -951,6 +950,16 @@ public class ProxyChannelStateMachine {
         // coordinator that this connection is closed regardless of whether drain completed
         // naturally or the connection was torn down for another reason.
         if (pendingDrainCallback != null) {
+            LOGGER.atInfo()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
+                    .addKeyValue("virtualCluster", clusterName())
+                    .addKeyValue("frontendChannel", frontendChannelAddress())
+                    .addKeyValue("backendChannel", backendChannelAddress())
+                    .addKeyValue("disconnectCause", disconnectCause)
+                    .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
+                    .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                    .addKeyValue("serverMessageInFlight", serverMessageInFlight)
+                    .log("Drain interrupted by connection close — signalling drain policy from toClosed path");
             pendingDrainCallback.run();
         }
     }
