@@ -1074,6 +1074,36 @@ class ProxyChannelStateMachineTest {
         assertThat(executorUsed).isTrue();
     }
 
+    @Test
+    void shouldCloseWhenFrontendHandlerActivatedInNonStartingState() {
+        // Given
+        stateMachineInClientActive();
+        KafkaProxyFrontendHandler newFrontendHandler = mock(KafkaProxyFrontendHandler.class);
+
+        // When
+        proxyChannelStateMachine.onClientActive(newFrontendHandler);
+
+        // Then
+        assertThat(proxyChannelStateMachine.state())
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendGatewayHandler).inClosed(null);
+    }
+
+    @Test
+    void shouldCloseWhenGatewayHandlerActivatedInNonStartingState() {
+        // Given
+        stateMachineInClientActive();
+        KafkaProxyGatewayHandler newGatewayHandler = mock(KafkaProxyGatewayHandler.class);
+
+        // When
+        proxyChannelStateMachine.onClientActive(newGatewayHandler);
+
+        // Then
+        assertThat(proxyChannelStateMachine.state())
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendGatewayHandler).inClosed(null);
+    }
+
     @org.junit.jupiter.api.Nested
     class DisconnectMetricsTest {
 
