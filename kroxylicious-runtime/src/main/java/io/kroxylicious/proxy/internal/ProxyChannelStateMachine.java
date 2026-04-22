@@ -453,16 +453,31 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * The proxy has received something from the client. The current state of the session determines what happens to it.
+     * The proxy has received something from the client that has been decoded then intercepted at the gateway. The current state of the session determines what happens to it.
+     *
      * @param msg the RPC received from the downstream client
      */
-    void onClientRequest(
-                         Object msg) {
+    void onClientRequestGateway(Object msg) {
+        Objects.requireNonNull(frontendGatewayHandler);
+        if (state() instanceof Forwarding) { // post-backend connection
+            frontendGatewayHandler.forward(msg);
+        }
+        else if (!onClientRequestBeforeForwarding(msg)) {
+            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
+        }
+    }
+
+    /**
+     * The proxy has received something from the client that has reached the end of the frontend chain. The current state of the session determines what happens to it.
+     * @param msg the RPC received from the downstream client
+     */
+    void onClientRequestTerminal(
+                                 Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
-        else if (!onClientRequestBeforeForwarding(msg)) {
+        else {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
@@ -672,6 +687,7 @@ public class ProxyChannelStateMachine {
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
+        Objects.requireNonNull(frontendGatewayHandler).inForwarding();
         Objects.requireNonNull(frontendHandler).inForwarding();
         // once buffered message has been forwarded we enable auto-read to start accepting further messages
         maybeUnblock();
@@ -684,7 +700,7 @@ public class ProxyChannelStateMachine {
      * @return <code>false</code> for unsupported message types
      */
     private boolean onClientRequestBeforeForwarding(Object msg) {
-        Objects.requireNonNull(frontendHandler).bufferMsg(msg);
+        Objects.requireNonNull(frontendGatewayHandler).bufferMsg(msg);
         if (state() instanceof ProxyChannelState.ClientActive clientActive) {
             return onClientRequestInClientActiveState(msg, clientActive);
         }
@@ -754,10 +770,10 @@ public class ProxyChannelStateMachine {
         }
 
         // Close the client connection with any error code
-        if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
-            frontendHandler.inClosed(errorCodeEx);
-            clientToProxyConnectionToken.release();
+        if (frontendGatewayHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
+            frontendGatewayHandler.inClosed(errorCodeEx);
         }
+        clientToProxyConnectionToken.release();
     }
 
     private void incrementAppropriateDisconnectsMetric(@Nullable DisconnectCause disconnectCause) {

@@ -233,11 +233,14 @@ class KafkaProxyFrontendHandlerTest {
         var proxyChannelStateMachine = this.proxyChannelStateMachine(endpointBinding);
 
         KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), proxyChannelStateMachine);
+        KafkaProxyGatewayHandler gatewayHandler = new KafkaProxyGatewayHandler(proxyChannelStateMachine);
         ChannelPipeline pipeline = inboundChannel.pipeline();
         pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
+        pipeline.addLast(gatewayHandler);
         pipeline.addLast(handler);
 
         ChannelHandlerContext mockChannelCtx = mockChannelContext();
+        gatewayHandler.channelActive(mockChannelCtx);
         handler.channelActive(mockChannelCtx);
 
         // when
@@ -261,11 +264,14 @@ class KafkaProxyFrontendHandlerTest {
         var proxyChannelStateMachine = this.proxyChannelStateMachine(endpointBinding);
 
         KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), proxyChannelStateMachine);
+        KafkaProxyGatewayHandler gatewayHandler = new KafkaProxyGatewayHandler(proxyChannelStateMachine);
         ChannelPipeline pipeline = inboundChannel.pipeline();
         pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
+        pipeline.addLast(gatewayHandler);
         pipeline.addLast(handler);
 
         ChannelHandlerContext mockChannelCtx = mockChannelContext();
+        gatewayHandler.channelActive(mockChannelCtx);
         handler.channelActive(mockChannelCtx);
 
         // when

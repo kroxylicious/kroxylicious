@@ -102,6 +102,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     int correlationId = 0;
     private KafkaProxyFrontendHandler handler;
+    private KafkaProxyGatewayHandler gatewayHandler;
     private KafkaProxyBackendHandler backendHandler;
     private boolean activateOutboundChannelAutomatically = true;
 
@@ -128,7 +129,7 @@ class ProxyChannelStateMachineEndToEndTest {
         activateOutboundChannelAutomatically = false;
 
         // When
-        hClientConnect(proxyChannelStateMachine, handler);
+        hClientConnect(proxyChannelStateMachine, handler, gatewayHandler);
 
         // Then
         inboundChannel.checkException();
@@ -195,7 +196,7 @@ class ProxyChannelStateMachineEndToEndTest {
                     handler,
                     backendHandler,
                     TEST_SESSION,
-                    null);
+                    gatewayHandler);
         }
 
         // When
@@ -223,7 +224,7 @@ class ProxyChannelStateMachineEndToEndTest {
         var proxyChannelStateMachine = buildFrontendHandler(false);
         activateOutboundChannelAutomatically = false;
 
-        hClientConnect(proxyChannelStateMachine, handler);
+        hClientConnect(proxyChannelStateMachine, handler, gatewayHandler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
@@ -253,7 +254,7 @@ class ProxyChannelStateMachineEndToEndTest {
                 .isNotNull();
 
         assertProxyActive(proxyChannelStateMachine);
-        assertThat(handler.bufferedMsgs).isNull();
+        assertThat(gatewayHandler.bufferedMsgs).isNull();
     }
 
     @ParameterizedTest
@@ -321,7 +322,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Connecting.class);
 
-        assertThat(handler.bufferedMsgs)
+        assertThat(gatewayHandler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
                 .singleElement()
                 .isEqualTo(firstRequest);
@@ -507,6 +508,7 @@ class ProxyChannelStateMachineEndToEndTest {
         var proxyChannelStateMachine = proxyChannelStateMachine(endpointBinding);
 
         this.handler = handler(proxyChannelStateMachine, dp);
+        this.gatewayHandler = new KafkaProxyGatewayHandler(proxyChannelStateMachine);
         this.inboundCtx = mock(ChannelHandlerContext.class);
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());
@@ -527,10 +529,12 @@ class ProxyChannelStateMachineEndToEndTest {
 
     // transitions from each state
     // each of the events that can happen in that state
-    private void hClientConnect(ProxyChannelStateMachine proxyChannelStateMachine, KafkaProxyFrontendHandler handler) {
+    private void hClientConnect(ProxyChannelStateMachine proxyChannelStateMachine,
+                                KafkaProxyFrontendHandler handler,
+                                KafkaProxyGatewayHandler gatewayHandler) {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
-            pipeline.addLast(new KafkaProxyGatewayHandler(proxyChannelStateMachine));
+            pipeline.addLast(gatewayHandler);
             pipeline.addLast(handler);
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
@@ -620,7 +624,7 @@ class ProxyChannelStateMachineEndToEndTest {
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_NAME : null);
         stateAssert.extracting(ProxyChannelState.Connecting::clientSoftwareVersion)
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_VERSION : null);
-        assertThat(handler.bufferedMsgs).asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
+        assertThat(gatewayHandler.bufferedMsgs).asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
                 .map(DecodedRequestFrame::apiKey).isEqualTo(expectedBufferedRequestTypes);
     }
 
@@ -698,7 +702,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                                    ApiKeys firstMessage) {
         var proxyChannelStateMachine = buildFrontendHandler(tlsConfigured);
 
-        hClientConnect(proxyChannelStateMachine, handler);
+        hClientConnect(proxyChannelStateMachine, handler, gatewayHandler);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
@@ -709,7 +713,7 @@ class ProxyChannelStateMachineEndToEndTest {
                 handler,
                 backendHandler,
                 TEST_SESSION,
-                null);
+                gatewayHandler);
 
         inboundChannel.config().setAutoRead(false);
 
@@ -719,7 +723,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @NonNull
     private DecodedRequestFrame<ApiMessage> firstRequest(ApiKeys firstMessage) {
         final DecodedRequestFrame<ApiMessage> firstRequest = apiKeyToMessage(firstMessage);
-        handler.bufferMsg(firstRequest);
+        gatewayHandler.bufferMsg(firstRequest);
 
         handler.inSelectingServer();
 
@@ -784,7 +788,7 @@ class ProxyChannelStateMachineEndToEndTest {
         var proxyChannelStateMachine = buildFrontendHandler(false);
 
         // When - Transition to ClientActive state (this installs filters in the pipeline)
-        hClientConnect(proxyChannelStateMachine, handler);
+        hClientConnect(proxyChannelStateMachine, handler, gatewayHandler);
 
         // Then - Verify the pipeline ordering
         ChannelPipeline pipeline = inboundChannel.pipeline();

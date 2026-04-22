@@ -155,7 +155,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelRead(clientCtx, msg);
 
         // Then
-        verify(proxyChannelStateMachine).onClientRequest(msg);
+        verify(proxyChannelStateMachine).onClientRequestTerminal(msg);
     }
 
     @Test

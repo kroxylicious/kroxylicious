@@ -15,15 +15,12 @@ import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
@@ -44,11 +41,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
-import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
@@ -95,9 +88,6 @@ public class KafkaProxyFrontendHandler
     private final Long authenticatedIdleTimeMillis;
 
     private @Nullable ChannelHandlerContext clientCtx;
-    @VisibleForTesting
-    @Nullable
-    List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
 
@@ -136,7 +126,6 @@ public class KafkaProxyFrontendHandler
         return "KafkaProxyFrontendHandler{"
                 + ", clientCtx=" + clientCtx
                 + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
-                + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
                 + ", pendingClientFlushes=" + pendingClientFlushes
                 + ", sniHostname='" + sniHostname + '\''
                 + ", pendingReadComplete=" + pendingReadComplete
@@ -226,7 +215,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             ChannelHandlerContext ctx,
                             Object msg) {
-        proxyChannelStateMachine.onClientRequest(msg);
+        proxyChannelStateMachine.onClientRequestTerminal(msg);
     }
 
     /**
@@ -433,37 +422,12 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
      */
     void inForwarding() {
-        // connection is complete, so first forward the buffered message
-        if (bufferedMsgs != null) {
-            for (Object bufferedMsg : bufferedMsgs) {
-                proxyChannelStateMachine.messageFromClient(bufferedMsg);
-            }
-            bufferedMsgs = null;
-        }
 
         if (pendingReadComplete) {
             pendingReadComplete = false;
             channelReadComplete(this.clientCtx());
         }
 
-    }
-
-    /**
-     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Closed} state.
-     */
-    void inClosed(@Nullable Throwable errorCodeEx) {
-        Channel inboundChannel = clientCtx().channel();
-        if (inboundChannel.isActive()) {
-            Object msg = null;
-            if (errorCodeEx != null) {
-                msg = errorResponse(errorCodeEx);
-            }
-            if (msg == null) {
-                msg = Unpooled.EMPTY_BUFFER;
-            }
-            inboundChannel.writeAndFlush(msg)
-                    .addListener(ChannelFutureListener.CLOSE);
-        }
     }
 
     /**
@@ -495,18 +459,6 @@ public class KafkaProxyFrontendHandler
             // TODO does duplicate the writeability change notification from netty? If it does is that a problem?
             proxyChannelStateMachine.onClientUnwritable();
         }
-    }
-
-    /**
-     * Called by the {@link ProxyChannelStateMachine} when there is a requirement to buffer RPC's prior to forwarding to the upstream/server.
-     * Generally this is expected to be when client requests are received before we have a connection to the upstream node.
-     * @param msg the RPC to buffer.
-     */
-    void bufferMsg(Object msg) {
-        if (bufferedMsgs == null) {
-            bufferedMsgs = new ArrayList<>();
-        }
-        bufferedMsgs.add(msg);
     }
 
     private void addFiltersToPipeline(
@@ -543,33 +495,6 @@ public class KafkaProxyFrontendHandler
 
     private ChannelHandlerContext clientCtx() {
         return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
-    }
-
-    private static ResponseFrame buildErrorResponseFrame(
-                                                         DecodedRequestFrame<?> triggerFrame,
-                                                         Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
-        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
-        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
-        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
-    }
-
-    /**
-     * Return an error response to send to the client, or null if no response should be sent.
-     * @param errorCodeEx The exception
-     * @return The response frame
-     */
-    private @Nullable ResponseFrame errorResponse(
-                                                  @Nullable Throwable errorCodeEx) {
-        ResponseFrame errorResponse;
-        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
-        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
-        }
-        else {
-            errorResponse = null;
-        }
-        return errorResponse;
     }
 
     /**
