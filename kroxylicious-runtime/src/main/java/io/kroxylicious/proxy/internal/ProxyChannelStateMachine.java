@@ -218,7 +218,11 @@ public class ProxyChannelStateMachine {
      * Sonar will complain if one uses this in prod code listen to it.
      */
     @VisibleForTesting
-    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
+    void forceState(ProxyChannelState state,
+                    KafkaProxyFrontendHandler frontendHandler,
+                    @Nullable KafkaProxyBackendHandler backendHandler,
+                    KafkaSession kafkaSession,
+                    int transportAndBackendLatch) {
         LOGGER.atInfo()
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
@@ -228,6 +232,7 @@ public class ProxyChannelStateMachine {
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
+        this.progressionLatch = transportAndBackendLatch;
     }
 
     @Override
@@ -639,8 +644,7 @@ public class ProxyChannelStateMachine {
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
-        Objects.requireNonNull(frontendHandler).inForwarding();
-        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        // we must wait for the transport subject before forwarded buffered messages and then enanling autoread on the client
         maybeUnblock();
         proxyToServerConnectionToken.acquire();
     }

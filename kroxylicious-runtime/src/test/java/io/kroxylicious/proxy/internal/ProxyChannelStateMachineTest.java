@@ -477,7 +477,12 @@ class ProxyChannelStateMachineTest {
     @Test
     void inConnectingShouldTransitionWhenOnServerActiveCalled() {
         // Given
-        stateMachineInConnecting();
+        int waitingForOneEvent = 1;
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
+                frontendHandler,
+                backendHandler,
+                TEST_KAFKA_SESSION, waitingForOneEvent);
 
         // When
         proxyChannelStateMachine.onServerActive();
@@ -485,7 +490,27 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
 
-        verify(frontendHandler).inForwarding();
+        verify(frontendHandler).unblockClient();
+        verifyNoInteractions(backendHandler);
+    }
+
+    @Test
+    void onServerActiveDoesNotUnblockClientIfWaitingForTransportSubject() {
+        // Given
+        int waitingForTwoEvents = 2;
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
+                frontendHandler,
+                backendHandler,
+                TEST_KAFKA_SESSION, waitingForTwoEvents);
+
+        // When
+        proxyChannelStateMachine.onServerActive();
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
+
+        verifyNoInteractions(frontendHandler);
         verifyNoInteractions(backendHandler);
     }
 
@@ -795,7 +820,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION, -1);
     }
 
     private void stateMachineInHaProxy() {
@@ -803,7 +828,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.HaProxy(),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION, -1);
     }
 
     private void stateMachineInSelectingServer() {
@@ -811,7 +836,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.SelectingServer(null, null),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION, -1);
     }
 
     private void stateMachineInConnecting() {
@@ -819,7 +844,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION, -1);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
@@ -828,7 +853,7 @@ class ProxyChannelStateMachineTest {
                 forwarding,
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION, -1);
         return forwarding;
     }
 
@@ -837,7 +862,7 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Closed(),
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION, -1);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {

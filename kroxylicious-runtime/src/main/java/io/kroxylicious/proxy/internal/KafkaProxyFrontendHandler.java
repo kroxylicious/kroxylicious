@@ -74,7 +74,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 
 public class KafkaProxyFrontendHandler
@@ -435,20 +434,6 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
-     */
-    void inForwarding() {
-        // connection is complete, so first forward the buffered message
-        if (bufferedMsgs != null) {
-            for (Object bufferedMsg : bufferedMsgs) {
-                clientCtx().fireChannelRead(bufferedMsg);
-            }
-            bufferedMsgs = null;
-        }
-
-    }
-
-    /**
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Closed} state.
      */
     void inClosed(@Nullable Throwable errorCodeEx) {
@@ -529,8 +514,19 @@ public class KafkaProxyFrontendHandler
 
     void unblockClient() {
         var inboundChannel = clientCtx().channel();
+        forwardBufferedMessages();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();
+    }
+
+    private void forwardBufferedMessages() {
+        // connection is complete, so first forward the buffered message
+        if (bufferedMsgs != null) {
+            for (Object bufferedMsg : bufferedMsgs) {
+                clientCtx().fireChannelRead(bufferedMsg);
+            }
+            bufferedMsgs = null;
+        }
     }
 
     Executor eventLoopExecutor() {

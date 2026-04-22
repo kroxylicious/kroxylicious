@@ -194,7 +194,7 @@ class ProxyChannelStateMachineEndToEndTest {
                     new ProxyChannelState.HaProxy(),
                     handler,
                     backendHandler,
-                    TEST_SESSION);
+                    TEST_SESSION, -1);
         }
 
         // When
@@ -701,13 +701,16 @@ class ProxyChannelStateMachineEndToEndTest {
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
+        // the PCSM unblocks the client after the backend is active and transport subject is asynchronously created
+        // here we force it to wait for a single event before unblocking.
+        int waitingForOneEvent = 1;
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
                 backendHandler,
-                TEST_SESSION);
+                TEST_SESSION, waitingForOneEvent);
 
         inboundChannel.config().setAutoRead(false);
 
