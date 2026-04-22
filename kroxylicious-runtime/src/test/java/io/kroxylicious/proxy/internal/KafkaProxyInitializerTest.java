@@ -381,7 +381,7 @@ class KafkaProxyInitializerTest {
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         AbstractAssert.setDescriptionConsumer(null);
     }
 

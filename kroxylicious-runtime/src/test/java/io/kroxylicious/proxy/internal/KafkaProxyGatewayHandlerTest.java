@@ -110,8 +110,7 @@ class KafkaProxyGatewayHandlerTest {
 
         SSLSession session = kafkaProxyGatewayHandler.sslSession();
 
-        assertThat(session).isNotNull();
-        assertThat(session).isSameAs(sslHandler.engine().getSession());
+        assertThat(session).isNotNull().isSameAs(sslHandler.engine().getSession());
     }
 
     @Test
