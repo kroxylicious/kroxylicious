@@ -14,7 +14,7 @@ Configuration:
         type: Console
         target: SYSTEM_OUT
         PatternLayout:
-            pattern: '%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{1.} - %m%replace{ %K{ctx}}{'' $''}{}%n'
+            pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{1.} - %m%X%n"
   Loggers:
     Root:
       additivity: false
