@@ -27,10 +27,10 @@ data:
 
     # Subscription configuration
     subscriptionsPerTopic: 1
-    consumerPerSubscription: 1
+    consumerPerSubscription: {{ .Values.benchmark.consumerPerSubscription }}
 
     # Producer configuration
-    producersPerTopic: 1
+    producersPerTopic: {{ .Values.benchmark.producersPerTopic }}
     producerRate: {{ .Values.benchmark.producerRate }}
 
     # Test duration
