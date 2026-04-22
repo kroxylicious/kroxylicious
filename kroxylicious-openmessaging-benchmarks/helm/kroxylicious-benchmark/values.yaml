@@ -112,3 +112,5 @@ benchmark:
   testDurationMinutes: 15
   warmupDurationMinutes: 5
   producerRate: 50000
+  producersPerTopic: 1
+  consumerPerSubscription: 1
