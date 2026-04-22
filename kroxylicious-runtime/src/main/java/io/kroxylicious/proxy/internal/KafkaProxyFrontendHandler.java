@@ -15,9 +15,6 @@ import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLSession;
-
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +34,6 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -110,20 +106,6 @@ public class KafkaProxyFrontendHandler
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    /**
-     * @return the SSL session, or null if a session does not (currently) exist.
-     */
-    @Nullable
-    SSLSession sslSession() {
-        // The SslHandler is added to the pipeline by the SniHandler (replacing it) after the ClientHello.
-        // It is added using the fully-qualified class name.
-        SslHandler sslHandler = (SslHandler) this.clientCtx().pipeline().get(SslHandler.class.getName());
-        return Optional.ofNullable(sslHandler)
-                .map(SslHandler::engine)
-                .map(SSLEngine::getSession)
-                .orElse(null);
-    }
-
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
@@ -183,10 +165,6 @@ public class KafkaProxyFrontendHandler
             else {
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
-        }
-        else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
-                && handshakeCompletionEvent.isSuccess()) {
-            this.proxyChannelStateMachine.onClientTlsHandshakeSuccess(sslSession());
         }
         else if (event instanceof IdleStateEvent idleStateEvent && idleStateEvent.state() == IdleState.ALL_IDLE) {
             // No traffic has been observed on the channel for the configured period
