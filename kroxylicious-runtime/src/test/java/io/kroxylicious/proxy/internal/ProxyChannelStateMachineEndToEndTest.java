@@ -194,7 +194,8 @@ class ProxyChannelStateMachineEndToEndTest {
                     new ProxyChannelState.HaProxy(),
                     handler,
                     backendHandler,
-                    TEST_SESSION);
+                    TEST_SESSION,
+                    null);
         }
 
         // When
@@ -529,6 +530,7 @@ class ProxyChannelStateMachineEndToEndTest {
     private void hClientConnect(ProxyChannelStateMachine proxyChannelStateMachine, KafkaProxyFrontendHandler handler) {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
+            pipeline.addLast(new KafkaProxyGatewayHandler(proxyChannelStateMachine));
             pipeline.addLast(handler);
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
@@ -706,7 +708,8 @@ class ProxyChannelStateMachineEndToEndTest {
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
                 backendHandler,
-                TEST_SESSION);
+                TEST_SESSION,
+                null);
 
         inboundChannel.config().setAutoRead(false);
 

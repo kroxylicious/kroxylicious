@@ -70,6 +70,7 @@ import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -101,6 +102,10 @@ class ProxyChannelStateMachineTest {
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private KafkaProxyFrontendHandler frontendHandler;
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    private KafkaProxyGatewayHandler frontendGatewayHandler;
+
     private SimpleMeterRegistry simpleMeterRegistry;
 
     @BeforeEach
@@ -130,6 +135,7 @@ class ProxyChannelStateMachineTest {
 
         // When
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connections").counter())
@@ -313,10 +319,28 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldNotifyHandlerOnTransitionFromStartToClientActive() {
+    void shouldNotifyHandlerOnTransitionFromStartToClientActiveWhenFrontendActiveFirst() {
         // Given
 
         // When
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+        verify(frontendHandler, never()).inClientActive();
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.ClientActive.class);
+        verify(frontendHandler, times(1)).inClientActive();
+    }
+
+    @Test
+    void shouldNotifyHandlerOnTransitionFromStartToClientActiveWhenGatewayActiveFirst() {
+        // Given
+
+        // When
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
+        verify(frontendHandler, never()).inClientActive();
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Startup.class);
         proxyChannelStateMachine.onClientActive(frontendHandler);
 
         // Then
@@ -331,6 +355,7 @@ class ProxyChannelStateMachineTest {
 
         // When
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
 
         // Then - state machine transitions through ClientActive → HaProxy
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
@@ -796,7 +821,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                frontendGatewayHandler);
     }
 
     private void stateMachineInHaProxy() {
@@ -804,7 +830,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.HaProxy(),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                frontendGatewayHandler);
     }
 
     private void stateMachineInSelectingServer() {
@@ -812,7 +839,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.SelectingServer(null, null),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                frontendGatewayHandler);
     }
 
     private void stateMachineInConnecting() {
@@ -820,7 +848,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                frontendGatewayHandler);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
@@ -829,7 +858,8 @@ class ProxyChannelStateMachineTest {
                 forwarding,
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                frontendGatewayHandler);
         return forwarding;
     }
 
@@ -838,7 +868,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Closed(),
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                frontendGatewayHandler);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
@@ -876,6 +907,7 @@ class ProxyChannelStateMachineTest {
 
         // When
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
 
         // Then
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -900,6 +932,7 @@ class ProxyChannelStateMachineTest {
     void shouldDecrementActiveConnectionsOnClosed() {
         // Given - establish both client and server connections
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
         stateMachineInConnecting();
         proxyChannelStateMachine.onServerActive();
 
@@ -920,6 +953,7 @@ class ProxyChannelStateMachineTest {
     void shouldDecrementActiveConnectionsOnServerInactive() {
         // Given - establish both client and server connections
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
         stateMachineInConnecting();
         proxyChannelStateMachine.onServerActive();
 
@@ -940,6 +974,7 @@ class ProxyChannelStateMachineTest {
     void shouldDecrementActiveConnectionsOnClientException() {
         // Given - establish client connection
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
@@ -954,6 +989,7 @@ class ProxyChannelStateMachineTest {
     void shouldDecrementActiveConnectionsOnServerException() {
         // Given - establish both client and server connections
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
         stateMachineInConnecting();
         proxyChannelStateMachine.onServerActive();
 
@@ -974,6 +1010,7 @@ class ProxyChannelStateMachineTest {
     void shouldOnlyDecrementClientConnectionsWhenNotInForwardingState() {
         // Given - establish client connection but not server connection
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
         int initialServerCount = getVirtualNodeProxyToServerActiveConnections();
 
@@ -1023,6 +1060,7 @@ class ProxyChannelStateMachineTest {
     void onClientTlsHandshakeSuccessPassesExecutorToSubjectManager() {
         // Given
         proxyChannelStateMachine.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendGatewayHandler);
         SSLSession sslSession = mock(SSLSession.class);
         AtomicBoolean executorUsed = new AtomicBoolean(false);
         when(frontendHandler.eventLoopExecutor()).thenReturn(command -> {

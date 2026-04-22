@@ -175,6 +175,11 @@ public class ProxyChannelStateMachine {
      */
     @SuppressWarnings({ "java:S2637" })
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
+    /**
+     * The frontend gateway handler. Non-null if we got as far as ClientActive.
+     */
+    @SuppressWarnings({ "java:S2637" })
+    private @Nullable KafkaProxyGatewayHandler frontendGatewayHandler = null;
 
     /**
      * The backend handler. Non-null if {@link #onInitiateConnect(HostPort)}
@@ -218,7 +223,11 @@ public class ProxyChannelStateMachine {
      * Sonar will complain if one uses this in prod code listen to it.
      */
     @VisibleForTesting
-    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
+    void forceState(ProxyChannelState state,
+                    KafkaProxyFrontendHandler frontendHandler,
+                    @Nullable KafkaProxyBackendHandler backendHandler,
+                    KafkaSession kafkaSession,
+                    @Nullable KafkaProxyGatewayHandler frontendGatewayHandler) {
         LOGGER.atInfo()
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
@@ -228,6 +237,7 @@ public class ProxyChannelStateMachine {
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
+        this.frontendGatewayHandler = frontendGatewayHandler;
     }
 
     @Override
@@ -327,6 +337,15 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
+            maybeTransitionOutOfStarting();
+        }
+        else {
+            illegalState("Client frontend activation while not in the start state");
+        }
+    }
+
+    private void maybeTransitionOutOfStarting() {
+        if (frontendHandler != null && frontendGatewayHandler != null) {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
@@ -340,8 +359,19 @@ public class ProxyChannelStateMachine {
                 toHaProxy(clientActive.toHaProxy());
             }
         }
+    }
+
+    /**
+     * Notify the statemachine that the client channel has an active TCP connection.
+     * @param kafkaProxyGatewayHandler with active connection
+     */
+    public void onClientActive(KafkaProxyGatewayHandler kafkaProxyGatewayHandler) {
+        if (STARTING_STATE.equals(this.state)) {
+            this.frontendGatewayHandler = kafkaProxyGatewayHandler;
+            maybeTransitionOutOfStarting();
+        }
         else {
-            illegalState("Client activation while not in the start state");
+            illegalState("Client gateway activation while not in the start state");
         }
     }
 

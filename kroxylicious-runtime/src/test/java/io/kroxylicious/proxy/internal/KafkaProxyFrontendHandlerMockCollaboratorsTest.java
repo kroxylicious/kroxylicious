@@ -309,6 +309,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
         var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
         var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session);
+        pcsm.onClientActive(new KafkaProxyGatewayHandler(pcsm));
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
