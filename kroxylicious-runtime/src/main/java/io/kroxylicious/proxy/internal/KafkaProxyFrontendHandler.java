@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLEngine;
@@ -556,6 +557,10 @@ public class KafkaProxyFrontendHandler
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();
+    }
+
+    Executor eventLoopExecutor() {
+        return Objects.requireNonNull(clientCtx().executor(), "executor must not be null");
     }
 
     private ChannelHandlerContext clientCtx() {

@@ -8,9 +8,11 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.InvalidRequestException;
@@ -110,6 +112,8 @@ class ProxyChannelStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new KafkaSession(KafkaSessionState.ESTABLISHING), new DrainCoordinator());
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
+        // Make the executor run tasks synchronously for tests
+        when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
     }
 
     @AfterEach
@@ -1013,6 +1017,24 @@ class ProxyChannelStateMachineTest {
 
     private int getVirtualNodeProxyToServerActiveConnections() {
         return io.kroxylicious.proxy.internal.util.Metrics.proxyToServerConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
+    }
+
+    @Test
+    void onClientTlsHandshakeSuccessPassesExecutorToSubjectManager() {
+        // Given
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+        SSLSession sslSession = mock(SSLSession.class);
+        AtomicBoolean executorUsed = new AtomicBoolean(false);
+        when(frontendHandler.eventLoopExecutor()).thenReturn(command -> {
+            executorUsed.set(true);
+            command.run();
+        });
+
+        // When
+        proxyChannelStateMachine.onClientTlsHandshakeSuccess(sslSession);
+
+        // Then - verify the executor was actually used, proving the new parameter is passed through correctly
+        assertThat(executorUsed).isTrue();
     }
 
     @org.junit.jupiter.api.Nested

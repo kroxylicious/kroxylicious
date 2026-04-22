@@ -785,7 +785,8 @@ public class ProxyChannelStateMachine {
     }
 
     public void onClientTlsHandshakeSuccess(SSLSession sslSession) {
-        this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder, this::onTransportSubjectBuilt);
+        this.clientSubjectManager.subjectFromTransport(sslSession, transportSubjectBuilder,
+                Objects.requireNonNull(frontendHandler).eventLoopExecutor(), this::onTransportSubjectBuilt);
     }
 
     @SuppressWarnings("java:S5738")
@@ -800,7 +801,8 @@ public class ProxyChannelStateMachine {
         // these can happen in either order
         this.progressionLatch = 2;
         if (!this.isTlsListener()) {
-            this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder, this::onTransportSubjectBuilt);
+            this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder,
+                    frontendHandler.eventLoopExecutor(), this::onTransportSubjectBuilt);
         }
         frontendHandler.inClientActive();
 
