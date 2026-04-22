@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.matcher.AssertionMatcher;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -379,6 +380,11 @@ class KafkaProxyInitializerTest {
         assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
     }
 
+    @AfterEach
+    public void afterEach() {
+        AbstractAssert.setDescriptionConsumer(null);
+    }
+
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
@@ -438,7 +444,7 @@ class KafkaProxyInitializerTest {
 
             @Override
             public void assertion(T actual) throws AssertionError {
-                AbstractAssert.setDescriptionConsumer(description -> underlyingDescription = description.value());
+                AbstractAssert.setDescriptionConsumer(description -> underlyingDescription = description == null ? null : description.value());
                 assertions.accept(actual);
             }
 
