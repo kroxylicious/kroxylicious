@@ -7,11 +7,14 @@
 /**
  * API for defining plugins within configuration.
  *
- * <h2>Terminology</h2>
+ * <h2>Plugin interfaces</h2>
  * <p>A <em>plugin interface</em> is a Java {@code interface} (or possibly a {@code class)} that can be used
  * in the implementation of a component of the proxy.
- * {@link io.kroxylicious.proxy.filter.FilterFactory} is one example of a plugin interface.</p>
+ * {@link io.kroxylicious.proxy.filter.FilterFactory} is one example of a plugin interface.
+ * Plugin interfaces should be annotated with {@link io.kroxylicious.proxy.plugin.ApiVersion @ApiVersion}.
+ * </p>
  *
+ * <h2>Plugin implementations</h2>
  * <p>A <em>plugin implementation</em> provides a concrete behaviour by implementing the plugin interface
  * (or extending the class).
  * There will usually be more than one plugin implementation for a given plugin interface.
@@ -31,6 +34,7 @@
  * but doesn't want to depend directly on any particular HTTP client. {@code HttpGetter} is the plugin interface.</p>
  *
  * <pre>{@code
+ * @ApiVersion("v1alpha1")
  * interface HttpGetter<C> {
  *     void configure(C config);
  *     String get(String url);
@@ -53,7 +57,7 @@
  * </code></pre>
  *
  * <p>The {@link io.kroxylicious.proxy.plugin.PluginImplConfig#implNameProperty()} names the property of the config object that holds the
- * plugin implementation name. In practice the author of {@code FooFilter} might want to chose config property names which are intuitive to someone
+ * plugin implementation name. In practice the author of {@code FooFilter} might want to choose config property names which are intuitive to someone
  * writing a configuration file, such as {@code httpImpl} and {@code httpConfig}.</p>
  *
  * <p>The {@code FooFilter} author can then get an instance of the plugin implementation configured by the user using the

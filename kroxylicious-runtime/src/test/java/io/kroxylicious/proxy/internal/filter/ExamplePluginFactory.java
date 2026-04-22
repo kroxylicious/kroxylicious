@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
+@ApiVersion("v1")
 public interface ExamplePluginFactory<C> {
 
     ExamplePlugin createExamplePlugin(C configuration);

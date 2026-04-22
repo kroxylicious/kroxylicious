@@ -23,9 +23,11 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.internal.Version;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
+import io.kroxylicious.proxy.plugin.ApiVersion;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -53,6 +55,23 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     }
 
     private static Map<String, ProviderAndConfigType> loadProviders(Class<?> pluginInterface) {
+        ApiVersion apiVersion = pluginInterface.getAnnotation(ApiVersion.class);
+        if (apiVersion == null) {
+            LOGGER.atWarn()
+               .addKeyValue("api", pluginInterface.getName())
+               .log("No @ApiVersion annotation found on plugin API. "
+                       + "Missing @ApiVersion will be treated as an error in a future release");
+        }
+        else {
+            var version = Version.parse(apiVersion.value());
+            if (!version.isStable()) {
+                Version.throwUnlessApiIsAllowed(pluginInterface.getName(), version);
+                LOGGER.atWarn()
+                        .addKeyValue("api", pluginInterface.getName())
+                        .addKeyValue("version", apiVersion.value())
+                        .log("Unstable API; this API could evolve incompatibly in a future release");
+            }
+        }
         Map<String, Set<ProviderAndConfigType>> nameToProviders = new HashMap<>();
         ServiceLoader.load(pluginInterface).stream()
                 .forEach(provider -> registerProvider(provider, nameToProviders, pluginInterface));
@@ -165,37 +184,37 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     }
 
     @Override
-    public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
-        var nameToProvider = load(pluginClass);
+    public <P> PluginFactory<P> pluginFactory(Class<P> pluginInterface) {
+        var nameToProvider = load(pluginInterface);
         return new PluginFactory<>() {
             @Override
-            public P pluginInstance(String instanceName) {
-                if (Objects.requireNonNull(instanceName).isEmpty()) {
+            public P pluginInstance(String pluginImplementation) {
+                if (Objects.requireNonNull(pluginImplementation).isEmpty()) {
                     throw new IllegalArgumentException();
                 }
-                var provider = nameToProvider.get(instanceName);
+                var provider = nameToProvider.get(pluginImplementation);
                 if (provider != null) {
-                    Class<?> type = provider.provider().type();
-                    maybeWarnAboutDeprecatedPluginClass(instanceName, type, pluginClass);
-                    maybeWarnAboutDeprecatedPluginName(instanceName, type, pluginClass);
-                    return pluginClass.cast(provider.provider().get());
+                    Class<?> pluginImplClass = provider.provider().type();
+                    maybeWarnAboutDeprecatedPluginClass(pluginImplementation, pluginImplClass, pluginInterface);
+                    maybeWarnAboutDeprecatedPluginName(pluginImplementation, pluginImplClass, pluginInterface);
+                    return pluginInterface.cast(provider.provider().get());
                 }
-                throw unknownPluginInstanceException(instanceName);
+                throw unknownPluginInstanceException(pluginImplementation);
             }
 
             private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
-                return new UnknownPluginInstanceException("Unknown " + pluginClass.getName() + " plugin instance for name '" + name + "'. "
+                return new UnknownPluginInstanceException("Unknown " + pluginInterface.getName() + " plugin instance for name '" + name + "'. "
                         + "Known plugin instances are " + nameToProvider.keySet() + ". "
                         + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + Plugin.class.getSimpleName() + ".");
             }
 
             @Override
-            public Class<?> configType(String instanceName) {
-                var providerAndConfigType = nameToProvider.get(instanceName);
+            public Class<?> configType(String pluginImplementation) {
+                var providerAndConfigType = nameToProvider.get(pluginImplementation);
                 if (providerAndConfigType != null) {
                     return providerAndConfigType.config();
                 }
-                throw unknownPluginInstanceException(instanceName);
+                throw unknownPluginInstanceException(pluginImplementation);
             }
 
             @Override

@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.authentication;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
+@ApiVersion("v1beta1")
 public interface PrincipalFactory<P extends Principal> {
     P newPrincipal(String name);
 }
