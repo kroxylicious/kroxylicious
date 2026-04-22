@@ -233,6 +233,7 @@ class KafkaProxyInitializerTest {
         verifyErrorHandlerRemoved(orderedVerifyer);
         verifyEncoderAndOrdererAdded(orderedVerifyer);
         verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
@@ -255,6 +256,7 @@ class KafkaProxyInitializerTest {
         verifyEncoderAndOrdererAdded(orderedVerifyer);
         verifyFrameLoggerAdded(orderedVerifyer);
         verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
@@ -277,6 +279,7 @@ class KafkaProxyInitializerTest {
         verifyNetworkLoggerAdded(orderedVerifyer);
         verifyEncoderAndOrdererAdded(orderedVerifyer);
         verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
@@ -413,6 +416,10 @@ class KafkaProxyInitializerTest {
 
     private void verifyFrontendHandlerAdded(InOrder orderedVerifyer) {
         orderedVerifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+    }
+
+    private void verifyForwardingHandlerAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq("forwardingHandler"), any(ForwardingHandler.class));
     }
 
     private void verifyErrorHandlerRemoved(InOrder orderedVerifyer) {

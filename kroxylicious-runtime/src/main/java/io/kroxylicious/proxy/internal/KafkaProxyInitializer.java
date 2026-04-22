@@ -229,7 +229,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         if (virtualCluster.isLogFrames()) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
-
         var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -242,6 +241,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("netHandler", frontendHandler);
+        pipeline.addLast("forwardingHandler", new ForwardingHandler(proxyChannelStateMachine));
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()

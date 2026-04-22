@@ -530,6 +530,7 @@ class ProxyChannelStateMachineEndToEndTest {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
+            pipeline.addLast(new ForwardingHandler(proxyChannelStateMachine));
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
@@ -804,9 +805,9 @@ class ProxyChannelStateMachineEndToEndTest {
 
         if (firstFilterIndex >= 0) {
             assertThat(firstFilterIndex)
-                    .as("First filter (at index %d) must come before KafkaProxyFrontendHandler (at index %d) in pipeline: %s",
+                    .as("First filter (at index %d) must come after KafkaProxyFrontendHandler (at index %d) in pipeline: %s",
                             firstFilterIndex, frontendHandlerIndex, handlerNames)
-                    .isLessThan(frontendHandlerIndex);
+                    .isGreaterThan(frontendHandlerIndex);
         }
 
         // Additional validation: frontend handler must be present

@@ -410,15 +410,12 @@ public class ProxyChannelStateMachine {
      * @param msg the RPC received from the upstream
      */
     void messageFromClient(Object msg) {
-        Objects.requireNonNull(backendHandler).forwardToServer(msg);
-    }
-
-    /**
-     * Called to notify the state machine that reading the downstream the batch is complete.
-     */
-    void clientReadComplete() {
-        if (state instanceof Forwarding) {
-            Objects.requireNonNull(backendHandler).flushToServer();
+        if (state() instanceof Forwarding) { // post-backend connection
+            Objects.requireNonNull(backendHandler).forwardToServer(msg);
+            backendHandler.flushToServer();
+        }
+        else {
+            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
 
@@ -430,7 +427,7 @@ public class ProxyChannelStateMachine {
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
-            messageFromClient(msg);
+            frontendHandler.forward(msg);
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));

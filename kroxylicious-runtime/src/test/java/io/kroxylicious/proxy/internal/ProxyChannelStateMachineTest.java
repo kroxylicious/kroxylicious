@@ -529,9 +529,8 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
-        verifyNoInteractions(frontendHandler);
+        verify(frontendHandler).forward(msg);
         verifyNoInteractions(serverCtx);
-        verify(backendHandler).forwardToServer(msg);
     }
 
     @Test
@@ -991,12 +990,28 @@ class ProxyChannelStateMachineTest {
     void shouldFlushToServerWhenClientReadCompletes() {
         // Given
         stateMachineInForwarding();
+        Object msg = new Object();
 
         // When
-        proxyChannelStateMachine.clientReadComplete();
+        proxyChannelStateMachine.messageFromClient(msg);
 
         // Then
+        verify(backendHandler).forwardToServer(msg);
         verify(backendHandler).flushToServer();
+    }
+
+    @Test
+    void messageFromClientNotInForwarding() {
+        // Given
+        stateMachineInClientActive();
+        Object msg = new Object();
+
+        // When
+        proxyChannelStateMachine.messageFromClient(msg);
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
     }
 
     @Test

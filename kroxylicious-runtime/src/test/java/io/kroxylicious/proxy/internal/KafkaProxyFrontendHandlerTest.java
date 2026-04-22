@@ -480,6 +480,7 @@ class KafkaProxyFrontendHandlerTest {
             // and prevent it from reaching FilterHandlers (which only expect Kafka protocol messages)
             pipeline.addLast(new HaProxyMessageHandler(proxyChannelStateMachine.kafkaSession()));
             pipeline.addLast(handler);
+            pipeline.addLast(new ForwardingHandler(proxyChannelStateMachine));
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
