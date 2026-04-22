@@ -332,7 +332,7 @@ public class ProxyChannelStateMachine {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
             log(Level.DEBUG)
-                    .addKeyValue("address", HostPort.asString(Objects.requireNonNull(this.frontendHandler).remoteHost(), this.frontendHandler.remotePort()))
+                    .addKeyValue("address", () -> HostPort.asString(Objects.requireNonNull(this.frontendHandler).remoteHost(), this.frontendHandler.remotePort()))
                     .log("Allocated session ID for downstream connection");
             ProxyChannelState.ClientActive clientActive = STARTING_STATE.toClientActive();
             toClientActive(clientActive, frontendHandler);
@@ -634,7 +634,7 @@ public class ProxyChannelStateMachine {
         proxyToServerConnectionCounter.increment();
         log(Level.DEBUG)
                 .addKeyValue("remote", connecting.remote())
-                .addKeyValue("clientAddress", HostPort.asString(Objects.requireNonNull(this.frontendHandler).remoteHost(), this.frontendHandler.remotePort()))
+                .addKeyValue("clientAddress", () -> HostPort.asString(Objects.requireNonNull(this.frontendHandler).remoteHost(), this.frontendHandler.remotePort()))
                 .log("Upstream connection established for client");
     }
 
