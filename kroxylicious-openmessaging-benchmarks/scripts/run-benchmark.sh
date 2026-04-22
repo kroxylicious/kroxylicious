@@ -598,6 +598,10 @@ echo "  OMB log: ${OUTPUT_DIR}/omb.log"
 
 # Stream Job logs to file in the background (best-effort; survives brief disconnects).
 # The benchmark process runs as the Job entrypoint and is NOT killed if the stream drops.
+# Wait for the benchmark pod to be created before starting the log stream — without this,
+# kubectl logs finds no matching pods and exits immediately with no output.
+kubectl wait pod -n "${NAMESPACE}" -l app=omb-benchmark \
+    --for=create --timeout=120s >/dev/null 2>&1
 kubectl logs -f -n "${NAMESPACE}" -l app=omb-benchmark \
     >> "${OUTPUT_DIR}/omb.log" 2>/dev/null &
 LOGS_PID=$!
