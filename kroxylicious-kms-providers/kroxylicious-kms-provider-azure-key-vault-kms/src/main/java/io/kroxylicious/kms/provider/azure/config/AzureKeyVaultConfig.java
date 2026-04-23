@@ -74,7 +74,7 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
         }
         if (!kvScheme().equals("https")) {
             LOGGER.atWarn()
-                    .addKeyValue("scheme", keyVaultScheme())
+                    .addKeyValue("scheme", keyVaultScheme)
                     .log("Key vault scheme is not https, production installations should use a secure endpoint");
         }
     }
