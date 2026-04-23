@@ -1,0 +1,43 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: SNIPPET
+
+// file included in the following:
+//
+// con-aws-kms-plugin-configuration.adoc
+
+
+.Configuration for authenticating with IAM Roles for Service Accounts (IRSA)
+[source, yaml]
+----
+kms: AwsKmsService
+kmsConfig:
+  endpointUrl: https://kms.<region>.amazonaws.com
+  credentials:
+    webIdentity:
+      roleArn: <arn_of_iam_role>
+      webIdentityTokenFile: /var/run/secrets/eks.amazonaws.com/serviceaccount/token
+      roleSessionName: <session_name>
+      stsEndpointUrl: https://sts.<region>.amazonaws.com
+      durationSeconds: 3600
+      credentialLifetimeFactor: 0.8
+  region: <region>
+----
+where:
+
+* `kms` specifies the name of the KMS provider. Use `AwsKmsService`.
+* `kmsConfig` specifies the configuration of the KMS service.
+** `endpointUrl` AWS KMS endpoint URL, which must include the `https://` scheme.
+** `credentials` groups the authentication configuration.
+*** `webIdentity` configures the KMS to authenticate using a Kubernetes service-account OIDC token via STS `AssumeRoleWithWebIdentity`. All sub-fields are optional and default to the values injected by the EKS pod-identity webhook, so on a properly-annotated pod the entire block can be written as `credentials: { webIdentity: {} }`.
+**** `roleArn` (Optional) ARN of the IAM role to assume. Defaults to the `AWS_ROLE_ARN` environment variable.
+**** `webIdentityTokenFile` (Optional) path to the projected service-account OIDC token. Defaults to the `AWS_WEB_IDENTITY_TOKEN_FILE` environment variable.
+**** `roleSessionName` (Optional) the session name reported to AWS CloudTrail. Defaults to the `AWS_ROLE_SESSION_NAME` environment variable, falling back to a generated `kroxylicious-<uuid>` value.
+**** `stsEndpointUrl` (Optional) the STS endpoint URL to call. Defaults to `\https://sts.<region>.amazonaws.com` derived from the surrounding `region` value. Override for non-standard partitions (e.g. China: `sts.<region>.amazonaws.com.cn`).
+**** `durationSeconds` (Optional) requested duration of the assumed-role session. When omitted, STS uses the role's configured maximum session duration.
+**** `credentialLifetimeFactor` (Optional) defines the factor used to determine when to refresh a credential before it expires. Defaults to `0.8`, which means the credential is refreshed once it reaches 80% of its lifetime.
+** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.

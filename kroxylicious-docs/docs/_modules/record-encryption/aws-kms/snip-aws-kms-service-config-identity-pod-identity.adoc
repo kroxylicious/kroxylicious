@@ -11,16 +11,16 @@
 // con-aws-kms-plugin-configuration.adoc
 
 
-.Configuration for authenticating with EC2 metadata
+.Configuration for authenticating with EKS Pod Identity
 [source, yaml]
 ----
 kms: AwsKmsService
 kmsConfig:
   endpointUrl: https://kms.<region>.amazonaws.com
   credentials:
-    ec2Metadata:
-      iamRole: <name_of_IAM_role>
-      metadataEndpoint: <EC2_metadata_endpoint>
+    podIdentity:
+      credentialsFullUri: http://169.254.170.23/v1/credentials
+      authorizationTokenFile: /var/run/secrets/pods.eks.amazonaws.com/serviceaccount/eks-pod-identity-token
       credentialLifetimeFactor: 0.8
   region: <region>
 ----
@@ -30,10 +30,8 @@ where:
 * `kmsConfig` specifies the configuration of the KMS service.
 ** `endpointUrl` AWS KMS endpoint URL, which must include the `https://` scheme.
 ** `credentials` groups the authentication configuration.
-*** `ec2Metadata` configures the KMS to authenticate using EC2 metadata.
-**** `iamRole` specifies the name of the IAM role associated with the EC2 instances hosting Kroxylicious.
-**** `metadataEndpoint` (Optional) specifies the metadata endpoint used to obtain EC2 metadata. Defaults to `\http://169.254.169.254/`. If using IPv6, use `http://[fd00:ec2::254]` instead.
+*** `podIdentity` configures the KMS to authenticate using the EKS Pod Identity agent. All sub-fields are optional and default to the values injected by the agent webhook, so on a properly-associated pod the entire block can be written as `credentials: { podIdentity: {} }`.
+**** `credentialsFullUri` (Optional) URL of the Pod Identity Agent credentials endpoint. Defaults to the `AWS_CONTAINER_CREDENTIALS_FULL_URI` environment variable.
+**** `authorizationTokenFile` (Optional) path to the projected service-account token file used to authenticate to the agent. Defaults to the `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE` environment variable.
 **** `credentialLifetimeFactor` (Optional) defines the factor used to determine when to refresh a credential before it expires. Defaults to `0.8`, which means the credential is refreshed once it reaches 80% of its lifetime.
 ** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.
-
-NOTE: The legacy top-level `ec2MetadataCredentials` key is deprecated but continues to work for backward compatibility. New configurations should use `credentials.ec2Metadata` instead.

@@ -194,7 +194,7 @@ You need to update the example to find keys in your chosen KMS.
 ====
 [source,terminal,kms="localstack"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"credentials":{"longTerm":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
 ----
 ====
 
