@@ -30,7 +30,8 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     @Override
     @SuppressWarnings("resource")
     public void startVault() {
-        vaultContainer = new VaultContainer<>(HASHICORP_VAULT).withVaultToken(VAULT_ROOT_TOKEN);
+        vaultContainer = new VaultContainer<>(HASHICORP_VAULT).withVaultToken(VAULT_ROOT_TOKEN)
+                .withEnv("SKIP_SETCAP", "true"); // Workaround for Vault 2.x in rootless containers (SETFCAP capability unavailable). Acceptable for development/testing.
         vaultContainer.start();
     }
 
