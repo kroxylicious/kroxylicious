@@ -117,9 +117,10 @@ class ServiceBasedPluginFactoryRegistryTest {
         // Given
         ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
         // When
-        var factory = serviceBasedPluginFactoryRegistry.pluginFactory(pluginInterface);
+        serviceBasedPluginFactoryRegistry.pluginFactory(pluginInterface);
+        serviceBasedPluginFactoryRegistry.pluginFactory(pluginInterface); // call twice
         // Then
-        assertThat(logCaptor.getLogEvents()).singleElement()
+        assertThat(logCaptor.getLogEvents()).singleElement() // log once
                 .satisfies(log -> {
                     assertThat(log.getMessage()).isEqualTo(expectedMessage);
                     var keyValuePairs = log.getKeyValuePairs();
