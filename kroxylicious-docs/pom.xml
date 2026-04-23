@@ -27,7 +27,7 @@
     </modules>
 
     <properties>
-        <jsoup.version>1.22.1</jsoup.version>
+        <jsoup.version>1.22.2</jsoup.version>
     </properties>
 
     <dependencies>
