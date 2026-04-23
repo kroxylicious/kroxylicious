@@ -67,7 +67,6 @@ public class OauthBearerValidationFilter
         SaslAuthenticateResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerValidationFilter.class);
-    private static final SaslAuthenticationException INVALID_SASL_STATE_EXCEPTION = new SaslAuthenticationException("invalid sasl state");
     private final ScheduledExecutorService executorService;
     private final BackoffStrategy strategy;
     private final LoadingCache<String, AtomicInteger> rateLimiter;
@@ -137,7 +136,7 @@ public class OauthBearerValidationFilter
                 LOGGER.atDebug()
                         .addKeyValue("saslState", "ILLEGAL_SASL_STATE")
                         .log("SASL invalid state");
-                notifyThrowable(context, INVALID_SASL_STATE_EXCEPTION);
+                notifyThrowable(context, invalidSaslStateException());
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
             }
             this.saslServer = null;
@@ -176,6 +175,10 @@ public class OauthBearerValidationFilter
                         }
                     });
         }
+    }
+
+    private static SaslAuthenticationException invalidSaslStateException() {
+        return new SaslAuthenticationException("invalid sasl state");
     }
 
     private void notifyThrowable(FilterContext context, Throwable e) {
