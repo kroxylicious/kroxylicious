@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.proxy.filter;
 
-import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.ApiVersion;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.UnknownNullness;
 

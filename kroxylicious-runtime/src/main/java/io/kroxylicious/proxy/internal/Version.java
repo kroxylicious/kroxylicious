@@ -63,6 +63,12 @@ public class Version implements Comparable<Version> {
         }
     }
 
+    public static class IncompatibleApiVersionException extends RuntimeException {
+        public IncompatibleApiVersionException(String message) {
+            super(Objects.requireNonNull(message));
+        }
+    }
+
     /**
      * Throws {@link DisallowedUnstableApiException} if the given API's version
      * is not stable and has not been explicitly allowed.
@@ -152,6 +158,21 @@ public class Version implements Comparable<Version> {
      */
     public boolean isStable() {
         return ((value >> 15) & 0x000000003) == 2;
+    }
+
+    /**
+     * Returns whether a plugin compiled against {@code compiledAgainst} is compatible
+     * with this (running) version.
+     * <p>Stable versions are backwards-compatible within a major version, so any prior version
+     * with the same major is compatible. Unstable versions are only compatible if exactly equal.</p>
+     * @param compiledAgainst The version the plugin was compiled against.
+     * @return true if and only if the versions are compatible.
+     */
+    public boolean isCompatibleWith(Version compiledAgainst) {
+        if (this.equals(compiledAgainst)) {
+            return true;
+        }
+        return this.isStable() && this.major() == compiledAgainst.major();
     }
 
     private String stability() {

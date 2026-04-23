@@ -6,6 +6,10 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -24,10 +28,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.Version;
+import io.kroxylicious.proxy.plugin.ApiVersion;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
-import io.kroxylicious.proxy.plugin.ApiVersion;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -58,9 +62,9 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         ApiVersion apiVersion = pluginInterface.getAnnotation(ApiVersion.class);
         if (apiVersion == null) {
             LOGGER.atWarn()
-               .addKeyValue("api", pluginInterface.getName())
-               .log("No @ApiVersion annotation found on plugin API. "
-                       + "Missing @ApiVersion will be treated as an error in a future release");
+                    .addKeyValue("api", pluginInterface.getName())
+                    .log("No @ApiVersion annotation found on plugin API. "
+                            + "Missing @ApiVersion will be treated as an error in a future release");
         }
         else {
             var version = Version.parse(apiVersion.value());
@@ -91,6 +95,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                                          Map<String, Set<ProviderAndConfigType>> nameToProviders,
                                          Class<?> pluginInterface) {
         Class<?> providerType = provider.type();
+        checkApiVersionCompatibility(providerType, pluginInterface);
         Plugin annotation = providerType.getAnnotation(Plugin.class);
         if (annotation == null) {
             LOGGER.atWarn()
@@ -256,5 +261,51 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static boolean isFqName(String instanceName) {
         return instanceName.indexOf('.') != -1;
+    }
+
+    private static void checkApiVersionCompatibility(Class<?> providerType,
+                                                     Class<?> pluginInterface) {
+        ApiVersion apiVersion = pluginInterface.getAnnotation(ApiVersion.class);
+        if (apiVersion == null) {
+            return;
+        }
+        Version currentVersion = Version.parse(apiVersion.value());
+
+        String resourcePath = "META-INF/kroxylicious/api-version/" + providerType.getName();
+        var resource = providerType.getClassLoader().getResource(resourcePath);
+        if (resource == null) {
+            return;
+        }
+        try (var reader = new BufferedReader(
+                new InputStreamReader(resource.openStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int colon = line.indexOf(':');
+                if (colon == -1) {
+                    continue;
+                }
+                String interfaceName = line.substring(0, colon);
+                String versionStr = line.substring(colon + 1);
+                if (interfaceName.equals(pluginInterface.getName())) {
+                    Version compiledVersion = Version.parse(versionStr);
+                    if (!currentVersion.isCompatibleWith(compiledVersion)) {
+                        throw new Version.IncompatibleApiVersionException(
+                                "Plugin '" + providerType.getName()
+                                        + "' was built against " + pluginInterface.getSimpleName()
+                                        + " " + compiledVersion
+                                        + ", but the running proxy provides " + currentVersion
+                                        + ". Update the plugin to a version compatible with this proxy,"
+                                        + " or use a proxy version compatible with the plugin.");
+                    }
+                }
+            }
+        }
+        catch (IOException e) {
+            LOGGER.atWarn()
+                    .addKeyValue("plugin", providerType.getName())
+                    .addKeyValue("resource", resourcePath)
+                    .addKeyValue("error", e.getMessage())
+                    .log("Could not read API version metadata, version compatibility check skipped");
+        }
     }
 }

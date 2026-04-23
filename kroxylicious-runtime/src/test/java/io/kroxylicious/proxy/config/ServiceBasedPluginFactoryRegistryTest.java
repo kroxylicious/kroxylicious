@@ -104,9 +104,8 @@ class ServiceBasedPluginFactoryRegistryTest {
                         FilterFactory.class,
                         "Unstable API; this API could evolve incompatibly in a future release",
                         Map.of(
-                            "api", "io.kroxylicious.proxy.filter.FilterFactory",
-                            "version", "v1beta1"))
-        );
+                                "api", "io.kroxylicious.proxy.filter.FilterFactory",
+                                "version", "v1beta1")));
     }
 
     @ParameterizedTest
@@ -141,6 +140,20 @@ class ServiceBasedPluginFactoryRegistryTest {
                         + "KROXYLICIOUS_ALLOWED_UNSTABLE_APIS environment variable. "
                         + "For example 'KROXYLICIOUS_ALLOWED_UNSTABLE_APIS=io.kroxylicious.proxy.config.Unstable'.");
 
+    }
+
+    @Test
+    void shouldThrowOnIncompatibleApiVersion() {
+        // Given: VersionMismatchService is @ApiVersion("v1"), but the resource file for
+        // VersionMismatchImpl declares it was compiled against v2 (incompatible major version)
+        ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+        // When/Then
+        assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(VersionMismatchService.class))
+                .isInstanceOf(Version.IncompatibleApiVersionException.class)
+                .hasMessageContaining("VersionMismatchImpl")
+                .hasMessageContaining("built against")
+                .hasMessageContaining("v2")
+                .hasMessageContaining("v1");
     }
 
     static List<Arguments> shouldLogWarningOnInstantiation() {
