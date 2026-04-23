@@ -99,7 +99,7 @@
         <json-unit-assertj.version>5.1.0</json-unit-assertj.version>
 
         <!-- Error Prone -->
-        <errorprone.version>2.48.0</errorprone.version>
+        <errorprone.version>2.49.0</errorprone.version>
         <errorprone.skip>false</errorprone.skip>
     </properties>
 
