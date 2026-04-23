@@ -46,5 +46,7 @@ public class HaProxyMessageHandler extends SimpleChannelInboundHandler<HAProxyMe
                 .addKeyValue("destinationPort", haProxyMessage.destinationPort())
                 .log("Received HAProxy message");
         kafkaSession.setHaProxyContext(HaProxyContext.from(haProxyMessage));
+        // Trigger next read to consume subsequent Kafka messages when autoread is disabled
+        ctx.channel().read();
     }
 }

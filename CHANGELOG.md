@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3757](https://github.com/kroxylicious/kroxylicious/issues/3757): fix(runtime): trigger read after HAProxy message to prevent deadlock when autoread disabled
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): feat(aws-kms): add IRSA and EKS Pod Identity credential providers, and restructure AWS KMS credential configuration under a new `credentials` node (see [note](#note-021-aws-kms-credentials-restructure))
 * [#3745](https://github.com/kroxylicious/kroxylicious/issues/3745): fix(runtime): ensure async TransportSubjectBuilder callbacks execute on Netty event loop to prevent race conditions
 * [#3620](https://github.com/kroxylicious/kroxylicious/issues/3620): Removed Deprecated clientSaslAuthenticationSuccess from FilterContext
