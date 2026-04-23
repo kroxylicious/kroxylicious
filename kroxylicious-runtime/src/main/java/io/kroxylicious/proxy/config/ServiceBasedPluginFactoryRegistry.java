@@ -274,6 +274,12 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         String resourcePath = "META-INF/kroxylicious/api-version/" + pluginImpl.getName();
         var resource = pluginImpl.getClassLoader().getResource(resourcePath);
         if (resource == null) {
+            LOGGER.atWarn()
+                    .addKeyValue("plugin", pluginImpl.getName())
+                    .addKeyValue("resource", resourcePath)
+                    .log("No API version metadata found, version compatibility check skipped."
+                            + " Build the plugin with the kroxylicious-api-version-processor annotation processor"
+                            + " to enable version compatibility checking");
             return;
         }
         try (var reader = new BufferedReader(
@@ -282,6 +288,11 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             while ((line = reader.readLine()) != null) {
                 int colon = line.indexOf(':');
                 if (colon == -1) {
+                    LOGGER.atWarn()
+                            .addKeyValue("plugin", pluginImpl.getName())
+                            .addKeyValue("resource", resourcePath)
+                            .addKeyValue("line", line)
+                            .log("Malformed API version metadata, expected format 'interfaceName:version'");
                     continue;
                 }
                 String interfaceName = line.substring(0, colon);
