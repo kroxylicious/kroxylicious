@@ -9,8 +9,10 @@ package io.kroxylicious.proxy.internal;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -55,6 +57,26 @@ class VersionTest {
         Version stableVersion = Version.parse("v1");
         assertThatCode(() -> Version.throwUnlessApiIsAllowed("oh.look.an.UnstableApi", stableVersion))
                 .doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "v1, v1, true",
+            "v1, v1beta1, true",
+            "v1, v1alpha1, true",
+            "v1beta1, v1beta1, true",
+            "v1alpha1, v1alpha1, true",
+            "v1beta2, v1beta1, false",
+            "v1alpha2, v1alpha1, false",
+            "v1, v2, false",
+            "v2, v1, false",
+            "v1beta1, v1alpha1, false",
+            "v2alpha1, v1, false",
+    })
+    void isCompatibleWith(String running, String compiledAgainst, boolean expected) {
+        Version runningVersion = Version.parse(running);
+        Version compiledVersion = Version.parse(compiledAgainst);
+        assertThat(runningVersion.isCompatibleWith(compiledVersion)).isEqualTo(expected);
     }
 
 }

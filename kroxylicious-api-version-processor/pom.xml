@@ -6,7 +6,6 @@
     Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 
 -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -15,20 +14,30 @@
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
         <version>0.21.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Authorizer provider implementations</name>
-    <artifactId>kroxylicious-authorizer-providers</artifactId>
-    <description>Authorizer provider implementations</description>
-    <packaging>pom</packaging>
+    <artifactId>kroxylicious-api-version-processor</artifactId>
 
-    <properties>
-    </properties>
+    <name>API Version Annotation Processor</name>
+    <description>Annotation processor that captures @ApiVersion metadata at compile time for runtime version mismatch detection</description>
 
-    <modules>
-        <module>kroxylicious-authorizer-acl</module>
-    </modules>
+    <dependencies>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
@@ -36,16 +45,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>io.kroxylicious</groupId>
-                            <artifactId>kroxylicious-api-version-processor</artifactId>
-                            <version>${project.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
+                    <proc>none</proc>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-
 </project>

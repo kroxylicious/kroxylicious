@@ -567,6 +567,7 @@
         <module>kroxylicious-kms-providers</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
+        <module>kroxylicious-api-version-processor</module>
         <module>kroxylicious-app</module>
         <module>kroxylicious-krpc-plugin</module>
         <module>kroxylicious-integration-test-support</module>
@@ -1363,7 +1364,7 @@
                                 <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
                                 <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
                             </compilerArgs>
-                            <annotationProcessorPaths>
+                            <annotationProcessorPaths combine.children="append">
                                 <path>
                                     <groupId>com.google.errorprone</groupId>
                                     <artifactId>error_prone_core</artifactId>
