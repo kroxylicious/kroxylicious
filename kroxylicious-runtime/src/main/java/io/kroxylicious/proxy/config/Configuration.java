@@ -141,7 +141,8 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions,
                 virtualCluster.topicNameCacheConfig(),
-                virtualCluster.subjectBuilder());
+                virtualCluster.subjectBuilder(),
+                virtualCluster.drainTimeout());
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
