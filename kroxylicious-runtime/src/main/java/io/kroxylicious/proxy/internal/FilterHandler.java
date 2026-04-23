@@ -496,7 +496,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                 .log("Filter forwarding request");
 
         ctx.fireChannelRead(decodedFrame);
-        ctx.fireChannelReadComplete();
     }
 
     /**
