@@ -70,7 +70,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -288,7 +287,6 @@ public class KafkaProxyFrontendHandler
         initiateConnect(target);
     }
 
-    @NonNull
     private List<FilterAndInvoker> buildFilters() {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
@@ -494,14 +492,18 @@ public class KafkaProxyFrontendHandler
         bufferedMsgs.add(msg);
     }
 
+    /**
+     * Add Filters after this handler in the pipeline.
+     */
     private void addFiltersToPipeline(
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
-        for (int i = filters.size() - 1; i >= 0; i--) {
-            FilterAndInvoker protocolFilter = filters.get(i);
-            String handlerName = "filter-" + (i + 1) + "-" + protocolFilter.filterName();
-            pipeline.addAfter(clientCtx().name(),
+        int i = 0;
+        String addNextFilterAfter = clientCtx().name();
+        for (FilterAndInvoker protocolFilter : filters) {
+            String handlerName = "filter-" + (++i) + "-" + protocolFilter.filterName();
+            pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(
                             protocolFilter,
@@ -509,6 +511,7 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             inboundChannel,
                             proxyChannelStateMachine));
+            addNextFilterAfter = handlerName;
         }
     }
 
@@ -523,7 +526,7 @@ public class KafkaProxyFrontendHandler
         // connection is complete, so first forward the buffered message
         if (bufferedMsgs != null) {
             for (Object bufferedMsg : bufferedMsgs) {
-                clientCtx().fireChannelRead(bufferedMsg);
+                admitToFilterChain(bufferedMsg);
             }
             bufferedMsgs = null;
         }
@@ -614,7 +617,11 @@ public class KafkaProxyFrontendHandler
         return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::toMillis).orElse(NO_TIMEOUT);
     }
 
-    public void forward(Object msg) {
+    /**
+     * Forward a message towards the Filter Chain
+     * @param msg message
+     */
+    public void admitToFilterChain(Object msg) {
         clientCtx().fireChannelRead(msg);
     }
 }

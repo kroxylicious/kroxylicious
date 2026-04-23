@@ -6,13 +6,14 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.Objects;
-
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import static java.util.Objects.requireNonNull;
+
 /**
- * An inbound channel handler that informs a {@link ProxyChannelStateMachine} about messages read from the channel.
+ * An inbound channel handler that sits after the Filter Chain. It informs a {@link ProxyChannelStateMachine} about
+ * messages read from client channel, which have implicitly completed traversal of the Filter Chain.
  * <p>
  * The intent is to have this handler installed as the last handler in the pipeline (besides a catch-all error logger)
  * to inform the {@link ProxyChannelStateMachine} about messages that have traversed (or been sent from) the Filter chain
@@ -21,15 +22,15 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
  * {@link KafkaProxyFrontendHandler} and arrive at this handler until the state is {@link ProxyChannelState.Forwarding}.
  * </p>
  */
-class ForwardingHandler extends ChannelInboundHandlerAdapter {
+class FilterChainCompletionHandler extends ChannelInboundHandlerAdapter {
     private final ProxyChannelStateMachine proxyChannelStateMachine;
 
-    ForwardingHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
-        this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine, "proxyChannelStateMachine is null");
+    FilterChainCompletionHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
+        this.proxyChannelStateMachine = requireNonNull(proxyChannelStateMachine);
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        proxyChannelStateMachine.messageFromClient(msg);
+        proxyChannelStateMachine.onClientFilterChainComplete(msg);
     }
 }

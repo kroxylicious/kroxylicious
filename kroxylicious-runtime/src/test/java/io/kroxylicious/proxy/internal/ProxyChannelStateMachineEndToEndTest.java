@@ -530,7 +530,7 @@ class ProxyChannelStateMachineEndToEndTest {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
-            pipeline.addLast(new ForwardingHandler(proxyChannelStateMachine));
+            pipeline.addLast(new FilterChainCompletionHandler(proxyChannelStateMachine));
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();

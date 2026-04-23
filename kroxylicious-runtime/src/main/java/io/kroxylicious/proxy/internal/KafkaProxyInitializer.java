@@ -240,8 +240,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyChannelStateMachine,
                 proxyNettySettings);
 
-        pipeline.addLast("netHandler", frontendHandler);
-        pipeline.addLast("forwardingHandler", new ForwardingHandler(proxyChannelStateMachine));
+        pipeline.addLast("frontendHandler", frontendHandler);
+        // Filter Handlers will be installed at this point in the pipeline by KafkaProxyFrontendHandler when the client channel fires channelActive()
+        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(proxyChannelStateMachine));
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()

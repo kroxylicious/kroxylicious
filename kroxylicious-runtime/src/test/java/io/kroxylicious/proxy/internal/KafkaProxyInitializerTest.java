@@ -415,11 +415,11 @@ class KafkaProxyInitializerTest {
     }
 
     private void verifyFrontendHandlerAdded(InOrder orderedVerifyer) {
-        orderedVerifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("frontendHandler"), any(KafkaProxyFrontendHandler.class));
     }
 
     private void verifyForwardingHandlerAdded(InOrder orderedVerifyer) {
-        orderedVerifyer.verify(channelPipeline).addLast(eq("forwardingHandler"), any(ForwardingHandler.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("filterChainCompletionHandler"), any(FilterChainCompletionHandler.class));
     }
 
     private void verifyErrorHandlerRemoved(InOrder orderedVerifyer) {

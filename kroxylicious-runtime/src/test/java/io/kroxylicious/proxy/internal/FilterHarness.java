@@ -102,7 +102,8 @@ public abstract class FilterHarness {
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
                 mock(KafkaProxyBackendHandler.class),
-                kafkaSession, -1);
+                kafkaSession,
+                -1);
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);

@@ -411,10 +411,10 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * A message has been received from the downstream client which should be passed to the upstream node
+     * A message has emerged from the Filter Chain and is ready to be forwarded to the upstream node
      * @param msg the RPC received from the upstream
      */
-    void messageFromClient(Object msg) {
+    void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding) { // post-backend connection
             Objects.requireNonNull(backendHandler).forwardToServer(msg);
             backendHandler.flushToServer();
@@ -432,7 +432,7 @@ public class ProxyChannelStateMachine {
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
-            frontendHandler.forward(msg);
+            frontendHandler.admitToFilterChain(msg);
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -644,7 +644,7 @@ public class ProxyChannelStateMachine {
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
-        // we must wait for the transport subject before forwarded buffered messages and then enanling autoread on the client
+        // we must wait for the transport subject to be built before forwarding the buffered messages and then enabling autoread on the client
         maybeUnblock();
         proxyToServerConnectionToken.acquire();
     }
