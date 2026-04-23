@@ -94,19 +94,19 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     private static void registerProvider(ServiceLoader.Provider<?> provider,
                                          Map<String, Set<ProviderAndConfigType>> nameToProviders,
                                          Class<?> pluginInterface) {
-        Class<?> providerType = provider.type();
-        checkApiVersionCompatibility(providerType, pluginInterface);
-        Plugin annotation = providerType.getAnnotation(Plugin.class);
+        Class<?> pluginImpl = provider.type();
+        checkApiVersionCompatibility(pluginImpl, pluginInterface);
+        Plugin annotation = pluginImpl.getAnnotation(Plugin.class);
         if (annotation == null) {
             LOGGER.atWarn()
-                    .addKeyValue("providerType", providerType)
-                    .addKeyValue("service", pluginInterface)
-                    .log("Failed to find @Plugin on provider of service");
+                    .addKeyValue("pluginImplementation", pluginImpl)
+                    .addKeyValue("pluginInterface", pluginInterface)
+                    .log("Failed to find @Plugin on implementation of plugin interface");
             return;
         }
         ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
-        Stream<String> names = Stream.of(providerType.getName(), providerType.getSimpleName());
-        names = maybeAddOldNames(providerType, names);
+        Stream<String> names = Stream.of(pluginImpl.getName(), pluginImpl.getSimpleName());
+        names = maybeAddOldNames(pluginImpl, names);
         names.forEach(name -> nameToProviders.computeIfAbsent(name, k -> new HashSet<>()).add(providerAndConfigType));
     }
 
@@ -263,7 +263,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         return instanceName.indexOf('.') != -1;
     }
 
-    private static void checkApiVersionCompatibility(Class<?> providerType,
+    private static void checkApiVersionCompatibility(Class<?> pluginImpl,
                                                      Class<?> pluginInterface) {
         ApiVersion apiVersion = pluginInterface.getAnnotation(ApiVersion.class);
         if (apiVersion == null) {
@@ -271,8 +271,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         }
         Version currentVersion = Version.parse(apiVersion.value());
 
-        String resourcePath = "META-INF/kroxylicious/api-version/" + providerType.getName();
-        var resource = providerType.getClassLoader().getResource(resourcePath);
+        String resourcePath = "META-INF/kroxylicious/api-version/" + pluginImpl.getName();
+        var resource = pluginImpl.getClassLoader().getResource(resourcePath);
         if (resource == null) {
             return;
         }
@@ -290,7 +290,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                     Version compiledVersion = Version.parse(versionStr);
                     if (!currentVersion.isCompatibleWith(compiledVersion)) {
                         throw new Version.IncompatibleApiVersionException(
-                                "Plugin '" + providerType.getName()
+                                "Plugin '" + pluginImpl.getName()
                                         + "' was built against " + pluginInterface.getSimpleName()
                                         + " " + compiledVersion
                                         + ", but the running proxy provides " + currentVersion
@@ -302,7 +302,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         }
         catch (IOException e) {
             LOGGER.atWarn()
-                    .addKeyValue("plugin", providerType.getName())
+                    .addKeyValue("plugin", pluginImpl.getName())
                     .addKeyValue("resource", resourcePath)
                     .addKeyValue("error", e.getMessage())
                     .log("Could not read API version metadata, version compatibility check skipped");
