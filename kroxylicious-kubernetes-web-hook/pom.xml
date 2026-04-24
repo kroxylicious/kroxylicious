@@ -43,6 +43,10 @@
         <!-- project dependencies -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kubernetes-api</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -139,6 +143,16 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit-pioneer</groupId>
+            <artifactId>junit-pioneer</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <scope>test</scope>
@@ -151,6 +165,11 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -203,6 +222,8 @@
                     <argLine>
                         @{jacoco.argline}
                         -javaagent:${org.mockito:mockito-core:jar}
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
                     </argLine>
                 </configuration>
             </plugin>

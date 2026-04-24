@@ -6,6 +6,10 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -13,10 +17,15 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -32,6 +41,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +59,8 @@ class AdmissionHandlerTest {
     void setUp() {
         handler = new AdmissionHandler(configResolver, PROXY_IMAGE);
     }
+
+    // --- processReview() tests ---
 
     @Test
     void allowsWhenRequestIsNull() {
@@ -160,6 +172,109 @@ class AdmissionHandlerTest {
         // The patch should contain the custom image — decode and verify
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
         assertThat(patchJson).contains("custom-image:v1");
+    }
+
+    @Test
+    void processReviewHandlesPodWithGenerateNameButNoName() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+
+        Pod pod = new Pod();
+        ObjectMeta meta = new ObjectMeta();
+        meta.setGenerateName("my-deployment-");
+        pod.setMetadata(meta);
+        PodSpec spec = new PodSpec();
+        spec.setContainers(new java.util.ArrayList<>());
+        pod.setSpec(spec);
+
+        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+    }
+
+    @Test
+    void processReviewHandlesPodWithNullMetadata() {
+        Pod pod = new Pod();
+
+        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+    }
+
+    // --- handle(HttpExchange) tests ---
+
+    @ParameterizedTest
+    @ValueSource(strings = { "GET", "PUT", "DELETE", "PATCH" })
+    void handleRejectsNonPostMethods(String method) throws IOException {
+        HttpExchange exchange = createMockExchange(method, new byte[0]);
+
+        handler.handle(exchange);
+
+        verify(exchange).sendResponseHeaders(405, -1);
+    }
+
+    @Test
+    void handlePostReturnsAdmissionReviewResponse() throws IOException {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        byte[] requestBody = MAPPER.writeValueAsBytes(review);
+        HttpExchange exchange = createMockExchange("POST", requestBody);
+
+        handler.handle(exchange);
+
+        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
+        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
+
+        assertThat(responseJson.get("apiVersion").asText()).isEqualTo("admission.k8s.io/v1");
+        assertThat(responseJson.get("kind").asText()).isEqualTo("AdmissionReview");
+        assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
+        assertThat(exchange.getResponseHeaders().getFirst("Content-Type"))
+                .isEqualTo("application/json");
+    }
+
+    @Test
+    void handleFailsOpenOnDeserialisationError() throws IOException {
+        HttpExchange exchange = createMockExchange("POST", "not json".getBytes(StandardCharsets.UTF_8));
+
+        handler.handle(exchange);
+
+        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
+        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
+
+        assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
+    }
+
+    @Test
+    void handleFailsOpenOnProcessReviewException() throws IOException {
+        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        byte[] requestBody = MAPPER.writeValueAsBytes(review);
+        HttpExchange exchange = createMockExchange("POST", requestBody);
+
+        handler.handle(exchange);
+
+        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
+        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
+
+        assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
+    }
+
+    // --- helpers ---
+
+    private static HttpExchange createMockExchange(
+                                                   String method,
+                                                   byte[] body) {
+        HttpExchange exchange = org.mockito.Mockito.mock(HttpExchange.class);
+        org.mockito.Mockito.lenient().when(exchange.getRequestMethod()).thenReturn(method);
+        org.mockito.Mockito.lenient().when(exchange.getRequestBody()).thenReturn(new ByteArrayInputStream(body));
+        ByteArrayOutputStream responseBody = new ByteArrayOutputStream();
+        org.mockito.Mockito.lenient().when(exchange.getResponseBody()).thenReturn(responseBody);
+        Headers headers = new Headers();
+        org.mockito.Mockito.lenient().when(exchange.getResponseHeaders()).thenReturn(headers);
+        return exchange;
     }
 
     private static AdmissionReview reviewWithPod(Pod pod, String namespace) {
