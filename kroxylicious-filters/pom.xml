@@ -33,6 +33,16 @@
         <module>kroxylicious-entity-isolation</module>
     </modules>
 
+    <dependencies>
+        <dependency>
+            <!-- Not a real dependency: forces reactor build order so the processor is available
+             for annotationProcessorPaths, which doesn't participate in reactor resolution. -->
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api-version-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -75,6 +85,7 @@
                                         <include>io.kroxylicious:kroxylicious-integration-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-kafka-message-tools</include>
                                         <include>io.kroxylicious:kroxylicious-runtime:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-api-version-processor:*:*:provided</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>
