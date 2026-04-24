@@ -10,6 +10,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -108,7 +109,7 @@ class ClientSubjectManagerTest {
     void transitionInitialToAuthorized() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), Runnable::run, () -> {
         });
         // When
         impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
@@ -123,7 +124,7 @@ class ClientSubjectManagerTest {
     void transitionInitialToFailed() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), Runnable::run, () -> {
         });
         // When
         impl.clientSaslAuthenticationFailure();
@@ -135,7 +136,7 @@ class ClientSubjectManagerTest {
     void transitionAuthorizedToAuthorized() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), Runnable::run, () -> {
         });
         impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // When
@@ -151,7 +152,7 @@ class ClientSubjectManagerTest {
     void transitionAuthorizedToFailed() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), Runnable::run, () -> {
         });
         impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // When
@@ -164,7 +165,7 @@ class ClientSubjectManagerTest {
     void transitionFailedToAuthorized() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), () -> {
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()), Runnable::run, () -> {
         });
         impl.clientSaslAuthenticationFailure();
 
@@ -175,6 +176,73 @@ class ClientSubjectManagerTest {
             assertThat(csc.mechanismName()).isEqualTo("FOO");
             assertThat(csc.authorizationId()).isEqualTo("bob");
         });
+    }
+
+    @Test
+    void subjectFromTransportUsesProvidedExecutor() {
+        // Given
+        ClientSubjectManager impl = new ClientSubjectManager();
+        AtomicBoolean executorUsed = new AtomicBoolean(false);
+        AtomicBoolean callbackRan = new AtomicBoolean(false);
+
+        // When
+        impl.subjectFromTransport(
+                null,
+                context -> CompletableFuture.completedStage(Subject.anonymous()),
+                command -> {
+                    executorUsed.set(true);
+                    command.run();
+                },
+                () -> callbackRan.set(true));
+
+        // Then
+        assertThat(executorUsed).isTrue();
+        assertThat(callbackRan).isTrue();
+    }
+
+    @Test
+    void subjectFromTransportHandlesAsyncCompletion() {
+        // Given
+        ClientSubjectManager impl = new ClientSubjectManager();
+        CompletableFuture<Subject> asyncFuture = new CompletableFuture<>();
+        AtomicBoolean callbackRan = new AtomicBoolean(false);
+        Subject expectedSubject = new Subject(new User("alice"));
+
+        // When
+        impl.subjectFromTransport(
+                null,
+                context -> asyncFuture,
+                Runnable::run,
+                () -> callbackRan.set(true));
+
+        assertThat(callbackRan).isFalse(); // Not yet complete
+
+        asyncFuture.complete(expectedSubject);
+
+        // Then
+        assertThat(callbackRan).isTrue();
+        assertThat(impl.authenticatedSubject()).isEqualTo(expectedSubject);
+    }
+
+    @Test
+    void subjectFromTransportHandlesAsyncException() {
+        // Given
+        ClientSubjectManager impl = new ClientSubjectManager();
+        CompletableFuture<Subject> asyncFuture = new CompletableFuture<>();
+        AtomicBoolean callbackRan = new AtomicBoolean(false);
+
+        // When
+        impl.subjectFromTransport(
+                null,
+                context -> asyncFuture,
+                Runnable::run,
+                () -> callbackRan.set(true));
+
+        asyncFuture.completeExceptionally(new RuntimeException("Transport auth failed"));
+
+        // Then
+        assertThat(callbackRan).isTrue();
+        assertThat(impl.authenticatedSubject()).isEqualTo(Subject.anonymous());
     }
 
 }

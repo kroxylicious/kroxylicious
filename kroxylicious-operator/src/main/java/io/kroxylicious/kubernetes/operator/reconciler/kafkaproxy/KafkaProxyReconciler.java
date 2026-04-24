@@ -221,7 +221,8 @@ public class KafkaProxyReconciler implements
                         false,
                         // micrometer
                         Optional.empty(),
-                        NetworkDefinitionBuilder.build(proxy)),
+                        NetworkDefinitionBuilder.build(proxy),
+                        null),
                 allVolumes,
                 allMounts);
     }

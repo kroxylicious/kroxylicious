@@ -53,6 +53,9 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 @ExtendWith(KafkaClusterExtension.class)
 class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
 
+    // Injected once by KafkaClusterExtension - shared across all tests
+    static KafkaCluster cluster;
+
     static Stream<Arguments> tlsComponents() {
         var builder = new TransportSubjectBuilderDefinitionBuilder("DefaultTransportSubjectBuilderService");
         return Stream.of(
@@ -93,7 +96,7 @@ class VirtualClusterSubjectBuilderIT extends AbstractTlsIT {
 
     @ParameterizedTest
     @MethodSource("tlsComponents")
-    void shouldBuildSubject(TransportSubjectBuilderConfig transportSubjectBuilderConfig, ThrowingConsumer<String> expected, KafkaCluster cluster, Topic topic) {
+    void shouldBuildSubject(TransportSubjectBuilderConfig transportSubjectBuilderConfig, ThrowingConsumer<String> expected, Topic topic) {
 
         Map<String, Object> clientConfig = Map.of(
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,

@@ -7,6 +7,10 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3769](https://github.com/kroxylicious/kroxylicious/pull/3769): fix(runtime): messages enter Filter chain before Transport Subject built
+* [#3757](https://github.com/kroxylicious/kroxylicious/issues/3757): fix(runtime): trigger read after HAProxy message to prevent deadlock when autoread disabled
+* [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): feat(aws-kms): add IRSA and EKS Pod Identity credential providers, and restructure AWS KMS credential configuration under a new `credentials` node (see [note](#note-021-aws-kms-credentials-restructure))
+* [#3745](https://github.com/kroxylicious/kroxylicious/issues/3745): fix(runtime): ensure async TransportSubjectBuilder callbacks execute on Netty event loop to prevent race conditions
 * [#3620](https://github.com/kroxylicious/kroxylicious/issues/3620): Removed Deprecated clientSaslAuthenticationSuccess from FilterContext
 * [#3624](https://github.com/kroxylicious/kroxylicious/pull/3624): feat(operator): set Kubernetes client User-Agent to `kroxylicious-operator/<version>` for API server audit log identification
 * [#3565](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): bump kubernetes-client.version from 7.5.2 to 7.6.1
@@ -16,6 +20,27 @@ Format `<github issue/pr number>: <short description>`.
 ### Changes, deprecations and removals
 
 * The deprecated method `FilterContext#clientSaslAuthenticationSuccess(String, String)` is removed. Filter authors must use `FilterContext#clientSaslAuthenticationSuccess(String, Subject)` to announce a successful SASL authentication to the other filters in the chain.
+* [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): The AWS KMS top-level `longTermCredentials` and `ec2MetadataCredentials` YAML keys are deprecated.  Use the new `credentials.longTerm` and `credentials.ec2Metadata` forms under the grouped `credentials` node instead.  The old keys continue to work for backward compatibility.
+
+#### Note 0.21 AWS KMS credentials restructure
+
+All AWS KMS credential provider configurations now live under a single `credentials` node, and two new providers are available for Amazon EKS workloads:
+
+* `credentials.webIdentity` — IRSA (IAM Roles for Service Accounts) via STS `AssumeRoleWithWebIdentity`
+* `credentials.podIdentity` — EKS Pod Identity via the in-cluster Pod Identity Agent
+
+Example:
+
+```yaml
+kms: AwsKmsService
+kmsConfig:
+  endpointUrl: https://kms.us-east-1.amazonaws.com
+  region: us-east-1
+  credentials:
+    podIdentity: {}   # picks up env vars injected by the EKS Pod Identity agent
+```
+
+Existing YAML using top-level `longTermCredentials` or `ec2MetadataCredentials` continues to work unchanged.
 
 ## 0.20.0
 
