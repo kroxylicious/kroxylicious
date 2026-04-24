@@ -18,6 +18,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.UnsafeApiVersionsCanary;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.test.Request;
@@ -44,10 +47,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
 class ApiVersionsIT {
-
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             givenMockRespondsWithApiVersionsForMetadataRequest(tester, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
@@ -71,7 +73,7 @@ class ApiVersionsIT {
 
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             short expectedApiVersion = (short) (ApiKeys.METADATA.latestVersion() - 1);
             givenMockRespondsWithApiVersionsForMetadataRequest(tester, ApiKeys.METADATA.oldestVersion(), expectedApiVersion);
@@ -88,7 +90,7 @@ class ApiVersionsIT {
      */
     @Test
     void shouldHandleVersionZeroErrorResponseWhenKroxyliciousIsAheadOfBroker() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             short brokerMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
             givenMockRespondsWithDowngradedV0ApiVersionsResponse(tester, ApiKeys.API_VERSIONS.oldestVersion(), brokerMaxVersion);
@@ -101,7 +103,7 @@ class ApiVersionsIT {
 
     @Test
     void shouldOfferTheMaximumLowestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() + 1);
             givenMockRespondsWithApiVersionsForMetadataRequest(tester, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
@@ -112,7 +114,7 @@ class ApiVersionsIT {
 
     @Test
     void shouldOfferTheMaximumLowestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() - 1);
             givenMockRespondsWithApiVersionsForMetadataRequest(tester, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
@@ -124,7 +126,7 @@ class ApiVersionsIT {
 
     @Test
     void shouldNotOfferBrokerApisThatAreUnknownToKroxy() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
@@ -142,7 +144,7 @@ class ApiVersionsIT {
 
     @Test
     void shouldOfferBrokerApisThatAreKnownToKroxy() {
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
             for (ApiKeys knownValue : ApiKeys.values()) {
@@ -177,7 +179,7 @@ class ApiVersionsIT {
     @Test
     void shouldMarkProduceV0toV2AsSupportedVersions() {
         // Given
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
@@ -211,7 +213,7 @@ class ApiVersionsIT {
     @Test
     void shouldMarkProduceV0toV2AsSupportedVersionsEvenIfUpstreamDisagrees() {
         // Given
-        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+        try (var tester = mockKafkaKroxyliciousTester(ApiVersionsIT::proxyWithCanaryFilter);
                 var client = tester.simpleTestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
             ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
@@ -236,6 +238,13 @@ class ApiVersionsIT {
                                         assertThat(apiVersion.minVersion()).isEqualTo(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION);
                                     })));
         }
+    }
+
+    private static ConfigurationBuilder proxyWithCanaryFilter(String clusterBootstrapServers) {
+        NamedFilterDefinition unsafeFilterApiFilter = new NamedFilterDefinition("canary", UnsafeApiVersionsCanary.class.getName(), null);
+        return KroxyliciousConfigUtils.proxy(clusterBootstrapServers)
+                .addToFilterDefinitions(unsafeFilterApiFilter)
+                .addToDefaultFilters(unsafeFilterApiFilter.name());
     }
 
     private static void givenMockRespondsWithApiVersionsForMetadataRequest(MockServerKroxyliciousTester tester, short minVersion, short maxVersion) {

@@ -288,9 +288,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private List<FilterAndInvoker> buildFilters() {
-        List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
-        var filterAndInvokers = new ArrayList<>(apiVersionFilters);
-        filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
+        var filterAndInvokers = new ArrayList<>(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
         NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
         List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
@@ -304,6 +302,7 @@ public class KafkaProxyFrontendHandler
                 new BrokerAddressFilter(proxyChannelStateMachine.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
 
+        filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter));
         return filterAndInvokers;
     }
 
