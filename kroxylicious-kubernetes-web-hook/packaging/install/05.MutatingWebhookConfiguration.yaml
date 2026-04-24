@@ -1,0 +1,52 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: kroxylicious-sidecar-injector
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: webhook
+  annotations:
+    # cert-manager injects the CA bundle from the Certificate resource
+    cert-manager.io/inject-ca-from: kroxylicious-webhook/kroxylicious-webhook-cert
+webhooks:
+  - name: sidecar-injector.kroxylicious.io
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    # Fail-open: if the webhook is unavailable, pods are created without sidecars
+    failurePolicy: Ignore
+    reinvocationPolicy: IfNeeded
+    timeoutSeconds: 10
+    clientConfig:
+      service:
+        name: kroxylicious-webhook
+        namespace: kroxylicious-webhook
+        path: /mutate
+        port: 443
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    # Only intercept pods in namespaces that have opted in
+    namespaceSelector:
+      matchLabels:
+        kroxylicious.io/sidecar-injection: enabled
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kube-public
+            - kroxylicious-webhook
+    # Skip pods that have explicitly opted out
+    objectSelector:
+      matchExpressions:
+        - key: kroxylicious.io/inject-sidecar
+          operator: NotIn
+          values: ["false"]
