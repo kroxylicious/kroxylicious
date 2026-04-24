@@ -23,6 +23,9 @@
 
     <dependencies>
         <dependency>
+            <!-- Needed on the test compilation classpath so the in-process compiler can resolve
+                 @ApiVersion and @Plugin when compiling test sources. The processor itself uses
+                 string-based annotation lookups and has no compile-time dependency on kroxylicious-api. -->
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
             <scope>test</scope>
@@ -46,6 +49,15 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
                     <proc>none</proc>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <configuration>
+                    <ignoredUnusedDeclaredDependencies>
+                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-api</ignoredUnusedDeclaredDependency>
+                    </ignoredUnusedDeclaredDependencies>
                 </configuration>
             </plugin>
         </plugins>
