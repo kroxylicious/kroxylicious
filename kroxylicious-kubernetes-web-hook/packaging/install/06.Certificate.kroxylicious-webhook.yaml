@@ -3,8 +3,10 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 # Requires cert-manager to be installed in the cluster.
 # See https://cert-manager.io/docs/installation/
+
 ---
 apiVersion: cert-manager.io/v1
 kind: Issuer
