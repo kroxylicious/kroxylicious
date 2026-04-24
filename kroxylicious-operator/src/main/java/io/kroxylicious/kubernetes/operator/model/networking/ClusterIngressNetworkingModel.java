@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.openshift.api.model.RouteBuilder;
 
@@ -86,5 +87,18 @@ public interface ClusterIngressNetworkingModel {
      */
     default Optional<SharedLoadBalancerServiceRequirements> sharedLoadBalancerServiceRequirements() {
         return Optional.empty();
+    }
+
+    /**
+     * Applies infrastructure annotations from the KafkaProxyIngress to the provided metadata builder.
+     * Infrastructure annotations are applied before operator-managed annotations, so operator annotations
+     * will override any conflicting keys.
+     * @param builder the ObjectMetaBuilder to add annotations to
+     */
+    default void applyInfrastructureAnnotations(ObjectMetaBuilder builder) {
+        var infrastructure = ingress().getSpec().getInfrastructure();
+        if (infrastructure != null && infrastructure.getAnnotations() != null) {
+            builder.addToAnnotations(infrastructure.getAnnotations());
+        }
     }
 }
