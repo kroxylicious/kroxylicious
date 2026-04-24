@@ -99,6 +99,7 @@ class ProxyConfigGenerator {
                 null,
                 false,
                 Optional.empty(),
+                null,
                 null);
 
         return toYaml(configuration);
