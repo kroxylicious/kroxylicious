@@ -62,8 +62,8 @@ class VersionTest {
     @ParameterizedTest
     @CsvSource({
             "v1, v1, true",
-            "v1, v1beta1, true",
-            "v1, v1alpha1, true",
+            "v1, v1beta1, false",
+            "v1, v1alpha1, false",
             "v1beta1, v1beta1, true",
             "v1alpha1, v1alpha1, true",
             "v1beta2, v1beta1, false",
