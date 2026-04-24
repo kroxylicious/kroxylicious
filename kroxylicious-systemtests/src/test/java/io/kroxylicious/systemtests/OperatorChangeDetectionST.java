@@ -51,13 +51,21 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.InfrastructureBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.KubeClient;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
+import io.kroxylicious.systemtests.utils.KroxyliciousUtils;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -78,10 +86,41 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     private final String kafkaClusterName = PREFIX + "-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
+    private KroxyliciousBuilder defaultKroxylicious(String namespace, String clusterName) {
+        return new KroxyliciousBuilder()
+                .withNamespace(namespace)
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
+                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
+                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build());
+    }
+
+    private void deployPortIdentifiesNodeWithNoFilters(String namespace, String clusterName) {
+        kroxylicious = defaultKroxylicious(namespace, clusterName).build();
+        kroxylicious.createOrUpdateResources();
+    }
+
+    private void deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(String namespace, String clusterName, Tls tls) {
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT, tls));
+        kroxylicious = defaultKroxylicious(namespace, clusterName).withDownstreamTls(tls).build();
+        kroxylicious.createOrUpdateResources();
+    }
+
+    private void deployPortIdentifiesNodeWithFilters(String namespace, String clusterName, List<String> filterNames) {
+        kroxylicious = defaultKroxylicious(namespace, clusterName)
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames).build())
+                .build();
+        kroxylicious.createOrUpdateResources();
+    }
+
     @Test
     void shouldUpdateDeploymentWhenKafkaProxyIngressChanges(String namespace) {
         // Given
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
 
         String originalChecksum = getInitialChecksum(namespace);
 
@@ -106,8 +145,8 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                 .withConfigTemplate(Map.of("findPattern", "foo", "replacementValue", "bar"))
                 .endSpec();
         // @formatter:on
-        resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters("test-vkc");
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(arbitraryFilter);
+        deployPortIdentifiesNodeWithNoFilters(namespace, "test-vkc");
 
         String originalChecksum = getInitialChecksum(namespace);
 
@@ -137,10 +176,10 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         var issuer = certManager.issuer(namespace);
         var cert = certManager.certFor(namespace, PREFIX + "-cluster-ip." + namespace + ".svc.cluster.local");
 
-        resourceManager.createOrUpdateResourceWithWait(issuer, cert);
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(issuer, cert);
 
-        var tls = kroxylicious.tlsConfigFromCert("server-certificate");
-        kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
+        var tls = KroxyliciousUtils.tlsConfigFromCert("server-certificate");
+        deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(namespace, "test-vkc", tls);
 
         String originalChecksum = getInitialChecksum(namespace);
 
@@ -163,11 +202,10 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         var issuer = certManager.issuer(namespace);
         var cert = certManager.certFor(namespace, PREFIX + "-cluster-ip." + namespace + ".svc.cluster.local");
 
-        resourceManager.createOrUpdateResourceWithWait(issuer, cert);
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(issuer, cert);
 
-        var tls = kroxylicious.tlsConfigFromCert("server-certificate");
-
-        kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
+        var tls = KroxyliciousUtils.tlsConfigFromCert("server-certificate");
+        deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(namespace, "test-vkc", tls);
 
         String originalChecksum = getInitialChecksum(namespace);
         ConfigMap trustAnchorConfig = new ConfigMapBuilder().withNewMetadata().withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT).withNamespace(namespace).endMetadata()
@@ -192,8 +230,8 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                     .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "bar")))
                 .endSpec();
         // @formatter:on
-        resourceManager.createOrUpdateResourceWithWait(arbitraryFilterBuilder);
-        kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(arbitraryFilterBuilder);
+        deployPortIdentifiesNodeWithFilters(namespace, kafkaClusterName, List.of("arbitrary-filter"));
 
         var originalChecksum = getInitialChecksum(namespace);
         var arbitraryFilter = arbitraryFilterBuilder.build();
@@ -213,7 +251,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     void shouldUpdateDeploymentWhenResourceRequirementsChange(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
 
         KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
                 .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
@@ -261,7 +299,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     void shouldNotUpdateDeploymentChecksumWhenKafkaProxyScaled(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
 
         String originalChecksum = getInitialChecksum(namespace);
 
@@ -282,7 +320,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     void shouldPreserveExternalSsaPatchOnProxyDeploymentAfterReconcile(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
         getInitialChecksum(namespace); // wait for deployment to be ready
 
         addEnvVarToDeployment(namespace, kubeClient);
@@ -300,7 +338,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     @Test
     void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
         // Given
-        resourceManager.createOrUpdateResourceWithWait(
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(
                 new SecretBuilder().withNewMetadata().withName("kilted-kiwi").withNamespace(namespace).endMetadata().withType("kubernetes.io/tls")
                         .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
                 KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
@@ -311,7 +349,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                         .endSpec());
 
         KubeClient kubeClient = kubeClient(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
+        deployPortIdentifiesNodeWithFilters(namespace, kafkaClusterName, List.of("arbitrary-filter"));
         LOGGER.info("Kroxylicious deployed");
 
         String originalChecksum = getInitialChecksum(namespace);
@@ -320,7 +358,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                 .withName("kilted-kiwi").get();
 
         // When
-        resourceManager.createOrUpdateResourceWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
         LOGGER.info("secret: kilted-kiwi updated");
 
         // Then
@@ -333,7 +371,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         await().atMost(ASERTION_DURATION).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying(Constants.CHECKSUM_ANNOTATION,
                     value -> {
                         newChecksumFromAnnotation.set(value);
                         assertThat(value).isNotEqualTo(originalChecksum);
@@ -360,8 +398,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     }
 
     @BeforeEach
-    void setUp(String namespace) {
-        kroxylicious = new Kroxylicious(namespace);
+    void setUp() {
         certManager = new CertManager();
         certManager.deploy();
     }
@@ -399,13 +436,13 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                                     .singleElement()
                                     .extracting(Pod::getMetadata)
                                     .satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
-                                            .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
+                                            .hasAnnotationSatisfying(Constants.CHECKSUM_ANNOTATION, value -> assertThat(value).isNotBlank()));
 
                             String checksumFromPod = getChecksumFromAnnotation(proxyPods.get(0));
                             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
                             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata())
                                     .hasAnnotationSatisfying(
-                                            "kroxylicious.io/referent-checksum",
+                                            Constants.CHECKSUM_ANNOTATION,
                                             value -> assertThat(value).isEqualTo(checksumFromPod));
                             checksumFromAnnotation.set(checksumFromPod);
                         });
@@ -414,7 +451,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     }
 
     private String getChecksumFromAnnotation(HasMetadata entity) {
-        return KubernetesResourceUtil.getOrCreateAnnotations(entity).get("kroxylicious.io/referent-checksum");
+        return KubernetesResourceUtil.getOrCreateAnnotations(entity).get(Constants.CHECKSUM_ANNOTATION);
     }
 
     private static boolean isVirtualClusterReady(VirtualKafkaCluster virtualKafkaCluster) {
@@ -477,5 +514,4 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
                 .fieldManager("test-external-tool")
                 .serverSideApply();
     }
-
 }

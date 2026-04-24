@@ -7,11 +7,10 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,233 +19,126 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
-import io.kroxylicious.filter.entityisolation.EntityIsolation;
-import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService;
-import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
-import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
-import io.kroxylicious.systemtests.templates.strimzi.KafkaUserTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
+import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
 
-/**
- * The type Kroxylicious.
- */
 public class Kroxylicious {
     private static final Logger LOGGER = LoggerFactory.getLogger(Kroxylicious.class);
-    private final String deploymentNamespace;
+    private KafkaProxy kafkaProxy;
+    private KafkaProxyIngress kafkaProxyIngress;
+    private List<KafkaProtocolFilter> kafkaProtocolFilters = new ArrayList<>();
+    private KafkaService kafkaService;
+    private VirtualKafkaCluster virtualKafkaCluster;
+    private Tls tls;
+    private Tls downstreamTls;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
+    private String namespace;
 
-    /**
-     * Instantiates a new Kroxylicious Service to be used in kubernetes.
-     *
-     * @param deploymentNamespace the deployment namespace
-     */
-    public Kroxylicious(String deploymentNamespace) {
-        this.deploymentNamespace = deploymentNamespace;
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
     }
 
-    private void createRecordEncryptionFilterConfigMap(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
-        LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
-        resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(deploymentNamespace, testKmsFacade, experimentalKmsConfig));
+    public void setTls(Tls tls) {
+        this.tls = tls;
     }
 
-    private void deployAuthorizationResources(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
-        LOGGER.info("Deploy Kroxylicious with authorization filter in {} namespace", deploymentNamespace);
-        createKafkaUsers(clusterName, usernamePassword);
-
-        resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousConfigMapTemplates.getAclRulesConfigMap(deploymentNamespace, "acl-rules", aclRules),
-                KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
-                KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(deploymentNamespace, "${configmap:acl-rules:acl-rules}"));
+    public void setDownstreamTls(Tls downstreamTls) {
+        this.downstreamTls = downstreamTls;
     }
 
-    private void createKafkaUsers(String clusterName, Map<String, String> usernamePassword) {
-        String passwordSecretSuffix = "-password";
-        usernamePassword.forEach((user, password) -> {
-            String secretName = user + passwordSecretSuffix;
-            resourceManager.createResourceFromBuilderWithWait(
-                    KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, secretName, password),
-                    KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, secretName));
-        });
-    }
-
-    /**
-     * Deploy port identifies node with filters.
-     *
-     * @param clusterName the cluster name
-     * @param filterNames the filter names
-     */
-    public void deployPortIdentifiesNodeWithFilters(String clusterName, List<String> filterNames) {
-        resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1),
-                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
-                KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(deploymentNamespace, clusterName,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
-                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames));
-    }
-
-    /**
-     * Deploy - Port Identifies Node with no filters config
-     */
-    public void deployPortIdentifiesNodeWithNoFilters(String clusterName) {
-        deployPortIdentifiesNodeWithNoFilters(clusterName, 1);
-    }
-
-    /**
-     * Deploy port identifies node with tls and no filters.
-     *
-     * @param clusterName the cluster name
-     */
-    public void deployPortIdentifiesNodeWithTlsAndNoFilters(String clusterName) {
-        Tls tls = createCertificateConfigMapFromListener(deploymentNamespace);
-        resourceManager.createResourceFromBuilder(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1),
-                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefCRWithTls(deploymentNamespace, clusterName, tls),
-                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
-                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
-    }
-
-    /**
-     * Deploy port identifies node with downstream tls and no filters.
-     *
-     * @param clusterName the cluster name
-     * @param tls the tls
-     */
-    public void deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(String clusterName, Tls tls) {
-        resourceManager.createResourceFromBuilder(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1),
-                KroxyliciousKafkaProxyIngressTemplates.tlsKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
-                KroxyliciousConfigMapTemplates.getClusterCaConfigMap(deploymentNamespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT, tls),
-                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterWithTlsCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
-                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, tls));
-    }
-
-    /**
-     * Create certificate config map from listener.
-     *
-     * @param namespace the namespace
-     * @return the tls
-     */
-    public Tls createCertificateConfigMapFromListener(String namespace) {
-        // wait for listeners to contain data
-        var tlsListenerStatus = KafkaUtils.getKafkaListenerStatus("tls");
-
-        var cert = tlsListenerStatus.stream()
-                .map(ListenerStatus::getCertificates)
-                .findFirst().orElseThrow();
-
-        resourceManager.createResourceFromBuilder(KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT,
-                cert.get(0)));
-        //@formatter:off
-        return new TlsBuilder()
-                .withTrustAnchorRef(
-                    buildTrustAnchorRef())
-                .build();
-        //@formatter:on
-    }
-
-    @NonNull
-    private static TrustAnchorRef buildTrustAnchorRef() {
-        // formatter:off
-        return new TrustAnchorRefBuilder()
-                .withNewRef()
-                .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
-                .withKind(Constants.CONFIG_MAP)
-                .endRef()
-                .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
-                .build();
-        // formatter:on
-    }
-
-    /**
-     * Tls config from cert.
-     *
-     * @param certNane the cert nane
-     * @return the tls
-     */
-    public Tls tlsConfigFromCert(String certNane) {
-        TlsBuilder tlsBuilder = new TlsBuilder();
-        if (certNane != null) {
-            // formatter:off
-            tlsBuilder
-                    .withNewCertificateRef()
-                    .withName(certNane)
-                    .withKind("Secret")
-                    .endCertificateRef();
-            // formatter:on
+    public void setKafkaProxyIngress(KafkaProxyIngress kafkaProxyIngress) {
+        if (namespace != null) {
+            kafkaProxyIngress = kafkaProxyIngress.edit().editMetadata().withNamespace(namespace).endMetadata().build();
         }
-        tlsBuilder.withTrustAnchorRef(buildTrustAnchorRef());
-        return tlsBuilder.build();
+        if (downstreamTls != null) {
+            kafkaProxyIngress = kafkaProxyIngress.edit().editSpec().editOrNewClusterIP().withProtocol(TLS).endClusterIP().endSpec().build();
+        }
+        this.kafkaProxyIngress = kafkaProxyIngress;
     }
 
-    /**
-     * Deploy port per broker plain with record encryption filter.
-     *
-     * @param clusterName the cluster name
-     * @param testKmsFacade the test kms facade
-     */
-    public void deployPortIdentifiesNodeWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
-        deployPortIdentifiesNodeWithRecordEncryptionFilter(clusterName, testKmsFacade, null);
+    public void setKafkaProxy(KafkaProxy kafkaProxy) {
+        if (namespace != null) {
+            kafkaProxy = kafkaProxy.edit().editMetadata().withNamespace(namespace).endMetadata().build();
+        }
+        this.kafkaProxy = kafkaProxy;
     }
 
-    /**
-     * Deploy port per broker plain with record encryption filter.
-     *
-     * @param clusterName the cluster name
-     * @param testKmsFacade the test kms facade
-     * @param experimentalKmsConfig the experimental kms config
-     */
-    public void deployPortIdentifiesNodeWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade,
-                                                                   ExperimentalKmsConfig experimentalKmsConfig) {
-        createRecordEncryptionFilterConfigMap(testKmsFacade, experimentalKmsConfig);
-        deployPortIdentifiesNodeWithFilters(clusterName, List.of(Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME));
+    public void setKafkaProtocolFilters(List<KafkaProtocolFilter> kafkaProtocolFilters) {
+        if (namespace != null) {
+            kafkaProtocolFilters.forEach(kafkaProtocolFilter -> kafkaProtocolFilter.edit().editMetadata().withNamespace(namespace).endMetadata().build());
+        }
+        this.kafkaProtocolFilters = kafkaProtocolFilters;
+    }
+
+    public void setKafkaService(KafkaService kafkaService) {
+        if (namespace != null) {
+            kafkaService = kafkaService.edit().editMetadata().withNamespace(namespace).endMetadata().build();
+        }
+        if (tls != null) {
+            kafkaService = kafkaService.edit().editSpec()
+                    .withBootstrapServers(getKafkaBootstrap("tls", kafkaService.getMetadata().getName()))
+                    .withTls(tls)
+                    .endSpec()
+                    .build();
+        }
+        this.kafkaService = kafkaService;
+    }
+
+    public void setVirtualKafkaCluster(VirtualKafkaCluster virtualKafkaCluster) {
+        if (namespace != null) {
+            virtualKafkaCluster = virtualKafkaCluster.edit().editMetadata().withNamespace(namespace).endMetadata().build();
+        }
+        if (downstreamTls != null) {
+            virtualKafkaCluster = virtualKafkaCluster.edit()
+                    .editSpec()
+                    .editIngress(0)
+                    .withNewTls()
+                    .withCertificateRef(downstreamTls.getCertificateRef())
+                    .withTrustAnchorRef(downstreamTls.getTrustAnchorRef())
+                    .endTls()
+                    .endIngress()
+                    .endSpec()
+                    .build();
+        }
+        this.virtualKafkaCluster = virtualKafkaCluster;
+    }
+
+    public void createOrUpdateResources() {
+        this.kafkaProtocolFilters.forEach(resourceManager::createOrUpdateResourceWithWait);
+        resourceManager.createOrUpdateResourceWithWait(this.kafkaProxy, this.kafkaProxyIngress, this.kafkaService, this.virtualKafkaCluster);
     }
 
     /**
      * Gets bootstrap on the first ingress defined on the virtual cluster.
      *
+     * @param namespace the namespace
      * @param clusterName the virtual cluster name
      * @return the bootstrap server of the cluster
      */
-    public String getBootstrap(String clusterName) {
-        var bootstrapServer = await("poll for bootstrap").atMost(Duration.ofSeconds(30))
+    public String getBootstrap(String namespace, String clusterName) {
+        String bootstrapServer = await("poll for bootstrap").atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofSeconds(1))
                 .until(() -> {
-                    var virtualKafkaCluster = kubeClient().getClient()
+                    VirtualKafkaCluster vkc = kubeClient().getClient()
                             .resources(VirtualKafkaCluster.class)
-                            .inNamespace(deploymentNamespace)
+                            .inNamespace(namespace)
                             .withName(clusterName)
                             .get();
 
-                    var first = Optional.ofNullable(virtualKafkaCluster)
+                    Optional<Ingresses> first = Optional.ofNullable(vkc)
                             .map(VirtualKafkaCluster::getStatus)
                             .map(VirtualKafkaClusterStatus::getIngresses)
                             .stream()
@@ -263,10 +155,10 @@ public class Kroxylicious {
      *
      * @return the number of replicas
      */
-    public int getNumberOfReplicas() {
+    public int getNumberOfReplicas(String namespace) {
         LOGGER.info("Getting number of replicas..");
         return await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1))
-                .until(() -> Optional.ofNullable(kubeClient().getDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME))
+                .until(() -> Optional.ofNullable(kubeClient().getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME))
                         .map(Deployment::getStatus)
                         .map(DeploymentStatus::getReplicas).orElseThrow(), Objects::nonNull);
     }
@@ -277,64 +169,25 @@ public class Kroxylicious {
      * @param scaledTo the number of replicas to scale up/down
      * @param timeout the timeout
      */
-    public void scaleReplicasTo(int scaledTo, Duration timeout) {
+    public void scaleReplicasTo(String namespace, int scaledTo, Duration timeout) {
         LOGGER.info("Scaling number of replicas to {}..", scaledTo);
-        kubeClient().getClient().resources(KafkaProxy.class).inNamespace(deploymentNamespace).withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).scale(scaledTo);
+        kubeClient().getClient().resources(KafkaProxy.class).inNamespace(namespace).withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).scale(scaledTo);
         await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
-                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME));
+                .until(() -> getNumberOfReplicas(namespace) == scaledTo && kubeClient().isDeploymentReady(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME));
     }
 
-    /**
-     * Deploy port identifies node with no filters.
-     *
-     * @param clusterName the cluster name
-     * @param proxyPods the proxy pods
-     */
-    public void deployPortIdentifiesNodeWithNoFilters(String clusterName, int proxyPods) {
-        resourceManager.createResourceFromBuilder(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, proxyPods),
-                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
-                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
-                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
-    }
+    private static String getKafkaBootstrap(String listenerStatusName, String clusterRefName) {
+        // wait for listeners to contain data
+        if (KafkaUtils.isKafkaUp(clusterRefName)) {
+            var kafkaListenerStatus = KafkaUtils.getKafkaListenerStatus(listenerStatusName);
 
-    /**
-     * Deploy port identifies node with authorization filter.
-     *
-     * @param clusterName the cluster name
-     */
-    public void deployPortIdentifiesNodeWithAuthorizationFilter(String clusterName, Map<String, String> usernamePassword, List<String> aclRules) {
-        deployAuthorizationResources(clusterName, usernamePassword, aclRules);
-        deployPortIdentifiesNodeWithFilters(clusterName,
-                List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME));
-    }
-
-    private void deployPortIdentifiesNodeWithEntityIsolationFilter(String clusterName, Map<String, String> usernamePassword, Set<EntityIsolation.EntityType> entityTypes,
-                                                                   Class<?> mapperServiceClass) {
-        createKafkaUsers(clusterName, usernamePassword);
-        deployEntityIsolationResources(entityTypes, mapperServiceClass);
-        deployPortIdentifiesNodeWithFilters(clusterName,
-                List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME));
-    }
-
-    private void deployEntityIsolationResources(Set<EntityIsolation.EntityType> entityTypes, Class<?> mapperServiceClass) {
-        resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(deploymentNamespace),
-                KroxyliciousFilterTemplates.kroxyliciousEntityIsolationFilter(deploymentNamespace, entityTypes, mapperServiceClass));
-    }
-
-    /**
-     * Deploy port identifies node with entity isolation filter
-     * using PrincipalEntityNameMapper class.
-     *
-     * @param clusterName the cluster name
-     * @param usernamePasswords the username passwords map for all users
-     * @param entityTypes the list of entity types used in the filter (see enum {@link EntityIsolation.EntityType})
-     */
-    public void deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(String clusterName, Map<String, String> usernamePasswords,
-                                                                                               Set<EntityIsolation.EntityType> entityTypes) {
-        deployPortIdentifiesNodeWithEntityIsolationFilter(clusterName, usernamePasswords, entityTypes, PrincipalEntityNameMapperService.class);
+            return kafkaListenerStatus.stream()
+                    .map(ListenerStatus::getBootstrapServers)
+                    .findFirst().orElseThrow();
+        }
+        else {
+            // Some operator tests do not need kafka running so we can set a default value
+            return String.format("%s-kafka-bootstrap.%s.svc.cluster.local:9092".formatted(clusterRefName, Constants.KAFKA_DEFAULT_NAMESPACE));
+        }
     }
 }
