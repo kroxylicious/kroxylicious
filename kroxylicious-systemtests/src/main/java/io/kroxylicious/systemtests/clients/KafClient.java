@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.skodjob.testframe.utils.KubeUtils;
@@ -134,34 +135,50 @@ public class KafClient implements KafkaClient {
                 "--output", "json"));
         args.addAll(List.of("--group", consumerGroup));
         Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
-        String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
-        String log = waitForConsumer(podName, numOfMessages, timeout);
+        KafkaUtils.createJob(deployNamespace, name, kafClientJob);
+        String log = waitForConsumer(name, numOfMessages, timeout);
         KafkaUtils.deleteJob(kafClientJob);
         LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
         List<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(topicName, logRecords);
     }
 
-    private String waitForConsumer(String podName, int numOfMessages, Duration timeout) {
-        String log;
+    private String waitForConsumer(String jobName, int numOfMessages, Duration timeout) {
+        String log = "";
         try {
             log = await().alias("Consumer waiting to receive messages")
                     .ignoreException(KubernetesClientException.class)
                     .atMost(timeout)
                     .until(() -> {
-                        if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
+                        List<Pod> successfulPods = kubeClient().getClient().pods()
+                                .inNamespace(deployNamespace)
+                                .withLabel("app", jobName)
+                                .withField("status.phase", "Running")
+                                .list()
+                                .getItems();
+                        if (!successfulPods.isEmpty()) {
+                            String podName = successfulPods.get(0).getMetadata().getName();
                             return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                         }
                         return null;
                     }, m -> getNumberOfJsonMessages(m) >= numOfMessages);
         }
         catch (ConditionTimeoutException e) {
-            log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-            LOGGER.atError().setMessage("Timeout! Received: {}").addArgument(log).log();
+            List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
+            pods.forEach(pod -> {
+                String podName = pod.getMetadata().getName();
+                String currentLog = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                LOGGER.atError().setMessage("Timeout! Pod '{}', received: {}").addArgument(podName).addArgument(currentLog).log();
+            });
+
         }
         catch (KubeClusterException e) {
-            log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-            LOGGER.atError().setMessage("Failed to consume messages! {}").addArgument(e.getMessage()).log();
+            List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
+            pods.forEach(pod -> {
+                String podName = pod.getMetadata().getName();
+                String currentLog = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                LOGGER.atError().setMessage("Pod '{}' failed to consume messages! {}").addArgument(podName).addArgument(currentLog).log();
+            });
         }
         return log;
     }
