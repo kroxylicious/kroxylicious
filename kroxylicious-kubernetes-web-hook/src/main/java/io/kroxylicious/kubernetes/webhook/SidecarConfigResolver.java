@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -105,10 +106,27 @@ class SidecarConfigResolver implements Closeable {
     /**
      * Adds a config to the cache directly, for testing.
      */
+    @VisibleForTesting
     void put(@NonNull KroxyliciousSidecarConfig config) {
         String ns = config.getMetadata().getNamespace();
         String name = config.getMetadata().getName();
         cache.computeIfAbsent(ns, k -> new ConcurrentHashMap<>()).put(name, config);
+    }
+
+    /**
+     * Removes a config from the cache, for testing.
+     */
+    @VisibleForTesting
+    void remove(@NonNull KroxyliciousSidecarConfig config) {
+        String ns = config.getMetadata().getNamespace();
+        String name = config.getMetadata().getName();
+        Map<String, KroxyliciousSidecarConfig> nsConfigs = cache.get(ns);
+        if (nsConfigs != null) {
+            nsConfigs.remove(name);
+            if (nsConfigs.isEmpty()) {
+                cache.remove(ns);
+            }
+        }
     }
 
     @Override
@@ -144,18 +162,10 @@ class SidecarConfigResolver implements Closeable {
         public void onDelete(
                              KroxyliciousSidecarConfig obj,
                              boolean deletedFinalStateUnknown) {
-            String ns = obj.getMetadata().getNamespace();
-            String name = obj.getMetadata().getName();
-            Map<String, KroxyliciousSidecarConfig> nsConfigs = cache.get(ns);
-            if (nsConfigs != null) {
-                nsConfigs.remove(name);
-                if (nsConfigs.isEmpty()) {
-                    cache.remove(ns);
-                }
-            }
+            remove(obj);
             LOGGER.atInfo()
-                    .addKeyValue("namespace", ns)
-                    .addKeyValue("name", name)
+                    .addKeyValue("namespace", obj.getMetadata().getNamespace())
+                    .addKeyValue("name", obj.getMetadata().getName())
                     .log("KroxyliciousSidecarConfig deleted");
         }
     }

@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -117,17 +118,19 @@ public class WebhookMain {
         LOGGER.atInfo().log("Webhook stopped");
     }
 
+    @VisibleForTesting
     @NonNull
-    private static InetSocketAddress parseBindAddress(@NonNull Map<String, String> env) {
+    static InetSocketAddress parseBindAddress(@NonNull Map<String, String> env) {
         String bindAddress = env.getOrDefault(BIND_ADDRESS_VAR, DEFAULT_BIND_ADDRESS);
         HostPort hostPort = HostPort.parse(bindAddress);
         return new InetSocketAddress(hostPort.host(), hostPort.port());
     }
 
+    @VisibleForTesting
     @NonNull
-    private static String requiredEnv(
-                                      @NonNull Map<String, String> env,
-                                      @NonNull String name) {
+    static String requiredEnv(
+                              @NonNull Map<String, String> env,
+                              @NonNull String name) {
         String value = env.get(name);
         if (value == null || value.isBlank()) {
             throw new IllegalStateException("Required environment variable " + name + " is not set");

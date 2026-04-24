@@ -16,6 +16,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class SidecarConfigResolverTest {
 
@@ -85,6 +86,65 @@ class SidecarConfigResolverTest {
 
         Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns2", "config");
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void removeDeletesConfigFromCache() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
+        resolver.put(config);
+        resolver.remove(config);
+
+        assertThat(resolver.resolve("ns1", "my-config")).isEmpty();
+    }
+
+    @Test
+    void removeCleansUpEmptyNamespaceMap() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig config = createConfig("ns1", "config-a");
+        resolver.put(config);
+        resolver.remove(config);
+
+        KroxyliciousSidecarConfig newConfig = createConfig("ns1", "config-b");
+        resolver.put(newConfig);
+        assertThat(resolver.resolve("ns1", "config-b")).isPresent().get().isSameAs(newConfig);
+    }
+
+    @Test
+    void removeNonexistentNamespaceDoesNotThrow() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig config = createConfig("ns-unknown", "config");
+
+        assertThatCode(() -> resolver.remove(config)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void removeNonexistentConfigInExistingNamespace() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig kept = createConfig("ns1", "config-a");
+        resolver.put(kept);
+
+        resolver.remove(createConfig("ns1", "config-b"));
+
+        assertThat(resolver.resolve("ns1", "config-a")).isPresent().get().isSameAs(kept);
+    }
+
+    @Test
+    void removeLastConfigThenAddNew() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        resolver.put(createConfig("ns1", "old"));
+        resolver.remove(createConfig("ns1", "old"));
+
+        KroxyliciousSidecarConfig replacement = createConfig("ns1", "new");
+        resolver.put(replacement);
+
+        assertThat(resolver.resolve("ns1", null)).isPresent().get().isSameAs(replacement);
+    }
+
+    @Test
+    void closeWithNoInformerDoesNotThrow() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        assertThatCode(resolver::close).doesNotThrowAnyException();
     }
 
     private static KroxyliciousSidecarConfig createConfig(String namespace, String name) {
