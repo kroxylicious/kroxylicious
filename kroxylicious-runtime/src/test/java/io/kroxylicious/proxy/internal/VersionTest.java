@@ -26,7 +26,7 @@ class VersionTest {
         Version v = Version.parse(s);
         Assertions.assertThat(v).hasToString(s);
         Assertions.assertThat(v).isEqualByComparingTo(v);
-        Assertions.assertThat(v.isStable()).isEqualTo(s.length() == 2 || s.equals("v32767"));
+        Assertions.assertThat(v.isStable()).isEqualTo(!s.contains("alpha") && !s.contains("beta"));
         if (s.startsWith("v1") && s.length() > 2) {
             Assertions.assertThat(v).isLessThan(Version.parse("v1"));
         }
@@ -36,7 +36,7 @@ class VersionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = { "v1alpha32768", "v32768alpha1", "v1Beta1", "v1gamma2", "v0", "v-1", "v1beta-1", "v1alpha0" })
+    @ValueSource(strings = { "v1Beta1", "v1gamma2", "v0", "v-1", "v1beta-1", "v1alpha0" })
     void parseRejectsIllegalApiVersion(String s) {
         assertThatThrownBy(() -> Version.parse(s)).isInstanceOf(IllegalArgumentException.class);
     }

@@ -84,51 +84,55 @@ public class Version implements Comparable<Version> {
         }
     }
 
-    private final int value;
+    private enum Stability {
+        ALPHA,
+        BETA,
+        STABLE
+    }
 
-    private Version(int value) {
-        this.value = value;
+    private static final Pattern VERSION_PATTERN = Pattern.compile(
+            "v(?<major>\\d+)(?:(?<stability>alpha|beta)(?<minor>\\d+))?");
+
+    private final int major;
+    private final Stability stability;
+    private final int minor;
+
+    private Version(int major,
+                    Stability stability,
+                    int minor) {
+        this.major = major;
+        this.stability = stability;
+        this.minor = minor;
     }
 
     /**
-     * Parse the given string as an API version
+     * Parse the given string as an API version.
      * @param apiVersion The string to parse
      * @return The version.
-     * @throws IllegalArgumentException if the string is not a version or if there are too many digits in one of the numeric parts of the version.
+     * @throws IllegalArgumentException if the string is not a valid version.
      */
     public static Version parse(String apiVersion) {
-        var matcher = Pattern.compile("v(?<major>\\d+)(?:(?<stability>alpha|beta)(?<minor>\\d+))?").matcher(apiVersion);
-        if (matcher.matches()) {
-            var major = Integer.parseInt(matcher.group("major"));
-            var stabilityStr = matcher.group("stability");
-            int stability;
-            int minor;
-            if (stabilityStr != null) {
-                stability = stabilityStr.charAt(0) == 'a' ? 0 : 1;
-                String minorStr = matcher.group("minor");
-                minor = Integer.parseInt(minorStr);
-            }
-            else {
-                stability = 2;
-                minor = 0;
-            }
-            // Both major and minor can be upto 15 bits (unsigned). That's 32767 decimal.
-            // If you have more versions than that then you have other problems.
-            if ((major & 0b111111111111111_11_000000000000000) != 0) {
-                throw new IllegalArgumentException("Invalid API version: " + apiVersion);
-            }
-            if ((minor & 0b111111111111111_11_000000000000000) != 0) {
-                throw new IllegalArgumentException("Invalid API version: " + apiVersion);
-            }
-            if (major == 0 || (stability != 2 && minor == 0)) {
-                throw new IllegalArgumentException("Invalid API version: " + apiVersion);
-            }
-
-            return new Version(major << 17 | stability << 15 | minor);
-        }
-        else {
+        var matcher = VERSION_PATTERN.matcher(apiVersion);
+        if (!matcher.matches()) {
             throw new IllegalArgumentException("Invalid API version: " + apiVersion);
         }
+
+        int major = Integer.parseInt(matcher.group("major"));
+        if (major == 0) {
+            throw new IllegalArgumentException("Invalid API version: " + apiVersion);
+        }
+
+        String stabilityStr = matcher.group("stability");
+        if (stabilityStr == null) {
+            return new Version(major, Stability.STABLE, 0);
+        }
+
+        int minor = Integer.parseInt(matcher.group("minor"));
+        if (minor == 0) {
+            throw new IllegalArgumentException("Invalid API version: " + apiVersion);
+        }
+        Stability stability = "alpha".equals(stabilityStr) ? Stability.ALPHA : Stability.BETA;
+        return new Version(major, stability, minor);
     }
 
     /**
@@ -137,7 +141,7 @@ public class Version implements Comparable<Version> {
      * @return The major part of the version number.
      */
     public int major() {
-        return value >>> 17;
+        return major;
     }
 
     /**
@@ -146,7 +150,7 @@ public class Version implements Comparable<Version> {
      * @return The minor part of the version number.
      */
     public int minor() {
-        return value & ~0xffff8000;
+        return minor;
     }
 
     /**
@@ -154,7 +158,7 @@ public class Version implements Comparable<Version> {
      * @return true if and only if this is a stable version (lacking {@code alpha} or {@code beta}).
      */
     public boolean isStable() {
-        return ((value >> 15) & 0x000000003) == 2;
+        return stability == Stability.STABLE;
     }
 
     /**
@@ -170,36 +174,40 @@ public class Version implements Comparable<Version> {
         return this.equals(compiledAgainst);
     }
 
-    private String stability() {
-        int i = (value >> 15) & 0x000000003;
-        return switch (i) {
-            case 0 -> "alpha";
-            case 1 -> "beta";
-            case 2 -> "";
-            default -> throw new IllegalStateException("" + i);
+    @Override
+    public String toString() {
+        return switch (stability) {
+            case STABLE -> "v" + major;
+            case ALPHA -> "v" + major + "alpha" + minor;
+            case BETA -> "v" + major + "beta" + minor;
         };
     }
 
     @Override
-    public String toString() {
-        return "v" + Integer.toUnsignedString(major()) + (isStable() ? "" : stability() + Integer.toUnsignedString(minor()));
-    }
-
-    @Override
     public boolean equals(Object o) {
-        if (!(o instanceof Version version)) {
+        if (!(o instanceof Version other)) {
             return false;
         }
-        return value == version.value;
+        return major == other.major
+                && stability == other.stability
+                && minor == other.minor;
     }
 
     @Override
     public int hashCode() {
-        return value;
+        return Objects.hash(major, stability, minor);
     }
 
     @Override
     public int compareTo(Version o) {
-        return Integer.compareUnsigned(value, o.value);
+        int cmp = Integer.compare(major, o.major);
+        if (cmp != 0) {
+            return cmp;
+        }
+        cmp = stability.compareTo(o.stability);
+        if (cmp != 0) {
+            return cmp;
+        }
+        return Integer.compare(minor, o.minor);
     }
 }
