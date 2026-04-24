@@ -32,12 +32,6 @@ Use Conventional Commits with AI disclosure.
 
 **Placement:** After body, before Signed-off-by
 
-**Model names:**
-- Claude Sonnet 4.5
-- Claude Sonnet 4.6
-- Claude Opus 4.6
-- (Use actual model name from session)
-
 ## Trailers Order
 
 1. Other trailers (Relates-to:, Fixes:, etc.)
