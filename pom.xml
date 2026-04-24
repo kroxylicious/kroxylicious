@@ -1123,6 +1123,10 @@
                                         @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
                                         </ignoredUnusedDeclaredDependency>
+                                        <!-- declared as provided to force reactor build order for parallel builds;
+                                        the real usage is via annotationProcessorPaths which the analyzer can't see -->
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-api-version-processor
+                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->
