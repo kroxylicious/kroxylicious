@@ -17,6 +17,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.internal.Version;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 import nl.altindag.log.LogCaptor;
@@ -90,6 +92,68 @@ class ServiceBasedPluginFactoryRegistryTest {
                 factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class.getName()));
         assertInstanceOf(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class,
                 factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
+    }
+
+    static List<Arguments> shouldLogWarningOnPluginFactory() {
+        return List.of(
+                Arguments.argumentSet("Missing @ApiVersion",
+                        NoAnnotatedWithApiVersion.class,
+                        "No @ApiVersion annotation found on plugin API. Missing @ApiVersion will be treated as an error in a future release",
+                        Map.of("api", "io.kroxylicious.proxy.config.NoAnnotatedWithApiVersion")),
+                Arguments.argumentSet("Missing @ApiVersion",
+                        FilterFactory.class,
+                        "Unstable API; this API could evolve incompatibly in a future release",
+                        Map.of(
+                                "api", "io.kroxylicious.proxy.filter.FilterFactory",
+                                "version", "v1beta1")));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldLogWarningOnPluginFactory(Class<?> pluginInterface,
+                                         String expectedMessage,
+                                         Map<String, String> expectedKeyValues) {
+        // Given
+        ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+        // When
+        serviceBasedPluginFactoryRegistry.pluginFactory(pluginInterface);
+        serviceBasedPluginFactoryRegistry.pluginFactory(pluginInterface); // call twice
+        // Then
+        assertThat(logCaptor.getLogEvents()).singleElement() // log once
+                .satisfies(log -> {
+                    assertThat(log.getMessage()).isEqualTo(expectedMessage);
+                    var keyValuePairs = log.getKeyValuePairs();
+                    expectedKeyValues.forEach((key, value) -> assertThat(keyValuePairs).contains(Map.entry(key, value)));
+                });
+    }
+
+    @Test
+    void shouldThrowOnPluginFactory() {
+        // Given
+        ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+        // When/Then
+        assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(Unstable.class))
+                .isInstanceOf(Version.DisallowedUnstableApiException.class)
+                .hasMessage("API 'io.kroxylicious.proxy.config.Unstable' has unstable version v1alpha1, which you have not opted into using. "
+                        + "To opt-in to using this unstable API include 'io.kroxylicious.proxy.config.Unstable' "
+                        + "in the comma-separated list of APIs given as the value of the "
+                        + "KROXYLICIOUS_ALLOWED_UNSTABLE_APIS environment variable. "
+                        + "For example 'KROXYLICIOUS_ALLOWED_UNSTABLE_APIS=io.kroxylicious.proxy.config.Unstable'.");
+
+    }
+
+    @Test
+    void shouldThrowOnIncompatibleApiVersion() {
+        // Given: VersionMismatchService is @ApiVersion("v1"), but the resource file for
+        // VersionMismatchImpl declares it was compiled against v2 (incompatible major version)
+        ServiceBasedPluginFactoryRegistry serviceBasedPluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
+        // When/Then
+        assertThatThrownBy(() -> serviceBasedPluginFactoryRegistry.pluginFactory(VersionMismatchService.class))
+                .isInstanceOf(Version.IncompatibleApiVersionException.class)
+                .hasMessageContaining("VersionMismatchImpl")
+                .hasMessageContaining("built against")
+                .hasMessageContaining("v2")
+                .hasMessageContaining("v1");
     }
 
     static List<Arguments> shouldLogWarningOnInstantiation() {

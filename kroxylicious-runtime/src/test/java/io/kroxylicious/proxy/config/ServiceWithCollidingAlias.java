@@ -6,5 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
+@ApiVersion("v1")
 public interface ServiceWithCollidingAlias {
 }

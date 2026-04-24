@@ -12,7 +12,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation, on a plugin implementation class, that identifies the class of "config record"
+ * Annotates plugin implementation classes, identifying the class of "config record"
  * consumed by that implementation.
  * Use {@code @Plugin(configType=Void.class)} if a plugin implementation class doesn't require configuration.
  * @see io.kroxylicious.proxy.plugin

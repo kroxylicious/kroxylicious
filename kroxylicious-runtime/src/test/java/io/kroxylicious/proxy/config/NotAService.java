@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.config;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 /**
  * This interface is not a service interface (no META-INF/services file). Used for tests
  */
+@ApiVersion("v1")
 public interface NotAService {
 }

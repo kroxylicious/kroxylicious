@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.config;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 /**
  * Simulates a service whose implementations will be instantiated with warnings logged
  */
+@ApiVersion("v1")
 public interface ServiceWithBaggage {
 }

@@ -8,6 +8,8 @@ package io.kroxylicious.authorizer.service;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
@@ -16,6 +18,7 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  * @param <C> The config type
  */
 @ThreadSafe
+@ApiVersion("v1")
 public interface AuthorizerService<C> {
 
     /**

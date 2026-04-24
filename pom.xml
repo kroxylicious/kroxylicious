@@ -567,6 +567,7 @@
         <module>kroxylicious-kms-providers</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
+        <module>kroxylicious-api-version-processor</module>
         <module>kroxylicious-app</module>
         <module>kroxylicious-krpc-plugin</module>
         <module>kroxylicious-integration-test-support</module>
@@ -1122,6 +1123,10 @@
                                         @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
                                         </ignoredUnusedDeclaredDependency>
+                                        <!-- declared as provided to force reactor build order for parallel builds;
+                                        the real usage is via annotationProcessorPaths which the analyzer can't see -->
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-api-version-processor
+                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->
@@ -1363,7 +1368,7 @@
                                 <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
                                 <arg>-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
                             </compilerArgs>
-                            <annotationProcessorPaths>
+                            <annotationProcessorPaths combine.children="append">
                                 <path>
                                     <groupId>com.google.errorprone</groupId>
                                     <artifactId>error_prone_core</artifactId>

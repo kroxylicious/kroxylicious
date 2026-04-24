@@ -6,10 +6,12 @@
 
 package io.kroxylicious.proxy.config;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+@ApiVersion("v1")
 public interface ExamplePluginFactory<C> {
 
     @NonNull
