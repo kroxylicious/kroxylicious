@@ -28,7 +28,20 @@ public class KroxyliciousConfigUtils {
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     public static final String DEFAULT_GATEWAY_NAME = "default";
 
-    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
+    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", resolveDefaultPort());
+
+    private static int resolveDefaultPort() {
+        var override = System.getenv("KROXYLICIOUS_TEST_BOOTSTRAP_PORT");
+        if (override == null || override.isBlank()) {
+            return 9192;
+        }
+        try {
+            return Integer.parseInt(override.trim());
+        }
+        catch (NumberFormatException e) {
+            throw new IllegalStateException("KROXYLICIOUS_TEST_BOOTSTRAP_PORT must be an integer, was: " + override, e);
+        }
+    }
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
