@@ -43,10 +43,7 @@ public class Version implements Comparable<Version> {
     public static boolean isAllowedApi(String api, Version version) {
         Objects.requireNonNull(api);
         Objects.requireNonNull(version);
-        if ("io.kroxylicious.proxy.filter.FilterFactory".equals(api)
-                && version.equals(Version.parse("v1beta1"))) {
-            // Requiring an explicit opt-in for the key API of the whole proxy would just lead to user frustration.
-            // So always allow this as a special case.
+        if ("io.kroxylicious.proxy.filter.FilterFactory".equals(api)) {
             return true;
         }
         if (version.isStable()) {
@@ -163,16 +160,14 @@ public class Version implements Comparable<Version> {
     /**
      * Returns whether a plugin compiled against {@code compiledAgainst} is compatible
      * with this (running) version.
-     * <p>Stable versions are backwards-compatible within a major version, so any prior version
-     * with the same major is compatible. Unstable versions are only compatible if exactly equal.</p>
+     * <p>Versions are compatible only if exactly equal. Unstable versions can evolve
+     * incompatibly, and stable version bumps (e.g. {@code v1} to {@code v2}) signal
+     * breaking changes, so exact match is the only guarantee we can offer.</p>
      * @param compiledAgainst The version the plugin was compiled against.
      * @return true if and only if the versions are compatible.
      */
     public boolean isCompatibleWith(Version compiledAgainst) {
-        if (this.equals(compiledAgainst)) {
-            return true;
-        }
-        return this.isStable() && this.major() == compiledAgainst.major();
+        return this.equals(compiledAgainst);
     }
 
     private String stability() {
