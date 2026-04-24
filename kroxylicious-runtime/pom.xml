@@ -44,6 +44,14 @@
             <artifactId>re2j</artifactId>
         </dependency>
 
+        <dependency>
+            <!-- Not a real dependency: forces reactor build order so the processor is available
+             for annotationProcessorPaths, which doesn't participate in reactor resolution. -->
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api-version-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
