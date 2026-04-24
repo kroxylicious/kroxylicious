@@ -12,7 +12,22 @@ Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption,
   * [Developer Guide](#developer-guide)
   * [Releasing this project](#releasing-this-project)
   * [Performance Testing](#performance-testing)
+  * [Kroxylicious Filter Development](#kroxylicious-filter-development)
   * [Contributing](#contributing)
+  * [Architecture](#architecture)
+    * [Filter System](#filter-system)
+    * [Plugin System](#plugin-system)
+    * [Protocol Contracts](#protocol-contracts)
+  * [User Personas](#user-personas)
+  * [Security Model](#security-model)
+    * [Deployment Threat Model](#deployment-threat-model)
+    * [Authentication Architecture](#authentication-architecture)
+    * [Authorisation Patterns](#authorisation-patterns)
+    * [TLS/Transport Security](#tlstransport-security)
+  * [Deployment Considerations](#deployment-considerations)
+  * [Configuration](#configuration)
+  * [API vs Implementation](#api-vs-implementation)
+  * [Testing](#testing)
 <!-- TOC -->
 
 ## Quick Links
