@@ -84,11 +84,4 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return ingressStatusPatch(observedProxy, trueCondition, checksum);
     }
-
-    @SuppressWarnings("removal")
-    @Override
-    public KafkaProxyIngress newTrueConditionStatusPatch(KafkaProxyIngress observedProxy,
-                                                         Condition.Type type) {
-        throw new IllegalStateException("Use newTrueConditionStatusPatch(KafkaProxyIngress, Condition.Type, String) instead");
-    }
 }
