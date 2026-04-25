@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.test.client;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -48,9 +49,23 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        failQueuedRequests(new ClosedChannelException());
+        ctx.fireChannelInactive();
+    }
+
+    @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.warn("Kafka test client received unexpected exception, closing connection.", cause);
+        failQueuedRequests(cause);
         ctx.close();
+    }
+
+    private void failQueuedRequests(Throwable cause) {
+        RequestFrame pending;
+        while ((pending = queue.pollFirst()) != null) {
+            pending.getResponseFuture().completeExceptionally(cause);
+        }
     }
 
     /**
