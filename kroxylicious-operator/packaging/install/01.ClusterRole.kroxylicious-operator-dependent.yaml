@@ -18,7 +18,6 @@ rules:
       - ""
     resources:
       - services
-      - routes
       - configmaps
     verbs:
       - get
