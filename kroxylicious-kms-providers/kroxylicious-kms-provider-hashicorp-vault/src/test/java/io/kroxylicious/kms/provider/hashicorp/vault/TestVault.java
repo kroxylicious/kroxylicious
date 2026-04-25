@@ -46,6 +46,7 @@ public class TestVault implements Closeable {
         }
         VaultContainer<?> vaultContainer = new VaultContainer<>(HASHICORP_VAULT)
                 .withVaultToken(VAULT_TOKEN)
+                .withEnv("SKIP_SETCAP", "true") // Workaround for Vault 2.x in rootless containers (SETFCAP capability unavailable). Acceptable for development/testing.
                 .withEnv("VAULT_FORMAT", "json")
                 .withInitCommand("secrets enable transit");
         if (serverKeys != null) {
