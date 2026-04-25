@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
@@ -317,6 +318,23 @@ class ConfigParserTest {
                           - name: mygateway
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("Proxy block — terminal-failure and reload policies", """
+                        proxy:
+                          onVirtualClusterTerminalFailure:
+                            serve: successful
+                          configurationReload:
+                            onFailure:
+                              rollback: false
+                            persistToDisk: false
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """));
     }
 
@@ -328,6 +346,15 @@ class ConfigParserTest {
 
         var originalJsonNode = MAPPER.reader().readValue(config, JsonNode.class);
         var roundTrippedJsonNode = MAPPER.reader().readValue(roundTripped, JsonNode.class);
+
+        // Configuration normalises `proxy` to ProxyConfig.DEFAULT in its compact constructor, so
+        // serialization always emits a `proxy` block. If the original YAML omitted it, inject the
+        // default on the expected side so the comparison stays "original == round-tripped, modulo
+        // known normalisation".
+        if (originalJsonNode instanceof ObjectNode obj && !obj.has("proxy")) {
+            obj.set("proxy", ConfigParser.createObjectMapper().valueToTree(ProxyConfig.DEFAULT));
+        }
+
         var diff = JsonDiff.asJson(originalJsonNode, roundTrippedJsonNode);
         assertThat(diff).isEmpty();
     }
@@ -840,6 +867,7 @@ class ConfigParserTest {
                 null,
                 false,
                 Optional.empty(),
+                null,
                 null,
                 null);
 
