@@ -1299,4 +1299,61 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(proxyChannelStateMachine.clientSaslContext())
                 .isEmpty();
     }
+
+    @Test
+    void internalResponsePassedThroughNonRecipientFilterThatFailsClosesChannel() {
+        ApiVersionsRequestFilter recipientFilter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().forward(header, request).completed();
+        ApiVersionsResponseFilter failingFilter = (apiVersion, header, response, context) -> CompletableFuture.failedStage(new RuntimeException("deliberate failure"));
+
+        buildChannel(recipientFilter, failingFilter);
+
+        InternalRequestFrame<ApiVersionsRequestData> req = writeInternalRequest(new ApiVersionsRequestData(), recipientFilter);
+        channel.runPendingTasks();
+        channel.readInbound(); // consume the InternalRequestFrame forwarded through the pipeline to the broker
+
+        int correlationId = req.header().correlationId();
+
+        writeInternalResponse(correlationId, new ApiVersionsResponseData());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void internalRequestFrameThroughFailingFilterClosesChannel() {
+        ApiVersionsRequestFilter failingFilter = (apiVersion, header, request, context) -> CompletableFuture.failedStage(new RuntimeException("deliberate failure"));
+        buildChannel(failingFilter);
+
+        ApiVersionsRequestFilter dummyRecipient = (a, h, r, ctx) -> ctx.requestFilterResultBuilder().forward(h, r).completed();
+        writeInternalRequest(new ApiVersionsRequestData(), dummyRecipient);
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void deferredRequestFilterCompletesExceptionallyClosesChannel() {
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
+        buildChannel(filter);
+        writeRequest(new ApiVersionsRequestData());
+
+        filterFuture.completeExceptionally(new RuntimeException("async failure"));
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void deferredResponseFilterCompletesExceptionallyClosesChannel() {
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> filterFuture;
+        buildChannel(filter);
+        writeResponse(new ApiVersionsResponseData());
+
+        filterFuture.completeExceptionally(new RuntimeException("async failure"));
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+    }
 }
