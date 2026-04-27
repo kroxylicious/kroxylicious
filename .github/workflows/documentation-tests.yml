@@ -77,3 +77,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The documentation tests workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}
