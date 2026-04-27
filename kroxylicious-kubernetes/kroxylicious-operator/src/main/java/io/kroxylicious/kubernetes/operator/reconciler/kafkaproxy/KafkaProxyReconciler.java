@@ -355,43 +355,60 @@ public class KafkaProxyReconciler implements
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {
-        return Optional.of(kafkaServiceRef)
-                .map(ksr -> {
-                    var builder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder();
-                    Optional.ofNullable(kafkaServiceRef.getSpec())
-                            .map(KafkaServiceSpec::getTls)
-                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getCipherSuites)
-                            .ifPresent(builder::withCipherSuites);
-                    Optional.ofNullable(kafkaServiceRef.getSpec())
-                            .map(KafkaServiceSpec::getTls)
-                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getProtocols)
-                            .ifPresent(builder::withProtocols);
-                    Optional.ofNullable(kafkaServiceRef.getSpec())
-                            .map(KafkaServiceSpec::getTls)
-                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getCertificateRef)
-                            .ifPresent(builder::withCertificateRef);
-                    Optional.ofNullable(kafkaServiceRef.getStatus())
-                            .map(KafkaServiceStatus::getTls)
-                            .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls::getTrustAnchorRef)
-                            .ifPresent(x -> builder.withNewTrustAnchorRef()
-                                    .withNewRef()
-                                    .withName(x.getRef().getName())
-                                    .endRef()
-                                    .withStoreType(x.getStoreType())
-                                    .endTrustAnchorRef());
+        var specTls = Optional.ofNullable(kafkaServiceRef.getSpec())
+                .map(KafkaServiceSpec::getTls);
+        var statusTls = Optional.ofNullable(kafkaServiceRef.getStatus())
+                .map(KafkaServiceStatus::getTls);
 
-                    return builder.build();
-                })
-                .filter(tls -> tls.getCertificateRef() != null || tls.getTrustAnchorRef() != null)
-                .map(serviceTls -> ConfigurationFragment.combine(
-                        buildKeyProvider(serviceTls.getCertificateRef(), CLIENT_CERTS_BASE_DIR),
-                        buildTrustProvider(false, kafkaServiceRef, null, CLIENT_TRUSTED_CERTS_BASE_DIR),
-                        (keyProviderOpt, trustProvider) -> Optional.of(
-                                new Tls(keyProviderOpt.orElse(null),
-                                        trustProvider.orElse(null),
-                                        buildCipherSuites(serviceTls.getCipherSuites()).orElse(null),
-                                        buildProtocols(serviceTls.getProtocols()).orElse(null)))))
+        // If neither spec nor status has TLS config, return empty
+        if (specTls.isEmpty() && statusTls.isEmpty()) {
+            return ConfigurationFragment.empty();
+        }
+
+        // Build key provider from spec (if present)
+        ConfigurationFragment<Optional<KeyProvider>> keyProviderFragment = specTls
+                .map(tls -> buildKeyProvider(tls.getCertificateRef(), CLIENT_CERTS_BASE_DIR))
                 .orElse(ConfigurationFragment.empty());
+
+        // Build trust provider - prefer status trust (Strimzi auto-discovered),
+        // fall back to spec trust (explicitly configured)
+        ConfigurationFragment<Optional<TrustProvider>> trustProviderFragment;
+        if (statusTls.isPresent() && statusTls.get().getTrustAnchorRef() != null) {
+            // Use auto-discovered trust from KafkaService status
+            trustProviderFragment = buildTrustProvider(false, kafkaServiceRef, null, CLIENT_TRUSTED_CERTS_BASE_DIR);
+        }
+        else if (specTls.isPresent() && specTls.get().getTrustAnchorRef() != null) {
+            // Fall back to explicit trust from spec
+            trustProviderFragment = buildTrustProvider(false, specTls.get().getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR);
+        }
+        else {
+            trustProviderFragment = ConfigurationFragment.empty();
+        }
+
+        // Combine fragments
+        return ConfigurationFragment.combine(
+                keyProviderFragment,
+                trustProviderFragment,
+                (keyProviderOpt, trustProviderOpt) -> {
+                    // Only create Tls if at least one component is present
+                    if (keyProviderOpt.isEmpty() && trustProviderOpt.isEmpty()) {
+                        return Optional.empty();
+                    }
+
+                    // Extract cipher suites and protocols from spec TLS (if present)
+                    AllowDeny<String> cipherSuites = specTls
+                            .flatMap(tls -> buildCipherSuites(tls.getCipherSuites()))
+                            .orElse(null);
+                    AllowDeny<String> protocols = specTls
+                            .flatMap(tls -> buildProtocols(tls.getProtocols()))
+                            .orElse(null);
+
+                    return Optional.of(new Tls(
+                            keyProviderOpt.orElse(null),
+                            trustProviderOpt.orElse(null),
+                            cipherSuites,
+                            protocols));
+                });
     }
 
     private static ConfigurationFragment<Optional<KeyProvider>> buildKeyProvider(@Nullable CertificateRef certificateRef, Path parent) {
@@ -419,33 +436,25 @@ public class KafkaProxyReconciler implements
                 }).orElse(ConfigurationFragment.empty());
     }
 
-    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProvider(boolean forServer,
-                                                                                     @Nullable Object refObj,
-                                                                                     @Nullable TlsClientAuthentication clientAuthentication,
-                                                                                     Path parent) {
+    /**
+     * Details of a trust resource (ConfigMap or Secret) for TLS trust anchor configuration.
+     */
+    private record TrustResource(String name, String key, String type, boolean isSecret) {}
 
-        if (refObj == null) {
-            return ConfigurationFragment.empty();
-        }
-
-        record TrustResource(String name, String key, String type, boolean isSecret) {}
-
-        TrustResource trustResource = null;
-        if (refObj instanceof KafkaService serviceRef) {
-            boolean secret = serviceRef.getStatus().getTls().getTrustAnchorRef().getRef().getKind() != null
-                    && ResourcesUtil.isSecret(serviceRef.getStatus().getTls().getTrustAnchorRef().getRef());
-            TrustAnchorRef ref = serviceRef.getStatus().getTls().getTrustAnchorRef();
-            trustResource = new TrustResource(serviceRef.getStatus().getTls().getTrustAnchorRef().getRef().getName(), ref.getKey(), ref.getStoreType(), secret);
-        }
-        else if (refObj instanceof TrustAnchorRef trustAnchorRef) {
-            boolean secret = trustAnchorRef.getRef().getKind() != null && ResourcesUtil.isSecret(trustAnchorRef.getRef());
-            String store = (trustAnchorRef.getStoreType() != null) ? trustAnchorRef.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
-            trustResource = new TrustResource(trustAnchorRef.getRef().getName(), trustAnchorRef.getKey(), store, secret);
-        }
-
-        if (trustResource == null) {
-            return ConfigurationFragment.empty();
-        }
+    /**
+     * Builds TrustProvider configuration from pre-validated trust resource information.
+     *
+     * @param trustResource validated trust resource details (name, key, type, isSecret)
+     * @param forServer true for server-side TLS, false for client-side
+     * @param clientAuthentication TLS client auth settings (server-side only)
+     * @param parent base path for volume mounts
+     * @return configuration fragment with TrustProvider, volumes, and mounts
+     */
+    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProviderFromResource(
+                                                                                                 TrustResource trustResource,
+                                                                                                 boolean forServer,
+                                                                                                 @Nullable TlsClientAuthentication clientAuthentication,
+                                                                                                 Path parent) {
 
         String volType = trustResource.isSecret() ? SECRET_PLURAL : CONFIGMAP_PLURAL;
         String volName = ResourcesUtil.volumeName("", volType, trustResource.name());
@@ -472,6 +481,89 @@ public class KafkaProxyReconciler implements
                 forServer ? buildTlsServerOptions(clientAuthentication) : null);
 
         return new ConfigurationFragment<>(Optional.of(trust), Set.of(vol.build()), Set.of(mount));
+    }
+
+    /**
+     * Builds TrustProvider configuration from an explicit TrustAnchorRef.
+     * Used for ingress/server-side TLS where trust is explicitly configured.
+     *
+     * @param forServer true for server-side TLS, false for client-side
+     * @param trustAnchorRef explicit trust anchor reference (nullable - returns empty if null)
+     * @param clientAuthentication TLS client auth settings (server-side only)
+     * @param parent base path for volume mounts
+     * @return configuration fragment with TrustProvider, or empty if trustAnchorRef is null
+     */
+    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProvider(
+                                                                                     boolean forServer,
+                                                                                     @Nullable TrustAnchorRef trustAnchorRef,
+                                                                                     @Nullable TlsClientAuthentication clientAuthentication,
+                                                                                     Path parent) {
+
+        if (trustAnchorRef == null) {
+            return ConfigurationFragment.empty();
+        }
+
+        // Defensive validation
+        if (trustAnchorRef.getRef() == null || trustAnchorRef.getRef().getName() == null) {
+            return ConfigurationFragment.empty();
+        }
+
+        boolean isSecret = trustAnchorRef.getRef().getKind() != null
+                && ResourcesUtil.isSecret(trustAnchorRef.getRef());
+        String storeType = (trustAnchorRef.getStoreType() != null)
+                ? trustAnchorRef.getStoreType()
+                : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+
+        TrustResource trustResource = new TrustResource(
+                trustAnchorRef.getRef().getName(),
+                trustAnchorRef.getKey(),
+                storeType,
+                isSecret);
+
+        return buildTrustProviderFromResource(trustResource, forServer, clientAuthentication, parent);
+    }
+
+    /**
+     * Builds TrustProvider configuration from KafkaService status.
+     * Used for target cluster TLS where trust is auto-discovered from Strimzi.
+     *
+     * @param forServer true for server-side TLS, false for client-side (always false for this overload)
+     * @param kafkaService KafkaService with status containing discovered trust anchor
+     * @param clientAuthentication TLS client auth settings (should be null for client-side)
+     * @param parent base path for volume mounts
+     * @return configuration fragment with TrustProvider, or empty if trust not available in status
+     */
+    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProvider(
+                                                                                     boolean forServer,
+                                                                                     @Nullable KafkaService kafkaService,
+                                                                                     @Nullable TlsClientAuthentication clientAuthentication,
+                                                                                     Path parent) {
+
+        // Defensive null checks - status-based trust is optional
+        if (kafkaService == null
+                || kafkaService.getStatus() == null
+                || kafkaService.getStatus().getTls() == null
+                || kafkaService.getStatus().getTls().getTrustAnchorRef() == null) {
+            return ConfigurationFragment.empty();
+        }
+
+        TrustAnchorRef statusTrustRef = kafkaService.getStatus().getTls().getTrustAnchorRef();
+
+        // Validate the status trust anchor has required fields
+        if (statusTrustRef.getRef() == null || statusTrustRef.getRef().getName() == null) {
+            return ConfigurationFragment.empty();
+        }
+
+        boolean isSecret = statusTrustRef.getRef().getKind() != null
+                && ResourcesUtil.isSecret(statusTrustRef.getRef());
+
+        TrustResource trustResource = new TrustResource(
+                statusTrustRef.getRef().getName(),
+                statusTrustRef.getKey(),
+                statusTrustRef.getStoreType(),
+                isSecret);
+
+        return buildTrustProviderFromResource(trustResource, forServer, clientAuthentication, parent);
     }
 
     /**
