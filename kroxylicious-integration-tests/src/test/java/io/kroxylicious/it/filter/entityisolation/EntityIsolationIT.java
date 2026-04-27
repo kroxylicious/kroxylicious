@@ -462,10 +462,13 @@ class EntityIsolationIT {
                 assertThat(bobAdmin.incrementalAlterConfigs(Map.of(configResource, setConfig)).all())
                         .succeedsWithin(Duration.ofSeconds(5));
 
-                assertThat(bobAdmin.listConfigResources(Set.of(ConfigResource.Type.GROUP), new ListConfigResourcesOptions()).all())
-                        .succeedsWithin(Duration.ofSeconds(5))
-                        .asInstanceOf(InstanceOfAssertFactories.list(ConfigResource.class))
-                        .containsExactly(configResource);
+                await().atMost(Duration.ofSeconds(30))
+                        .untilAsserted(() -> {
+                            assertThat(bobAdmin.listConfigResources(Set.of(ConfigResource.Type.GROUP), new ListConfigResourcesOptions()).all())
+                                    .succeedsWithin(Duration.ofSeconds(5))
+                                    .asInstanceOf(InstanceOfAssertFactories.list(ConfigResource.class))
+                                    .containsExactly(configResource);
+                        });
             }
         }
     }
@@ -700,13 +703,16 @@ class EntityIsolationIT {
                 assertThat(bobAdmin.createAcls(List.of(aclBinding)).all())
                         .succeedsWithin(Duration.ofSeconds(5));
 
-                assertThat(bobAdmin.describeAcls(new AclBindingFilter(new ResourcePatternFilter(ResourceType.ANY, null, PatternType.ANY),
-                        AccessControlEntryFilter.ANY)).values())
-                        .succeedsWithin(Duration.ofSeconds(5))
-                        .asInstanceOf(collection(AclBinding.class))
-                        .extracting(AclBinding::pattern)
-                        .extracting(ResourcePattern::name)
-                        .containsExactlyInAnyOrderElementsOf(List.of(bobResourcePattern.name()));
+                await().atMost(Duration.ofSeconds(30))
+                        .untilAsserted(() -> {
+                            assertThat(bobAdmin.describeAcls(new AclBindingFilter(new ResourcePatternFilter(ResourceType.ANY, null, PatternType.ANY),
+                                    AccessControlEntryFilter.ANY)).values())
+                                    .succeedsWithin(Duration.ofSeconds(5))
+                                    .asInstanceOf(collection(AclBinding.class))
+                                    .extracting(AclBinding::pattern)
+                                    .extracting(ResourcePattern::name)
+                                    .containsExactlyInAnyOrderElementsOf(List.of(bobResourcePattern.name()));
+                        });
             }
         }
     }

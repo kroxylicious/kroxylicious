@@ -18,7 +18,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingress
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafkaCluster> {
 
@@ -67,12 +66,5 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
                                                            Condition.Type type, String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return clusterStatusPatch(observedProxy, ResourceState.of(trueCondition), List.of());
-    }
-
-    @SuppressWarnings("removal")
-    @Override
-    public VirtualKafkaCluster newTrueConditionStatusPatch(VirtualKafkaCluster observedProxy,
-                                                           Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

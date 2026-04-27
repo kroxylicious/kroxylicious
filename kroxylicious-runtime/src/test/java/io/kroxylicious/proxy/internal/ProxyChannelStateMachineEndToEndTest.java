@@ -194,7 +194,7 @@ class ProxyChannelStateMachineEndToEndTest {
                     new ProxyChannelState.HaProxy(),
                     handler,
                     backendHandler,
-                    TEST_SESSION);
+                    TEST_SESSION, -1);
         }
 
         // When
@@ -530,6 +530,7 @@ class ProxyChannelStateMachineEndToEndTest {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
+            pipeline.addLast(new FilterChainCompletionHandler(proxyChannelStateMachine));
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
@@ -700,13 +701,16 @@ class ProxyChannelStateMachineEndToEndTest {
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
+        // the PCSM unblocks the client after the backend is active and transport subject is asynchronously created
+        // here we force it to wait for a single event before unblocking.
+        int waitingForOneEvent = 1;
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
                 backendHandler,
-                TEST_SESSION);
+                TEST_SESSION, waitingForOneEvent);
 
         inboundChannel.config().setAutoRead(false);
 
@@ -804,9 +808,9 @@ class ProxyChannelStateMachineEndToEndTest {
 
         if (firstFilterIndex >= 0) {
             assertThat(firstFilterIndex)
-                    .as("First filter (at index %d) must come before KafkaProxyFrontendHandler (at index %d) in pipeline: %s",
+                    .as("First filter (at index %d) must come after KafkaProxyFrontendHandler (at index %d) in pipeline: %s",
                             firstFilterIndex, frontendHandlerIndex, handlerNames)
-                    .isLessThan(frontendHandlerIndex);
+                    .isGreaterThan(frontendHandlerIndex);
         }
 
         // Additional validation: frontend handler must be present
