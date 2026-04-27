@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -24,14 +23,14 @@ class VersionTest {
             "v1alpha32767", "v32767alpha1", "v32767alpha32767", "v32767beta32767", "v32767" })
     void parseApiVersion(String s) {
         Version v = Version.parse(s);
-        Assertions.assertThat(v).hasToString(s);
-        Assertions.assertThat(v).isEqualByComparingTo(v);
-        Assertions.assertThat(v.isStable()).isEqualTo(!s.contains("alpha") && !s.contains("beta"));
+        assertThat(v).hasToString(s);
+        assertThat(v).isEqualByComparingTo(v);
+        assertThat(v.isStable()).isEqualTo(!s.contains("alpha") && !s.contains("beta"));
         if (s.startsWith("v1") && s.length() > 2) {
-            Assertions.assertThat(v).isLessThan(Version.parse("v1"));
+            assertThat(v).isLessThan(Version.parse("v1"));
         }
         else if (s.startsWith("v2")) {
-            Assertions.assertThat(v).isGreaterThan(Version.parse("v1"));
+            assertThat(v).isGreaterThan(Version.parse("v1"));
         }
     }
 

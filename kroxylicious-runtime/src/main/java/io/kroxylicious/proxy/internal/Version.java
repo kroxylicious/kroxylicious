@@ -27,7 +27,10 @@ public class Version implements Comparable<Version> {
     static {
         var apis = System.getenv(ENV_VAR);
         if (apis != null) {
-            ALLOWED_UNSTABLE_APIS = Arrays.stream(apis.strip().split("\\s*,\\s*")).filter(s -> !s.isEmpty()).collect(Collectors.toSet());
+            ALLOWED_UNSTABLE_APIS = Arrays.stream(apis.strip().split(","))
+                    .map(String::strip)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
         }
         else {
             ALLOWED_UNSTABLE_APIS = Collections.emptySet();
