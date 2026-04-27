@@ -77,11 +77,22 @@ import static org.slf4j.LoggerFactory.getLogger;
  *      │
  *      ↓
  *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *      │ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
- *      │ or frontend.{@link KafkaProxyFrontendHandler#channelInactive(ChannelHandlerContext) channelInactive}
- *      ↓
+ *  ╭───┤
+ *  │   ↓ {@link #onDraining(Runnable) onDraining}
+ *  │  {@link ProxyChannelState.Draining Draining} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  │   │ {@link #onDrainCompleted() onDrainCompleted} (drained naturally)
+ *  │   │ or {@link #onDrainTimeout() onDrainTimeout} (force-closed after timeout)
+ *  ╰───┤
+ *      ↓ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
+ *      ↓ or frontend.{@link KafkaProxyFrontendHandler#channelInactive(ChannelHandlerContext) channelInactive}
  *     {@link Closed Closed} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌
  * </pre>
+ *
+ * <p>The {@link ProxyChannelState.Draining Draining} state is optional: a connection only enters it
+ * when {@link #onDraining(Runnable)} is invoked externally (typically by the {@code DrainCoordinator}
+ * during proxy shutdown or virtual-cluster hot-reload). Any {@code channelInactive} or error event that
+ * arrives while in {@code Draining} routes through {@link #toClosed} the same way it would from
+ * {@code Forwarding}; the merged-edge label applies to both paths.</p>
  *
  * <p>In addition to the "session state" this class also manages a second state machine for
  * handling TCP backpressure via the {@link #clientReadsBlocked} and {@link #serverReadsBlocked} field:</p>
@@ -197,9 +208,9 @@ public class ProxyChannelStateMachine {
 
     private final DrainCoordinator drainCoordinator;
     /** Tracks requests sent to the server that haven't received a response yet (proxy↔server). */
-    private int serverMessageInFlight;
+    private int serverMessagesInFlightCount;
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
-    private int clientMessageInFlight;
+    private int clientMessagesInFlightCount;
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder,
@@ -468,21 +479,21 @@ public class ProxyChannelStateMachine {
      */
     void messageFromServer(Object msg) {
         // Decrement server-side counter: response received from Kafka
-        serverMessageInFlight = Math.max(0, serverMessageInFlight - 1);
+        serverMessagesInFlightCount = Math.max(0, serverMessagesInFlightCount - 1);
 
         // Forward response to client (goes through filter pipeline)
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
 
         // Decrement client-side counter: response delivered to client
-        clientMessageInFlight = Math.max(0, clientMessageInFlight - 1);
+        clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
         if (state instanceof ProxyChannelState.Draining draining) {
-            if (clientMessageInFlight <= 0) {
+            if (clientMessagesInFlightCount <= 0) {
                 LOGGER.atInfo()
                         .addKeyValue("sessionId", kafkaSession.sessionId())
                         .addKeyValue("virtualCluster", clusterName())
-                        .addKeyValue("frontendChannel", frontendChannelAddress())
-                        .addKeyValue("backendChannel", backendChannelAddress())
+                        .addKeyValue("frontendChannel", () -> frontendChannelAddress())
+                        .addKeyValue("backendChannel", () -> backendChannelAddress())
                         .log("All in-flight requests drained — signalling drain policy");
                 draining.onDrained().run();
             }
@@ -490,9 +501,9 @@ public class ProxyChannelStateMachine {
                 LOGGER.atTrace()
                         .addKeyValue("sessionId", kafkaSession.sessionId())
                         .addKeyValue("virtualCluster", clusterName())
-                        .addKeyValue("frontendChannel", frontendChannelAddress())
-                        .addKeyValue("backendChannel", backendChannelAddress())
-                        .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                        .addKeyValue("frontendChannel", () -> frontendChannelAddress())
+                        .addKeyValue("backendChannel", () -> backendChannelAddress())
+                        .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                         .log("Response delivered to client during drain — still waiting for remaining in-flight requests");
             }
         }
@@ -520,7 +531,7 @@ public class ProxyChannelStateMachine {
     void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ProxyChannelState.Draining) {
             // Increment server-side counter: request being forwarded to Kafka.
-            serverMessageInFlight++;
+            serverMessagesInFlightCount++;
             Objects.requireNonNull(backendHandler).forwardToServer(msg);
             backendHandler.flushToServer();
         }
@@ -538,7 +549,7 @@ public class ProxyChannelStateMachine {
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         // Count every msg received from the client.
-        clientMessageInFlight++;
+        clientMessagesInFlightCount++;
         if (state() instanceof Forwarding) { // post-backend connection
             frontendHandler.admitToFilterChain(msg);
         }
@@ -547,13 +558,13 @@ public class ProxyChannelStateMachine {
             // that were already buffered/decoded before that took effect. Drop them — we've
             // promised not to forward new client requests once draining. Since no response will
             // arrive from the broker for a dropped message, we must compensate by decrementing
-            // the counter here, otherwise the drain-completion check (clientMessageInFlight <= 0)
+            // the counter here, otherwise the drain-completion check (clientMessagesInFlightCount <= 0)
             // could never fire and the connection would hang until the drain timeout force-closes
             // it. Then check if this drop just brought us to zero — if so, fire the drain policy.
             ReferenceCountUtil.release(msg);
             if (msg instanceof RequestFrame) {
-                clientMessageInFlight = Math.max(0, clientMessageInFlight - 1);
-                if (clientMessageInFlight <= 0) {
+                clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
+                if (clientMessagesInFlightCount <= 0) {
                     draining.onDrained().run();
                 }
             }
@@ -648,18 +659,18 @@ public class ProxyChannelStateMachine {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
-                .addKeyValue("frontendChannel", frontendChannelAddress())
-                .addKeyValue("backendChannel", backendChannelAddress())
-                .addKeyValue("clientMessageInFlight", clientMessageInFlight)
-                .addKeyValue("serverMessageInFlight", serverMessageInFlight)
+                .addKeyValue("frontendChannel", () -> frontendChannelAddress())
+                .addKeyValue("backendChannel", () -> backendChannelAddress())
+                .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
+                .addKeyValue("serverMessagesInFlightCount", serverMessagesInFlightCount)
                 .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
 
-        if (clientMessageInFlight <= 0) {
+        if (clientMessagesInFlightCount <= 0) {
             LOGGER.atInfo()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", frontendChannelAddress())
-                    .addKeyValue("backendChannel", backendChannelAddress())
+                    .addKeyValue("frontendChannel", () -> frontendChannelAddress())
+                    .addKeyValue("backendChannel", () -> backendChannelAddress())
                     .log("No in-flight requests — signalling drain policy immediately");
             onDrained.run();
         }
@@ -687,9 +698,9 @@ public class ProxyChannelStateMachine {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", frontendChannelAddress())
-                    .addKeyValue("backendChannel", backendChannelAddress())
-                    .addKeyValue("clientMessageInFlight", clientMessageInFlight)
+                    .addKeyValue("frontendChannel", () -> frontendChannelAddress())
+                    .addKeyValue("backendChannel", () -> backendChannelAddress())
+                    .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                     .log("Drain timeout expired — force-closing connection");
             toClosed(null, DisconnectCause.DRAIN_TIMEOUT);
         }
@@ -956,12 +967,12 @@ public class ProxyChannelStateMachine {
             LOGGER.atInfo()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", frontendChannelAddress())
-                    .addKeyValue("backendChannel", backendChannelAddress())
+                    .addKeyValue("frontendChannel", () -> frontendChannelAddress())
+                    .addKeyValue("backendChannel", () -> backendChannelAddress())
                     .addKeyValue("disconnectCause", disconnectCause)
                     .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
-                    .addKeyValue("clientMessageInFlight", clientMessageInFlight)
-                    .addKeyValue("serverMessageInFlight", serverMessageInFlight)
+                    .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
+                    .addKeyValue("serverMessagesInFlightCount", serverMessagesInFlightCount)
                     .log("Drain interrupted by connection close — signalling drain policy from toClosed path");
             pendingDrainCallback.run();
         }

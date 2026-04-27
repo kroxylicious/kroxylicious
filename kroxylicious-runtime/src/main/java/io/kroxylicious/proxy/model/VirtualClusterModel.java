@@ -113,7 +113,7 @@ public class VirtualClusterModel {
         this.upstreamSslContext = buildUpstreamSslContext();
     }
 
-    public Duration getDrainTimeout() {
+    public Duration drainTimeout() {
         return drainTimeout;
     }
 

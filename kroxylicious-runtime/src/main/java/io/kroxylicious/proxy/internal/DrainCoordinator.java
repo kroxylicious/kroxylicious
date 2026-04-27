@@ -15,6 +15,8 @@ import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 /**
  * Lightweight registry that bridges proxy-level drain requests to per-connection
  * {@link ProxyChannelStateMachine} instances.
@@ -30,6 +32,21 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Works for both proxy shutdown (drain all clusters) and hot-reload (drain one cluster
  * while others keep serving).
+ *
+ * <h2>Thread safety</h2>
+ * Instances of this class are safe for concurrent use by multiple threads.  Specifically:
+ * <ul>
+ *   <li>{@link #register(String, ProxyChannelStateMachine)} and
+ *       {@link #deregister(String, ProxyChannelStateMachine)} are atomic per cluster: their
+ *       read-modify-write of the cluster's PCSM set is guarded by
+ *       {@link java.util.concurrent.ConcurrentHashMap#compute compute}/{@code computeIfPresent},
+ *       which lock the bucket for the lambda's duration. A {@code register} on cluster {@code A}
+ *       does not block a concurrent {@code register} on cluster {@code B}.</li>
+ *   <li>{@link #drainCluster(String, Duration)} reads the cluster's PCSM set via
+ *       {@link java.util.concurrent.ConcurrentHashMap#getOrDefault getOrDefault} and iterates a
+ *       defensive copy. Concurrent {@code register}/{@code deregister} during the iteration
+ *       does not corrupt the snapshot.</li>
+ * </ul>
  */
 public class DrainCoordinator {
 
@@ -38,17 +55,18 @@ public class DrainCoordinator {
     private final ConcurrentHashMap<String, Set<ProxyChannelStateMachine>> activeConnections = new ConcurrentHashMap<>();
 
     public void register(String clusterName, ProxyChannelStateMachine pcsm) {
-        activeConnections.computeIfAbsent(clusterName, k -> ConcurrentHashMap.newKeySet()).add(pcsm);
+        activeConnections.compute(clusterName, (key, existingSet) -> {
+            Set<ProxyChannelStateMachine> set = (existingSet != null) ? existingSet : ConcurrentHashMap.newKeySet();
+            set.add(pcsm);
+            return set;
+        });
     }
 
     public void deregister(String clusterName, ProxyChannelStateMachine pcsm) {
-        Set<ProxyChannelStateMachine> set = activeConnections.get(clusterName);
-        if (set != null) {
+        activeConnections.computeIfPresent(clusterName, (key, set) -> {
             set.remove(pcsm);
-            if (set.isEmpty()) {
-                activeConnections.remove(clusterName);
-            }
-        }
+            return set.isEmpty() ? null : set;
+        });
     }
 
     /**
@@ -99,5 +117,15 @@ public class DrainCoordinator {
         }
 
         return CompletableFuture.allOf(closedFutures.toArray(CompletableFuture[]::new));
+    }
+
+    /**
+     * Returns an immutable snapshot of the PCSMs currently registered for the named cluster.
+     * Empty if the cluster has no active connections.
+     */
+    @VisibleForTesting
+    Set<ProxyChannelStateMachine> activeConnectionsFor(String clusterName) {
+        Set<ProxyChannelStateMachine> set = activeConnections.get(clusterName);
+        return set == null ? Set.of() : Set.copyOf(set);
     }
 }
