@@ -10,8 +10,11 @@ then run the benchmark suite.
   - Full benchmark run: 8 CPU cores, 16 GB RAM across the cluster (3 brokers + 3 OMB workers)
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
-- `jbang` — for result comparison scripts ([install](https://www.jbang.dev/download/)); only needed when comparing results with `compare-results.sh`
-- `mvn` — only needed when comparing results: run `mvn process-sources -pl kroxylicious-openmessaging-benchmarks` once to generate the JBang source filter before using `compare-results.sh`
+- `jbang` — used by the benchmark and result analysis scripts ([install](https://www.jbang.dev/download/))
+- `mvn` — run once before using any benchmark scripts to generate JBang source filters:
+  ```bash
+  mvn process-sources -pl kroxylicious-openmessaging-benchmarks
+  ```
 
 ### Start a local cluster (if needed)
 
@@ -195,7 +198,7 @@ kubectl get configmap omb-driver-baseline -n kafka \
 # proxy scenario: bootstrap.servers=kafka-cluster-ip-bootstrap:9292
 ```
 
-**`compare-results.sh` fails with "run mvn process-sources first"**
+**Scripts fail with "run mvn process-sources first"**
 
 ```bash
 mvn process-sources -pl kroxylicious-openmessaging-benchmarks
