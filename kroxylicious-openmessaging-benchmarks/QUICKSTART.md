@@ -10,6 +10,7 @@ then run the benchmark suite.
   - Full benchmark run: 8 CPU cores, 16 GB RAM across the cluster (3 brokers + 3 OMB workers)
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
+- `gh` (GitHub CLI) — used by `setup-cluster.sh` to download the Kroxylicious operator release
 - `jbang` — used by the benchmark and result analysis scripts ([install](https://www.jbang.dev/download/))
 - `mvn` — run once before using any benchmark scripts to generate JBang source filters:
   ```bash
