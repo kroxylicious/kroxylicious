@@ -984,7 +984,7 @@ public class KafkaProxyReconcilerIT {
 
         // The test is racing with the Ingress controller. We don't know if the ingress
         // controller will have updated the resource or not yet. We make an update to
-        // the Route that are certain will be different to that made by the controller
+        // the Route that we are certain will be different to that made by the controller
         // in order to be certain an update is made.
         testActor.resources(Route.class).resource(bootstrapRoute).editStatus(r -> new RouteBuilder(bootstrapRoute)
                 .withNewStatus()
