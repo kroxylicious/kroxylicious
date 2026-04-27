@@ -506,28 +506,21 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * A message has emerged from the Filter Chain and is ready to be forwarded to the upstream node
+     * A message has emerged from the Filter Chain and is ready to be forwarded to the upstream node.
+     * <p>
+     * This path is reachable in either {@link Forwarding} or {@link ProxyChannelState.Draining} —
+     * the filter chain is asynchronous, so a request that entered the chain while we were
+     * Forwarding may emerge after we transitioned to Draining. We must still forward such
+     * requests to the broker: drain promises to <em>complete</em> in-flight work, not drop it.
+     * autoRead is disabled on entry to Draining, so no NEW requests can join the filter chain
+     * after that point — the only messages reaching here in Draining are ones already mid-flight.
+     *
      * @param msg the RPC received from the upstream
      */
-    void messageFromClient(Object msg) {
-        if (msg instanceof RequestFrame) {
-            // Increment server-side counter: request being forwarded to Kafka
-            serverMessageInFlight++;
-        }
-        Objects.requireNonNull(backendHandler).forwardToServer(msg);
-    }
-
-    /**
-     * Called to notify the state machine that reading the downstream the batch is complete.
-     */
-    void clientReadComplete() {
-        if (state instanceof Forwarding) {
-            Objects.requireNonNull(backendHandler).flushToServer();
-        }
-    }
-
     void onClientFilterChainComplete(Object msg) {
-        if (state() instanceof Forwarding) { // post-backend connection
+        if (state() instanceof Forwarding || state() instanceof ProxyChannelState.Draining) {
+            // Increment server-side counter: request being forwarded to Kafka.
+            serverMessageInFlight++;
             Objects.requireNonNull(backendHandler).forwardToServer(msg);
             backendHandler.flushToServer();
         }
@@ -540,18 +533,14 @@ public class ProxyChannelStateMachine {
      * The proxy has received something from the client. The current state of the session determines what happens to it.
      * @param msg the RPC received from the downstream client
      */
+
     void onClientRequest(
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
-        // Count every request received from the client. Increment unconditionally
-        // here (not only in the Forwarding branch) because pre-Forwarding requests are buffered
-        // by the frontend handler and later replayed via messageFromClient directly (bypassing
-        // onClientRequest) — so this is the single place where each client request is counted.
-        if (msg instanceof RequestFrame) {
-            clientMessageInFlight++;
-        }
-        if (state() instanceof Forwarding) {
-            messageFromClient(msg);
+        // Count every msg received from the client.
+        clientMessageInFlight++;
+        if (state() instanceof Forwarding) { // post-backend connection
+            frontendHandler.admitToFilterChain(msg);
         }
         else if (state() instanceof ProxyChannelState.Draining draining) {
             // autoRead is disabled once we enter Draining, but Netty can still deliver frames
@@ -563,22 +552,11 @@ public class ProxyChannelStateMachine {
             // it. Then check if this drop just brought us to zero — if so, fire the drain policy.
             ReferenceCountUtil.release(msg);
             if (msg instanceof RequestFrame) {
-                clientMessageInFlight--;
+                clientMessageInFlight = Math.max(0, clientMessageInFlight - 1);
                 if (clientMessageInFlight <= 0) {
                     draining.onDrained().run();
                 }
             }
-        }
-        else if (!onClientRequestBeforeForwarding(msg)) {
-            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
-        }
-    }
-
-    void onClientRequest(
-            Object msg) {
-        Objects.requireNonNull(frontendHandler);
-        if (state() instanceof Forwarding) { // post-backend connection
-            frontendHandler.admitToFilterChain(msg);
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
