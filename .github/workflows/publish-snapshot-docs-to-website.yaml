@@ -121,6 +121,9 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation build workflow failed.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}
 
   # Deployment job
   deploy:
@@ -145,3 +148,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation deployment workflow failed.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}
