@@ -68,6 +68,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider.INT_KROXYLICIOUS_TEST_DOMAIN;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_PORT;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
@@ -89,11 +90,11 @@ class ExpositionIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpositionIT.class);
 
     private static final String TOPIC = "my-test-topic";
-    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
+    public static final HostPort PROXY_ADDRESS = new HostPort("localhost", DEFAULT_PROXY_PORT);
 
     private static final String SNI_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
 
-    public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, 9192);
+    public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, DEFAULT_PROXY_PORT);
     public static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME = "$(virtualClusterName)-broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SASL_USER = "user";
