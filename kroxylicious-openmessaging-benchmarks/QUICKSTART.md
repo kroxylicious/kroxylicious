@@ -10,9 +10,8 @@ then run the benchmark suite.
   - Full benchmark run: 8 CPU cores, 16 GB RAM across the cluster (3 brokers + 3 OMB workers)
 - `kubectl` configured to access the cluster
 - `helm` 3.0+
-- `gh` (GitHub CLI) — for downloading the Kroxylicious operator release
-- `jbang` — for result comparison scripts ([install](https://www.jbang.dev/download/))
-- `mvn` — for generating JBang source filters
+- `jbang` — for result comparison scripts ([install](https://www.jbang.dev/download/)); only needed when comparing results with `compare-results.sh`
+- `mvn` — only needed when comparing results: run `mvn process-sources -pl kroxylicious-openmessaging-benchmarks` once to generate the JBang source filter before using `compare-results.sh`
 
 ### Start a local cluster (if needed)
 
@@ -68,13 +67,36 @@ To run one scenario and workload manually:
 ```bash
 ./scripts/run-benchmark.sh baseline 1topic-1kb ./results/baseline/
 ./scripts/run-benchmark.sh proxy-no-filters 1topic-1kb ./results/proxy/
+./scripts/run-benchmark.sh encryption 1topic-1kb ./results/encryption/
 
-# Compare afterwards
-./scripts/compare-results.sh ./results/baseline/*.json ./results/proxy/*.json
+# Compare afterwards (requires mvn process-sources to have been run once)
+./scripts/compare-results.sh ./results/baseline/result.json ./results/proxy/result.json
 ```
 
-Available scenarios: `baseline`, `proxy-no-filters`
-Available workloads: `1topic-1kb`, `10topics-1kb`, `100topics-1kb`
+Available scenarios: `baseline`, `proxy-no-filters`, `encryption`
+
+Available workloads: `1topic-1kb`, `10topics-1kb`, `100topics-1kb`, `1topic-10kb`, `1topic-100kb`
+
+### Cluster-specific settings
+
+If your cluster requires non-default storage classes, image pull secrets, or resource limits,
+create a cluster overrides file and pass it with `--cluster-overrides`:
+
+```bash
+# cluster-overrides.yaml example
+kafka:
+  storage:
+    storageClass: my-storage-class
+```
+
+```bash
+./scripts/run-benchmark.sh \
+  --cluster-overrides ./cluster-overrides.yaml \
+  baseline 1topic-1kb ./results/baseline/
+```
+
+The `--cluster-overrides` file is applied last, so it always wins over scenario and profile
+defaults. Pass it to both `run-benchmark.sh` and `rate-sweep.sh`.
 
 ### Quick validation (smoke profile)
 
@@ -86,6 +108,33 @@ It fits comfortably within a 16 GB single-node cluster (minikube/kind).
 ./scripts/run-benchmark.sh \
   --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \
   baseline 1topic-1kb ./results/smoke/
+```
+
+### Finding the saturation point (rate sweep)
+
+To find the throughput ceiling for a scenario, use `rate-sweep.sh`. It deploys infrastructure
+once, then probes at increasing rates until the achieved throughput drops below the target,
+indicating saturation.
+
+```bash
+./scripts/rate-sweep.sh \
+  --scenarios baseline,encryption \
+  --min-rate 10000 \
+  --max-rate 60000 \
+  --step-percent 10 \
+  --output-dir ./results/sweep-$(date +%Y%m%d-%H%M%S)/
+```
+
+This prints a summary table at the end showing achieved rate and p99 latency at each probe,
+with saturation flagged where applicable. Use `--dry-run` to preview the rate sequence
+without deploying anything:
+
+```bash
+./scripts/rate-sweep.sh \
+  --scenarios encryption \
+  --min-rate 30000 --max-rate 50000 --step-percent 5 \
+  --output-dir /tmp/preview/ \
+  --dry-run
 ```
 
 ## Interpreting Results
@@ -144,4 +193,10 @@ kubectl get configmap omb-driver-baseline -n kafka \
   -o jsonpath='{.data.driver-kafka\.yaml}' | grep bootstrap
 # baseline:       bootstrap.servers=kafka-kafka-bootstrap:9092
 # proxy scenario: bootstrap.servers=kafka-cluster-ip-bootstrap:9292
+```
+
+**`compare-results.sh` fails with "run mvn process-sources first"**
+
+```bash
+mvn process-sources -pl kroxylicious-openmessaging-benchmarks
 ```
