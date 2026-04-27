@@ -229,25 +229,29 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         };
     }
 
-    private static <P> void maybeWarnAboutDeprecatedPluginName(String instanceName, Class<?> type, Class<P> pluginClass) {
-        if (type.isAnnotationPresent(DeprecatedPluginName.class)) {
-            DeprecatedPluginName deprecatedName = type.getAnnotation(DeprecatedPluginName.class);
-            if (isOldInstanceName(instanceName, deprecatedName, type)) {
+    private static <P> void maybeWarnAboutDeprecatedPluginName(String pluginImplementationName,
+                                                               Class<?> pluginImplementation,
+                                                               Class<P> pluginInterface) {
+        if (pluginImplementation.isAnnotationPresent(DeprecatedPluginName.class)) {
+            DeprecatedPluginName deprecatedName = pluginImplementation.getAnnotation(DeprecatedPluginName.class);
+            if (isOldInstanceName(pluginImplementationName, deprecatedName, pluginImplementation)) {
                 LOGGER.atWarn()
-                        .addKeyValue("pluginClass", pluginClass.getName())
-                        .addKeyValue("oldName", instanceName)
-                        .addKeyValue("newName", type.getName())
-                        .log("Plugin should now be referred to using the new name, the plugin has been renamed and in the future the old name will cease to work");
+                        .addKeyValue("pluginInterface", pluginInterface.getName())
+                        .addKeyValue("oldImplementationName", pluginImplementationName)
+                        .addKeyValue("newImplementationName", pluginImplementation.getName())
+                        .log("Plugin implementation should now be referred to using the new name, the plugin implementation has been renamed and in the future the old name will cease to work");
             }
         }
     }
 
-    private static <P> void maybeWarnAboutDeprecatedPluginClass(String instanceName, Class<?> type, Class<P> pluginClass) {
-        if (type.isAnnotationPresent(Deprecated.class)) {
+    private static <P> void maybeWarnAboutDeprecatedPluginClass(String pluginImplementationName,
+                                                                Class<?> pluginImplementation,
+                                                                Class<P> pluginInterface) {
+        if (pluginImplementation.isAnnotationPresent(Deprecated.class)) {
             LOGGER.atWarn()
-                    .addKeyValue("pluginClass", pluginClass.getName())
-                    .addKeyValue("name", instanceName)
-                    .log("Plugin is deprecated");
+                    .addKeyValue("pluginInterface", pluginInterface.getName())
+                    .addKeyValue("pluginImplementation", pluginImplementationName)
+                    .log("Plugin implementation is deprecated");
         }
     }
 
@@ -275,7 +279,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         var resource = pluginImpl.getClassLoader().getResource(resourcePath);
         if (resource == null) {
             LOGGER.atWarn()
-                    .addKeyValue("plugin", pluginImpl.getName())
+                    .addKeyValue("pluginImplementation", pluginImpl.getName())
                     .addKeyValue("resource", resourcePath)
                     .log("No API version metadata found, version compatibility check skipped."
                             + " Build the plugin with the kroxylicious-api-version-processor annotation processor"
@@ -289,7 +293,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 int colon = line.indexOf(':');
                 if (colon == -1) {
                     LOGGER.atWarn()
-                            .addKeyValue("plugin", pluginImpl.getName())
+                            .addKeyValue("pluginImplementation", pluginImpl.getName())
                             .addKeyValue("resource", resourcePath)
                             .addKeyValue("line", line)
                             .log("Malformed API version metadata, expected format 'interfaceName:version'");
@@ -301,19 +305,19 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                     Version compiledVersion = Version.parse(versionStr);
                     if (!currentVersion.isCompatibleWith(compiledVersion)) {
                         throw new Version.IncompatibleApiVersionException(
-                                "Plugin '" + pluginImpl.getName()
+                                "Plugin implementation '" + pluginImpl.getName()
                                         + "' was built against " + pluginInterface.getSimpleName()
                                         + " " + compiledVersion
                                         + ", but the running proxy provides " + currentVersion
-                                        + ". Update the plugin to a version compatible with this proxy,"
-                                        + " or use a proxy version compatible with the plugin.");
+                                        + ". Update the plugin implementation to a version compatible with this proxy,"
+                                        + " or use a proxy version compatible with the plugin implementation.");
                     }
                 }
             }
         }
         catch (IOException e) {
             LOGGER.atWarn()
-                    .addKeyValue("plugin", pluginImpl.getName())
+                    .addKeyValue("pluginImplementation", pluginImpl.getName())
                     .addKeyValue("resource", resourcePath)
                     .addKeyValue("error", e.getMessage())
                     .log("Could not read API version metadata, version compatibility check skipped");
