@@ -19,9 +19,12 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.GroupListing;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicCollection;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
@@ -39,7 +42,20 @@ final class ClusterPrepUtils {
 
     /**
      * Uses the supplied admin to create topic(s) and apply the given ACL bindings, awaiting
-     * the topics to become visible with partition leaders before return to the caller.
+     * the topics to become visible with partition leaders and operationally ready before
+     * returning to the caller.
+     * <p>
+     * This method performs a two-phase readiness check:
+     * <ul>
+     *   <li>Phase 1: Metadata readiness - waits for topics to have valid partition leaders
+     *       (not null, not Node.noNode() sentinel, with populated ISR)</li>
+     *   <li>Phase 2: Operational readiness - verifies the broker can actually serve
+     *       ListOffsets requests by calling admin.listOffsets() for each topic partition</li>
+     * </ul>
+     * <p>
+     * Phase 2 is critical for avoiding race conditions where metadata shows topics as ready,
+     * but the broker's internal state hasn't synchronized yet, which can cause intermittent
+     * test failures with UNKNOWN_TOPIC_OR_PARTITION or NOT_LEADER_OR_FOLLOWER errors.
      *
      * @param admin admin client
      * @param topicNames set of topics
@@ -55,6 +71,7 @@ final class ClusterPrepUtils {
         }
         var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
         res.all().toCompletionStage().toCompletableFuture().join();
+        // Phase 1: Wait for metadata readiness
         AWAIT.alias("await until topics visible and partitions have leader")
                 .untilAsserted(() -> {
                     var readyTopics = describeTopics(topicNames, admin)
@@ -63,6 +80,10 @@ final class ClusterPrepUtils {
                             .collect(Collectors.toSet());
                     assertThat(topicNames).containsExactlyInAnyOrderElementsOf(readyTopics);
                 });
+
+        // Phase 2: Wait for operational readiness
+        ensureTopicsOperationallyReady(admin, topicNames);
+
         return topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> res.topicId(topicName).toCompletionStage().toCompletableFuture().join()));
     }
 
@@ -143,7 +164,43 @@ final class ClusterPrepUtils {
         }
     }
 
+    /**
+     * Ensures topics are operationally ready by verifying the broker can actually serve
+     * ListOffsets requests. This is critical for avoiding race conditions where metadata
+     * shows topics as ready, but the broker's internal state hasn't synchronized yet.
+     * <p>
+     * Uses admin.listOffsets() which exercises the exact same broker code path as
+     * ListOffsets API requests, proving the topic is genuinely ready to serve requests.
+     *
+     * @param admin admin client
+     * @param topicNames topics to verify
+     */
+    private static void ensureTopicsOperationallyReady(Admin admin, List<String> topicNames) {
+        AWAIT.alias("await until topics accept ListOffsets requests")
+                .untilAsserted(() -> {
+                    var topicPartitionOffsets = topicNames.stream()
+                            .map(name -> new TopicPartition(name, 0))
+                            .collect(Collectors.toMap(
+                                    Function.identity(),
+                                    tp -> OffsetSpec.latest()));
+
+                    // This calls ListOffsets on the broker - exact same API as the test
+                    var result = admin.listOffsets(topicPartitionOffsets);
+
+                    // If this succeeds, the broker is truly ready to serve ListOffsets requests
+                    var offsets = result.all().toCompletionStage().toCompletableFuture().join();
+                    assertThat(offsets).hasSizeGreaterThanOrEqualTo(topicNames.size());
+                });
+    }
+
     private static boolean topicPartitionsHaveALeader(TopicDescription td) {
-        return td.partitions().stream().allMatch(p -> p.leader() != null);
+        return td.partitions().stream().allMatch(p -> {
+            var leader = p.leader();
+            // Leader must be assigned (not null), not be the sentinel Node.noNode() value,
+            // and ISR must be populated (indicates broker initialization is complete)
+            return leader != null
+                    && !leader.equals(Node.noNode())
+                    && !p.isr().isEmpty();
+        });
     }
 }

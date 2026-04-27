@@ -71,12 +71,4 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return filterStatusPatch(observedProxy, trueCondition, checksum);
     }
-
-    @SuppressWarnings("removal")
-    @Override
-    public KafkaProtocolFilter newTrueConditionStatusPatch(KafkaProtocolFilter observedProxy,
-                                                           Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
-    }
-
 }

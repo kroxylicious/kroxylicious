@@ -17,7 +17,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -77,12 +76,5 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                                            @Nullable Integer replicaCount) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return kafkaProxyStatusPatch(observedProxy, trueCondition, replicaCount);
-    }
-
-    @SuppressWarnings("removal")
-    @Override
-    public KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
-                                                  Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

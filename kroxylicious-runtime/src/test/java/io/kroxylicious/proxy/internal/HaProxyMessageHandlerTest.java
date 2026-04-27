@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class HaProxyMessageHandlerTest {
@@ -48,6 +50,9 @@ class HaProxyMessageHandlerTest {
     @Mock
     private ChannelHandlerContext ctx;
 
+    @Mock
+    private Channel channel;
+
     private HaProxyMessageHandler handler;
 
     @BeforeEach
@@ -57,6 +62,9 @@ class HaProxyMessageHandlerTest {
 
     @Test
     void shouldStoreHaProxyContextInSession() throws Exception {
+        // Given
+        when(ctx.channel()).thenReturn(channel);
+
         // When
         handler.channelRead(ctx, newHAProxyMessage());
 
@@ -66,20 +74,32 @@ class HaProxyMessageHandlerTest {
     }
 
     @Test
+    void shouldTriggerReadAfterProcessingHaProxyMessage() throws Exception {
+        // Given
+        when(ctx.channel()).thenReturn(channel);
+
+        // When
+        handler.channelRead(ctx, newHAProxyMessage());
+
+        // Then - channel.read() should be called to consume next message when autoread is disabled
+        verify(channel).read();
+    }
+
+    @Test
     void shouldReleaseHaProxyMessageAfterProcessing() {
         // Given
         HAProxyMessage message = newHAProxyMessage();
         assertThat(message.refCnt()).isEqualTo(1);
-        EmbeddedChannel channel = new EmbeddedChannel(handler);
+        EmbeddedChannel embeddedChannel = new EmbeddedChannel(handler);
 
         // When
-        channel.writeInbound(message);
+        embeddedChannel.writeInbound(message);
 
         // Then - SimpleChannelInboundHandler must release the ref-counted message
         assertThat(message.refCnt()).isZero();
-        assertThat((Object) channel.readInbound()).isNull();
+        assertThat((Object) embeddedChannel.readInbound()).isNull();
         verify(kafkaSession).setHaProxyContext(any(HaProxyContext.class));
-        channel.finishAndReleaseAll();
+        embeddedChannel.finishAndReleaseAll();
     }
 
     @Test

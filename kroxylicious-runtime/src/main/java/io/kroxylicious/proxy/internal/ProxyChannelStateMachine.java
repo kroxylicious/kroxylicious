@@ -218,7 +218,11 @@ public class ProxyChannelStateMachine {
      * Sonar will complain if one uses this in prod code listen to it.
      */
     @VisibleForTesting
-    void forceState(ProxyChannelState state, KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler, KafkaSession kafkaSession) {
+    void forceState(ProxyChannelState state,
+                    KafkaProxyFrontendHandler frontendHandler,
+                    @Nullable KafkaProxyBackendHandler backendHandler,
+                    KafkaSession kafkaSession,
+                    int transportAndBackendLatch) {
         LOGGER.atInfo()
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
@@ -228,6 +232,7 @@ public class ProxyChannelStateMachine {
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
+        this.progressionLatch = transportAndBackendLatch;
     }
 
     @Override
@@ -406,19 +411,16 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * A message has been received from the downstream client which should be passed to the upstream node
+     * A message has emerged from the Filter Chain and is ready to be forwarded to the upstream node
      * @param msg the RPC received from the upstream
      */
-    void messageFromClient(Object msg) {
-        Objects.requireNonNull(backendHandler).forwardToServer(msg);
-    }
-
-    /**
-     * Called to notify the state machine that reading the downstream the batch is complete.
-     */
-    void clientReadComplete() {
-        if (state instanceof Forwarding) {
-            Objects.requireNonNull(backendHandler).flushToServer();
+    void onClientFilterChainComplete(Object msg) {
+        if (state() instanceof Forwarding) { // post-backend connection
+            Objects.requireNonNull(backendHandler).forwardToServer(msg);
+            backendHandler.flushToServer();
+        }
+        else {
+            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
 
@@ -430,7 +432,7 @@ public class ProxyChannelStateMachine {
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
-            messageFromClient(msg);
+            frontendHandler.admitToFilterChain(msg);
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -642,8 +644,7 @@ public class ProxyChannelStateMachine {
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
-        Objects.requireNonNull(frontendHandler).inForwarding();
-        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        // we must wait for the transport subject to be built before forwarding the buffered messages and then enabling autoread on the client
         maybeUnblock();
         proxyToServerConnectionToken.acquire();
     }
