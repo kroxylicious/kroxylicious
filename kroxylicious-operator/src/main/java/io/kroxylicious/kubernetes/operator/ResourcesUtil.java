@@ -610,10 +610,12 @@ public class ResourcesUtil {
                                                                           String eventSourceName) {
 
         Optional<Kafka> kafka = getKafka(context, eventSourceName);
-        return kafka.flatMap(value -> value.getStatus().getListeners().stream()
-                .filter(listenerStatus -> listenerStatus.getName()
-                        .equals(service.getSpec().getStrimziKafkaRef().getListenerName()))
-                .findFirst());
+        return kafka.flatMap(value -> Optional.ofNullable(value.getStatus())
+                .map(KafkaStatus::getListeners)
+                .flatMap(listeners -> listeners.stream()
+                        .filter(listenerStatus -> listenerStatus.getName()
+                                .equals(service.getSpec().getStrimziKafkaRef().getListenerName()))
+                        .findFirst()));
     }
 
     private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> handleListener(T resource, StrimziKafkaRef strimziKafkaRef,
