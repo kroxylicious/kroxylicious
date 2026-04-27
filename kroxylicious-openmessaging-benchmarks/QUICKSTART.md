@@ -79,7 +79,7 @@ To run one scenario and workload manually:
 
 Available scenarios: `baseline`, `proxy-no-filters`, `encryption`
 
-Available workloads: `1topic-1kb`, `10topics-1kb`, `100topics-1kb`
+Available workloads: `1topic-1kb`, `10topics-1kb`, `100topics-1kb`, `1topic-10kb`, `1topic-100kb`
 
 ### Cluster-specific settings
 
