@@ -17,3 +17,4 @@
 - Tiberiu Sabau(https://github.com/tibisabau)
 - May Abo-Alrejal(https://github.com/May-Abo)
 - ZhangDT-sky(https://github.com/ZhangDT-sky)
+- Oleksiy Pylypenko(https://github.com/oleksiyp)

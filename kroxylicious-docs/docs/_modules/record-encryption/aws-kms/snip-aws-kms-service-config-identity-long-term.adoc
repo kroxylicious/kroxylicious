@@ -19,11 +19,12 @@ kmsConfig:
   endpointUrl: https://kms.<region>.amazonaws.com
   tls:
     # ...
-  longTermCredentials:
-    accessKeyId:
-      passwordFile: /opt/aws/accessKey
-    secretAccessKey:
-      passwordFile: /opt/aws/secretKey
+  credentials:
+    longTerm:
+      accessKeyId:
+        passwordFile: /opt/aws/accessKey
+      secretAccessKey:
+        passwordFile: /opt/aws/secretKey
   region: <region>
 ----
 where:
@@ -31,7 +32,10 @@ where:
 * `kms` specifies the name of the KMS provider. Use `AwsKmsService`.
 * `kmsConfig` specifies the configuration of the KMS service.
 ** `endpointUrl` specifies the AWS KMS endpoint URL, which must include the `https://` scheme.
-** `longTermCredentials` configures the KMS to authenticate long term credentials.
-*** `accessKeyId` references a file containing containing the AWS access key ID.
-*** `secretAccessKey` references a file containing AWS secret access key.
+** `credentials` groups the authentication configuration.
+*** `longTerm` configures the KMS to authenticate with long-term credentials.
+**** `accessKeyId` references a file containing the AWS access key ID.
+**** `secretAccessKey` references a file containing the AWS secret access key.
 ** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.
+
+NOTE: The legacy top-level `longTermCredentials` key is deprecated but continues to work for backward compatibility. New configurations should use `credentials.longTerm` instead.

@@ -232,7 +232,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         if (virtualCluster.isLogFrames()) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
-
         var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -244,7 +243,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyChannelStateMachine,
                 proxyNettySettings);
 
-        pipeline.addLast("netHandler", frontendHandler);
+        pipeline.addLast("frontendHandler", frontendHandler);
+        // Filter Handlers will be installed at this point in the pipeline by KafkaProxyFrontendHandler when the client channel fires channelActive()
+        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(proxyChannelStateMachine));
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()

@@ -70,11 +70,9 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 
 public class KafkaProxyFrontendHandler
@@ -104,11 +102,6 @@ public class KafkaProxyFrontendHandler
     List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
-
-    // Flag if we receive a channelReadComplete() prior to outbound connection activation
-    // so we can perform the channelReadComplete()/outbound flush & auto_read
-    // once the outbound channel is active
-    private boolean pendingReadComplete = true;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -157,7 +150,6 @@ public class KafkaProxyFrontendHandler
                 + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
                 + ", pendingClientFlushes=" + pendingClientFlushes
                 + ", sniHostname='" + sniHostname + '\''
-                + ", pendingReadComplete=" + pendingReadComplete
                 + '}';
     }
 
@@ -295,7 +287,6 @@ public class KafkaProxyFrontendHandler
         initiateConnect(target);
     }
 
-    @NonNull
     private List<FilterAndInvoker> buildFilters() {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
@@ -314,17 +305,6 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(brokerAddressFilters);
 
         return filterAndInvokers;
-    }
-
-    /**
-     * <p>Invoked when the last message read by the current read operation
-     * has been consumed by {@link #channelRead(ChannelHandlerContext, Object)}.</p>
-     * This allows the proxy to batch requests.
-     * @param clientCtx The client context
-     */
-    @Override
-    public void channelReadComplete(ChannelHandlerContext clientCtx) {
-        proxyChannelStateMachine.clientReadComplete();
     }
 
     /**
@@ -452,25 +432,6 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
-     */
-    void inForwarding() {
-        // connection is complete, so first forward the buffered message
-        if (bufferedMsgs != null) {
-            for (Object bufferedMsg : bufferedMsgs) {
-                proxyChannelStateMachine.messageFromClient(bufferedMsg);
-            }
-            bufferedMsgs = null;
-        }
-
-        if (pendingReadComplete) {
-            pendingReadComplete = false;
-            channelReadComplete(this.clientCtx());
-        }
-
-    }
-
-    /**
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Closed} state.
      */
     void inClosed(@Nullable Throwable errorCodeEx) {
@@ -531,18 +492,18 @@ public class KafkaProxyFrontendHandler
         bufferedMsgs.add(msg);
     }
 
+    /**
+     * Add Filters after this handler in the pipeline.
+     */
     private void addFiltersToPipeline(
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
-
-        int num = 0;
-
-        for (var protocolFilter : filters) {
-            // TODO configurable timeout
-            // Handler name must be unique, but filters are allowed to appear multiple times
-            String handlerName = "filter-" + ++num + "-" + protocolFilter.filterName();
-            pipeline.addBefore(clientCtx().name(),
+        int i = 0;
+        String addNextFilterAfter = clientCtx().name();
+        for (FilterAndInvoker protocolFilter : filters) {
+            String handlerName = "filter-" + (++i) + "-" + protocolFilter.filterName();
+            pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(
                             protocolFilter,
@@ -550,13 +511,25 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             inboundChannel,
                             proxyChannelStateMachine));
+            addNextFilterAfter = handlerName;
         }
     }
 
     void unblockClient() {
         var inboundChannel = clientCtx().channel();
+        forwardBufferedMessages();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();
+    }
+
+    private void forwardBufferedMessages() {
+        // connection is complete, so first forward the buffered message
+        if (bufferedMsgs != null) {
+            for (Object bufferedMsg : bufferedMsgs) {
+                admitToFilterChain(bufferedMsg);
+            }
+            bufferedMsgs = null;
+        }
     }
 
     Executor eventLoopExecutor() {
@@ -652,4 +625,11 @@ public class KafkaProxyFrontendHandler
         return nettySettings.flatMap(NettySettings::authenticatedIdleTimeout).map(Duration::toMillis).orElse(NO_TIMEOUT);
     }
 
+    /**
+     * Forward a message towards the Filter Chain
+     * @param msg message
+     */
+    public void admitToFilterChain(Object msg) {
+        clientCtx().fireChannelRead(msg);
+    }
 }

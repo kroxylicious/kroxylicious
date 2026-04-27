@@ -214,11 +214,15 @@ class Ec2MetadataCredentialsProviderTest {
      */
     @Test
     void expiredCredentialRefreshed() {
-        var factorSoLargePreemptiveRefreshBeAfterExpiry = 2.0;
-        var cfg = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, config.metadataEndpoint(), factorSoLargePreemptiveRefreshBeAfterExpiry);
+        // Use a high factor so the preemptive refresh delay is long (~10s real time),
+        // then advance the mocked clock past the credential's expiration before the
+        // preemptive refresh fires. This exercises the hard-expiration safety net in getCredentials().
+        var highFactor = 0.99;
+        var cfg = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, config.metadataEndpoint(), highFactor);
         var clock = mock(Clock.class);
 
         var now = Instant.now();
+        when(clock.instant()).thenReturn(now);
         var initial = createTestCredential("Success", "accessKeyId", "initialKey", "token", now.plusSeconds(10));
 
         metadataServer.stubFor(
