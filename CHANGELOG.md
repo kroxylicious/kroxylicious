@@ -19,6 +19,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#3786](https://github.com/kroxylicious/kroxylicious/issues/3786): The deprecated method `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type)` (two-parameter form) is removed. Use `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)` instead, passing `MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED` if no checksum tracking is needed.
 * The deprecated method `FilterContext#clientSaslAuthenticationSuccess(String, String)` is removed. Filter authors must use `FilterContext#clientSaslAuthenticationSuccess(String, Subject)` to announce a successful SASL authentication to the other filters in the chain.
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): The AWS KMS top-level `longTermCredentials` and `ec2MetadataCredentials` YAML keys are deprecated.  Use the new `credentials.longTerm` and `credentials.ec2Metadata` forms under the grouped `credentials` node instead.  The old keys continue to work for backward compatibility.
 

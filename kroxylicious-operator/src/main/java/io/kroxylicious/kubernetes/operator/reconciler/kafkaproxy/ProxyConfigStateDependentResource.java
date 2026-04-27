@@ -21,6 +21,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.networking.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
@@ -87,7 +88,7 @@ public class ProxyConfigStateDependentResource
             }
             else {
                 patch = statusFactory.newTrueConditionStatusPatch(cluster,
-                        Condition.Type.Accepted);
+                        Condition.Type.Accepted, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
             }
             if (!data.hasStatusPatchForCluster(ResourcesUtil.name(cluster))) {
                 data.addStatusPatchForCluster(ResourcesUtil.name(cluster), patch);

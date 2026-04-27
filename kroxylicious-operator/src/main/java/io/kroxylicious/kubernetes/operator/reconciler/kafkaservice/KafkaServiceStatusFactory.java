@@ -86,11 +86,4 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers);
     }
-
-    @Override
-    @SuppressWarnings("removal")
-    public KafkaService newTrueConditionStatusPatch(KafkaService observedProxy,
-                                                    Condition.Type type) {
-        throw new IllegalStateException("Use newTrueConditionStatusPatch(KafkaService, Condition.Type, String) instead");
-    }
 }
