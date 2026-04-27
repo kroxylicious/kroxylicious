@@ -201,6 +201,15 @@ kubectl get configmap omb-driver-baseline -n kafka \
 
 **Scripts fail with "run mvn process-sources first"**
 
+The benchmark scripts use JBang to run Java-based result analysis tools. These tools are
+generated from annotated source files during the Maven build. If you see an error like:
+
+```
+Error: run 'mvn process-sources -pl kroxylicious-openmessaging-benchmarks' first to generate filtered sources
+```
+
+Run the following once from the repository root before using the scripts:
+
 ```bash
 mvn process-sources -pl kroxylicious-openmessaging-benchmarks
 ```
