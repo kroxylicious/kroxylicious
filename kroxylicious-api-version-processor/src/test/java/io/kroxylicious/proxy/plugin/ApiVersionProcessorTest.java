@@ -28,7 +28,7 @@ class ApiVersionProcessorTest {
     Path outputDir;
 
     @Test
-    void shouldGenerateResourceForPluginWithApiVersion() throws IOException {
+    void shouldGenerateResourceForPluginWithApiVersion() {
         var result = compile(
                 source("io.example.MyApi",
                         """
@@ -52,7 +52,7 @@ class ApiVersionProcessorTest {
     }
 
     @Test
-    void shouldGenerateResourceForIndirectApiVersion() throws IOException {
+    void shouldGenerateResourceForIndirectApiVersion() {
         var result = compile(
                 source("io.example.BaseApi",
                         """
@@ -81,7 +81,7 @@ class ApiVersionProcessorTest {
     }
 
     @Test
-    void shouldRecordMultipleVersionedInterfaces() throws IOException {
+    void shouldRecordMultipleVersionedInterfaces() {
         var result = compile(
                 source("io.example.ApiOne",
                         """
@@ -114,7 +114,7 @@ class ApiVersionProcessorTest {
     }
 
     @Test
-    void shouldWarnWhenNoApiVersionOnInterface() throws IOException {
+    void shouldWarnWhenNoApiVersionOnInterface() {
         var result = compile(
                 source("io.example.UnversionedApi",
                         """

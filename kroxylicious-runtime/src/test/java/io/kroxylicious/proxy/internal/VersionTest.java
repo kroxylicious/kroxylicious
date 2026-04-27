@@ -23,8 +23,8 @@ class VersionTest {
             "v1alpha32767", "v32767alpha1", "v32767alpha32767", "v32767beta32767", "v32767" })
     void parseApiVersion(String s) {
         Version v = Version.parse(s);
-        assertThat(v).hasToString(s);
-        assertThat(v).isEqualByComparingTo(v);
+        assertThat(v).hasToString(s)
+                .isEqualByComparingTo(v);
         assertThat(v.isStable()).isEqualTo(!s.contains("alpha") && !s.contains("beta"));
         if (s.startsWith("v1") && s.length() > 2) {
             assertThat(v).isLessThan(Version.parse("v1"));
