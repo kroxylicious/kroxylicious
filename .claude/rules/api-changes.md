@@ -44,7 +44,16 @@ Changes to public APIs require a formal proposal process and community agreement
 - Look for proposals related to the API module, feature name, or issue number
 - Check the proposals directory README for indexing information
 
-**Important:** Approved proposals are the authoritative design. Implementation must follow the proposal unless there's a documented reason to deviate (which requires discussion).
+**Check for In-Flight Proposals:**
+- New design proposals may be under review as open PRs in the design repository
+- Use `gh pr list --repo kroxylicious/design` or WebFetch on `https://github.com/kroxylicious/design/pulls` to see open proposals
+- Check both the PR title/description and linked proposal files for relevance
+- For open proposals, note that the design is not yet finalized and may change during review
+
+**Important:** 
+- Approved proposals are the authoritative design. Implementation must follow the proposal unless there's a documented reason to deviate (which requires discussion).
+- **Proposals are numbered sequentially. When multiple proposals exist for related functionality, higher-numbered proposals take precedence.** A later proposal may supersede, extend, or countermand an earlier one.
+- If proposals appear to conflict, the one with the higher number is authoritative.
 
 ## Trivial Changes (No Proposal Required)
 
