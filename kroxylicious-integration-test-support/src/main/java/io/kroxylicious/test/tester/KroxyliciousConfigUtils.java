@@ -28,9 +28,9 @@ public class KroxyliciousConfigUtils {
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     public static final String DEFAULT_GATEWAY_NAME = "default";
 
-    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", resolveDefaultPort());
+    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", defaultPort());
 
-    private static int resolveDefaultPort() {
+    private static int defaultPort() {
         var override = System.getenv("KROXYLICIOUS_TEST_BOOTSTRAP_PORT");
         if (override == null || override.isBlank()) {
             return 9192;
