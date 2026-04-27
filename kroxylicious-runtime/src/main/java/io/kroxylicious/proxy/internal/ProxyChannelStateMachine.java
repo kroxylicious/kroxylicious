@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -89,8 +90,10 @@ import static org.slf4j.LoggerFactory.getLogger;
  * </pre>
  *
  * <p>The {@link ProxyChannelState.Draining Draining} state is optional: a connection only enters it
- * when {@link #onDraining(Runnable)} is invoked externally (typically by the {@code DrainCoordinator}
- * during proxy shutdown or virtual-cluster hot-reload). Any {@code channelInactive} or error event that
+ * when {@link #initiateClose(Duration)} is invoked externally (typically by the {@code DrainCoordinator}
+ * during proxy shutdown or virtual-cluster hot-reload). The {@code on*} methods that perform the actual
+ * state transitions ({@code onDraining}, {@code onDrainCompleted}, {@code onDrainTimeout}) are private
+ * and orchestrated internally by {@code initiateClose}. Any {@code channelInactive} or error event that
  * arrives while in {@code Draining} routes through {@link #toClosed} the same way it would from
  * {@code Forwarding}; the merged-edge label applies to both paths.</p>
  *
@@ -303,52 +306,6 @@ public class ProxyChannelStateMachine {
         return endpointBinding.endpointGateway().virtualCluster();
     }
 
-    /**
-     * Dispatch a task onto this PCSM's event loop. External callers (e.g. {@code DrainCoordinator})
-     * use this to invoke {@code on*()} methods from outside the event loop thread — the PCSM owns
-     * the dispatch mechanism rather than handing out its backing channel.
-     * @throws IllegalStateException if the PCSM has no frontend channel attached yet
-     */
-    void executeOnEventLoop(Runnable task) {
-        requireFrontendChannel().eventLoop().execute(task);
-    }
-
-    /**
-     * Schedule a delayed task onto this PCSM's event loop. Returns the scheduled-future handle
-     * so callers can cancel it. Used by external timers (e.g. drain timeout).
-     * @throws IllegalStateException if the PCSM has no frontend channel attached yet
-     */
-    ScheduledFuture<?> scheduleOnEventLoop(Runnable task, Duration delay) {
-        return requireFrontendChannel().eventLoop().schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS);
-    }
-
-    private Channel requireFrontendChannel() {
-        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
-        if (ch == null) {
-            throw new IllegalStateException("PCSM has no frontend channel attached — dispatch not possible in state " + state.getClass().getSimpleName());
-        }
-        return ch;
-    }
-
-    private String frontendChannelAddress() {
-        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
-        if (ch == null) {
-            return "unknown";
-        }
-        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
-    }
-
-    private String backendChannelAddress() {
-        if (backendHandler == null) {
-            return "unknown";
-        }
-        Channel ch = backendHandler.serverChannel();
-        if (ch == null) {
-            return "unknown";
-        }
-        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
-    }
-
     boolean isTlsListener() {
         return endpointBinding.endpointGateway().isUseTls();
     }
@@ -554,13 +511,11 @@ public class ProxyChannelStateMachine {
             frontendHandler.admitToFilterChain(msg);
         }
         else if (state() instanceof ProxyChannelState.Draining draining) {
-            // autoRead is disabled once we enter Draining, but Netty can still deliver frames
-            // that were already buffered/decoded before that took effect. Drop them — we've
-            // promised not to forward new client requests once draining. Since no response will
-            // arrive from the broker for a dropped message, we must compensate by decrementing
-            // the counter here, otherwise the drain-completion check (clientMessagesInFlightCount <= 0)
-            // could never fire and the connection would hang until the drain timeout force-closes
-            // it. Then check if this drop just brought us to zero — if so, fire the drain policy.
+            // autoRead is disabled the moment we enter Draining, so the only frames that can
+            // still land here are ones Netty had already buffered/decoded before that took
+            // effect. Dropping them is the simplest behaviour for the current callers (proxy
+            // shutdown, VC hot-reload), which are tearing the connection down imminently
+            // anyway.
             ReferenceCountUtil.release(msg);
             if (msg instanceof RequestFrame) {
                 clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
@@ -626,22 +581,57 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * External event: begin draining this connection. Disables autoRead on the downstream
-     * channel and transitions to {@link ProxyChannelState.Draining}, carrying the injected
-     * {@code onDrained} policy. If no requests are already in-flight, the policy fires
-     * immediately.
+     * Begin draining this connection and return a future that completes once the connection has
+     * fully closed — either naturally (all in-flight responses delivered) or after the
+     * {@code timeout} force-closes it. Safe to call from any thread; orchestration is dispatched
+     * onto the channel's event loop.
      * <p>
-     * The PCSM does not schedule timers or track completion state — those are owned by the
-     * caller (typically {@code DrainCoordinator}), which also fires {@link #onDrainTimeout()}
-     * if its own timer expires.
+     * Mechanics:
+     * <ul>
+     *   <li>Schedules a force-close timer that invokes {@link #onDrainTimeout()} after
+     *       {@code timeout}.</li>
+     *   <li>Dispatches {@link #onDraining(Runnable)} onto the event loop, injecting a policy
+     *       that cancels the timer, completes the returned future, and invokes
+     *       {@link #onDrainCompleted()} (transitioning the PCSM to {@link Closed} with
+     *       {@code DRAIN_COMPLETED}).</li>
+     * </ul>
+     * The injected policy is idempotent: cancellation and future completion are no-ops once
+     * already invoked, and {@code onDrainCompleted} is a no-op when the state has already
+     * transitioned away from {@link ProxyChannelState.Draining}. This lets the three drain-
+     * termination paths (natural completion, timeout, orphan close via {@link #toClosed})
+     * converge on the same future without double-firing.
+     *
+     * @param timeout maximum time to wait for in-flight responses before force-closing
+     * @return future that completes when this connection has reached {@link Closed}
+     */
+    CompletableFuture<Void> initiateClose(Duration timeout) {
+        CompletableFuture<Void> closedFuture = new CompletableFuture<>();
+
+        ScheduledFuture<?> timeoutTask = scheduleOnEventLoop(this::onDrainTimeout, timeout);
+
+        Runnable onDrained = () -> {
+            timeoutTask.cancel(false);
+            closedFuture.complete(null);
+            onDrainCompleted();
+        };
+
+        executeOnEventLoop(() -> onDraining(onDrained));
+        return closedFuture;
+    }
+
+    /**
+     * Begin draining: disable autoRead on the downstream channel and transition to
+     * {@link ProxyChannelState.Draining}, carrying the injected {@code onDrained} policy.
+     * If no requests are already in-flight, the policy fires immediately.
      * <p>
-     * Must be called on the channel's event loop thread.
+     * Internal: invoked only from {@link #initiateClose(Duration)}, which dispatches it
+     * onto the event loop. Must run on the channel's event loop thread.
      *
      * @param onDrained policy to invoke when the in-flight counter reaches zero; responsible
-     *                  for closing the connection (typically via {@link #onDrainCompleted()})
-     *                  and any external bookkeeping (future completion, timer cancellation)
+     *                  for closing the connection (via {@link #onDrainCompleted()}) and any
+     *                  bookkeeping (future completion, timer cancellation)
      */
-    void onDraining(Runnable onDrained) {
+    private void onDraining(Runnable onDrained) {
         if (!(state instanceof Forwarding)) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
@@ -677,23 +667,28 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * External event: drain completed naturally. Invoked by the caller's {@code onDrained}
-     * policy to close the connection with the {@code DRAIN_COMPLETED} cause for metrics.
-     * No-op if the state has already transitioned away from {@link ProxyChannelState.Draining}.
+     * Drain completed naturally: invoked by the {@code onDrained} policy when the in-flight
+     * counter reaches zero, transitioning the connection to {@link Closed} with the
+     * {@code DRAIN_COMPLETED} cause for metrics. No-op if the state has already transitioned
+     * away from {@link ProxyChannelState.Draining}.
+     * <p>
+     * Internal: only called from the policy assembled in {@link #initiateClose(Duration)}.
      */
-    void onDrainCompleted() {
+    private void onDrainCompleted() {
         if (state instanceof ProxyChannelState.Draining) {
             toClosed(null, DisconnectCause.DRAIN_COMPLETED);
         }
     }
 
     /**
-     * External event: the caller's drain timeout timer expired. Force-closes the connection
-     * with the {@code DRAIN_TIMEOUT} cause for metrics. No-op if the state has already
-     * transitioned away from {@link ProxyChannelState.Draining} (e.g. drain already completed
-     * or the connection closed for another reason).
+     * The drain timeout timer expired. Force-closes the connection with the {@code DRAIN_TIMEOUT}
+     * cause for metrics. No-op if the state has already transitioned away from
+     * {@link ProxyChannelState.Draining} (e.g. drain already completed or the connection closed
+     * for another reason).
+     * <p>
+     * Internal: only invoked by the timer scheduled in {@link #initiateClose(Duration)}.
      */
-    void onDrainTimeout() {
+    private void onDrainTimeout() {
         if (state instanceof ProxyChannelState.Draining) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
@@ -1002,6 +997,52 @@ public class ProxyChannelStateMachine {
     private static boolean isMessageApiVersionsRequest(Object msg) {
         return msg instanceof DecodedRequestFrame
                 && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
+    }
+
+    /**
+     * Dispatch a task onto this PCSM's event loop. Used internally so that {@code on*()}
+     * transition methods always run on the channel's event loop thread, regardless of which
+     * thread {@link #initiateClose(Duration)} is invoked from.
+     * @throws IllegalStateException if the PCSM has no frontend channel attached yet
+     */
+    private void executeOnEventLoop(Runnable task) {
+        requireFrontendChannel().eventLoop().execute(task);
+    }
+
+    /**
+     * Schedule a delayed task onto this PCSM's event loop. Returns the scheduled-future handle
+     * so callers can cancel it. Used internally to schedule the drain force-close timer.
+     * @throws IllegalStateException if the PCSM has no frontend channel attached yet
+     */
+    private ScheduledFuture<?> scheduleOnEventLoop(Runnable task, Duration delay) {
+        return requireFrontendChannel().eventLoop().schedule(task, delay.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    private Channel requireFrontendChannel() {
+        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
+        if (ch == null) {
+            throw new IllegalStateException("PCSM has no frontend channel attached — dispatch not possible in state " + state.getClass().getSimpleName());
+        }
+        return ch;
+    }
+
+    private String frontendChannelAddress() {
+        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
+        if (ch == null) {
+            return "unknown";
+        }
+        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
+    }
+
+    private String backendChannelAddress() {
+        if (backendHandler == null) {
+            return "unknown";
+        }
+        Channel ch = backendHandler.serverChannel();
+        if (ch == null) {
+            return "unknown";
+        }
+        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
     }
 
 }

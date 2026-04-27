@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,13 +21,12 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * {@link ProxyChannelStateMachine} instances.
  * <p>
  * Each PCSM registers on {@code toClientActive()} and deregisters on {@code toClosed()}.
- * {@link #drainCluster(String, Duration)} dispatches {@code onDraining(Runnable)} to each
- * PCSM's event loop, injecting a policy that completes the per-connection future, cancels
- * the timeout timer, and asks the PCSM to close with the {@code DRAIN_COMPLETED} cause.
- * <p>
- * The coordinator also owns the per-connection timeout timer. When it expires, the
- * coordinator fires {@link ProxyChannelStateMachine#onDrainTimeout()} so the PCSM records
- * the {@code DRAIN_TIMEOUT} cause before closing.
+ * {@link #drainCluster(String, Duration)} asks every registered PCSM to close itself by
+ * invoking {@link ProxyChannelStateMachine#initiateClose(Duration)}, which returns a future
+ * that completes when that connection has reached {@code Closed} (either naturally or after
+ * the timeout force-closes it). The coordinator only aggregates those futures — the per-
+ * connection orchestration (timer, policy assembly, event-loop dispatch) lives inside the
+ * PCSM.
  * <p>
  * Works for both proxy shutdown (drain all clusters) and hot-reload (drain one cluster
  * while others keep serving).
@@ -94,26 +92,11 @@ public class DrainCoordinator {
 
         var closedFutures = new ArrayList<CompletableFuture<Void>>();
 
-        // Defensive copy: the concurrent set is modified as PCSMs deregister during toClosed()
+        // Defensive copy: the concurrent set is modified as PCSMs deregister during toClosed().
+        // The per-connection drain orchestration (timer scheduling, policy assembly, event-loop
+        // dispatch) lives inside the PCSM itself — see ProxyChannelStateMachine#initiateClose.
         for (ProxyChannelStateMachine pcsm : new ArrayList<>(connections)) {
-            CompletableFuture<Void> closedFuture = new CompletableFuture<>();
-            closedFutures.add(closedFuture);
-
-            // Schedule the force-close timer. Fires pcsm.onDrainTimeout() on the event loop,
-            // which transitions the PCSM to Closed with DRAIN_TIMEOUT if it's still Draining.
-            ScheduledFuture<?> timeoutTask = pcsm.scheduleOnEventLoop(pcsm::onDrainTimeout, timeout);
-
-            // Policy injected into the PCSM's Draining state. Fires when the PCSM evaluates
-            // "counter hit zero" OR when toClosed transitions out of Draining for any reason.
-            // Idempotent: cancel and complete are no-ops when already invoked; onDrainCompleted
-            // no-ops when state is already Closed.
-            Runnable onDrained = () -> {
-                timeoutTask.cancel(false);
-                closedFuture.complete(null);
-                pcsm.onDrainCompleted();
-            };
-
-            pcsm.executeOnEventLoop(() -> pcsm.onDraining(onDrained));
+            closedFutures.add(pcsm.initiateClose(timeout));
         }
 
         return CompletableFuture.allOf(closedFutures.toArray(CompletableFuture[]::new));
