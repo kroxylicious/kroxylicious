@@ -88,9 +88,9 @@ class KafkaProxyShutdownOrderingTest {
                     .isTrue();
 
             // Port must be unreachable: endpointRegistry.shutdown() ran before drain.
-            assertThatCode(() -> new Socket("localhost", proxyPort).close())
+            assertThat(canConnect(proxyPort))
                     .as("proxy port should be unreachable while drain is in progress")
-                    .isInstanceOf(Exception.class);
+                    .isFalse();
 
             drainCanComplete.countDown();
             shutdownThread.join(10_000);
