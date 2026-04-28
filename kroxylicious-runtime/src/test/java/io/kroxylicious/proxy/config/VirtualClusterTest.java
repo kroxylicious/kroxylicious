@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -122,5 +123,67 @@ class VirtualClusterTest {
         assertThatCode(() -> {
             new VirtualCluster(clusterName, targetCluster, gateways, false, false, NO_FILTERS);
         }).doesNotThrowAnyException();
+    }
+
+    @Test
+    void effectiveDrainTimeoutReturnsDefaultWhenNull() {
+        // Given — VirtualCluster constructed with null drainTimeout (the 6-arg constructor
+        // delegates with null; this represents the "use the proxy default" case)
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        // When
+        var resolved = vc.effectiveDrainTimeout();
+
+        // Then
+        assertThat(vc.drainTimeout()).isNull();
+        assertThat(resolved).isEqualTo(Duration.ofSeconds(10));
+    }
+
+    @Test
+    void effectiveDrainTimeoutReturnsExplicitValue() {
+        // Given — VirtualCluster constructed with an explicit drainTimeout
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var explicitTimeout = Duration.ofSeconds(45);
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, explicitTimeout);
+
+        // When
+        var resolved = vc.effectiveDrainTimeout();
+
+        // Then
+        assertThat(vc.drainTimeout()).isEqualTo(explicitTimeout);
+        assertThat(resolved).isEqualTo(explicitTimeout);
+    }
+
+    @Test
+    void rejectsZeroDrainTimeout() {
+        // Given
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+
+        // When/Then
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, Duration.ZERO))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
+    }
+
+    @Test
+    void rejectsNegativeDrainTimeout() {
+        // Given
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+
+        // When/Then
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, Duration.ofSeconds(-5)))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
+    }
+
+    @Test
+    void acceptsExplicitPositiveDrainTimeout() {
+        // Given
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+
+        // When/Then — happy path: a positive explicit drainTimeout passes validation
+        assertThatCode(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, Duration.ofMillis(1)))
+                .doesNotThrowAnyException();
     }
 }

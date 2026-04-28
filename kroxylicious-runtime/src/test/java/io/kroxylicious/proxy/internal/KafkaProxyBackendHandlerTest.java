@@ -199,4 +199,26 @@ class KafkaProxyBackendHandlerTest {
         // Then
         verify(proxyChannelStateMachine).onServerWritable();
     }
+
+    @Test
+    void serverChannelReturnsNullBeforeRegistration() {
+        // Given — a fresh handler not yet attached to any pipeline (serverCtx still null)
+        var freshHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
+
+        // When / Then
+        assertThat(freshHandler.serverChannel()).isNull();
+    }
+
+    @Test
+    void serverChannelReturnsContextChannelAfterRegistration() {
+        // Given — adding the handler to a registered channel does not retroactively fire
+        // channelRegistered, so we need to fire it explicitly to populate serverCtx
+        outboundChannel.pipeline().fireChannelRegistered();
+
+        // When
+        Channel resolved = kafkaProxyBackendHandler.serverChannel();
+
+        // Then
+        assertThat(resolved).isSameAs(outboundChannel);
+    }
 }

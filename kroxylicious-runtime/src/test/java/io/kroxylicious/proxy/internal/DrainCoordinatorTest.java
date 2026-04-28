@@ -5,9 +5,11 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -17,7 +19,11 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class DrainCoordinatorTest {
 
@@ -169,5 +175,88 @@ class DrainCoordinatorTest {
             Thread.currentThread().interrupt();
             throw new AssertionError("test thread interrupted", e);
         }
+    }
+
+    @Test
+    void drainClusterWithNoRegisteredConnectionsReturnsCompletedFuture() {
+        // Given — no PCSMs registered for this cluster
+        var coordinator = new DrainCoordinator();
+
+        // When
+        CompletableFuture<Void> result = coordinator.drainCluster(CLUSTER, Duration.ofSeconds(10));
+
+        // Then — the no-active-connections fast path returns an already-complete future
+        assertThat(result).isCompleted();
+        assertThat(result).isNotCompletedExceptionally();
+    }
+
+    @Test
+    void drainClusterInvokesInitiateCloseOnEachRegisteredPcsm() {
+        // Given — three PCSMs registered for the cluster, each stubbed to return an
+        // already-complete future so drainCluster's aggregate future resolves promptly
+        var coordinator = new DrainCoordinator();
+        var pcsm1 = mock(ProxyChannelStateMachine.class);
+        var pcsm2 = mock(ProxyChannelStateMachine.class);
+        var pcsm3 = mock(ProxyChannelStateMachine.class);
+        when(pcsm1.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(pcsm2.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(pcsm3.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        coordinator.register(CLUSTER, pcsm1);
+        coordinator.register(CLUSTER, pcsm2);
+        coordinator.register(CLUSTER, pcsm3);
+
+        // When
+        var timeout = Duration.ofSeconds(7);
+        CompletableFuture<Void> result = coordinator.drainCluster(CLUSTER, timeout);
+
+        // Then — every registered PCSM had initiateClose invoked with the supplied timeout,
+        // and the aggregate future is complete because all per-PCSM futures were complete
+        verify(pcsm1).initiateClose(timeout);
+        verify(pcsm2).initiateClose(timeout);
+        verify(pcsm3).initiateClose(timeout);
+        assertThat(result).isCompleted();
+    }
+
+    @Test
+    void drainClusterFutureCompletesOnlyWhenEveryPcsmFutureCompletes() {
+        // Given — two PCSMs whose initiateClose returns futures we control
+        var coordinator = new DrainCoordinator();
+        var pcsm1 = mock(ProxyChannelStateMachine.class);
+        var pcsm2 = mock(ProxyChannelStateMachine.class);
+        var f1 = new CompletableFuture<Void>();
+        var f2 = new CompletableFuture<Void>();
+        when(pcsm1.initiateClose(any())).thenReturn(f1);
+        when(pcsm2.initiateClose(any())).thenReturn(f2);
+        coordinator.register(CLUSTER, pcsm1);
+        coordinator.register(CLUSTER, pcsm2);
+
+        // When
+        CompletableFuture<Void> aggregate = coordinator.drainCluster(CLUSTER, Duration.ofSeconds(10));
+
+        // Then — aggregate is incomplete while either per-PCSM future is pending
+        assertThat(aggregate).isNotCompleted();
+
+        // When the first completes, the aggregate is still incomplete
+        f1.complete(null);
+        assertThat(aggregate).isNotCompleted();
+
+        // Only when both complete does the aggregate complete
+        f2.complete(null);
+        assertThat(aggregate).isCompleted();
+    }
+
+    @Test
+    void drainClusterIgnoresPcsmsRegisteredForOtherClusters() {
+        // Given — a PCSM registered for a different cluster than the one being drained
+        var coordinator = new DrainCoordinator();
+        var pcsmInOtherCluster = mock(ProxyChannelStateMachine.class);
+        coordinator.register("some-other-cluster", pcsmInOtherCluster);
+
+        // When — drain the (empty) target cluster
+        CompletableFuture<Void> result = coordinator.drainCluster(CLUSTER, Duration.ofSeconds(10));
+
+        // Then — drain completes immediately and the unrelated PCSM is never touched
+        assertThat(result).isCompleted();
+        verify(pcsmInOtherCluster, never()).initiateClose(any());
     }
 }
