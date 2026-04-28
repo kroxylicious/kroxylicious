@@ -156,7 +156,6 @@ class KroxyliciousIT {
         tester.close();
     }
 
-
     private static void assertProxies(Producer<String, String> producer, Consumer<String, String> consumer)
             throws InterruptedException, ExecutionException {
         producer.send(new ProducerRecord<>(KroxyliciousIT.TOPIC_1, "my-key", KroxyliciousIT.PLAINTEXT)).get();
