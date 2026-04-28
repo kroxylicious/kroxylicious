@@ -89,8 +89,13 @@ ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
 replaceInFile() {
   local EXPRESSION=$1
   local FILE=$2
-  ${SED} -i -e "${EXPRESSION}" "${FILE}"
+  ${SED} -E -i -e "${EXPRESSION}" "${FILE}"
   git add "${FILE}"
+}
+
+updateVersionInBenchmarks() {
+  replaceInFile "s|KROXYLICIOUS_VERSION:-[0-9]+\.[0-9]+\.[0-9]+|KROXYLICIOUS_VERSION:-${1}|g" \
+    kroxylicious-openmessaging-benchmarks/scripts/setup-cluster.sh
 }
 
 cleanup() {
@@ -147,6 +152,8 @@ replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}
 
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${RELEASE_VERSION}'_g" compose/kafka-compose.yaml
 
+updateVersionInBenchmarks "${RELEASE_VERSION}"
+
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
 
@@ -190,6 +197,8 @@ replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${NEXT_VERSION}_g
 replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: main_g" kroxylicious-docs/docs/_assets/attributes.adoc # this doesn't make a lot sense...
 
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${NEXT_VERSION}'_g" compose/kafka-compose.yaml
+
+updateVersionInBenchmarks "${NEXT_VERSION}"
 
 # bump the reference version in kroxylicious-api
 mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
