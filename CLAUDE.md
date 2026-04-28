@@ -81,7 +81,7 @@ See module README.md files for detailed context:
 - [kroxylicious-kms/README.md](kroxylicious-kms/README.md) - KMS API
 - [kroxylicious-authorizer-api/README.md](kroxylicious-authorizer-api/README.md) - Authoriser API
 - [kroxylicious-operator/README.md](kroxylicious-operator/README.md) - Kubernetes operator
-- [kroxylicious-kubernetes-api/README.md](kroxylicious-kubernetes-api/README.md) - Kubernetes CRDs
+- [kroxylicious-kubernetes-api/README.md](kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md) - Kubernetes CRDs
 - [kroxylicious-docs/README.md](kroxylicious-docs/README.md) - Documentation
 
 ## Kubernetes

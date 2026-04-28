@@ -574,7 +574,7 @@
         <module>kroxylicious-filter-archetype</module>
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
-        <module>kroxylicious-kubernetes-api</module>
+        <module>kroxylicious-kubernetes</module>
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-operator</module>
         <module>kroxylicious-operator-dist</module>
