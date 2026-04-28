@@ -217,10 +217,30 @@ spec:
                   type: integer
                 tls:
                   type: object
+                  description: Reconciled TLS configuration for connections to the Kafka cluster.
                   properties:
+                      certificateRef:
+                        description: |
+                          Reconciled reference to the TLS client certificate resource.
+                          This is copied from spec.tls.certificateRef during reconciliation.
+                        type: object
+                        properties:
+                          kind:
+                            description: The API kind of the resource containing the TLS client certificate.
+                            type: string
+                            default: Secret
+                          group:
+                            description: The API group of the resource containing the TLS client certificate.
+                            type: string
+                            default: ""
+                          name:
+                            description: The name of the resource containing the TLS client certificate.
+                            type: string
                       trustAnchorRef:
                         type: object
-                        description: Configuration for the TLS trust anchor (CA certificates).
+                        description: |
+                          Reconciled reference to the TLS trust anchor (CA certificates) resource.
+                          This may be auto-discovered from Strimzi or copied from spec.tls.trustAnchorRef.
                         properties:
                           kind:
                             description: The API kind of the resource containing the TLS client certificate.
@@ -240,6 +260,40 @@ spec:
                             type: string
                             description: |
                               The key within the resource identifying the certificate bundle.
+                      protocols:
+                        description: |
+                          Reconciled TLS protocols configuration.
+                          This is copied from spec.tls.protocols during reconciliation.
+                        type: object
+                        properties:
+                          allow:
+                            description: The TLS protocols to allow, ordered by preference.
+                            type: array
+                            items:
+                              type: string
+                          deny:
+                            description: The TLS protocols to deny.
+                            type: array
+                            items:
+                              type: string
+                            default: []
+                      cipherSuites:
+                        description: |
+                          Reconciled TLS cipher suites configuration.
+                          This is copied from spec.tls.cipherSuites during reconciliation.
+                        type: object
+                        properties:
+                          allow:
+                            description: The TLS cipher suites to allow.
+                            type: array
+                            items:
+                              type: string
+                          deny:
+                            description: The TLS cipher suites to deny.
+                            type: array
+                            items:
+                              type: string
+                            default: []
                 bootstrapServers:
                   description: |
                     The bootstrap address of the target cluster.

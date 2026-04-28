@@ -355,35 +355,25 @@ public class KafkaProxyReconciler implements
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {
-        var specTls = Optional.ofNullable(kafkaServiceRef.getSpec())
-                .map(KafkaServiceSpec::getTls);
+        // Read TLS configuration exclusively from status (reconciled state)
         var statusTls = Optional.ofNullable(kafkaServiceRef.getStatus())
                 .map(KafkaServiceStatus::getTls);
 
-        // If neither spec nor status has TLS config, return empty
-        if (specTls.isEmpty() && statusTls.isEmpty()) {
+        if (statusTls.isEmpty()) {
             return ConfigurationFragment.empty();
         }
 
-        // Build key provider from spec (if present)
-        ConfigurationFragment<Optional<KeyProvider>> keyProviderFragment = specTls
-                .map(tls -> buildKeyProvider(tls.getCertificateRef(), CLIENT_CERTS_BASE_DIR))
+        var tls = statusTls.get();
+
+        // Build key provider from status certificateRef (if present)
+        ConfigurationFragment<Optional<KeyProvider>> keyProviderFragment = Optional.ofNullable(tls.getCertificateRef())
+                .map(ref -> buildKeyProvider(ref, CLIENT_CERTS_BASE_DIR))
                 .orElse(ConfigurationFragment.empty());
 
-        // Build trust provider - prefer status trust (Strimzi auto-discovered),
-        // fall back to spec trust (explicitly configured)
-        ConfigurationFragment<Optional<TrustProvider>> trustProviderFragment;
-        if (statusTls.isPresent() && statusTls.get().getTrustAnchorRef() != null) {
-            // Use auto-discovered trust from KafkaService status
-            trustProviderFragment = buildTrustProvider(false, kafkaServiceRef, null, CLIENT_TRUSTED_CERTS_BASE_DIR);
-        }
-        else if (specTls.isPresent() && specTls.get().getTrustAnchorRef() != null) {
-            // Fall back to explicit trust from spec
-            trustProviderFragment = buildTrustProvider(false, specTls.get().getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR);
-        }
-        else {
-            trustProviderFragment = ConfigurationFragment.empty();
-        }
+        // Build trust provider from status trustAnchorRef (if present)
+        ConfigurationFragment<Optional<TrustProvider>> trustProviderFragment = Optional.ofNullable(tls.getTrustAnchorRef())
+                .map(ref -> buildTrustProvider(false, ref, null, CLIENT_TRUSTED_CERTS_BASE_DIR))
+                .orElse(ConfigurationFragment.empty());
 
         // Combine fragments
         return ConfigurationFragment.combine(
@@ -395,13 +385,9 @@ public class KafkaProxyReconciler implements
                         return Optional.empty();
                     }
 
-                    // Extract cipher suites and protocols from spec TLS (if present)
-                    AllowDeny<String> cipherSuites = specTls
-                            .flatMap(tls -> buildCipherSuites(tls.getCipherSuites()))
-                            .orElse(null);
-                    AllowDeny<String> protocols = specTls
-                            .flatMap(tls -> buildProtocols(tls.getProtocols()))
-                            .orElse(null);
+                    // Extract cipher suites and protocols from status TLS
+                    AllowDeny<String> cipherSuites = buildCipherSuites(tls.getCipherSuites()).orElse(null);
+                    AllowDeny<String> protocols = buildProtocols(tls.getProtocols()).orElse(null);
 
                     return Optional.of(new Tls(
                             keyProviderOpt.orElse(null),
@@ -518,49 +504,6 @@ public class KafkaProxyReconciler implements
                 trustAnchorRef.getRef().getName(),
                 trustAnchorRef.getKey(),
                 storeType,
-                isSecret);
-
-        return buildTrustProviderFromResource(trustResource, forServer, clientAuthentication, parent);
-    }
-
-    /**
-     * Builds TrustProvider configuration from KafkaService status.
-     * Used for target cluster TLS where trust is auto-discovered from Strimzi.
-     *
-     * @param forServer true for server-side TLS, false for client-side (always false for this overload)
-     * @param kafkaService KafkaService with status containing discovered trust anchor
-     * @param clientAuthentication TLS client auth settings (should be null for client-side)
-     * @param parent base path for volume mounts
-     * @return configuration fragment with TrustProvider, or empty if trust not available in status
-     */
-    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProvider(
-                                                                                     boolean forServer,
-                                                                                     @Nullable KafkaService kafkaService,
-                                                                                     @Nullable TlsClientAuthentication clientAuthentication,
-                                                                                     Path parent) {
-
-        // Defensive null checks - status-based trust is optional
-        if (kafkaService == null
-                || kafkaService.getStatus() == null
-                || kafkaService.getStatus().getTls() == null
-                || kafkaService.getStatus().getTls().getTrustAnchorRef() == null) {
-            return ConfigurationFragment.empty();
-        }
-
-        TrustAnchorRef statusTrustRef = kafkaService.getStatus().getTls().getTrustAnchorRef();
-
-        // Validate the status trust anchor has required fields
-        if (statusTrustRef.getRef() == null || statusTrustRef.getRef().getName() == null) {
-            return ConfigurationFragment.empty();
-        }
-
-        boolean isSecret = statusTrustRef.getRef().getKind() != null
-                && ResourcesUtil.isSecret(statusTrustRef.getRef());
-
-        TrustResource trustResource = new TrustResource(
-                statusTrustRef.getRef().getName(),
-                statusTrustRef.getKey(),
-                statusTrustRef.getStoreType(),
                 isSecret);
 
         return buildTrustProviderFromResource(trustResource, forServer, clientAuthentication, parent);

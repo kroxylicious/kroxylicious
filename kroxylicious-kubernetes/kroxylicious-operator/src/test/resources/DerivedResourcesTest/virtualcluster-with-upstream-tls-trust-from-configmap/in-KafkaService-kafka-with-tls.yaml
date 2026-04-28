@@ -29,7 +29,15 @@ status:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
   observedGeneration: 3
   tls:
+    certificateRef:
+      name: upstream-tls-cert
     trustAnchorRef:
       name: upstream-ca
       key: cas.pem
       storeType: PEM
+    cipherSuites:
+      allow:
+      - foobar
+    protocols:
+      deny:
+      - TLS1.2

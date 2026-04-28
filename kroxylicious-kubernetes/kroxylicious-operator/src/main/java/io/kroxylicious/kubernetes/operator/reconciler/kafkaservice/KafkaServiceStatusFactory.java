@@ -12,10 +12,16 @@ import java.util.Optional;
 
 import javax.annotation.Nullable;
 
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
+import io.kroxylicious.kubernetes.api.common.CipherSuites;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.Protocols;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -32,7 +38,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                                             Condition condition,
                                             String checksum,
                                             @Nullable String bootstrapServers,
-                                            @Nullable TrustAnchorInfo trustAnchorInfo) {
+                                            @Nullable TlsInfo tlsInfo) {
         // @formatter:off
         var metadataBuilder = new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -43,34 +49,34 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
             Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
 
-        KafkaServiceBuilder service = metadataBuilder
+        var statusBuilder = metadataBuilder
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
                     .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
-                    .withBootstrapServers(bootstrapServers)
-                .endStatus();
+                    .withBootstrapServers(bootstrapServers);
 
-        if (trustAnchorInfo != null) {
-            service.editStatus()
-                    .withNewTls()
-                        .withNewTrustAnchorRef()
-                        .withNewRef()
-                            .withName(trustAnchorInfo.name())
-                            .withKind(trustAnchorInfo.kind())
-                        .endRef()
-                            .withStoreType(trustAnchorInfo.storeType())
-                            .withKey(trustAnchorInfo.key())
-                        .endTrustAnchorRef()
-                    .endTls()
-                    .endStatus();
+        if (tlsInfo != null) {
+            // Build Tls status object separately
+            Tls tls = new TlsBuilder()
+                    .withCertificateRef(tlsInfo.certificateRef())
+                    .withTrustAnchorRef(tlsInfo.trustAnchorRef())
+                    .withProtocols(tlsInfo.protocols())
+                    .withCipherSuites(tlsInfo.cipherSuites())
+                    .build();
+            statusBuilder.withTls(tls);
         }
 
-        return service.build();
+        return statusBuilder.endStatus().build();
         // @formatter:on
     }
 
     record TrustAnchorInfo(String name, String kind, String key, String storeType) {}
+
+    record TlsInfo(@Nullable CertificateRef certificateRef,
+                   @Nullable TrustAnchorRef trustAnchorRef,
+                   @Nullable Protocols protocols,
+                   @Nullable CipherSuites cipherSuites) {}
 
     @Override
     public KafkaService newUnknownConditionStatusPatch(KafkaService observedFilter,
@@ -109,8 +115,8 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                                              Condition.Type type,
                                              String checksum,
                                              String bootstrapServers,
-                                             TrustAnchorInfo trustAnchorInfo) {
+                                             TlsInfo tlsInfo) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
-        return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers, trustAnchorInfo);
+        return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers, tlsInfo);
     }
 }
