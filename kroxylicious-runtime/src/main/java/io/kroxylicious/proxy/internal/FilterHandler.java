@@ -145,12 +145,15 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleInternalResponseWrite(ChannelPromise promise, InternalResponseFrame<?> decodedFrame) {
         // jump the queue, let responses to asynchronous requests flow back to their sender
         if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
             completeInternalResponse(decodedFrame);
         }
         else {
+            // Exception handling is performed within handleDecodedResponse
+            // via configureResponseFilterChain's exceptionally() handler.
             handleDecodedResponse(decodedFrame, promise);
         }
     }
@@ -172,9 +175,12 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleOpaqueResponseWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise, OpaqueResponseFrame orf) {
         writeFuture = writeFuture.whenComplete((a, b) -> {
             if (ctx.channel().isOpen()) {
+                // The returned ChannelFuture is the same object as the promise parameter,
+                // which the caller already holds.
                 ctx.write(msg, promise);
             }
             else {
@@ -224,10 +230,13 @@ public class FilterHandler extends ChannelDuplexHandler {
      * @param msg the message being read
      * @throws Exception if an error occurs
      */
+    @SuppressWarnings("FutureReturnValueIgnored")
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof InternalRequestFrame<?> decodedFrame) {
             // jump the queue, internal request must flow!
+            // Exception handling is performed within handleDecodedRequest via
+            // configureRequestFilterChain's exceptionally() handler.
             handleDecodedRequest(decodedFrame);
         }
         else if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
@@ -419,8 +428,10 @@ public class FilterHandler extends ChannelDuplexHandler {
         return null;
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
+        // Returns the same future passed in; the caller continues to use `future` directly below.
         promiseFactory.wrapWithTimeLimit(future,
                 () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
                         decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
@@ -432,10 +443,12 @@ public class FilterHandler extends ChannelDuplexHandler {
      * Unlike {@link #deferredRequestCompleted}, no immediate flush is needed here
      * because responses always flow through the normal write path with its own flush handling.
      */
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
         inboundChannel.config().setAutoRead(true);
         // Ensure proper ordering of flushes to prevent race conditions
         writeFuture.whenComplete((u, t) -> {
+            // Callbacks are side-effect only (flush); the returned futures do not need to be tracked.
             ctx.flush();
             readFuture.whenComplete((u2, t2) -> inboundChannel.flush());
         });
@@ -463,10 +476,12 @@ public class FilterHandler extends ChannelDuplexHandler {
      * If no writes occurred, flush is a no-op (harmless). This belt-and-suspenders approach
      * prevents race conditions between async writes and flush timing.
      */
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void deferredRequestCompleted(RequestFilterResult ignored, Throwable throwable) {
         inboundChannel.config().setAutoRead(true);
         // Ensure proper ordering of flushes to prevent race conditions
         // First flush any immediate writes, then chain additional flushes
+        // Callback is side-effect only (flush); the returned future does not need to be tracked.
         ctx.flush();
         writeFuture.whenComplete((u, t) -> {
             ctx.flush();
@@ -538,6 +553,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleUpstreamResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @NonNull ChannelPromise promise) {
         if (decodedFrame.body() != message) {
             throw new AssertionError();
@@ -548,9 +564,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         log(DEBUG)
                 .addKeyValue("message", () -> msgDescriptor(decodedFrame))
                 .log("Filter forwarding response");
+        // Returns the same ChannelFuture as the promise parameter, which the caller already holds.
         ctx.write(decodedFrame, promise);
     }
 
+    @SuppressWarnings("FutureReturnValueIgnored")
     private void handleShortCircuitResponse(DecodedRequestFrame<?> decodedRequestFrame, ResponseHeaderData header, ApiMessage message) {
         if (message.apiKey() != decodedRequestFrame.apiKeyId()) {
             throw new AssertionError(
@@ -562,6 +580,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         log(DEBUG)
                 .addKeyValue("message", () -> msgDescriptor(decodedRequestFrame))
                 .log("Filter sending short-circuit response");
+        // Uses voidPromise; no caller is waiting on the result.
         ctx.write(responseFrame, ctx.voidPromise());
         ctx.flush();
     }
