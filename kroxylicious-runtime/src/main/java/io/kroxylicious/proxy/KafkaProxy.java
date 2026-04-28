@@ -389,29 +389,11 @@ public final class KafkaProxy implements AutoCloseable {
                     .log("Shutting down");
             virtualClusterManager.transitionAllToDraining();
 
-            // Drain active connections BEFORE unbinding ports.
-            // If we unbind first, clients disconnect and connections deregister from the
-            // DrainCoordinator before drain has a chance to run.
-            drainAllClusters();
-
+            // Unbind ports first so no new connections can arrive after the drain snapshot
+            // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —
+            // it does NOT disconnect existing client connections.
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
-
-                // Start Netty shutdown timer (non-blocking — event loops keep running)
-                var closeFutures = new ArrayList<Future<?>>();
-                if (proxyEventGroup != null) {
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
-                }
-                if (managementEventGroup != null) {
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully());
-                }
-
-                // Wait for Netty event loops to terminate
-                closeFutures.forEach(Future::syncUninterruptibly);
-
-                if (filterChainFactory != null) {
-                    filterChainFactory.close();
-                }
                 if (t != null) {
                     STARTUP_SHUTDOWN_LOGGER.atWarn()
                             .setCause(t)
@@ -420,6 +402,21 @@ public final class KafkaProxy implements AutoCloseable {
                 }
                 return null;
             }).toCompletableFuture().join();
+
+            drainAllClusters();
+
+            var closeFutures = new ArrayList<Future<?>>();
+            if (proxyEventGroup != null) {
+                closeFutures.addAll(proxyEventGroup.shutdownGracefully());
+            }
+            if (managementEventGroup != null) {
+                closeFutures.addAll(managementEventGroup.shutdownGracefully());
+            }
+            closeFutures.forEach(Future::syncUninterruptibly);
+
+            if (filterChainFactory != null) {
+                filterChainFactory.close();
+            }
             virtualClusterManager.completeDraining();
             if (meterRegistries != null) {
                 meterRegistries.close();
