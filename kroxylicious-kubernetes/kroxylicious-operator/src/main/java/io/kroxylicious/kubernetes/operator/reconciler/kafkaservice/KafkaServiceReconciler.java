@@ -138,7 +138,7 @@ public final class KafkaServiceReconciler implements
 
         KafkaService updatedService = null;
         List<HasMetadata> referents = new ArrayList<>();
-        KafkaServiceStatusFactory.TrustAnchorInfo trustAnchorInfo = null;
+        io.kroxylicious.kubernetes.api.common.TrustAnchorRef resolvedTrustAnchorRef = null;
         io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls statusTls = null;
         var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef);
@@ -168,7 +168,14 @@ public final class KafkaServiceReconciler implements
             if (updatedService == null) {
                 var ref = trustAnchorRefOpt.get();
                 String storeType = (ref.getStoreType() != null) ? ref.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(ref);
-                trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(ref.getRef().getName(), ref.getRef().getKind(), ref.getKey(), storeType);
+                resolvedTrustAnchorRef = new io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder()
+                        .withNewRef()
+                        .withName(ref.getRef().getName())
+                        .withKind(ref.getRef().getKind())
+                        .endRef()
+                        .withKey(ref.getKey())
+                        .withStoreType(storeType)
+                        .build();
             }
         }
         else if (strimziKafkaRefOpt.isPresent() && strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()) {
@@ -179,11 +186,14 @@ public final class KafkaServiceReconciler implements
 
             if (updatedService == null) {
                 var strimziRef = strimziKafkaRefOpt.get();
-                trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(
-                        strimziRef.getRef().getName() + "-cluster-ca-cert",
-                        "Secret",
-                        "ca.crt",
-                        "PEM");
+                resolvedTrustAnchorRef = new io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder()
+                        .withNewRef()
+                        .withName(strimziRef.getRef().getName() + "-cluster-ca-cert")
+                        .withKind("Secret")
+                        .endRef()
+                        .withKey("ca.crt")
+                        .withStoreType("PEM")
+                        .build();
             }
         }
 
@@ -208,19 +218,9 @@ public final class KafkaServiceReconciler implements
             // Build complete status.tls from spec.tls
             if (tlsOpt.isPresent()) {
                 var tls = tlsOpt.get();
-                var trustRef = trustAnchorInfo != null
-                        ? new io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder()
-                                .withNewRef()
-                                .withName(trustAnchorInfo.name())
-                                .withKind(trustAnchorInfo.kind())
-                                .endRef()
-                                .withKey(trustAnchorInfo.key())
-                                .withStoreType(trustAnchorInfo.storeType())
-                                .build()
-                        : null;
                 statusTls = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
                         .withCertificateRef(tls.getCertificateRef())
-                        .withTrustAnchorRef(trustRef)
+                        .withTrustAnchorRef(resolvedTrustAnchorRef)
                         .withProtocols(tls.getProtocols())
                         .withCipherSuites(tls.getCipherSuites())
                         .build();

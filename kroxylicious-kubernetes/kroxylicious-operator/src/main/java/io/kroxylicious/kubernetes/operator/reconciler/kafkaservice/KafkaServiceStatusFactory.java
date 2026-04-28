@@ -59,8 +59,6 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
         // @formatter:on
     }
 
-    record TrustAnchorInfo(String name, String kind, String key, String storeType) {}
-
     @Override
     public KafkaService newUnknownConditionStatusPatch(KafkaService observedFilter,
                                                        Condition.Type type,
