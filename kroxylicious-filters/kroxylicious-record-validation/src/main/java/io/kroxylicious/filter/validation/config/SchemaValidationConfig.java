@@ -27,7 +27,7 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl,
                                      long apicurioId,
                                      WireFormatVersion wireFormatVersion,
                                      @Nullable Tls tls,
-                                     SchemaType schemaType) {
+                                     @Nullable SchemaType schemaType) {
 
     /**
      * The type of schema stored in Apicurio Registry to validate against.
