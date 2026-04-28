@@ -170,7 +170,6 @@ public class KafClient implements KafkaClient {
                 String currentLog = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                 LOGGER.atError().setMessage("Timeout! Pod '{}', received: {}").addArgument(podName).addArgument(currentLog).log();
             });
-
         }
         catch (KubeClusterException e) {
             List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
