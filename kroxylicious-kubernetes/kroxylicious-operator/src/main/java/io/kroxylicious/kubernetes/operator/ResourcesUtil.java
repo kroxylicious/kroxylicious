@@ -58,6 +58,12 @@ import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
 public class ResourcesUtil {
 
+    /**
+     * Strimzi naming convention for the cluster CA certificate secret.
+     * Given a Kafka cluster named "my-cluster", Strimzi creates a secret "my-cluster-cluster-ca-cert".
+     */
+    public static final String STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX = "-cluster-ca-cert";
+
     private ResourcesUtil() {
     }
 
@@ -712,16 +718,17 @@ public class ResourcesUtil {
         return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
     }
 
-    public static ResourceCheckResult<KafkaService> checkStrimziCertificate(KafkaService resource, Context<KafkaService> context,
+    public static ResourceCheckResult<KafkaService> checkStrimziTrustAnchor(KafkaService resource, Context<KafkaService> context,
                                                                             StrimziKafkaRef strimziKafkaRef, KafkaServiceStatusFactory statusFactory) {
 
+        String strimziCaCertSecretName = strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
         var clusterCaSecret = context.getClient().secrets().inNamespace(resource.getMetadata().getNamespace())
-                .withName(strimziKafkaRef.getRef().getName() + "-cluster-ca-cert").get();
+                .withName(strimziCaCertSecretName).get();
         if (clusterCaSecret == null) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
                     "%s: referenced %s not found in namespace %s".formatted("status.tls.trustAnchor",
-                            strimziKafkaRef.getRef().getName() + "-cluster-ca-cert",
+                            strimziCaCertSecretName,
                             resource.getMetadata().getNamespace())),
                     List.of());
         }
@@ -729,7 +736,7 @@ public class ResourcesUtil {
         if (!clusterCaSecret.getData().containsKey("ca.crt")) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                    strimziKafkaRef.getRef().getName() + "-cluster-ca-cert" + ": referenced resource does not contain key " + "ca.crt"), List.of());
+                    strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX + ": referenced resource does not contain key " + "ca.crt"), List.of());
         }
 
         return new ResourceCheckResult<>(null, List.of(clusterCaSecret));

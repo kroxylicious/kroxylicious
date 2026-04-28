@@ -43,6 +43,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.retrieveBootstrapServerAddress;
@@ -251,7 +252,7 @@ public final class KafkaServiceReconciler implements
                                                         io.kroxylicious.kubernetes.api.common.StrimziKafkaRef strimziRef,
                                                         List<HasMetadata> existingReferents) {
 
-        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(
                 service, context, strimziRef, statusFactory);
 
         if (result.resource() != null) {
@@ -261,7 +262,7 @@ public final class KafkaServiceReconciler implements
         List<HasMetadata> allReferents = combineReferents(existingReferents, result.referents());
         TrustAnchorRef resolvedRef = new TrustAnchorRefBuilder()
                 .withNewRef()
-                .withName(strimziRef.getRef().getName() + "-cluster-ca-cert")
+                .withName(strimziRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX)
                 .withKind("Secret")
                 .endRef()
                 .withKey("ca.crt")

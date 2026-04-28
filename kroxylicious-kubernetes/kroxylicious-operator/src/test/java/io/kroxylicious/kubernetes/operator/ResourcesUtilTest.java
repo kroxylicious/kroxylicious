@@ -1013,7 +1013,7 @@ class ResourcesUtilTest {
         KafkaServiceStatusFactory statusFactory = new KafkaServiceStatusFactory(TEST_CLOCK);
 
         // When
-        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(service, context, strimziKafkaRef, statusFactory);
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(service, context, strimziKafkaRef, statusFactory);
 
         // Then
         assertThat(result.resource()).isNull();
@@ -1055,7 +1055,7 @@ class ResourcesUtilTest {
         KafkaServiceStatusFactory statusFactory = new KafkaServiceStatusFactory(TEST_CLOCK);
 
         // When
-        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(service, context, strimziKafkaRef, statusFactory);
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(service, context, strimziKafkaRef, statusFactory);
 
         // Then
         assertThat(result.resource()).isNotNull();
@@ -1111,7 +1111,7 @@ class ResourcesUtilTest {
         KafkaServiceStatusFactory statusFactory = new KafkaServiceStatusFactory(TEST_CLOCK);
 
         // When
-        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(service, context, strimziKafkaRef, statusFactory);
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(service, context, strimziKafkaRef, statusFactory);
 
         // Then
         assertThat(result.resource()).isNotNull();
