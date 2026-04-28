@@ -139,7 +139,7 @@ public final class KafkaServiceReconciler implements
         KafkaService updatedService = null;
         List<HasMetadata> referents = new ArrayList<>();
         KafkaServiceStatusFactory.TrustAnchorInfo trustAnchorInfo = null;
-        KafkaServiceStatusFactory.TlsInfo tlsInfo = null;
+        io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls statusTls = null;
         var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef);
         var tlsOpt = Optional.ofNullable(service.getSpec())
@@ -205,7 +205,7 @@ public final class KafkaServiceReconciler implements
                 checksumGenerator.appendMetadata(metadataSource);
             }
 
-            // Build complete TlsInfo from spec.tls
+            // Build complete status.tls from spec.tls
             if (tlsOpt.isPresent()) {
                 var tls = tlsOpt.get();
                 var trustRef = trustAnchorInfo != null
@@ -218,21 +218,21 @@ public final class KafkaServiceReconciler implements
                                 .withStoreType(trustAnchorInfo.storeType())
                                 .build()
                         : null;
-                tlsInfo = new KafkaServiceStatusFactory.TlsInfo(
-                        tls.getCertificateRef(),
-                        trustRef,
-                        tls.getProtocols(),
-                        tls.getCipherSuites()
-                );
+                statusTls = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
+                        .withCertificateRef(tls.getCertificateRef())
+                        .withTrustAnchorRef(trustRef)
+                        .withProtocols(tls.getProtocols())
+                        .withCipherSuites(tls.getCipherSuites())
+                        .build();
             }
 
             if (service.getSpec().getStrimziKafkaRef() != null) {
 
                 Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(context, service, STRIMZI_KAFKA_EVENT_SOURCE_NAME);
 
-                final KafkaServiceStatusFactory.TlsInfo finalTlsInfo = tlsInfo;
+                final io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls finalStatusTls = statusTls;
                 updatedService = listenerStatus.map(status -> statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
-                        checksumGenerator.encode(), status.getBootstrapServers(), finalTlsInfo))
+                        checksumGenerator.encode(), status.getBootstrapServers(), finalStatusTls))
                         .orElseGet(() -> statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                                 Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
                                 "Referenced resource has not yet reconciled listener name: "
@@ -240,7 +240,7 @@ public final class KafkaServiceReconciler implements
             }
             else {
                 updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers(),
-                        tlsInfo);
+                        statusTls);
             }
         }
 
