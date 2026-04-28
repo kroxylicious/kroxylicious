@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,8 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
@@ -135,124 +139,238 @@ public final class KafkaServiceReconciler implements
 
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService service, Context<KafkaService> context) {
+        // Validate StrimziKafkaRef if present
+        ValidationResult strimziValidation = validateStrimziKafkaRef(service, context);
+        if (strimziValidation.hasFailed()) {
+            return logAndReturnUpdateControl(service, strimziValidation.failedService());
+        }
 
-        KafkaService updatedService = null;
-        List<HasMetadata> referents = new ArrayList<>();
-        io.kroxylicious.kubernetes.api.common.TrustAnchorRef resolvedTrustAnchorRef = null;
-        io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls statusTls = null;
+        // Resolve trust anchor (explicit or auto-discovered)
+        TrustAnchorResolution trustResolution = resolveTrustAnchor(service, context, strimziValidation.referents());
+        if (trustResolution.hasFailed()) {
+            return logAndReturnUpdateControl(service, trustResolution.failedService());
+        }
+
+        // Validate certificate ref if present
+        ValidationResult certValidation = validateCertificateRef(service, context, trustResolution.referents());
+        if (certValidation.hasFailed()) {
+            return logAndReturnUpdateControl(service, certValidation.failedService());
+        }
+
+        // Build success status with all resolved information
+        KafkaService updated = buildSuccessStatus(service, context, certValidation.referents(), trustResolution.trustAnchorRef());
+
+        return logAndReturnUpdateControl(service, updated);
+    }
+
+    private ValidationResult validateStrimziKafkaRef(KafkaService service, Context<KafkaService> context) {
         var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef);
+
+        if (strimziKafkaRefOpt.isEmpty()) {
+            return ValidationResult.success();
+        }
+
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(
+                service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME,
+                strimziKafkaRefOpt.get(), SPEC_REF, statusFactory);
+
+        return result.resource() != null
+                ? ValidationResult.failure(result.resource())
+                : ValidationResult.success(result.referents());
+    }
+
+    private TrustAnchorResolution resolveTrustAnchor(
+                                                     KafkaService service,
+                                                     Context<KafkaService> context,
+                                                     List<HasMetadata> existingReferents) {
+
+        var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getStrimziKafkaRef);
+        var trustAnchorRefOpt = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .map(Tls::getTrustAnchorRef);
+
+        // Case 1: Explicit trust anchor ref (takes precedence when not using Strimzi CA)
+        if (trustAnchorRefOpt.isPresent() && !isUsingStrimziCaTrust(strimziKafkaRefOpt)) {
+            return resolveExplicitTrustAnchor(service, context, trustAnchorRefOpt.get(), existingReferents);
+        }
+
+        // Case 2: Auto-discovered Strimzi CA certificate
+        if (isUsingStrimziCaTrust(strimziKafkaRefOpt)) {
+            return resolveStrimziCaTrust(service, context, strimziKafkaRefOpt.get(), existingReferents);
+        }
+
+        // Case 3: No trust anchor
+        return TrustAnchorResolution.noTrustAnchor(existingReferents);
+    }
+
+    private boolean isUsingStrimziCaTrust(Optional<io.kroxylicious.kubernetes.api.common.StrimziKafkaRef> strimziRefOpt) {
+        return strimziRefOpt.isPresent() && strimziRefOpt.get().getTrustStrimziCaCertificate();
+    }
+
+    private TrustAnchorResolution resolveExplicitTrustAnchor(
+                                                             KafkaService service,
+                                                             Context<KafkaService> context,
+                                                             TrustAnchorRef trustAnchorRef,
+                                                             List<HasMetadata> existingReferents) {
+
+        String eventSourceName = trustAnchorRef.getRef().getKind() != null &&
+                Objects.equals(trustAnchorRef.getRef().getKind(), "Secret")
+                        ? SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
+                        : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
+
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(
+                service, context, eventSourceName, trustAnchorRef,
+                SPEC_TLS_TRUST_ANCHOR_REF, statusFactory);
+
+        if (result.resource() != null) {
+            return TrustAnchorResolution.failure(result.resource());
+        }
+
+        List<HasMetadata> allReferents = combineReferents(existingReferents, result.referents());
+        String storeType = trustAnchorRef.getStoreType() != null
+                ? trustAnchorRef.getStoreType()
+                : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
+
+        TrustAnchorRef resolvedRef = new TrustAnchorRefBuilder()
+                .withNewRef()
+                .withName(trustAnchorRef.getRef().getName())
+                .withKind(trustAnchorRef.getRef().getKind())
+                .endRef()
+                .withKey(trustAnchorRef.getKey())
+                .withStoreType(storeType)
+                .build();
+
+        return TrustAnchorResolution.success(resolvedRef, allReferents);
+    }
+
+    private TrustAnchorResolution resolveStrimziCaTrust(
+                                                        KafkaService service,
+                                                        Context<KafkaService> context,
+                                                        io.kroxylicious.kubernetes.api.common.StrimziKafkaRef strimziRef,
+                                                        List<HasMetadata> existingReferents) {
+
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(
+                service, context, strimziRef, statusFactory);
+
+        if (result.resource() != null) {
+            return TrustAnchorResolution.failure(result.resource());
+        }
+
+        List<HasMetadata> allReferents = combineReferents(existingReferents, result.referents());
+        TrustAnchorRef resolvedRef = new TrustAnchorRefBuilder()
+                .withNewRef()
+                .withName(strimziRef.getRef().getName() + "-cluster-ca-cert")
+                .withKind("Secret")
+                .endRef()
+                .withKey("ca.crt")
+                .withStoreType("PEM")
+                .build();
+
+        return TrustAnchorResolution.success(resolvedRef, allReferents);
+    }
+
+    private ValidationResult validateCertificateRef(
+                                                    KafkaService service,
+                                                    Context<KafkaService> context,
+                                                    List<HasMetadata> existingReferents) {
+
+        var certRefOpt = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .map(Tls::getCertificateRef);
+
+        if (certRefOpt.isEmpty()) {
+            return ValidationResult.success(existingReferents);
+        }
+
+        ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(
+                service, certRefOpt.get(), SPEC_TLS_CERTIFICATE_REF,
+                statusFactory, context, SECRETS_EVENT_SOURCE_NAME);
+
+        return result.resource() != null
+                ? ValidationResult.failure(result.resource())
+                : ValidationResult.success(combineReferents(existingReferents, result.referents()));
+    }
+
+    private KafkaService buildSuccessStatus(
+                                            KafkaService service,
+                                            Context<KafkaService> context,
+                                            List<HasMetadata> allReferents,
+                                            @Nullable TrustAnchorRef trustAnchorRef) {
+
+        String checksum = computeChecksum(allReferents);
+        var statusTls = buildStatusTls(service, trustAnchorRef);
+
+        if (service.getSpec().getStrimziKafkaRef() != null) {
+            return buildStrimziBasedStatus(service, context, checksum, statusTls);
+        }
+        else {
+            return statusFactory.newTrueConditionStatusPatch(
+                    service, ResolvedRefs, checksum,
+                    service.getSpec().getBootstrapServers(), statusTls);
+        }
+    }
+
+    private String computeChecksum(List<HasMetadata> referents) {
+        var checksumGenerator = new Crc32ChecksumGenerator();
+        referents.forEach(checksumGenerator::appendMetadata);
+        return checksumGenerator.encode();
+    }
+
+    private io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls buildStatusTls(
+                                                                                          KafkaService service,
+                                                                                          @Nullable TrustAnchorRef trustAnchorRef) {
+
         var tlsOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getTls);
-        var trustAnchorRefOpt = tlsOpt.map(Tls::getTrustAnchorRef);
 
-        if (strimziKafkaRefOpt.isPresent()) {
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
-                    SPEC_REF,
-                    statusFactory);
-            updatedService = result.resource();
-            referents.addAll(result.referents());
+        if (tlsOpt.isEmpty()) {
+            return null;
         }
 
-        if (trustAnchorRefOpt.isPresent() &&
-                (strimziKafkaRefOpt.isEmpty() || Boolean.FALSE.equals(strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()))) {
-            String eventSourceName = trustAnchorRefOpt.get().getRef().getKind() != null &&
-                    Objects.equals(trustAnchorRefOpt.get().getRef().getKind(), "Secret") ? SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
-                            : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(service, context, eventSourceName, trustAnchorRefOpt.get(),
-                    SPEC_TLS_TRUST_ANCHOR_REF,
-                    statusFactory);
-            updatedService = result.resource();
-            referents.addAll(result.referents());
+        var tls = tlsOpt.get();
+        return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
+                .withCertificateRef(tls.getCertificateRef())
+                .withTrustAnchorRef(trustAnchorRef)
+                .withProtocols(tls.getProtocols())
+                .withCipherSuites(tls.getCipherSuites())
+                .build();
+    }
 
-            if (updatedService == null) {
-                var ref = trustAnchorRefOpt.get();
-                String storeType = (ref.getStoreType() != null) ? ref.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(ref);
-                resolvedTrustAnchorRef = new io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder()
-                        .withNewRef()
-                        .withName(ref.getRef().getName())
-                        .withKind(ref.getRef().getKind())
-                        .endRef()
-                        .withKey(ref.getKey())
-                        .withStoreType(storeType)
-                        .build();
-            }
-        }
-        else if (strimziKafkaRefOpt.isPresent() && strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()) {
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(service, context, strimziKafkaRefOpt.get(),
-                    statusFactory);
-            updatedService = result.resource();
-            referents.addAll(result.referents());
+    private KafkaService buildStrimziBasedStatus(
+                                                 KafkaService service,
+                                                 Context<KafkaService> context,
+                                                 String checksum,
+                                                 @Nullable io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls statusTls) {
 
-            if (updatedService == null) {
-                var strimziRef = strimziKafkaRefOpt.get();
-                resolvedTrustAnchorRef = new io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder()
-                        .withNewRef()
-                        .withName(strimziRef.getRef().getName() + "-cluster-ca-cert")
-                        .withKind("Secret")
-                        .endRef()
-                        .withKey("ca.crt")
-                        .withStoreType("PEM")
-                        .build();
-            }
-        }
+        Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(
+                context, service, STRIMZI_KAFKA_EVENT_SOURCE_NAME);
 
-        if (updatedService == null) {
-            var certRefOpt = Optional.ofNullable(service.getSpec())
-                    .map(KafkaServiceSpec::getTls)
-                    .map(Tls::getCertificateRef);
-            if (certRefOpt.isPresent()) {
-                ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(service, certRefOpt.get(), SPEC_TLS_CERTIFICATE_REF, statusFactory, context,
-                        SECRETS_EVENT_SOURCE_NAME);
-                updatedService = result.resource();
-                referents.addAll(result.referents());
-            }
-        }
+        return listenerStatus
+                .map(status -> statusFactory.newTrueConditionStatusPatch(
+                        service, ResolvedRefs, checksum, status.getBootstrapServers(), statusTls))
+                .orElseGet(() -> statusFactory.newFalseConditionStatusPatch(
+                        service, ResolvedRefs,
+                        Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
+                        "Referenced resource has not yet reconciled listener name: "
+                                + service.getSpec().getStrimziKafkaRef().getListenerName()));
+    }
 
-        if (updatedService == null) {
-            var checksumGenerator = new Crc32ChecksumGenerator();
-            for (HasMetadata metadataSource : referents) {
-                checksumGenerator.appendMetadata(metadataSource);
-            }
+    private List<HasMetadata> combineReferents(List<HasMetadata> existing, List<? extends HasMetadata> additional) {
+        List<HasMetadata> combined = new ArrayList<>(existing);
+        combined.addAll(additional);
+        return combined;
+    }
 
-            // Build complete status.tls from spec.tls
-            if (tlsOpt.isPresent()) {
-                var tls = tlsOpt.get();
-                statusTls = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
-                        .withCertificateRef(tls.getCertificateRef())
-                        .withTrustAnchorRef(resolvedTrustAnchorRef)
-                        .withProtocols(tls.getProtocols())
-                        .withCipherSuites(tls.getCipherSuites())
-                        .build();
-            }
-
-            if (service.getSpec().getStrimziKafkaRef() != null) {
-
-                Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(context, service, STRIMZI_KAFKA_EVENT_SOURCE_NAME);
-
-                final io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls finalStatusTls = statusTls;
-                updatedService = listenerStatus.map(status -> statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
-                        checksumGenerator.encode(), status.getBootstrapServers(), finalStatusTls))
-                        .orElseGet(() -> statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                                Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
-                                "Referenced resource has not yet reconciled listener name: "
-                                        + service.getSpec().getStrimziKafkaRef().getListenerName()));
-            }
-            else {
-                updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers(),
-                        statusTls);
-            }
-        }
-
-        UpdateControl<KafkaService> uc = UpdateControl.patchResourceAndStatus(updatedService);
-
+    private UpdateControl<KafkaService> logAndReturnUpdateControl(KafkaService service, KafkaService updated) {
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
                     .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(service))
                     .addKeyValue(OperatorLoggingKeys.NAME, name(service))
                     .log("Completed reconciliation");
         }
-        return uc;
+        return UpdateControl.patchResourceAndStatus(updated);
     }
 
     @Override
@@ -268,5 +386,56 @@ public final class KafkaServiceReconciler implements
                     .log("Completed reconciliation with error");
         }
         return uc;
+    }
+
+    /**
+     * Encapsulates validation outcome for a resource reference.
+     */
+    private record ValidationResult(
+                                    @Nullable KafkaService failedService,
+                                    List<HasMetadata> referents) {
+
+        static ValidationResult success() {
+            return new ValidationResult(null, List.of());
+        }
+
+        static ValidationResult success(List<? extends HasMetadata> refs) {
+            return new ValidationResult(null, new ArrayList<>(refs));
+        }
+
+        static ValidationResult failure(KafkaService failed) {
+            return new ValidationResult(failed, List.of());
+        }
+
+        boolean hasFailed() {
+            return failedService != null;
+        }
+    }
+
+    /**
+     * Encapsulates trust anchor resolution outcome.
+     */
+    private record TrustAnchorResolution(
+                                         @Nullable KafkaService failedService,
+                                         @Nullable TrustAnchorRef trustAnchorRef,
+                                         List<HasMetadata> referents) {
+
+        static TrustAnchorResolution success(
+                                             TrustAnchorRef trustRef,
+                                             List<? extends HasMetadata> refs) {
+            return new TrustAnchorResolution(null, trustRef, new ArrayList<>(refs));
+        }
+
+        static TrustAnchorResolution noTrustAnchor(List<? extends HasMetadata> refs) {
+            return new TrustAnchorResolution(null, null, new ArrayList<>(refs));
+        }
+
+        static TrustAnchorResolution failure(KafkaService failed) {
+            return new TrustAnchorResolution(failed, null, List.of());
+        }
+
+        boolean hasFailed() {
+            return failedService != null;
+        }
     }
 }
