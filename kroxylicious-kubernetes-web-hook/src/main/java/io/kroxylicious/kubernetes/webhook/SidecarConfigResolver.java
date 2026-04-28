@@ -78,8 +78,8 @@ class SidecarConfigResolver implements Closeable {
             KroxyliciousSidecarConfig config = nsConfigs.get(configName);
             if (config == null) {
                 LOGGER.atWarn()
-                        .addKeyValue("namespace", namespace)
-                        .addKeyValue("name", configName)
+                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                        .addKeyValue(WebhookLoggingKeys.NAME, configName)
                         .log("KroxyliciousSidecarConfig not found");
             }
             return Optional.ofNullable(config);
@@ -91,12 +91,12 @@ class SidecarConfigResolver implements Closeable {
 
         if (nsConfigs.isEmpty()) {
             LOGGER.atDebug()
-                    .addKeyValue("namespace", namespace)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                     .log("No KroxyliciousSidecarConfig found in namespace");
         }
         else {
             LOGGER.atWarn()
-                    .addKeyValue("namespace", namespace)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                     .addKeyValue("count", nsConfigs.size())
                     .log("Multiple KroxyliciousSidecarConfig resources found, explicit annotation required");
         }
@@ -142,8 +142,8 @@ class SidecarConfigResolver implements Closeable {
         public void onAdd(KroxyliciousSidecarConfig obj) {
             put(obj);
             LOGGER.atInfo()
-                    .addKeyValue("namespace", obj.getMetadata().getNamespace())
-                    .addKeyValue("name", obj.getMetadata().getName())
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, obj.getMetadata().getNamespace())
+                    .addKeyValue(WebhookLoggingKeys.NAME, obj.getMetadata().getName())
                     .log("KroxyliciousSidecarConfig added");
         }
 
@@ -153,8 +153,8 @@ class SidecarConfigResolver implements Closeable {
                              KroxyliciousSidecarConfig newObj) {
             put(newObj);
             LOGGER.atInfo()
-                    .addKeyValue("namespace", newObj.getMetadata().getNamespace())
-                    .addKeyValue("name", newObj.getMetadata().getName())
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, newObj.getMetadata().getNamespace())
+                    .addKeyValue(WebhookLoggingKeys.NAME, newObj.getMetadata().getName())
                     .log("KroxyliciousSidecarConfig updated");
         }
 
@@ -164,8 +164,8 @@ class SidecarConfigResolver implements Closeable {
                              boolean deletedFinalStateUnknown) {
             remove(obj);
             LOGGER.atInfo()
-                    .addKeyValue("namespace", obj.getMetadata().getNamespace())
-                    .addKeyValue("name", obj.getMetadata().getName())
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, obj.getMetadata().getNamespace())
+                    .addKeyValue(WebhookLoggingKeys.NAME, obj.getMetadata().getName())
                     .log("KroxyliciousSidecarConfig deleted");
         }
     }

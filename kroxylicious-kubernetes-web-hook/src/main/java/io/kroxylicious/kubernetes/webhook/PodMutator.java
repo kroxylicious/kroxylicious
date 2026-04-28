@@ -27,6 +27,7 @@ class PodMutator {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SIDECAR_VOLUME_NAME = "kroxylicious-config";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String CONFIG_MOUNT_PATH = "/opt/kroxylicious/config/proxy-config.yaml";
     private static final String CONFIG_FILE_NAME = "proxy-config.yaml";
     private static final String MANAGEMENT_PORT_NAME = "management";
@@ -142,9 +143,9 @@ class PodMutator {
         mgmtPort.put("protocol", "TCP");
 
         // Probes
-        addProbe(container, "startupProbe", managementPort, 5, 2, 30);
-        addProbe(container, "livenessProbe", managementPort, 30, 10, 3);
-        addProbe(container, "readinessProbe", managementPort, 5, 2, 5);
+        addProbe(container, "startupProbe", 5, 2, 30);
+        addProbe(container, "livenessProbe", 30, 10, 3);
+        addProbe(container, "readinessProbe", 5, 2, 5);
 
         // Volume mount
         ArrayNode volumeMounts = container.putArray("volumeMounts");
@@ -184,7 +185,6 @@ class PodMutator {
     private static void addProbe(
                                  ObjectNode container,
                                  String probeName,
-                                 int port,
                                  int initialDelay,
                                  int period,
                                  int failureThreshold) {
@@ -199,6 +199,9 @@ class PodMutator {
         probe.put("timeoutSeconds", 1);
     }
 
+    @SuppressWarnings("java:S1192") // dupe strings:
+    // "value": env var "value" here is not the same as json path op "value" later on
+    // "/spec/containers/": could use a constant, but it would make the code harder to understand
     private static void addBootstrapEnvVarOps(
                                               ArrayNode patch,
                                               Pod pod,
@@ -278,6 +281,7 @@ class PodMutator {
         }
     }
 
+    @SuppressWarnings("java:S1192") // dupe "value" strings, but env var "value" not the same as json path op "value"
     private static void addOp(ArrayNode patch, String op, String path, Object value) {
         ObjectNode opNode = MAPPER.createObjectNode();
         opNode.put("op", op);

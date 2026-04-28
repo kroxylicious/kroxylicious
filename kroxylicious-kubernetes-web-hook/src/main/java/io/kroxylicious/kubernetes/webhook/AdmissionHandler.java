@@ -51,7 +51,7 @@ class AdmissionHandler implements HttpHandler {
     }
 
     @Override
-    public void handle(HttpExchange exchange) throws IOException {
+    public void handle(HttpExchange exchange) {
         try {
             if (!"POST".equals(exchange.getRequestMethod())) {
                 exchange.sendResponseHeaders(405, -1);
@@ -132,7 +132,7 @@ class AdmissionHandler implements HttpHandler {
             }
 
             // Generate the patch
-            KroxyliciousSidecarConfig sidecarConfig = configOpt.get();
+            KroxyliciousSidecarConfig sidecarConfig = configOpt.orElseThrow();
             String image = resolveImage(sidecarConfig);
             String jsonPatch = PodMutator.createPatch(pod, sidecarConfig.getSpec(), image);
 

@@ -221,10 +221,12 @@ class WebhookServerTest {
                 new X509TrustManager() {
                     @Override
                     public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                        // we trust everything, so just return
                     }
 
                     @Override
                     public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                        // we trust everything, so just return
                     }
 
                     @Override
