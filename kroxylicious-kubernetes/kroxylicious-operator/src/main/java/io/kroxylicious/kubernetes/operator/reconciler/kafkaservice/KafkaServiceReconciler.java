@@ -211,8 +211,8 @@ public final class KafkaServiceReconciler implements
                 var trustRef = trustAnchorInfo != null
                         ? new io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder()
                                 .withNewRef()
-                                    .withName(trustAnchorInfo.name())
-                                    .withKind(trustAnchorInfo.kind())
+                                .withName(trustAnchorInfo.name())
+                                .withKind(trustAnchorInfo.kind())
                                 .endRef()
                                 .withKey(trustAnchorInfo.key())
                                 .withStoreType(trustAnchorInfo.storeType())
