@@ -82,6 +82,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
@@ -485,7 +486,7 @@ public class KafkaProxyReconcilerIT {
         // Given
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
 
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         KafkaProxyIngress ingress = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TLS)));
 
@@ -508,7 +509,7 @@ public class KafkaProxyReconcilerIT {
         // Given
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
 
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         KafkaProxyIngress ingress = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TLS)));
 
@@ -559,7 +560,7 @@ public class KafkaProxyReconcilerIT {
         // Given
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
 
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         KafkaProxyIngress ingress = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TLS)));
         KafkaProxyIngress ingress2 = updateStatusObservedGeneration(testActor.create(clusterIpIngress("another-cluster-ip", proxy, TLS)));
@@ -644,7 +645,7 @@ public class KafkaProxyReconcilerIT {
     @Test
     void virtualClusterWithLoadBalancerIngressWithTrustAnchor() {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         String loadbalancerBootstrap = "bootstrap.kafka";
         String loadbalancerBrokerAddressPattern = "broker-$(nodeId).kafka";
@@ -721,7 +722,7 @@ public class KafkaProxyReconcilerIT {
     @Test
     void virtualClusterWithLoadBalancerAndClusterIpIngress() {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         KafkaProxyIngress loadBalancerIngress = updateStatusObservedGeneration(testActor.create(loadBalancerIngress(CLUSTER_BAR_LOADBALANCER_INGRESS, proxy,
                 "bootstrap.kafka",
@@ -762,7 +763,7 @@ public class KafkaProxyReconcilerIT {
     @Test
     void twoVirtualClusterUsingLoadBalancer() {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         KafkaProxyIngress loadBalancerIngressFoo = updateStatusObservedGeneration(testActor.create(loadBalancerIngress(CLUSTER_FOO_LOADBALANCER_INGRESS, proxy,
                 "bootstrap.foo.kafka",
@@ -819,7 +820,7 @@ public class KafkaProxyReconcilerIT {
                 .withBootstrapServers(CLUSTER_BAR_BOOTSTRAP)
                 .withNodeIdRanges(createNodeIdRanges("brokers", 3L, 4L), createNodeIdRanges("more-brokers", 10L, 10L))
                 .endSpec().build());
-        barService = updateStatusObservedGeneration(barService, CLUSTER_BAR_BOOTSTRAP);
+        barService = updateStatusObservedGeneration(barService);
         KafkaProxyIngress ingressBar = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TCP)));
         VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService,
                 List.of(new IngressesBuilder().withIngressRef(toIngressRef(ingressBar)).build()), Optional.of(filter)));
@@ -891,7 +892,7 @@ public class KafkaProxyReconcilerIT {
         // Given
         var domain = getDefaultOpenShiftIngressControllerDomain();
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 
@@ -958,7 +959,7 @@ public class KafkaProxyReconcilerIT {
         // Given
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaService kafkaService = updateStatusObservedGeneration(
-                testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+                testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
 
         String ingressName = "openshiftroute";
         KafkaProxyIngress openshiftRouteIngress = updateStatusObservedGeneration(
@@ -1081,12 +1082,7 @@ public class KafkaProxyReconcilerIT {
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
         filter = updateStatusObservedGeneration(filter);
         KafkaService barService = testActor.create(kafkaService);
-        if (barService.getSpec().getTls() != null) {
-            barService = updateStatusObservedGenerationUpstreamTls(barService, CLUSTER_BAR_BOOTSTRAP);
-        }
-        else {
-            barService = updateStatusObservedGeneration(barService, CLUSTER_BAR_BOOTSTRAP);
-        }
+        barService = updateStatusObservedGeneration(barService);
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TCP));
         ingressBar = updateStatusObservedGeneration(ingressBar);
         Set<KafkaService> kafkaServices = Set.of(barService);
@@ -1348,7 +1344,7 @@ public class KafkaProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
         var kafkaService = createdResources.kafkaService().edit().editSpec().withBootstrapServers(NEW_BOOTSTRAP).endSpec().build();
         kafkaService = testActor.replace(kafkaService);
-        updateStatusObservedGeneration(kafkaService, NEW_BOOTSTRAP);
+        updateStatusObservedGeneration(kafkaService);
 
         assertDeploymentBecomesReady(proxy);
         AWAIT.untilAsserted(() -> assertThatProxyConfigFor(proxy)
@@ -1365,7 +1361,7 @@ public class KafkaProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
 
         String newClusterRefName = "new-cluster-ref";
-        updateStatusObservedGeneration(testActor.create(kafkaService(newClusterRefName, NEW_BOOTSTRAP)), NEW_BOOTSTRAP);
+        updateStatusObservedGeneration(testActor.create(kafkaService(newClusterRefName, NEW_BOOTSTRAP)));
 
         KafkaServiceRef newClusterRef = new KafkaServiceRefBuilder().withName(newClusterRefName).build();
         var cluster = createdResources.cluster().edit().editSpec().withTargetKafkaServiceRef(newClusterRef).endSpec().build();
@@ -1410,8 +1406,8 @@ public class KafkaProxyReconcilerIT {
         KafkaProxyIngress ingressFoo = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_FOO_CLUSTERIP_INGRESS, proxyA, TCP)));
         KafkaProxyIngress ingressBar = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxyB, TCP)));
 
-        KafkaService fooService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)), CLUSTER_FOO_BOOTSTRAP);
-        KafkaService barService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
+        KafkaService fooService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)));
+        KafkaService barService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
         KafkaProtocolFilter filter = updateStatusObservedGeneration(testActor.create(filter(FILTER_NAME)));
 
         VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService,
@@ -1459,7 +1455,7 @@ public class KafkaProxyReconcilerIT {
         KafkaProxyIngress ingress = clusterIpIngress(CLUSTER_FOO_CLUSTERIP_INGRESS, proxyA, TCP);
         KafkaProxyIngress ingressFoo = updateStatusObservedGeneration(testActor.create(ingress.edit().build()));
 
-        KafkaService fooService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)), CLUSTER_FOO_BOOTSTRAP);
+        KafkaService fooService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)));
         KafkaProtocolFilter filter = updateStatusObservedGeneration(testActor.create(filter(FILTER_NAME)));
 
         VirtualKafkaCluster fooCluster = updateStatusObservedGeneration(
@@ -1500,41 +1496,33 @@ public class KafkaProxyReconcilerIT {
     }
 
     // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
-    private KafkaService updateStatusObservedGeneration(KafkaService service, String bootstrapServers) {
-        // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
-        KafkaService fresh = testActor.get(KafkaService.class, name(service));
-        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
-                .withBootstrapServers(bootstrapServers)
-                .build());
-        return testActor.patchStatus(fresh);
-    }
-
-    // the KafkaProxyReconciler only operates on KafkaServices that have been reconciled, ie metadata.status == status.observedGeneration
-    private KafkaService updateStatusObservedGenerationUpstreamTls(KafkaService service, String bootstrapServers) {
+    private KafkaService updateStatusObservedGeneration(KafkaService service) {
         // Re-fetch to get the latest resourceVersion - the operator may have reconciled since we created it
         KafkaService fresh = testActor.get(KafkaService.class, name(service));
 
-        // Infer the kind from the service spec, defaulting to ConfigMap if not specified
-        String kind = Optional.ofNullable(fresh.getSpec())
-                .flatMap(spec -> Optional.ofNullable(spec.getTls()))
-                .flatMap(tls -> Optional.ofNullable(tls.getTrustAnchorRef()))
-                .flatMap(ref -> Optional.ofNullable(ref.getRef()))
-                .flatMap(anyLocalRef -> Optional.ofNullable(anyLocalRef.getKind()))
-                .orElse("ConfigMap");
+        String bootstrapServers = Optional.ofNullable(fresh.getSpec())
+                .map(KafkaServiceSpec::getBootstrapServers)
+                .orElseThrow(() -> new IllegalStateException("Expected bootstrapServers in spec"));
 
-        fresh.setStatus(new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
-                .withBootstrapServers(bootstrapServers)
-                .withNewTls()
-                .withNewTrustAnchorRef()
-                .withNewRef()
-                .withKind(kind)
-                .withName(CA_BUNDLE)
-                .endRef()
-                .withKey(TRUSTED_CAS_PEM)
-                .withStoreType("PEM")
-                .endTrustAnchorRef()
-                .endTls()
-                .build());
+        var statusBuilder = new KafkaServiceStatusBuilder().withObservedGeneration(generation(fresh))
+                .withBootstrapServers(bootstrapServers);
+
+        // If TLS is configured in spec, copy it to status (as the reconciler would)
+        Optional.ofNullable(fresh.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .ifPresent(tls  -> {
+                    var tlsStatusBuilder = statusBuilder.withNewTls();
+
+                    // Copy trustAnchorRef, certificateRef, protocols, and cipherSuites from spec to status
+                    tlsStatusBuilder
+                            .withTrustAnchorRef(tls.getTrustAnchorRef())
+                            .withCertificateRef(tls.getCertificateRef())
+                            .withProtocols(tls.getProtocols())
+                            .withCipherSuites(tls.getCipherSuites())
+                            .endTls();
+                });
+
+        fresh.setStatus(statusBuilder.build());
         return testActor.patchStatus(fresh);
     }
 
