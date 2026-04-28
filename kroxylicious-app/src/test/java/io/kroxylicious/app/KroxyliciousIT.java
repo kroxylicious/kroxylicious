@@ -134,6 +134,28 @@ class KroxyliciousIT {
         }
     }
 
+    @Test
+    void shouldUseCustomJsonLogTemplateWhenEnvironmentVariableSet(@TempDir Path tempDir) throws Exception {
+        Path logOutput = tempDir.resolve("kroxylicious.log");
+
+        SubprocessKroxyliciousFactory kroxyliciousFactory = new SubprocessKroxyliciousFactory(tempDir,
+                (features, processBuilder) -> {
+                    processBuilder.environment().put("KROXYLICIOUS_LOG_JSON_TEMPLATE",
+                            "classpath:TestJsonEventLayout.json");
+                    processBuilder.redirectOutput(logOutput.toFile());
+                }, List.of());
+
+        var tester = kroxyliciousTester(proxy("fake:9092"), kroxyliciousFactory);
+        Process lastProcess = kroxyliciousFactory.lastProcess;
+        assertThat(lastProcess).isNotNull();
+        assertThat(lastProcess.onExit()).succeedsWithin(10, TimeUnit.SECONDS);
+
+        String output = Files.readString(logOutput, StandardCharsets.UTF_8);
+        assertThat(output).contains("kroxylicious-custom-template-active");
+
+        tester.close();
+    }
+
     private static void assertProxies(Producer<String, String> producer, Consumer<String, String> consumer)
             throws InterruptedException, ExecutionException {
         producer.send(new ProducerRecord<>(KroxyliciousIT.TOPIC_1, "my-key", KroxyliciousIT.PLAINTEXT)).get();
