@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -28,6 +31,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -43,11 +48,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
+import io.netty.channel.EventLoop;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.util.concurrent.ScheduledFuture;
 
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -65,11 +73,14 @@ import io.kroxylicious.proxy.service.HostPort;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -1179,6 +1190,276 @@ class ProxyChannelStateMachineTest {
                     "node_id", "bootstrap",
                     "cause", "client_closed").count())
                     .isEqualTo(0.0);
+        }
+    }
+
+    /**
+     * Focused tests for the drain branches of {@link ProxyChannelStateMachine}.
+     * <p>
+     * Exercises the public {@link ProxyChannelStateMachine#initiateClose(Duration)}
+     * entry point and the per-state drain branches in {@code messageFromServer},
+     * {@code onClientRequest}, and {@code toClosed} that are reached only when the PCSM is
+     * in {@link ProxyChannelState.Draining} state.
+     * <p>
+     * Inherits the outer class's mocks (frontendHandler, backendHandler, etc.) and adds
+     * channel/event-loop/scheduled-future stubs needed to drive the drain machinery's
+     * dispatching synchronously.
+     */
+    @Nested
+    class DrainTests {
+
+        private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(5);
+
+        @Mock(strictness = Mock.Strictness.LENIENT)
+        private Channel clientChannel;
+        @Mock(strictness = Mock.Strictness.LENIENT)
+        private EventLoop eventLoop;
+        @Mock(strictness = Mock.Strictness.LENIENT)
+        private ScheduledFuture<?> scheduledFuture;
+
+        @BeforeEach
+        void drainSetUp() {
+            // Add channel + event-loop machinery on top of the outer setUp's frontendHandler stubs.
+            // execute() runs the runnable synchronously so dispatched on*() methods fire in-test.
+            when(frontendHandler.clientChannel()).thenReturn(clientChannel);
+            when(clientChannel.eventLoop()).thenReturn(eventLoop);
+            doAnswer(invocation -> {
+                Runnable r = invocation.getArgument(0);
+                r.run();
+                return null;
+            }).when(eventLoop).execute(any(Runnable.class));
+            // schedule() returns a controllable future so tests can verify cancellation. The
+            // timer task itself is captured via ArgumentCaptor in tests that need to fire it.
+            doAnswer(invocation -> scheduledFuture).when(eventLoop)
+                    .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        }
+
+        // --- initiateClose(Duration) entry point ---
+
+        @Test
+        void initiateCloseFromForwardingWithNoInFlightImmediatelyClosesWithDrainCompleted() {
+            // Given — Forwarding state, no in-flight requests
+            stateMachineInForwarding();
+
+            // When
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+
+            // Then — the immediate-fire path runs through onDrainCompleted → toClosed,
+            // so the future completes and the state ends up at Closed
+            assertThat(closedFuture).isCompleted();
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            // The drain-completed metric was incremented (proves DisconnectCause routing)
+            assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("cause", "drain_completed").counter().count()).isEqualTo(1.0);
+            // Timer was cancelled by the onDrained policy
+            verify(scheduledFuture).cancel(false);
+        }
+
+        @Test
+        void initiateCloseFromForwardingWithInFlightTransitionsToDrainingAndAppliesBackpressure() {
+            // Given — Forwarding with one in-flight client request (so drain has work to wait for)
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+
+            // When
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+
+            // Then — state is Draining, autoRead disabled, future still pending
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+            assertThat(closedFuture).isNotCompleted();
+            verify(frontendHandler).applyBackpressure();
+            // Timer was scheduled but not yet cancelled
+            verify(eventLoop).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            verify(scheduledFuture, never()).cancel(false);
+        }
+
+        @Test
+        void initiateCloseWhenStateIsNotForwardingStillCompletesFuture() {
+            // Given — PCSM stuck in HaProxy state (not Forwarding)
+            proxyChannelStateMachine.forceState(new ProxyChannelState.HaProxy(), frontendHandler, null, TEST_KAFKA_SESSION, -1);
+
+            // When
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+
+            // Then — the reject path in onDraining still fires the onDrained policy so DC
+            // (or any caller awaiting the future) doesn't hang waiting for a drain that never starts
+            assertThat(closedFuture).isCompleted();
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.HaProxy.class);
+            // No autoRead change because we never entered Draining
+            verify(frontendHandler, never()).applyBackpressure();
+        }
+
+        // --- messageFromServer Draining branch ---
+
+        @Test
+        void messageFromServerInDrainingFiresPolicyWhenInFlightHitsZero() {
+            // Given — Forwarding with one in-flight, then drain begins (state goes Draining)
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+
+            // When — server delivers a response, decrementing client-in-flight to 0
+            proxyChannelStateMachine.messageFromServer(new Object());
+
+            // Then — drain policy fired, state advanced to Closed (via onDrainCompleted → toClosed)
+            assertThat(closedFuture).isCompleted();
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            verify(scheduledFuture).cancel(false);
+        }
+
+        @Test
+        void messageFromServerInDrainingDoesNotFirePolicyWhenInFlightStillPositive() {
+            // Given — Forwarding with TWO in-flight, then drain begins
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+
+            // When — server delivers ONE response (client-in-flight goes 2 → 1, still > 0)
+            proxyChannelStateMachine.messageFromServer(new Object());
+
+            // Then — still draining, future not yet completed (the "still waiting" branch ran)
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+        }
+
+        // --- onClientRequest Draining drop branch ---
+
+        @Test
+        void onClientRequestInDrainingReleasesRequestFrameAndFiresPolicyWhenCounterReachesZero() {
+            // Given — drain in progress with one in-flight; the in-flight one hasn't been
+            // delivered yet, so a *new* RequestFrame arriving in Draining triggers the
+            // drop+compensate path
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+
+            // When — a buffered request frame arrives at onClientRequest while in Draining
+            var lateFrame = makeRequestFrame();
+            proxyChannelStateMachine.onClientRequest(lateFrame);
+
+            // Then — frame released; the in-flight request still pending so drain still active
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+            assertThat(closedFuture).isNotCompleted();
+
+            // Now deliver the response for the original in-flight; counter goes 1 → 0 → policy fires
+            proxyChannelStateMachine.messageFromServer(new Object());
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onClientRequestInDrainingReleasesNonRequestFrameWithoutTouchingCounter() {
+            // Given — drain in progress with one in-flight
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+
+            // When — a non-RequestFrame (e.g. a control object) arrives in Draining
+            Object nonFrame = new Object();
+            proxyChannelStateMachine.onClientRequest(nonFrame);
+
+            // Then — released without compensating the counter; drain still pending
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+            assertThat(closedFuture).isNotCompleted();
+        }
+
+        // --- toClosed orphan-close path (channel closes mid-Draining) ---
+
+        @Test
+        void orphanCloseDuringDrainingFiresPendingDrainCallbackAndCompletesFuture() {
+            // Given — drain in progress with in-flight work pending
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When — the client connection drops mid-drain (e.g. peer disconnect → exception)
+            proxyChannelStateMachine.onClientException(new RuntimeException("client gone"));
+
+            // Then — toClosed's orphan-close path captured the pendingDrainCallback and ran it
+            // on the way out, so the per-connection future still completes and the timer is
+            // cancelled even though the drain didn't finish naturally
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            assertThat(closedFuture).isCompleted();
+            verify(scheduledFuture).cancel(false);
+        }
+
+        // --- onDrainTimeout — fired by the scheduled timer when drain doesn't complete in time ---
+
+        @Test
+        void onDrainTimeoutForceClosesWithDrainTimeoutCause() {
+            // Given — drain in progress with in-flight work pending
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+
+            // Capture the scheduled timer task so we can fire it manually
+            ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
+            Runnable timerTask = timerCaptor.getValue();
+
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When — the timer fires (simulating timeout elapse)
+            timerTask.run();
+
+            // Then — state forced to Closed with DRAIN_TIMEOUT cause
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            assertThat(closedFuture).isCompleted();
+            assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("cause", "drain_timeout").counter().count()).isEqualTo(1.0);
+        }
+
+        @Test
+        void onDrainTimeoutWhenAlreadyClosedIsNoOp() {
+            // Given — drain in progress, capture timer, then close via natural drain completion
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
+            proxyChannelStateMachine.messageFromServer(new Object());
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            assertThat(closedFuture).isCompleted();
+            double drainCompletedBefore = Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("cause", "drain_completed").counter().count();
+
+            // When — the (now-stale) timer fires after natural completion
+            timerCaptor.getValue().run();
+
+            // Then — no-op: state stays Closed, DRAIN_COMPLETED metric unchanged
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+            assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
+                    .tag("cause", "drain_completed").counter().count()).isEqualTo(drainCompletedBefore);
+        }
+
+        /**
+         * Drives a request through {@code onClientRequest} while in Forwarding to bump
+         * the internal client-in-flight counter by one. {@code admitToFilterChain} is
+         * mocked as a no-op, so this is purely a counter-bumping action.
+         */
+        private void bumpClientInFlightCount() {
+            if (!(proxyChannelStateMachine.state() instanceof ProxyChannelState.Forwarding)) {
+                stateMachineInForwarding();
+            }
+            proxyChannelStateMachine.onClientRequest(makeRequestFrame());
+        }
+
+        private DecodedRequestFrame<ApiVersionsRequestData> makeRequestFrame() {
+            return new DecodedRequestFrame<>(
+                    ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
+                    1,
+                    false,
+                    new RequestHeaderData(),
+                    new ApiVersionsRequestData()
+                            .setClientSoftwareName("test-client")
+                            .setClientSoftwareVersion("1.0.0"));
         }
     }
 }

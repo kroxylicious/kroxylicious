@@ -98,6 +98,45 @@ class KafkaProxyShutdownOrderingTest {
         }
     }
 
+    /**
+     * Verifies that an exception during drain (e.g. a per-connection drain future completing
+     * exceptionally) is caught inside {@code drainAllClusters()} and shutdown still completes
+     * cleanly. Without this catch, a runaway drain failure would propagate out of shutdown
+     * and the proxy would terminate abruptly without running the rest of its cleanup
+     * (Netty {@code shutdownGracefully}, meter registry cleanup, lifecycle transitions).
+     */
+    @Test
+    void drainFailureIsCaughtAndShutdownCompletes() throws Exception {
+        int proxyPort = freePort();
+
+        var dc = new DrainCoordinator() {
+            @Override
+            public CompletableFuture<Void> drainCluster(String clusterName, Duration timeout) {
+                return CompletableFuture.failedFuture(new RuntimeException("simulated drain failure"));
+            }
+        };
+
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    drainTimeout: 10s
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:%d
+                """.formatted(proxyPort);
+
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
+            proxy.startup();
+
+            // Shutdown should complete without throwing — the catch in drainAllClusters
+            // swallows the drain failure and lets the rest of cleanup proceed.
+            assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+        }
+    }
+
     private static boolean canConnect(int port) {
         try (var ignored = new Socket()) {
             ignored.connect(new InetSocketAddress("localhost", port), 1000);
