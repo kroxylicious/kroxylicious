@@ -141,7 +141,7 @@ class KroxyliciousIT {
         SubprocessKroxyliciousFactory kroxyliciousFactory = new SubprocessKroxyliciousFactory(tempDir,
                 (features, processBuilder) -> {
                     processBuilder.environment().put("KROXYLICIOUS_LOG_JSON_TEMPLATE",
-                            "classpath:LogstashJsonEventLayoutV1.json");
+                            "classpath:TestJsonEventLayout.json");
                     processBuilder.redirectOutput(logOutput.toFile());
                 }, List.of());
 
@@ -151,7 +151,7 @@ class KroxyliciousIT {
         assertThat(lastProcess.onExit()).succeedsWithin(10, TimeUnit.SECONDS);
 
         String output = Files.readString(logOutput, StandardCharsets.UTF_8);
-        assertThat(output).contains("\"@timestamp\"");
+        assertThat(output).contains("kroxylicious-custom-template-active");
 
         tester.close();
     }
