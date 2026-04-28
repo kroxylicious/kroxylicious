@@ -976,24 +976,28 @@ public class KafkaProxyReconcilerIT {
         updateStatusObservedGeneration(testActor.create(cluster));
 
         String bootstrapRouteName = name(cluster) + "-bootstrap";
-        AWAIT.alias("bootstrap route created").untilAsserted(() -> assertThat(testActor.get(Route.class, bootstrapRouteName)).isNotNull());
+        Route bootstrapRoute = AWAIT.alias("bootstrap route created").until(() -> testActor.get(Route.class, bootstrapRouteName), Objects::nonNull);
 
-        String initialChecksum = deploymentPodTemplateChecksum(proxy);
+        var observedChecksum = deploymentPodTemplateChecksum(proxy);
 
-        // When - OpenShift assigns a host to the bootstrap route
-        Route bootstrapRoute = testActor.get(Route.class, bootstrapRouteName);
-        Route routeWithHost = new RouteBuilder(bootstrapRoute)
+        // When
+
+        // The test is racing with the Ingress controller. We don't know if the ingress
+        // controller will have updated the resource or not yet. We make an update to
+        // the Route that we are certain will be different to that made by the controller
+        // in order to be certain an update is made.
+        testActor.resources(Route.class).resource(bootstrapRoute).editStatus(r -> new RouteBuilder(bootstrapRoute)
                 .withNewStatus()
-                .addNewIngress().withHost(bootstrapRouteName + ".apps-crc.testing").endIngress()
+                .addNewIngress().withHost("different.invalid").endIngress()
                 .endStatus()
-                .build();
-        testActor.patchStatus(routeWithHost);
+                .build());
 
         // Then - deployment pod template checksum should change so the proxy is restarted
         AWAIT.alias("deployment checksum updated after route host assignment")
-                .untilAsserted(() -> assertThat(deploymentPodTemplateChecksum(proxy)).isNotEqualTo(initialChecksum));
+                .untilAsserted(() -> assertThat(deploymentPodTemplateChecksum(proxy)).isNotEqualTo(observedChecksum));
     }
 
+    @Nullable
     private String deploymentPodTemplateChecksum(KafkaProxy proxy) {
         var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
         assertThat(deployment).isNotNull();
