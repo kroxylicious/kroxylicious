@@ -93,7 +93,7 @@ class ProxyConfigGenerator {
         }
 
         var targetCluster = new TargetCluster(
-                spec.getUpstreamBootstrapServers(),
+                spec.getTargetBootstrapServers(),
                 upstreamTls);
 
         var virtualCluster = new VirtualCluster(

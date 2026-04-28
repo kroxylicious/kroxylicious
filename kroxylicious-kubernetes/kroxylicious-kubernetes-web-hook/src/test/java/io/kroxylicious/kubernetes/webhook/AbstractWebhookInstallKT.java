@@ -212,7 +212,7 @@ abstract class AbstractWebhookInstallKT {
                 .withNamespace(TEST_NS)
                 .endMetadata()
                 .withNewSpec()
-                .withUpstreamBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
+                .withTargetBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
                 .endSpec()
                 .build();
         client.resource(sidecarConfig).create();
