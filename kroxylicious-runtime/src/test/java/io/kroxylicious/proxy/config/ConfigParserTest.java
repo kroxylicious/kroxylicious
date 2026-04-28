@@ -328,7 +328,6 @@ class ConfigParserTest {
 
         var originalJsonNode = MAPPER.reader().readValue(config, JsonNode.class);
         var roundTrippedJsonNode = MAPPER.reader().readValue(roundTripped, JsonNode.class);
-
         var diff = JsonDiff.asJson(originalJsonNode, roundTrippedJsonNode);
         assertThat(diff).isEmpty();
     }
