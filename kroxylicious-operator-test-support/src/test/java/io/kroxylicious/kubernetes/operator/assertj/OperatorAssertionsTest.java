@@ -107,6 +107,7 @@ class OperatorAssertionsTest {
                 false,
                 Optional.empty(),
                 null,
+                null,
                 null);
 
         // When
