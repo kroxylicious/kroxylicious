@@ -32,7 +32,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *                     less than the Netty shutdown timeout (configured via
  *                     {@code network.proxy.shutdownTimeout}, default 15 s) — otherwise
  *                     Netty's force-close runs first and the per-connection drain timer
- *                     never fires. Defaults to 10 s if not specified.
+ *                     never fires. {@code null} means "use the proxy's default" — the
+ *                     resolved value is supplied at the use site by
+ *                     {@link #effectiveDrainTimeout()}. The default is currently 10 s
+ *                     and may evolve in future proxy versions.
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
@@ -64,10 +67,11 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
             throw new IllegalConfigurationException("one or more gateways were null for virtual cluster '" + name + "'");
         }
         validateNoDuplicatedGatewayNames(gateways);
-        if (drainTimeout == null) {
-            drainTimeout = DEFAULT_DRAIN_TIMEOUT;
-        }
-        else if (drainTimeout.isZero() || drainTimeout.isNegative()) {
+        // Validate explicitly-supplied drainTimeout. A null drainTimeout is allowed and
+        // means "use the proxy's default"; the resolved value is supplied by
+        // effectiveDrainTimeout() at the use site so that round-trip serialization
+        // preserves null and the operator-generated configs don't bake in today's default.
+        if (drainTimeout != null && (drainTimeout.isZero() || drainTimeout.isNegative())) {
             throw new IllegalConfigurationException(
                     "drainTimeout for virtual cluster '" + name + "' must be positive, got: " + drainTimeout);
         }
@@ -107,6 +111,17 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
 
     CacheConfiguration topicNameCacheConfig() {
         return topicNameCache == null ? CacheConfiguration.DEFAULT : topicNameCache;
+    }
+
+    /**
+     * Resolves the {@code drainTimeout} for this virtual cluster, applying the proxy's
+     * default when the field is {@code null}. Used at the construction site of
+     * {@link io.kroxylicious.proxy.model.VirtualClusterModel} so that the raw record
+     * component remains nullable (preserving Jackson round-trip fidelity), while the
+     * runtime always sees a resolved {@link Duration}.
+     */
+    Duration effectiveDrainTimeout() {
+        return drainTimeout == null ? DEFAULT_DRAIN_TIMEOUT : drainTimeout;
     }
 
 }

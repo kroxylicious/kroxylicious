@@ -142,7 +142,7 @@ public record Configuration(
                 filterDefinitions,
                 virtualCluster.topicNameCacheConfig(),
                 virtualCluster.subjectBuilder(),
-                virtualCluster.drainTimeout());
+                virtualCluster.effectiveDrainTimeout());
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
