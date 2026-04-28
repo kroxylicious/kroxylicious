@@ -986,8 +986,8 @@ public class KafkaProxyReconcilerIT {
         // controller will have updated the resource or not yet. We make an update to
         // the Route that we are certain will be different to that made by the controller
         // in order to be certain an update is made.
-        testActor.resources(Route.class).resource(bootstrapRoute).editStatus(r -> new RouteBuilder(bootstrapRoute)
-                .withNewStatus()
+        testActor.resources(Route.class).resource(bootstrapRoute).editStatus(r -> new RouteBuilder(r)
+                .editOrNewStatus()
                 .addNewIngress().withHost("different.invalid").endIngress()
                 .endStatus()
                 .build());
