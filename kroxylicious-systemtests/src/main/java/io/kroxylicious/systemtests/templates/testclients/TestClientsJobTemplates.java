@@ -293,7 +293,6 @@ public class TestClientsJobTemplates {
                 .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
                         .withArgs(args)
                         .withVolumeMounts(volumeMounts)
-                        .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
                         .build())
                 .endSpec()
                 .endTemplate()
