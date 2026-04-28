@@ -37,7 +37,8 @@ public class StrimziKafkaRef
 
     private static final Comparator<StrimziKafkaRef> COMPARATOR = Comparator
             .<StrimziKafkaRef, AnyLocalRef> comparing(StrimziKafkaRef::getRef, Comparator.nullsLast(AnyLocalRef::compareTo))
-            .thenComparing(StrimziKafkaRef::getListenerName, Comparator.nullsLast(String::compareTo));
+            .thenComparing(StrimziKafkaRef::getListenerName, Comparator.nullsLast(String::compareTo))
+            .thenComparing(StrimziKafkaRef::getTrustStrimziCaCertificate);
 
     @Override
     public StrimziKafkaRefBuilder edit() {
@@ -89,7 +90,7 @@ public class StrimziKafkaRef
 
     @Override
     public final int hashCode() {
-        return Objects.hash(getRef(), getListenerName());
+        return Objects.hash(getRef(), getListenerName(), getTrustStrimziCaCertificate());
     }
 
     @Override
@@ -103,7 +104,8 @@ public class StrimziKafkaRef
         }
         StrimziKafkaRef other = (StrimziKafkaRef) obj;
         return Objects.equals(getRef(), other.getRef())
-                && Objects.equals(getListenerName(), other.getListenerName());
+                && Objects.equals(getListenerName(), other.getListenerName())
+                && getTrustStrimziCaCertificate() == other.getTrustStrimziCaCertificate();
 
     }
 

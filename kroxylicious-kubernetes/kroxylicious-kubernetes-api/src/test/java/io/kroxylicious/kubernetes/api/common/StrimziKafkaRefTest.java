@@ -40,6 +40,94 @@ class StrimziKafkaRefTest {
     }
 
     @Test
+    void shouldRespectEqualsAndHashCodeForTrustStrimziCaCertificate() {
+        var withTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+        var withTrustFalse2 = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+        var withTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+        var withTrustTrue2 = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+
+        assertThat(withTrustFalse)
+                .isEqualTo(withTrustFalse2)
+                .isNotEqualTo(withTrustTrue)
+                .hasSameHashCodeAs(withTrustFalse2)
+                .doesNotHaveSameHashCodeAs(withTrustTrue);
+
+        assertThat(withTrustTrue)
+                .isEqualTo(withTrustTrue2)
+                .isNotEqualTo(withTrustFalse)
+                .hasSameHashCodeAs(withTrustTrue2);
+    }
+
+    @Test
+    void shouldCompareByTrustStrimziCaCertificate() {
+        var withTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+        var withTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+
+        // false comes before true in boolean comparison
+        assertThat(withTrustFalse.compareTo(withTrustTrue)).isLessThan(0);
+        assertThat(withTrustTrue.compareTo(withTrustFalse)).isGreaterThan(0);
+        assertThat(withTrustFalse.compareTo(withTrustFalse)).isZero();
+        assertThat(withTrustTrue.compareTo(withTrustTrue)).isZero();
+    }
+
+    @Test
+    void shouldComparePrimaryFieldsBeforeTrustStrimziCaCertificate() {
+        // Different ref name (primary field) should take precedence over trustStrimziCaCertificate
+        var aRefTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("aaa").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+        var bRefTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("bbb").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+
+        // "aaa" comes before "bbb" regardless of trust setting
+        assertThat(aRefTrustTrue.compareTo(bRefTrustFalse)).isLessThan(0);
+
+        // Different listener name (secondary field) should take precedence over trustStrimziCaCertificate
+        var plainTrustTrue = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain")
+                .withTrustStrimziCaCertificate(true)
+                .build();
+        var tlsTrustFalse = new StrimziKafkaRefBuilder()
+                .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("tls")
+                .withTrustStrimziCaCertificate(false)
+                .build();
+
+        // "plain" comes before "tls" regardless of trust setting
+        assertThat(plainTrustTrue.compareTo(tlsTrustFalse)).isLessThan(0);
+    }
+
+    @Test
     void shouldReturnBuilder() {
         // Given
         StrimziKafkaRefBuilder originalBuilder = new StrimziKafkaRefBuilder();
