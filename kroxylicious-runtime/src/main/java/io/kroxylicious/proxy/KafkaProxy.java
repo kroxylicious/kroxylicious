@@ -158,8 +158,14 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
     private @Nullable DrainCoordinator drainCoordinator;
+    private final DrainCoordinator drainCoordinatorOverride;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
+        this(pfr, config, features, new DrainCoordinator());
+    }
+
+    @VisibleForTesting
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, DrainCoordinator drainCoordinatorOverride) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterModels = config.virtualClusterModel();
@@ -169,6 +175,7 @@ public final class KafkaProxy implements AutoCloseable {
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
                 .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
+        this.drainCoordinatorOverride = requireNonNull(drainCoordinatorOverride);
     }
 
     @VisibleForTesting
@@ -245,7 +252,7 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
-            this.drainCoordinator = new DrainCoordinator();
+            this.drainCoordinator = drainCoordinatorOverride;
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
@@ -382,29 +389,11 @@ public final class KafkaProxy implements AutoCloseable {
                     .log("Shutting down");
             virtualClusterManager.transitionAllToDraining();
 
-            // Drain active connections BEFORE unbinding ports.
-            // If we unbind first, clients disconnect and connections deregister from the
-            // DrainCoordinator before drain has a chance to run.
-            drainAllClusters();
-
+            // Unbind ports first so no new connections can arrive after the drain snapshot
+            // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —
+            // it does NOT disconnect existing client connections.
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
-
-                // Start Netty shutdown timer (non-blocking — event loops keep running)
-                var closeFutures = new ArrayList<Future<?>>();
-                if (proxyEventGroup != null) {
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
-                }
-                if (managementEventGroup != null) {
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully());
-                }
-
-                // Wait for Netty event loops to terminate
-                closeFutures.forEach(Future::syncUninterruptibly);
-
-                if (filterChainFactory != null) {
-                    filterChainFactory.close();
-                }
                 if (t != null) {
                     STARTUP_SHUTDOWN_LOGGER.atWarn()
                             .setCause(t)
@@ -413,6 +402,21 @@ public final class KafkaProxy implements AutoCloseable {
                 }
                 return null;
             }).toCompletableFuture().join();
+
+            drainAllClusters();
+
+            var closeFutures = new ArrayList<Future<?>>();
+            if (proxyEventGroup != null) {
+                closeFutures.addAll(proxyEventGroup.shutdownGracefully());
+            }
+            if (managementEventGroup != null) {
+                closeFutures.addAll(managementEventGroup.shutdownGracefully());
+            }
+            closeFutures.forEach(Future::syncUninterruptibly);
+
+            if (filterChainFactory != null) {
+                filterChainFactory.close();
+            }
             virtualClusterManager.completeDraining();
             if (meterRegistries != null) {
                 meterRegistries.close();
