@@ -200,9 +200,8 @@ jobs:
         uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2
         if: ${{ !cancelled() }}
         with:
-          artifact: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           name: SystemTests-${{ matrix.tests }}-${{ inputs.kafkaClient }}
-          path: '*.xml'
+          path: 'kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml'
           reporter: java-junit
           fail-on-empty: 'false'
 
