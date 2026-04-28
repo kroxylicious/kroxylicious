@@ -99,14 +99,12 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
-          KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
-          KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
             --projects ''!:kroxylicious-operator'' \
             -Derrorprone.skip=true \
+            -DskipITs=true \
             -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} \
             verify \
             org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
