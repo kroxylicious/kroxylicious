@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestFilterResultBuilderTest {
 
-    private static final UnknownServerException FILTER_RUNTIME_EXCEPTION = new UnknownServerException("Filter says yeah, nah!");
+    private final UnknownServerException filterRuntimeException = new UnknownServerException("Filter says yeah, nah!");
     private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
 
     @Test
@@ -152,7 +152,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, versionedMessage.apiMessage(), FILTER_RUNTIME_EXCEPTION).completed();
+        var future = builder.errorResponse(header, versionedMessage.apiMessage(), filterRuntimeException).completed();
 
         // Then
         assertThat(future)
@@ -176,7 +176,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, new LeaveGroupRequestData(), FILTER_RUNTIME_EXCEPTION).completed();
+        var future = builder.errorResponse(header, new LeaveGroupRequestData(), filterRuntimeException).completed();
 
         // Then
         assertThat(future)
@@ -199,7 +199,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, request.apiMessage(), FILTER_RUNTIME_EXCEPTION).completed();
+        var future = builder.errorResponse(header, request.apiMessage(), filterRuntimeException).completed();
 
         // Then
         assertThat(future)
@@ -220,7 +220,7 @@ class RequestFilterResultBuilderTest {
         header.setCorrelationId(23456);
 
         // When
-        var future = builder.errorResponse(header, request.apiMessage(), FILTER_RUNTIME_EXCEPTION).completed();
+        var future = builder.errorResponse(header, request.apiMessage(), filterRuntimeException).completed();
 
         // Then
         assertThat(future)
