@@ -201,6 +201,10 @@
                                 <!-- Used in integration tests (not yet written) -->
                                 <ignoredUnusedDeclaredDependency>io.fabric8:kubernetes-server-mock
                                 </ignoredUnusedDeclaredDependency>
+                                <!-- dependency analyzer seems not to grok that a dependency on a
+                                @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
+                                </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>
