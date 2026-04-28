@@ -158,8 +158,14 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
     private @Nullable DrainCoordinator drainCoordinator;
+    private final DrainCoordinator drainCoordinatorOverride;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
+        this(pfr, config, features, new DrainCoordinator());
+    }
+
+    @VisibleForTesting
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, DrainCoordinator drainCoordinatorOverride) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterModels = config.virtualClusterModel();
@@ -169,6 +175,7 @@ public final class KafkaProxy implements AutoCloseable {
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
                 .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
+        this.drainCoordinatorOverride = requireNonNull(drainCoordinatorOverride);
     }
 
     @VisibleForTesting
@@ -245,7 +252,7 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
-            this.drainCoordinator = new DrainCoordinator();
+            this.drainCoordinator = drainCoordinatorOverride;
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
