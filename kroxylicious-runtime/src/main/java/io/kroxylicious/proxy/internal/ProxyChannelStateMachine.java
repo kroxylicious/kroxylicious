@@ -21,6 +21,8 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
+import org.slf4j.event.Level;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
@@ -259,6 +261,8 @@ public class ProxyChannelStateMachine {
                     KafkaSession kafkaSession,
                     int transportAndBackendLatch) {
         LOGGER.atInfo()
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
                 .addKeyValue("backendHandler", backendHandler)
@@ -367,10 +371,8 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            LOGGER.atDebug()
-                    .addKeyValue("sessionId", kafkaSession.sessionId())
-                    .addKeyValue("remoteHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
-                    .addKeyValue("remotePort", this.frontendHandler.remotePort())
+            log(Level.DEBUG)
+                    .addKeyValue("address", () -> HostPort.asString(frontendHandler.remoteHost(), frontendHandler.remotePort()))
                     .log("Allocated session ID for downstream connection");
             ProxyChannelState.ClientActive clientActive = STARTING_STATE.toClientActive();
             toClientActive(clientActive, frontendHandler);
@@ -422,7 +424,7 @@ public class ProxyChannelStateMachine {
      */
     void illegalState(String msg) {
         if (!(state instanceof Closed)) {
-            LOGGER.atError()
+            log(Level.ERROR)
                     .addKeyValue("state", state)
                     .addKeyValue("message", msg)
                     .log("Unexpected event, closing channels with no client response");
@@ -707,7 +709,7 @@ public class ProxyChannelStateMachine {
      */
     @SuppressWarnings("java:S5738")
     void onServerException(@Nullable Throwable cause) {
-        LOGGER.atWarn()
+        log(Level.WARN)
                 .addKeyValue("error", cause != null ? cause.getMessage() : "")
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .log(LOGGER.isDebugEnabled()
@@ -733,7 +735,7 @@ public class ProxyChannelStateMachine {
                     : " Possible unexpected TLS handshake? When connecting via TLS from your client, make sure to enable TLS for the Kroxylicious gateway ("
                             + StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)
                             + ").";
-            LOGGER.atWarn()
+            log(Level.WARN)
                     .addKeyValue("maxFrameSizeBytes", e.getMaxFrameSizeBytes())
                     .addKeyValue("receivedFrameSizeBytes", e.getReceivedFrameSizeBytes())
                     .addKeyValue("hint", tlsHint)
@@ -741,7 +743,7 @@ public class ProxyChannelStateMachine {
             errorCodeEx = Errors.INVALID_REQUEST.exception();
         }
         else {
-            LOGGER.atWarn()
+            log(Level.WARN)
                     .addKeyValue("error", cause != null ? cause.getMessage() : "")
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                     .log(LOGGER.isDebugEnabled()
@@ -845,11 +847,10 @@ public class ProxyChannelStateMachine {
         backendHandler = new KafkaProxyBackendHandler(this);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
         proxyToServerConnectionCounter.increment();
-        LOGGER.atDebug()
-                .addKeyValue("sessionId", kafkaSession.sessionId())
+        var frontend = Objects.requireNonNull(this.frontendHandler);
+        log(Level.DEBUG)
                 .addKeyValue("remote", connecting.remote())
-                .addKeyValue("clientHost", Objects.requireNonNull(this.frontendHandler).remoteHost())
-                .addKeyValue("clientPort", this.frontendHandler.remotePort())
+                .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
                 .log("Upstream connection established for client");
     }
 
@@ -987,11 +988,24 @@ public class ProxyChannelStateMachine {
     }
 
     private void setState(ProxyChannelState state) {
-        LOGGER.atTrace()
+        log(Level.TRACE)
                 .addKeyValue("stateMachine", this)
                 .addKeyValue("targetState", state)
                 .log("Transitioning to state");
         this.state = state;
+    }
+
+    private LoggingEventBuilder log(Level level) {
+        LoggingEventBuilder builder = switch (level) {
+            case ERROR -> LOGGER.atError();
+            case WARN -> LOGGER.atWarn();
+            case INFO -> LOGGER.atInfo();
+            case DEBUG -> LOGGER.atDebug();
+            case TRACE -> LOGGER.atTrace();
+        };
+        return builder
+                .addKeyValue("sessionId", kafkaSession.sessionId())
+                .addKeyValue("virtualCluster", clusterName());
     }
 
     private static boolean isMessageApiVersionsRequest(Object msg) {

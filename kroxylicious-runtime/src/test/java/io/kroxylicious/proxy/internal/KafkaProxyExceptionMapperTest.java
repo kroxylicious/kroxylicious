@@ -30,14 +30,13 @@ import static org.junit.jupiter.api.Named.named;
 
 class KafkaProxyExceptionMapperTest {
 
-    private static final SSLHandshakeException HANDSHAKE_EXCEPTION = new SSLHandshakeException("it went wrong");
-
     @ParameterizedTest
     @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request, new BrokerNotAvailableException("handshake failure", HANDSHAKE_EXCEPTION));
+        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request,
+                new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
 
         // Then
         assertThat(response)

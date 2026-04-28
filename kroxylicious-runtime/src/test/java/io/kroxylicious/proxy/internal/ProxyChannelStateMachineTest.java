@@ -124,6 +124,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new KafkaSession(KafkaSessionState.ESTABLISHING),
                 new DrainCoordinator());
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
+        when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
+        when(frontendHandler.remotePort()).thenReturn(9476);
         // Make the executor run tasks synchronously for tests
         when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
     }
