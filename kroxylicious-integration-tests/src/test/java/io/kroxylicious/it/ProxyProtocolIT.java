@@ -39,7 +39,6 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tls.CertificateGenerator;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
@@ -50,6 +49,7 @@ import io.kroxylicious.test.codec.KafkaRequestEncoder;
 import io.kroxylicious.test.codec.KafkaResponseDecoder;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -401,7 +401,7 @@ class ProxyProtocolIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(mockBootstrap)
                         .endTargetCluster()
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", 49592))
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP)
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(keystore.path().toString())
