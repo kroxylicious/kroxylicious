@@ -49,6 +49,7 @@ import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
+import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -224,13 +225,15 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+                new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
         verifyErrorHandlerRemoved(orderedVerifyer);
         verifyEncoderAndOrdererAdded(orderedVerifyer);
         verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
@@ -244,7 +247,8 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+                new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -252,6 +256,7 @@ class KafkaProxyInitializerTest {
         verifyEncoderAndOrdererAdded(orderedVerifyer);
         verifyFrameLoggerAdded(orderedVerifyer);
         verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
         Mockito.verifyNoMoreInteractions(channelPipeline);
     }
@@ -265,7 +270,8 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding);
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+                new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
         final InOrder orderedVerifyer = inOrder(channelPipeline);
@@ -273,8 +279,47 @@ class KafkaProxyInitializerTest {
         verifyNetworkLoggerAdded(orderedVerifyer);
         verifyEncoderAndOrdererAdded(orderedVerifyer);
         verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyForwardingHandlerAdded(orderedVerifyer);
         verifyErrorHandlerAdded(orderedVerifyer);
         Mockito.verifyNoMoreInteractions(channelPipeline);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldAddDetectionHandlerWhenProxyProtocolRequired(boolean tls) {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, ProxyProtocolMode.REQUIRED, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addLast(eq("HaProxyProtocolDetectionHandler"), isA(HaProxyProtocolDetectionHandler.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldAddDetectionHandlerWhenProxyProtocolAllowed(boolean tls) {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, ProxyProtocolMode.ALLOWED, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline).addLast(eq("HaProxyProtocolDetectionHandler"), isA(HaProxyProtocolDetectionHandler.class));
+    }
+
+    @Test
+    void shouldNotAddDetectionHandlerWhenProxyProtocolDisabled() {
+        // Given
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, ProxyProtocolMode.DISABLED, (endpoint, sniHostname) -> bindingStage);
+
+        // When
+        kafkaProxyInitializer.initChannel(channel);
+
+        // Then
+        verify(channelPipeline, never()).addLast(eq("HaProxyProtocolDetectionHandler"), any());
     }
 
     @Test
@@ -340,12 +385,19 @@ class KafkaProxyInitializerTest {
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
+        return createKafkaProxyInitializer(tls, ProxyProtocolMode.DISABLED, bindingResolver);
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                              ProxyProtocolMode proxyProtocolMode,
+                                                              EndpointBindingResolver bindingResolver) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
-                false,
+                proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings));
     }
@@ -363,7 +415,11 @@ class KafkaProxyInitializerTest {
     }
 
     private void verifyFrontendHandlerAdded(InOrder orderedVerifyer) {
-        orderedVerifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("frontendHandler"), any(KafkaProxyFrontendHandler.class));
+    }
+
+    private void verifyForwardingHandlerAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq("filterChainCompletionHandler"), any(FilterChainCompletionHandler.class));
     }
 
     private void verifyErrorHandlerRemoved(InOrder orderedVerifyer) {

@@ -35,6 +35,7 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafkaUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
+    private static final Duration KUBE_WAIT_TIMEOUT = Duration.ofSeconds(60);
 
     private KafkaUtils() {
     }
@@ -50,8 +51,8 @@ public class KafkaUtils {
     public static void produceMessages(String deployNamespace, String topicName, String name, Job clientJob) {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic").addArgument(topicName).log();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(clientJob).create();
-        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofSeconds(30));
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, KUBE_WAIT_TIMEOUT);
+        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, KUBE_WAIT_TIMEOUT);
     }
 
     /**
@@ -66,7 +67,7 @@ public class KafkaUtils {
      */
     public static ExecResult produceMessagesWithCmd(String deployNamespace, List<String> executableCommand, String message, String podName, String clientName) {
         LOGGER.atInfo().setMessage("Executing command: {} for running {} producer").addArgument(executableCommand).addArgument(clientName).log();
-        ExecResult result = Exec.exec(String.valueOf(message), executableCommand, Duration.ofSeconds(30), true, false, null);
+        ExecResult result = Exec.exec(String.valueOf(message), executableCommand, KUBE_WAIT_TIMEOUT, true, false, null);
 
         if (result.isSuccess()) {
             LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(result.out()).log();
@@ -101,7 +102,7 @@ public class KafkaUtils {
      */
     public static String createJob(String namespace, String name, Job clientJob) {
         kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(clientJob).create();
-        return KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
+        return KafkaUtils.getPodNameByLabel(namespace, "app", name, KUBE_WAIT_TIMEOUT);
     }
 
     /**

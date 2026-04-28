@@ -102,7 +102,8 @@ Note that Record Encryption requires the Transit Secrets Engine, which must be e
 [source,terminal,subs="attributes",kms="vault"]
 ----
 $ helm repo add --force-update hashicorp https://helm.releases.hashicorp.com
-$ helm upgrade --install vault hashicorp/vault --namespace kms --create-namespace --version {vault-chart-version} --set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
+# Note: SKIP_SETCAP=true is a workaround for Vault 2.x in rootless containers (SETFCAP capability unavailable). Acceptable for development/testing.
+$ helm upgrade --install vault hashicorp/vault --namespace kms --create-namespace --version {vault-chart-version} --set server.dev.enabled=true,server.dev.devRootToken=myroottoken,server.extraEnvironmentVars.SKIP_SETCAP=true --wait
 ----
 
 And enable the Transit Secrets Engine.
@@ -194,7 +195,7 @@ You need to update the example to find keys in your chosen KMS.
 ====
 [source,terminal,kms="localstack"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"credentials":{"longTerm":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK-$(topicName)"}}}}' --type merge
 ----
 ====
 

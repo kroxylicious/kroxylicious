@@ -36,7 +36,16 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
-          mvn --quiet --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
+          mvn --quiet \
+            --batch-mode \
+            --activate-profiles 'dist,!qa' \
+            --also-make \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist \
+            -Derrorprone.skip=true \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            package
       - name: 'Archive kroxylicious proxy image'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

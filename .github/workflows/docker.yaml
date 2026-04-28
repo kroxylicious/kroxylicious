@@ -71,9 +71,17 @@ jobs:
 
       - name: Build Kroxylicious distribution artifacts
         run: |
-          mvn --quiet --batch-mode --activate-profiles dist \
-            --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist \
-            -Dquick -DskipContainerImageBuild=true package
+          mvn --quiet \
+            --batch-mode \
+            --activate-profiles 'dist,!qa' \
+            --also-make \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist \
+            -Derrorprone.skip=true \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            -DskipContainerImageBuild=true \
+            package
 
       - name: Login to container registry
         if: steps.build_configuration.outputs.push_images == 'true'
@@ -84,7 +92,7 @@ jobs:
           password: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Build and maybe push Proxy image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: ./kroxylicious-app
           file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
@@ -97,7 +105,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd
 
       - name: Build and maybe push Operator image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: ./kroxylicious-operator
           file: ./kroxylicious-operator/src/main/docker/operator.dockerfile
@@ -115,3 +123,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The docker build workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}

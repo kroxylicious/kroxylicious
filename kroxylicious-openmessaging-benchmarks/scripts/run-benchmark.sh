@@ -169,6 +169,12 @@ if [[ -n "${CLUSTER_OVERRIDES}" && ! -f "${CLUSTER_OVERRIDES}" ]]; then
     exit 1
 fi
 
+# Preflight: verify we can talk to the cluster
+if ! kubectl auth can-i get pods -n "${NAMESPACE}" &>/dev/null; then
+    echo "Error: not authenticated to cluster — check kubectl/oc login" >&2
+    exit 1
+fi
+
 METRICS_PID=""
 LOGS_PID=""
 
@@ -517,21 +523,11 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         -o jsonpath='{.items[0].metadata.name}')
 
     # Ensure any stale JFR PVC from a previous run is fully gone before creating a new one.
-    # The pvc-protection finalizer is held while any pod mounts the volume, so if an old
-    # proxy pod from a previous run is still terminating, the PVC cannot be deleted until
-    # that pod fully exits.  We issue the delete and then poll rather than relying on a
-    # fixed --timeout (which exits with an error if the deadline is hit).
+    # It may be Terminating (teardown in progress) or simply orphaned (--skip-teardown was used).
+    # kubectl delete --timeout waits for full removal in both cases.
     if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} (waiting for any terminating proxy pod)..."
-        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
-        PVC_DEADLINE=$((SECONDS + 120))
-        while kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; do
-            if [[ $SECONDS -ge $PVC_DEADLINE ]]; then
-                echo "Warning: stale JFR PVC ${JFR_PVC_NAME} still present after 120s — proceeding anyway" >&2
-                break
-            fi
-            sleep 5
-        done
+        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} and waiting for full removal..."
+        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     fi
 
     echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
@@ -545,7 +541,7 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         JFR_PVC_NAME="${JFR_PVC_NAME}" JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
         envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_PVC_NAME} ${JFR_MAX_SIZE}' \
         < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
-        | kubectl apply --server-side --field-manager=benchmark-jfr -f -
+        | kubectl apply --server-side --field-manager=benchmark-jfr -f - >/dev/null
 
     # Dry-run the async-profiler patch first — it sets seccompProfile: Unconfined which is
     # forbidden on clusters with restricted SCCs (e.g. OpenShift). If the dry-run reports
@@ -560,7 +556,7 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         echo "         JFR recording will still be collected." >&2
     else
         echo "${async_profiler_patch}" \
-            | kubectl apply --server-side --field-manager=benchmark-async-profiler -f -
+            | kubectl apply --server-side --field-manager=benchmark-async-profiler -f - >/dev/null
     fi
 
     echo "Waiting for proxy deployment rollout after patch..."
@@ -660,8 +656,17 @@ if [[ -n "${PROXY_POD}" ]]; then
     if [[ -z "${JVM_PID}" ]]; then
         echo "Warning: could not find JVM PID — skipping JFR and flamegraph dump" >&2
     else
-        kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.stop name=benchmark filename=/tmp/benchmark.jfr"
+        # Stop JFR recording.  jcmd prints "Picked up JAVA_TOOL_OPTIONS:" on stderr
+        # and a PID header + "return code: N" on stdout — suppress both and report our own summary.
+        JFR_OUTPUT=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+            sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.stop name=benchmark filename=/tmp/benchmark.jfr" 2>/dev/null) || true
+        # Extract the meaningful line (e.g. 'Stopped recording "benchmark", 1.8 MB written to:')
+        JFR_SUMMARY=$(echo "${JFR_OUTPUT}" | grep -i 'stopped recording' || true)
+        if [[ -n "${JFR_SUMMARY}" ]]; then
+            echo "${JFR_SUMMARY}"
+        else
+            echo "Warning: JFR stop did not report success" >&2
+        fi
 
         # Stop async-profiler and write the flamegraph to /tmp/flamegraph.html.
         # kroxylicious-start.sh exports ASYNC_PROFILER_LIB so the agent path is cleanly
@@ -671,18 +676,31 @@ if [[ -n "${PROXY_POD}" ]]; then
             sh -c "tr '\0' '\n' < /proc/${JVM_PID}/environ | grep '^ASYNC_PROFILER_LIB=' | cut -d= -f2-")
         if [[ -z "${AGENT_LIB}" ]]; then
             echo "Warning: ASYNC_PROFILER_LIB not set in JVM environment — skipping flamegraph" >&2
-        elif kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
-                       'stop,file=/tmp/flamegraph.html,output=flamegraph,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)'"; then
-            echo "Flamegraph written to /tmp/flamegraph.html"
         else
-            echo "Warning: async-profiler stop failed — flamegraph may be incomplete or absent" >&2
+            # jcmd always exits 0 even when the agent returns an error — it prints the
+            # agent return code as "return code: N" on stdout.  Check for the output file
+            # to determine whether the stop actually succeeded.
+            # IMPORTANT: the options string MUST be wrapped in double quotes inside the
+            # jcmd command.  jcmd passes arguments through the JVM's DCmdParser, which
+            # splits on '=' as a named-parameter separator.  Without inner quotes,
+            # 'file=/tmp/flamegraph.html' is split and the agent receives 'file' with no
+            # value, causing ARGUMENTS_ERROR (return code 100).
+            kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
+                       '\"stop,flamegraph,file=/tmp/flamegraph.html,title=${SCENARIO}/${WORKLOAD}_$(date -u +%Y-%m-%dT%H:%M:%SZ)\"'" \
+                       >/dev/null 2>&1
+            if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s /tmp/flamegraph.html 2>/dev/null; then
+                echo "Flamegraph written to /tmp/flamegraph.html"
+            else
+                echo "Warning: async-profiler stop failed — flamegraph absent" >&2
+            fi
         fi
 
         # If more probes follow, restart a fresh recording for the next rate.
         if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
             kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}"
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}" \
+                >/dev/null 2>&1
             echo "JFR recording restarted for next probe."
         fi
     fi
@@ -727,6 +745,17 @@ else
                 > "${local_fg}" 2>/dev/null || true
             echo "  ${SCENARIO}-${WORKLOAD}-flamegraph.html ($(du -h "${local_fg}" | cut -f1))"
         fi
+    fi
+
+    # Generate run metadata for --skip-deploy probes (rate sweeps).
+    # Full deploys get metadata from collect-results.sh above.
+    FILTERED="${SCRIPT_DIR}/../target/jbang/generated-sources/io/kroxylicious/benchmarks/results/cli/CollectResults.java"
+    if [[ -f "${FILTERED}" ]]; then
+        JBANG_ARGS=(--generate-run-metadata "${OUTPUT_DIR}")
+        [[ -n "${SCENARIO}" ]]        && JBANG_ARGS+=(--scenario "${SCENARIO}")
+        [[ -n "${WORKLOAD}" ]]        && JBANG_ARGS+=(--workload "${WORKLOAD}")
+        [[ -n "${PRODUCER_RATE:-}" ]] && JBANG_ARGS+=(--target-rate "${PRODUCER_RATE}")
+        jbang "${FILTERED}" "${JBANG_ARGS[@]}"
     fi
 fi
 

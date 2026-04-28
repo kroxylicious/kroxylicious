@@ -123,10 +123,13 @@ jobs:
           KROXYLICIOUS_IMAGE=quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}
 
           mvn --batch-mode \
-              --activate-profiles dist \
+              --activate-profiles 'dist,!qa' \
               --also-make \
               --projects :kroxylicious-app,:kroxylicious-operator \
-              -Dquick \
+              -Derrorprone.skip=true \
+              -DskipTests \
+              -Dmaven.javadoc.skip=true \
+              -DskipDocs=true \
               -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE} \
               install
 
@@ -138,12 +141,12 @@ jobs:
           eval $(crc podman-env --root)
 
           mvn --batch-mode \
-            -pl kroxylicious-operator \
-            -Dcheckstyle.skip \
-            -Dspotbugs.skip \
+            --projects kroxylicious-operator \
+            --activate-profiles '!qa' \
+            -Derrorprone.skip=true \
             -Dmaven.javadoc.skip=true \
-            verify \
-            ${{ github.event.inputs.additionalMavenArguments }}
+            ${{ github.event.inputs.additionalMavenArguments }} \
+            verify
 
       - name: Upload Maven surefire / failsafe reports
         if: failure()
@@ -162,3 +165,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The operator maven workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}

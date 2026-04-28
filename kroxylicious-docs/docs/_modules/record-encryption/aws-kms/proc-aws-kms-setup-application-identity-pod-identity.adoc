@@ -1,0 +1,96 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// con-aws-kms-setup.adoc
+
+[id='proc-aws-kms-setup-application-identity-pod-identity-{context}']
+
+= Authenticating using EKS Pod Identity
+
+[role="_abstract"]
+This procedure describes how to use {aws}/eks/latest/userguide/pod-identities.html[EKS Pod Identity] to authenticate the Record Encryption filter to AWS KMS when Kroxylicious is running on Amazon EKS.
+
+EKS Pod Identity is the AWS-recommended successor to IRSA.
+Compared with IRSA it does not require an OIDC trust-policy edit on the IAM role: instead an in-cluster *Pod Identity Agent* exchanges a projected service-account token for temporary AWS credentials and exposes them on a link-local HTTP endpoint inside each pod.
+The Record Encryption filter retrieves the credentials from that endpoint and refreshes them automatically before they expire.
+
+.Prerequisites
+
+* An EKS cluster with the {aws}/eks/latest/userguide/pod-identities.html[EKS Pod Identity Agent add-on] enabled.
+* Access to the AWS CLI with sufficient permissions to create and manage IAM roles and EKS pod-identity associations.
+* xref:con-aws-kms-setup-policy-{context}[An alias-based policy created for the Record Encryption filter].
+
+.Procedure
+
+. Create a trust policy that allows the EKS Pod Identity service to assume the IAM role:
++
+[source,shell]
+----
+cat > trustpolicy << EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "pods.eks.amazonaws.com"
+            },
+            "Action": [
+                "sts:AssumeRole",
+                "sts:TagSession"
+            ]
+        }
+    ]
+}
+EOF
+----
++
+Unlike IRSA there is no OIDC `sub` / `aud` condition to misconfigure -- the binding from role to service account is established via an EKS pod-identity association in a later step instead.
+
+. Create the IAM role using the trust policy:
++
+[source,shell]
+----
+aws iam create-role --role-name KroxyliciousPodIdentity --assume-role-policy-document file://trustpolicy
+----
+
+. Attach the alias-based policy to the role:
++
+[source,shell]
+----
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws iam attach-role-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption --role-name KroxyliciousPodIdentity
+----
+
+. Create the pod-identity association binding the role to the Kroxylicious service account:
++
+[source,shell]
+----
+CLUSTER_NAME=<eks_cluster_name>
+NAMESPACE=<kroxylicious_namespace>
+SERVICE_ACCOUNT=<kroxylicious_service_account>
+ROLE_ARN=arn:aws:iam::${AWS_ACCOUNT_ID}:role/KroxyliciousPodIdentity
+
+aws eks create-pod-identity-association \
+    --cluster-name "${CLUSTER_NAME}" \
+    --namespace "${NAMESPACE}" \
+    --service-account "${SERVICE_ACCOUNT}" \
+    --role-arn "${ROLE_ARN}"
+----
++
+The Pod Identity Agent automatically projects the service-account token and sets the environment variables `AWS_CONTAINER_CREDENTIALS_FULL_URI` and `AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE` on each new pod that uses the named service account.
+The Record Encryption filter reads these environment variables by default, so an empty `podIdentityCredentials: {}` block in the AWS KMS configuration is sufficient on a properly-associated pod.
+
+. Restart the Kroxylicious pods so that the agent can inject the projection:
++
+[source,shell]
+----
+kubectl -n ${NAMESPACE} rollout restart deployment kroxylicious
+----

@@ -107,7 +107,7 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
         trustPem = keys.selfSignedCertificatePem().toString();
 
         // Start Apicurio Registry with TLS enabled
-        String image = "quay.io/apicurio/apicurio-registry:3.2.1@sha256:908f0080a07463dc10d706ce2f1c77b7d07d93daf466300e35a43b1c55de8562";
+        String image = "quay.io/apicurio/apicurio-registry:3.2.3@sha256:43f468182af66e083c2c97865109327503d74ece347e48987fb7165a27e77a62";
         DockerImageName dockerImageName = DockerImageName.parse(image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
 

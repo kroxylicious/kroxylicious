@@ -80,13 +80,28 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B install -Pci -Djapicmp.skip=true -Dspotbugs.skip=true -pl ':kroxylicious-operator' -am
+          mvn --batch-mode \
+            --activate-profiles 'ci,!qa' \
+            --projects ':kroxylicious-operator' \
+            --also-make \
+            -Derrorprone.skip=true \
+            -Djapicmp.skip=true \
+            install
       - name: 'SonarCloud scan on main for the Operator'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar -Dsonar.projectName='Kroxylicious Operator' -Dsonar.projectKey='kroxylicious_operator' -pl ':kroxylicious-operator,:kroxylicious-parent'
+        run: |
+          mvn --batch-mode \
+            --activate-profiles 'ci,!qa' \
+            --projects ':kroxylicious-operator,:kroxylicious-parent' \
+            -Derrorprone.skip=true \
+            -Djapicmp.skip=true \
+            -Dsonar.projectName='Kroxylicious Operator' \
+            -Dsonar.projectKey='kroxylicious_operator' \
+            verify \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:5.5.0.6356:sonar
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
@@ -103,3 +118,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The operator maven workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}

@@ -33,6 +33,8 @@ virtualClusters:
       # ...
     subjectBuilder:
       # ...
+proxyProtocol: # <10>
+  mode: disabled
 
 # ...
 ----
@@ -50,3 +52,4 @@ where:
 ** `targetCluster` defines the Kafka cluster that the virtual cluster (`my-cluster-proxy`) proxies.
 ** `gateways` defines the gateways configuration for this virtual cluster.
 ** `subjectBuilder` (Optional) defines the transport subject builder configuration.
+** `proxyProtocol` (Optional) Enable HAProxy PROXY protocol decoding when deployed behind a PROXY protocol-capable load balancer.

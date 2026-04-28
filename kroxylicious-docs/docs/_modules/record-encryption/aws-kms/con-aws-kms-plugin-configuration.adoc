@@ -25,6 +25,20 @@ Alternatively, the configuration for authenticating with EC2 metadata looks like
 include::snip-aws-kms-service-config-identity-ec2-metadata.adoc[leveloffset=+1]
 endif::[]
 
+ifdef::include-aws-kms-service-config-identity-pod-identity[]
+
+Alternatively, the configuration for authenticating with EKS Pod Identity looks like this:
+
+include::snip-aws-kms-service-config-identity-pod-identity.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-aws-kms-service-config-identity-irsa[]
+
+Alternatively, the configuration for authenticating with IAM Roles for Service Accounts (IRSA) on Amazon EKS looks like this:
+
+include::snip-aws-kms-service-config-identity-irsa.adoc[leveloffset=+1]
+endif::[]
+
 include::../../../_snippets/snip-tls-client-keystore.adoc[]
 
 include::../../../_snippets/snip-tls-client-truststore.adoc[]
