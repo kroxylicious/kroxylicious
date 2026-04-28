@@ -7,6 +7,7 @@
 ---
 Configuration:
   status: WARN
+  shutdownHook: disable
   name: Config
   Appenders:
     Console:
