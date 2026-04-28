@@ -18,8 +18,8 @@ import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -33,9 +33,9 @@ class PodMutator {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SIDECAR_VOLUME_NAME = "kroxylicious-config";
-    private static final String UPSTREAM_TLS_VOLUME_NAME = "upstream-tls";
+    static final String TARGET_CLUSTER_TLS_VOLUME_NAME = "target-cluster-tls";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
-    private static final String UPSTREAM_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/upstream";
+    static final String TARGET_CLUSTER_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/target";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
     private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
@@ -108,11 +108,11 @@ class PodMutator {
      */
     @Nullable
     static String resolveUpstreamTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
-        UpstreamTls tls = spec.getUpstreamTls();
+        TargetClusterTls tls = spec.getTargetClusterTls();
         if (tls == null || tls.getTrustAnchorSecretRef() == null) {
             return null;
         }
-        return UPSTREAM_TLS_MOUNT_PATH + "/" + tls.getTrustAnchorSecretRef().getKey();
+        return TARGET_CLUSTER_TLS_MOUNT_PATH + "/" + tls.getTrustAnchorSecretRef().getKey();
     }
 
     private static void addAnnotationOps(
@@ -153,14 +153,9 @@ class PodMutator {
         }
 
         // Upstream TLS volume (Secret)
-        UpstreamTls tls = spec.getUpstreamTls();
+        TargetClusterTls tls = spec.getTargetClusterTls();
         if (tls != null && tls.getTrustAnchorSecretRef() != null) {
-            TrustAnchorSecretRef secretRef = tls.getTrustAnchorSecretRef();
-            ObjectNode tlsVolume = MAPPER.createObjectNode();
-            tlsVolume.put("name", UPSTREAM_TLS_VOLUME_NAME);
-            ObjectNode secret = tlsVolume.putObject("secret");
-            secret.put("secretName", secretRef.getName());
-            addOp(patch, OP_ADD, "/spec/volumes/-", tlsVolume);
+            addOp(patch, "add", "/spec/volumes/-", buildTlsSecretVolume(tls));
         }
 
         // Plugin volumes
@@ -170,6 +165,16 @@ class PodMutator {
                 addOp(patch, OP_ADD, "/spec/volumes/-", buildPluginVolume(useOciImageVolumes, plugin));
             }
         }
+    }
+
+    @NonNull
+    private static ObjectNode buildTlsSecretVolume(TargetClusterTls tls) {
+        TrustAnchorSecretRef secretRef = tls.getTrustAnchorSecretRef();
+        ObjectNode tlsVolume = MAPPER.createObjectNode();
+        tlsVolume.put("name", TARGET_CLUSTER_TLS_VOLUME_NAME);
+        ObjectNode secret = tlsVolume.putObject("secret");
+        secret.put("secretName", secretRef.getName());
+        return tlsVolume;
     }
 
     @NonNull
@@ -297,10 +302,10 @@ class PodMutator {
         configMount.put("readOnly", true);
 
         // Upstream TLS volume mount
-        if (spec.getUpstreamTls() != null && spec.getUpstreamTls().getTrustAnchorSecretRef() != null) {
+        if (spec.getTargetClusterTls() != null && spec.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
             ObjectNode tlsMount = volumeMounts.addObject();
-            tlsMount.put("name", UPSTREAM_TLS_VOLUME_NAME);
-            tlsMount.put("mountPath", UPSTREAM_TLS_MOUNT_PATH);
+            tlsMount.put("name", TARGET_CLUSTER_TLS_VOLUME_NAME);
+            tlsMount.put("mountPath", TARGET_CLUSTER_TLS_MOUNT_PATH);
             tlsMount.put("readOnly", true);
         }
 

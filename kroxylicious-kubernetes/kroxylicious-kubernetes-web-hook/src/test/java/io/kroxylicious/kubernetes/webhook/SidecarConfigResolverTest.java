@@ -154,7 +154,7 @@ class SidecarConfigResolverTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setUpstreamBootstrapServers("kafka.example.com:9092");
+        spec.setTargetBootstrapServers("kafka.example.com:9092");
         config.setSpec(spec);
         return config;
     }
