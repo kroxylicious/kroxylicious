@@ -71,7 +71,9 @@ spec:
                       description: listener name of the cluster
                       type: string
                     trustStrimziCaCertificate:
-                      description: trust certificate from Strimzi
+                      description: |
+                        if true, the proxy will automatically trust the certificate published by Strimzi
+                        when connecting to a TLS protected upstream. Not recommended for production use.
                       type: boolean
                   required:
                     - name
@@ -116,11 +118,11 @@ spec:
                       required: [ "name", "key" ]
                       properties:
                         kind:
-                          description: The API kind of the resource containing the TLS client certificate.
+                          description: The API kind of the resource containing the trusted CA certificates.
                           type: string
                           default: ConfigMap
                         group:
-                          description: The API group of the resource containing the TLS client certificate.
+                          description: The API group of the resource containing the trusted CA certificates.
                           type: string
                           default: ""
                         storeType:
@@ -131,12 +133,11 @@ spec:
                             - JKS
                             - PKCS12
                         name:
-                          description: The name of the resource containing the TLS client certificate.
+                          description: The name of the resource containing the trusted CA certificates.
                           type: string
                         key:
                           description: | 
-                            The name of the key identifying the certificate bundle within the resource. 
-                            Supported formats for the bundle are: PEM, PKCS#12 and JKS.
+                            The name of the key identifying the trusted CA certificates within the resource.
                           type: string
                     protocols:
                       description: |
@@ -243,16 +244,16 @@ spec:
                           This may be auto-discovered from Strimzi or copied from spec.tls.trustAnchorRef.
                         properties:
                           kind:
-                            description: The API kind of the resource containing the TLS client certificate.
+                            description: The API kind of the resource containing the trusted CA certificates.
                             type: string
                             default: ConfigMap
                           group:
-                            description: The API group of the resource containing the TLS client certificate.
+                            description: The API group of the resource containing the trusted CA certificates.
                             type: string
                             default: ""
                           name:
                             type: string
-                            description: The name of the Secret or ConfigMap containing the CA certificate.
+                            description: The name of the Secret or ConfigMap containing trusted CA certificates.
                           storeType:
                             type: string
                             description: The format of the store.
