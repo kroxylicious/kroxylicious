@@ -700,12 +700,19 @@ if [[ -n "${PROXY_POD}" ]]; then
             fi
         fi
 
-        # If more probes follow, restart a fresh recording for the next rate.
+        # If more probes follow, restart fresh recordings for the next rate.
         if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
             kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}" \
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=profile maxsize=${JFR_MAX_SIZE}" \
                 >/dev/null 2>&1
             echo "JFR recording restarted for next probe."
+            if [[ -n "${AGENT_LIB}" ]]; then
+                kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                    sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
+                           '\"start,event=cpu,flamegraph,file=/tmp/flamegraph.html\"'" \
+                    >/dev/null 2>&1
+                echo "async-profiler restarted for next probe."
+            fi
         fi
     fi
     echo "Dump complete."
