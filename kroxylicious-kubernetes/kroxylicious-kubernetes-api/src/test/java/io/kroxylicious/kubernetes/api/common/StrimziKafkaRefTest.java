@@ -75,6 +75,7 @@ class StrimziKafkaRefTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5838") // deliberate use compareTo as we want to be explict about the method under test.
     void shouldCompareByTrustStrimziCaCertificate() {
         var withTrustFalse = new StrimziKafkaRefBuilder()
                 .withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
