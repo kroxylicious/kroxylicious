@@ -103,8 +103,8 @@ public final class KafkaServiceReconciler implements
                 Secret.class,
                 KafkaService.class)
                 .withName(SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziCaCertificateSecondary())
-                .withSecondaryToPrimaryMapper(new StrimziCaCertificateSecondaryToKafkaServicePrimary(context))
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper())
+                .withSecondaryToPrimaryMapper(new StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper(context))
                 .build();
 
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
@@ -167,7 +167,7 @@ public final class KafkaServiceReconciler implements
             if (updatedService == null) {
                 var ref = trustAnchorRefOpt.get();
                 String storeType = (ref.getStoreType() != null) ? ref.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(ref);
-                trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(ref.getRef().getName(), ref.getKey(), storeType);
+                trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(ref.getRef().getName(), ref.getRef().getKind(), ref.getKey(), storeType);
             }
         }
         else if (strimziKafkaRefOpt.isPresent() && strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()) {
@@ -180,6 +180,7 @@ public final class KafkaServiceReconciler implements
                 var strimziRef = strimziKafkaRefOpt.get();
                 trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(
                         strimziRef.getRef().getName() + "-cluster-ca-cert",
+                        "Secret",
                         "ca.crt",
                         "PEM");
             }

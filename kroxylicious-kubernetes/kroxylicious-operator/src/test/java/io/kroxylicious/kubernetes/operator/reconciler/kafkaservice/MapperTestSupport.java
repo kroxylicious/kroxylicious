@@ -83,6 +83,22 @@ class MapperTestSupport {
             .endSpec()
             .build();
 
+            public static final KafkaService SERVICE_WITH_TLS = new KafkaServiceBuilder()
+            .withNewMetadata()
+                .withName("test-service")
+            .endMetadata()
+            .withNewSpec()
+                .withNewStrimziKafkaRef()
+                    .withNewRef()
+                        .withName("my-cluster")
+                        .withKind("Kafka")
+                        .withGroup("kafka.strimzi.io")
+                    .endRef()
+                    .withListenerName("tls")
+                    .withTrustStrimziCaCertificate(true)
+                .endStrimziKafkaRef()
+            .endSpec()
+            .build();
 
     public static final Secret TLS_SECRET = new SecretBuilder()
             .withNewMetadata()
@@ -100,6 +116,15 @@ class MapperTestSupport {
                 .withName("my-configmap")
                 .withUid("uid")
                 .withResourceVersion("7782")
+            .endMetadata()
+            .addToData("ca-bundle.pem", "value")
+            .build();
+
+    public static final Secret STRIMZI_PEM_SECRET = new SecretBuilder()
+            .withNewMetadata()
+            .withName("my-cluster-cluster-ca-cert")
+            .withUid("uid")
+            .withResourceVersion("7782")
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
             .build();

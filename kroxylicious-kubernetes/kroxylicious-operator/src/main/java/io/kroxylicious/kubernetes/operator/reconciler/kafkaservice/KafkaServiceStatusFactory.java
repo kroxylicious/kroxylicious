@@ -57,6 +57,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                         .withNewTrustAnchorRef()
                         .withNewRef()
                             .withName(trustAnchorInfo.name())
+                            .withKind(trustAnchorInfo.kind())
                         .endRef()
                             .withStoreType(trustAnchorInfo.storeType())
                             .withKey(trustAnchorInfo.key())
@@ -69,7 +70,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
         // @formatter:on
     }
 
-    record TrustAnchorInfo(String name, String key, String storeType) {}
+    record TrustAnchorInfo(String name, String kind, String key, String storeType) {}
 
     @Override
     public KafkaService newUnknownConditionStatusPatch(KafkaService observedFilter,
