@@ -451,8 +451,6 @@ public class ProxyChannelStateMachine {
                 LOGGER.atInfo()
                         .addKeyValue("sessionId", kafkaSession.sessionId())
                         .addKeyValue("virtualCluster", clusterName())
-                        .addKeyValue("frontendChannel", () -> frontendChannelAddress())
-                        .addKeyValue("backendChannel", () -> backendChannelAddress())
                         .log("All in-flight requests drained — signalling drain policy");
                 draining.onDrained().run();
             }
@@ -460,8 +458,6 @@ public class ProxyChannelStateMachine {
                 LOGGER.atTrace()
                         .addKeyValue("sessionId", kafkaSession.sessionId())
                         .addKeyValue("virtualCluster", clusterName())
-                        .addKeyValue("frontendChannel", () -> frontendChannelAddress())
-                        .addKeyValue("backendChannel", () -> backendChannelAddress())
                         .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                         .log("Response delivered to client during drain — still waiting for remaining in-flight requests");
             }
@@ -651,8 +647,6 @@ public class ProxyChannelStateMachine {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
-                .addKeyValue("frontendChannel", () -> frontendChannelAddress())
-                .addKeyValue("backendChannel", () -> backendChannelAddress())
                 .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                 .addKeyValue("serverMessagesInFlightCount", serverMessagesInFlightCount)
                 .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
@@ -661,8 +655,6 @@ public class ProxyChannelStateMachine {
             LOGGER.atInfo()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", () -> frontendChannelAddress())
-                    .addKeyValue("backendChannel", () -> backendChannelAddress())
                     .log("No in-flight requests — signalling drain policy immediately");
             onDrained.run();
         }
@@ -695,8 +687,6 @@ public class ProxyChannelStateMachine {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", () -> frontendChannelAddress())
-                    .addKeyValue("backendChannel", () -> backendChannelAddress())
                     .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                     .log("Drain timeout expired — force-closing connection");
             toClosed(null, DisconnectCause.DRAIN_TIMEOUT);
@@ -963,8 +953,6 @@ public class ProxyChannelStateMachine {
             LOGGER.atInfo()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
-                    .addKeyValue("frontendChannel", () -> frontendChannelAddress())
-                    .addKeyValue("backendChannel", () -> backendChannelAddress())
                     .addKeyValue("disconnectCause", disconnectCause)
                     .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
                     .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
@@ -1038,25 +1026,6 @@ public class ProxyChannelStateMachine {
             throw new IllegalStateException("PCSM has no frontend channel attached — dispatch not possible in state " + state.getClass().getSimpleName());
         }
         return ch;
-    }
-
-    private String frontendChannelAddress() {
-        Channel ch = frontendHandler != null ? frontendHandler.clientChannel() : null;
-        if (ch == null) {
-            return "unknown";
-        }
-        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
-    }
-
-    private String backendChannelAddress() {
-        if (backendHandler == null) {
-            return "unknown";
-        }
-        Channel ch = backendHandler.serverChannel();
-        if (ch == null) {
-            return "unknown";
-        }
-        return "L:" + ch.localAddress() + ", R:" + ch.remoteAddress();
     }
 
 }
