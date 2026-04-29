@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
@@ -32,12 +31,15 @@ import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
 import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
@@ -45,6 +47,9 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.TestFiles;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.awaitility.Awaitility.await;
@@ -53,7 +58,9 @@ import static org.awaitility.Awaitility.await;
 class KafkaServiceStrimziKafkaRefReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceStrimziKafkaRefReconcilerIT.class);
-    public static final String FOO_BOOTSTRAP_9090 = "foo.bootstrap:9090";
+    public static final String FOO_BOOTSTRAP = "foo.bootstrap";
+    public static final int FOO_BOOTSTRAP_PORT = 9090;
+    public static final String FOO_BOOTSTRAP_9090 = FOO_BOOTSTRAP + ":" + FOO_BOOTSTRAP_PORT;
     public static final String SERVICE_A = "service-a";
     public static final String KAFKA_RESOURCE_NAME = "my-cluster";
 
@@ -103,24 +110,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     }
 
     @Test
-    void shouldResolveStrimziKafka() {
+    void shouldResolveStrimziKafkaWithPlainListener() {
         // Given
         var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
-        String listenerHost = "foo.bootstrap";
-        int listenerPort = 9090;
-        Kafka withStatus = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("plain")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost(listenerHost)
-                                        .withPort(listenerPort)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        testActor.patchStatus(withStatus);
+        reconcileStrimziResource(kafka);
 
         // When
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
@@ -130,25 +123,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     }
 
     @Test
-    void shouldHandleStrimziKafkaWithNoPlainListeners() {
+    void shouldResolveStrimziKafkaWithTlsListener() {
         // Given
         var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
-        String listenerHost = "foo.bootstrap";
-        int listenerPort = 9090;
-        Kafka withTlsListener = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("tls")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost(listenerHost)
-                                        .withPort(listenerPort)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-
-        testActor.patchStatus(withTlsListener);
+        reconcileStrimziResource(kafka);
 
         // When
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
@@ -158,7 +136,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     }
 
     @Test
-    void shouldHandleStrimziKafkaWithNoListeners() {
+    void shouldHandleStrimziKafkaWithNoReconciledListeners() {
         // Given
         var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
@@ -182,7 +160,6 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         // When
-
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
@@ -193,21 +170,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     void shouldUpdateStatusOnceStrimziKafkaResourceDeleted() {
         // Given
         var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
-        String listenerHost = "foo.bootstrap";
-        int listenerPort = 9090;
-        Kafka withListeners = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("plain")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost(listenerHost)
-                                        .withPort(listenerPort)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        testActor.patchStatus(withListeners);
+        reconcileStrimziResource(kafka);
 
         // When
         KafkaService updated = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
@@ -228,33 +191,17 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     void trustAnchorRefAlwaysTakesPrecedenceWhenPresent() {
         // Given
         var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
-        // @formatter:off
-        Kafka withStatus = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("tls")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost("foo.bootstrap")
-                                        .withPort(9090)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        // @formatter:on
-        testActor.patchStatus(withStatus);
-        createTrustAnchorConfigMap("explicit-trust");
+        reconcileStrimziResource(kafka);
+        createTrustAnchorSecret("explicit-trust", "ca-bundle.pem");
+
+        var tar = createTrustAnchorRef("explicit-trust", "Secret");
 
         // When - Create KafkaService with trustAnchorRef AND trustStrimziCaCertificate=true
-        var service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-with-both-refs", "explicit-trust", "tls", true));
+        var service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-with-both-refs", "tls", true, tar));
 
         // Then - Explicit trustAnchorRef should be used (not Strimzi CA)
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-        AWAIT.untilAsserted(() -> {
-            var status = testActor.get(KafkaService.class, "service-with-both-refs").getStatus().getTls();
-            Assertions.assertThat(status.getTrustAnchorRef().getRef().getName()).isEqualTo("explicit-trust");
-            Assertions.assertThat(status.getTrustAnchorRef().getRef().getKind()).isEqualTo("ConfigMap");
-        });
+        assertKafkaService("service-with-both-refs", "explicit-trust", "Secret");
     }
 
     /**
@@ -264,34 +211,19 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     void trustAnchorRefUsedWhenTrustStrimziCaDisabled() {
         // Given
         var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
-        // @formatter:off
-        Kafka withStatus = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("tls")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost("foo.bootstrap")
-                                        .withPort(9090)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        // @formatter:on
-        testActor.patchStatus(withStatus);
+        reconcileStrimziResource(kafka);
         createTrustAnchorConfigMap("explicit-trust");
 
+        var tar = createTrustAnchorRef("explicit-trust", "ConfigMap");
+
         // When - Create KafkaService with trustAnchorRef AND trustStrimziCaCertificate=false
-        var service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-trust-anchor-only", "explicit-trust", "tls", false));
+        var service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-trust-anchor-only", "tls", false, tar));
 
         // Then - Explicit trustAnchorRef should be used
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-        AWAIT.untilAsserted(() -> {
-            var status = testActor.get(KafkaService.class, "service-trust-anchor-only").getStatus().getTls();
-            Assertions.assertThat(status.getTrustAnchorRef().getRef().getName()).isEqualTo("explicit-trust");
-            Assertions.assertThat(status.getTrustAnchorRef().getRef().getKind()).isEqualTo("ConfigMap");
-        });
+        assertKafkaService("service-trust-anchor-only", "explicit-trust", "ConfigMap");
     }
+
 
     /**
      * Tests that when trustAnchorRef is NOT present and trustStrimziCaCertificate is enabled,
@@ -301,32 +233,20 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     void strimziCaUsedWhenTrustAnchorRefNotPresent() {
         // Given
         var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
-        // @formatter:off
-        Kafka withStatus = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("tls")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost("foo.bootstrap")
-                                        .withPort(9090)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        // @formatter:on
-        testActor.patchStatus(withStatus);
+        reconcileStrimziResource(kafka);
         String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
-        testActor.create(createStrimziClusterCaSecret(clusterCaSecretName));
+        createStrimziTrustAnchorSecret(clusterCaSecretName);
 
         // When - Create KafkaService with trustStrimziCaCertificate=true but NO trustAnchorRef
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-strimzi-only", null, "tls", true));
+        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-strimzi-only", "tls", true, null));
 
         // Then - Strimzi CA should be used
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+        assertKafkaService("service-strimzi-only", clusterCaSecretName, "Secret");
+
     }
 
-    private void createTrustAnchorConfigMap(String name) {
+    private ConfigMap createTrustAnchorConfigMap(String name) {
         ConfigMap configMap = new ConfigMapBuilder()
                 .withNewMetadata()
                 .withName(name)
@@ -334,52 +254,45 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .addToData("ca-bundle.pem", "whatever")
                 .build();
         testActor.create(configMap);
+        return configMap;
     }
 
-    private Secret createStrimziClusterCaSecret(String name) {
-        return new SecretBuilder()
+    private Secret createTrustAnchorSecret(String name, String key) {
+        Secret secret = new SecretBuilder()
                 .withNewMetadata()
                 .withName(name)
                 .endMetadata()
-                .addToData("ca.crt", "whatever")
+                .addToData(key, "whatever")
                 .build();
+        testActor.create(secret);
+        return secret;
     }
 
-    /**
-     * Creates a KafkaService with strimziKafkaRef and optionally a trustAnchorRef.
-     * @param trustAnchorName if null, no trustAnchorRef is added; otherwise creates a ConfigMap-based trustAnchorRef
-     */
-    private KafkaService kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor(String serviceName, String trustAnchorName, String listenerName, boolean trustStrimziCa) {
+    private Secret createStrimziTrustAnchorSecret(String name) {
+        return createTrustAnchorSecret(name, STRIMZI_CLUSTER_CA_CA_BUNDLE);
+    }
+
+    private KafkaService kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor(String serviceName,
+                                                                               String listenerName,
+                                                                               boolean trustStrimziCa,
+                                                                               @Nullable TrustAnchorRef explictTrust) {
         // @formatter:off
-        var service = new KafkaServiceBuilder()
+        return new KafkaServiceBuilder()
                 .withNewMetadata()
-                .withName(serviceName)
+                    .withName(serviceName)
                 .endMetadata()
                 .editOrNewSpec()
-                .withNewStrimziKafkaRef()
-                .withListenerName(listenerName)
-                .withTrustStrimziCaCertificate(trustStrimziCa)
-                .withNewRef()
-                .withName(KAFKA_RESOURCE_NAME)
-                .endRef()
-                .endStrimziKafkaRef();
-        // @formatter:on
-
-        if (trustAnchorName != null) {
-            // @formatter:off
-            service.editOrNewTls()
-                    .withNewTrustAnchorRef()
-                    .withNewRef()
-                    .withName(trustAnchorName)
-                    .withKind("ConfigMap")
+                    .withNewStrimziKafkaRef()
+                        .withListenerName(listenerName)
+                         .withTrustStrimziCaCertificate(trustStrimziCa)
+                     .withNewRef()
+                         .withName(KAFKA_RESOURCE_NAME)
                     .endRef()
-                    .withKey("ca-bundle.pem")
-                    .endTrustAnchorRef()
-                    .endTls();
-            // @formatter:on
-        }
-
-        return service.endSpec().build();
+                .endStrimziKafkaRef()
+                .withNewTls()
+                    .withTrustAnchorRef(explictTrust)
+                .endTls().endSpec().build();
+        // @formatter:on
     }
 
     private Kafka kafkaResource(String resourceName) {
@@ -408,10 +321,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .endMetadata()
                 .withNewSpec()
                     .withNewKafka()
-                        .withListeners(List.of(new GenericKafkaListenerBuilder()
+                        .addNewListener()
                             .withName("tls")
                             .withTls(true)
-                        .build()))
+                        .endListener()
                     .endKafka()
                 .endSpec()
                 .build();
@@ -479,4 +392,59 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                     .isResolvedRefsFalse(reason, message);
         });
     }
+
+    private void assertKafkaService(String kafkaServiceName, String expectedResourceName, String expectedResourceType) {
+        AWAIT.untilAsserted(() -> {
+            var kafkaService = testActor.get(KafkaService.class, kafkaServiceName);
+            assertThat(kafkaService)
+                    .isNotNull()
+                    .extracting(KafkaService::getStatus)
+                    .isNotNull()
+                    .extracting(KafkaServiceStatus::getTls)
+                    .isNotNull();
+            var tls = kafkaService.getStatus().getTls();
+            Assertions.assertThat(tls)
+                    .extracting(Tls::getTrustAnchorRef)
+                    .satisfies(tar -> {
+                        Assertions.assertThat(tar.getRef().getName()).isEqualTo(expectedResourceName);
+                        Assertions.assertThat(tar.getRef().getKind()).isEqualTo(expectedResourceType);
+                    });
+        });
+    }
+
+    // simulates what the Strimzi operator would do
+    private void reconcileStrimziResource(Kafka kafka) {
+
+        // @formatter:off
+        var statusListeners= kafka.getSpec().getKafka().getListeners().stream().map(specListener ->
+                new ListenerStatusBuilder()
+                        .withName(specListener.getName())
+                        .addNewAddress()
+                            .withHost(FOO_BOOTSTRAP)
+                            .withPort(FOO_BOOTSTRAP_PORT)
+                        .endAddress()
+                .build()).toList();
+        // @formatter:on
+
+        // @formatter:off
+        testActor.patchStatus(new KafkaBuilder(kafka)
+                .withNewStatus()
+                    .addAllToListeners(statusListeners)
+                .endStatus()
+            .build());
+        // @formatter:on
+    }
+
+    private TrustAnchorRef createTrustAnchorRef(String name, String kind) {
+        // @formatter:off
+        return new TrustAnchorRefBuilder()
+                    .withNewRef()
+                        .withName(name)
+                      .withKind(kind)
+                    .endRef()
+                    .withKey("ca-bundle.pem")
+                .build();
+        // @formatter:off
+    }
+
 }

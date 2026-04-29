@@ -64,6 +64,12 @@ public class ResourcesUtil {
      */
     public static final String STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX = "-cluster-ca-cert";
 
+    /** The name of the data key Strimzi uses in its cluster CA trust anchor */
+    public static final String STRIMZI_CLUSTER_CA_CA_BUNDLE = "ca.crt";
+
+    /** The key material type used by Strimzi for its cluster CA trust anchor */
+    public static final String STRIMZI_CLUSTER_CA_STORE_TYPE = "PEM";
+
     private ResourcesUtil() {
     }
 
