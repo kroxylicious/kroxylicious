@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
@@ -407,10 +409,10 @@ class PodMutator {
         }
 
         String bootstrapValue = "localhost:" + bootstrapPort;
-        List<io.fabric8.kubernetes.api.model.Container> containers = pod.getSpec().getContainers();
+        List<Container> containers = pod.getSpec().getContainers();
 
         for (int i = 0; i < containers.size(); i++) {
-            io.fabric8.kubernetes.api.model.Container c = containers.get(i);
+            Container c = containers.get(i);
             if (InjectionDecision.SIDECAR_CONTAINER_NAME.equals(c.getName())) {
                 continue;
             }
@@ -445,7 +447,7 @@ class PodMutator {
 
     // TODO add an import and avoid the fq name below
     private static int findEnvVarIndex(
-                                       List<io.fabric8.kubernetes.api.model.EnvVar> env,
+                                       List<EnvVar> env,
                                        String name) {
         for (int i = 0; i < env.size(); i++) {
             if (name.equals(env.get(i).getName())) {

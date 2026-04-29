@@ -72,8 +72,7 @@ spec:
                     connections. Broker ports are allocated sequentially starting from
                     bootstrapPort + 1.
                   type: integer
-                  default: 19092
-                  # TODO Change to 9092
+                  default: 9092
                   minimum: 1024
                   maximum: 65535
                 nodeIdRange:
@@ -97,8 +96,7 @@ spec:
                     The port on which the sidecar proxy exposes its management endpoints
                     (/livez, /metrics). Bound to all interfaces so that kubelet probes work.
                   type: integer
-                  default: 9190
-                  # TODO change to 9082
+                  default: 9082
                   minimum: 1024
                   maximum: 65535
                 resources:
