@@ -10,8 +10,6 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
-import javax.annotation.Nullable;
-
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
@@ -22,6 +20,8 @@ import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
 

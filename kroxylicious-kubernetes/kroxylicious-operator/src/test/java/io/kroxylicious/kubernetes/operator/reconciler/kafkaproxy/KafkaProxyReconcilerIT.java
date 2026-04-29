@@ -1510,7 +1510,7 @@ public class KafkaProxyReconcilerIT {
         // If TLS is configured in spec, copy it to status (as the reconciler would)
         Optional.ofNullable(fresh.getSpec())
                 .map(KafkaServiceSpec::getTls)
-                .ifPresent(tls  -> {
+                .ifPresent(tls -> {
                     var tlsStatusBuilder = statusBuilder.withNewTls();
 
                     // Copy trustAnchorRef, certificateRef, protocols, and cipherSuites from spec to status

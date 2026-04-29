@@ -12,8 +12,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import javax.annotation.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +39,8 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
@@ -319,6 +319,7 @@ public final class KafkaServiceReconciler implements
         return checksumGenerator.encode();
     }
 
+    @Nullable
     private io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls buildStatusTls(
                                                                                           KafkaService service,
                                                                                           @Nullable TrustAnchorRef trustAnchorRef) {
