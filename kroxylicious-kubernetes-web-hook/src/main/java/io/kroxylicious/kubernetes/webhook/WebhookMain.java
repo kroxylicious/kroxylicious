@@ -120,10 +120,11 @@ public class WebhookMain {
         LOGGER.atInfo().log("Webhook stopped");
     }
 
-    @VisibleForTesting
+
     /**
      * Detects whether the cluster supports native sidecar containers (Kubernetes 1.28+).
      */
+    @VisibleForTesting
     static boolean detectNativeSidecarSupport(@NonNull KubernetesClient client) {
         try {
             VersionInfo version = client.getKubernetesVersion();
