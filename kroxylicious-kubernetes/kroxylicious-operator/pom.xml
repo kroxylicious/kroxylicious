@@ -12,7 +12,7 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.kroxylicious</groupId>
-        <artifactId>kroxylicious-parent</artifactId>
+        <artifactId>kroxylicious-kubernetes-parent</artifactId>
         <version>0.21.0-SNAPSHOT</version>
     </parent>
 
@@ -474,12 +474,12 @@
                                 <configuration>
                                     <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
                                     <!--suppress UnresolvedMavenProperty -->
-                                    <script>${rootdir}/kroxylicious-operator/package_crds.java</script>
+                                    <script>${rootdir}/kroxylicious-kubernetes/kroxylicious-operator/package_crds.java</script>
                                     <args>
                                         <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${rootdir}/kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
                                         <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${rootdir}/kroxylicious-operator/target/packaged/install</arg>
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-operator/target/packaged/install</arg>
                                     </args>
                                 </configuration>
                             </execution>
