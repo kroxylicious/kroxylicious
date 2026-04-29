@@ -1,10 +1,13 @@
 package ${package};
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.record.MemoryRecords;
 
+import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -55,8 +58,12 @@ class SampleFetchResponseFilter implements FetchResponseFilter {
      */
     private void applyTransformation(FetchResponseData response, FilterContext context) {
         response.responses().forEach(responseData -> {
-            for (FetchResponseData.PartitionData partitionData : responseData.partitions()) {
-                SampleFilterTransformer.transform(partitionData, context, this.config);
+            for (FetchResponseData.PartitionData partitionDatum : responseData.partitions()) {
+                MemoryRecords records = (MemoryRecords) partitionDatum.records();
+                partitionDatum.setRecords(RecordStream.ofRecords(records)
+                        .toMemoryRecords(
+                                context.createByteBufferOutputStream(records.sizeInBytes()),
+                                new SampleFilterTransformer(config.getFindValue(), config.getReplacementValue()){}));
             }
         });
     }
