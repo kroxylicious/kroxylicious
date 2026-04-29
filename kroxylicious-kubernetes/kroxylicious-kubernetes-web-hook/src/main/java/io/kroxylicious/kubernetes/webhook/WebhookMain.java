@@ -37,7 +37,9 @@ public class WebhookMain {
     private static final String KROXYLICIOUS_IMAGE_VAR = "KROXYLICIOUS_IMAGE";
 
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0:8443";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String DEFAULT_CERT_PATH = "/etc/webhook/tls/tls.crt";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String DEFAULT_KEY_PATH = "/etc/webhook/tls/tls.key";
 
     private final WebhookServer server;

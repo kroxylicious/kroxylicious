@@ -39,12 +39,12 @@ class SidecarConfigResolver implements Closeable {
 
     /**
      * Creates a resolver that watches all namespaces using the given client.
+     * This blocks while the initial {@code KroxyliciousSidecarConfig} are loaded.
      */
     SidecarConfigResolver(@NonNull KubernetesClient client) {
         this.informer = client.resources(KroxyliciousSidecarConfig.class)
                 .inAnyNamespace()
-                .inform(new Handler());
-        // TODO comment that this blocks, because that's necessary to avoid a race condition during startup
+                .inform(new Handler()); // blocks for initial watch and list
     }
 
     /**
