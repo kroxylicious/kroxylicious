@@ -20,14 +20,14 @@ To try this example out:
 4. Apply all manifests:
    `kubectl apply -f .`
 5. Wait for the Kafka cluster to be ready:
-   `kubectl wait kafka/my-cluster -n kafka --for=condition=Ready --timeout=300s`
+   `kubectl wait kafka/my-cluster -n my-proxy --for=condition=Ready --timeout=300s`
 6. Try producing and consuming some messages with commands like this:
    ```
-   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-producer.sh --bootstrap-server my-cluster-cluster-ip-bootstrap.my-proxy.svc.cluster.local:9292 --topic mytopic
-   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-cluster-ip-bootstrap.my-proxy.svc.cluster.local:9292 --topic mytopic --from-beginning
+   kubectl exec -it my-cluster-dual-role-0 -n my-proxy -- /bin/bash ./bin/kafka-console-producer.sh --bootstrap-server my-cluster-cluster-ip-bootstrap.my-proxy.svc.cluster.local:9292 --topic mytopic
+   kubectl exec -it my-cluster-dual-role-0 -n my-proxy -- /bin/bash ./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-cluster-ip-bootstrap.my-proxy.svc.cluster.local:9292 --topic mytopic --from-beginning
    ```
 
 **Troubleshooting:** If the KafkaService shows `ResolvedRefs: False`, check:
 * Strimzi Operator is installed: `kubectl get crd kafkas.kafka.strimzi.io`
-* Kafka cluster exists and is ready: `kubectl get kafka my-cluster -n kafka`
-* Strimzi CA secret exists: `kubectl get secret my-cluster-cluster-ca-cert -n kafka`
+* Kafka cluster exists and is ready: `kubectl get kafka my-cluster -n my-proxy`
+* Strimzi CA secret exists: `kubectl get secret my-cluster-cluster-ca-cert -n my-proxy`
