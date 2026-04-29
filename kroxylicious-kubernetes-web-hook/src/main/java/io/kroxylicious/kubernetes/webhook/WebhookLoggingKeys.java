@@ -12,6 +12,12 @@ public class WebhookLoggingKeys {
 
     static final String NAME = "name";
 
+    static final String POD = "pod";
+
+    static final String ANNOTATION = "annotation";
+
+    static final String ANNOTATION_VALUE = "annotationValue";
+
     private WebhookLoggingKeys() {
     }
 

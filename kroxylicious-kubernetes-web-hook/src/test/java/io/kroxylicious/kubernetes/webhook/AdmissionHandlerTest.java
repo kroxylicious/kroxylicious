@@ -294,7 +294,7 @@ class AdmissionHandlerTest {
                 adminSpec, annotations, "test-pod", "test-ns");
 
         assertThat(effective.getNodeIdRange()).isNotNull();
-        assertThat(effective.getNodeIdRange().getStartInclusive()).isEqualTo(0L);
+        assertThat(effective.getNodeIdRange().getStartInclusive()).isZero();
         assertThat(effective.getNodeIdRange().getEndInclusive()).isEqualTo(9L);
     }
 

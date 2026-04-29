@@ -127,7 +127,7 @@ public class WebhookMain {
     static boolean detectNativeSidecarSupport(@NonNull KubernetesClient client) {
         try {
             VersionInfo version = client.getKubernetesVersion();
-            int minor = Integer.parseInt(version.getMinor().replaceAll("[^0-9]", ""));
+            int minor = Integer.parseInt(version.getMinor().replaceAll("\\D", ""));
             boolean supported = minor >= 28;
             LOGGER.atInfo()
                     .addKeyValue("kubernetesVersion", version.getGitVersion())

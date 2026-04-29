@@ -17,7 +17,7 @@ final class Labels {
      * Interception is enabled when this label has the value {@code enabled}.
      */
     static final String SIDECAR_INJECTION = "kroxylicious.io/sidecar-injection";
-    
+
     /**
      * The value of the {@code kroxylicious.io/sidecar-injection} label which enables
      * interception by the webhook.

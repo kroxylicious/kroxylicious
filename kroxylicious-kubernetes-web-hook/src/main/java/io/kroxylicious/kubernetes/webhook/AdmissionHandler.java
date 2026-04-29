@@ -31,6 +31,7 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpecBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -147,8 +148,8 @@ class AdmissionHandler implements HttpHandler {
             InjectionDecision.Decision decision = InjectionDecision.evaluate(pod, configOpt.isPresent());
 
             LOGGER.atInfo()
-                    .addKeyValue("pod", podName)
-                    .addKeyValue("namespace", namespace)
+                    .addKeyValue(WebhookLoggingKeys.POD, podName)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                     .addKeyValue("decision", decision.name())
                     .addKeyValue("sidecarConfig", explicitConfigName)
                     .log("Sidecar injection decision");
@@ -198,17 +199,7 @@ class AdmissionHandler implements HttpHandler {
         Set<String> delegatedSet = delegated != null ? Set.copyOf(delegated) : Set.of();
 
         // Warn about undelegated kroxylicious.io/ annotations
-        for (String key : podAnnotations.keySet()) {
-            if (key.startsWith(KROXYLICIOUS_ANNOTATION_PREFIX)
-                    && !WEBHOOK_MANAGED_ANNOTATIONS.contains(key)
-                    && !delegatedSet.contains(key)) {
-                LOGGER.atWarn()
-                        .addKeyValue("pod", podName)
-                        .addKeyValue("namespace", namespace)
-                        .addKeyValue("annotation", key)
-                        .log("Pod has undelegated kroxylicious.io annotation, ignoring");
-            }
-        }
+        warnAboutUndelegatedAnnotations(namespace, podName, podAnnotations, delegatedSet);
 
         if (delegatedSet.isEmpty()) {
             return adminSpec;
@@ -218,23 +209,19 @@ class AdmissionHandler implements HttpHandler {
         KroxyliciousSidecarConfigSpec effective = copySpec(adminSpec);
 
         // Apply bootstrap port override
-        if (delegatedSet.contains(DELEGATED_BOOTSTRAP_PORT)) {
-            String portStr = podAnnotations.get(DELEGATED_BOOTSTRAP_PORT);
-            if (portStr != null) {
-                try {
-                    effective.setBootstrapPort(Long.parseLong(portStr));
-                }
-                catch (NumberFormatException e) {
-                    LOGGER.atWarn()
-                            .addKeyValue("pod", podName)
-                            .addKeyValue("namespace", namespace)
-                            .addKeyValue("value", portStr)
-                            .log("Invalid bootstrap port in delegated annotation, using admin default");
-                }
-            }
-        }
+        applyBootstrapPortOverride(podAnnotations, podName, namespace, delegatedSet, effective);
 
         // Apply node ID range override (format: "start-end")
+        applyNodeIdRangeOverride(podAnnotations, podName, namespace, delegatedSet, effective);
+
+        return effective;
+    }
+
+    private static void applyNodeIdRangeOverride(Map<String, String> podAnnotations,
+                                                 String podName,
+                                                 String namespace,
+                                                 Set<String> delegatedSet,
+                                                 KroxyliciousSidecarConfigSpec effective) {
         if (delegatedSet.contains(DELEGATED_NODE_ID_RANGE)) {
             String rangeStr = podAnnotations.get(DELEGATED_NODE_ID_RANGE);
             if (rangeStr != null) {
@@ -248,39 +235,69 @@ class AdmissionHandler implements HttpHandler {
                     }
                     catch (NumberFormatException e) {
                         LOGGER.atWarn()
-                                .addKeyValue("pod", podName)
-                                .addKeyValue("namespace", namespace)
-                                .addKeyValue("value", rangeStr)
+                                .addKeyValue(WebhookLoggingKeys.POD, podName)
+                                .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                                .addKeyValue(WebhookLoggingKeys.ANNOTATION, DELEGATED_NODE_ID_RANGE)
+                                .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, rangeStr)
                                 .log("Invalid node ID range in delegated annotation, using admin default");
                     }
                 }
                 else {
                     LOGGER.atWarn()
-                            .addKeyValue("pod", podName)
-                            .addKeyValue("namespace", namespace)
-                            .addKeyValue("value", rangeStr)
-                            .log("Invalid node ID range format (expected start-end), using admin default");
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, DELEGATED_NODE_ID_RANGE)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, rangeStr)
+                            .log("Invalid node ID range format in delegated annotation (expected start-end), using admin default");
                 }
             }
         }
+    }
 
-        return effective;
+    private static void applyBootstrapPortOverride(Map<String, String> podAnnotations,
+                                                   String podName,
+                                                   String namespace,
+                                                   Set<String> delegatedSet,
+                                                   KroxyliciousSidecarConfigSpec effective) {
+        if (delegatedSet.contains(DELEGATED_BOOTSTRAP_PORT)) {
+            String portStr = podAnnotations.get(DELEGATED_BOOTSTRAP_PORT);
+            if (portStr != null) {
+                try {
+                    effective.setBootstrapPort(Long.parseLong(portStr));
+                }
+                catch (NumberFormatException e) {
+                    LOGGER.atWarn()
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, DELEGATED_NODE_ID_RANGE)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, portStr)
+                            .log("Invalid bootstrap port in delegated annotation, using admin default");
+                }
+            }
+        }
+    }
+
+    private static void warnAboutUndelegatedAnnotations(String namespace,
+                                                        String podName,
+                                                        Map<String, String> podAnnotations,
+                                                        Set<String> delegatedSet) {
+        for (String key : podAnnotations.keySet()) {
+            if (key.startsWith(KROXYLICIOUS_ANNOTATION_PREFIX)
+                    && !WEBHOOK_MANAGED_ANNOTATIONS.contains(key)
+                    && !delegatedSet.contains(key)) {
+                LOGGER.atWarn()
+                        .addKeyValue(WebhookLoggingKeys.POD, podName)
+                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                        .addKeyValue("annotation", key)
+                        .log("Pod has undelegated kroxylicious.io annotation, ignoring");
+            }
+        }
     }
 
     @NonNull
     private static KroxyliciousSidecarConfigSpec copySpec(@NonNull KroxyliciousSidecarConfigSpec src) {
-        KroxyliciousSidecarConfigSpec copy = new KroxyliciousSidecarConfigSpec();
-        copy.setUpstreamBootstrapServers(src.getUpstreamBootstrapServers());
-        copy.setProxyImage(src.getProxyImage());
-        copy.setBootstrapPort(src.getBootstrapPort());
-        copy.setNodeIdRange(src.getNodeIdRange());
-        copy.setManagementPort(src.getManagementPort());
-        copy.setResources(src.getResources());
-        copy.setSetBootstrapEnvVar(src.getSetBootstrapEnvVar());
-        copy.setFilterDefinitions(src.getFilterDefinitions());
-        copy.setUpstreamTls(src.getUpstreamTls());
-        copy.setDelegatedAnnotations(src.getDelegatedAnnotations());
-        return copy;
+        KroxyliciousSidecarConfigSpecBuilder builder = new KroxyliciousSidecarConfigSpecBuilder(src);
+        return builder.build();
     }
 
     @NonNull
