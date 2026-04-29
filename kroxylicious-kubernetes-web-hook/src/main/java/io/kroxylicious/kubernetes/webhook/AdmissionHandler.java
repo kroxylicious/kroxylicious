@@ -202,6 +202,7 @@ class AdmissionHandler implements HttpHandler {
         return effective;
     }
 
+    // TODO: Do we really want to support this for the initial feature?
     private static void applyNodeIdRangeOverride(Map<String, String> podAnnotations,
                                                  String podName,
                                                  String namespace,
