@@ -192,18 +192,20 @@ public final class KafkaServiceReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef);
 
-        // Case 1: Explicit trust anchor ref (takes precedence when not using Strimzi CA)
-        if (trustAnchorRefOpt.isPresent() && !isUsingStrimziCaTrust(strimziKafkaRefOpt)) {
+        // Case 1: Explicit trust anchor ref (always takes precedence when present)
+        if (trustAnchorRefOpt.isPresent()) {
             return resolveExplicitTrustAnchor(service, context, trustAnchorRefOpt.get(), existingReferents);
         }
 
         // Case 2: Auto-discovered Strimzi CA certificate
-        if (isUsingStrimziCaTrust(strimziKafkaRefOpt)) {
+        else if (isUsingStrimziCaTrust(strimziKafkaRefOpt)) {
             return resolveStrimziCaTrust(service, context, strimziKafkaRefOpt.get(), existingReferents);
         }
 
         // Case 3: No trust anchor
-        return TrustAnchorResolution.noTrustAnchor(existingReferents);
+        else {
+            return TrustAnchorResolution.noTrustAnchor(existingReferents);
+        }
     }
 
     private boolean isUsingStrimziCaTrust(Optional<io.kroxylicious.kubernetes.api.common.StrimziKafkaRef> strimziRefOpt) {

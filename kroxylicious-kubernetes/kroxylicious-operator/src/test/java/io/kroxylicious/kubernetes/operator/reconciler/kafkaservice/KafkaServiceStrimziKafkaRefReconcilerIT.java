@@ -21,6 +21,10 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
@@ -214,6 +218,168 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
         // Then
         assertResolvedRefsFalse(updated, Condition.REASON_REFS_NOT_FOUND, "spec.strimziKafkaRef: referenced Kafka resource not found");
+    }
+
+    /**
+     * Tests that when trustAnchorRef is present, it always takes precedence
+     * regardless of trustStrimziCaCertificate setting.
+     */
+    @Test
+    void trustAnchorRefAlwaysTakesPrecedenceWhenPresent() {
+        // Given
+        var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        // @formatter:off
+        Kafka withStatus = new KafkaBuilder(kafka)
+                .withNewStatus()
+                .withListeners(
+                        new ListenerStatusBuilder()
+                                .withName("tls")
+                                .withAddresses(new ListenerAddressBuilder()
+                                        .withHost("foo.bootstrap")
+                                        .withPort(9090)
+                                        .build())
+                                .build())
+                .endStatus()
+                .build();
+        // @formatter:on
+        testActor.patchStatus(withStatus);
+        createTrustAnchorConfigMap("explicit-trust");
+
+        // When - Create KafkaService with trustAnchorRef AND trustStrimziCaCertificate=true
+        var service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-with-both-refs", "explicit-trust", "tls", true));
+
+        // Then - Explicit trustAnchorRef should be used (not Strimzi CA)
+        assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+        AWAIT.untilAsserted(() -> {
+            var status = testActor.get(KafkaService.class, "service-with-both-refs").getStatus().getTls();
+            Assertions.assertThat(status.getTrustAnchorRef().getRef().getName()).isEqualTo("explicit-trust");
+            Assertions.assertThat(status.getTrustAnchorRef().getRef().getKind()).isEqualTo("ConfigMap");
+        });
+    }
+
+    /**
+     * Tests that trustAnchorRef is used even when trustStrimziCaCertificate is explicitly false.
+     */
+    @Test
+    void trustAnchorRefUsedWhenTrustStrimziCaDisabled() {
+        // Given
+        var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        // @formatter:off
+        Kafka withStatus = new KafkaBuilder(kafka)
+                .withNewStatus()
+                .withListeners(
+                        new ListenerStatusBuilder()
+                                .withName("tls")
+                                .withAddresses(new ListenerAddressBuilder()
+                                        .withHost("foo.bootstrap")
+                                        .withPort(9090)
+                                        .build())
+                                .build())
+                .endStatus()
+                .build();
+        // @formatter:on
+        testActor.patchStatus(withStatus);
+        createTrustAnchorConfigMap("explicit-trust");
+
+        // When - Create KafkaService with trustAnchorRef AND trustStrimziCaCertificate=false
+        var service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-trust-anchor-only", "explicit-trust", "tls", false));
+
+        // Then - Explicit trustAnchorRef should be used
+        assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+        AWAIT.untilAsserted(() -> {
+            var status = testActor.get(KafkaService.class, "service-trust-anchor-only").getStatus().getTls();
+            Assertions.assertThat(status.getTrustAnchorRef().getRef().getName()).isEqualTo("explicit-trust");
+            Assertions.assertThat(status.getTrustAnchorRef().getRef().getKind()).isEqualTo("ConfigMap");
+        });
+    }
+
+    /**
+     * Tests that when trustAnchorRef is NOT present and trustStrimziCaCertificate is enabled,
+     * the Strimzi CA is used.
+     */
+    @Test
+    void strimziCaUsedWhenTrustAnchorRefNotPresent() {
+        // Given
+        var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        // @formatter:off
+        Kafka withStatus = new KafkaBuilder(kafka)
+                .withNewStatus()
+                .withListeners(
+                        new ListenerStatusBuilder()
+                                .withName("tls")
+                                .withAddresses(new ListenerAddressBuilder()
+                                        .withHost("foo.bootstrap")
+                                        .withPort(9090)
+                                        .build())
+                                .build())
+                .endStatus()
+                .build();
+        // @formatter:on
+        testActor.patchStatus(withStatus);
+        String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+        testActor.create(createStrimziClusterCaSecret(clusterCaSecretName));
+
+        // When - Create KafkaService with trustStrimziCaCertificate=true but NO trustAnchorRef
+        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor("service-strimzi-only", null, "tls", true));
+
+        // Then - Strimzi CA should be used
+        assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+    }
+
+    private void createTrustAnchorConfigMap(String name) {
+        ConfigMap configMap = new ConfigMapBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData("ca-bundle.pem", "whatever")
+                .build();
+        testActor.create(configMap);
+    }
+
+    private Secret createStrimziClusterCaSecret(String name) {
+        return new SecretBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData("ca.crt", "whatever")
+                .build();
+    }
+
+    /**
+     * Creates a KafkaService with strimziKafkaRef and optionally a trustAnchorRef.
+     * @param trustAnchorName if null, no trustAnchorRef is added; otherwise creates a ConfigMap-based trustAnchorRef
+     */
+    private KafkaService kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor(String serviceName, String trustAnchorName, String listenerName, boolean trustStrimziCa) {
+        // @formatter:off
+        var service = new KafkaServiceBuilder()
+                .withNewMetadata()
+                .withName(serviceName)
+                .endMetadata()
+                .editOrNewSpec()
+                .withNewStrimziKafkaRef()
+                .withListenerName(listenerName)
+                .withTrustStrimziCaCertificate(trustStrimziCa)
+                .withNewRef()
+                .withName(KAFKA_RESOURCE_NAME)
+                .endRef()
+                .endStrimziKafkaRef();
+        // @formatter:on
+
+        if (trustAnchorName != null) {
+            // @formatter:off
+            service.editOrNewTls()
+                    .withNewTrustAnchorRef()
+                    .withNewRef()
+                    .withName(trustAnchorName)
+                    .withKind("ConfigMap")
+                    .endRef()
+                    .withKey("ca-bundle.pem")
+                    .endTrustAnchorRef()
+                    .endTls();
+            // @formatter:on
+        }
+
+        return service.endSpec().build();
     }
 
     private Kafka kafkaResource(String resourceName) {
