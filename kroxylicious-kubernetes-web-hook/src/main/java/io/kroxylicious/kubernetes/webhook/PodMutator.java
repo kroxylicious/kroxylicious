@@ -128,8 +128,8 @@ class PodMutator {
                 && pod.getSpec().getVolumes() != null
                 && !pod.getSpec().getVolumes().isEmpty();
 
-        // TODO Add a comment explaining what this is doing in Kube terms.
-        // Config volume (downwardAPI)
+        // Use downwardAPI to mount a volume such that the container's proxy-config.yaml has the content of the
+        // kroxylicious.io/proxy-config annotation's value.
         ObjectNode configVolume = MAPPER.createObjectNode();
         configVolume.put("name", SIDECAR_VOLUME_NAME);
         ObjectNode downwardAPI = configVolume.putObject("downwardAPI");
