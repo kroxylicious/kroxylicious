@@ -17,6 +17,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Nod
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -74,7 +75,7 @@ class ProxyConfigGenerator {
                 new HostPort(LOCALHOST, bootstrapPort),
                 LOCALHOST,
                 bootstrapPort + 1,
-                List.of(new io.kroxylicious.proxy.config.NamedRange("default", nodeIdStart, nodeIdEnd)));
+                List.of(new NamedRange("default", nodeIdStart, nodeIdEnd)));
 
         var gateway = new VirtualClusterGateway(
                 GATEWAY_NAME,

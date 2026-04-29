@@ -11,8 +11,17 @@ package io.kroxylicious.kubernetes.webhook;
  */
 final class Labels {
 
-    // TODO Javadoc these things, so we know what they're for
+    /**
+     * Label applied to Kubernetes {@code Namespace} resources controlling whether
+     * {@code Pods} created in that {@code Namespace} will be intercepted by the webhook.
+     * Interception is enabled when this label has the value {@code enabled}.
+     */
     static final String SIDECAR_INJECTION = "kroxylicious.io/sidecar-injection";
+    
+    /**
+     * The value of the {@code kroxylicious.io/sidecar-injection} label which enables
+     * interception by the webhook.
+     */
     static final String SIDECAR_INJECTION_ENABLED = "enabled";
 
     private Labels() {
