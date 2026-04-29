@@ -57,6 +57,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.util.concurrent.ScheduledFuture;
 
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -97,7 +98,7 @@ class ProxyChannelStateMachineTest {
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
-            List.of());
+            List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;

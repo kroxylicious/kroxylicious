@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.model;
 
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,7 @@ import javax.net.ssl.SSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -67,7 +69,8 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS))
+        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10)))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
     }

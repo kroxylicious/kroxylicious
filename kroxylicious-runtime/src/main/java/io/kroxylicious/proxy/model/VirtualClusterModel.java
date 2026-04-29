@@ -82,16 +82,6 @@ public class VirtualClusterModel {
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
-    private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(10);
-
-    public VirtualClusterModel(String clusterName,
-                               TargetCluster targetCluster,
-                               boolean logNetwork,
-                               boolean logFrames,
-                               List<NamedFilterDefinition> filters) {
-        this(clusterName, targetCluster, logNetwork, logFrames, filters, new CacheConfiguration(null, null, null), null, DEFAULT_DRAIN_TIMEOUT);
-    }
-
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
                                boolean logNetwork,
