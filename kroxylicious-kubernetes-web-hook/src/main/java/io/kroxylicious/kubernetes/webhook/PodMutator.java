@@ -93,6 +93,7 @@ class PodMutator {
                 && pod.getSpec().getVolumes() != null
                 && !pod.getSpec().getVolumes().isEmpty();
 
+        // TODO Add a comment explaining what this is doing in Kube terms.
         ObjectNode volume = MAPPER.createObjectNode();
         volume.put("name", SIDECAR_VOLUME_NAME);
         ObjectNode downwardAPI = volume.putObject("downwardAPI");
@@ -256,6 +257,7 @@ class PodMutator {
         }
     }
 
+    // TODO add an import and avoid the fq name below
     private static int findEnvVarIndex(
                                        List<io.fabric8.kubernetes.api.model.EnvVar> env,
                                        String name) {

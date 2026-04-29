@@ -63,6 +63,7 @@ class AdmissionHandler implements HttpHandler {
                 review = MAPPER.readValue(is, AdmissionReview.class);
             }
 
+            // TODO the below code share a lot of statements in common with sendAllowResponse()
             AdmissionResponse response = processReview(review);
             AdmissionReview responseReview = new AdmissionReview();
             responseReview.setApiVersion("admission.k8s.io/v1");
@@ -82,6 +83,7 @@ class AdmissionHandler implements HttpHandler {
                     .log("Unexpected error handling admission request");
             // Fail-open: always allow, even on error
             sendAllowResponse(exchange, null);
+            // TODO this will need to change when we default to fail closed.
         }
         finally {
             exchange.close();
@@ -152,6 +154,7 @@ class AdmissionHandler implements HttpHandler {
 
     @NonNull
     private String resolveImage(@NonNull KroxyliciousSidecarConfig config) {
+        // TODO rename to proxyImage()
         String image = config.getSpec().getProxyImage();
         return image != null ? image : proxyImage;
     }

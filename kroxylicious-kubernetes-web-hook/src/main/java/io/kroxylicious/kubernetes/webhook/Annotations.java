@@ -11,6 +11,7 @@ package io.kroxylicious.kubernetes.webhook;
  */
 final class Annotations {
 
+    // TODO Javadoc these things, so we know what they're for
     static final String INJECT_SIDECAR = "kroxylicious.io/inject-sidecar";
     static final String SIDECAR_CONFIG = "kroxylicious.io/sidecar-config";
     static final String PROXY_CONFIG = "kroxylicious.io/proxy-config";

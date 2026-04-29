@@ -11,6 +11,7 @@ package io.kroxylicious.kubernetes.webhook;
  */
 final class Labels {
 
+    // TODO Javadoc these things, so we know what they're for
     static final String SIDECAR_INJECTION = "kroxylicious.io/sidecar-injection";
     static final String SIDECAR_INJECTION_ENABLED = "enabled";
 

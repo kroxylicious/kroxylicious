@@ -4,6 +4,8 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+# TODO This should be factored into its own maven module so that the operator and sidecar are completely independent.
+
 # Note the v1 in the filename refers to the version of the CustomResourceDefinition
 # not any of the versions of API being defined.
 ---
@@ -33,6 +35,7 @@ spec:
         status: {}
       additionalPrinterColumns:
         - name: Upstream
+          # TODO All the "Upstream" in this API should be "Target", because that aligns with the terminology we use in non-Kube proxy configuration
           description: The bootstrap servers of the upstream Kafka cluster.
           jsonPath: ".spec.upstreamBootstrapServers"
           type: string
@@ -62,6 +65,7 @@ spec:
                   description: |
                     The container image to use for the sidecar proxy. If omitted, the webhook
                     uses the image configured via the KROXYLICIOUS_IMAGE environment variable.
+                  # TODO Can we reword this to avoid assuming the're a single consumer of this API which supports that env var?
                   type: string
                 bootstrapPort:
                   description: |
@@ -70,6 +74,7 @@ spec:
                     bootstrapPort + 1.
                   type: integer
                   default: 19092
+                  # TODO Change to 9092
                   minimum: 1024
                   maximum: 65535
                 nodeIdRange:
@@ -94,6 +99,7 @@ spec:
                     (/livez, /metrics). Bound to all interfaces so that kubelet probes work.
                   type: integer
                   default: 9190
+                  # TODO change to 9082
                   minimum: 1024
                   maximum: 65535
                 resources:

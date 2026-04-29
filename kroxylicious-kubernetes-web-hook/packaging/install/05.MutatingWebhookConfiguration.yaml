@@ -20,6 +20,7 @@ webhooks:
     sideEffects: None
     # Fail-open: if the webhook is unavailable, pods are created without sidecars
     failurePolicy: Ignore
+    # TODO fail closed by default
     reinvocationPolicy: IfNeeded
     timeoutSeconds: 10
     clientConfig:

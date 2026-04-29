@@ -14,6 +14,7 @@ metadata:
     app.kubernetes.io/component: webhook
 spec:
   replicas: 1
+  # TODO single replica, maybe okay for alpha, but better to have >1 and a PodDisruptionBudget to prevent them all being evicted simultaneously
   selector:
     matchLabels:
       app: kroxylicious-webhook
@@ -32,6 +33,7 @@ spec:
       containers:
         - name: webhook
           image: $[io.kroxylicious.webhook.image.name]
+          # TODO In phase 3 have maven-resources-plugin honour the implied interpolation
           ports:
             - containerPort: 8443
               name: webhook
@@ -51,6 +53,7 @@ spec:
             requests:
               memory: 256Mi
               cpu: 500m
+              # TODO do the work to find what a minimum realistic resources actually are
             limits:
               memory: 512Mi
               cpu: "1"

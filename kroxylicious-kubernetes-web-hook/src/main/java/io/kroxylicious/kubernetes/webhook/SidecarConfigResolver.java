@@ -44,6 +44,7 @@ class SidecarConfigResolver implements Closeable {
         this.informer = client.resources(KroxyliciousSidecarConfig.class)
                 .inAnyNamespace()
                 .inform(new Handler());
+        // TODO comment that this blocks, because that's necessary to avoid a race condition during startup
     }
 
     /**
