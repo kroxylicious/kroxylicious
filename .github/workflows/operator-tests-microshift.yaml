@@ -141,7 +141,7 @@ jobs:
           eval $(crc podman-env --root)
 
           mvn --batch-mode \
-            --projects kroxylicious-operator \
+            --projects :kroxylicious-operator \
             --activate-profiles '!qa' \
             -Derrorprone.skip=true \
             -Dmaven.javadoc.skip=true \
