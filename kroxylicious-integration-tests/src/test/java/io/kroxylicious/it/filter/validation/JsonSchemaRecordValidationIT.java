@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
-import java.util.function.Consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -27,21 +26,13 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.DockerImageName;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Ports;
 
-import io.apicurio.registry.client.RegistryClientFactory;
-import io.apicurio.registry.client.common.RegistryClientOptions;
 import io.apicurio.registry.rest.client.models.CreateArtifact;
+import io.apicurio.registry.rest.client.models.CreateVersion;
+import io.apicurio.registry.rest.client.models.VersionContent;
 import io.apicurio.registry.rest.client.models.VersionMetaData;
 import io.apicurio.registry.serde.config.SerdeConfig;
 import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
@@ -124,48 +115,27 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
             {"firstName":"json1","lastName":"json2"}""";
     private static final String INVALID_AGE_MESSAGE = """
             {"firstName":"json1","lastName":"json2","age":-3}""";
-    private static final String APICURIO_REGISTRY_HOST = "http://localhost";
-    private static final Integer APICURIO_REGISTRY_PORT = 8081;
-    private static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
-    private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT + APICURIO_REGISTRY_API;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     public static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
 
-    public static String firstArtifactId;
-
-    public static int firstContentId;
-    public static int secondContentId;
-    private static GenericContainer registryContainer;
+    private static String apicurioRegistryUrl;
+    private static String firstArtifactId;
+    private static int firstContentId;
+    private static int secondContentId;
+    private static GenericContainer<?> registryContainer;
 
     @BeforeAll
     static void init() {
-        // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
-        String image = "quay.io/apicurio/apicurio-registry:3.2.3@sha256:43f468182af66e083c2c97865109327503d74ece347e48987fb7165a27e77a62";
-        DockerImageName dockerImageName = DockerImageName.parse(image)
-                .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
+        registryContainer = startRegistryContainer();
+        apicurioRegistryUrl = registryUrl(registryContainer);
 
-        Consumer<CreateContainerCmd> cmd = e -> e.withHostConfig(new HostConfig().withPortBindings(
-                new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT))));
-
-        registryContainer = new GenericContainer<>(dockerImageName)
-                .withEnv(Map.of(
-                        "QUARKUS_HTTP_PORT", String.valueOf(APICURIO_REGISTRY_PORT)))
-                .withExposedPorts(APICURIO_REGISTRY_PORT)
-                .withCreateContainerCmdModifier(cmd)
-                .waitingFor(Wait.forHttp(APICURIO_REGISTRY_API + "/system/info").forStatusCode(200));
-
-        registryContainer.start();
-
-        RegistryClientOptions.create(APICURIO_REGISTRY_URL);
-
-        // Preparation: In this test class, schemas are registered in Apicurio Registry v3 and their contentIds are stored for validation.
-        var client = RegistryClientFactory.create(RegistryClientOptions.create(APICURIO_REGISTRY_URL));
+        var client = registryClient(apicurioRegistryUrl);
 
         // Create first artifact with JSON_SCHEMA_TOPIC_1
         CreateArtifact createFirstArtifact = new CreateArtifact();
         createFirstArtifact.setArtifactType("JSON");
-        io.apicurio.registry.rest.client.models.CreateVersion firstVersion = new io.apicurio.registry.rest.client.models.CreateVersion();
-        io.apicurio.registry.rest.client.models.VersionContent firstContent = new io.apicurio.registry.rest.client.models.VersionContent();
+        CreateVersion firstVersion = new CreateVersion();
+        VersionContent firstContent = new VersionContent();
         firstContent.setContent(JSON_SCHEMA_TOPIC_1);
         firstContent.setContentType("application/json");
         firstVersion.setContent(firstContent);
@@ -174,8 +144,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         // Create second artifact with JSON_SCHEMA_TOPIC_2 (different schema to get different contentId)
         CreateArtifact createSecondArtifact = new CreateArtifact();
         createSecondArtifact.setArtifactType("JSON");
-        io.apicurio.registry.rest.client.models.CreateVersion secondVersion = new io.apicurio.registry.rest.client.models.CreateVersion();
-        io.apicurio.registry.rest.client.models.VersionContent secondContent = new io.apicurio.registry.rest.client.models.VersionContent();
+        CreateVersion secondVersion = new CreateVersion();
+        VersionContent secondContent = new VersionContent();
         secondContent.setContent(JSON_SCHEMA_TOPIC_2);
         secondContent.setContentType("application/json");
         secondVersion.setContent(secondContent);
@@ -335,14 +305,14 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, firstArtifactId,
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), isKey);
+                SerdeConfig.REGISTRY_URL, apicurioRegistryUrl), isKey);
         return consumerKeySerde;
     }
 
     private static @NonNull JsonSchemaSerde<PersonBean> createJsonSchemaProducerSerde(boolean schemaIdInHeader, boolean isKey) {
         var producerKeySerde = new JsonSchemaSerde<PersonBean>();
         producerKeySerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.REGISTRY_URL, apicurioRegistryUrl,
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, firstArtifactId,
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
@@ -438,7 +408,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
-                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioId", contentId)))))
+                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", apicurioRegistryUrl, "apicurioId", contentId)))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -451,7 +421,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
                         Map.of("schemaValidationConfig",
-                                Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioId", contentId, "wireFormatVersion", wireFormatVersion)))))
+                                Map.of("apicurioRegistryUrl", apicurioRegistryUrl, "apicurioId", contentId, "wireFormatVersion", wireFormatVersion)))))
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -462,7 +432,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         // V2 wire format uses Legacy8ByteIdHandler
         var producerSerde = new JsonSchemaSerde<PersonBean>();
         producerSerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.REGISTRY_URL, apicurioRegistryUrl,
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, firstArtifactId,
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
@@ -477,7 +447,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, firstArtifactId,
                 SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
                 KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.REGISTRY_URL, apicurioRegistryUrl,
                 SerdeConfig.ID_HANDLER, "io.apicurio.registry.serde.Legacy8ByteIdHandler"), false);
         return consumerSerde;
     }
@@ -491,12 +461,6 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @AfterAll
     static void stopResources() {
-        if (registryContainer != null && registryContainer.isRunning()) {
-            registryContainer.stop();
-        }
-    }
-
-    static boolean isDockerAvailable() {
-        return DockerClientFactory.instance().isDockerAvailable();
+        stopContainer(registryContainer);
     }
 }
