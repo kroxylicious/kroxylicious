@@ -57,6 +57,26 @@
             <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-schema-validation-avro</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-schema-validation-protobuf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-protobuf-schema-utilities</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.bitbucket.b_c</groupId>
             <artifactId>jose4j</artifactId>
         </dependency>
