@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
@@ -411,6 +412,50 @@ class AllReconcilersIT {
         // Then
         assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
         assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+    }
+
+    @Test
+    void infrastructureAnnotationsAppliedToServices() {
+        // Given
+        var myProxy = editableProxy(PROXY_A).build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+                .editOrNewSpec()
+                    .withNewInfrastructure()
+                        .addToAnnotations("example.com/custom-annotation", "test-value")
+                        .addToAnnotations("haproxy.router.openshift.io/timeout", "60s")
+                    .endInfrastructure()
+                    .withNewClusterIP()
+                        .withProtocol(Protocol.TCP)
+                    .endClusterIP()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        var myService = editableService(CLUSTER_FOO_SERVICE).build();
+        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+
+        // When
+        createAll(myProxy, myIngress, myService, myCluster);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+
+        // Verify Service has infrastructure annotations
+        AWAIT.alias("Service for cluster %s has infrastructure annotations".formatted(CLUSTER_FOO))
+                .untilAsserted(() -> {
+                    String serviceName = CLUSTER_FOO + "-" + CLUSTER_FOO_CLUSTER_IP_INGRESS + "-bootstrap";
+                    var service = testActor.get(Service.class, serviceName);
+                    assertThat(service)
+                            .isNotNull()
+                            .extracting(s -> s.getMetadata().getAnnotations())
+                            .asInstanceOf(InstanceOfAssertFactories.MAP)
+                            .containsEntry("example.com/custom-annotation", "test-value")
+                            .containsEntry("haproxy.router.openshift.io/timeout", "60s")
+                            .containsKey("kroxylicious.io/bootstrap-servers"); // operator annotation still present
+                });
     }
 
     private void createAll(HasMetadata... resources) {
