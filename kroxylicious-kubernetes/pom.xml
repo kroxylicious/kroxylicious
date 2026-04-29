@@ -26,6 +26,7 @@
         <module>kroxylicious-operator</module>
         <module>kroxylicious-operator-dist</module>
         <module>kroxylicious-operator-test-support</module>
+        <module>kroxylicious-kubernetes-web-hook</module>
     </modules>
 
     <build>
