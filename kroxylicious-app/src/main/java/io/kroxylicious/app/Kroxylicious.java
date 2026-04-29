@@ -75,8 +75,7 @@ public class Kroxylicious implements Callable<Integer> {
             Features features = getFeatures();
             printBannerAndVersions(features);
             try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, features)) {
-                kafkaProxy.startup();
-                kafkaProxy.block();
+                kafkaProxy.startup().join();
             }
         }
         catch (Exception e) {

@@ -12,7 +12,6 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.stream.Stream;
 
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -367,11 +366,11 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldNotAllowMultipleConcurrentStarts() throws Exception {
+    void startupTwiceReturnsSameFuture() throws Exception {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
-            proxy.startup();
-
-            assertThatThrownBy(proxy::startup).isInstanceOf(IllegalStateException.class).hasMessage("This proxy is already running");
+            var first = proxy.startup();
+            var second = proxy.startup();
+            assertThat(second).isSameAs(first);
         }
     }
 
@@ -398,11 +397,10 @@ class KafkaProxyTest {
                            bootstrapAddress: localhost:9192
                 """), Features.defaultFeatures())) {
             // When
-            KafkaProxy kafkaProxy = proxy.startup();
+            proxy.startup();
 
             // Then
-            assertThat(kafkaProxy).isInstanceOf(KafkaProxy.class)
-                    .extracting("managementEventGroup", InstanceOfAssertFactories.type(KafkaProxy.EventGroupConfig.class))
+            assertThat(proxy.managementEventGroup())
                     .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(IoUringServerSocketChannel.class));
 
         }
@@ -423,11 +421,10 @@ class KafkaProxyTest {
                            bootstrapAddress: localhost:9192
                 """), Features.defaultFeatures())) {
             // When
-            KafkaProxy kafkaProxy = proxy.startup();
+            proxy.startup();
 
             // Then
-            assertThat(kafkaProxy).isInstanceOf(KafkaProxy.class)
-                    .extracting("managementEventGroup", InstanceOfAssertFactories.type(KafkaProxy.EventGroupConfig.class))
+            assertThat(proxy.managementEventGroup())
                     .satisfiesAnyOf(eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(EpollServerSocketChannel.class),
                             eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(NioServerSocketChannel.class),
                             eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(KQueueServerSocketChannel.class));
