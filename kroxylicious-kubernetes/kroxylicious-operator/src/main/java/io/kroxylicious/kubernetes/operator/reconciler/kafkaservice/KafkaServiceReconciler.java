@@ -329,16 +329,16 @@ public final class KafkaServiceReconciler implements
         var tlsOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getTls);
 
-        if (tlsOpt.isEmpty()) {
+        if (tlsOpt.isEmpty() && trustAnchorRef == null) {
             return null;
         }
 
-        var tls = tlsOpt.get();
+        var tls = tlsOpt.orElse(null);
         return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
-                .withCertificateRef(tls.getCertificateRef())
+                .withCertificateRef(tls == null ? null : tls.getCertificateRef())
                 .withTrustAnchorRef(trustAnchorRef)
-                .withProtocols(tls.getProtocols())
-                .withCipherSuites(tls.getCipherSuites())
+                .withProtocols(tls == null ? null : tls.getProtocols())
+                .withCipherSuites(tls == null ? null : tls.getCipherSuites())
                 .build();
     }
 
