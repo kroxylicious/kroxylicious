@@ -119,7 +119,7 @@ jobs:
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects ':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist' \
+            --projects ':kroxylicious-operator,:kroxylicious-kubernetes-parent,:kroxylicious-parent,:kroxylicious-operator-dist' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
