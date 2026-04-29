@@ -58,7 +58,7 @@ jobs:
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-          minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+          minikube image load kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
           
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
           KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"

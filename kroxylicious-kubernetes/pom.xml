@@ -23,6 +23,9 @@
 
     <modules>
         <module>kroxylicious-kubernetes-api</module>
+        <module>kroxylicious-operator</module>
+        <module>kroxylicious-operator-dist</module>
+        <module>kroxylicious-operator-test-support</module>
     </modules>
 
     <build>
@@ -45,6 +48,12 @@
                                     <includes combine.children="append">
                                         <include>io.kroxylicious:kroxylicious-api</include>
                                         <include>io.kroxylicious:kroxylicious-runtime</include>
+                                        <include>io.kroxylicious:kroxylicious-annotations</include>
+                                        <include>io.kroxylicious:kroxylicious-operator</include>
+                                        <include>io.kroxylicious:kroxylicious-docs</include>
+                                        <include>io.kroxylicious:kroxylicious-kubernetes-api</include>
+                                        <include>io.kroxylicious:kroxylicious-operator-test-support:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-integration-test-support:*:*:test</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>

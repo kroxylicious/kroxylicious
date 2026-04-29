@@ -575,9 +575,6 @@
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-kubernetes</module>
-        <module>kroxylicious-operator-test-support</module>
-        <module>kroxylicious-operator</module>
-        <module>kroxylicious-operator-dist</module>
         <module>kroxylicious-docs</module>
         <module>kroxylicious-authorizer-api</module>
         <module>kroxylicious-authorizer-providers</module>

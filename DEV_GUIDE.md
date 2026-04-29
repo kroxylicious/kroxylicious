@@ -209,7 +209,7 @@ mvn -Pdist package
 
 as Maven will be responsible to build the container images as tgz files.
 
-Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directories.
+Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-kubernetes/kroxylicious-operator` and `kroxylicious-app` directories.
 
 Now if you want to push the Kroxylicious container and operator image to a specific registry like `quay.io` or `docker.io`, you can follow these steps:
 
@@ -242,14 +242,14 @@ podman push quay.io/<your-username>/<repository-name>:<tag>
 Alternatively, to test locally made changes, push the built operator and proxy images into your Minikube.
 
 ```
-minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
+minikube image load kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 ```
 
 > :warning: Some minikube container runtimes may not be able to load a gzipped tar (https://github.com/kubernetes/minikube/issues/21678), if the above commands report a failure 
 > like `cache_images.go:265] failed pushing to: minikube`, then run:
 > ```
-> gunzip --to-stdout kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
+> gunzip --to-stdout kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
 > gunzip --to-stdout kroxylicious-app/target/kroxylicious-proxy.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
 > ```
 
@@ -612,7 +612,7 @@ minikube start --kubernetes-version=latest
 ## Installing the operator
 
 ```bash
-kubectl apply -f kroxylicious-operator/target/packaged/install 
+kubectl apply -f kroxylicious-kubernetes/kroxylicious-operator/target/packaged/install 
 ```
 
 You can check that worked with something like
@@ -633,7 +633,7 @@ kubectl set env deployment/kroxylicious-operator -nkroxylicious-operator KROXYLI
 ## Creating a `KafkaProxy`
 
 ```bash
-kubectl apply -f kroxylicious-operator/target/packaged/examples/simple/
+kubectl apply -f kroxylicious-kubernetes/kroxylicious-operator/target/packaged/examples/simple/
 ```
 
 You can check that worked with something like
