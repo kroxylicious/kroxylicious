@@ -15,7 +15,7 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 
-public class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper implements PrimaryToSecondaryMapper<KafkaService> {
+class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper implements PrimaryToSecondaryMapper<KafkaService> {
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(KafkaService service) {
         return Optional.ofNullable(service.getSpec())
