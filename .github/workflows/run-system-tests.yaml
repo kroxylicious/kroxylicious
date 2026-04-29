@@ -149,8 +149,8 @@ jobs:
           minikube image load kroxylicious-operator.img.tar.gz
           
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
-          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
-          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
+          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
+          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects :kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
           KROXYLICIOUS_VERSION="$(mvn --quiet org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=project.version -DforceStdout)"
           minikube image tag ${KROXYLICIOUS_PROXY_IMAGE} quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}          
           minikube image ls | grep --fixed-strings quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}
