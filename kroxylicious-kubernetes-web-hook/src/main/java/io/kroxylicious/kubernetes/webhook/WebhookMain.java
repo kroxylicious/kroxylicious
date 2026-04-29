@@ -127,13 +127,14 @@ public class WebhookMain {
     static boolean detectNativeSidecarSupport(@NonNull KubernetesClient client) {
         try {
             VersionInfo version = client.getKubernetesVersion();
+            int major = Integer.parseInt(version.getMajor().replaceAll("\\D", ""));
             int minor = Integer.parseInt(version.getMinor().replaceAll("\\D", ""));
-            boolean supported = minor >= 28;
+            boolean nativeSidecarSupported = major > 1 || (major == 1 && minor >= 28);
             LOGGER.atInfo()
                     .addKeyValue("kubernetesVersion", version.getGitVersion())
-                    .addKeyValue("nativeSidecar", supported)
+                    .addKeyValue("nativeSidecar", nativeSidecarSupported)
                     .log("Detected Kubernetes version");
-            return supported;
+            return nativeSidecarSupported;
         }
         catch (Exception e) {
             LOGGER.atWarn()
