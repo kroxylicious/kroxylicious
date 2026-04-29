@@ -83,7 +83,7 @@ jobs:
           driver-opts: network=host
 
       - name: Build Docker image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           context: kroxylicious.github.io
           push: true
@@ -121,6 +121,9 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation build workflow failed.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}
 
   # Deployment job
   deploy:
@@ -145,3 +148,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The snapshot documentation deployment workflow failed.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}

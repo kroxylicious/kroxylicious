@@ -72,7 +72,7 @@ jobs:
           cd "$HOME/.m2/repository"
           tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
       - name: 'Upload Kroxylicious Maven artifacts'
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
@@ -122,7 +122,7 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
@@ -149,8 +149,8 @@ jobs:
           minikube image load kroxylicious-operator.img.tar.gz
           
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
-          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
-          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
+          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
+          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects :kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
           KROXYLICIOUS_VERSION="$(mvn --quiet org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=project.version -DforceStdout)"
           minikube image tag ${KROXYLICIOUS_PROXY_IMAGE} quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}          
           minikube image ls | grep --fixed-strings quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}
@@ -200,9 +200,8 @@ jobs:
         uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2
         if: ${{ !cancelled() }}
         with:
-          artifact: junit-results-${{ matrix.tests }}-${{ inputs.kafkaClient }}
           name: SystemTests-${{ matrix.tests }}-${{ inputs.kafkaClient }}
-          path: '*.xml'
+          path: 'kroxylicious-systemtests/target/surefire-reports/**/TEST-*.xml'
           reporter: java-junit
           fail-on-empty: 'false'
 

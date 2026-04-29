@@ -209,7 +209,7 @@ mvn -Pdist package
 
 as Maven will be responsible to build the container images as tgz files.
 
-Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directories.
+Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-kubernetes/kroxylicious-operator` and `kroxylicious-app` directories.
 
 Now if you want to push the Kroxylicious container and operator image to a specific registry like `quay.io` or `docker.io`, you can follow these steps:
 
@@ -242,14 +242,14 @@ podman push quay.io/<your-username>/<repository-name>:<tag>
 Alternatively, to test locally made changes, push the built operator and proxy images into your Minikube.
 
 ```
-minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
+minikube image load kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 ```
 
 > :warning: Some minikube container runtimes may not be able to load a gzipped tar (https://github.com/kubernetes/minikube/issues/21678), if the above commands report a failure 
 > like `cache_images.go:265] failed pushing to: minikube`, then run:
 > ```
-> gunzip --to-stdout kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
+> gunzip --to-stdout kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
 > gunzip --to-stdout kroxylicious-app/target/kroxylicious-proxy.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
 > ```
 
@@ -522,8 +522,54 @@ The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensur
 The project requires that all commits are signed-off, indicating that _you_ certify the changes with the [Developer
 Certificate of Origin (DCO)](./DCO.txt).
 
-This can be done using `git commit -s` for each commit
-in your pull request. Alternatively, to signoff a bunch of commits you can use `git rebase --signoff _your-branch_`.
+### Automatic Signoff via Git Hook
+
+A prepare-commit-msg hook automatically adds the `Signed-off-by:` trailer to your commits. To set this up:
+
+1. Copy the hook template to your local git hooks directory:
+   ```shell
+   cp scripts/git-hooks/prepare-commit-msg .git/hooks/prepare-commit-msg
+   chmod +x .git/hooks/prepare-commit-msg
+   ```
+
+2. Verify the hook is working:
+   ```shell
+   git commit -m "test commit"
+   git log -1 --format=%B
+   ```
+   You should see `Signed-off-by: Your Name <your.email@example.com>` at the end.
+
+### Manual Signoff (Alternative)
+
+If you prefer not to use the hook, you can sign off commits manually:
+- Use `git commit -s` for each commit in your pull request
+- Or use `git rebase --signoff _your-branch_` to sign off multiple commits
+
+### AI Disclosure Requirement
+
+When AI tools (like Claude Code, GitHub Copilot, etc.) assist with your code changes, add an `Assisted-by:` trailer to document this:
+
+**Format:** `Assisted-by: <AI-name> <model> <email>`
+
+**Examples:**
+```
+Assisted-by: Claude Sonnet 4.5 <noreply@anthropic.com>
+Assisted-by: Claude Opus 4.6 <noreply@anthropic.com>
+```
+
+**Placement:** After the commit message body, before the `Signed-off-by:` trailer.
+
+**Complete example:**
+```
+feat(filters): add request throttling
+
+Implements configurable rate limiting with per-client quotas.
+
+Assisted-by: Claude Sonnet 4.5 <noreply@anthropic.com>
+Signed-off-by: Jane Developer <jane@example.com>
+```
+
+This practice maintains transparency about AI assistance in our development process while preserving the human developer's accountability for the final code.
 
 # Development Guide for Kroxylicious Operator
 
@@ -544,7 +590,7 @@ You should now be able to run the tests using `mvn`.
 If you want to run the `OperatorMain` (e.g. from your IDE, maybe for debugging) then you'll need to install the CRD:
 
 ```bash
-kubectl apply -f kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
+kubectl apply -f kroxylicious-kubernetes/kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
 ```
 
 You should now be able to play around with `KafkaProxy` CRs; read the "Creating a `KafkaProxy`" section.
@@ -566,7 +612,7 @@ minikube start --kubernetes-version=latest
 ## Installing the operator
 
 ```bash
-kubectl apply -f kroxylicious-operator/target/packaged/install 
+kubectl apply -f kroxylicious-kubernetes/kroxylicious-operator/target/packaged/install 
 ```
 
 You can check that worked with something like
@@ -587,7 +633,7 @@ kubectl set env deployment/kroxylicious-operator -nkroxylicious-operator KROXYLI
 ## Creating a `KafkaProxy`
 
 ```bash
-kubectl apply -f kroxylicious-operator/target/packaged/examples/simple/
+kubectl apply -f kroxylicious-kubernetes/kroxylicious-operator/target/packaged/examples/simple/
 ```
 
 You can check that worked with something like

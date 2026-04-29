@@ -95,7 +95,7 @@ jobs:
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects ':kroxylicious-operator,:kroxylicious-parent' \
+            --projects ':kroxylicious-operator,:kroxylicious-kubernetes-parent,:kroxylicious-parent' \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
             -Dsonar.projectName='Kroxylicious Operator' \
@@ -118,3 +118,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The operator maven workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}

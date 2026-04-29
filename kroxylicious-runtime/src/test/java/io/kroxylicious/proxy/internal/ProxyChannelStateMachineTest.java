@@ -8,9 +8,11 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.InvalidRequestException;
@@ -110,6 +112,10 @@ class ProxyChannelStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new KafkaSession(KafkaSessionState.ESTABLISHING));
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
+        when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
+        when(frontendHandler.remotePort()).thenReturn(9476);
+        // Make the executor run tasks synchronously for tests
+        when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
     }
 
     @AfterEach
@@ -473,7 +479,13 @@ class ProxyChannelStateMachineTest {
     @Test
     void inConnectingShouldTransitionWhenOnServerActiveCalled() {
         // Given
-        stateMachineInConnecting();
+        int waitingForOneEvent = 1;
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
+                frontendHandler,
+                backendHandler,
+                TEST_KAFKA_SESSION,
+                waitingForOneEvent);
 
         // When
         proxyChannelStateMachine.onServerActive();
@@ -481,7 +493,28 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
 
-        verify(frontendHandler).inForwarding();
+        verify(frontendHandler).unblockClient();
+        verifyNoInteractions(backendHandler);
+    }
+
+    @Test
+    void onServerActiveDoesNotUnblockClientIfWaitingForTransportSubject() {
+        // Given
+        int waitingForTwoEvents = 2;
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
+                frontendHandler,
+                backendHandler,
+                TEST_KAFKA_SESSION,
+                waitingForTwoEvents);
+
+        // When
+        proxyChannelStateMachine.onServerActive();
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
+
+        verifyNoInteractions(frontendHandler);
         verifyNoInteractions(backendHandler);
     }
 
@@ -525,9 +558,8 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
-        verifyNoInteractions(frontendHandler);
+        verify(frontendHandler).admitToFilterChain(msg);
         verifyNoInteractions(serverCtx);
-        verify(backendHandler).forwardToServer(msg);
     }
 
     @Test
@@ -792,7 +824,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                -1);
     }
 
     private void stateMachineInHaProxy() {
@@ -800,7 +833,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.HaProxy(),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                -1);
     }
 
     private void stateMachineInSelectingServer() {
@@ -808,7 +842,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.SelectingServer(null, null),
                 frontendHandler,
                 null,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                -1);
     }
 
     private void stateMachineInConnecting() {
@@ -816,7 +851,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                -1);
     }
 
     private ProxyChannelState.Forwarding stateMachineInForwarding() {
@@ -825,7 +861,8 @@ class ProxyChannelStateMachineTest {
                 forwarding,
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                -1);
         return forwarding;
     }
 
@@ -834,7 +871,8 @@ class ProxyChannelStateMachineTest {
                 new ProxyChannelState.Closed(),
                 frontendHandler,
                 backendHandler,
-                TEST_KAFKA_SESSION);
+                TEST_KAFKA_SESSION,
+                -1);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
@@ -987,12 +1025,28 @@ class ProxyChannelStateMachineTest {
     void shouldFlushToServerWhenClientReadCompletes() {
         // Given
         stateMachineInForwarding();
+        Object msg = new Object();
 
         // When
-        proxyChannelStateMachine.clientReadComplete();
+        proxyChannelStateMachine.onClientFilterChainComplete(msg);
 
         // Then
+        verify(backendHandler).forwardToServer(msg);
         verify(backendHandler).flushToServer();
+    }
+
+    @Test
+    void onClientFilterChainCompleteNotInForwarding() {
+        // Given
+        stateMachineInClientActive();
+        Object msg = new Object();
+
+        // When
+        proxyChannelStateMachine.onClientFilterChainComplete(msg);
+
+        // Then
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
     }
 
     @Test
@@ -1013,6 +1067,24 @@ class ProxyChannelStateMachineTest {
 
     private int getVirtualNodeProxyToServerActiveConnections() {
         return io.kroxylicious.proxy.internal.util.Metrics.proxyToServerConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
+    }
+
+    @Test
+    void onClientTlsHandshakeSuccessPassesExecutorToSubjectManager() {
+        // Given
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+        SSLSession sslSession = mock(SSLSession.class);
+        AtomicBoolean executorUsed = new AtomicBoolean(false);
+        when(frontendHandler.eventLoopExecutor()).thenReturn(command -> {
+            executorUsed.set(true);
+            command.run();
+        });
+
+        // When
+        proxyChannelStateMachine.onClientTlsHandshakeSuccess(sslSession);
+
+        // Then - verify the executor was actually used, proving the new parameter is passed through correctly
+        assertThat(executorUsed).isTrue();
     }
 
     @org.junit.jupiter.api.Nested

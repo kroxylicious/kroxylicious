@@ -58,11 +58,11 @@ jobs:
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-          minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+          minikube image load kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
           
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
-          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
-          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
+          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
+          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects :kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
           KROXYLICIOUS_VERSION="$(mvn --quiet org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=project.version -DforceStdout)"
           minikube image tag ${KROXYLICIOUS_PROXY_IMAGE} quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}
           minikube image ls | grep --fixed-strings quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}
@@ -77,3 +77,6 @@ jobs:
           slackWebhook: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
           slackTitle: 'Failure Alert: ${{ github.repository }}'
           slackMessage: 'The documentation tests workflow failed on branch ${{ github.ref_name }}.'
+          serverUrl: ${{ github.server_url }}
+          repository: ${{ github.repository }}
+          runId: ${{ github.run_id }}

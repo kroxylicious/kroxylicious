@@ -235,28 +235,6 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Default kafka go job builder.
-     *
-     * @param jobName the job name
-     * @param args the args
-     * @return the job builder
-     */
-    public static JobBuilder defaultKafkaGoJob(String jobName, List<String> args) {
-        return baseClientJob(jobName)
-                .editSpec()
-                .withBackoffLimit(3)
-                .editTemplate()
-                .editSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
-                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
-                        .withArgs(args)
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
-    }
-
-    /**
      * Authentication kafka go job builder.
      *
      * @param jobName the job name
@@ -284,12 +262,13 @@ public class TestClientsJobTemplates {
         volumeMounts.add(configMount);
         volumes.add(configVolume);
 
+        // Kaf client is not capable to reconnect,
+        // so in case of failure the restart shall be done in a different way than the other clients
         return baseClientJob(jobName)
                 .editSpec()
                 .withBackoffLimit(3)
                 .editTemplate()
                 .editSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_ON_FAILURE)
                 .withVolumes(volumes)
                 .withContainers(ContainerTemplates.baseImageBuilder("kafka-go", Constants.KAF_CLIENT_IMAGE)
                         .withArgs(args)
