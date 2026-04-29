@@ -289,6 +289,7 @@ public class KubeClient {
      * @return the string
      */
     public String logsInSpecificNamespace(String namespaceName, String podName) {
+        DeploymentUtils.waitForLeavingPendingPhase(namespaceName, podName);
         return client.pods().inNamespace(namespaceName).withName(podName).getLog();
     }
 }
