@@ -12,6 +12,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
@@ -32,7 +33,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -90,28 +90,27 @@ class KroxyliciousTest {
     @Test
     void testKroxyliciousStartsAndThenTerminates(@TempDir Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
-        when(mockProxy.startup()).thenReturn(mockProxy);
-        doNothing().when(mockProxy).block();
+        when(mockProxy.startup()).thenReturn(CompletableFuture.completedFuture(null));
         assertEquals(0, cmd.execute("-c", file.toString()));
     }
 
     @Test
     void testDefaultFeatures(@TempDir Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
-        when(mockProxy.startup()).thenReturn(mockProxy);
-        doNothing().when(mockProxy).block();
+        when(mockProxy.startup()).thenReturn(CompletableFuture.completedFuture(null));
         assertEquals(0, cmd.execute("-c", file.toString()));
         assertThat(features).hasValue(Features.defaultFeatures());
     }
 
     @Test
-    void testKroxyliciousExceptionOnBlock(@TempDir Path dir) throws Exception {
+    void testKroxyliciousExceptionDuringRun(@TempDir Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
-        when(mockProxy.startup()).thenReturn(mockProxy);
-        Mockito.doThrow(new RuntimeException("exception on block")).when(mockProxy).block();
+        var failedFuture = new CompletableFuture<Void>();
+        failedFuture.completeExceptionally(new RuntimeException("exception during run"));
+        when(mockProxy.startup()).thenReturn(failedFuture);
         int execute = cmd.execute("-c", file.toString());
         assertEquals(1, execute);
-        assertThat(stdErr()).contains("exception on block");
+        assertThat(stdErr()).contains("exception during run");
     }
 
     @Test
