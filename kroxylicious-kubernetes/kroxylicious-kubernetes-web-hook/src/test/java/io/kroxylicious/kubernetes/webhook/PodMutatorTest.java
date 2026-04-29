@@ -182,14 +182,14 @@ class PodMutatorTest {
         Container app = pod.getSpec().getContainers().get(0);
         EnvVar bootstrapEnv = new EnvVar();
         bootstrapEnv.setName("KAFKA_BOOTSTRAP_SERVERS");
-        bootstrapEnv.setValue("old-kafka:9092");
+        bootstrapEnv.setValue("old-kafka:19092");
         app.setEnv(new ArrayList<>(List.of(bootstrapEnv)));
 
         JsonNode patch = createPatchJson(pod);
 
         List<JsonNode> replaceOps = patchOps(patch, "replace", "/spec/containers/0/env/0/value");
         assertThat(replaceOps).hasSize(1);
-        assertThat(replaceOps.get(0).path("value").asText()).isEqualTo("localhost:19092");
+        assertThat(replaceOps.get(0).path("value").asText()).isEqualTo("localhost:" + ProxyConfigGenerator.DEFAULT_BOOTSTRAP_PORT);
     }
 
     @Test

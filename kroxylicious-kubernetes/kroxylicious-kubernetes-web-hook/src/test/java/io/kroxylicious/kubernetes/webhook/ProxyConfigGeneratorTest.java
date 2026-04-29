@@ -33,7 +33,7 @@ class ProxyConfigGeneratorTest {
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         // Management
-        assertThat(root.path("management").path("port").asInt()).isEqualTo(9190);
+        assertThat(root.path("management").path("port").asInt()).isEqualTo(ProxyConfigGenerator.DEFAULT_MANAGEMENT_PORT);
         assertThat(root.path("management").path("bindAddress").asText()).isEqualTo("0.0.0.0");
 
         // Virtual cluster
@@ -46,7 +46,7 @@ class ProxyConfigGeneratorTest {
         JsonNode gw = vc.path("gateways").get(0);
         assertThat(gw.path("name").asText()).isEqualTo("local");
         JsonNode portStrategy = gw.path("portIdentifiesNode");
-        assertThat(portStrategy.path("bootstrapAddress").asText()).isEqualTo("localhost:19092");
+        assertThat(portStrategy.path("bootstrapAddress").asText()).isEqualTo("localhost:" + ProxyConfigGenerator.DEFAULT_BOOTSTRAP_PORT);
         assertThat(portStrategy.path("advertisedBrokerAddressPattern").asText()).isEqualTo("localhost");
     }
 
@@ -94,7 +94,7 @@ class ProxyConfigGeneratorTest {
                 .path("gateways").get(0)
                 .path("portIdentifiesNode")
                 .path("nodeIdRanges").get(0);
-        assertThat(namedRange.path("start").asInt()).isEqualTo(0);
+        assertThat(namedRange.path("start").asInt()).isZero();
         assertThat(namedRange.path("end").asInt()).isEqualTo(9);
     }
 
@@ -102,7 +102,7 @@ class ProxyConfigGeneratorTest {
     void resolveBootstrapPortUsesDefault() {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
         spec.setTargetBootstrapServers("kafka:9092");
-        assertThat(ProxyConfigGenerator.resolveBootstrapPort(spec)).isEqualTo(19092);
+        assertThat(ProxyConfigGenerator.resolveBootstrapPort(spec)).isEqualTo(ProxyConfigGenerator.DEFAULT_BOOTSTRAP_PORT);
     }
 
     @Test
@@ -117,7 +117,7 @@ class ProxyConfigGeneratorTest {
     void resolveManagementPortUsesDefault() {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
         spec.setTargetBootstrapServers("kafka:9092");
-        assertThat(ProxyConfigGenerator.resolveManagementPort(spec)).isEqualTo(9190);
+        assertThat(ProxyConfigGenerator.resolveManagementPort(spec)).isEqualTo(ProxyConfigGenerator.DEFAULT_MANAGEMENT_PORT);
     }
 
     @Test
