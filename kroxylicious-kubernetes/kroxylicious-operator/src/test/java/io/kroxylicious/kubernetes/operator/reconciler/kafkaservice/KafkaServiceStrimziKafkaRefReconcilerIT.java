@@ -128,20 +128,10 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoPlainListeners() {
         // Given
-        String listenerHost = "mylistener";
-        int listenerPort = 9092;
-        Kafka withTlsListener = new KafkaBuilder()
-                .withNewMetadata()
-                .withName(KAFKA_RESOURCE_NAME)
-                .endMetadata()
-                .withNewSpec()
-                .withNewKafka()
-                .withListeners(List.of(new GenericKafkaListenerBuilder()
-                        .withName("tls")
-                        .withTls(true)
-                        .build()))
-                .endKafka()
-                .endSpec()
+        var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        String listenerHost = "foo.bootstrap";
+        int listenerPort = 9090;
+        Kafka withTlsListener = new KafkaBuilder(kafka)
                 .withNewStatus()
                 .withListeners(
                         new ListenerStatusBuilder()
@@ -154,13 +144,13 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                 .endStatus()
                 .build();
 
-        testActor.create(withTlsListener);
+        testActor.patchStatus(withTlsListener);
 
         // When
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
 
         // Then
-        assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource should have listener as `plain`");
+        assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
     }
 
     @Test
@@ -238,6 +228,24 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                                 .withName("plain")
                                 .withTls(false)
                                 .build())
+                    .endKafka()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private Kafka kafkaResourceWithTls(String resourceName) {
+        // @formatter:off
+        return new KafkaBuilder()
+                .withNewMetadata()
+                    .withName(resourceName)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewKafka()
+                        .withListeners(List.of(new GenericKafkaListenerBuilder()
+                            .withName("tls")
+                            .withTls(true)
+                        .build()))
                     .endKafka()
                 .endSpec()
                 .build();

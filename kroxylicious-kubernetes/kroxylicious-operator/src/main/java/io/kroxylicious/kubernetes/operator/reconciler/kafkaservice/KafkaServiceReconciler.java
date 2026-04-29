@@ -58,6 +58,7 @@ public final class KafkaServiceReconciler implements
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
     public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
+    public static final String SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsStrimziTrustAnchorRef";
     public static final String SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
     public static final String STRIMZI_KAFKA_GROUP_NAME = "kafka.strimzi.io";
@@ -98,6 +99,14 @@ public final class KafkaServiceReconciler implements
                 .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
                 .build();
 
+        InformerEventSourceConfiguration<Secret> serviceToStrimziCaCertificate = InformerEventSourceConfiguration.from(
+                Secret.class,
+                KafkaService.class)
+                .withName(SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziCaCertificateSecondary())
+                .withSecondaryToPrimaryMapper(new StrimziCaCertificateSecondaryToKafkaServicePrimary(context))
+                .build();
+
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(new InformerEventSource<>(serviceToSecret, context));
@@ -118,6 +127,7 @@ public final class KafkaServiceReconciler implements
                     .withSecondaryToPrimaryMapper(new StrimziKafkaSecondaryToKafkaServicePrimaryMapper(context))
                     .build();
             informersList.add(new InformerEventSource<>(serviceToStrimziKafka, context));
+            informersList.add(new InformerEventSource<>(serviceToStrimziCaCertificate, context));
         }
 
         return informersList;
@@ -128,10 +138,23 @@ public final class KafkaServiceReconciler implements
 
         KafkaService updatedService = null;
         List<HasMetadata> referents = new ArrayList<>();
+        KafkaServiceStatusFactory.TrustAnchorInfo trustAnchorInfo = null;
+        var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getStrimziKafkaRef);
         var trustAnchorRefOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef);
-        if (trustAnchorRefOpt.isPresent()) {
+
+        if (strimziKafkaRefOpt.isPresent()) {
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
+                    SPEC_REF,
+                    statusFactory);
+            updatedService = result.resource();
+            referents.addAll(result.referents());
+        }
+
+        if (trustAnchorRefOpt.isPresent() &&
+                (strimziKafkaRefOpt.isEmpty() || Boolean.FALSE.equals(strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()))) {
             String eventSourceName = trustAnchorRefOpt.get().getRef().getKind() != null &&
                     Objects.equals(trustAnchorRefOpt.get().getRef().getKind(), "Secret") ? SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME
                             : CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME;
@@ -140,17 +163,26 @@ public final class KafkaServiceReconciler implements
                     statusFactory);
             updatedService = result.resource();
             referents.addAll(result.referents());
+
+            if (updatedService == null) {
+                var ref = trustAnchorRefOpt.get();
+                String storeType = (ref.getStoreType() != null) ? ref.getStoreType() : ResourcesUtil.deriveStoreTypeFromKeySuffix(ref);
+                trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(ref.getRef().getName(), ref.getKey(), storeType);
+            }
         }
-
-        var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
-                .map(KafkaServiceSpec::getStrimziKafkaRef);
-
-        if (strimziKafkaRefOpt.isPresent()) {
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
-                    SPEC_REF,
+        else if (strimziKafkaRefOpt.isPresent() && strimziKafkaRefOpt.get().getTrustStrimziCaCertificate()) {
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziCertificate(service, context, strimziKafkaRefOpt.get(),
                     statusFactory);
             updatedService = result.resource();
             referents.addAll(result.referents());
+
+            if (updatedService == null) {
+                var strimziRef = strimziKafkaRefOpt.get();
+                trustAnchorInfo = new KafkaServiceStatusFactory.TrustAnchorInfo(
+                        strimziRef.getRef().getName() + "-cluster-ca-cert",
+                        "ca.crt",
+                        "PEM");
+            }
         }
 
         if (updatedService == null) {
@@ -175,15 +207,17 @@ public final class KafkaServiceReconciler implements
 
                 Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(context, service, STRIMZI_KAFKA_EVENT_SOURCE_NAME);
 
+                final KafkaServiceStatusFactory.TrustAnchorInfo finalTrustAnchorInfo = trustAnchorInfo;
                 updatedService = listenerStatus.map(status -> statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
-                        checksumGenerator.encode(), status.getBootstrapServers()))
+                        checksumGenerator.encode(), status.getBootstrapServers(), finalTrustAnchorInfo))
                         .orElseGet(() -> statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                                 Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
                                 "Referenced resource has not yet reconciled listener name: "
                                         + service.getSpec().getStrimziKafkaRef().getListenerName()));
             }
             else {
-                updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers());
+                updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers(),
+                        trustAnchorInfo);
             }
         }
 
