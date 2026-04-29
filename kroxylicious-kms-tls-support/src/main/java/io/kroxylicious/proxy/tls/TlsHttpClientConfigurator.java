@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.tls;
 
 import java.io.FileInputStream;
 import java.net.http.HttpClient;
-import java.net.http.HttpClient.Builder;
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -51,7 +50,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 /**
  * Responsible for applying TLS configuration to a {@link HttpClient.Builder}.
  */
-public class TlsHttpClientConfigurator implements UnaryOperator<Builder> {
+public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Builder> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TlsHttpClientConfigurator.class);
 
@@ -262,14 +261,14 @@ public class TlsHttpClientConfigurator implements UnaryOperator<Builder> {
     }
 
     /**
-     * Applies TLS configuration to the supplied {@link Builder}.  If there is no
+     * Applies TLS configuration to the supplied {@link HttpClient.Builder}.  If there is no
      * TLS configuration to apply, this operation is a no-op.
      *
      * @param builder HTTP client builder
      * @return HTTP client builder
      */
     @Override
-    public Builder apply(@NonNull Builder builder) {
+    public HttpClient.Builder apply(@NonNull HttpClient.Builder builder) {
         Objects.requireNonNull(builder);
         builder.sslContext(sslContext())
                 .sslParameters(sslParameters());
