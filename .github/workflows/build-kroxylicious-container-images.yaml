@@ -55,4 +55,4 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-operator
-          path: kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+          path: kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz

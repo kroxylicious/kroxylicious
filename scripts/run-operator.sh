@@ -30,7 +30,7 @@ fi
 
 OPERATOR_PULL_SPEC=$(buildPullSpec "operator")
 
-cd kroxylicious-operator || exit
+cd kroxylicious-kubernetes/kroxylicious-operator || exit
 info "installing kafka (no-op if already installed)"
 kubectl create namespace kafka --save-config --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -n kafka -f 'https://strimzi.io/install/latest?namespace=kafka'
