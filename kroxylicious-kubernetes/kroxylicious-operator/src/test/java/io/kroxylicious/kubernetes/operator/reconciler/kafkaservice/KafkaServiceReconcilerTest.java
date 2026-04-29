@@ -328,16 +328,19 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("strimziKafkaRef missing listener name",
-                    new KafkaServiceBuilder(SERVICE).withNewSpec()
-                            .editStrimziKafkaRef()
-                            .editRef()
-                            .withGroup("kafka.strimzi.io")
-                            .withKind("Kafka")
-                            .withName("my-cluster")
-                            .endRef()
-                            .withListenerName("")
-                            .endStrimziKafkaRef()
+                    // @formatter:off
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewStrimziKafkaRef()
+                                    .withNewRef()
+                                        .withGroup("kafka.strimzi.io")
+                                        .withKind("Kafka")
+                                        .withName("my-cluster")
+                                     .endRef()
+                                   .withListenerName("")
+                                .endStrimziKafkaRef()
                             .endSpec().build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -356,14 +359,17 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             result.add(Arguments.argumentSet("unsupported strimziKafkaRef kind",
-                    new KafkaServiceBuilder(SERVICE).withNewSpec()
-                            .editStrimziKafkaRef()
-                            .editRef()
-                            .withKind("Unsupported")
-                            .endRef()
-                            .withListenerName("plain")
-                            .endStrimziKafkaRef()
+                    // @formatter:off
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewStrimziKafkaRef()
+                                    .withNewRef()
+                                        .withKind("Unsupported")
+                                     .endRef()
+                                     .withListenerName("plain")
+                                .endStrimziKafkaRef()
                             .endSpec().build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -382,16 +388,19 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
             result.add(Arguments.argumentSet("listeners not present",
-                    new KafkaServiceBuilder(SERVICE).withNewSpec()
-                            .editStrimziKafkaRef()
-                            .editRef()
-                            .withGroup("kafka.strimzi.io")
-                            .withKind("Kafka")
-                            .withName("my-cluster")
-                            .endRef()
-                            .withListenerName("plain")
-                            .endStrimziKafkaRef()
+                    // @formatter:off
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewStrimziKafkaRef()
+                                    .withNewRef()
+                                        .withGroup("kafka.strimzi.io")
+                                        .withKind("Kafka")
+                                        .withName("my-cluster")
+                                    .endRef()
+                                    .withListenerName("plain")
+                                .endStrimziKafkaRef()
                             .endSpec().build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -474,8 +483,8 @@ class KafkaServiceReconcilerTest {
             mockGetSecret(context, Optional.empty());
             mockGetKafka(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
-            // @formatter:off
             result.add(Arguments.argumentSet("crt trust bundle of pem store type",
+                    // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewTls()
