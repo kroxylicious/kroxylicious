@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3498](https://github.com/kroxylicious/kroxylicious/pull/3498): feat(record-validation): add Avro and Protobuf schema validation support
 * [#3769](https://github.com/kroxylicious/kroxylicious/pull/3769): fix(runtime): messages enter Filter chain before Transport Subject built
 * [#3757](https://github.com/kroxylicious/kroxylicious/issues/3757): fix(runtime): trigger read after HAProxy message to prevent deadlock when autoread disabled
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): feat(aws-kms): add IRSA and EKS Pod Identity credential providers, and restructure AWS KMS credential configuration under a new `credentials` node (see [note](#note-021-aws-kms-credentials-restructure))
