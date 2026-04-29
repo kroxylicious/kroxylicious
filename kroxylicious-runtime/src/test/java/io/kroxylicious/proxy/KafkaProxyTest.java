@@ -35,6 +35,7 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaProxyTest {
@@ -375,9 +376,9 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldNotAllowShuttingDownOfAStoppedInstance() throws Exception {
+    void shouldAllowShuttingDownBeforeStartup() throws Exception {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
-            assertThatThrownBy(proxy::shutdown).isInstanceOf(IllegalStateException.class).hasMessage("This proxy is not running");
+            assertThatCode(proxy::shutdown).doesNotThrowAnyException();
         }
     }
 

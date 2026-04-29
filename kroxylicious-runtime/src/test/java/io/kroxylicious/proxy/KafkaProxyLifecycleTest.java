@@ -16,6 +16,7 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaProxyLifecycleTest {
@@ -111,6 +112,63 @@ class KafkaProxyLifecycleTest {
         // then
         assertThat(manager).isNotNull();
         assertThat(manager.state()).isInstanceOf(Stopped.class);
+    }
+
+    @Test
+    void shutdownBeforeStartupIsNoOp() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+    }
+
+    @Test
+    void shutdownTwiceIsNoOp() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        proxy.startup();
+        proxy.shutdown();
+        assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+    }
+
+    @Test
+    void startupAfterStopThrowsIllegalState() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        proxy.startup();
+        proxy.shutdown();
+        assertThatThrownBy(proxy::startup)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("KafkaProxy is not restartable");
     }
 
     @Test
