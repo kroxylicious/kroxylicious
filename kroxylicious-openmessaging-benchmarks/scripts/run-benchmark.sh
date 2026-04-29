@@ -706,12 +706,19 @@ if [[ -n "${PROXY_POD}" ]]; then
                 sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=profile maxsize=${JFR_MAX_SIZE}" \
                 >/dev/null 2>&1
             echo "JFR recording restarted for next probe."
+            # Only restart async-profiler if the deployment patch was applied on probe 0.
+            # The patch sets ASYNC_PROFILER_FLAGS in the container env; if absent, the
+            # cluster rejected the Unconfined seccomp patch and profiling was skipped.
             if [[ -n "${AGENT_LIB}" ]]; then
-                kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                    sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
-                           '\"start,event=cpu,flamegraph,file=/tmp/flamegraph.html\"'" \
-                    >/dev/null 2>&1
-                echo "async-profiler restarted for next probe."
+                PROFILER_FLAGS=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                    sh -c "tr '\0' '\n' < /proc/${JVM_PID}/environ | grep '^ASYNC_PROFILER_FLAGS=' | cut -d= -f2-") || true
+                if [[ -n "${PROFILER_FLAGS}" ]]; then
+                    kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                        sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
+                               '\"start,event=cpu,flamegraph,file=/tmp/flamegraph.html\"'" \
+                        >/dev/null 2>&1
+                    echo "async-profiler restarted for next probe."
+                fi
             fi
         fi
     fi
