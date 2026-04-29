@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -170,6 +171,50 @@ class KafkaProxyLifecycleTest {
             assertThat(lifecycleB.state())
                     .as("runtime-added vc-b should also reach Stopped on shutdown (regression test for #4066)")
                     .isInstanceOf(Stopped.class);
+        }
+    }
+
+    @Test
+    void startupReturnsFutureThatCompletesOnShutdown() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        CompletableFuture<Void> future = proxy.startup();
+        assertThat(future).isNotNull().isNotDone();
+        proxy.shutdown();
+        assertThat(future).isCompletedWithValue(null);
+    }
+
+    @Test
+    void startupTwiceReturnsSameFutureInstance() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        try {
+            CompletableFuture<Void> first = proxy.startup();
+            CompletableFuture<Void> second = proxy.startup();
+            assertThat(second).isSameAs(first);
+        }
+        finally {
+            proxy.shutdown();
         }
     }
 
