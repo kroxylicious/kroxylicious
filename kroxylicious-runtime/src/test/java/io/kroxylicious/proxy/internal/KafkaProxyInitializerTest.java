@@ -48,6 +48,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
@@ -128,7 +129,7 @@ class KafkaProxyInitializerTest {
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), logNetwork,
-                logFrames, List.of());
+                logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
@@ -399,7 +400,8 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
-                Optional.ofNullable(proxyNettySettings));
+                Optional.ofNullable(proxyNettySettings),
+                new DrainCoordinator());
     }
 
     private void assertErrorHandlerAdded() {

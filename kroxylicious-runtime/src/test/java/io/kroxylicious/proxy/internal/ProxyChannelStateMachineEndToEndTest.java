@@ -107,7 +107,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     ProxyChannelStateMachine proxyChannelStateMachine(EndpointBinding binding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        return new ProxyChannelStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession);
+        return new ProxyChannelStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession, new DrainCoordinator());
     }
 
     @AfterEach

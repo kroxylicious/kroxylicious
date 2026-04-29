@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.model;
 
 import java.io.UncheckedIOException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,6 +77,7 @@ public class VirtualClusterModel {
     private final Optional<SslContext> upstreamSslContext;
     private final CacheConfiguration topicNameCacheConfig;
     private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
+    private final Duration drainTimeout;
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
@@ -84,17 +86,10 @@ public class VirtualClusterModel {
                                TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
-                               List<NamedFilterDefinition> filters) {
-        this(clusterName, targetCluster, logNetwork, logFrames, filters, new CacheConfiguration(null, null, null), null);
-    }
-
-    public VirtualClusterModel(String clusterName,
-                               TargetCluster targetCluster,
-                               boolean logNetwork,
-                               boolean logFrames,
                                List<NamedFilterDefinition> filters,
                                CacheConfiguration topicNameCacheConfig,
-                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig) {
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
+                               Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
@@ -102,9 +97,14 @@ public class VirtualClusterModel {
         this.filters = filters;
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
+        this.drainTimeout = Objects.requireNonNull(drainTimeout);
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
+    }
+
+    public Duration drainTimeout() {
+        return drainTimeout;
     }
 
     public void logVirtualClusterSummary() {

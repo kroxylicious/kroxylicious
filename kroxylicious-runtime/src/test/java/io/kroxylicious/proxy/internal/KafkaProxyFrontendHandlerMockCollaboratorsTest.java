@@ -308,7 +308,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         Subject subject = new Subject(new User("bob"));
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
         var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session);
+        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session, new DrainCoordinator());
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -333,7 +333,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(Subject.anonymous()));
         var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session);
+        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session, new DrainCoordinator());
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -342,7 +342,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                pcsm,
+                proxyChannelStateMachine,
                 Optional.empty());
 
         // When

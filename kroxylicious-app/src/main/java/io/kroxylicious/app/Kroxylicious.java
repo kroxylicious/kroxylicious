@@ -76,6 +76,14 @@ public class Kroxylicious implements Callable<Integer> {
             printBannerAndVersions(features);
             try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, features)) {
                 kafkaProxy.startup();
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    try {
+                        kafkaProxy.close();
+                    }
+                    catch (Exception e) {
+                        LOGGER.atWarn().setCause(e).log("Error during shutdown hook");
+                    }
+                }, "proxy-shutdown-hook"));
                 kafkaProxy.block();
             }
         }

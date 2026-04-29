@@ -540,6 +540,14 @@ public class KafkaProxyFrontendHandler
         return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
     }
 
+    /**
+     * Returns the downstream (client→proxy) channel, or null if not yet active.
+     */
+    @Nullable
+    Channel clientChannel() {
+        return this.clientCtx != null ? this.clientCtx.channel() : null;
+    }
+
     private static ResponseFrame buildErrorResponseFrame(
                                                          DecodedRequestFrame<?> triggerFrame,
                                                          Throwable error) {
