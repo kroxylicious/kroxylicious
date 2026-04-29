@@ -270,9 +270,9 @@ class AdmissionHandlerTest {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setUpstreamBootstrapServers("kafka:9092");
         adminSpec.setBootstrapPort(19092L);
-        adminSpec.setDelegatedAnnotations(List.of(AdmissionHandler.DELEGATED_BOOTSTRAP_PORT));
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
 
-        Map<String, String> annotations = Map.of(AdmissionHandler.DELEGATED_BOOTSTRAP_PORT, "29092");
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
 
         KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
                 adminSpec, annotations, "test-pod", "test-ns");
@@ -286,9 +286,9 @@ class AdmissionHandlerTest {
     void appliesDelegatedNodeIdRange() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setUpstreamBootstrapServers("kafka:9092");
-        adminSpec.setDelegatedAnnotations(List.of(AdmissionHandler.DELEGATED_NODE_ID_RANGE));
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
 
-        Map<String, String> annotations = Map.of(AdmissionHandler.DELEGATED_NODE_ID_RANGE, "0-9");
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "0-9");
 
         KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
                 adminSpec, annotations, "test-pod", "test-ns");
@@ -305,7 +305,7 @@ class AdmissionHandlerTest {
         adminSpec.setBootstrapPort(19092L);
         // No delegatedAnnotations set
 
-        Map<String, String> annotations = Map.of(AdmissionHandler.DELEGATED_BOOTSTRAP_PORT, "29092");
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
 
         KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
                 adminSpec, annotations, "test-pod", "test-ns");
@@ -319,9 +319,9 @@ class AdmissionHandlerTest {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setUpstreamBootstrapServers("kafka:9092");
         adminSpec.setBootstrapPort(19092L);
-        adminSpec.setDelegatedAnnotations(List.of(AdmissionHandler.DELEGATED_BOOTSTRAP_PORT));
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
 
-        Map<String, String> annotations = Map.of(AdmissionHandler.DELEGATED_BOOTSTRAP_PORT, "not-a-number");
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "not-a-number");
 
         KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
                 adminSpec, annotations, "test-pod", "test-ns");
@@ -333,9 +333,9 @@ class AdmissionHandlerTest {
     void ignoresInvalidNodeIdRangeFormat() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setUpstreamBootstrapServers("kafka:9092");
-        adminSpec.setDelegatedAnnotations(List.of(AdmissionHandler.DELEGATED_NODE_ID_RANGE));
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
 
-        Map<String, String> annotations = Map.of(AdmissionHandler.DELEGATED_NODE_ID_RANGE, "invalid");
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "invalid");
 
         KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
                 adminSpec, annotations, "test-pod", "test-ns");

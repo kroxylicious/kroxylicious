@@ -120,7 +120,6 @@ public class WebhookMain {
         LOGGER.atInfo().log("Webhook stopped");
     }
 
-
     /**
      * Detects whether the cluster supports native sidecar containers (Kubernetes 1.28+).
      */

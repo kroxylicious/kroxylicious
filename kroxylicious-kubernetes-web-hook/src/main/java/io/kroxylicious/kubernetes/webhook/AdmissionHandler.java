@@ -44,18 +44,6 @@ class AdmissionHandler implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionHandler.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String JSON_PATCH_TYPE = "JSONPatch";
-    private static final String KROXYLICIOUS_ANNOTATION_PREFIX = "kroxylicious.io/";
-
-    /** Annotation keys that app owners can use to override sidecar config when delegated. */
-    static final String DELEGATED_BOOTSTRAP_PORT = "kroxylicious.io/sidecar-bootstrap-port";
-    static final String DELEGATED_NODE_ID_RANGE = "kroxylicious.io/sidecar-node-id-range";
-
-    /** Annotations managed by the webhook itself — never treated as undelegated. */
-    private static final Set<String> WEBHOOK_MANAGED_ANNOTATIONS = Set.of(
-            Annotations.INJECT_SIDECAR,
-            Annotations.SIDECAR_CONFIG,
-            Annotations.PROXY_CONFIG,
-            Annotations.SIDECAR_STATUS);
 
     private final SidecarConfigResolver configResolver;
     private final String proxyImage;
@@ -198,7 +186,6 @@ class AdmissionHandler implements HttpHandler {
         List<String> delegated = adminSpec.getDelegatedAnnotations();
         Set<String> delegatedSet = delegated != null ? Set.copyOf(delegated) : Set.of();
 
-        // Warn about undelegated kroxylicious.io/ annotations
         warnAboutUndelegatedAnnotations(namespace, podName, podAnnotations, delegatedSet);
 
         if (delegatedSet.isEmpty()) {
@@ -208,10 +195,8 @@ class AdmissionHandler implements HttpHandler {
         // Copy the spec so we don't mutate the cached admin config
         KroxyliciousSidecarConfigSpec effective = copySpec(adminSpec);
 
-        // Apply bootstrap port override
         applyBootstrapPortOverride(podAnnotations, podName, namespace, delegatedSet, effective);
 
-        // Apply node ID range override (format: "start-end")
         applyNodeIdRangeOverride(podAnnotations, podName, namespace, delegatedSet, effective);
 
         return effective;
@@ -222,8 +207,8 @@ class AdmissionHandler implements HttpHandler {
                                                  String namespace,
                                                  Set<String> delegatedSet,
                                                  KroxyliciousSidecarConfigSpec effective) {
-        if (delegatedSet.contains(DELEGATED_NODE_ID_RANGE)) {
-            String rangeStr = podAnnotations.get(DELEGATED_NODE_ID_RANGE);
+        if (delegatedSet.contains(Annotations.DELEGATED_NODE_ID_RANGE)) {
+            String rangeStr = podAnnotations.get(Annotations.DELEGATED_NODE_ID_RANGE);
             if (rangeStr != null) {
                 String[] parts = rangeStr.split("-", 2);
                 if (parts.length == 2) {
@@ -237,7 +222,7 @@ class AdmissionHandler implements HttpHandler {
                         LOGGER.atWarn()
                                 .addKeyValue(WebhookLoggingKeys.POD, podName)
                                 .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                                .addKeyValue(WebhookLoggingKeys.ANNOTATION, DELEGATED_NODE_ID_RANGE)
+                                .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_NODE_ID_RANGE)
                                 .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, rangeStr)
                                 .log("Invalid node ID range in delegated annotation, using admin default");
                     }
@@ -246,7 +231,7 @@ class AdmissionHandler implements HttpHandler {
                     LOGGER.atWarn()
                             .addKeyValue(WebhookLoggingKeys.POD, podName)
                             .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, DELEGATED_NODE_ID_RANGE)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_NODE_ID_RANGE)
                             .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, rangeStr)
                             .log("Invalid node ID range format in delegated annotation (expected start-end), using admin default");
                 }
@@ -259,8 +244,8 @@ class AdmissionHandler implements HttpHandler {
                                                    String namespace,
                                                    Set<String> delegatedSet,
                                                    KroxyliciousSidecarConfigSpec effective) {
-        if (delegatedSet.contains(DELEGATED_BOOTSTRAP_PORT)) {
-            String portStr = podAnnotations.get(DELEGATED_BOOTSTRAP_PORT);
+        if (delegatedSet.contains(Annotations.DELEGATED_BOOTSTRAP_PORT)) {
+            String portStr = podAnnotations.get(Annotations.DELEGATED_BOOTSTRAP_PORT);
             if (portStr != null) {
                 try {
                     effective.setBootstrapPort(Long.parseLong(portStr));
@@ -269,7 +254,7 @@ class AdmissionHandler implements HttpHandler {
                     LOGGER.atWarn()
                             .addKeyValue(WebhookLoggingKeys.POD, podName)
                             .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, DELEGATED_NODE_ID_RANGE)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_NODE_ID_RANGE)
                             .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, portStr)
                             .log("Invalid bootstrap port in delegated annotation, using admin default");
                 }
@@ -282,8 +267,8 @@ class AdmissionHandler implements HttpHandler {
                                                         Map<String, String> podAnnotations,
                                                         Set<String> delegatedSet) {
         for (String key : podAnnotations.keySet()) {
-            if (key.startsWith(KROXYLICIOUS_ANNOTATION_PREFIX)
-                    && !WEBHOOK_MANAGED_ANNOTATIONS.contains(key)
+            if (Annotations.isKroxyliciousAnnotation(key)
+                    && !Annotations.isWebhookManagedAnnotation(key)
                     && !delegatedSet.contains(key)) {
                 LOGGER.atWarn()
                         .addKeyValue(WebhookLoggingKeys.POD, podName)
