@@ -38,8 +38,8 @@ class ProxyConfigGenerator {
     private static final String VIRTUAL_CLUSTER_NAME = "sidecar";
     private static final String GATEWAY_NAME = "local";
     private static final String LOCALHOST = "localhost";
-    private static final int DEFAULT_BOOTSTRAP_PORT = 19092;
-    private static final int DEFAULT_MANAGEMENT_PORT = 9190;
+    static final int DEFAULT_BOOTSTRAP_PORT = 9092;
+    static final int DEFAULT_MANAGEMENT_PORT = 9082;
     private static final int DEFAULT_NODE_ID_START = 0;
     private static final int DEFAULT_NODE_ID_END = 2;
 
