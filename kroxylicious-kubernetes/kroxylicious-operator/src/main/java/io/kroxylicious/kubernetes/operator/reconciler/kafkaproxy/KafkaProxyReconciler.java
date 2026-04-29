@@ -422,58 +422,10 @@ public class KafkaProxyReconciler implements
     }
 
     /**
-     * Details of a trust resource (ConfigMap or Secret) for TLS trust anchor configuration.
-     */
-    private record TrustResource(String name, String key, String type, boolean isSecret) {}
-
-    /**
-     * Builds TrustProvider configuration from pre-validated trust resource information.
-     *
-     * @param trustResource validated trust resource details (name, key, type, isSecret)
-     * @param forServer true for server-side TLS, false for client-side
-     * @param clientAuthentication TLS client auth settings (server-side only)
-     * @param parent base path for volume mounts
-     * @return configuration fragment with TrustProvider, volumes, and mounts
-     */
-    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProviderFromResource(
-                                                                                                 TrustResource trustResource,
-                                                                                                 boolean forServer,
-                                                                                                 @Nullable TlsClientAuthentication clientAuthentication,
-                                                                                                 Path parent) {
-
-        String volType = trustResource.isSecret() ? SECRET_PLURAL : CONFIGMAP_PLURAL;
-        String volName = ResourcesUtil.volumeName("", volType, trustResource.name());
-
-        var vol = new VolumeBuilder().withName(volName);
-        if (trustResource.isSecret()) {
-            vol.withNewSecret().withSecretName(trustResource.name()).endSecret();
-        }
-        else {
-            vol.withNewConfigMap().withName(trustResource.name()).endConfigMap();
-        }
-
-        Path mountPath = parent.resolve(trustResource.name());
-        var mount = new VolumeMountBuilder()
-                .withName(volName)
-                .withMountPath(mountPath.toString())
-                .withReadOnly(true)
-                .build();
-
-        TrustProvider trust = new TrustStore(
-                mountPath.resolve(trustResource.key()).toString(),
-                null,
-                trustResource.type(),
-                forServer ? buildTlsServerOptions(clientAuthentication) : null);
-
-        return new ConfigurationFragment<>(Optional.of(trust), Set.of(vol.build()), Set.of(mount));
-    }
-
-    /**
-     * Builds TrustProvider configuration from an explicit TrustAnchorRef.
-     * Used for ingress/server-side TLS where trust is explicitly configured.
+     * Builds TrustProvider configuration from a TrustAnchorRef.
      *
      * @param forServer true for server-side TLS, false for client-side
-     * @param trustAnchorRef explicit trust anchor reference (nullable - returns empty if null)
+     * @param trustAnchorRef trust anchor reference (nullable - returns empty if null)
      * @param clientAuthentication TLS client auth settings (server-side only)
      * @param parent base path for volume mounts
      * @return configuration fragment with TrustProvider, or empty if trustAnchorRef is null
@@ -493,19 +445,41 @@ public class KafkaProxyReconciler implements
             return ConfigurationFragment.empty();
         }
 
+        // Derive resource type and store type from TrustAnchorRef
         boolean isSecret = trustAnchorRef.getRef().getKind() != null
                 && ResourcesUtil.isSecret(trustAnchorRef.getRef());
         String storeType = (trustAnchorRef.getStoreType() != null)
                 ? trustAnchorRef.getStoreType()
                 : ResourcesUtil.deriveStoreTypeFromKeySuffix(trustAnchorRef);
 
-        TrustResource trustResource = new TrustResource(
-                trustAnchorRef.getRef().getName(),
-                trustAnchorRef.getKey(),
-                storeType,
-                isSecret);
+        // Build volume
+        String volType = isSecret ? SECRET_PLURAL : CONFIGMAP_PLURAL;
+        String volName = ResourcesUtil.volumeName("", volType, trustAnchorRef.getRef().getName());
 
-        return buildTrustProviderFromResource(trustResource, forServer, clientAuthentication, parent);
+        var vol = new VolumeBuilder().withName(volName);
+        if (isSecret) {
+            vol.withNewSecret().withSecretName(trustAnchorRef.getRef().getName()).endSecret();
+        }
+        else {
+            vol.withNewConfigMap().withName(trustAnchorRef.getRef().getName()).endConfigMap();
+        }
+
+        // Build volume mount
+        Path mountPath = parent.resolve(trustAnchorRef.getRef().getName());
+        var mount = new VolumeMountBuilder()
+                .withName(volName)
+                .withMountPath(mountPath.toString())
+                .withReadOnly(true)
+                .build();
+
+        // Build TrustProvider
+        TrustProvider trust = new TrustStore(
+                mountPath.resolve(trustAnchorRef.getKey()).toString(),
+                null,
+                storeType,
+                forServer ? buildTlsServerOptions(clientAuthentication) : null);
+
+        return new ConfigurationFragment<>(Optional.of(trust), Set.of(vol.build()), Set.of(mount));
     }
 
     /**
