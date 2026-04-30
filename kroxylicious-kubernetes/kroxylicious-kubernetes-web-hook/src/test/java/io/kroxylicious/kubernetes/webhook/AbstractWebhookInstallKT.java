@@ -217,17 +217,14 @@ abstract class AbstractWebhookInstallKT {
                 .build();
         client.resource(sidecarConfig).create();
 
-        // Wait for the webhook's informer to sync the config
-
-        LOGGER.info("Waiting for webhook to observe sidecar config");
-        try {
-            // TODO replace this sleep with watching for a Ready condition in the
-            // status of the KroxyliciousSidecarConfig
-            Thread.sleep(5000);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        LOGGER.info("Waiting for webhook to set Ready condition on sidecar config");
+        assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
+                "kubectl", "wait", "-n", TEST_NS,
+                "--for=condition=Ready",
+                "ksc/test-config",
+                "--timeout=30s"))
+                .as("KroxyliciousSidecarConfig should become Ready")
+                .isTrue();
     }
 
     private void verifyInjection() {

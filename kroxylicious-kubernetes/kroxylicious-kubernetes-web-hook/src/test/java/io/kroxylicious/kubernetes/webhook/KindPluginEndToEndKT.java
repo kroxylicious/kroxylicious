@@ -270,13 +270,12 @@ class KindPluginEndToEndKT {
                 EOF""".formatted(TEST_NS, KIND_CONTEXT, KAFKA_NS,
                 INFO.testPluginImageName()));
 
-        LOGGER.info("Waiting for webhook to observe sidecar config");
-        try {
-            Thread.sleep(5000);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        LOGGER.info("Waiting for webhook to set Ready condition on sidecar config");
+        ShellUtils.exec("kubectl", "wait", "-n", TEST_NS,
+                "--for=condition=Ready",
+                "ksc/test-config",
+                "--timeout=30s",
+                "--context", KIND_CONTEXT);
     }
 
     // --- Producer + verification ---
