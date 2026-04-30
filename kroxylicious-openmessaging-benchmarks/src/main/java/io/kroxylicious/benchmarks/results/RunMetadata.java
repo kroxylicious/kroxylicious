@@ -34,7 +34,7 @@ public class RunMetadata {
     private static final DateTimeFormatter ISO_UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
             .withZone(ZoneOffset.UTC);
     private static final String DEFAULT_UNKNOWN_VALUE = "unknown";
-    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(RunMetadata.class);
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(RunMetadata.class);
 
     /**
      * Probe-specific context written alongside the standard git/system metadata.
@@ -170,11 +170,54 @@ public class RunMetadata {
                 long memGb = Long.parseLong(memKi.substring(0, memKi.length() - 2)) / (1024 * 1024);
                 info.put("memoryPerNodeGb", memGb);
             }
+            String workerNode = firstWorkerNodeName(items);
+            if (workerNode != null) {
+                Long nicSpeedMbps = tryGetNicSpeedMbps(runner, workerNode);
+                if (nicSpeedMbps != null) {
+                    info.put("nicSpeedMbps", nicSpeedMbps);
+                }
+            }
         }
         catch (Exception e) {
-            log.debug("kubectl not available or not pointed at a cluster — cluster node info will be omitted", e);
+            LOGGER.debug("kubectl not available or not pointed at a cluster — cluster node info will be omitted", e);
         }
         return info;
+    }
+
+    static String firstWorkerNodeName(JsonNode items) {
+        for (JsonNode node : items) {
+            JsonNode labels = node.path("metadata").path("labels");
+            if (!labels.has("node-role.kubernetes.io/master") &&
+                    !labels.has("node-role.kubernetes.io/control-plane")) {
+                return node.path("metadata").path("name").asText(null);
+            }
+        }
+        return null;
+    }
+
+    static Long tryGetNicSpeedMbps(CommandRunner runner, String workerNodeName) {
+        // On OpenShift, MachineConfigDaemon pods mount the host filesystem at /rootfs,
+        // giving us access to the host's /sys/class/net/<iface>/speed without needing
+        // a privileged pod or kubectl debug node.
+        try {
+            String mcdPod = runner.run("kubectl", "get", "pods",
+                    "-n", "openshift-machine-config-operator",
+                    "-l", "k8s-app=machine-config-daemon",
+                    "--field-selector", "spec.nodeName=" + workerNodeName,
+                    "-o", "jsonpath={.items[0].metadata.name}");
+            if (mcdPod.isBlank() || DEFAULT_UNKNOWN_VALUE.equals(mcdPod)) {
+                return null;
+            }
+            String speed = runner.run("kubectl", "exec",
+                    "-n", "openshift-machine-config-operator", mcdPod.trim(),
+                    "--", "chroot", "/rootfs", "sh", "-c",
+                    "cat /sys/class/net/$(ip route show default | awk '/default/{print $5; exit}')/speed");
+            return Long.parseLong(speed.trim());
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("workerNode", workerNodeName).setCause(e).log("Could not read NIC speed from node via MachineConfigDaemon");
+            return null;
+        }
     }
 
     private static Map<String, Object> orchestratorSystemInfo() {
@@ -196,7 +239,7 @@ public class RunMetadata {
             info.putAll(parseProcMemInfo(memInfoPath));
         }
         catch (Exception e) {
-            log.error("Failed to parse proc entries", e);
+            LOGGER.error("Failed to parse proc entries", e);
         }
         return info;
     }
