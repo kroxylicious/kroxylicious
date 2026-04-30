@@ -713,12 +713,9 @@ class KafkaServiceReconcilerTest {
     @Test
     void shouldBuildStatusTlsWhenSpecTlsIsNullButTrustAnchorRefDiscovered() {
         // Given
-        Context<KafkaService> context = mockContext();
-        KubernetesClient client = mock(KubernetesClient.class);
-        when(context.getClient()).thenReturn(client);
-        when(client.getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+        Context<KafkaService> context = mockContext(Kafka.class);
         mockGetKafka(context, Optional.of(kafkaWithListener("tls")));
-        mockClientSecretsLookup(client, "test", "my-cluster-cluster-ca-cert", STRIMZI_CA_SECRET);
+        mockClientSecretsLookup(context.getClient(), "test", "my-cluster-cluster-ca-cert", STRIMZI_CA_SECRET);
 
         KafkaService service = new KafkaServiceBuilder(SERVICE)
                 .editMetadata()
@@ -777,7 +774,15 @@ class KafkaServiceReconcilerTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Context<KafkaService> mockContext() {
-        return mock(Context.class);
+    private static Context<KafkaService> mockContext(Class<?>... supportedApis) {
+        Context<KafkaService> context = mock(Context.class);
+        if (supportedApis.length > 0) {
+            KubernetesClient client = mock(KubernetesClient.class);
+            when(context.getClient()).thenReturn(client);
+            for (Class<?> api : supportedApis) {
+                when(client.supports((Class) api)).thenReturn(true);
+            }
+        }
+        return context;
     }
 }
