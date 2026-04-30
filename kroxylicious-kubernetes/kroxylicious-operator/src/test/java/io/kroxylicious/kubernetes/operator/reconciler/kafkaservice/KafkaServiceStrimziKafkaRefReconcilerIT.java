@@ -224,7 +224,6 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         assertKafkaService("service-trust-anchor-only", "explicit-trust", "ConfigMap");
     }
 
-
     /**
      * Tests that when trustAnchorRef is NOT present and trustStrimziCaCertificate is enabled,
      * the Strimzi CA is used.
@@ -244,6 +243,45 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
         assertKafkaService("service-strimzi-only", clusterCaSecretName, "Secret");
 
+    }
+
+    /**
+     * Tests that when spec.tls is completely null but trustStrimziCaCertificate is enabled,
+     * status.tls is correctly built with the auto-discovered trust anchor and all other
+     * TLS fields are null (demonstrating null-safe handling in the builder).
+     */
+    @Test
+    void shouldBuildStatusTlsWhenSpecTlsIsNullButTrustAnchorRefDiscovered() {
+        // Given
+        var kafka = testActor.create(kafkaResourceWithTls(KAFKA_RESOURCE_NAME));
+        reconcileStrimziResource(kafka);
+        String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+        createStrimziTrustAnchorSecret(clusterCaSecretName);
+
+        // When - Create KafkaService with spec.tls=null and trustStrimziCaCertificate=true
+        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRefAndNullTls("service-null-tls", "tls"));
+
+        // Then - status.tls should be built with Strimzi CA as trust anchor
+        assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+        AWAIT.untilAsserted(() -> {
+            var kafkaService = testActor.get(KafkaService.class, "service-null-tls");
+            assertThat(kafkaService)
+                    .isNotNull()
+                    .extracting(KafkaService::getStatus)
+                    .isNotNull()
+                    .extracting(KafkaServiceStatus::getTls)
+                    .isNotNull();
+            var tls = kafkaService.getStatus().getTls();
+            Assertions.assertThat(tls.getTrustAnchorRef()).isNotNull();
+            Assertions.assertThat(tls.getTrustAnchorRef().getRef().getName()).isEqualTo(clusterCaSecretName);
+            Assertions.assertThat(tls.getTrustAnchorRef().getRef().getKind()).isEqualTo("Secret");
+            Assertions.assertThat(tls.getTrustAnchorRef().getKey()).isEqualTo(STRIMZI_CLUSTER_CA_CA_BUNDLE);
+            Assertions.assertThat(tls.getTrustAnchorRef().getStoreType()).isEqualTo("PEM");
+            // Validate null-safe handling - these should all be null since spec.tls was null
+            Assertions.assertThat(tls.getCertificateRef()).isNull();
+            Assertions.assertThat(tls.getProtocols()).isNull();
+            Assertions.assertThat(tls.getCipherSuites()).isNull();
+        });
     }
 
     private ConfigMap createTrustAnchorConfigMap(String name) {
@@ -344,6 +382,26 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                         .withName(clusterName)
                      .endRef()
                     .endStrimziKafkaRef()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private static KafkaService kafkaServiceWithStrimziKafkaRefAndNullTls(String resourceName, String listenerName) {
+        // @formatter:off
+        return new KafkaServiceBuilder()
+                .withNewMetadata()
+                    .withName(resourceName)
+                .endMetadata()
+                .editOrNewSpec()
+                    .withNewStrimziKafkaRef()
+                        .withListenerName(listenerName)
+                        .withTrustStrimziCaCertificate(true)
+                        .withNewRef()
+                            .withName(KAFKA_RESOURCE_NAME)
+                        .endRef()
+                    .endStrimziKafkaRef()
+                    .withTls(null)
                 .endSpec()
                 .build();
         // @formatter:on

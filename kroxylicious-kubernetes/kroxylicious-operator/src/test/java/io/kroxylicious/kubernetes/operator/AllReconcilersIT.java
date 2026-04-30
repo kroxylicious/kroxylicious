@@ -22,6 +22,7 @@ import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -93,30 +94,15 @@ class AllReconcilersIT {
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
+    private static final String STRIMZI_CLUSTER_CA_CERT_SUFFIX = "-cluster-ca-cert";
+    private static final String STRIMZI_CA_CERT_KEY = "ca.crt";
+    private static final String STRIMZI_TLS_LISTENER = "tls";
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
     static void preloadOperandImage() {
         OperatorTestUtils.preloadOperandImage();
-
-        // Set up Strimzi CRD for tests that use strimziKafkaRef
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @AfterAll
-    static void afterAll() {
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @RegisterExtension
@@ -439,63 +425,90 @@ class AllReconcilersIT {
         assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
     }
 
-    @Test
-    void upstreamTlsFromStrimziKafkaRef() {
-        // Given
-        String kafkaName = "my-cluster";
-        // @formatter:off
-        var kafka = testActor.create(new KafkaBuilder()
-                .withNewMetadata()
-                    .withName(kafkaName)
-                .endMetadata()
-                .withNewSpec()
-                    .withNewKafka()
-                        .withListeners(new GenericKafkaListenerBuilder()
-                                .withName("tls")
-                                .withTls(true)
-                                .build())
-                    .endKafka()
-                .endSpec()
-                .build());
+    /**
+     * Nested class for tests that require Strimzi CRD
+     */
+    @Nested
+    class StrimziKafkaRefTests {
 
-        testActor.patchStatus(new KafkaBuilder(kafka)
-                .withNewStatus()
-                    .withListeners(new ListenerStatusBuilder()
-                            .withName("tls")
-                            .withAddresses(new ListenerAddressBuilder()
-                                    .withHost("kafka.example.com")
-                                    .withPort(9093)
+        @BeforeAll
+        static void setUpStrimziCrd() {
+            try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+                client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to set up Strimzi CRD", e);
+            }
+        }
+
+        @AfterAll
+        static void tearDownStrimziCrd() {
+            try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+                client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
+            }
+            catch (Exception e) {
+                LOGGER.atWarn().setCause(e).log("Failed to clean up Strimzi CRD");
+            }
+        }
+
+        @Test
+        void upstreamTlsFromStrimziKafkaRef() {
+            // Given
+            String kafkaName = "my-cluster";
+            // @formatter:off
+            var kafka = testActor.create(new KafkaBuilder()
+                    .withNewMetadata()
+                        .withName(kafkaName)
+                    .endMetadata()
+                    .withNewSpec()
+                        .withNewKafka()
+                            .withListeners(new GenericKafkaListenerBuilder()
+                                    .withName(STRIMZI_TLS_LISTENER)
+                                    .withTls(true)
                                     .build())
-                            .build())
-                .endStatus()
-                .build());
+                        .endKafka()
+                    .endSpec()
+                    .build());
 
-        testActor.create(new SecretBuilder()
-                .withNewMetadata()
-                    .withName(kafkaName + "-cluster-ca-cert")
-                .endMetadata()
-                .addToData("ca.crt", "dGVzdC1jYQ==")
-                .build());
+            testActor.patchStatus(new KafkaBuilder(kafka)
+                    .withNewStatus()
+                        .withListeners(new ListenerStatusBuilder()
+                                .withName(STRIMZI_TLS_LISTENER)
+                                .withAddresses(new ListenerAddressBuilder()
+                                        .withHost("kafka.example.com")
+                                        .withPort(9093)
+                                        .build())
+                                .build())
+                    .endStatus()
+                    .build());
 
-        var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, "tls").build();
-        var myProxy = editableProxy(PROXY_A).build();
-        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
-                .editOrNewSpec()
-                    .withNewClusterIP()
-                        .withProtocol(Protocol.TCP)
-                    .endClusterIP()
-                .endSpec()
-                .build();
-        // @formatter:on
+            testActor.create(new SecretBuilder()
+                    .withNewMetadata()
+                        .withName(kafkaName + STRIMZI_CLUSTER_CA_CERT_SUFFIX)
+                    .endMetadata()
+                    .addToData(STRIMZI_CA_CERT_KEY, "dGVzdC1jYQ==")
+                    .build());
 
-        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+            var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, STRIMZI_TLS_LISTENER).build();
+            var myProxy = editableProxy(PROXY_A).build();
+            var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+                    .editOrNewSpec()
+                        .withNewClusterIP()
+                            .withProtocol(Protocol.TCP)
+                        .endClusterIP()
+                    .endSpec()
+                    .build();
+            // @formatter:on
 
-        // When
-        createAll(myProxy, myCluster, myIngress, myService);
+            var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
 
-        // Then
-        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
-        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+            // When
+            createAll(myProxy, myCluster, myIngress, myService);
+
+            // Then
+            assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+            assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        }
     }
 
     private void createAll(HasMetadata... resources) {
