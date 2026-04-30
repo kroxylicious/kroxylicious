@@ -96,7 +96,7 @@ abstract class AbstractWebhookInstallKT {
 
     private void applyCrds() {
         try (InputStream is = Files.newInputStream(CRD_PATH)) {
-            client.load(is).createOrReplace();
+            client.load(is).serverSideApply();
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -110,7 +110,7 @@ abstract class AbstractWebhookInstallKT {
                     .forEach(p -> {
                         LOGGER.info("Applying {}", p.getFileName());
                         try (InputStream is = Files.newInputStream(p)) {
-                            client.load(is).createOrReplace();
+                            client.load(is).serverSideApply();
                         }
                         catch (IOException e) {
                             throw new UncheckedIOException(e);
@@ -301,8 +301,10 @@ abstract class AbstractWebhookInstallKT {
 
         // Verify sidecar was NOT injected
         assertThat(created.getSpec().getContainers())
-                .as("Opted-out pod should not have sidecar")
+                .as("Pod's containers should not be empty")
+                .isNotEmpty()
                 .extracting(Container::getName)
+                .as("Opted-out pod should not have sidecar")
                 .doesNotContain("kroxylicious-proxy");
 
         LOGGER.info("Opt-out verified successfully");
