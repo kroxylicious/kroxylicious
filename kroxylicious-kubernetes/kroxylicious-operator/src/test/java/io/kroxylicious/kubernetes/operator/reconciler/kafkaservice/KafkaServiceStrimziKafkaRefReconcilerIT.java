@@ -49,7 +49,7 @@ import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CA_BUNDLE;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.awaitility.Awaitility.await;
@@ -275,7 +275,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
             Assertions.assertThat(tls.getTrustAnchorRef()).isNotNull();
             Assertions.assertThat(tls.getTrustAnchorRef().getRef().getName()).isEqualTo(clusterCaSecretName);
             Assertions.assertThat(tls.getTrustAnchorRef().getRef().getKind()).isEqualTo("Secret");
-            Assertions.assertThat(tls.getTrustAnchorRef().getKey()).isEqualTo(STRIMZI_CLUSTER_CA_CA_BUNDLE);
+            Assertions.assertThat(tls.getTrustAnchorRef().getKey()).isEqualTo(STRIMZI_CLUSTER_CA_BUNDLE);
             Assertions.assertThat(tls.getTrustAnchorRef().getStoreType()).isEqualTo("PEM");
             // Validate null-safe handling - these should all be null since spec.tls was null
             Assertions.assertThat(tls.getCertificateRef()).isNull();
@@ -307,7 +307,7 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     }
 
     private Secret createStrimziTrustAnchorSecret(String name) {
-        return createTrustAnchorSecret(name, STRIMZI_CLUSTER_CA_CA_BUNDLE);
+        return createTrustAnchorSecret(name, STRIMZI_CLUSTER_CA_BUNDLE);
     }
 
     private KafkaService kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor(String serviceName,

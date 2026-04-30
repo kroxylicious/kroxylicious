@@ -65,7 +65,7 @@ public class ResourcesUtil {
     public static final String STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX = "-cluster-ca-cert";
 
     /** The name of the data key Strimzi uses in its cluster CA trust anchor */
-    public static final String STRIMZI_CLUSTER_CA_CA_BUNDLE = "ca.crt";
+    public static final String STRIMZI_CLUSTER_CA_BUNDLE = "ca.crt";
 
     /** The key material type used by Strimzi for its cluster CA trust anchor */
     public static final String STRIMZI_CLUSTER_CA_STORE_TYPE = "PEM";
@@ -740,7 +740,7 @@ public class ResourcesUtil {
                     List.of());
         }
 
-        if (!clusterCaSecret.getData().containsKey("ca.crt")) {
+        if (!clusterCaSecret.getData().containsKey(STRIMZI_CLUSTER_CA_BUNDLE)) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_INVALID_REFERENCED_RESOURCE,
                     strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX + ": referenced resource does not contain key " + "ca.crt"), List.of());

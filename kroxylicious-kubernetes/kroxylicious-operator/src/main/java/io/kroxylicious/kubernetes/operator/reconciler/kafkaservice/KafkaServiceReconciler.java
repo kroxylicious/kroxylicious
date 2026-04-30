@@ -267,7 +267,7 @@ public final class KafkaServiceReconciler implements
                 .withName(strimziRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX)
                 .withKind("Secret")
                 .endRef()
-                .withKey(ResourcesUtil.STRIMZI_CLUSTER_CA_CA_BUNDLE)
+                .withKey(ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE)
                 .withStoreType(ResourcesUtil.STRIMZI_CLUSTER_CA_STORE_TYPE)
                 .build();
 
