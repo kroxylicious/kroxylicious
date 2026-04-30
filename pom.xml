@@ -71,7 +71,7 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.1.4</apicurio-schema-validation.version>
-        <apicurio-registry.version>3.2.1</apicurio-registry.version>
+        <apicurio-registry.version>3.2.3</apicurio-registry.version>
         <kiota.version>0.0.34</kiota.version>
         <avro.version>1.12.0</avro.version>
         <protobuf-java.version>4.34.1</protobuf-java.version>
