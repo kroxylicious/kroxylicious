@@ -38,7 +38,7 @@ import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.tls.CertificateGenerator;
+import io.kroxylicious.test.certificate.CertificateGenerator;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;

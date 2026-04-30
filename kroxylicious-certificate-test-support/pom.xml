@@ -17,39 +17,28 @@
         <version>0.21.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kroxylicious-kms-tls-support</artifactId>
-    <name>KMS TLS support</name>
-    <description>Optional TLS support classes for KMS implementations that need to make HTTPs connections to services.</description>
-
-    <properties>
-    </properties>
+    <artifactId>kroxylicious-certificate-test-support</artifactId>
+    <name>Certificate test support</name>
+    <description>Test support for generating TLS certificates.</description>
 
     <dependencies>
         <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk18on</artifactId>
+            <scope>compile</scope>
         </dependency>
-
-        <!-- third party dependencies - build and compile -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <scope>compile</scope>
         </dependency>
-
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-
-        <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -57,15 +46,6 @@
             <artifactId>assertj-core</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-certificate-test-support</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
-    <build>
-        <plugins>
-        </plugins>
-    </build>
 </project>

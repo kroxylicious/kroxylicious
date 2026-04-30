@@ -21,7 +21,7 @@ import org.testcontainers.vault.VaultContainer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.proxy.tls.CertificateGenerator;
+import io.kroxylicious.test.certificate.CertificateGenerator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

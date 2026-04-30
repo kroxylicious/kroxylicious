@@ -230,6 +230,12 @@
             <!-- note scope is *not* set at this level -->
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-certificate-test-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kms-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
