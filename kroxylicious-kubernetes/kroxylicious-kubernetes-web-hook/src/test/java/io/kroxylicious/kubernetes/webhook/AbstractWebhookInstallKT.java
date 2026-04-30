@@ -180,8 +180,11 @@ abstract class AbstractWebhookInstallKT {
                 EOF""".formatted(TEST_NS));
 
         // Wait for the webhook's informer to sync the config
+
         LOGGER.info("Waiting for webhook to observe sidecar config");
         try {
+            // TODO replace this sleep with watching for a Ready condition in the
+            //  status of the KroxyliciousSidecarConfig
             Thread.sleep(5000);
         }
         catch (InterruptedException e) {
