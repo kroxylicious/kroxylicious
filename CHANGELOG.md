@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): refactor(archetype): reuse record batch transform module
 * [#3498](https://github.com/kroxylicious/kroxylicious/pull/3498): feat(record-validation): add Avro and Protobuf schema validation support
 * [#3769](https://github.com/kroxylicious/kroxylicious/pull/3769): fix(runtime): messages enter Filter chain before Transport Subject built
 * [#3757](https://github.com/kroxylicious/kroxylicious/issues/3757): fix(runtime): trigger read after HAProxy message to prevent deadlock when autoread disabled
@@ -17,7 +18,6 @@ Format `<github issue/pr number>: <short description>`.
 * [#3565](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): bump kubernetes-client.version from 7.5.2 to 7.6.1
 * [#3514](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): build(deps-dev): bump org.yaml:snakeyaml from 2.5 to 2.6
 * [#3564](https://github.com/kroxylicious/kroxylicious/pull/3564): build(deps): bump apicurio-registry.version from 3.1.6 to 3.2.1
-* [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): refactor(archetype): reuse record batch transform module
 
 ### Changes, deprecations and removals
 
