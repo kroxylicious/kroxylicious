@@ -33,7 +33,6 @@ spec:
       containers:
         - name: webhook
           image: $[io.kroxylicious.webhook.image.name]
-          # TODO In phase 3 have maven-resources-plugin honour the implied interpolation
           ports:
             - containerPort: 8443
               name: webhook
