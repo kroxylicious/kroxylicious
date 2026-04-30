@@ -127,13 +127,13 @@ jobs:
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
       - name: Download kroxylicious proxy container artifact
-        uses: dawidd6/action-download-artifact@8305c0f1062bb0d184d09ef4493ecb9288447732
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious operator container artifact
-        uses: dawidd6/action-download-artifact@8305c0f1062bb0d184d09ef4493ecb9288447732
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
           workflow: build_kroxylicious_images
           name: kroxylicious-operator
