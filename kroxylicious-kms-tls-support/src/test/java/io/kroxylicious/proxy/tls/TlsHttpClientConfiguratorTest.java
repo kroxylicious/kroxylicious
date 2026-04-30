@@ -36,10 +36,11 @@ import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.test.certificate.CertificateGenerator;
 
-import static io.kroxylicious.proxy.tls.CertificateGenerator.createJksKeystore;
-import static io.kroxylicious.proxy.tls.CertificateGenerator.generateRsaKeyPair;
-import static io.kroxylicious.proxy.tls.CertificateGenerator.generateSelfSignedX509Certificate;
+import static io.kroxylicious.test.certificate.CertificateGenerator.createJksKeystore;
+import static io.kroxylicious.test.certificate.CertificateGenerator.generateRsaKeyPair;
+import static io.kroxylicious.test.certificate.CertificateGenerator.generateSelfSignedX509Certificate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

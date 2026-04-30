@@ -604,6 +604,7 @@
         <module>kroxylicious-annotations</module>
         <module>kroxylicious-kafka-message-tools</module>
         <module>kroxylicious-kms</module>
+        <module>kroxylicious-certificate-test-support</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-tls-support</module>
         <module>kroxylicious-kms-providers</module>
