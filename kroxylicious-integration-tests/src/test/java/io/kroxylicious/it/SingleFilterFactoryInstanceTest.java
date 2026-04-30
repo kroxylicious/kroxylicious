@@ -14,11 +14,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 
 @ExtendWith(NettyLeakDetectorExtension.class)
 public class SingleFilterFactoryInstanceTest {

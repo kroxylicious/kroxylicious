@@ -49,11 +49,11 @@ import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestFiles;
-import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.testing.operator.assertj.ConditionListAssert;
+import io.kroxylicious.testing.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

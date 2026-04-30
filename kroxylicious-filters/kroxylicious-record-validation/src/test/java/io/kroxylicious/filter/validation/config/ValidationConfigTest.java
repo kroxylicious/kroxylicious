@@ -28,8 +28,8 @@ import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
-import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {

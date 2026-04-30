@@ -28,21 +28,21 @@ import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.authentication.UserFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
-import io.kroxylicious.proxy.config.TransportSubjectBuilderDefinitionBuilder;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
-import io.kroxylicious.test.assertj.KafkaAssertions;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.config.TransportSubjectBuilderDefinitionBuilder;
+import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService.CLIENT_TLS_SAN_DNS_NAME;
 import static io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService.CLIENT_TLS_SUBJECT;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 

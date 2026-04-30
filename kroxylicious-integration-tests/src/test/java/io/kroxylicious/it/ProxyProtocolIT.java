@@ -39,19 +39,19 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.Response;
-import io.kroxylicious.test.ResponsePayload;
-import io.kroxylicious.test.certificate.CertificateGenerator;
-import io.kroxylicious.test.client.CorrelationManager;
-import io.kroxylicious.test.client.KafkaClientHandler;
-import io.kroxylicious.test.codec.KafkaRequestEncoder;
-import io.kroxylicious.test.codec.KafkaResponseDecoder;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.certificate.CertificateGenerator;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.Response;
+import io.kroxylicious.testing.integration.ResponsePayload;
+import io.kroxylicious.testing.integration.client.CorrelationManager;
+import io.kroxylicious.testing.integration.client.KafkaClientHandler;
+import io.kroxylicious.testing.integration.codec.KafkaRequestEncoder;
+import io.kroxylicious.testing.integration.codec.KafkaResponseDecoder;
+import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -415,13 +415,13 @@ class ProxyProtocolIT {
                 .withProxyProtocol(new ProxyProtocolConfig(mode));
     }
 
-    private static io.kroxylicious.test.codec.DecodedRequestFrame<?> toRequestFrame(Request request) {
+    private static io.kroxylicious.testing.integration.codec.DecodedRequestFrame<?> toRequestFrame(Request request) {
         var header = new org.apache.kafka.common.message.RequestHeaderData()
                 .setRequestApiKey(request.apiKeys().id)
                 .setRequestApiVersion(request.apiVersion())
                 .setClientId(request.clientIdHeader())
                 .setCorrelationId(0);
-        return new io.kroxylicious.test.codec.DecodedRequestFrame<>(
+        return new io.kroxylicious.testing.integration.codec.DecodedRequestFrame<>(
                 header.requestApiVersion(), header.correlationId(), header, request.message(), request.apiVersion());
     }
 }

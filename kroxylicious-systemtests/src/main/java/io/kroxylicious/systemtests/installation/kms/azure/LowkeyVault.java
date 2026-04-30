@@ -16,7 +16,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.netty.pkitesting.CertificateBuilder;
 import io.netty.pkitesting.X509Bundle;
 
-import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -27,6 +26,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.testing.kafka.common.KeystoreManager;
+import io.kroxylicious.testing.kms.TestKmsFacadeException;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
