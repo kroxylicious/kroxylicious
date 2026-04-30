@@ -514,16 +514,16 @@ class AllReconcilersIT {
             // @formatter:off
             return new KafkaServiceBuilder()
                     .withNewMetadata()
-                    .withName(name)
+                        .withName(name)
                     .endMetadata()
                     .withNewSpec()
-                    .withNewStrimziKafkaRef()
-                    .withListenerName(listenerName)
-                    .withTrustStrimziCaCertificate(true)
-                    .withNewRef()
-                    .withName(kafkaName)
-                    .endRef()
-                    .endStrimziKafkaRef()
+                        .withNewStrimziKafkaRef()
+                            .withListenerName(listenerName)
+                            .withTrustStrimziCaCertificate(true)
+                            .withNewRef()
+                                .withName(kafkaName)
+                            .endRef()
+                        .endStrimziKafkaRef()
                     .endSpec();
             // @formatter:on
         }
