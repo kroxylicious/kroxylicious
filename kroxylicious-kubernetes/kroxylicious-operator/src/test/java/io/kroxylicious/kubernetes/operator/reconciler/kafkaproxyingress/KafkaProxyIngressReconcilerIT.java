@@ -29,7 +29,7 @@ import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
 import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.TestFiles;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert;
+import io.kroxylicious.testing.operator.assertj.KafkaProxyIngressStatusAssert;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static org.assertj.core.api.Assertions.assertThat;

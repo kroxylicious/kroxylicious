@@ -23,9 +23,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.test.RequestFactory;
+import io.kroxylicious.testing.filter.RequestFactory;
 
-import static io.kroxylicious.test.assertj.ResponseAssert.assertThat;
+import static io.kroxylicious.testing.filter.assertj.ResponseAssert.assertThat;
 import static org.junit.jupiter.api.Named.named;
 
 class KafkaProxyExceptionMapperTest {

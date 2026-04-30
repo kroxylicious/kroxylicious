@@ -10,9 +10,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
-import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
-import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.testing.kms.AbstractTestKmsFacadeTest;
+import io.kroxylicious.testing.kms.TestKekManager.AlreadyExistsException;
+import io.kroxylicious.testing.kms.fortanix.FortanixDsmKmsTestKmsFacadeFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

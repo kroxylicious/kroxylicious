@@ -22,7 +22,6 @@ import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.filter.entityisolation.PrincipalEntityNameMapperService;
-import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -43,6 +42,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaUserTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+import io.kroxylicious.testing.kms.TestKmsFacade;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

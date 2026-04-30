@@ -21,13 +21,13 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.test.assertj.MemoryRecordsAssert;
-import io.kroxylicious.test.assertj.RecordBatchAssert;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.assertj.MemoryRecordsAssert;
+import io.kroxylicious.testing.filter.assertj.RecordBatchAssert;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.test.assertj.KafkaAssertions.assertThat;
+import static io.kroxylicious.testing.filter.assertj.KafkaAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

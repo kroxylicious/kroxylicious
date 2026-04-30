@@ -32,12 +32,12 @@ import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.metrics.ScraperTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.test.tester.SimpleMetric;
+import io.kroxylicious.testing.integration.tester.SimpleMetric;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
+import static io.kroxylicious.testing.integration.tester.SimpleMetricAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**

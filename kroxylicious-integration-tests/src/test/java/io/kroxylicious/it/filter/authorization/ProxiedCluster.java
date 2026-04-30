@@ -15,10 +15,10 @@ import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.config.SaslConfigs;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 
 /**
  * A proxied cluster where authorization is being done by the AuthorizationFiler that's under test.

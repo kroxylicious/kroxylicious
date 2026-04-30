@@ -55,7 +55,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class AwsKms implements Kms<String, AwsKmsEdek> {
 
-    static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
+    public static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
     private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
@@ -69,8 +69,8 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     private static final String TRENT_SERVICE_DESCRIBE_KEY = "TrentService.DescribeKey";
     private static final String TRENT_SERVICE_GENERATE_DATA_KEY = "TrentService.GenerateDataKey";
     private static final String TRENT_SERVICE_DECRYPT = "TrentService.Decrypt";
-    static final String CONTENT_TYPE_HEADER = "Content-Type";
-    static final String X_AMZ_TARGET_HEADER = "X-Amz-Target";
+    public static final String CONTENT_TYPE_HEADER = "Content-Type";
+    public static final String X_AMZ_TARGET_HEADER = "X-Amz-Target";
     public static final String ALIAS_PREFIX = "alias/";
 
     private final CredentialsProvider credentialsProvider;

@@ -20,14 +20,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.test.ApiMessageSampleGenerator;
-import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
-import io.kroxylicious.test.DataClasses;
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.Response;
-import io.kroxylicious.test.ResponsePayload;
-import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.test.server.MockServer;
+import io.kroxylicious.testing.integration.ApiMessageSampleGenerator;
+import io.kroxylicious.testing.integration.ApiMessageSampleGenerator.ApiAndVersion;
+import io.kroxylicious.testing.integration.DataClasses;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.Response;
+import io.kroxylicious.testing.integration.ResponsePayload;
+import io.kroxylicious.testing.integration.client.KafkaClient;
+import io.kroxylicious.testing.integration.server.MockServer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

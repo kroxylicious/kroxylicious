@@ -50,8 +50,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
+import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 

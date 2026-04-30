@@ -32,11 +32,11 @@ import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.entityisolation.EntityIsolation;
 import io.kroxylicious.filter.sasl.inspection.Config;
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
-import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.testing.kms.TestKmsFacade;
 
 /**
  * The type Kroxylicious filter templates.

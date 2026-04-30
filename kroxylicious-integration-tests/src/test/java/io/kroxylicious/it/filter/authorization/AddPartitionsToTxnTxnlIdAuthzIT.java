@@ -44,7 +44,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Streams;
 
 import io.kroxylicious.filter.authorization.AuthorizationFilter;
-import io.kroxylicious.test.client.KafkaClient;
+import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import static io.kroxylicious.it.filter.authorization.AbstractAuthzEquivalenceIT.prepCluster;

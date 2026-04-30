@@ -61,8 +61,8 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.test.assertj.MemoryRecordsAssert;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.assertj.MemoryRecordsAssert;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

@@ -27,9 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 
-import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.KafkaClients;
@@ -42,6 +39,9 @@ import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
+import io.kroxylicious.testing.kms.TestKekManager;
+import io.kroxylicious.testing.kms.TestKmsFacade;
+import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;

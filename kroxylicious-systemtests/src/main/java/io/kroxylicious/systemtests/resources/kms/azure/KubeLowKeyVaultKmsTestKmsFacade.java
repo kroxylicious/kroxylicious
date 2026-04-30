@@ -10,9 +10,6 @@ import java.net.URI;
 
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
 import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
-import io.kroxylicious.kms.provider.azure.kms.AbstractAzureKeyVaultKmsTestKmsFacade;
-import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
@@ -20,6 +17,9 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.installation.kms.azure.LowkeyVault;
 import io.kroxylicious.systemtests.installation.kms.azure.MockOauthServer;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.testing.kms.TestKekManager;
+import io.kroxylicious.testing.kms.TestKmsFacadeException;
+import io.kroxylicious.testing.kms.azure.AbstractAzureKeyVaultKmsTestKmsFacade;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

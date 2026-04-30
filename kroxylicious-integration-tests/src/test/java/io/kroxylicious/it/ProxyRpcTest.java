@@ -29,19 +29,19 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.FixedClientIdFilterFactory;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.ApiMessageSampleGenerator;
-import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.Response;
-import io.kroxylicious.test.ResponsePayload;
-import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
+import io.kroxylicious.testing.integration.ApiMessageSampleGenerator;
+import io.kroxylicious.testing.integration.ApiMessageSampleGenerator.ApiAndVersion;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.Response;
+import io.kroxylicious.testing.integration.ResponsePayload;
+import io.kroxylicious.testing.integration.client.KafkaClient;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;

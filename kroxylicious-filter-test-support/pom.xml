@@ -122,7 +122,7 @@
                             <templateNames>KafkaApiMessageConverter.ftl</templateNames>
                             <!--suppress MavenModelInspection -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.test.requestresponsetestdef</outputPackage>
+                            <outputPackage>io.kroxylicious.testing.filter.requestresponsetestdef</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>
@@ -140,7 +140,7 @@
                             <templateNames>KafkaApiAssertJConditions.ftl</templateNames>
                             <!--suppress MavenModelInspection -->
                             <outputFilePattern>${messageSpecName}DataCondition.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.test.condition.kafka</outputPackage>
+                            <outputPackage>io.kroxylicious.testing.filter.condition.kafka</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>

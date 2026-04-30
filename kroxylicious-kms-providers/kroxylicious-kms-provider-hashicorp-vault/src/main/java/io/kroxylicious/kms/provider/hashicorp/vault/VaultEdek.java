@@ -19,9 +19,9 @@ import java.util.Objects;
  * @param kekRef - kek reference. In this implementation it is the key's name.
  * @param edek - edek bytes
  */
-record VaultEdek(String kekRef,
-                 byte[] edek) {
-    VaultEdek {
+public record VaultEdek(String kekRef,
+                        byte[] edek) {
+    public VaultEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
         if (kekRef.isEmpty()) {

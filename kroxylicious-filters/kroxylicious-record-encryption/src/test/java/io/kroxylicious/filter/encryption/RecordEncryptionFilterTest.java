@@ -70,13 +70,13 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
-import io.kroxylicious.test.assertj.MockFilterContextAssert;
-import io.kroxylicious.test.context.MockFilterContext;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
+import static io.kroxylicious.testing.filter.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.atIndex;
