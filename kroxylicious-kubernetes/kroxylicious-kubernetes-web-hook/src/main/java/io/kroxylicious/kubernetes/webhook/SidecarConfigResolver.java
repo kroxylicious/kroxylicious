@@ -36,12 +36,17 @@ class SidecarConfigResolver implements Closeable {
     private final Map<String, Map<String, KroxyliciousSidecarConfig>> cache = new ConcurrentHashMap<>();
     @Nullable
     private final SharedIndexInformer<KroxyliciousSidecarConfig> informer;
+    @Nullable
+    private final SidecarConfigStatusUpdater statusUpdater;
 
     /**
      * Creates a resolver that watches all namespaces using the given client.
      * This blocks while the initial {@code KroxyliciousSidecarConfig} are loaded.
      */
-    SidecarConfigResolver(@NonNull KubernetesClient client) {
+    SidecarConfigResolver(
+                          @NonNull KubernetesClient client,
+                          @NonNull SidecarConfigStatusUpdater statusUpdater) {
+        this.statusUpdater = statusUpdater;
         this.informer = client.resources(KroxyliciousSidecarConfig.class)
                 .inAnyNamespace()
                 .inform(new Handler()); // blocks for initial watch and list
@@ -51,6 +56,7 @@ class SidecarConfigResolver implements Closeable {
      * Creates a resolver with no informer, for testing.
      */
     SidecarConfigResolver() {
+        this.statusUpdater = null;
         this.informer = null;
     }
 
@@ -142,6 +148,9 @@ class SidecarConfigResolver implements Closeable {
         @Override
         public void onAdd(KroxyliciousSidecarConfig obj) {
             put(obj);
+            if (statusUpdater != null) {
+                statusUpdater.setReady(obj);
+            }
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, obj.getMetadata().getNamespace())
                     .addKeyValue(WebhookLoggingKeys.NAME, obj.getMetadata().getName())
@@ -153,6 +162,9 @@ class SidecarConfigResolver implements Closeable {
                              KroxyliciousSidecarConfig oldObj,
                              KroxyliciousSidecarConfig newObj) {
             put(newObj);
+            if (statusUpdater != null) {
+                statusUpdater.setReady(newObj);
+            }
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, newObj.getMetadata().getNamespace())
                     .addKeyValue(WebhookLoggingKeys.NAME, newObj.getMetadata().getName())

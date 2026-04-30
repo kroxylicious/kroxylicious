@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
+import java.time.Clock;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -85,7 +86,8 @@ public class WebhookMain {
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
         var kubernetesVersion = detectVersion(kubeClient);
-        SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient);
+        SidecarConfigStatusUpdater statusUpdater = new SidecarConfigStatusUpdater(kubeClient, Clock.systemUTC());
+        SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient, statusUpdater);
         AdmissionHandler admissionHandler = new AdmissionHandler(
                 configResolver, proxyImage, kubernetesVersion);
         WebhookServer server = new WebhookServer(bindAddress, certPath, keyPath, admissionHandler);
