@@ -113,6 +113,59 @@ spec:
                     application containers, pointing them to the sidecar proxy.
                   type: boolean
                   default: true
+                filterDefinitions:
+                  description: |
+                    Filter definitions applied to traffic passing through the sidecar proxy.
+                    Each filter has a unique name, a type identifying the FilterFactory plugin,
+                    and optional plugin-specific configuration.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - type
+                    properties:
+                      name:
+                        description: A unique name for this filter instance.
+                        type: string
+                        pattern: "[a-z0-9A-Z]([a-z0-9A-Z_.\\-]{0,251}[a-z0-9A-Z])?"
+                      type:
+                        description: The fully qualified type name of the FilterFactory plugin.
+                        type: string
+                      config:
+                        description: Plugin-specific configuration for this filter.
+                        type: object
+                        x-kubernetes-preserve-unknown-fields: true
+                upstreamTls:
+                  description: |
+                    TLS configuration for the connection from the sidecar proxy to the upstream
+                    Kafka cluster. If omitted, the proxy connects to Kafka without TLS.
+                  type: object
+                  properties:
+                    trustAnchorSecretRef:
+                      description: |
+                        A reference to a Secret containing the trusted CA certificate(s) for
+                        validation of the upstream Kafka broker's TLS server certificate.
+                        The referenced key should contain a PEM-encoded certificate bundle.
+                      type: object
+                      required:
+                        - name
+                        - key
+                      properties:
+                        name:
+                          description: The name of the Secret in the pod's namespace.
+                          type: string
+                        key:
+                          description: The key within the Secret data identifying the CA certificate bundle.
+                          type: string
+                delegatedAnnotations:
+                  description: |
+                    Annotations that the application pod owner is permitted to set to override
+                    sidecar configuration. Any annotation in the kroxylicious.io/ namespace
+                    that is not in this list will be ignored with a warning.
+                  type: array
+                  items:
+                    type: string
             status:
               type: object
               properties:
