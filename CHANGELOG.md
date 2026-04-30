@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2820](https://github.com/kroxylicious/kroxylicious/issues/2820): feat(operator): add automatic TLS trust discovery for Strimzi-managed Kafka clusters via `trustStrimziCaCertificate` field in KafkaService
 * [#3498](https://github.com/kroxylicious/kroxylicious/pull/3498): feat(record-validation): add Avro and Protobuf schema validation support
 * [#3769](https://github.com/kroxylicious/kroxylicious/pull/3769): fix(runtime): messages enter Filter chain before Transport Subject built
 * [#3757](https://github.com/kroxylicious/kroxylicious/issues/3757): fix(runtime): trigger read after HAProxy message to prevent deadlock when autoread disabled

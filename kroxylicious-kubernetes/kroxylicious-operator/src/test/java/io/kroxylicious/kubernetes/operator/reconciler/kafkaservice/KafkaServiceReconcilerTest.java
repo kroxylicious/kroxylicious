@@ -208,6 +208,15 @@ class KafkaServiceReconcilerTest {
             .addToData("unsuppor.ted", "value")
             .build();
 
+    public static final Secret STRIMZI_CA_SECRET = new SecretBuilder()
+            .withNewMetadata()
+                .withName("my-cluster-cluster-ca-cert")
+                .withUid("ca-uid")
+                .withResourceVersion("1234")
+            .endMetadata()
+            .addToData("ca.crt", "value")
+            .build();
+
     // @formatter:on
 
     private KafkaServiceReconciler kafkaServiceReconciler;
@@ -328,16 +337,19 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("strimziKafkaRef missing listener name",
-                    new KafkaServiceBuilder(SERVICE).editSpec()
-                            .editStrimziKafkaRef()
-                            .editRef()
-                            .withGroup("kafka.strimzi.io")
-                            .withKind("Kafka")
-                            .withName("my-cluster")
-                            .endRef()
-                            .withListenerName("")
-                            .endStrimziKafkaRef()
+                    // @formatter:off
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewStrimziKafkaRef()
+                                    .withNewRef()
+                                        .withGroup("kafka.strimzi.io")
+                                        .withKind("Kafka")
+                                        .withName("my-cluster")
+                                     .endRef()
+                                   .withListenerName("")
+                                .endStrimziKafkaRef()
                             .endSpec().build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -356,14 +368,17 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             result.add(Arguments.argumentSet("unsupported strimziKafkaRef kind",
-                    new KafkaServiceBuilder(SERVICE).editSpec()
-                            .editStrimziKafkaRef()
-                            .editRef()
-                            .withKind("Unsupported")
-                            .endRef()
-                            .withListenerName("plain")
-                            .endStrimziKafkaRef()
+                    // @formatter:off
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewStrimziKafkaRef()
+                                    .withNewRef()
+                                        .withKind("Unsupported")
+                                     .endRef()
+                                     .withListenerName("plain")
+                                .endStrimziKafkaRef()
                             .endSpec().build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -382,16 +397,19 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
             result.add(Arguments.argumentSet("listeners not present",
-                    new KafkaServiceBuilder(SERVICE).editSpec()
-                            .editStrimziKafkaRef()
-                            .editRef()
-                            .withGroup("kafka.strimzi.io")
-                            .withKind("Kafka")
-                            .withName("my-cluster")
-                            .endRef()
-                            .withListenerName("plain")
-                            .endStrimziKafkaRef()
+                    // @formatter:off
+                    new KafkaServiceBuilder(SERVICE)
+                            .withNewSpec()
+                                .withNewStrimziKafkaRef()
+                                    .withNewRef()
+                                        .withGroup("kafka.strimzi.io")
+                                        .withKind("Kafka")
+                                        .withName("my-cluster")
+                                    .endRef()
+                                    .withListenerName("plain")
+                                .endStrimziKafkaRef()
                             .endSpec().build(),
+                    // @formatter:on
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -474,8 +492,8 @@ class KafkaServiceReconcilerTest {
             mockGetSecret(context, Optional.empty());
             mockGetKafka(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
-            // @formatter:off
             result.add(Arguments.argumentSet("crt trust bundle of pem store type",
+                    // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewTls()
@@ -596,6 +614,18 @@ class KafkaServiceReconcilerTest {
         when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
+    @SuppressWarnings("unchecked")
+    private static void mockClientSecretsLookup(KubernetesClient client, String namespace, String secretName, Secret secret) {
+        var secretsOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
+        var inNamespaceOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
+        var namedOp = mock(io.fabric8.kubernetes.client.dsl.Resource.class);
+
+        when(client.secrets()).thenReturn(secretsOp);
+        when(secretsOp.inNamespace(namespace)).thenReturn(inNamespaceOp);
+        when(inNamespaceOp.withName(secretName)).thenReturn(namedOp);
+        when(namedOp.get()).thenReturn(secret);
+    }
+
     @ParameterizedTest
     @MethodSource
     void shouldSetResolvedRefs(KafkaService kafkaService, Context<KafkaService> context, Consumer<ConditionListAssert> asserter) {
@@ -680,6 +710,72 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
             assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
+    }
+
+    @Test
+    void shouldBuildStatusTlsWhenSpecTlsIsNullButTrustAnchorRefDiscovered() {
+        // Given
+        Context<KafkaService> context = mockContext();
+        KubernetesClient client = mock(KubernetesClient.class);
+        when(context.getClient()).thenReturn(client);
+        when(client.getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+        mockGetKafka(context, Optional.of(kafkaWithListener("tls")));
+        mockClientSecretsLookup(client, "test", "my-cluster-cluster-ca-cert", STRIMZI_CA_SECRET);
+
+        KafkaService service = new KafkaServiceBuilder(SERVICE)
+                .editMetadata()
+                .withNamespace("test")
+                .endMetadata()
+                .editSpec()
+                .withTls(null)
+                .editStrimziKafkaRef()
+                .withListenerName("tls")
+                .withTrustStrimziCaCertificate(true)
+                .endStrimziKafkaRef()
+                .endSpec()
+                .build();
+
+        // When
+        final UpdateControl<KafkaService> updateControl = kafkaServiceReconciler.reconcile(service, context);
+
+        // Then
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
+            var status = kafkaService.getStatus();
+            assertThat(status).isNotNull();
+            var tls = status.getTls();
+            assertThat(tls).isNotNull();
+            assertThat(tls.getTrustAnchorRef()).isNotNull();
+            assertThat(tls.getTrustAnchorRef().getRef().getName()).isEqualTo("my-cluster-cluster-ca-cert");
+            assertThat(tls.getTrustAnchorRef().getRef().getKind()).isEqualTo("Secret");
+            assertThat(tls.getTrustAnchorRef().getKey()).isEqualTo("ca.crt");
+            assertThat(tls.getTrustAnchorRef().getStoreType()).isEqualTo("PEM");
+            assertThat(tls.getCertificateRef()).isNull();
+            assertThat(tls.getProtocols()).isNull();
+            assertThat(tls.getCipherSuites()).isNull();
+        });
+    }
+
+    private static Kafka kafkaWithListener(String listenerName) {
+        return new KafkaBuilder(KAFKA)
+                .editSpec()
+                .editKafka()
+                .withListeners(new GenericKafkaListenerBuilder()
+                        .withName(listenerName)
+                        .withTls(false)
+                        .build())
+                .endKafka()
+                .endSpec()
+                .editStatus()
+                .withListeners(List.of(new ListenerStatusBuilder()
+                        .withName(listenerName)
+                        .withAddresses(new ListenerAddressBuilder()
+                                .withPort(8080)
+                                .withHost("localhost")
+                                .build())
+                        .build()))
+                .endStatus()
+                .build();
     }
 
     @SuppressWarnings("unchecked")

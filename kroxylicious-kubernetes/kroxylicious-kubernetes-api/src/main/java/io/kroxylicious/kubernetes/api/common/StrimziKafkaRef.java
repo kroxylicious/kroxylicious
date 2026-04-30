@@ -17,7 +17,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
  * A reference, used in a kubernetes resource, to a resource containing trust anchor(s).
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "strimziKafkaRef", "listener" })
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "strimziKafkaRef", "listener", "trustStrimziCaCertificate" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
@@ -37,7 +37,8 @@ public class StrimziKafkaRef
 
     private static final Comparator<StrimziKafkaRef> COMPARATOR = Comparator
             .<StrimziKafkaRef, AnyLocalRef> comparing(StrimziKafkaRef::getRef, Comparator.nullsLast(AnyLocalRef::compareTo))
-            .thenComparing(StrimziKafkaRef::getListenerName, Comparator.nullsLast(String::compareTo));
+            .thenComparing(StrimziKafkaRef::getListenerName, Comparator.nullsLast(String::compareTo))
+            .thenComparing(StrimziKafkaRef::getTrustStrimziCaCertificate);
 
     @Override
     public StrimziKafkaRefBuilder edit() {
@@ -69,13 +70,27 @@ public class StrimziKafkaRef
         this.listenerName = listenerName;
     }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("trustStrimziCaCertificate")
+    @io.fabric8.generator.annotation.Nullable
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    private boolean trustStrimziCaCertificate;
+
+    public boolean getTrustStrimziCaCertificate() {
+        return trustStrimziCaCertificate;
+    }
+
+    public void setTrustStrimziCaCertificate(boolean trustStrimziCaCertificate) {
+        this.trustStrimziCaCertificate = trustStrimziCaCertificate;
+    }
+
     public String toString() {
-        return this.getClass() + "(strimziKafkaRef=" + this.getRef() + ", listenerName=" + this.getListenerName() + ")";
+        return this.getClass() + "(strimziKafkaRef=" + this.getRef() + ", listenerName=" + this.getListenerName() + ", trustStrimziCaCertificate="
+                + this.getTrustStrimziCaCertificate() + ")";
     }
 
     @Override
     public final int hashCode() {
-        return Objects.hash(getRef(), getListenerName());
+        return Objects.hash(getRef(), getListenerName(), getTrustStrimziCaCertificate());
     }
 
     @Override
@@ -89,7 +104,8 @@ public class StrimziKafkaRef
         }
         StrimziKafkaRef other = (StrimziKafkaRef) obj;
         return Objects.equals(getRef(), other.getRef())
-                && Objects.equals(getListenerName(), other.getListenerName());
+                && Objects.equals(getListenerName(), other.getListenerName())
+                && getTrustStrimziCaCertificate() == other.getTrustStrimziCaCertificate();
 
     }
 

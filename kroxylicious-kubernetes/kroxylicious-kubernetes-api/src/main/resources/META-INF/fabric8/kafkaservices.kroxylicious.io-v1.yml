@@ -70,6 +70,14 @@ spec:
                     listenerName:
                       description: listener name of the cluster
                       type: string
+                    trustStrimziCaCertificate:
+                      description: |
+                        If true, automatically trust the Strimzi cluster CA certificate for TLS connections
+                        to the upstream Kafka cluster. The proxy will discover the CA certificate from the
+                        Secret created by Strimzi (<kafka-name>-cluster-ca-cert in the same namespace).
+
+                        Security note: This delegates certificate trust to the Strimzi operator.
+                      type: boolean
                   required:
                     - name
                     - listenerName
@@ -113,11 +121,11 @@ spec:
                       required: [ "name", "key" ]
                       properties:
                         kind:
-                          description: The API kind of the resource containing the TLS client certificate.
+                          description: The API kind of the resource containing the trusted CA certificates.
                           type: string
                           default: ConfigMap
                         group:
-                          description: The API group of the resource containing the TLS client certificate.
+                          description: The API group of the resource containing the trusted CA certificates.
                           type: string
                           default: ""
                         storeType:
@@ -128,12 +136,11 @@ spec:
                             - JKS
                             - PKCS12
                         name:
-                          description: The name of the resource containing the TLS client certificate.
+                          description: The name of the resource containing the trusted CA certificates.
                           type: string
                         key:
                           description: | 
-                            The name of the key identifying the certificate bundle within the resource. 
-                            Supported formats for the bundle are: PEM, PKCS#12 and JKS.
+                            The name of the key identifying the trusted CA certificates within the resource.
                           type: string
                     protocols:
                       description: |
@@ -212,6 +219,85 @@ spec:
                   description: |
                     The metadata.generation that was observed during the last reconciliation by the operator.
                   type: integer
+                tls:
+                  type: object
+                  description: Reconciled TLS configuration for connections to the Kafka cluster.
+                  properties:
+                      certificateRef:
+                        description: |
+                          Reconciled reference to the TLS client certificate resource.
+                          This is copied from spec.tls.certificateRef during reconciliation.
+                        type: object
+                        properties:
+                          kind:
+                            description: The API kind of the resource containing the TLS client certificate.
+                            type: string
+                            default: Secret
+                          group:
+                            description: The API group of the resource containing the TLS client certificate.
+                            type: string
+                            default: ""
+                          name:
+                            description: The name of the resource containing the TLS client certificate.
+                            type: string
+                      trustAnchorRef:
+                        type: object
+                        description: |
+                          Reconciled reference to the TLS trust anchor (CA certificates) resource.
+                          This may be auto-discovered from Strimzi or copied from spec.tls.trustAnchorRef.
+                        properties:
+                          kind:
+                            description: The API kind of the resource containing the trusted CA certificates.
+                            type: string
+                            default: ConfigMap
+                          group:
+                            description: The API group of the resource containing the trusted CA certificates.
+                            type: string
+                            default: ""
+                          name:
+                            type: string
+                            description: The name of the Secret or ConfigMap containing trusted CA certificates.
+                          storeType:
+                            type: string
+                            description: The format of the store.
+                          key:
+                            type: string
+                            description: |
+                              The key within the resource identifying the certificate bundle.
+                      protocols:
+                        description: |
+                          Reconciled TLS protocols configuration.
+                          This is copied from spec.tls.protocols during reconciliation.
+                        type: object
+                        properties:
+                          allow:
+                            description: The TLS protocols to allow, ordered by preference.
+                            type: array
+                            items:
+                              type: string
+                          deny:
+                            description: The TLS protocols to deny.
+                            type: array
+                            items:
+                              type: string
+                            default: []
+                      cipherSuites:
+                        description: |
+                          Reconciled TLS cipher suites configuration.
+                          This is copied from spec.tls.cipherSuites during reconciliation.
+                        type: object
+                        properties:
+                          allow:
+                            description: The TLS cipher suites to allow.
+                            type: array
+                            items:
+                              type: string
+                          deny:
+                            description: The TLS cipher suites to deny.
+                            type: array
+                            items:
+                              type: string
+                            default: []
                 bootstrapServers:
                   description: |
                     The bootstrap address of the target cluster.
