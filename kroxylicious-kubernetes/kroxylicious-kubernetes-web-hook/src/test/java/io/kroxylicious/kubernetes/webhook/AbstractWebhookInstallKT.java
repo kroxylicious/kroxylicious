@@ -6,7 +6,15 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -14,6 +22,17 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodBuilder;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.client.Config;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigBuilder;
 import io.kroxylicious.test.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,6 +52,11 @@ abstract class AbstractWebhookInstallKT {
     private static final String WEBHOOK_NS = "kroxylicious-webhook";
     private static final String TEST_NS = "webhook-test";
 
+    private static final Path CRD_PATH = Path.of(
+            "../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml");
+
+    private KubernetesClient client;
+
     static boolean testImageAvailable() {
         String imageArchive = WebhookInfo.fromResource().imageArchive();
         assumeThat(Path.of(imageArchive))
@@ -44,6 +68,7 @@ abstract class AbstractWebhookInstallKT {
 
     @Test
     void shouldInstallAndInjectSidecar() {
+        client = new KubernetesClientBuilder().build();
         try {
             installWebhook();
             waitForWebhookReady();
@@ -87,27 +112,31 @@ abstract class AbstractWebhookInstallKT {
     }
 
     private void applyCrds() {
-        // The KroxyliciousSidecarConfig CRD is in kroxylicious-kubernetes-api
-        assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                "kubectl", "apply", "-f",
-                "../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml"))
-                .isTrue();
+        try (InputStream is = Files.newInputStream(CRD_PATH)) {
+            client.load(is).createOrReplace();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private void applyManifestsWithPrefix(String prefix) {
         Path installDir = Path.of(INSTALL_DIR);
-        try (var files = java.nio.file.Files.list(installDir)) {
+        try (var files = Files.list(installDir)) {
             files.filter(p -> p.getFileName().toString().startsWith(prefix))
                     .sorted()
                     .forEach(p -> {
                         LOGGER.info("Applying {}", p.getFileName());
-                        assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                                "kubectl", "apply", "-f", p.toString()))
-                                .isTrue();
+                        try (InputStream is = Files.newInputStream(p)) {
+                            client.load(is).createOrReplace();
+                        }
+                        catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
                     });
         }
-        catch (java.io.IOException e) {
-            throw new java.io.UncheckedIOException(e);
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 
@@ -131,12 +160,21 @@ abstract class AbstractWebhookInstallKT {
                         DNS:kroxylicious-webhook.kroxylicious-webhook.svc,\
                         DNS:kroxylicious-webhook.kroxylicious-webhook.svc.cluster.local""");
 
-        // Create the Secret
-        ShellUtils.exec(
-                "kubectl", "create", "secret", "tls", "kroxylicious-webhook-cert",
-                "-n", WEBHOOK_NS,
-                "--cert=target/webhook-tls.crt",
-                "--key=target/webhook-tls.key");
+        try {
+            var secret = new SecretBuilder()
+                    .withNewMetadata()
+                    .withName("kroxylicious-webhook-cert")
+                    .withNamespace(WEBHOOK_NS)
+                    .endMetadata()
+                    .withType("kubernetes.io/tls")
+                    .addToStringData("tls.crt", Files.readString(Path.of("target/webhook-tls.crt")))
+                    .addToStringData("tls.key", Files.readString(Path.of("target/webhook-tls.key")))
+                    .build();
+            client.resource(secret).create();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     /**
@@ -145,39 +183,57 @@ abstract class AbstractWebhookInstallKT {
      * manifest (05) has been applied.
      */
     private void patchWebhookCaBundle() {
-        ShellUtils.exec("bash", "-c", """
-                kubectl patch mutatingwebhookconfiguration kroxylicious-sidecar-injector \
-                --type=json -p='[{"op":"add","path":"/webhooks/0/clientConfig/caBundle",\
-                "value":"'$(base64 -w0 target/webhook-tls.crt)'"}]'""");
+        try {
+            byte[] certBytes = Files.readAllBytes(Path.of("target/webhook-tls.crt"));
+            String caBundle = Base64.getEncoder().encodeToString(certBytes);
+            client.admissionRegistration().v1()
+                    .mutatingWebhookConfigurations()
+                    .withName("kroxylicious-sidecar-injector")
+                    .edit(mwc -> {
+                        mwc.getWebhooks().get(0).getClientConfig().setCaBundle(caBundle);
+                        return mwc;
+                    });
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private void waitForWebhookReady() {
         LOGGER.info("Waiting for webhook deployment to become ready");
-        assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                "kubectl", "wait", "-n", WEBHOOK_NS,
-                "--for=jsonpath={.status.readyReplicas}=1",
-                "--timeout=300s",
-                "deployment", "kroxylicious-webhook"))
-                .isTrue();
+        client.apps().deployments()
+                .inNamespace(WEBHOOK_NS)
+                .withName("kroxylicious-webhook")
+                .waitUntilCondition(
+                        d -> d != null
+                                && d.getStatus() != null
+                                && d.getStatus().getReadyReplicas() != null
+                                && d.getStatus().getReadyReplicas() >= 1,
+                        300, TimeUnit.SECONDS);
         LOGGER.info("Webhook deployment is ready");
     }
 
     private void createTestNamespaceAndConfig() {
         LOGGER.info("Creating test namespace with injection label");
-        ShellUtils.exec("kubectl", "create", "namespace", TEST_NS);
-        ShellUtils.exec("kubectl", "label", "namespace", TEST_NS,
-                "kroxylicious.io/sidecar-injection=enabled");
+        var ns = new NamespaceBuilder()
+                .withNewMetadata()
+                .withName(TEST_NS)
+                .addToLabels("kroxylicious.io/sidecar-injection", "enabled")
+                .endMetadata()
+                .build();
+        client.namespaces().resource(ns).create();
 
         LOGGER.info("Creating KroxyliciousSidecarConfig");
-        ShellUtils.exec("bash", "-c", """
-                cat <<'EOF' | kubectl apply -n %s -f -
-                apiVersion: kroxylicious.io/v1alpha1
-                kind: KroxyliciousSidecarConfig
-                metadata:
-                  name: test-config
-                spec:
-                  upstreamBootstrapServers: kafka-bootstrap.kafka.svc.cluster.local:9092
-                EOF""".formatted(TEST_NS));
+        var sidecarConfig = new KroxyliciousSidecarConfigBuilder()
+                .withNewMetadata()
+                .withName("test-config")
+                .withNamespace(TEST_NS)
+                .endMetadata()
+                .withNewSpec()
+                .withUpstreamBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
+                .endSpec()
+                .build();
+        client.resource(sidecarConfig).create();
 
         // Wait for the webhook's informer to sync the config
 
@@ -194,113 +250,147 @@ abstract class AbstractWebhookInstallKT {
 
     private void verifyInjection() {
         LOGGER.info("Creating test pod to verify sidecar injection");
-        ShellUtils.exec("bash", "-c", """
-                cat <<'EOF' | kubectl apply -n %s -f -
-                apiVersion: v1
-                kind: Pod
-                metadata:
-                  name: test-app
-                spec:
-                  terminationGracePeriodSeconds: 0
-                  containers:
-                    - name: app
-                      image: busybox:latest
-                      command: ["sleep", "3600"]
-                EOF""".formatted(TEST_NS));
+        var testPod = new PodBuilder()
+                .withNewMetadata()
+                .withName("test-app")
+                .withNamespace(TEST_NS)
+                .withAnnotations(Map.of("app.kubernetes.io/name", "test-app"))
+                .endMetadata()
+                .withNewSpec()
+                .withTerminationGracePeriodSeconds(0L)
+                .addNewContainer()
+                .withName("app")
+                .withImage("busybox:latest")
+                .withCommand("sleep", "3600")
+                .endContainer()
+                .endSpec()
+                .build();
+        Pod created = client.resource(testPod).create();
 
         // Verify sidecar container was injected
         LOGGER.info("Verifying sidecar container was injected");
-        assertThat(ShellUtils.execValidate(
-                lines -> lines.anyMatch(line -> line.contains("kroxylicious-proxy")),
-                ALWAYS_VALID,
-                "kubectl", "get", "pod", "test-app", "-n", TEST_NS,
-                "-o", "jsonpath={.spec.containers[*].name}{.spec.initContainers[*].name}"))
+        var allContainerNames = new ArrayList<String>();
+        created.getSpec().getContainers().forEach(c -> allContainerNames.add(c.getName()));
+        if (created.getSpec().getInitContainers() != null) {
+            created.getSpec().getInitContainers().forEach(c -> allContainerNames.add(c.getName()));
+        }
+        assertThat(allContainerNames)
                 .as("Pod should have kroxylicious-proxy sidecar container")
-                .isTrue();
+                .contains("kroxylicious-proxy");
 
         // Verify the proxy config annotation was set
-        assertThat(ShellUtils.execValidate(
-                lines -> lines.anyMatch(line -> line.contains("injected")),
-                ALWAYS_VALID,
-                "kubectl", "get", "pod", "test-app", "-n", TEST_NS,
-                "-o", "jsonpath={.metadata.annotations.kroxylicious\\.io/sidecar-status}"))
+        assertThat(created.getMetadata().getAnnotations())
                 .as("Pod should have sidecar-status annotation set to 'injected'")
-                .isTrue();
+                .containsEntry("kroxylicious.io/sidecar-status", "injected");
 
         // Verify KAFKA_BOOTSTRAP_SERVERS env var was set on the app container
-        assertThat(ShellUtils.execValidate(
-                lines -> lines.anyMatch(line -> line.contains("localhost:")),
-                ALWAYS_VALID,
-                "kubectl", "get", "pod", "test-app", "-n", TEST_NS,
-                "-o", "jsonpath={.spec.containers[?(@.name=='app')].env[?(@.name=='KAFKA_BOOTSTRAP_SERVERS')].value}"))
+        Container appContainer = created.getSpec().getContainers().stream()
+                .filter(c -> "app".equals(c.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("app container not found in pod"));
+        assertThat(appContainer.getEnv())
                 .as("App container should have KAFKA_BOOTSTRAP_SERVERS pointing to localhost")
-                .isTrue();
+                .filteredOn(env -> "KAFKA_BOOTSTRAP_SERVERS".equals(env.getName()))
+                .singleElement()
+                .extracting(EnvVar::getValue)
+                .asString()
+                .contains("localhost:");
 
         LOGGER.info("Sidecar injection verified successfully");
     }
 
     private void verifyOptOut() {
         LOGGER.info("Creating opted-out pod to verify opt-out works");
-        ShellUtils.exec("bash", "-c", """
-                cat <<'EOF' | kubectl apply -n %s -f -
-                apiVersion: v1
-                kind: Pod
-                metadata:
-                  name: test-app-no-sidecar
-                  labels:
-                    kroxylicious.io/inject-sidecar: "false"
-                spec:
-                  terminationGracePeriodSeconds: 0
-                  containers:
-                    - name: app
-                      image: busybox:latest
-                      command: ["sleep", "3600"]
-                EOF""".formatted(TEST_NS));
+        var optedOutPod = new PodBuilder()
+                .withNewMetadata()
+                .withName("test-app-no-sidecar")
+                .withNamespace(TEST_NS)
+                .withAnnotations(Map.of("app.kubernetes.io/name", "test-app-no-sidecar"))
+                .addToLabels("kroxylicious.io/inject-sidecar", "false")
+                .endMetadata()
+                .withNewSpec()
+                .withTerminationGracePeriodSeconds(0L)
+                .addNewContainer()
+                .withName("app")
+                .withImage("busybox:latest")
+                .withCommand("sleep", "3600")
+                .endContainer()
+                .endSpec()
+                .build();
+        Pod created = client.resource(optedOutPod).create();
 
         // Verify sidecar was NOT injected
-        assertThat(ShellUtils.execValidate(
-                lines -> lines.noneMatch(line -> line.contains("kroxylicious-proxy")),
-                ALWAYS_VALID,
-                "kubectl", "get", "pod", "test-app-no-sidecar", "-n", TEST_NS,
-                "-o", "jsonpath={.spec.containers[*].name}"))
+        assertThat(created.getSpec().getContainers())
                 .as("Opted-out pod should not have sidecar")
-                .isTrue();
+                .extracting(Container::getName)
+                .doesNotContain("kroxylicious-proxy");
 
         LOGGER.info("Opt-out verified successfully");
     }
 
     private void cleanup() {
         LOGGER.info("Cleaning up test resources");
-        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                "kubectl", "delete", "namespace", TEST_NS, "--ignore-not-found");
+        if (client == null) {
+            return;
+        }
+        ignoreCleanupErrors("test namespace",
+                () -> client.namespaces().withName(TEST_NS).delete());
         // Delete install manifests (00-05)
         for (int i = 5; i >= 0; i--) {
             String prefix = String.format("%02d.", i);
             deleteManifestsWithPrefix(prefix);
         }
-        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                "kubectl", "delete", "-f",
-                "../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml",
-                "--ignore-not-found");
+        ignoreCleanupErrors("CRD",
+                () -> {
+                    try (InputStream is = Files.newInputStream(CRD_PATH)) {
+                        client.load(is).delete();
+                    }
+                });
+        ignoreCleanupErrors("Kubernetes client", client::close);
     }
 
     private void deleteManifestsWithPrefix(String prefix) {
         Path installDir = Path.of(INSTALL_DIR);
-        try (var files = java.nio.file.Files.list(installDir)) {
+        try (var files = Files.list(installDir)) {
             files.filter(p -> p.getFileName().toString().startsWith(prefix))
                     .sorted()
-                    .forEach(p -> ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                            "kubectl", "delete", "-f", p.toString(), "--ignore-not-found"));
+                    .forEach(p -> ignoreCleanupErrors(p.getFileName().toString(),
+                            () -> {
+                                try (InputStream is = Files.newInputStream(p)) {
+                                    client.load(is).delete();
+                                }
+                            }));
         }
-        catch (java.io.IOException e) {
-            throw new java.io.UncheckedIOException(e);
+        catch (IOException e) {
+            LOGGER.atWarn().setCause(e).log("failed to list install directory during cleanup");
         }
     }
 
+    private static void ignoreCleanupErrors(String description, CleanupAction action) {
+        try {
+            action.run();
+        }
+        catch (Exception e) {
+            LOGGER.atWarn()
+                    .addKeyValue("resource", description)
+                    .setCause(e)
+                    .log("cleanup failed");
+        }
+    }
+
+    @FunctionalInterface
+    interface CleanupAction {
+        void run() throws Exception;
+    }
+
     static boolean validateKubeContext(String expectedContext) {
-        return ShellUtils.execValidate(
-                lines -> lines.anyMatch(line -> line.contains(expectedContext)),
-                ALWAYS_VALID,
-                "kubectl", "config", "current-context");
+        try {
+            Config config = Config.autoConfigure(null);
+            var context = config.getCurrentContext();
+            return context != null && expectedContext.equals(context.getName());
+        }
+        catch (Exception e) {
+            return false;
+        }
     }
 }
