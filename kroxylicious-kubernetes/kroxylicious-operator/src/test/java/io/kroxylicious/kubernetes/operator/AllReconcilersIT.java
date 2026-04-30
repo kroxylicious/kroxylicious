@@ -470,6 +470,9 @@ class AllReconcilersIT {
                     .endSpec()
                     .build());
 
+            // The Strimzi operator manages the status subresource of Kafka CRs, populating
+            // listener addresses and other runtime state. In tests, we must manually set
+            // this status since the Strimzi operator is not running.
             testActor.patchStatus(new KafkaBuilder(kafka)
                     .withNewStatus()
                         .withListeners(new ListenerStatusBuilder()
