@@ -41,7 +41,6 @@ import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
@@ -462,14 +461,15 @@ class AllReconcilersIT {
                     .endMetadata()
                     .withNewSpec()
                         .withNewKafka()
-                            .withListeners(new GenericKafkaListenerBuilder()
-                                    .withName(STRIMZI_TLS_LISTENER)
-                                    .withTls(true)
-                                    .build())
+                            .addNewListener()
+                                .withName(STRIMZI_TLS_LISTENER)
+                                .withTls(true)
+                            .endListener()
                         .endKafka()
                     .endSpec()
                     .build());
 
+            // Patch the Kafka status to simulate what the Strimzi operator would do.
             // The Strimzi operator manages the status subresource of Kafka CRs, populating
             // listener addresses and other runtime state. In tests, we must manually set
             // this status since the Strimzi operator is not running.
