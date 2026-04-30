@@ -389,7 +389,7 @@ public class KafkaProxyFrontendHandler
         // Check if we need to use dynamic TLS credential supplier
         if (proxyChannelStateMachine.virtualCluster().usesDynamicTlsCredentials()) {
             // Dynamic credential supplier - invoke it asynchronously
-            invokeTlsCredentialSupplier(remote, outboundChannel, pipeline, serverTcpConnectFuture);
+            invokeTlsCredentialSupplier(remote, outboundChannel, pipeline);
         }
         else {
             // Static TLS configuration - use pre-built SslContext
@@ -420,7 +420,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Invokes the TLS credential supplier asynchronously and configures the SSL handler once credentials are available.
      */
-    private void invokeTlsCredentialSupplier(HostPort remote, Channel outboundChannel, ChannelPipeline pipeline, ChannelFuture serverTcpConnectFuture) {
+    private void invokeTlsCredentialSupplier(HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
         try {
             TlsCredentialSupplierManager manager = proxyChannelStateMachine.virtualCluster().getTlsCredentialSupplierManager();
             ServerTlsCredentialSupplier supplier = manager.getSupplier();
@@ -428,29 +428,7 @@ public class KafkaProxyFrontendHandler
             ClientTlsContext clientCtx = proxyChannelStateMachine.clientTlsContext().orElse(null);
             ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(clientCtx);
 
-            outboundChannel.eventLoop().execute(() -> {
-                supplier.tlsCredentials(supplierContext).whenComplete((credentials, throwable) -> {
-                    outboundChannel.eventLoop().execute(() -> {
-                        if (throwable != null) {
-                            LOGGER.atError()
-                                    .addKeyValue("remote", remote)
-                                    .addKeyValue("error", throwable.getMessage())
-                                    .setCause(LOGGER.isDebugEnabled() ? throwable : null)
-                                    .log("TLS credential supplier failed{}",
-                                            LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-                            proxyChannelStateMachine.onServerException(
-                                    new IllegalStateException("Failed to obtain TLS credentials", throwable));
-                        }
-                        else if (credentials == null) {
-                            proxyChannelStateMachine.onServerException(
-                                    new IllegalStateException("TLS credential supplier returned null"));
-                        }
-                        else {
-                            applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
-                        }
-                    });
-                });
-            });
+            outboundChannel.eventLoop().execute(() -> requestTlsCredentials(supplier, supplierContext, remote, outboundChannel, pipeline));
         }
         catch (Exception e) {
             LOGGER.atError()
@@ -461,6 +439,37 @@ public class KafkaProxyFrontendHandler
                             LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
             proxyChannelStateMachine.onServerException(e);
         }
+    }
+
+    @VisibleForTesting
+    void requestTlsCredentials(ServerTlsCredentialSupplier supplier, ServerTlsCredentialSupplierContextImpl supplierContext, HostPort remote,
+                               Channel outboundChannel,
+                               ChannelPipeline pipeline) {
+        supplier.tlsCredentials(supplierContext).whenComplete((credentials, throwable) -> outboundChannel.eventLoop()
+                .execute(() -> handleTlsCredentialSupplierResult(credentials, throwable, remote, outboundChannel, pipeline)));
+    }
+
+    @VisibleForTesting
+    void handleTlsCredentialSupplierResult(TlsCredentials credentials, Throwable throwable, HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
+        if (throwable != null) {
+            handleTlsCredentialSupplierFailure(remote, throwable);
+            return;
+        }
+        if (credentials == null) {
+            proxyChannelStateMachine.onServerException(new IllegalStateException("TLS credential supplier returned null"));
+            return;
+        }
+        applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
+    }
+
+    private void handleTlsCredentialSupplierFailure(HostPort remote, Throwable throwable) {
+        LOGGER.atError()
+                .addKeyValue("remote", remote)
+                .addKeyValue("error", throwable.getMessage())
+                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+                .log("TLS credential supplier failed{}",
+                        LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
+        proxyChannelStateMachine.onServerException(new IllegalStateException("Failed to obtain TLS credentials", throwable));
     }
 
     /**

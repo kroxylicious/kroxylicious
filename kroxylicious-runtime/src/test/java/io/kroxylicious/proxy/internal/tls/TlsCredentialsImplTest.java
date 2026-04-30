@@ -86,6 +86,43 @@ class TlsCredentialsImplTest {
     }
 
     @Test
+    void equalsAndHashCodeUseCertificateChainContents() {
+        PrivateKey key = mock(PrivateKey.class);
+        X509Certificate cert = mock(X509Certificate.class);
+
+        TlsCredentialsImpl creds = new TlsCredentialsImpl(key, new X509Certificate[]{ cert });
+        TlsCredentialsImpl sameCreds = new TlsCredentialsImpl(key, new X509Certificate[]{ cert });
+
+        assertThat(creds)
+                .isEqualTo(sameCreds)
+                .hasSameHashCodeAs(sameCreds);
+    }
+
+    @Test
+    void equalsDetectsDifferentCertificateChainContents() {
+        PrivateKey key = mock(PrivateKey.class);
+        X509Certificate cert = mock(X509Certificate.class);
+        X509Certificate otherCert = mock(X509Certificate.class);
+
+        TlsCredentialsImpl creds = new TlsCredentialsImpl(key, new X509Certificate[]{ cert });
+        TlsCredentialsImpl otherCreds = new TlsCredentialsImpl(key, new X509Certificate[]{ otherCert });
+
+        assertThat(creds).isNotEqualTo(otherCreds);
+    }
+
+    @Test
+    void equalsDetectsDifferentPrivateKey() {
+        PrivateKey key = mock(PrivateKey.class);
+        PrivateKey otherKey = mock(PrivateKey.class);
+        X509Certificate cert = mock(X509Certificate.class);
+
+        TlsCredentialsImpl creds = new TlsCredentialsImpl(key, new X509Certificate[]{ cert });
+        TlsCredentialsImpl otherCreds = new TlsCredentialsImpl(otherKey, new X509Certificate[]{ cert });
+
+        assertThat(creds).isNotEqualTo(otherCreds);
+    }
+
+    @Test
     void toStringContainsCertCountAndAlgorithm() {
         PrivateKey key = mock(PrivateKey.class);
         when(key.getAlgorithm()).thenReturn("RSA");

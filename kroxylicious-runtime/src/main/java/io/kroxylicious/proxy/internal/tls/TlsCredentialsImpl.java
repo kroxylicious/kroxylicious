@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.tls;
 
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Objects;
 
 import io.kroxylicious.proxy.tls.TlsCredentials;
@@ -31,6 +32,22 @@ public record TlsCredentialsImpl(@NonNull PrivateKey privateKey, @NonNull X509Ce
     @Override
     public X509Certificate[] certificateChain() {
         return certificateChain.clone();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof TlsCredentialsImpl that)) {
+            return false;
+        }
+        return privateKey.equals(that.privateKey) && Arrays.equals(certificateChain, that.certificateChain);
+    }
+
+    @Override
+    public int hashCode() {
+        return 31 * privateKey.hashCode() + Arrays.hashCode(certificateChain);
     }
 
     @Override

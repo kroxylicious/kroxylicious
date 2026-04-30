@@ -23,6 +23,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoop;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
@@ -42,8 +43,10 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
+import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -367,6 +370,70 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     // --- TLS credential supplier tests ---
+
+    @Test
+    void requestTlsCredentialsReportsSupplierFailureOnEventLoop() {
+        // Given
+        RuntimeException failure = new RuntimeException("boom");
+        ServerTlsCredentialSupplier supplier = context -> CompletableFuture.failedFuture(failure);
+        ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
+        Channel channel = mock(Channel.class);
+        EventLoop eventLoop = mock(EventLoop.class);
+        when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
+        HostPort remote = new HostPort("localhost", 9092);
+
+        // When
+        handler.requestTlsCredentials(supplier, supplierContext, remote, channel, mock(ChannelPipeline.class));
+
+        // Then
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(proxyChannelStateMachine).onServerException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Failed to obtain TLS credentials")
+                .hasCause(failure);
+    }
+
+    @Test
+    void handleTlsCredentialSupplierResultReportsNullCredentials() {
+        // Given
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+        HostPort remote = new HostPort("localhost", 9092);
+
+        // When
+        handler.handleTlsCredentialSupplierResult(null, null, remote, channel, pipeline);
+
+        // Then
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(proxyChannelStateMachine).onServerException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TLS credential supplier returned null");
+    }
+
+    @Test
+    void handleTlsCredentialSupplierResultAppliesCredentials() {
+        // Given
+        io.kroxylicious.proxy.tls.TlsCredentials badCreds = mock(io.kroxylicious.proxy.tls.TlsCredentials.class);
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+        HostPort remote = new HostPort("localhost", 9092);
+
+        // When
+        handler.handleTlsCredentialSupplierResult(badCreds, null, remote, channel, pipeline);
+
+        // Then
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(proxyChannelStateMachine).onServerException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected TlsCredentials implementation");
+    }
 
     @Test
     void applySslContextToChannelRejectsNonTlsCredentialsImpl() {
