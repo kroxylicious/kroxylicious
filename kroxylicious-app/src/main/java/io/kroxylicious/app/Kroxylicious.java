@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 
+import org.apache.logging.log4j.LogManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +83,13 @@ public class Kroxylicious implements Callable<Integer> {
                     }
                     catch (Exception e) {
                         LOGGER.atWarn().setCause(e).log("Error during shutdown hook");
+                    }
+                    finally {
+                        // Log4j2's own shutdown hook is disabled in log4j2.yaml so it doesn't
+                        // race with the proxy's drain logging. However for AsyncAppender, RollingFileAppender
+                        // the logs might still be buffered, we call the shutdown() method explicitly to flush
+                        // the remaining logs
+                        LogManager.shutdown();
                     }
                 }, "proxy-shutdown-hook"));
                 kafkaProxy.block();
