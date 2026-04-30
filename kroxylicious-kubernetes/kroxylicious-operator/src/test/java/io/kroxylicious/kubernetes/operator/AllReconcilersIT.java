@@ -93,9 +93,6 @@ class AllReconcilersIT {
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
-    private static final String STRIMZI_CLUSTER_CA_CERT_SUFFIX = "-cluster-ca-cert";
-    private static final String STRIMZI_CA_CERT_KEY = "ca.crt";
-    private static final String STRIMZI_TLS_LISTENER = "tls";
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
@@ -428,7 +425,9 @@ class AllReconcilersIT {
      * Nested class for tests that require Strimzi CRD
      */
     @Nested
-    class StrimziKafkaRefTests {
+    class StrimziKafkaIntegrationTests {
+
+        private static final String STRIMZI_TLS_LISTENER = "tls";
 
         @BeforeAll
         static void setUpStrimziCrd() {
@@ -475,21 +474,21 @@ class AllReconcilersIT {
             // this status since the Strimzi operator is not running.
             testActor.patchStatus(new KafkaBuilder(kafka)
                     .withNewStatus()
-                        .withListeners(new ListenerStatusBuilder()
-                                .withName(STRIMZI_TLS_LISTENER)
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost("kafka.example.com")
-                                        .withPort(9093)
-                                        .build())
-                                .build())
+                        .addNewListener()
+                            .withName(STRIMZI_TLS_LISTENER)
+                            .addNewAddress()
+                                    .withHost("kafka.example.com")
+                                    .withPort(9093)
+                            .endAddress()
+                        .endListener()
                     .endStatus()
                     .build());
 
             testActor.create(new SecretBuilder()
                     .withNewMetadata()
-                        .withName(kafkaName + STRIMZI_CLUSTER_CA_CERT_SUFFIX)
+                        .withName(kafkaName + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX)
                     .endMetadata()
-                    .addToData(STRIMZI_CA_CERT_KEY, "dGVzdC1jYQ==")
+                    .addToData(ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE, "dGVzdC1jYQ==")
                     .build());
 
             var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, STRIMZI_TLS_LISTENER).build();
@@ -511,6 +510,24 @@ class AllReconcilersIT {
             // Then
             assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
             assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+        }
+
+        private static KafkaServiceBuilder editableStrimziService(String name, String kafkaName, String listenerName) {
+            // @formatter:off
+            return new KafkaServiceBuilder()
+                    .withNewMetadata()
+                    .withName(name)
+                    .endMetadata()
+                    .withNewSpec()
+                    .withNewStrimziKafkaRef()
+                    .withListenerName(listenerName)
+                    .withTrustStrimziCaCertificate(true)
+                    .withNewRef()
+                    .withName(kafkaName)
+                    .endRef()
+                    .endStrimziKafkaRef()
+                    .endSpec();
+            // @formatter:on
         }
     }
 
@@ -599,24 +616,6 @@ class AllReconcilersIT {
                 .withNewSpec()
                     .withBootstrapServers("example.com:5555")
                     .withNodeIdRanges(new NodeIdRangesBuilder().withStart(0L).withEnd(0L).build())
-                .endSpec();
-        // @formatter:on
-    }
-
-    private static KafkaServiceBuilder editableStrimziService(String name, String kafkaName, String listenerName) {
-        // @formatter:off
-        return new KafkaServiceBuilder()
-                .withNewMetadata()
-                    .withName(name)
-                .endMetadata()
-                .withNewSpec()
-                    .withNewStrimziKafkaRef()
-                        .withListenerName(listenerName)
-                        .withTrustStrimziCaCertificate(true)
-                        .withNewRef()
-                            .withName(kafkaName)
-                        .endRef()
-                    .endStrimziKafkaRef()
                 .endSpec();
         // @formatter:on
     }

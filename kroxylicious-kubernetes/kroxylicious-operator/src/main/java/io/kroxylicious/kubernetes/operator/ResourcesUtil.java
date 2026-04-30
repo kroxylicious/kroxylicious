@@ -728,6 +728,7 @@ public class ResourcesUtil {
                                                                             StrimziKafkaRef strimziKafkaRef, KafkaServiceStatusFactory statusFactory) {
 
         String strimziCaCertSecretName = strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+        // Strimzi creates CA certificate secrets in the same namespace as the Kafka CR.
         var clusterCaSecret = context.getClient().secrets().inNamespace(resource.getMetadata().getNamespace())
                 .withName(strimziCaCertSecretName).get();
         if (clusterCaSecret == null) {

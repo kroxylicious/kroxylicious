@@ -49,11 +49,8 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
                     .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
-                    .withBootstrapServers(bootstrapServers);
-
-        if (tls != null) {
-            statusBuilder.withTls(tls);
-        }
+                    .withBootstrapServers(bootstrapServers)
+                    .withTls(tls);
 
         return statusBuilder.endStatus().build();
         // @formatter:on

@@ -72,8 +72,11 @@ spec:
                       type: string
                     trustStrimziCaCertificate:
                       description: |
-                        if true, the proxy will automatically trust the certificate published by Strimzi
-                        when connecting to a TLS protected upstream. Not recommended for production use.
+                        If true, automatically trust the Strimzi cluster CA certificate for TLS connections
+                        to the upstream Kafka cluster. The proxy will discover the CA certificate from the
+                        Secret created by Strimzi (<kafka-name>-cluster-ca-cert in the same namespace).
+
+                        Security note: This delegates certificate trust to the Strimzi operator.
                       type: boolean
                   required:
                     - name
