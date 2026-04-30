@@ -326,20 +326,24 @@ public final class KafkaServiceReconciler implements
                                                                                           KafkaService service,
                                                                                           @Nullable TrustAnchorRef trustAnchorRef) {
 
-        var tlsOpt = Optional.ofNullable(service.getSpec())
-                .map(KafkaServiceSpec::getTls);
+        var tls = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .orElse(null);
 
-        if (tlsOpt.isEmpty() && trustAnchorRef == null) {
+        if (tls == null && trustAnchorRef == null) {
             return null;
         }
 
-        var tls = tlsOpt.orElse(null);
-        return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
-                .withCertificateRef(tls == null ? null : tls.getCertificateRef())
-                .withTrustAnchorRef(trustAnchorRef)
-                .withProtocols(tls == null ? null : tls.getProtocols())
-                .withCipherSuites(tls == null ? null : tls.getCipherSuites())
-                .build();
+        var builder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
+                .withTrustAnchorRef(trustAnchorRef);
+
+        if (tls != null) {
+            builder.withCertificateRef(tls.getCertificateRef())
+                    .withProtocols(tls.getProtocols())
+                    .withCipherSuites(tls.getCipherSuites());
+        }
+
+        return builder.build();
     }
 
     private KafkaService buildStrimziBasedStatus(
