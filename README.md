@@ -4,17 +4,6 @@ Kroxylicious, the snappy open source proxy for [Apache Kafka®](https://kafka.ap
 
 Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption, multi-tenancy and schema validation.
 
-<!-- TOC -->
-* [Kroxylicious](#kroxylicious)
-  * [Quick Links](#quick-links)
-  * [Build status](#build-status)
-  * [License](#license)
-  * [Developer Guide](#developer-guide)
-  * [Releasing this project](#releasing-this-project)
-  * [Performance Testing](#performance-testing)
-  * [Contributing](#contributing)
-<!-- TOC -->
-
 ## Quick Links
 - [kroxylicious.io](https://www.kroxylicious.io)
 - [Documentation](https://www.kroxylicious.io/kroxylicious)
