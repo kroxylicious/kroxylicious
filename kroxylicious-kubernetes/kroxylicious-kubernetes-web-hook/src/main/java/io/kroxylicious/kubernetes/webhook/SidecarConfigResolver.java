@@ -53,10 +53,18 @@ class SidecarConfigResolver implements Closeable {
     }
 
     /**
-     * Creates a resolver with no informer, for testing.
+     * Creates a resolver with no informer and no status updater, for testing.
      */
     SidecarConfigResolver() {
-        this.statusUpdater = null;
+        this(null);
+    }
+
+    /**
+     * Creates a resolver with no informer, for testing.
+     */
+    @VisibleForTesting
+    SidecarConfigResolver(@Nullable SidecarConfigStatusUpdater statusUpdater) {
+        this.statusUpdater = statusUpdater;
         this.informer = null;
     }
 
@@ -118,6 +126,24 @@ class SidecarConfigResolver implements Closeable {
         String ns = config.getMetadata().getNamespace();
         String name = config.getMetadata().getName();
         cache.computeIfAbsent(ns, k -> new ConcurrentHashMap<>()).put(name, config);
+    }
+
+    /**
+     * Simulates an informer add event, for testing.
+     */
+    @VisibleForTesting
+    void simulateAdd(@NonNull KroxyliciousSidecarConfig config) {
+        new Handler().onAdd(config);
+    }
+
+    /**
+     * Simulates an informer update event, for testing.
+     */
+    @VisibleForTesting
+    void simulateUpdate(
+                        @NonNull KroxyliciousSidecarConfig oldConfig,
+                        @NonNull KroxyliciousSidecarConfig newConfig) {
+        new Handler().onUpdate(oldConfig, newConfig);
     }
 
     /**
