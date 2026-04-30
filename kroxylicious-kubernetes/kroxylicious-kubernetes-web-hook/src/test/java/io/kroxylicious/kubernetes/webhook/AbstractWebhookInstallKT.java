@@ -81,31 +81,15 @@ abstract class AbstractWebhookInstallKT {
     }
 
     private void installWebhook() {
-        // Apply everything except the cert-manager Certificate (06.Certificate.*)
-        // Instead we generate a self-signed cert and create the Secret directly
         LOGGER.info("Installing CRDs");
         applyCrds();
 
-        // Apply namespace, service account, RBAC (00-02)
-        LOGGER.info("Applying namespace and RBAC manifests (00-02)");
-        for (int i = 0; i <= 2; i++) {
-            String prefix = String.format("%02d.", i);
-            applyManifestsWithPrefix(prefix);
-        }
+        LOGGER.info("Applying install manifests");
+        applyAllManifests();
 
-        // Create TLS secret before the Deployment tries to mount it
         LOGGER.info("Creating self-signed TLS certificate for webhook");
         createWebhookTlsSecret();
 
-        // Apply deployment, service, webhook config (03-05)
-        LOGGER.info("Applying deployment and webhook manifests (03-05)");
-        for (int i = 3; i <= 5; i++) {
-            String prefix = String.format("%02d.", i);
-            applyManifestsWithPrefix(prefix);
-        }
-
-        // Patch the MutatingWebhookConfiguration with the CA bundle
-        // (normally cert-manager does this via the inject-ca-from annotation)
         LOGGER.info("Patching MutatingWebhookConfiguration with CA bundle");
         patchWebhookCaBundle();
     }
@@ -119,11 +103,10 @@ abstract class AbstractWebhookInstallKT {
         }
     }
 
-    private void applyManifestsWithPrefix(String prefix) {
+    private void applyAllManifests() {
         Path installDir = Path.of(INSTALL_DIR);
         try (var files = Files.list(installDir)) {
-            files.filter(p -> p.getFileName().toString().startsWith(prefix))
-                    .sorted()
+            files.sorted()
                     .forEach(p -> {
                         LOGGER.info("Applying {}", p.getFileName());
                         try (InputStream is = Files.newInputStream(p)) {
@@ -332,11 +315,7 @@ abstract class AbstractWebhookInstallKT {
         }
         ignoreCleanupErrors("test namespace",
                 () -> client.namespaces().withName(TEST_NS).delete());
-        // Delete install manifests (00-05)
-        for (int i = 5; i >= 0; i--) {
-            String prefix = String.format("%02d.", i);
-            deleteManifestsWithPrefix(prefix);
-        }
+        deleteAllManifests();
         ignoreCleanupErrors("CRD",
                 () -> {
                     try (InputStream is = Files.newInputStream(CRD_PATH)) {
@@ -346,11 +325,10 @@ abstract class AbstractWebhookInstallKT {
         ignoreCleanupErrors("Kubernetes client", client::close);
     }
 
-    private void deleteManifestsWithPrefix(String prefix) {
+    private void deleteAllManifests() {
         Path installDir = Path.of(INSTALL_DIR);
         try (var files = Files.list(installDir)) {
-            files.filter(p -> p.getFileName().toString().startsWith(prefix))
-                    .sorted()
+            files.sorted()
                     .forEach(p -> ignoreCleanupErrors(p.getFileName().toString(),
                             () -> {
                                 try (InputStream is = Files.newInputStream(p)) {
