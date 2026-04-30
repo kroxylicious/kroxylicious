@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -13,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -138,5 +141,95 @@ class ProxyConfigGeneratorTest {
         assertThat(root.has("virtualClusters")).isTrue();
         assertThat(root.path("virtualClusters").isArray()).isTrue();
         assertThat(root.path("virtualClusters")).hasSize(1);
+    }
+
+    @Test
+    void includesFilterDefinitions() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+
+        FilterDefinitions filter = new FilterDefinitions();
+        filter.setName("my-filter");
+        filter.setType("com.example.MyFilterFactory");
+        spec.setFilterDefinitions(List.of(filter));
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        JsonNode filterDefs = root.path("filterDefinitions");
+        assertThat(filterDefs.isArray()).isTrue();
+        assertThat(filterDefs).hasSize(1);
+        assertThat(filterDefs.get(0).path("name").asText()).isEqualTo("my-filter");
+        assertThat(filterDefs.get(0).path("type").asText()).isEqualTo("com.example.MyFilterFactory");
+
+        JsonNode defaultFilters = root.path("defaultFilters");
+        assertThat(defaultFilters.isArray()).isTrue();
+        assertThat(defaultFilters.get(0).asText()).isEqualTo("my-filter");
+    }
+
+    @Test
+    void includesMultipleFilterDefinitions() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+
+        FilterDefinitions f1 = new FilterDefinitions();
+        f1.setName("filter-a");
+        f1.setType("com.example.FilterA");
+        FilterDefinitions f2 = new FilterDefinitions();
+        f2.setName("filter-b");
+        f2.setType("com.example.FilterB");
+        spec.setFilterDefinitions(List.of(f1, f2));
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        assertThat(root.path("filterDefinitions")).hasSize(2);
+        assertThat(root.path("defaultFilters")).hasSize(2);
+        assertThat(root.path("defaultFilters").get(0).asText()).isEqualTo("filter-a");
+        assertThat(root.path("defaultFilters").get(1).asText()).isEqualTo("filter-b");
+    }
+
+    @Test
+    void omitsFiltersWhenNoneConfigured() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        assertThat(root.path("filterDefinitions").isMissingNode() || root.path("filterDefinitions").isNull())
+                .as("filterDefinitions should be absent when none configured")
+                .isTrue();
+    }
+
+    @Test
+    void includesUpstreamTlsConfig() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9093");
+
+        String trustStorePath = "/opt/kroxylicious/tls/upstream/ca.crt";
+        String yaml = ProxyConfigGenerator.generateConfig(spec, trustStorePath);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        JsonNode tls = root.path("virtualClusters").get(0)
+                .path("targetCluster").path("tls");
+        assertThat(tls.isMissingNode()).isFalse();
+        assertThat(tls.path("trust").path("storeFile").asText()).isEqualTo(trustStorePath);
+        assertThat(tls.path("trust").path("storeType").asText()).isEqualTo("PEM");
+    }
+
+    @Test
+    void omitsUpstreamTlsWhenPathIsNull() throws Exception {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setUpstreamBootstrapServers("kafka:9092");
+
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
+        JsonNode root = YAML_MAPPER.readTree(yaml);
+
+        JsonNode tls = root.path("virtualClusters").get(0)
+                .path("targetCluster").path("tls");
+        assertThat(tls.isMissingNode() || tls.isNull())
+                .as("TLS should be absent when no trust store path")
+                .isTrue();
     }
 }

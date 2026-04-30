@@ -43,6 +43,10 @@
         <!-- project dependencies -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
         <dependency>
