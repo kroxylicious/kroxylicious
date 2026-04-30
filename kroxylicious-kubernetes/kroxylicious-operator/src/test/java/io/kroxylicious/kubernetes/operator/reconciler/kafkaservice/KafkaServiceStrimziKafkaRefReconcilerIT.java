@@ -24,8 +24,8 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -84,7 +84,12 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
         // note that we could not find a nice way to do this via the LocallyRunOperatorExtension. I tried serializing the CRD to
         // a temp file and using `withAdditionalCRD(path)` but it didn't load those CRDs before initializing the reconciler.
         try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
+            CustomResourceDefinition result = client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(
+                    customResourceDefinitionNonDeletingOperation -> {
+                        LOGGER.info("create strimzi kafka CRD failed, executing update instead");
+                        return customResourceDefinitionNonDeletingOperation.update();
+                    });
+            LOGGER.info("kafka CRD create result: {}", result);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
