@@ -986,11 +986,23 @@ public class KafkaProxyReconcilerIT {
         // controller will have updated the resource or not yet. We make an update to
         // the Route that we are certain will be different to that made by the controller
         // in order to be certain an update is made.
-        testActor.resources(Route.class).resource(bootstrapRoute).editStatus(r -> new RouteBuilder(r)
-                .editOrNewStatus()
-                .addNewIngress().withHost("different.invalid").endIngress()
-                .endStatus()
-                .build());
+        //
+        // editStatus() is a non-locking operation that does not retry on 409 Conflict.
+        // See fabric8 kubernetes-client CHANGELOG v5.4.0:
+        // "Added editStatus... to support non-locking status updates"
+        // https://github.com/fabric8io/kubernetes-client/blob/main/CHANGELOG.md
+        // We must retry manually when concurrent modifications are expected.
+        AWAIT.alias("update route status")
+                .ignoreExceptionsMatching(e -> e instanceof io.fabric8.kubernetes.client.KubernetesClientException kce && kce.getCode() == 409)
+                .until(() -> {
+                    Route currentRoute = testActor.get(Route.class, bootstrapRouteName);
+                    testActor.resources(Route.class).resource(currentRoute).editStatus(r -> new RouteBuilder(r)
+                            .editOrNewStatus()
+                            .addNewIngress().withHost("different.invalid").endIngress()
+                            .endStatus()
+                            .build());
+                    return true;
+                });
 
         // Then - deployment pod template checksum should change so the proxy is restarted
         AWAIT.alias("deployment checksum updated after route host assignment")
