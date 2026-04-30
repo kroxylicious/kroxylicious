@@ -20,11 +20,10 @@ _Why are you making this pull request?_
 _Please go through this checklist and make sure all applicable tasks have been done_
 
 - [ ] PR raised from a fork of this repository and made from a branch rather than main. 
-- [ ] Write tests
+- [ ] Write new tests
+- [ ] Make sure all existing unit/integration/system tests pass
 - [ ] Update documentation
-- [ ] Make sure all unit/integration tests pass
 - [ ] Make sure all Sonarcloud warnings are addressed or are justifiably ignored.
-- [ ] If applicable to the change, make sure system tests pass.
 - [ ] If applicable to the change, [trigger the performance test suite](../blob/main/PERFORMANCE.md#jenkins-pipeline-for-performance). Ensure that any degradations to performance numbers are understood and justified.
 - [ ] Ensure the PR references relevant issue(s) so they are closed on merging.
 - [ ] For user facing changes, update CHANGELOG.md (remember to include changes affecting the API of the test artefacts too).
