@@ -93,7 +93,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                                              Condition.Type type,
                                              String checksum,
                                              String bootstrapServers,
-                                             Tls tls) {
+                                             @Nullable Tls tls) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return serviceStatusPatch(observedProxy, trueCondition, checksum, bootstrapServers, tls);
     }
