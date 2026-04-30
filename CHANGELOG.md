@@ -26,8 +26,6 @@ Format `<github issue/pr number>: <short description>`.
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): The AWS KMS top-level `longTermCredentials` and `ec2MetadataCredentials` YAML keys are deprecated.  Use the new `credentials.longTerm` and `credentials.ec2Metadata` forms under the grouped `credentials` node instead.  The old keys continue to work for backward compatibility.
 * [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): `kroxylicious-filter-archetype` has been refactored to reuse the record batch transform module from `kroxylicious-kafka-message-tools`. In the old code, record batches were flattened into a single batch and control batches were also lost. Filter authors should use the transform in the new code, rather than hand-rolling their own, to avoid a whole class of possible defects. See: `io.kroxylicious.kafka.transform.RecordStream#toMemoryRecords` and `io.kroxylicious.kafka.transform.RecordTransform`.
 
-If filter authors use the transform, rather than hand-rolling their own code, there's a whole class of possible defects that they avoid.
-
 #### Note 0.21 AWS KMS credentials restructure
 
 All AWS KMS credential provider configurations now live under a single `credentials` node, and two new providers are available for Amazon EKS workloads:
