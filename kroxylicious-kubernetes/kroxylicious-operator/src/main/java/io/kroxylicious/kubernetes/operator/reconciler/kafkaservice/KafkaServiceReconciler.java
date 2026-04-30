@@ -29,7 +29,10 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
+import io.kroxylicious.kubernetes.api.common.CipherSuites;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.Protocols;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
@@ -303,7 +306,16 @@ public final class KafkaServiceReconciler implements
                                             @Nullable TrustAnchorRef trustAnchorRef) {
 
         String checksum = computeChecksum(allReferents);
-        var statusTls = buildStatusTls(service, trustAnchorRef);
+
+        var specTls = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .orElse(null);
+
+        var statusTls = buildStatusTls(
+                trustAnchorRef,
+                specTls != null ? specTls.getCertificateRef() : null,
+                specTls != null ? specTls.getProtocols() : null,
+                specTls != null ? specTls.getCipherSuites() : null);
 
         if (service.getSpec().getStrimziKafkaRef() != null) {
             return buildStrimziBasedStatus(service, context, checksum, statusTls);
@@ -323,27 +335,21 @@ public final class KafkaServiceReconciler implements
 
     @Nullable
     private io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls buildStatusTls(
-                                                                                          KafkaService service,
-                                                                                          @Nullable TrustAnchorRef trustAnchorRef) {
+                                                                                          @Nullable TrustAnchorRef trustAnchorRef,
+                                                                                          @Nullable CertificateRef certificateRef,
+                                                                                          @Nullable Protocols protocols,
+                                                                                          @Nullable CipherSuites cipherSuites) {
 
-        var tls = Optional.ofNullable(service.getSpec())
-                .map(KafkaServiceSpec::getTls)
-                .orElse(null);
-
-        if (tls == null && trustAnchorRef == null) {
+        if (trustAnchorRef == null && certificateRef == null && protocols == null && cipherSuites == null) {
             return null;
         }
 
-        var builder = new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
-                .withTrustAnchorRef(trustAnchorRef);
-
-        if (tls != null) {
-            builder.withCertificateRef(tls.getCertificateRef())
-                    .withProtocols(tls.getProtocols())
-                    .withCipherSuites(tls.getCipherSuites());
-        }
-
-        return builder.build();
+        return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.TlsBuilder()
+                .withTrustAnchorRef(trustAnchorRef)
+                .withCertificateRef(certificateRef)
+                .withProtocols(protocols)
+                .withCipherSuites(cipherSuites)
+                .build();
     }
 
     private KafkaService buildStrimziBasedStatus(

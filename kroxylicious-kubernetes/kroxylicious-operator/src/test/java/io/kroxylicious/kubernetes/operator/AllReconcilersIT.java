@@ -41,8 +41,6 @@ import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
