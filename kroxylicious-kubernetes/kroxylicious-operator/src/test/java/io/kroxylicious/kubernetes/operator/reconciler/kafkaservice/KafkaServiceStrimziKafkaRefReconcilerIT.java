@@ -315,21 +315,26 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                                                                                boolean trustStrimziCa,
                                                                                @Nullable TrustAnchorRef explictTrust) {
         // @formatter:off
-        return new KafkaServiceBuilder()
+        var builder = new KafkaServiceBuilder()
                 .withNewMetadata()
                     .withName(serviceName)
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewStrimziKafkaRef()
                         .withListenerName(listenerName)
-                         .withTrustStrimziCaCertificate(trustStrimziCa)
-                     .withNewRef()
-                         .withName(KAFKA_RESOURCE_NAME)
-                    .endRef()
-                .endStrimziKafkaRef()
-                .withNewTls()
+                        .withTrustStrimziCaCertificate(trustStrimziCa)
+                        .withNewRef()
+                            .withName(KAFKA_RESOURCE_NAME)
+                        .endRef()
+                    .endStrimziKafkaRef();
+
+        if (explictTrust != null) {
+            builder.withNewTls()
                     .withTrustAnchorRef(explictTrust)
-                .endTls().endSpec().build();
+                .endTls();
+        }
+
+        return builder.endSpec().build();
         // @formatter:on
     }
 
