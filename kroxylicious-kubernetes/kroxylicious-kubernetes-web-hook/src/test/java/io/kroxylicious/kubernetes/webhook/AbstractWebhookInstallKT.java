@@ -184,7 +184,7 @@ abstract class AbstractWebhookInstallKT {
         LOGGER.info("Waiting for webhook to observe sidecar config");
         try {
             // TODO replace this sleep with watching for a Ready condition in the
-            //  status of the KroxyliciousSidecarConfig
+            // status of the KroxyliciousSidecarConfig
             Thread.sleep(5000);
         }
         catch (InterruptedException e) {
