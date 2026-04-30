@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -260,6 +261,97 @@ class AdmissionHandlerTest {
         JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
 
         assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
+    }
+
+    // --- Phase 2: Delegated annotations ---
+
+    @Test
+    void appliesDelegatedBootstrapPort() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setBootstrapPort(19092L);
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
+
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        assertThat(effective.getBootstrapPort()).isEqualTo(29092L);
+        // Original should be unchanged
+        assertThat(adminSpec.getBootstrapPort()).isEqualTo(19092L);
+    }
+
+    @Test
+    void appliesDelegatedNodeIdRange() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
+
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "0-9");
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        assertThat(effective.getNodeIdRange()).isNotNull();
+        assertThat(effective.getNodeIdRange().getStartInclusive()).isZero();
+        assertThat(effective.getNodeIdRange().getEndInclusive()).isEqualTo(9L);
+    }
+
+    @Test
+    void ignoresUndelegatedAnnotation() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setBootstrapPort(19092L);
+        // No delegatedAnnotations set
+
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        // Port should remain at admin default since annotation is not delegated
+        assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
+    }
+
+    @Test
+    void ignoresInvalidBootstrapPort() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setBootstrapPort(19092L);
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
+
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "not-a-number");
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
+    }
+
+    @Test
+    void ignoresInvalidNodeIdRangeFormat() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
+
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "invalid");
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        assertThat(effective.getNodeIdRange()).isNull();
+    }
+
+    @Test
+    void returnsOriginalSpecWhenNoAnnotations() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, null, "test-pod", "test-ns");
+
+        assertThat(effective).isSameAs(adminSpec);
     }
 
     // --- helpers ---

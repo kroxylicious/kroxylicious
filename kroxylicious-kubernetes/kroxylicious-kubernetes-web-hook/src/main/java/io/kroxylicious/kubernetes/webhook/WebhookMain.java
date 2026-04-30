@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.VersionInfo;
 
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -75,8 +76,9 @@ public class WebhookMain {
         String proxyImage = requiredEnv(env, KROXYLICIOUS_IMAGE_VAR);
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
+        boolean useNativeSidecar = detectNativeSidecarSupport(kubeClient);
         SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient);
-        AdmissionHandler admissionHandler = new AdmissionHandler(configResolver, proxyImage);
+        AdmissionHandler admissionHandler = new AdmissionHandler(configResolver, proxyImage, useNativeSidecar);
         WebhookServer server = new WebhookServer(bindAddress, certPath, keyPath, admissionHandler);
 
         return new WebhookMain(server, configResolver, kubeClient);
@@ -118,7 +120,30 @@ public class WebhookMain {
         LOGGER.atInfo().log("Webhook stopped");
     }
 
+    /**
+     * Detects whether the cluster supports native sidecar containers (Kubernetes 1.28+).
+     */
     @VisibleForTesting
+    static boolean detectNativeSidecarSupport(@NonNull KubernetesClient client) {
+        try {
+            VersionInfo version = client.getKubernetesVersion();
+            int major = Integer.parseInt(version.getMajor().replaceAll("\\D", ""));
+            int minor = Integer.parseInt(version.getMinor().replaceAll("\\D", ""));
+            boolean nativeSidecarSupported = major > 1 || (major == 1 && minor >= 28);
+            LOGGER.atInfo()
+                    .addKeyValue("kubernetesVersion", version.getGitVersion())
+                    .addKeyValue("nativeSidecar", nativeSidecarSupported)
+                    .log("Detected Kubernetes version");
+            return nativeSidecarSupported;
+        }
+        catch (Exception e) {
+            LOGGER.atWarn()
+                    .setCause(e)
+                    .log("Could not detect Kubernetes version, defaulting to regular sidecar containers");
+            return false;
+        }
+    }
+
     @NonNull
     static InetSocketAddress parseBindAddress(@NonNull Map<String, String> env) {
         String bindAddress = env.getOrDefault(BIND_ADDRESS_VAR, DEFAULT_BIND_ADDRESS);
