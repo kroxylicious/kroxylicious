@@ -82,6 +82,16 @@ class InjectionDecisionTest {
     }
 
     @Test
+    void shouldSkipWhenAlreadyInjectedAsInitContainer() {
+        Pod pod = podWithAnnotations(Map.of());
+        Container sidecar = new Container();
+        sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
+        pod.getSpec().setInitContainers(new java.util.ArrayList<>(java.util.List.of(sidecar)));
+
+        assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.SKIP_ALREADY_INJECTED);
+    }
+
+    @Test
     void shouldHandleNullSpec() {
         Pod pod = new Pod();
         pod.setMetadata(new ObjectMeta());
