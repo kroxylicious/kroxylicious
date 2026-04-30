@@ -13,7 +13,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -254,7 +253,6 @@ abstract class AbstractWebhookInstallKT {
                 .withNewMetadata()
                 .withName("test-app")
                 .withNamespace(TEST_NS)
-                .withAnnotations(Map.of("app.kubernetes.io/name", "test-app"))
                 .endMetadata()
                 .withNewSpec()
                 .withTerminationGracePeriodSeconds(0L)
@@ -305,7 +303,6 @@ abstract class AbstractWebhookInstallKT {
                 .withNewMetadata()
                 .withName("test-app-no-sidecar")
                 .withNamespace(TEST_NS)
-                .withAnnotations(Map.of("app.kubernetes.io/name", "test-app-no-sidecar"))
                 .addToLabels("kroxylicious.io/inject-sidecar", "false")
                 .endMetadata()
                 .withNewSpec()
