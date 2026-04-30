@@ -64,11 +64,18 @@ final class InjectionDecision {
     }
 
     private static boolean isAlreadyInjected(@NonNull Pod pod) {
-        if (pod.getSpec() == null || pod.getSpec().getContainers() == null) {
+        if (pod.getSpec() == null) {
             return false;
         }
-        return pod.getSpec().getContainers().stream()
-                .anyMatch(c -> SIDECAR_CONTAINER_NAME.equals(c.getName()));
+        if (pod.getSpec().getContainers() != null
+                && pod.getSpec().getContainers().stream()
+                        .anyMatch(c -> SIDECAR_CONTAINER_NAME.equals(c.getName()))) {
+            return true;
+        }
+        // Also check initContainers for native sidecar mode (K8s 1.28+)
+        return pod.getSpec().getInitContainers() != null
+                && pod.getSpec().getInitContainers().stream()
+                        .anyMatch(c -> SIDECAR_CONTAINER_NAME.equals(c.getName()));
     }
 
     @NonNull

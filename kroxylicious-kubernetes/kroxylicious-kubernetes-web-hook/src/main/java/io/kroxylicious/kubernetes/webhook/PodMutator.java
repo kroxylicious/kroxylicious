@@ -108,7 +108,7 @@ class PodMutator {
                                          String proxyConfig) {
 
         Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
-        if (existing == null) {
+        if (existing == null || existing.isEmpty()) {
             ObjectNode annotations = MAPPER.createObjectNode();
             annotations.put(Annotations.PROXY_CONFIG, proxyConfig);
             annotations.put(Annotations.SIDECAR_STATUS, "injected");

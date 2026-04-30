@@ -51,6 +51,16 @@ class PodMutatorTest {
     }
 
     @Test
+    void patchSetsAnnotationsAsObjectWhenAnnotationsEmpty() throws Exception {
+        Pod pod = podWithAppContainer(Map.of());
+        JsonNode patch = createPatchJson(pod);
+
+        assertThat(patchOps(patch, "add", "/metadata/annotations"))
+                .as("patch should add the whole annotations object when annotations map is empty")
+                .isNotEmpty();
+    }
+
+    @Test
     void patchAddsSidecarStatusAnnotation() throws Exception {
         Pod pod = podWithAppContainer(Map.of("existing", "value"));
         JsonNode patch = createPatchJson(pod);
