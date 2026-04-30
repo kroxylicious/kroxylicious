@@ -273,6 +273,10 @@ public class DeploymentUtils {
     public static void copySecretInToNamespace(String namespace, String secretName) {
         Secret clientSecret = kubeClient().getClient().secrets().inNamespace(KubeClusterResource.getInstance().defaultNamespace()).withName(secretName).get();
         if (clientSecret != null) {
+            if (kubeClient().getClient().secrets().inNamespace(namespace).withName(secretName).get() != null) {
+                LOGGER.atInfo().setMessage("Skipping '{}' secret creation as it was already created").addArgument(secretName).log();
+                return;
+            }
             clientSecret.getMetadata().setResourceVersion("");
             kubeClient().getClient().secrets().inNamespace(namespace).resource(clientSecret).create();
         }

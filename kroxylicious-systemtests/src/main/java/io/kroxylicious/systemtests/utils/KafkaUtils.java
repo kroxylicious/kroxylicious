@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.utils;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +26,10 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
+import io.kroxylicious.systemtests.templates.strimzi.KafkaUserTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -36,6 +40,7 @@ import static org.awaitility.Awaitility.await;
 public class KafkaUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
     private static final Duration KUBE_WAIT_TIMEOUT = Duration.ofSeconds(60);
+    private static final ResourceManager resourceManager = ResourceManager.getInstance();
 
     private KafkaUtils() {
     }
@@ -172,7 +177,7 @@ public class KafkaUtils {
                 break;
             }
         }
-        if (podName.isEmpty() || podName.isBlank()) {
+        if (podName.isBlank()) {
             throw new KubeClusterException.NotFound("Kafka cluster name not found!");
         }
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
@@ -227,5 +232,21 @@ public class KafkaUtils {
                 .toList();
 
         return !kafkaPods.isEmpty();
+    }
+
+    /**
+     * Create kafka users
+     *
+     * @param clusterName the cluster name
+     * @param usernamePassword the username-password map
+     */
+    public static void createKafkaUsers(String clusterName, Map<String, String> usernamePassword) {
+        String passwordSecretSuffix = "-password";
+        usernamePassword.forEach((user, password) -> {
+            String secretName = user + passwordSecretSuffix;
+            resourceManager.createResourceFromBuilderWithWait(
+                    KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, secretName, password),
+                    KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, secretName));
+        });
     }
 }

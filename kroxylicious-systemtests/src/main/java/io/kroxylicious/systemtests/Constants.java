@@ -21,6 +21,7 @@ public final class Constants {
      */
     public static final String KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME = "kroxylicious-operator";
     public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
+    public static final String KROXYLICIOUS_NAMESPACE = "kroxylicious";
     public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
     public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
@@ -174,4 +175,9 @@ public final class Constants {
     public static final String TRUSTSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + TRUSTSTORE_SECRET_NAME + "/";
     public static final String KAF_CONFIG_TEMP_DIR = "/tmp/.kaf/";
     public static final String KAF_CONFIG_FILE_NAME = "config";
+
+    /*
+     * Kroxylicious annotations
+     */
+    public static final String CHECKSUM_ANNOTATION = "kroxylicious.io/referent-checksum";
 }
