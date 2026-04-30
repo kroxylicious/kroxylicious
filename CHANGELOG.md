@@ -17,12 +17,16 @@ Format `<github issue/pr number>: <short description>`.
 * [#3565](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): bump kubernetes-client.version from 7.5.2 to 7.6.1
 * [#3514](https://github.com/kroxylicious/kroxylicious/pull/3514): build(deps): build(deps-dev): bump org.yaml:snakeyaml from 2.5 to 2.6
 * [#3564](https://github.com/kroxylicious/kroxylicious/pull/3564): build(deps): bump apicurio-registry.version from 3.1.6 to 3.2.1
+* [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): refactor(archetype): reuse record batch transform module
 
 ### Changes, deprecations and removals
 
 * [#3786](https://github.com/kroxylicious/kroxylicious/issues/3786): The deprecated method `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type)` (two-parameter form) is removed. Use `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)` instead, passing `MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED` if no checksum tracking is needed.
 * The deprecated method `FilterContext#clientSaslAuthenticationSuccess(String, String)` is removed. Filter authors must use `FilterContext#clientSaslAuthenticationSuccess(String, Subject)` to announce a successful SASL authentication to the other filters in the chain.
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): The AWS KMS top-level `longTermCredentials` and `ec2MetadataCredentials` YAML keys are deprecated.  Use the new `credentials.longTerm` and `credentials.ec2Metadata` forms under the grouped `credentials` node instead.  The old keys continue to work for backward compatibility.
+* [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): `kroxylicious-filter-archetype` has been refactored to reuse the record batch transform module from `kroxylicious-kafka-message-tools`. In the old code, record batches were flattened into a single batch and control batches were also lost. Filter authors should use the transform in the new code, rather than hand-rolling their own, to avoid a whole class of possible defects. See: `io.kroxylicious.kafka.transform.RecordStream#toMemoryRecords` and `io.kroxylicious.kafka.transform.RecordTransform`.
+
+If filter authors use the transform, rather than hand-rolling their own code, there's a whole class of possible defects that they avoid.
 
 #### Note 0.21 AWS KMS credentials restructure
 
