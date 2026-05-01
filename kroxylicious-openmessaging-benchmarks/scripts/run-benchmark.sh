@@ -598,6 +598,10 @@ echo "  OMB log: ${OUTPUT_DIR}/omb.log"
 
 # Stream Job logs to file in the background (best-effort; survives brief disconnects).
 # The benchmark process runs as the Job entrypoint and is NOT killed if the stream drops.
+# Wait for the benchmark pod to be created before starting the log stream — without this,
+# kubectl logs finds no matching pods and exits immediately with no output.
+kubectl wait pod -n "${NAMESPACE}" -l app=omb-benchmark \
+    --for=create --timeout=120s >/dev/null 2>&1
 kubectl logs -f -n "${NAMESPACE}" -l app=omb-benchmark \
     >> "${OUTPUT_DIR}/omb.log" 2>/dev/null &
 LOGS_PID=$!
@@ -696,12 +700,26 @@ if [[ -n "${PROXY_POD}" ]]; then
             fi
         fi
 
-        # If more probes follow, restart a fresh recording for the next rate.
+        # If more probes follow, restart fresh recordings for the next rate.
         if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
             kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
-                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=default maxsize=${JFR_MAX_SIZE}" \
+                sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JFR.start name=benchmark settings=profile maxsize=${JFR_MAX_SIZE}" \
                 >/dev/null 2>&1
             echo "JFR recording restarted for next probe."
+            # Only restart async-profiler if the deployment patch was applied on probe 0.
+            # The patch sets ASYNC_PROFILER_FLAGS in the container env; if absent, the
+            # cluster rejected the Unconfined seccomp patch and profiling was skipped.
+            if [[ -n "${AGENT_LIB}" ]]; then
+                PROFILER_FLAGS=$(kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                    sh -c "tr '\0' '\n' < /proc/${JVM_PID}/environ | grep '^ASYNC_PROFILER_FLAGS=' | cut -d= -f2-") || true
+                if [[ -n "${PROFILER_FLAGS}" ]]; then
+                    kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- \
+                        sh -c "JAVA_TOOL_OPTIONS='' jcmd ${JVM_PID} JVMTI.agent_load ${AGENT_LIB} \
+                               '\"start,event=cpu,flamegraph,file=/tmp/flamegraph.html\"'" \
+                        >/dev/null 2>&1
+                    echo "async-profiler restarted for next probe."
+                fi
+            fi
         fi
     fi
     echo "Dump complete."

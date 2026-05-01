@@ -7,23 +7,22 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: omb-workload-100topics-1kb
+  name: omb-workload-1topic-100kb
   labels:
     app: omb-benchmark
 data:
   workload.yaml: |
     # OpenMessaging Benchmark Workload Definition
-    # 100 topics with 1KB messages
+    # Single topic with 100KB messages
 
-    name: 100topics-1partition-1kb
+    name: 1topic-1partition-100kb
 
     # Topic configuration
-    topics: 100
+    topics: 1
     partitionsPerTopic: 1
 
     # Message configuration
-    messageSize: 1024
-    payloadFile: "payload/payload-1Kb.data"
+    messageSize: 102400
 
     # Subscription configuration
     subscriptionsPerTopic: 1
@@ -31,7 +30,7 @@ data:
 
     # Producer configuration
     producersPerTopic: {{ .Values.benchmark.producersPerTopic }}
-    producerRate: {{ div .Values.benchmark.producerRate 100 }}
+    producerRate: {{ .Values.benchmark.producerRate }}
 
     # Test duration
     testDurationMinutes: {{ .Values.benchmark.testDurationMinutes }}
