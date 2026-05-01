@@ -21,6 +21,10 @@ public class WebhookLoggingKeys {
 
     static final String ANNOTATION_VALUE = "annotationValue";
 
+    static final String IMG_REF = "imageReference";
+
+    static final String ERROR = "error";
+
     private WebhookLoggingKeys() {
     }
 

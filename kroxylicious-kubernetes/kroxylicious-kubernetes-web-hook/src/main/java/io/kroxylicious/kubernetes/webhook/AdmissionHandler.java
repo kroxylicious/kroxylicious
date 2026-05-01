@@ -333,8 +333,8 @@ class AdmissionHandler implements HttpHandler {
             com.fasterxml.jackson.databind.JsonNode array = MAPPER.readTree(pluginsJson);
             if (!array.isArray()) {
                 LOGGER.atWarn()
-                        .addKeyValue("pod", podName)
-                        .addKeyValue("namespace", namespace)
+                        .addKeyValue(WebhookLoggingKeys.POD, podName)
+                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                         .log("Delegated plugin images annotation is not a JSON array, ignoring");
                 return result;
             }
@@ -344,8 +344,8 @@ class AdmissionHandler implements HttpHandler {
                 String reference = entry.path("reference").asText(null);
                 if (name == null || reference == null) {
                     LOGGER.atWarn()
-                            .addKeyValue("pod", podName)
-                            .addKeyValue("namespace", namespace)
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                             .log("Delegated plugin entry missing name or reference, skipping");
                     continue;
                 }
@@ -353,9 +353,9 @@ class AdmissionHandler implements HttpHandler {
                 // Require @sha256: digest
                 if (!reference.contains("@sha256:")) {
                     LOGGER.atWarn()
-                            .addKeyValue("pod", podName)
-                            .addKeyValue("namespace", namespace)
-                            .addKeyValue("reference", reference)
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .addKeyValue(WebhookLoggingKeys.IMG_REF, reference)
                             .log("Delegated plugin image rejected: must include @sha256: digest");
                     continue;
                 }
@@ -364,18 +364,18 @@ class AdmissionHandler implements HttpHandler {
                 if (!allowedSet.isEmpty()
                         && allowedSet.stream().noneMatch(reference::startsWith)) {
                     LOGGER.atWarn()
-                            .addKeyValue("pod", podName)
-                            .addKeyValue("namespace", namespace)
-                            .addKeyValue("reference", reference)
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .addKeyValue(WebhookLoggingKeys.IMG_REF, reference)
                             .log("Delegated plugin image rejected: registry not in allowedPluginRegistries");
                     continue;
                 }
 
                 LOGGER.atInfo()
-                        .addKeyValue("pod", podName)
-                        .addKeyValue("namespace", namespace)
+                        .addKeyValue(WebhookLoggingKeys.POD, podName)
+                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                         .addKeyValue("plugin", name)
-                        .addKeyValue("reference", reference)
+                        .addKeyValue(WebhookLoggingKeys.IMG_REF, reference)
                         .log("Accepting delegated plugin image");
 
                 Plugins plugin = new Plugins();
@@ -388,9 +388,9 @@ class AdmissionHandler implements HttpHandler {
         }
         catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             LOGGER.atWarn()
-                    .addKeyValue("pod", podName)
-                    .addKeyValue("namespace", namespace)
-                    .addKeyValue("error", e.getMessage())
+                    .addKeyValue(WebhookLoggingKeys.POD, podName)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue(WebhookLoggingKeys.ERROR, e.getMessage())
                     .log("Failed to parse delegated plugin images JSON, ignoring");
         }
 
