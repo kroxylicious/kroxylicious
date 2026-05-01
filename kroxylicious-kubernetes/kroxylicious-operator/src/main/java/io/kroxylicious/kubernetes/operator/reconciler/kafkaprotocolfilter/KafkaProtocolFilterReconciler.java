@@ -41,6 +41,8 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -60,27 +62,45 @@ public class KafkaProtocolFilterReconciler implements
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
     private final KafkaProtocolFilterStatusFactory statusFactory;
     private final SecureConfigInterpolator secureConfigInterpolator;
+    private final SharedInformerManager sharedInformerManager;
 
-    public KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
+    public KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator, SharedInformerManager sharedInformerManager) {
         this.statusFactory = new KafkaProtocolFilterStatusFactory(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
+        this.sharedInformerManager = Objects.requireNonNull(sharedInformerManager);
     }
 
     @Override
     public List<EventSource<?, KafkaProtocolFilter>> prepareEventSources(EventSourceContext<KafkaProtocolFilter> context) {
+        // Get the shared Secret informer
+        var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
+
+        // Secret event source config
+        var secretEventSourceConfig = templateResourceReferenceEventSourceConfig(context, Secret.class,
+                interpolationResult -> interpolationResult.volumes().stream()
+                        .flatMap(volume -> Optional.ofNullable(volume.getSecret())
+                                .map(SecretVolumeSource::getSecretName)
+                                .stream()));
+
+        // Create SharedInformerEventSource for Secrets
+        SharedInformerEventSource<Secret, KafkaProtocolFilter> secretEventSource = new SharedInformerEventSource<>(
+                Secret.class,
+                "secrets", // event source name
+                sharedSecretInformer,
+                secretEventSourceConfig.getSecondaryToPrimaryMapper(),
+                allowedNamespaces);
+
+        // ConfigMap event source (not shared)
+        InformerEventSourceConfiguration<ConfigMap> configMapEventSourceConfig = templateResourceReferenceEventSourceConfig(context, ConfigMap.class,
+                interpolationResult -> interpolationResult.volumes().stream()
+                        .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
+                                .map(ConfigMapVolumeSource::getName)
+                                .stream()));
+
         return List.of(
-                new InformerEventSource<>(templateResourceReferenceEventSourceConfig(context, Secret.class,
-                        interpolationResult -> interpolationResult.volumes().stream()
-                                .flatMap(volume -> Optional.ofNullable(volume.getSecret())
-                                        .map(SecretVolumeSource::getSecretName)
-                                        .stream())),
-                        context),
-                new InformerEventSource<>(templateResourceReferenceEventSourceConfig(context, ConfigMap.class,
-                        interpolationResult -> interpolationResult.volumes().stream()
-                                .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
-                                        .map(ConfigMapVolumeSource::getName)
-                                        .stream())),
-                        context));
+                secretEventSource,
+                new InformerEventSource<>(configMapEventSourceConfig, context));
     }
 
     /**

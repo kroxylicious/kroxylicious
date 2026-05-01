@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
@@ -51,6 +52,7 @@ import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestFiles;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -86,7 +88,8 @@ class VirtualKafkaClusterReconcilerIT {
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create()))
+            .withReconciler(
+                    new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), new SharedInformerManager(rbacHandler.operatorClient(), Set.of())))
             .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withKubernetesClient(rbacHandler.operatorClient())
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
