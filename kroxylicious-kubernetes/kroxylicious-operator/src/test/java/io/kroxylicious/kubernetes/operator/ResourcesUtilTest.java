@@ -23,7 +23,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.fabric8.kubernetes.api.model.APIGroup;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
@@ -89,7 +88,6 @@ class ResourcesUtilTest {
     public static final String RESOURCE_NAME = "name";
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
     protected static final ConfigMap EMPTY_CONFIG_NMAP = new ConfigMapBuilder().withData(Map.of()).build();
-    public static final String KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     @Test
     void rfc1035DnsLabel() {
@@ -823,7 +821,7 @@ class ResourcesUtilTest {
         Context<KafkaService> reconcilerContext = mock(Context.class);
         KubernetesClient client = mock();
         when(reconcilerContext.getClient()).thenReturn(client);
-        when(reconcilerContext.getClient().getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+        when(reconcilerContext.getClient().supports(Kafka.class)).thenReturn(true);
         when(reconcilerContext.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME))
                 .thenReturn(Optional.ofNullable(kafka));
 
@@ -841,6 +839,48 @@ class ResourcesUtilTest {
                                 .singleCondition()
                                 .isResolvedRefsFalse(expectedCondition, stringThrowingConsumer)));
 
+    }
+
+    @Test
+    void shouldReturnResolvedRefsFalseWhenKafkaCrdNotSupported() {
+        // Given
+        StrimziKafkaRef strimziKafkaRef = new StrimziKafkaRefBuilder()
+                .withListenerName("plain")
+                .withNewRef()
+                .withName("my-cluster")
+                .endRef()
+                .build();
+        KafkaService service = new KafkaServiceBuilder()
+                .withNewSpec()
+                .withStrimziKafkaRef(strimziKafkaRef)
+                .endSpec()
+                .build();
+        @SuppressWarnings("unchecked")
+        Context<KafkaService> reconcilerContext = mock(Context.class);
+        KubernetesClient client = mock();
+        when(reconcilerContext.getClient()).thenReturn(client);
+        when(reconcilerContext.getClient().supports(Kafka.class)).thenReturn(false);
+
+        // When
+        ResourceCheckResult<KafkaService> actual = ResourcesUtil.checkStrimziKafkaRef(
+                service,
+                reconcilerContext,
+                KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME,
+                strimziKafkaRef,
+                "spec.strimziKafkaRef",
+                new KafkaServiceStatusFactory(TEST_CLOCK));
+
+        // Then
+        assertThat(actual)
+                .isNotNull()
+                .satisfies(kafkaServiceResourceCheckResult -> assertThat(kafkaServiceResourceCheckResult.resource())
+                        .isNotNull()
+                        .satisfies(actualKafkaService -> KafkaServiceStatusAssert.assertThat(actualKafkaService.getStatus())
+                                .singleCondition()
+                                .isResolvedRefsFalse(
+                                        Condition.REASON_REFS_NOT_FOUND,
+                                        message -> assertThat(message)
+                                                .contains("Kafka CRD not supported on cluster"))));
     }
 
     @ParameterizedTest

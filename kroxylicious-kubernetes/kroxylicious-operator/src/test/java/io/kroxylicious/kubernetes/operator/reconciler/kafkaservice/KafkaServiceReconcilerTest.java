@@ -22,7 +22,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.fabric8.kubernetes.api.model.APIGroup;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -55,7 +54,6 @@ class KafkaServiceReconcilerTest {
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     public static final long OBSERVED_GENERATION = 1345L;
-    public static final String KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     // @formatter:off
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
@@ -329,10 +327,7 @@ class KafkaServiceReconcilerTest {
 
         // missing listener name
         {
-            Context<KafkaService> context = mock();
-            KubernetesClient client = mock();
-            when(context.getClient()).thenReturn(client);
-            when(context.getClient().getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+            Context<KafkaService> context = mockContext(Kafka.class);
             mockGetSecret(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
@@ -360,10 +355,7 @@ class KafkaServiceReconcilerTest {
 
         // unsupported kind
         {
-            Context<KafkaService> context = mock();
-            KubernetesClient client = mock();
-            when(context.getClient()).thenReturn(client);
-            when(context.getClient().getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+            Context<KafkaService> context = mockContext(Kafka.class);
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
@@ -389,10 +381,7 @@ class KafkaServiceReconcilerTest {
 
         // listener list is empty
         {
-            Context<KafkaService> context = mock();
-            KubernetesClient client = mock();
-            when(context.getClient()).thenReturn(client);
-            when(context.getClient().getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+            Context<KafkaService> context = mockContext(Kafka.class);
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
@@ -715,12 +704,9 @@ class KafkaServiceReconcilerTest {
     @Test
     void shouldBuildStatusTlsWhenSpecTlsIsNullButTrustAnchorRefDiscovered() {
         // Given
-        Context<KafkaService> context = mockContext();
-        KubernetesClient client = mock(KubernetesClient.class);
-        when(context.getClient()).thenReturn(client);
-        when(client.getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+        Context<KafkaService> context = mockContext(Kafka.class);
         mockGetKafka(context, Optional.of(kafkaWithListener("tls")));
-        mockClientSecretsLookup(client, "test", "my-cluster-cluster-ca-cert", STRIMZI_CA_SECRET);
+        mockClientSecretsLookup(context.getClient(), "test", "my-cluster-cluster-ca-cert", STRIMZI_CA_SECRET);
 
         KafkaService service = new KafkaServiceBuilder(SERVICE)
                 .editMetadata()
@@ -779,7 +765,15 @@ class KafkaServiceReconcilerTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static Context<KafkaService> mockContext() {
-        return mock(Context.class);
+    private static Context<KafkaService> mockContext(Class<?>... supportedApis) {
+        Context<KafkaService> context = mock(Context.class);
+        if (supportedApis.length > 0) {
+            KubernetesClient client = mock(KubernetesClient.class);
+            when(context.getClient()).thenReturn(client);
+            for (Class<?> api : supportedApis) {
+                when(client.supports((Class) api)).thenReturn(true);
+            }
+        }
+        return context;
     }
 }

@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3842](https://github.com/kroxylicious/kroxylicious/pull/3842): fix(operator): use precise Kafka CRD detection for Strimzi support (prerequisite for Strimzi v1 upgrade)
 * [#2820](https://github.com/kroxylicious/kroxylicious/issues/2820): feat(operator): add automatic TLS trust discovery for Strimzi-managed Kafka clusters via `trustStrimziCaCertificate` field in KafkaService
 * [#3498](https://github.com/kroxylicious/kroxylicious/pull/3498): feat(record-validation): add Avro and Protobuf schema validation support
 * [#3760](https://github.com/kroxylicious/kroxylicious/issues/3760): fix: remove unknown apis in Authorization & EntityIsolation Filters
