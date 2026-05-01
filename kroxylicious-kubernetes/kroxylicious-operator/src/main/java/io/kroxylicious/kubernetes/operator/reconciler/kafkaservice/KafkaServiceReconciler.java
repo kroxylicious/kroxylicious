@@ -15,7 +15,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.APIGroup;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -69,7 +68,6 @@ public final class KafkaServiceReconciler implements
     public static final String SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsStrimziTrustAnchorRef";
     public static final String SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "secretsTrustAnchorRef";
     public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
-    public static final String STRIMZI_KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     private static final String SPEC_REF = "spec.strimziKafkaRef";
     private static final String SPEC_TLS_TRUST_ANCHOR_REF = "spec.tls.trustAnchorRef";
@@ -121,12 +119,10 @@ public final class KafkaServiceReconciler implements
         informersList.add(new InformerEventSource<>(serviceToConfigMapTrustAnchorRef, context));
         informersList.add(new InformerEventSource<>(serviceToSecretTrustAnchorRef, context));
 
-        APIGroup strimziKafkaApiGroup = context.getClient().getApiGroup(STRIMZI_KAFKA_GROUP_NAME);
-
-        if (strimziKafkaApiGroup != null) {
+        if (context.getClient().supports(Kafka.class)) {
             LOGGER.atDebug()
                     .addKeyValue(OperatorLoggingKeys.NAMESPACE, context.getClient().getNamespace())
-                    .log("Adding kafkas.strimzi.io.kafkas informer because the Strimzi Kafka CRD is present in namespace");
+                    .log("Adding kafkas.strimzi.io.kafka informer because the Kafka CRD is supported by the cluster");
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
                     KafkaService.class)
