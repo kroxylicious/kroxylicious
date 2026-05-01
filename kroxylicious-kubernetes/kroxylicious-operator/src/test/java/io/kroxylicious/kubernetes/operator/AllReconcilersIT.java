@@ -21,7 +21,6 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -88,6 +87,7 @@ class AllReconcilersIT {
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
+    private static final String STRIMZI_TLS_LISTENER = "tls";
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
@@ -417,94 +417,85 @@ class AllReconcilersIT {
         assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
     }
 
-    /**
-     * Nested class for tests that require Strimzi CRD
-     */
-    @Nested
-    class StrimziKafkaIntegrationTests {
-
-        private static final String STRIMZI_TLS_LISTENER = "tls";
-
-        @Test
-        void upstreamTlsFromStrimziKafkaRef() {
-            // Given
-            String kafkaName = "my-cluster";
-            // @formatter:off
-            var kafka = testActor.create(new KafkaBuilder()
-                    .withNewMetadata()
-                        .withName(kafkaName)
-                    .endMetadata()
-                    .withNewSpec()
-                        .withNewKafka()
-                            .addNewListener()
-                                .withName(STRIMZI_TLS_LISTENER)
-                                .withTls(true)
-                            .endListener()
-                        .endKafka()
-                    .endSpec()
-                    .build());
-
-            // Patch the Kafka status to simulate what the Strimzi operator would do.
-            // The Strimzi operator manages the status subresource of Kafka CRs, populating
-            // listener addresses and other runtime state. In tests, we must manually set
-            // this status since the Strimzi operator is not running.
-            testActor.patchStatus(new KafkaBuilder(kafka)
-                    .withNewStatus()
+    @Test
+    void upstreamTlsFromStrimziKafkaRef() {
+        // Given
+        String kafkaName = "my-cluster";
+        // @formatter:off
+        var kafka = testActor.create(new KafkaBuilder()
+                .withNewMetadata()
+                    .withName(kafkaName)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewKafka()
                         .addNewListener()
                             .withName(STRIMZI_TLS_LISTENER)
-                            .addNewAddress()
-                                    .withHost("kafka.example.com")
-                                    .withPort(9093)
-                            .endAddress()
+                            .withTls(true)
                         .endListener()
-                    .endStatus()
-                    .build());
+                    .endKafka()
+                .endSpec()
+                .build());
 
-            testActor.create(new SecretBuilder()
-                    .withNewMetadata()
-                        .withName(kafkaName + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX)
-                    .endMetadata()
-                    .addToData(ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE, "dGVzdC1jYQ==")
-                    .build());
+        // Patch the Kafka status to simulate what the Strimzi operator would do.
+        // The Strimzi operator manages the status subresource of Kafka CRs, populating
+        // listener addresses and other runtime state. In tests, we must manually set
+        // this status since the Strimzi operator is not running.
+        testActor.patchStatus(new KafkaBuilder(kafka)
+                .withNewStatus()
+                    .addNewListener()
+                        .withName(STRIMZI_TLS_LISTENER)
+                        .addNewAddress()
+                                .withHost("kafka.example.com")
+                                .withPort(9093)
+                        .endAddress()
+                    .endListener()
+                .endStatus()
+                .build());
 
-            var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, STRIMZI_TLS_LISTENER).build();
-            var myProxy = editableProxy(PROXY_A).build();
-            var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
-                    .editOrNewSpec()
-                        .withNewClusterIP()
-                            .withProtocol(Protocol.TCP)
-                        .endClusterIP()
-                    .endSpec()
-                    .build();
-            // @formatter:on
+        testActor.create(new SecretBuilder()
+                .withNewMetadata()
+                    .withName(kafkaName + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX)
+                .endMetadata()
+                .addToData(ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE, "dGVzdC1jYQ==")
+                .build());
 
-            var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+        var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, STRIMZI_TLS_LISTENER).build();
+        var myProxy = editableProxy(PROXY_A).build();
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+                .editOrNewSpec()
+                    .withNewClusterIP()
+                        .withProtocol(Protocol.TCP)
+                    .endClusterIP()
+                .endSpec()
+                .build();
+        // @formatter:on
 
-            // When
-            createAll(myProxy, myCluster, myIngress, myService);
+        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
 
-            // Then
-            assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
-            assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
-        }
+        // When
+        createAll(myProxy, myCluster, myIngress, myService);
 
-        private static KafkaServiceBuilder editableStrimziService(String name, String kafkaName, String listenerName) {
-            // @formatter:off
-            return new KafkaServiceBuilder()
-                    .withNewMetadata()
-                        .withName(name)
-                    .endMetadata()
-                    .withNewSpec()
-                        .withNewStrimziKafkaRef()
-                            .withListenerName(listenerName)
-                            .withTrustStrimziCaCertificate(true)
-                            .withNewRef()
-                                .withName(kafkaName)
-                            .endRef()
-                        .endStrimziKafkaRef()
-                    .endSpec();
-            // @formatter:on
-        }
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+    }
+
+    private static KafkaServiceBuilder editableStrimziService(String name, String kafkaName, String listenerName) {
+        // @formatter:off
+        return new KafkaServiceBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewStrimziKafkaRef()
+                        .withListenerName(listenerName)
+                        .withTrustStrimziCaCertificate(true)
+                        .withNewRef()
+                            .withName(kafkaName)
+                        .endRef()
+                    .endStrimziKafkaRef()
+                .endSpec();
+        // @formatter:on
     }
 
     private void createAll(HasMetadata... resources) {
