@@ -158,6 +158,54 @@ spec:
                         key:
                           description: The key within the Secret data identifying the CA certificate bundle.
                           type: string
+                plugins:
+                  description: |
+                    Third-party plugin images to mount in the sidecar container. Each plugin's
+                    JARs are mounted at /opt/kroxylicious/classpath-plugins/[name]/ and added to the
+                    proxy classpath automatically.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - image
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this plugin, used as the mount subdirectory under
+                          /opt/kroxylicious/plugins/. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      image:
+                        description: |
+                          The OCI image containing the plugin JARs. The image should be built
+                          FROM scratch with JARs at the image root.
+                        type: object
+                        required:
+                          - reference
+                        properties:
+                          reference:
+                            description: |
+                              OCI image reference. For delegated plugin images, this must include
+                              a @sha256: digest.
+                            type: string
+                          pullPolicy:
+                            description: Image pull policy for the plugin image.
+                            type: string
+                            enum:
+                              - Always
+                              - IfNotPresent
+                              - Never
+                            default: IfNotPresent
+                allowedPluginRegistries:
+                  description: |
+                    Registry prefixes allowed for delegated plugin images. When plugin image
+                    selection is delegated to app owners, only images matching one of these
+                    prefixes are accepted.
+                  type: array
+                  items:
+                    type: string
                 delegatedAnnotations:
                   description: |
                     Annotations that the application pod owner is permitted to set to override

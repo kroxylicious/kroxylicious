@@ -53,6 +53,12 @@ public class WebhookMain {
         this.kubeClient = kubeClient;
     }
 
+    /**
+     * The webhook main method.
+     * Note: this method does JVM global things like installing a shutdown hook
+     * and calling {@link System#exit(int)}.
+     * @param args The command line arguments.
+     */
     public static void main(String[] args) {
         try {
             WebhookMain webhook = create();
@@ -76,9 +82,10 @@ public class WebhookMain {
         String proxyImage = requiredEnv(env, KROXYLICIOUS_IMAGE_VAR);
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
-        boolean useNativeSidecar = detectNativeSidecarSupport(kubeClient);
+        var kubernetesVersion = detectVersion(kubeClient);
         SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient);
-        AdmissionHandler admissionHandler = new AdmissionHandler(configResolver, proxyImage, useNativeSidecar);
+        AdmissionHandler admissionHandler = new AdmissionHandler(
+                configResolver, proxyImage, kubernetesVersion);
         WebhookServer server = new WebhookServer(bindAddress, certPath, keyPath, admissionHandler);
 
         return new WebhookMain(server, configResolver, kubeClient);
@@ -120,27 +127,24 @@ public class WebhookMain {
         LOGGER.atInfo().log("Webhook stopped");
     }
 
-    /**
-     * Detects whether the cluster supports native sidecar containers (Kubernetes 1.28+).
-     */
-    @VisibleForTesting
-    static boolean detectNativeSidecarSupport(@NonNull KubernetesClient client) {
+    private static KubernetesVersion detectVersion(@NonNull KubernetesClient client) {
         try {
             VersionInfo version = client.getKubernetesVersion();
             int major = Integer.parseInt(version.getMajor().replaceAll("\\D", ""));
             int minor = Integer.parseInt(version.getMinor().replaceAll("\\D", ""));
-            boolean nativeSidecarSupported = major > 1 || (major == 1 && minor >= 28);
+
             LOGGER.atInfo()
-                    .addKeyValue("kubernetesVersion", version.getGitVersion())
-                    .addKeyValue("nativeSidecar", nativeSidecarSupported)
+                    .addKeyValue("gitVersion", version.getGitVersion())
+                    .addKeyValue("major", major)
+                    .addKeyValue("minor", minor)
                     .log("Detected Kubernetes version");
-            return nativeSidecarSupported;
+            return new KubernetesVersion(major, minor);
         }
         catch (Exception e) {
             LOGGER.atWarn()
                     .setCause(e)
-                    .log("Could not detect Kubernetes version, defaulting to regular sidecar containers");
-            return false;
+                    .log("Could not detect Kubernetes version, defaulting to conservative feature set");
+            return new KubernetesVersion(1, 0);
         }
     }
 

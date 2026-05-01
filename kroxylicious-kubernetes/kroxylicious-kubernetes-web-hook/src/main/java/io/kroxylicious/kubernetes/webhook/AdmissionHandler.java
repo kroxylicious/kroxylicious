@@ -20,6 +20,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -33,6 +34,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpecBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -48,20 +51,22 @@ class AdmissionHandler implements HttpHandler {
     private final SidecarConfigResolver configResolver;
     private final String proxyImage;
     private final boolean useNativeSidecar;
+    private final boolean useOciImageVolumes;
 
     AdmissionHandler(
                      @NonNull SidecarConfigResolver configResolver,
                      @NonNull String proxyImage,
-                     boolean useNativeSidecar) {
+                     KubernetesVersion kubernetesVersion) {
         this.configResolver = configResolver;
         this.proxyImage = proxyImage;
-        this.useNativeSidecar = useNativeSidecar;
+        this.useNativeSidecar = kubernetesVersion.supportedNativeSidecar();
+        this.useOciImageVolumes = kubernetesVersion.supportsOciImageVolumes();
     }
 
     AdmissionHandler(
                      @NonNull SidecarConfigResolver configResolver,
                      @NonNull String proxyImage) {
-        this(configResolver, proxyImage, false);
+        this(configResolver, proxyImage, new KubernetesVersion(1, 0));
     }
 
     @Override
@@ -152,7 +157,8 @@ class AdmissionHandler implements HttpHandler {
                     sidecarConfig.getSpec(), annotations, podName, namespace);
 
             String image = resolveImage(sidecarConfig);
-            String jsonPatch = PodMutator.createPatch(pod, effectiveSpec, image, useNativeSidecar);
+            String jsonPatch = PodMutator.createPatch(
+                    pod, effectiveSpec, image, useNativeSidecar, useOciImageVolumes);
 
             AdmissionResponse response = allowResponse(uid);
             response.setPatchType(JSON_PATCH_TYPE);
@@ -199,7 +205,29 @@ class AdmissionHandler implements HttpHandler {
 
         applyNodeIdRangeOverride(podAnnotations, podName, namespace, delegatedSet, effective);
 
+        // Apply delegated plugin images (JSON array of {name, reference} objects)
+        applyDelegatedPluginImages(adminSpec, podAnnotations, podName, namespace, delegatedSet, effective);
+
         return effective;
+    }
+
+    private void applyDelegatedPluginImages(@NonNull KroxyliciousSidecarConfigSpec adminSpec, Map<String, String> podAnnotations, String podName, String namespace,
+                                            Set<String> delegatedSet, KroxyliciousSidecarConfigSpec effective) {
+        if (delegatedSet.contains(Annotations.DELEGATED_PLUGIN_IMAGES)) {
+            String pluginsJson = podAnnotations.get(Annotations.DELEGATED_PLUGIN_IMAGES);
+            if (pluginsJson != null) {
+                List<Plugins> delegatedPlugins = parseDelegatedPlugins(
+                        pluginsJson, adminSpec, podName, namespace);
+                if (!delegatedPlugins.isEmpty()) {
+                    List<Plugins> merged = new java.util.ArrayList<>();
+                    if (effective.getPlugins() != null) {
+                        merged.addAll(effective.getPlugins());
+                    }
+                    merged.addAll(delegatedPlugins);
+                    effective.setPlugins(merged);
+                }
+            }
+        }
     }
 
     // TODO: Do we really want to support this for the initial feature?
@@ -284,6 +312,91 @@ class AdmissionHandler implements HttpHandler {
     private static KroxyliciousSidecarConfigSpec copySpec(@NonNull KroxyliciousSidecarConfigSpec src) {
         KroxyliciousSidecarConfigSpecBuilder builder = new KroxyliciousSidecarConfigSpecBuilder(src);
         return builder.build();
+    }
+
+    /**
+     * Parses and validates delegated plugin images from a pod annotation.
+     * Rejects images that do not include a {@code @sha256:} digest or that do not match
+     * one of the allowed registry prefixes.
+     */
+    @SuppressWarnings("S135") // for loop with > 1 continue, but refactoring would be header to understand
+    @NonNull
+    List<Plugins> parseDelegatedPlugins(
+                                        @NonNull String pluginsJson,
+                                        @NonNull KroxyliciousSidecarConfigSpec adminSpec,
+                                        String podName,
+                                        String namespace) {
+
+        List<Plugins> result = new java.util.ArrayList<>();
+        List<String> allowed = adminSpec.getAllowedPluginRegistries();
+        Set<String> allowedSet = allowed != null ? Set.copyOf(allowed) : Set.of();
+
+        try {
+            JsonNode array = MAPPER.readTree(pluginsJson);
+            if (!array.isArray()) {
+                LOGGER.atWarn()
+                        .addKeyValue(WebhookLoggingKeys.POD, podName)
+                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                        .log("Delegated plugin images annotation is not a JSON array, ignoring");
+                return result;
+            }
+
+            for (JsonNode entry : array) {
+                String name = entry.path("name").asText(null);
+                String reference = entry.path("reference").asText(null);
+                if (name == null || reference == null) {
+                    LOGGER.atWarn()
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .log("Delegated plugin entry missing name or reference, skipping");
+                    continue;
+                }
+
+                // Require @sha256: digest
+                if (!reference.contains("@sha256:")) {
+                    LOGGER.atWarn()
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .addKeyValue(WebhookLoggingKeys.IMG_REF, reference)
+                            .log("Delegated plugin image rejected: must include @sha256: digest");
+                    continue;
+                }
+
+                // Validate against allowed registries
+                if (!allowedSet.isEmpty()
+                        && allowedSet.stream().noneMatch(reference::startsWith)) {
+                    LOGGER.atWarn()
+                            .addKeyValue(WebhookLoggingKeys.POD, podName)
+                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                            .addKeyValue(WebhookLoggingKeys.IMG_REF, reference)
+                            .log("Delegated plugin image rejected: registry not in allowedPluginRegistries");
+                    continue;
+                }
+
+                LOGGER.atInfo()
+                        .addKeyValue(WebhookLoggingKeys.POD, podName)
+                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                        .addKeyValue("plugin", name)
+                        .addKeyValue(WebhookLoggingKeys.IMG_REF, reference)
+                        .log("Accepting delegated plugin image");
+
+                Plugins plugin = new Plugins();
+                plugin.setName(name);
+                Image image = new Image();
+                image.setReference(reference);
+                plugin.setImage(image);
+                result.add(plugin);
+            }
+        }
+        catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            LOGGER.atWarn()
+                    .addKeyValue(WebhookLoggingKeys.POD, podName)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue(WebhookLoggingKeys.ERROR, e.getMessage())
+                    .log("Failed to parse delegated plugin images JSON, ignoring");
+        }
+
+        return result;
     }
 
     @NonNull
