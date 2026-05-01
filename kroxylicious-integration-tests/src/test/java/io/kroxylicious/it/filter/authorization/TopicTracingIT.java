@@ -155,6 +155,7 @@ class TopicTracingIT extends AbstractTracingIT {
                     admin.describeConfigs(ConfigResource.Type.TOPIC, topicA);
                     admin.alterConfigs(ConfigResource.Type.TOPIC, topicA, new ConfigEntry(TopicConfig.COMPRESSION_TYPE_CONFIG, "zstd"));
                     var topicBId = setup.createTopic(topicB).value();
+                    Awaitility.waitAtMost(10, TimeUnit.SECONDS).until(() -> ClusterPrepUtils.allTopicPartitionsHaveALeader(setup.admin(), List.of(TOPIC_B)));
 
                     admin.deleteTopic(topicBId);
                 }
