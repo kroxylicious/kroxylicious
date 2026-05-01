@@ -343,6 +343,143 @@ class AdmissionHandlerTest {
         assertThat(effective.getNodeIdRange()).isNull();
     }
 
+    // --- Phase 4: Delegated plugin images ---
+
+    @Test
+    void parsesValidDelegatedPlugins() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setAllowedPluginRegistries(List.of("reg.io/"));
+
+        String json = """
+                [{"name":"my-filter","reference":"reg.io/filter@sha256:abc123def"}]""";
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getName()).isEqualTo("my-filter");
+        assertThat(result.get(0).getImage().getReference()).isEqualTo("reg.io/filter@sha256:abc123def");
+    }
+
+    @Test
+    void rejectsDelegatedPluginWithoutDigest() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+
+        String json = """
+                [{"name":"my-filter","reference":"reg.io/filter:latest"}]""";
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void rejectsDelegatedPluginFromDisallowedRegistry() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setAllowedPluginRegistries(List.of("trusted.io/"));
+
+        String json = """
+                [{"name":"my-filter","reference":"evil.io/filter@sha256:abc123"}]""";
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void acceptsDelegatedPluginWhenNoRegistryRestrictions() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        // No allowedPluginRegistries set — all registries allowed
+
+        String json = """
+                [{"name":"my-filter","reference":"any.io/filter@sha256:abc123"}]""";
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void skipsDelegatedPluginEntryMissingName() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+
+        String json = """
+                [{"reference":"reg.io/filter@sha256:abc123"}]""";
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void ignoresNonArrayDelegatedPluginsJson() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins("{\"not\":\"array\"}", adminSpec,
+                "pod", "ns");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void ignoresMalformedDelegatedPluginsJson() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+
+        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins("not json at all", adminSpec, "pod",
+                "ns");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void appliesDelegatedPluginImages() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
+        adminSpec.setAllowedPluginRegistries(List.of("reg.io/"));
+
+        String pluginsJson = """
+                [{"name":"my-filter","reference":"reg.io/filter@sha256:abc123"}]""";
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_PLUGIN_IMAGES, pluginsJson);
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        assertThat(effective.getPlugins()).hasSize(1);
+        assertThat(effective.getPlugins().get(0).getName()).isEqualTo("my-filter");
+    }
+
+    @Test
+    void mergesDelegatedPluginsWithAdminPlugins() {
+        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
+        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
+
+        io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins adminPlugin = new io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins();
+        adminPlugin.setName("admin-plugin");
+        io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image adminImage = new io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image();
+        adminImage.setReference("reg.io/admin@sha256:aaa");
+        adminPlugin.setImage(adminImage);
+        adminSpec.setPlugins(List.of(adminPlugin));
+
+        String pluginsJson = """
+                [{"name":"user-plugin","reference":"any.io/user@sha256:bbb"}]""";
+        Map<String, String> annotations = Map.of(Annotations.DELEGATED_PLUGIN_IMAGES, pluginsJson);
+
+        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
+                adminSpec, annotations, "test-pod", "test-ns");
+
+        assertThat(effective.getPlugins()).hasSize(2);
+        assertThat(effective.getPlugins().get(0).getName()).isEqualTo("admin-plugin");
+        assertThat(effective.getPlugins().get(1).getName()).isEqualTo("user-plugin");
+    }
+
     @Test
     void returnsOriginalSpecWhenNoAnnotations() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();

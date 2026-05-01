@@ -64,6 +64,8 @@ final class Annotations {
      */
     static final String DELEGATED_NODE_ID_RANGE = "kroxylicious.io/sidecar-node-id-range";
 
+    static final String DELEGATED_PLUGIN_IMAGES = "kroxylicious.io/sidecar-plugin-images";
+
     /** The set of annotations managed by the webhook itself — never treated as undelegated. */
     static final Set<String> WEBHOOK_MANAGED_ANNOTATIONS = Set.of(
             INJECT_SIDECAR,
