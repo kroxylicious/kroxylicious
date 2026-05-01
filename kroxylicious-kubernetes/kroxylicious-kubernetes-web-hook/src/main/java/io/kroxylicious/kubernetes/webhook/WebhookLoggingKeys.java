@@ -6,6 +6,9 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
+/**
+ * Constants used for logging
+ */
 public class WebhookLoggingKeys {
 
     static final String NAMESPACE = "namespace";
@@ -17,6 +20,10 @@ public class WebhookLoggingKeys {
     static final String ANNOTATION = "annotation";
 
     static final String ANNOTATION_VALUE = "annotationValue";
+
+    static final String IMG_REF = "imageReference";
+
+    static final String ERROR = "error";
 
     private WebhookLoggingKeys() {
     }
