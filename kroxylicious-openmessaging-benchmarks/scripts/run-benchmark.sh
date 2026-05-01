@@ -65,6 +65,10 @@ Options:
                             The script will print the teardown commands to run manually.
   --producer-rate <n>       Override the producerRate in the workload (msg/sec).
                             When set, the rate is injected via sed before running.
+  --no-isolate-proxy        Skip the pod anti-affinity patch that keeps the proxy off Kafka
+                            broker nodes. Use only on clusters with fewer than 5 workers where
+                            the proxy cannot avoid sharing a node with a broker. Results from
+                            such runs may understate encryption throughput due to CPU contention.
   -h, --help                Show this help
 
 Environment:
@@ -97,6 +101,7 @@ HELM_SET_ARGS=()
 SKIP_DEPLOY=false
 SKIP_TEARDOWN=false
 PRODUCER_RATE=""
+ISOLATE_PROXY=true
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -124,6 +129,10 @@ while [[ $# -gt 0 ]]; do
             PRODUCER_RATE="$2"
             shift 2
             ;;
+        --no-isolate-proxy)
+            ISOLATE_PROXY=false
+            shift
+            ;;
         -h|--help)
             usage
             ;;
@@ -145,6 +154,12 @@ fi
 SCENARIO="$1"
 WORKLOAD="$2"
 OUTPUT_DIR="$3"
+
+if [[ "${ISOLATE_PROXY}" == "false" ]]; then
+    echo "Warning: --no-isolate-proxy is set. The proxy may share a node with a Kafka broker." >&2
+    echo "         CPU contention can artificially reduce encryption throughput." >&2
+    echo "         For reliable results, use a cluster with >= 5 workers." >&2
+fi
 
 SCENARIO_VALUES="${HELM_CHART}/scenarios/${SCENARIO}-values.yaml"
 
@@ -557,6 +572,13 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
     else
         echo "${async_profiler_patch}" \
             | kubectl apply --server-side --field-manager=benchmark-async-profiler -f - >/dev/null
+    fi
+
+    if [[ "${ISOLATE_PROXY}" == "true" ]]; then
+        PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
+            envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
+            < "${HELM_CHART}/patches/proxy-anti-affinity.yaml" \
+            | kubectl apply --server-side --field-manager=benchmark-anti-affinity -f - >/dev/null
     fi
 
     echo "Waiting for proxy deployment rollout after patch..."
