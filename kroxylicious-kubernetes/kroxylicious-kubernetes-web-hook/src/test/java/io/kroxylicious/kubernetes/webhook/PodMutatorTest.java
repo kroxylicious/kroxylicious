@@ -25,7 +25,9 @@ import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -327,7 +329,7 @@ class PodMutatorTest {
     @Test
     void nativeSidecarInjectsAsInitContainer() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, true);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, true, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         // Should add to initContainers, not containers
@@ -342,12 +344,142 @@ class PodMutatorTest {
     @Test
     void regularSidecarDoesNotSetRestartPolicy() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, false);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
         assertThat(containerOps).isNotEmpty();
         assertThat(containerOps.get(0).path("value").has("restartPolicy")).isFalse();
+    }
+
+    // --- Phase 4: Plugin volumes ---
+
+    @Test
+    void patchAddsOciImageVolumeForPlugin() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        boolean hasPluginVolume = false;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && "plugin-my-filter".equals(value.path("name").asText())) {
+                    assertThat(value.has("image")).isTrue();
+                    assertThat(value.path("image").path("reference").asText())
+                            .isEqualTo("reg.io/filter:v1@sha256:abc123");
+                    hasPluginVolume = true;
+                }
+            }
+        }
+        assertThat(hasPluginVolume).as("patch should add OCI image volume for plugin").isTrue();
+    }
+
+    @Test
+    void patchAddsEmptyDirVolumeForPluginWithoutOciSupport() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, false);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        boolean hasPluginVolume = false;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && "plugin-my-filter".equals(value.path("name").asText())) {
+                    assertThat(value.has("emptyDir")).isTrue();
+                    assertThat(value.has("image")).isFalse();
+                    hasPluginVolume = true;
+                }
+            }
+        }
+        assertThat(hasPluginVolume).as("patch should add emptyDir volume for plugin").isTrue();
+    }
+
+    @Test
+    void patchAddsInitContainerForPluginWithoutOciSupport() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, false);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
+        assertThat(initOps).isNotEmpty();
+
+        JsonNode initContainer = initOps.get(0).path("value").get(0);
+        assertThat(initContainer.path("name").asText()).isEqualTo("plugin-my-filter-copy");
+        assertThat(initContainer.path("image").asText()).isEqualTo("reg.io/filter:v1@sha256:abc123");
+        assertThat(initContainer.path("securityContext").path("allowPrivilegeEscalation").asBoolean()).isFalse();
+    }
+
+    @Test
+    void patchDoesNotAddInitContainerForPluginWithOciSupport() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
+        assertThat(initOps).isEmpty();
+    }
+
+    @Test
+    void patchAddsPluginVolumeMountOnSidecar() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode mounts = containerOps.get(0).path("value").path("volumeMounts");
+
+        boolean hasPluginMount = false;
+        for (JsonNode mount : mounts) {
+            if ("plugin-my-filter".equals(mount.path("name").asText())) {
+                assertThat(mount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/classpath-plugins/my-filter");
+                assertThat(mount.path("readOnly").asBoolean()).isTrue();
+                hasPluginMount = true;
+            }
+        }
+        assertThat(hasPluginMount).as("sidecar should have plugin volume mount").isTrue();
+    }
+
+    @Test
+    void patchSupportsMultiplePlugins() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        List<Plugins> plugins = new ArrayList<>();
+        plugins.add(createPlugin("filter-a", "reg.io/a@sha256:aaa"));
+        plugins.add(createPlugin("filter-b", "reg.io/b@sha256:bbb"));
+        spec.setPlugins(plugins);
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        int pluginVolumeCount = 0;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && value.path("name").asText().startsWith("plugin-")) {
+                    pluginVolumeCount++;
+                }
+            }
+        }
+        assertThat(pluginVolumeCount).isEqualTo(2);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode mounts = containerOps.get(0).path("value").path("volumeMounts");
+        List<String> mountNames = new ArrayList<>();
+        for (JsonNode mount : mounts) {
+            mountNames.add(mount.path("name").asText());
+        }
+        assertThat(mountNames).contains("plugin-filter-a", "plugin-filter-b");
     }
 
     /**
@@ -393,6 +525,25 @@ class PodMutatorTest {
     private JsonNode createPatchJson(Pod pod) throws Exception {
         String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE);
         return MAPPER.readTree(patchStr);
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithPlugin(
+                                                                String name,
+                                                                String reference) {
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        spec.setPlugins(new ArrayList<>(List.of(createPlugin(name, reference))));
+        return spec;
+    }
+
+    private static Plugins createPlugin(
+                                        String name,
+                                        String reference) {
+        Plugins plugin = new Plugins();
+        plugin.setName(name);
+        Image image = new Image();
+        image.setReference(reference);
+        plugin.setImage(image);
+        return plugin;
     }
 
     private static List<JsonNode> patchOps(

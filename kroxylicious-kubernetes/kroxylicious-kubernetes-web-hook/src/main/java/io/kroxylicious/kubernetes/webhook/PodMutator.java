@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.fabric8.kubernetes.api.model.Pod;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
 
@@ -27,6 +28,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Generates a JSON Patch (RFC 6902) to inject a Kroxylicious sidecar into a pod.
  */
 class PodMutator {
+    // TODO we should try to use the Fabric8 API to construct pojos which we then serialize to JSON
+    // rather than building the objects "my hand" (and which causes sonar to complain about the string literal keys)
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SIDECAR_VOLUME_NAME = "kroxylicious-config";
@@ -34,10 +37,15 @@ class PodMutator {
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String UPSTREAM_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/upstream";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
+    private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
+    private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String CONFIG_MOUNT_PATH = "/opt/kroxylicious/config/proxy-config.yaml";
     private static final String CONFIG_FILE_NAME = "proxy-config.yaml";
     private static final String MANAGEMENT_PORT_NAME = "management";
     private static final String KAFKA_BOOTSTRAP_SERVERS_ENV = "KAFKA_BOOTSTRAP_SERVERS";
+    public static final String OP_ADD = "add";
+    public static final String OP_REPLACE = "replace";
 
     private PodMutator() {
     }
@@ -49,6 +57,8 @@ class PodMutator {
      * @param spec the sidecar configuration
      * @param proxyImage the container image to use for the proxy
      * @param useNativeSidecar if true, inject as an init container with restartPolicy: Always (K8s 1.28+)
+     * @param useOciImageVolumes if true, mount plugin images as OCI image volumes (K8s 1.31+);
+     *                          otherwise use init-container + emptyDir fallback
      * @return JSON Patch string (RFC 6902)
      */
     @NonNull
@@ -56,7 +66,8 @@ class PodMutator {
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage,
-                              boolean useNativeSidecar) {
+                              boolean useNativeSidecar,
+                              boolean useOciImageVolumes) {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
@@ -66,8 +77,10 @@ class PodMutator {
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
             addAnnotationOps(patch, pod, proxyConfig);
-            addVolumeOps(patch, pod, spec);
-            addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec, useNativeSidecar);
+            addVolumeOps(patch, pod, spec, useOciImageVolumes);
+            addPluginCopyInitContainers(patch, pod, spec, useOciImageVolumes);
+            addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec,
+                    useNativeSidecar, useOciImageVolumes);
             addBootstrapEnvVarOps(patch, pod, spec, bootstrapPort);
             addSecurityContextOps(patch, pod);
 
@@ -79,14 +92,14 @@ class PodMutator {
     }
 
     /**
-     * Overload for backwards compatibility (no native sidecar).
+     * Overload for backwards compatibility (no plugins).
      */
     @NonNull
     static String createPatch(
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage) {
-        return createPatch(pod, spec, proxyImage, false);
+        return createPatch(pod, spec, proxyImage, false, false);
     }
 
     /**
@@ -112,41 +125,31 @@ class PodMutator {
             ObjectNode annotations = MAPPER.createObjectNode();
             annotations.put(Annotations.PROXY_CONFIG, proxyConfig);
             annotations.put(Annotations.SIDECAR_STATUS, "injected");
-            addOp(patch, "add", "/metadata/annotations", annotations);
+            addOp(patch, OP_ADD, "/metadata/annotations", annotations);
         }
         else {
-            addOp(patch, "add", "/metadata/annotations/" + escapeJsonPointer(Annotations.PROXY_CONFIG), proxyConfig);
-            addOp(patch, "add", "/metadata/annotations/" + escapeJsonPointer(Annotations.SIDECAR_STATUS), "injected");
+            addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.PROXY_CONFIG), proxyConfig);
+            addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.SIDECAR_STATUS), "injected");
         }
     }
 
     private static void addVolumeOps(
                                      ArrayNode patch,
                                      Pod pod,
-                                     KroxyliciousSidecarConfigSpec spec) {
+                                     KroxyliciousSidecarConfigSpec spec,
+                                     boolean useOciImageVolumes) {
         boolean hasVolumes = pod.getSpec() != null
                 && pod.getSpec().getVolumes() != null
                 && !pod.getSpec().getVolumes().isEmpty();
 
-        // Use downwardAPI to mount a volume such that the container's proxy-config.yaml has the content of the
-        // kroxylicious.io/proxy-config annotation's value.
-        ObjectNode configVolume = MAPPER.createObjectNode();
-        configVolume.put("name", SIDECAR_VOLUME_NAME);
-        ObjectNode downwardAPI = configVolume.putObject("downwardAPI");
-        ArrayNode items = downwardAPI.putArray("items");
-        ObjectNode item = items.addObject();
-        item.put("path", CONFIG_FILE_NAME);
-        ObjectNode fieldRef = item.putObject("fieldRef");
-        fieldRef.put("fieldPath", "metadata.annotations['" + Annotations.PROXY_CONFIG + "']");
-
+        ObjectNode configVolume = buildProxyConfigVolume();
         if (hasVolumes) {
-            addOp(patch, "add", "/spec/volumes/-", configVolume);
+            addOp(patch, OP_ADD, "/spec/volumes/-", configVolume);
         }
         else {
             ArrayNode volumes = MAPPER.createArrayNode();
             volumes.add(configVolume);
-            addOp(patch, "add", "/spec/volumes", volumes);
-            hasVolumes = true;
+            addOp(patch, OP_ADD, "/spec/volumes", volumes);
         }
 
         // Upstream TLS volume (Secret)
@@ -157,15 +160,90 @@ class PodMutator {
             tlsVolume.put("name", UPSTREAM_TLS_VOLUME_NAME);
             ObjectNode secret = tlsVolume.putObject("secret");
             secret.put("secretName", secretRef.getName());
+            addOp(patch, OP_ADD, "/spec/volumes/-", tlsVolume);
+        }
 
-            if (hasVolumes) {
-                addOp(patch, "add", "/spec/volumes/-", tlsVolume);
+        // Plugin volumes
+        List<Plugins> plugins = spec.getPlugins();
+        if (plugins != null) {
+            for (Plugins plugin : plugins) {
+                addOp(patch, OP_ADD, "/spec/volumes/-", buildPluginVolume(useOciImageVolumes, plugin));
             }
-            else {
-                ArrayNode volumes = MAPPER.createArrayNode();
-                volumes.add(tlsVolume);
-                addOp(patch, "add", "/spec/volumes", volumes);
+        }
+    }
+
+    @NonNull
+    private static ObjectNode buildPluginVolume(boolean useOciImageVolumes, Plugins plugin) {
+        ObjectNode pluginVolume = MAPPER.createObjectNode();
+        pluginVolume.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+
+        if (useOciImageVolumes) {
+            ObjectNode image = pluginVolume.putObject("image");
+            image.put("reference", plugin.getImage().getReference());
+            if (plugin.getImage().getPullPolicy() != null) {
+                image.put("pullPolicy", plugin.getImage().getPullPolicy().getValue());
             }
+        }
+        else {
+            // Fallback: emptyDir volume, populated by an init container
+            pluginVolume.putObject("emptyDir");
+        }
+        return pluginVolume;
+    }
+
+    @NonNull
+    private static ObjectNode buildProxyConfigVolume() {
+        // Use downwardAPI to mount a volume such that the container's proxy-config.yaml has the content of the
+        // kroxylicious.io/proxy-config annotation's value.
+        ObjectNode configVolume = MAPPER.createObjectNode();
+        configVolume.put("name", SIDECAR_VOLUME_NAME);
+        ObjectNode downwardAPI = configVolume.putObject("downwardAPI");
+        ArrayNode items = downwardAPI.putArray("items");
+        ObjectNode item = items.addObject();
+        item.put("path", CONFIG_FILE_NAME);
+        ObjectNode fieldRef = item.putObject("fieldRef");
+        fieldRef.put("fieldPath", "metadata.annotations['" + Annotations.PROXY_CONFIG + "']");
+        return configVolume;
+    }
+
+    /**
+     * Adds init containers that copy plugin JARs from OCI images to emptyDir volumes.
+     * Only used when OCI image volumes are not available.
+     */
+    private static void addPluginCopyInitContainers(
+                                                    ArrayNode patch,
+                                                    Pod pod,
+                                                    KroxyliciousSidecarConfigSpec spec,
+                                                    boolean useOciImageVolumes) {
+
+        List<Plugins> plugins = spec.getPlugins();
+        if (plugins == null || plugins.isEmpty() || useOciImageVolumes) {
+            return;
+        }
+
+        for (Plugins plugin : plugins) {
+            ObjectNode initContainer = MAPPER.createObjectNode();
+            initContainer.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy");
+            initContainer.put("image", plugin.getImage().getReference());
+
+            ArrayNode command = initContainer.putArray("command");
+            command.add("sh");
+            command.add("-c");
+            command.add("cp -r /. /plugins/");
+
+            ArrayNode mounts = initContainer.putArray("volumeMounts");
+            ObjectNode mount = mounts.addObject();
+            mount.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+            mount.put("mountPath", "/plugins");
+
+            // Security context for init container
+            ObjectNode secCtx = initContainer.putObject("securityContext");
+            secCtx.put("allowPrivilegeEscalation", false);
+            secCtx.put("readOnlyRootFilesystem", true);
+            ObjectNode capabilities = secCtx.putObject("capabilities");
+            capabilities.putArray("drop").add("ALL");
+
+            addInitContainer(patch, pod, initContainer);
         }
     }
 
@@ -175,7 +253,8 @@ class PodMutator {
                                               String proxyImage,
                                               int managementPort,
                                               KroxyliciousSidecarConfigSpec spec,
-                                              boolean useNativeSidecar) {
+                                              boolean useNativeSidecar,
+                                              boolean useOciImageVolumes) {
 
         ObjectNode container = MAPPER.createObjectNode();
         container.put("name", InjectionDecision.SIDECAR_CONTAINER_NAME);
@@ -225,6 +304,17 @@ class PodMutator {
             tlsMount.put("readOnly", true);
         }
 
+        // Plugin volume mounts
+        List<Plugins> plugins = spec.getPlugins();
+        if (plugins != null) {
+            for (Plugins plugin : plugins) {
+                ObjectNode pluginMount = volumeMounts.addObject();
+                pluginMount.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+                pluginMount.put("mountPath", PLUGINS_BASE_PATH + "/" + plugin.getName());
+                pluginMount.put("readOnly", true);
+            }
+        }
+
         // Resources
         if (spec.getResources() != null) {
             try {
@@ -252,12 +342,12 @@ class PodMutator {
                 && !pod.getSpec().getContainers().isEmpty();
 
         if (hasContainers) {
-            addOp(patch, "add", "/spec/containers/-", container);
+            addOp(patch, OP_ADD, "/spec/containers/-", container);
         }
         else {
             ArrayNode containers = MAPPER.createArrayNode();
             containers.add(container);
-            addOp(patch, "add", "/spec/containers", containers);
+            addOp(patch, OP_ADD, "/spec/containers", containers);
         }
     }
 
@@ -267,12 +357,12 @@ class PodMutator {
                 && !pod.getSpec().getInitContainers().isEmpty();
 
         if (hasInitContainers) {
-            addOp(patch, "add", "/spec/initContainers/-", container);
+            addOp(patch, OP_ADD, "/spec/initContainers/-", container);
         }
         else {
             ArrayNode initContainers = MAPPER.createArrayNode();
             initContainers.add(container);
-            addOp(patch, "add", "/spec/initContainers", initContainers);
+            addOp(patch, OP_ADD, "/spec/initContainers", initContainers);
         }
     }
 
@@ -328,12 +418,12 @@ class PodMutator {
             if (hasEnv) {
                 int existingIdx = findEnvVarIndex(c.getEnv(), KAFKA_BOOTSTRAP_SERVERS_ENV);
                 if (existingIdx >= 0) {
-                    addOp(patch, "replace",
+                    addOp(patch, OP_REPLACE,
                             "/spec/containers/" + i + "/env/" + existingIdx + "/value",
                             bootstrapValue);
                 }
                 else {
-                    addOp(patch, "add",
+                    addOp(patch, OP_ADD,
                             "/spec/containers/" + i + "/env/-",
                             envVar);
                 }
@@ -341,7 +431,7 @@ class PodMutator {
             else {
                 ArrayNode envArray = MAPPER.createArrayNode();
                 envArray.add(envVar);
-                addOp(patch, "add",
+                addOp(patch, OP_ADD,
                         "/spec/containers/" + i + "/env",
                         envArray);
             }
@@ -370,7 +460,7 @@ class PodMutator {
             secCtx.put("runAsNonRoot", true);
             ObjectNode seccompProfile = secCtx.putObject("seccompProfile");
             seccompProfile.put("type", "RuntimeDefault");
-            addOp(patch, "add", "/spec/securityContext", secCtx);
+            addOp(patch, OP_ADD, "/spec/securityContext", secCtx);
         }
     }
 
