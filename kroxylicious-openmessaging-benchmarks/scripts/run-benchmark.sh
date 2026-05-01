@@ -157,9 +157,9 @@ OUTPUT_DIR="$3"
 
 if [[ "${ISOLATE_PROXY}" == "false" ]]; then
     echo "Warning: --skip-proxy-isolation is set. The proxy may share a node with a Kafka broker." >&2
-    echo "         Resource contention between co-located pods can suppress throughput and inflate" >&2
-    echo "         latency, making results hard to compare with runs where isolation is active." >&2
-    echo "         For comparable results, use a cluster with >= 5 workers." >&2
+    echo "         Resource contention between co-located pods is unpredictable and varies run to" >&2
+    echo "         run, making results unreliable and not comparable across runs." >&2
+    echo "         For reliable results, use a cluster with >= 5 workers." >&2
 fi
 
 SCENARIO_VALUES="${HELM_CHART}/scenarios/${SCENARIO}-values.yaml"
