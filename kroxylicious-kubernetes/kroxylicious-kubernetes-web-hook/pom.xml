@@ -27,6 +27,10 @@
         <io.kroxylicious.webhook.image.archive>target/kroxylicious-webhook.img.tar.gz</io.kroxylicious.webhook.image.archive>
         <!-- Used in packaging/install/03.Deployment manifest for the KROXYLICIOUS_IMAGE env var -->
         <io.kroxylicious.proxy.image.name>quay.io/kroxylicious/proxy:${project.version}</io.kroxylicious.proxy.image.name>
+        <io.kroxylicious.proxy.image.archive>../../kroxylicious-app/target/kroxylicious-proxy.img.tar.gz</io.kroxylicious.proxy.image.archive>
+        <!-- Test plugin OCI image (simple-transform filter packaged as a scratch image) -->
+        <io.kroxylicious.test.plugin.image.name>localhost/kroxylicious/test-plugin:latest</io.kroxylicious.test.plugin.image.name>
+        <io.kroxylicious.test.plugin.image.archive>target/test-plugin.img.tar.gz</io.kroxylicious.test.plugin.image.archive>
     </properties>
 
     <dependencyManagement>
@@ -202,9 +206,11 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Used only by maven-dependency-plugin to copy JARs for the test plugin OCI image -->
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-simple-transform</artifactId>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -240,6 +246,9 @@
                                 <!-- Used in KT integration tests, only compiled with dist profile -->
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-integration-test-support
                                 </ignoredUnusedDeclaredDependency>
+                                <!-- JARs copied for test plugin OCI image, not a compile dependency -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-simple-transform
+                                </ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>
@@ -274,6 +283,23 @@
             <id>dist</id>
             <build>
                 <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-test-plugin-jars</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>kroxylicious-simple-transform,kroxylicious-api,kroxylicious-kafka-message-tools</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/test-plugin-jars</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
@@ -319,6 +345,29 @@
                                         </image>
                                     </images>
                                     <saveFile>${io.kroxylicious.webhook.image.archive}</saveFile>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>test-plugin-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipContainerImageBuild}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.test.plugin.image.name}</name>
+                                            <alias>test-plugin</alias>
+                                            <build>
+                                                <dockerFile>src/test/docker/test-plugin.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.test.plugin.image.archive}</saveFile>
                                 </configuration>
                             </execution>
                         </executions>

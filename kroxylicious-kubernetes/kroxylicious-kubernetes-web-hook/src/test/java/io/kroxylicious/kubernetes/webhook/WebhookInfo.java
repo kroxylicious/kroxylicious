@@ -11,18 +11,31 @@ import java.io.UncheckedIOException;
 import java.util.Properties;
 
 /**
- * Provides webhook image metadata, read from a filtered properties file.
+ * Provides webhook and related image metadata, read from a filtered properties file.
  */
 record WebhookInfo(String imageName,
-                   String imageArchive) {
+                   String imageArchive,
+                   String proxyImageName,
+                   String proxyImageArchive,
+                   String testPluginImageName,
+                   String testPluginImageArchive) {
+
+    /** Alias for {@link #imageArchive()} — webhook image archive. */
+    String webhookImageArchive() {
+        return imageArchive;
+    }
 
     static WebhookInfo fromResource() {
         try (var is = WebhookInfo.class.getResourceAsStream("/webhook-info.properties")) {
             var properties = new Properties();
             properties.load(is);
-            String imageName = properties.getProperty("webhook.image.name");
-            String imageArchive = properties.getProperty("webhook.image.archive");
-            return new WebhookInfo(imageName, imageArchive);
+            return new WebhookInfo(
+                    properties.getProperty("webhook.image.name"),
+                    properties.getProperty("webhook.image.archive"),
+                    properties.getProperty("proxy.image.name"),
+                    properties.getProperty("proxy.image.archive"),
+                    properties.getProperty("test.plugin.image.name"),
+                    properties.getProperty("test.plugin.image.archive"));
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
