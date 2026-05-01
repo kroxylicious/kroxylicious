@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3236](https://github.com/kroxylicious/kroxylicious/issues/3236): build(deps): bump strimzi.version from 0.51.0 to 1.0.0 & kube api v1beta2 to v1
 * [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): refactor(archetype): reuse record batch transform module
 * [#3842](https://github.com/kroxylicious/kroxylicious/pull/3842): fix(operator): use precise Kafka CRD detection for Strimzi support (prerequisite for Strimzi v1 upgrade)
 * [#2820](https://github.com/kroxylicious/kroxylicious/issues/2820): feat(operator): add automatic TLS trust discovery for Strimzi-managed Kafka clusters via `trustStrimziCaCertificate` field in KafkaService
@@ -24,6 +25,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#3236](https://github.com/kroxylicious/kroxylicious/issues/3236): **BREAKING CHANGE** - The Kroxylicious Operator now requires Strimzi 0.49.0 or later. The operator uses the Strimzi Kafka CR v1 API exclusively; v1beta2 API support has been dropped. Users running Strimzi versions prior to 0.49.0 must upgrade Strimzi and migrate their Kafka custom resources to v1 before upgrading the Kroxylicious Operator.
 * [#3786](https://github.com/kroxylicious/kroxylicious/issues/3786): The deprecated method `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type)` (two-parameter form) is removed. Use `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)` instead, passing `MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED` if no checksum tracking is needed.
 * The deprecated method `FilterContext#clientSaslAuthenticationSuccess(String, String)` is removed. Filter authors must use `FilterContext#clientSaslAuthenticationSuccess(String, Subject)` to announce a successful SASL authentication to the other filters in the chain.
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): The AWS KMS top-level `longTermCredentials` and `ec2MetadataCredentials` YAML keys are deprecated.  Use the new `credentials.longTerm` and `credentials.ec2Metadata` forms under the grouped `credentials` node instead.  The old keys continue to work for backward compatibility.

@@ -51,7 +51,7 @@ public final class Constants {
     /**
      * API versions of Strimzi CustomResources
      */
-    public static final String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
+    public static final String KAFKA_API_VERSION_V1 = "kafka.strimzi.io/v1";
 
     /**
      * Listener names for Kafka cluster
