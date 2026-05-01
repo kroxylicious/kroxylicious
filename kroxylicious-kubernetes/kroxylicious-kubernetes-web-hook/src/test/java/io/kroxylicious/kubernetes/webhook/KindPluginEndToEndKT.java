@@ -36,6 +36,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIf("io.kroxylicious.kubernetes.webhook.KindPluginEndToEndKT#isEnvironmentValid")
 class KindPluginEndToEndKT {
 
+    // TODO switch away from using the exec kubectl pattern, and adopt the fabric8 client for driving this test, like with the AbstractWebhookInstallKT
+
+    // TODO switch away from using the exec openssl pattern and use the kroxylicious-certificate-test-support module.
+
+    // TODO factor out an AbstractPluginEndToEndKT, so we can easily write a version that uses minikube instead of kind
+
+    // TODO The the scenario where the kubernetes does not have the OCI volume mounting feature gate enabled.
+
     private static final Logger LOGGER = LoggerFactory.getLogger(KindPluginEndToEndKT.class);
     private static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
 
