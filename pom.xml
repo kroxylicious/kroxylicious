@@ -845,6 +845,9 @@
                     <groupId>dev.jbang</groupId>
                     <artifactId>jbang-maven-plugin</artifactId>
                     <version>0.0.8</version>
+                    <configuration>
+                        <jbangVersion>0.138.0</jbangVersion>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

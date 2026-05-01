@@ -593,10 +593,10 @@ public class ResourcesUtil {
                                                                                                String path,
                                                                                                StatusFactory<T> statusFactory) {
 
-        if (context.getClient().getApiGroup("kafka.strimzi.io") == null) {
+        if (!context.getClient().supports(Kafka.class)) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
-                    "strimziKafkaRef present but Kafka api group not found on cluster. Is the Strimzi Operator installed?"), List.of());
+                    "strimziKafkaRef present but Kafka CRD not supported on cluster. Is the Strimzi Operator installed?"), List.of());
         }
 
         if (isStrimziKafka(strimziKafkaRef.getRef())) {
