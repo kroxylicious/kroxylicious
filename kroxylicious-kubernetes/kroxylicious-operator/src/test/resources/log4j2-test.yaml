@@ -1,0 +1,32 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+Configuration:
+  status: WARN
+  name: Integration Tests
+  # Appenders must be at the same level as 'status' and 'name'
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        # Fixed the double-single quotes at the start
+        pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{2.} - %m%replace{ %mdc}{' $'}{}%n"
+
+  # Loggers must be at the same level as Appenders
+  Loggers:
+    Root:
+      level: INFO
+      AppenderRef:
+        ref: Console
+    Logger:
+      - name: io.fabric8
+        additivity: false
+        level: DEBUG
+        AppenderRef:
+          ref: Console
+
