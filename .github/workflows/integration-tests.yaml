@@ -56,7 +56,8 @@ jobs:
 
           # Always include BOM as it's required for dependency management
           # Also include filter-archetype as it has special IT requirements
-          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,${DISCOVERED_MODULES}"
+          # Also include kroxylicious-app to build operand container image for operator ITs
+          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,${DISCOVERED_MODULES}"
 
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
@@ -65,6 +66,8 @@ jobs:
   build_artifacts:
     needs: discover_integration_test_chunks
     runs-on: ubuntu-latest
+    outputs:
+      kroxylicious_image: ${{ steps.build_image.outputs.KROXYLICIOUS_IMAGE }}
     steps:
       - name: 'Check out repository'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -74,20 +77,36 @@ jobs:
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious modules with integration tests'
+      - name: 'Build Kroxylicious modules with integration tests and operand image'
+        id: build_image
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          GIT_HASH="$(git rev-parse HEAD)"
+          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_IMAGE="quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}"
+
           echo "Building modules: ${{ needs.discover_integration_test_chunks.outputs.modules }}"
+          echo "Building operand image: ${KROXYLICIOUS_IMAGE}"
+
           mvn --batch-mode \
-            --activate-profiles '!qa' \
+            --activate-profiles 'dist,!qa' \
             --projects ${{ needs.discover_integration_test_chunks.outputs.modules }} \
             --also-make \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
             -DskipDocs=true \
             -Derrorprone.skip=true \
+            -Dio.kroxylicious.proxy.image.name="${KROXYLICIOUS_IMAGE}" \
             install
+
+          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
+      - name: 'Upload Operand Image Artifact'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-operand-image
+          path: kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+          retention-days: 1
       - name: 'Package Kroxylicious Maven artifacts'
         run: |
           mkdir -p /tmp/kroxylicious-artifacts
@@ -143,6 +162,45 @@ jobs:
           mkdir -p "$HOME/.m2/repository"
           cd "$HOME/.m2/repository"
           tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+      - name: Check if operator tests in chunk
+        id: check_operator
+        env:
+          CHUNK: ${{ matrix.tests }}
+        run: |
+          if echo "$CHUNK" | grep -q "kroxylicious-kubernetes/kroxylicious-operator:"; then
+            echo "has_operator_tests=true" >> "$GITHUB_OUTPUT"
+            echo "This chunk contains operator tests - Minikube will be started"
+          else
+            echo "has_operator_tests=false" >> "$GITHUB_OUTPUT"
+            echo "This chunk has no operator tests - Minikube will be skipped"
+          fi
+      - name: Set up Docker Buildx
+        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
+      - name: Setup Minikube
+        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        uses: ./.github/actions/common/setup-minikube
+        with:
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download Operand Image Artifact
+        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: kroxylicious-operand-image
+          path: /tmp/kroxylicious-operand
+      - name: Load Operand Image in Minikube
+        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        env:
+          KROXYLICIOUS_IMAGE: ${{ needs.build_artifacts.outputs.kroxylicious_image }}
+        run: |
+          # Load image into Minikube
+          minikube image load /tmp/kroxylicious-operand/kroxylicious-proxy.img.tar.gz
+
+          # Verify load succeeded (minikube image load exits 0 even on failure - see operator-maven.yaml:69-71)
+          minikube image ls | grep --fixed-strings "${KROXYLICIOUS_IMAGE}"
+
+          # Set environment variable for tests
+          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
       - name: 'Run integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
