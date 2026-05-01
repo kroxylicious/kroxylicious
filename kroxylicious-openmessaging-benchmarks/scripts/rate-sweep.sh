@@ -44,7 +44,7 @@ Options:
                             images, resource limits). Applied after --profile files so cluster
                             settings always win.
   --set <key=value>         Pass a Helm --set override to run-benchmark.sh (may be repeated)
-  --no-isolate-proxy        Pass --no-isolate-proxy to run-benchmark.sh (see that script for details)
+  --skip-proxy-isolation        Pass --skip-proxy-isolation to run-benchmark.sh (see that script for details)
   --dry-run                 Print rate sequence and planned steps without running anything
   -h, --help                Show this help
 
@@ -82,7 +82,7 @@ PROFILE_VALUES=("${DEFAULT_PROFILE_VALUES}")
 CLUSTER_OVERRIDES=""
 HELM_SET_ARGS=()
 DRY_RUN=false
-NO_ISOLATE_PROXY=false
+SKIP_PROXY_ISOLATION=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -96,7 +96,7 @@ while [[ $# -gt 0 ]]; do
         --profile)          PROFILE_VALUES+=("$2");    shift 2 ;;
         --cluster-overrides) CLUSTER_OVERRIDES="$2";  shift 2 ;;
         --set)              HELM_SET_ARGS+=("$2");     shift 2 ;;
-        --no-isolate-proxy) NO_ISOLATE_PROXY=true;     shift   ;;
+        --skip-proxy-isolation) SKIP_PROXY_ISOLATION=true;     shift   ;;
         --dry-run)          DRY_RUN=true;              shift   ;;
         -h|--help)          usage ;;
         -*)                 echo "Error: unknown option '$1'" >&2; usage ;;
@@ -393,7 +393,7 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
         for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do
             RB_ARGS+=(--set "${set_arg}")
         done
-        [[ "${NO_ISOLATE_PROXY}" == "true" ]] && RB_ARGS+=(--no-isolate-proxy)
+        [[ "${SKIP_PROXY_ISOLATION}" == "true" ]] && RB_ARGS+=(--skip-proxy-isolation)
 
         if ! "${SCRIPT_DIR}/run-benchmark.sh" ${RB_ARGS[@]+"${RB_ARGS[@]}"} \
                 "${SCENARIO}" "${WORKLOAD}" "${PROBE_OUTPUT}"; then

@@ -65,7 +65,7 @@ Options:
                             The script will print the teardown commands to run manually.
   --producer-rate <n>       Override the producerRate in the workload (msg/sec).
                             When set, the rate is injected via sed before running.
-  --no-isolate-proxy        Skip the pod anti-affinity patch that keeps the proxy off Kafka
+  --skip-proxy-isolation        Skip the pod anti-affinity patch that keeps the proxy off Kafka
                             broker nodes. Use only on clusters with fewer than 5 workers where
                             the proxy cannot avoid sharing a node with a broker. Results from
                             such runs may understate encryption throughput due to CPU contention.
@@ -129,7 +129,7 @@ while [[ $# -gt 0 ]]; do
             PRODUCER_RATE="$2"
             shift 2
             ;;
-        --no-isolate-proxy)
+        --skip-proxy-isolation)
             ISOLATE_PROXY=false
             shift
             ;;
@@ -156,9 +156,10 @@ WORKLOAD="$2"
 OUTPUT_DIR="$3"
 
 if [[ "${ISOLATE_PROXY}" == "false" ]]; then
-    echo "Warning: --no-isolate-proxy is set. The proxy may share a node with a Kafka broker." >&2
-    echo "         CPU contention can artificially reduce encryption throughput." >&2
-    echo "         For reliable results, use a cluster with >= 5 workers." >&2
+    echo "Warning: --skip-proxy-isolation is set. The proxy may share a node with a Kafka broker." >&2
+    echo "         Resource contention between co-located pods can suppress throughput and inflate" >&2
+    echo "         latency, making results hard to compare with runs where isolation is active." >&2
+    echo "         For comparable results, use a cluster with >= 5 workers." >&2
 fi
 
 SCENARIO_VALUES="${HELM_CHART}/scenarios/${SCENARIO}-values.yaml"
