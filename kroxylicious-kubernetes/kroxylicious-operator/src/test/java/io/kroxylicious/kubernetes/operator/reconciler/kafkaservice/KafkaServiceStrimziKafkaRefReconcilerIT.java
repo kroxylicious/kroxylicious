@@ -11,9 +11,7 @@ import java.time.Duration;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -24,8 +22,6 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -42,7 +38,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
-import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.TestFiles;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
@@ -77,29 +72,8 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
             .withKubernetesClient(rbacHandler.operatorClient())
             .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
+            .withAdditionalCustomResourceDefinition(Crds.kafka())
             .build();
-
-    @BeforeAll
-    static void beforeAll() {
-        // note that we could not find a nice way to do this via the LocallyRunOperatorExtension. I tried serializing the CRD to
-        // a temp file and using `withAdditionalCRD(path)` but it didn't load those CRDs before initializing the reconciler.
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @AfterAll
-    static void afterAll() {
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
