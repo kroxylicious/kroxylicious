@@ -20,6 +20,7 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -318,6 +319,7 @@ class AdmissionHandler implements HttpHandler {
      * Rejects images that do not include a {@code @sha256:} digest or that do not match
      * one of the allowed registry prefixes.
      */
+    @SuppressWarnings("S135") // for loop with > 1 continue, but refactoring would be header to understand
     @NonNull
     List<Plugins> parseDelegatedPlugins(
                                         @NonNull String pluginsJson,
@@ -330,7 +332,7 @@ class AdmissionHandler implements HttpHandler {
         Set<String> allowedSet = allowed != null ? Set.copyOf(allowed) : Set.of();
 
         try {
-            com.fasterxml.jackson.databind.JsonNode array = MAPPER.readTree(pluginsJson);
+            JsonNode array = MAPPER.readTree(pluginsJson);
             if (!array.isArray()) {
                 LOGGER.atWarn()
                         .addKeyValue(WebhookLoggingKeys.POD, podName)
@@ -339,7 +341,7 @@ class AdmissionHandler implements HttpHandler {
                 return result;
             }
 
-            for (com.fasterxml.jackson.databind.JsonNode entry : array) {
+            for (JsonNode entry : array) {
                 String name = entry.path("name").asText(null);
                 String reference = entry.path("reference").asText(null);
                 if (name == null || reference == null) {
