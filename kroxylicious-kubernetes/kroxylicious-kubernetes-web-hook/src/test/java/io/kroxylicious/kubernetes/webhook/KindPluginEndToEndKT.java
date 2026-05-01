@@ -312,6 +312,9 @@ class KindPluginEndToEndKT {
                           --topic %s
                 EOF""".formatted(TEST_NS, KIND_CONTEXT, kafkaImage, TOPIC));
 
+        // TODO The sleep 15 above is inelegant. The pod should just run indefinitely and
+        // this test code should delete the pod at the end of the test.
+
         verifyPodStructure();
         waitForProxyReady();
         verifyProducerCompletes();
@@ -528,4 +531,6 @@ class KindPluginEndToEndKT {
         }
         return present;
     }
+
+    // TODO have a test that covers indirectly createds pods, e.g. pods which are part of the deployment, sts, job.
 }
