@@ -36,6 +36,7 @@ import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
@@ -117,11 +118,19 @@ public class OperatorMain {
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
 
+        // Create SharedInformerManager to share informer caches across reconcilers
+        // This reduces memory usage by preventing duplicate caches for the same resource types
+        Set<String> effectiveNamespaces = Optional.ofNullable(watchedNamespaces).orElse(Set.of());
+        SharedInformerManager sharedInformerManager = new SharedInformerManager(
+                operator.getKubernetesClient(),
+                effectiveNamespaces);
+
         operator.register(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR), getNsOverriddingConfigurationOverriderConsumer());
-        operator.register(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create()), getNsOverriddingConfigurationOverriderConsumer());
+        operator.register(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager),
+                getNsOverriddingConfigurationOverriderConsumer());
         operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()), getNsOverriddingConfigurationOverriderConsumer());
-        operator.register(new KafkaServiceReconciler(Clock.systemUTC()), getNsOverriddingConfigurationOverriderConsumer());
-        operator.register(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR),
+        operator.register(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager), getNsOverriddingConfigurationOverriderConsumer());
+        operator.register(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, sharedInformerManager),
                 getNsOverriddingConfigurationOverriderConsumer());
 
         addHttpGetHandler("/", () -> 404);
