@@ -55,7 +55,7 @@ abstract class AbstractPluginEndToEndKT {
     // TODO switch away from using the exec openssl pattern and use the kroxylicious-certificate-test-support module.
     // TODO The the scenario where the kubernetes does not have the OCI volume mounting feature gate enabled.
     // TODO have a test that covers indirectly creates pods, e.g. pods which are part of the deployment, sts, job.
-    
+
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPluginEndToEndKT.class);
     static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
 
