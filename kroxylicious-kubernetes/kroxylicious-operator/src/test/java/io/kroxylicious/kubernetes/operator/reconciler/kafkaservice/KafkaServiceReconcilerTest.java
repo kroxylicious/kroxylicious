@@ -327,10 +327,7 @@ class KafkaServiceReconcilerTest {
 
         // missing listener name
         {
-            Context<KafkaService> context = mock();
-            KubernetesClient client = mock();
-            when(context.getClient()).thenReturn(client);
-            when(context.getClient().supports(Kafka.class)).thenReturn(true);
+            Context<KafkaService> context = mockContext(Kafka.class);
             mockGetSecret(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
@@ -358,10 +355,7 @@ class KafkaServiceReconcilerTest {
 
         // unsupported kind
         {
-            Context<KafkaService> context = mock();
-            KubernetesClient client = mock();
-            when(context.getClient()).thenReturn(client);
-            when(context.getClient().supports(Kafka.class)).thenReturn(true);
+            Context<KafkaService> context = mockContext(Kafka.class);
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
@@ -387,10 +381,7 @@ class KafkaServiceReconcilerTest {
 
         // listener list is empty
         {
-            Context<KafkaService> context = mock();
-            KubernetesClient client = mock();
-            when(context.getClient()).thenReturn(client);
-            when(context.getClient().supports(Kafka.class)).thenReturn(true);
+            Context<KafkaService> context = mockContext(Kafka.class);
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
