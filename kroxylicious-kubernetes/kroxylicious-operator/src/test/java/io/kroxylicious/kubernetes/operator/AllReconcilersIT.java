@@ -19,7 +19,6 @@ import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
@@ -36,8 +35,6 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
@@ -113,6 +110,7 @@ class AllReconcilersIT {
             .withKubernetesClient(rbacHandler.operatorClient())
             .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
+            .withAdditionalCustomResourceDefinition(Crds.kafka())
             .build();
     private final TestActor testActor = rbacHandler.testActor(extension);
 
@@ -426,26 +424,6 @@ class AllReconcilersIT {
     class StrimziKafkaIntegrationTests {
 
         private static final String STRIMZI_TLS_LISTENER = "tls";
-
-        @BeforeAll
-        static void setUpStrimziCrd() {
-            try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
-            }
-            catch (Exception e) {
-                throw new RuntimeException("Failed to set up Strimzi CRD", e);
-            }
-        }
-
-        @AfterAll
-        static void tearDownStrimziCrd() {
-            try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-                client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
-            }
-            catch (Exception e) {
-                LOGGER.atWarn().setCause(e).log("Failed to clean up Strimzi CRD");
-            }
-        }
 
         @Test
         void upstreamTlsFromStrimziKafkaRef() {
