@@ -128,6 +128,54 @@ mvn verify -pl kroxylicious-kubernetes-web-hook -Pdist
 - **Unit tests** (`*Test.java`): Test individual classes in isolation. Run with `mvn test`.
 - **KT tests** (`*KT.java`): Kubernetes integration tests requiring a real cluster and the `dist` Maven profile. Gated by `@EnabledIf` annotations that check for cluster availability.
 
+### Running KT Tests
+
+KT tests require:
+
+1. **`openssl`** on `PATH` (for generating self-signed TLS certificates).
+2. **Container image archives** built by the `dist` Maven profile:
+   ```bash
+   mvn package -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook -Pdist -am -DskipTests
+   ```
+3. **A Kubernetes cluster whose container runtime supports OCI image volumes.** The plugin end-to-end test (`*PluginEndToEndKT`) mounts third-party plugin JARs as image volumes (Kubernetes `ImageVolume` feature gate, beta since 1.33). This requires **containerd 2.0+** or **CRI-O**; the Docker runtime does not support image volumes.
+
+#### Minikube
+
+Start Minikube with containerd and ensure your current kubectl context is `minikube`:
+
+```bash
+minikube start --container-runtime=containerd
+```
+
+Then run:
+
+```bash
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+  -Dtest=io.kroxylicious.kubernetes.webhook.MinikubePluginEndToEndKT
+```
+
+The test loads and removes container images from the Minikube registry automatically. Requires `minikube` on `PATH`.
+
+#### Kind
+
+The Kind variant creates and deletes a dedicated cluster with the `ImageVolume` feature gate enabled:
+
+```bash
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+  -Dtest=io.kroxylicious.kubernetes.webhook.KindPluginEndToEndKT
+```
+
+Requires `kind` on `PATH`.
+
+#### Webhook Install Tests
+
+The webhook install tests (`*WebhookInstallKT`) verify manifest installation and sidecar injection without deploying Kafka. They have the same cluster requirements but do not need the `ImageVolume` feature gate. Run with:
+
+```bash
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+  -Dtest=io.kroxylicious.kubernetes.webhook.MinikubeWebhookInstallKT
+```
+
 ## Cross-References
 
 - **CRD definition**: See `../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml`
