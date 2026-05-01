@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -204,7 +205,7 @@ class KafkaProtocolFilterReconcilerTest {
     void shouldSetResolvedRefs(Context<KafkaProtocolFilter> context, Consumer<ConditionListAssert> asserter) {
         // given
 
-        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
 
         // when
         var update = reconciler.reconcile(FILTER, context);
@@ -237,7 +238,7 @@ class KafkaProtocolFilterReconcilerTest {
         Context<KafkaProtocolFilter> bothExist = mockContext();
         when(bothExist.getSecondaryResourcesAsStream(Secret.class)).thenReturn(secretsInContext.stream());
         when(bothExist.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(configMapsInContext.stream());
-        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
 
         // when
         var update = reconciler.reconcile(filter, bothExist);
@@ -255,7 +256,7 @@ class KafkaProtocolFilterReconcilerTest {
         Context<KafkaProtocolFilter> bothExist = mockContext();
         when(bothExist.getSecondaryResources(Secret.class)).thenReturn(Set.of());
         when(bothExist.getSecondaryResources(ConfigMap.class)).thenReturn(Set.of(CONFIG_MAP));
-        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
 
         // when
         var update = reconciler.reconcile(FILTER_NO_REFERENTS, bothExist);
@@ -275,7 +276,7 @@ class KafkaProtocolFilterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
 
         Context<KafkaProtocolFilter> context = mockContext();
 

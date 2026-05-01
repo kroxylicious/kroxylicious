@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Set;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
@@ -41,6 +42,7 @@ import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.TestFiles;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -65,10 +67,12 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(TestFiles.INSTALL_MANIFESTS_DIR,
             "*.ClusterRole.kroxylicious-operator-watched.yaml");
 
+    static final SharedInformerManager sharedInformerManager = new SharedInformerManager(rbacHandler.operatorClient(), Set.of());
+
     @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new KafkaServiceReconciler(Clock.systemUTC()))
+            .withReconciler(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager))
             .withKubernetesClient(rbacHandler.operatorClient())
             .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))

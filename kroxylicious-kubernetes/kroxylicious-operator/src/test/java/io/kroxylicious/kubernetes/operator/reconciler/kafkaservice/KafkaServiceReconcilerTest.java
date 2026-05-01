@@ -42,6 +42,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -221,7 +222,9 @@ class KafkaServiceReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        kafkaServiceReconciler = new KafkaServiceReconciler(Clock.systemUTC());
+        // SharedInformerManager is only needed for prepareEventSources(), which these tests don't call
+        SharedInformerManager mockSharedInformerManager = mock(SharedInformerManager.class);
+        kafkaServiceReconciler = new KafkaServiceReconciler(Clock.systemUTC(), mockSharedInformerManager);
     }
 
     @Test
@@ -229,7 +232,7 @@ class KafkaServiceReconcilerTest {
         // given
         final KafkaService kafkaService = new KafkaServiceBuilder().withNewMetadata().withGeneration(OBSERVED_GENERATION).endMetadata().build();
 
-        var reconciler = new KafkaServiceReconciler(TEST_CLOCK);
+        var reconciler = new KafkaServiceReconciler(TEST_CLOCK, mock(SharedInformerManager.class));
 
         Context<KafkaService> context = mock();
 

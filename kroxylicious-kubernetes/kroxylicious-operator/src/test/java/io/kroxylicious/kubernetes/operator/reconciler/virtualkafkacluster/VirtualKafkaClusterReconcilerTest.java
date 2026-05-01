@@ -61,6 +61,7 @@ import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.MetadataAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -373,7 +374,7 @@ class VirtualKafkaClusterReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        virtualKafkaClusterReconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        virtualKafkaClusterReconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
 
     }
 
@@ -751,7 +752,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
 
         Context<VirtualKafkaCluster> context = mock();
 
@@ -773,7 +774,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetIngressStatusForLoadBalancerIngress() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
@@ -805,7 +806,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetIngressStatusForOpenShiftRouteIngress() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, OPENSHIFT_ROUTE_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
@@ -834,7 +835,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldNotSetIngressStatusForLoadBalancerIngressWithNoStatus() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
         mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
@@ -865,7 +866,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetIngressStatusForClusterIPIngress() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
 
@@ -894,7 +895,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldOmitIngressIfKubernetesServiceNotPresent() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));
 
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP,
                 Set.of());
