@@ -28,6 +28,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Generates a JSON Patch (RFC 6902) to inject a Kroxylicious sidecar into a pod.
  */
 class PodMutator {
+    // TODO we should try to use the Fabric8 API to construct pojos which we then serialize to JSON
+    // rather than building the objects "my hand" (and which causes sonar to complain about the string literal keys)
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SIDECAR_VOLUME_NAME = "kroxylicious-config";
