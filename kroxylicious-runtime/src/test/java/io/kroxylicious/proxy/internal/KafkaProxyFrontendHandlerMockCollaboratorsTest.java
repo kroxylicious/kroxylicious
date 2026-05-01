@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -370,6 +371,50 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     }
 
     // --- TLS credential supplier tests ---
+
+    @Test
+    void invokeTlsCredentialSupplierReportsSynchronousFailure() throws Exception {
+        // Given
+        RuntimeException failure = new RuntimeException("manager failed");
+        when(virtualCluster.getTlsCredentialSupplierManager()).thenThrow(failure);
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+        HostPort remote = new HostPort("localhost", 9092);
+        Method method = KafkaProxyFrontendHandler.class.getDeclaredMethod("invokeTlsCredentialSupplier", HostPort.class, Channel.class, ChannelPipeline.class);
+        method.setAccessible(true);
+
+        // When
+        method.invoke(handler, remote, channel, pipeline);
+
+        // Then
+        verify(proxyChannelStateMachine).onServerException(failure);
+    }
+
+    @Test
+    void requestTlsCredentialsAppliesCredentialsOnEventLoop() {
+        // Given
+        io.kroxylicious.proxy.tls.TlsCredentials badCreds = mock(io.kroxylicious.proxy.tls.TlsCredentials.class);
+        ServerTlsCredentialSupplier supplier = context -> CompletableFuture.completedFuture(badCreds);
+        ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
+        Channel channel = mock(Channel.class);
+        EventLoop eventLoop = mock(EventLoop.class);
+        when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
+        HostPort remote = new HostPort("localhost", 9092);
+
+        // When
+        handler.requestTlsCredentials(supplier, supplierContext, remote, channel, mock(ChannelPipeline.class));
+
+        // Then
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(proxyChannelStateMachine).onServerException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected TlsCredentials implementation");
+    }
 
     @Test
     void requestTlsCredentialsReportsSupplierFailureOnEventLoop() {

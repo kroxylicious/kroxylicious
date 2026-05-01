@@ -7,8 +7,18 @@
 package io.kroxylicious.proxy.internal.tls;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SignatureException;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.Date;
+
+import javax.security.auth.x500.X500Principal;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
@@ -16,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -196,6 +208,62 @@ class TlsUtilTest {
                     .isInstanceOf(BadTlsCredentialsException.class)
                     .hasMessageContaining("does not match certificate public key algorithm");
         }
+
+        @Test
+        void acceptsMatchingUnknownAlgorithmByAlgorithmName() {
+            PrivateKey privateKey = mock(PrivateKey.class);
+            PublicKey publicKey = mock(PublicKey.class);
+            X509Certificate cert = mock(X509Certificate.class);
+            when(privateKey.getAlgorithm()).thenReturn("EdDSA");
+            when(publicKey.getAlgorithm()).thenReturn("EdDSA");
+            when(cert.getPublicKey()).thenReturn(publicKey);
+
+            TlsUtil.validateKeyAndCertMatch(privateKey, cert);
+        }
+
+        @Test
+        void rejectsRsaPrivateKeyWithWrongType() {
+            PrivateKey privateKey = mock(PrivateKey.class);
+            PublicKey publicKey = mock(RSAPublicKey.class);
+            X509Certificate cert = mock(X509Certificate.class);
+            when(privateKey.getAlgorithm()).thenReturn("RSA");
+            when(publicKey.getAlgorithm()).thenReturn("RSA");
+            when(cert.getPublicKey()).thenReturn(publicKey);
+
+            assertThatThrownBy(() -> TlsUtil.validateKeyAndCertMatch(privateKey, cert))
+                    .isInstanceOf(BadTlsCredentialsException.class)
+                    .hasMessageContaining("Expected RSAPrivateKey");
+        }
+
+        @Test
+        void rejectsRsaPublicKeyWithWrongType() {
+            PrivateKey privateKey = mock(RSAPrivateKey.class);
+            PublicKey publicKey = mock(PublicKey.class);
+            X509Certificate cert = mock(X509Certificate.class);
+            when(privateKey.getAlgorithm()).thenReturn("RSA");
+            when(publicKey.getAlgorithm()).thenReturn("RSA");
+            when(cert.getPublicKey()).thenReturn(publicKey);
+
+            assertThatThrownBy(() -> TlsUtil.validateKeyAndCertMatch(privateKey, cert))
+                    .isInstanceOf(BadTlsCredentialsException.class)
+                    .hasMessageContaining("Expected RSAPublicKey");
+        }
+
+        @Test
+        void rejectsRsaKeyWithNullModulus() {
+            RSAPrivateKey privateKey = mock(RSAPrivateKey.class);
+            RSAPublicKey publicKey = mock(RSAPublicKey.class);
+            X509Certificate cert = mock(X509Certificate.class);
+            when(privateKey.getAlgorithm()).thenReturn("RSA");
+            when(publicKey.getAlgorithm()).thenReturn("RSA");
+            when(privateKey.getModulus()).thenReturn(null);
+            when(publicKey.getModulus()).thenReturn(BigInteger.ONE);
+            when(cert.getPublicKey()).thenReturn(publicKey);
+
+            assertThatThrownBy(() -> TlsUtil.validateKeyAndCertMatch(privateKey, cert))
+                    .isInstanceOf(BadTlsCredentialsException.class)
+                    .hasMessageContaining("RSA key modulus is null");
+        }
     }
 
     @Nested
@@ -245,6 +313,92 @@ class TlsUtilTest {
                     .isInstanceOf(BadTlsCredentialsException.class)
                     .hasMessageContaining("clientAuth");
         }
+
+        @Test
+        void rejectsExpiredLeafCertificate() throws Exception {
+            PrivateKey privateKey = mockPrivateKey("TEST");
+            X509Certificate cert = mock(X509Certificate.class);
+            doThrow(new CertificateExpiredException("expired")).when(cert).checkValidity(any(Date.class));
+            when(cert.getNotBefore()).thenReturn(new Date(0));
+            when(cert.getNotAfter()).thenReturn(new Date(1));
+
+            assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ cert }))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Leaf certificate is not valid")
+                    .hasCauseInstanceOf(CertificateExpiredException.class);
+        }
+
+        @Test
+        void rejectsUnreadableExtendedKeyUsage() throws Exception {
+            PrivateKey privateKey = mockPrivateKey("TEST");
+            X509Certificate cert = mockCertificate("CN=leaf", "CN=issuer", "TEST");
+            doThrow(new CertificateParsingException("bad eku")).when(cert).getExtendedKeyUsage();
+
+            assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ cert }))
+                    .isInstanceOf(BadTlsCredentialsException.class)
+                    .hasMessageContaining("Failed to read extended key usage")
+                    .hasCauseInstanceOf(CertificateParsingException.class);
+        }
+
+        @Test
+        void rejectsInvalidCertificateChainOrder() throws Exception {
+            PrivateKey privateKey = mockPrivateKey("TEST");
+            X509Certificate leaf = mockCertificate("CN=leaf", "CN=issuer", "TEST");
+            X509Certificate wrongIssuer = mockCertificate("CN=wrong", "CN=root", "TEST");
+
+            assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ leaf, wrongIssuer }))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Certificate chain order is invalid");
+        }
+
+        @Test
+        void rejectsCertificateSignatureFailure() throws Exception {
+            PrivateKey privateKey = mockPrivateKey("TEST");
+            X509Certificate leaf = mockCertificate("CN=leaf", "CN=issuer", "TEST");
+            X509Certificate issuer = mockCertificate("CN=issuer", "CN=root", "TEST");
+            PublicKey issuerPublicKey = issuer.getPublicKey();
+            doThrow(new SignatureException("bad signature")).when(leaf).verify(issuerPublicKey);
+
+            assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ leaf, issuer }))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("signature verification failed")
+                    .hasCauseInstanceOf(SignatureException.class);
+        }
+
+        @Test
+        void rejectsInvalidIntermediateCertificateDates() throws Exception {
+            PrivateKey privateKey = mockPrivateKey("TEST");
+            X509Certificate leaf = mockCertificate("CN=leaf", "CN=issuer", "TEST");
+            X509Certificate issuer = mockCertificate("CN=issuer", "CN=root", "TEST");
+            doThrow(new CertificateExpiredException("expired")).when(issuer).checkValidity(any(Date.class));
+            when(issuer.getNotBefore()).thenReturn(new Date(0));
+            when(issuer.getNotAfter()).thenReturn(new Date(1));
+
+            assertThatThrownBy(() -> TlsUtil.validateCertificateChain(privateKey, new X509Certificate[]{ leaf, issuer }))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("Intermediate certificate at position 0 is not valid")
+                    .hasCauseInstanceOf(CertificateExpiredException.class);
+        }
+    }
+
+    private static PrivateKey mockPrivateKey(String algorithm) {
+        PrivateKey privateKey = mock(PrivateKey.class);
+        when(privateKey.getAlgorithm()).thenReturn(algorithm);
+        return privateKey;
+    }
+
+    private static X509Certificate mockCertificate(String subjectName, String issuerName, String publicKeyAlgorithm) throws Exception {
+        X509Certificate cert = mock(X509Certificate.class);
+        PublicKey publicKey = mock(PublicKey.class);
+        when(publicKey.getAlgorithm()).thenReturn(publicKeyAlgorithm);
+        when(cert.getPublicKey()).thenReturn(publicKey);
+        when(cert.getExtendedKeyUsage()).thenReturn(null);
+        when(cert.getBasicConstraints()).thenReturn(-1);
+        when(cert.getSubjectX500Principal()).thenReturn(new X500Principal(subjectName));
+        when(cert.getIssuerX500Principal()).thenReturn(new X500Principal(issuerName));
+        when(cert.getNotBefore()).thenReturn(new Date(0));
+        when(cert.getNotAfter()).thenReturn(new Date(Long.MAX_VALUE));
+        return cert;
     }
 
 }

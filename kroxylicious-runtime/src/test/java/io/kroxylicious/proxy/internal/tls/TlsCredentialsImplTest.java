@@ -86,6 +86,26 @@ class TlsCredentialsImplTest {
     }
 
     @Test
+    void equalsReturnsTrueForSameInstance() {
+        PrivateKey key = mock(PrivateKey.class);
+        X509Certificate cert = mock(X509Certificate.class);
+
+        TlsCredentialsImpl creds = new TlsCredentialsImpl(key, new X509Certificate[]{ cert });
+
+        assertThat(creds.equals(creds)).isTrue();
+    }
+
+    @Test
+    void equalsReturnsFalseForDifferentType() {
+        PrivateKey key = mock(PrivateKey.class);
+        X509Certificate cert = mock(X509Certificate.class);
+
+        TlsCredentialsImpl creds = new TlsCredentialsImpl(key, new X509Certificate[]{ cert });
+
+        assertThat(creds).isNotEqualTo("not credentials");
+    }
+
+    @Test
     void equalsAndHashCodeUseCertificateChainContents() {
         PrivateKey key = mock(PrivateKey.class);
         X509Certificate cert = mock(X509Certificate.class);
