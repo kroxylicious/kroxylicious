@@ -156,7 +156,7 @@ class AdmissionHandler implements HttpHandler {
             KroxyliciousSidecarConfigSpec effectiveSpec = applyDelegatedOverrides(
                     sidecarConfig.getSpec(), annotations, podName, namespace);
 
-            String image = resolveImage(sidecarConfig);
+            String image = proxyImage(sidecarConfig);
             String jsonPatch = PodMutator.createPatch(
                     pod, effectiveSpec, image, useNativeSidecar, useOciImageVolumes);
 
@@ -400,8 +400,7 @@ class AdmissionHandler implements HttpHandler {
     }
 
     @NonNull
-    private String resolveImage(@NonNull KroxyliciousSidecarConfig config) {
-        // TODO rename to proxyImage()
+    private String proxyImage(@NonNull KroxyliciousSidecarConfig config) {
         String image = config.getSpec().getProxyImage();
         return image != null ? image : proxyImage;
     }

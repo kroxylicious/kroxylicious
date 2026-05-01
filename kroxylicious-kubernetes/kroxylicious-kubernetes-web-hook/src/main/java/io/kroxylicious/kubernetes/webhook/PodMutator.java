@@ -10,16 +10,29 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.ImageVolumeSourceBuilder;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodSecurityContextBuilder;
+import io.fabric8.kubernetes.api.model.Probe;
+import io.fabric8.kubernetes.api.model.ProbeBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -28,14 +41,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Generates a JSON Patch (RFC 6902) to inject a Kroxylicious sidecar into a pod.
  */
 class PodMutator {
-    // TODO we should try to use the Fabric8 API to construct pojos which we then serialize to JSON
-    // rather than building the objects "my hand" (and which causes sonar to complain about the string literal keys)
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String SIDECAR_VOLUME_NAME = "kroxylicious-config";
-    private static final String UPSTREAM_TLS_VOLUME_NAME = "upstream-tls";
+    static final String TARGET_CLUSTER_TLS_VOLUME_NAME = "target-cluster-tls";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
-    private static final String UPSTREAM_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/upstream";
+    static final String TARGET_CLUSTER_TLS_MOUNT_PATH = "/opt/kroxylicious/tls/target";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
     private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
@@ -108,11 +119,11 @@ class PodMutator {
      */
     @Nullable
     static String resolveUpstreamTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
-        UpstreamTls tls = spec.getUpstreamTls();
+        TargetClusterTls tls = spec.getTargetClusterTls();
         if (tls == null || tls.getTrustAnchorSecretRef() == null) {
             return null;
         }
-        return UPSTREAM_TLS_MOUNT_PATH + "/" + tls.getTrustAnchorSecretRef().getKey();
+        return TARGET_CLUSTER_TLS_MOUNT_PATH + "/" + tls.getTrustAnchorSecretRef().getKey();
     }
 
     private static void addAnnotationOps(
@@ -122,10 +133,10 @@ class PodMutator {
 
         Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
         if (existing == null || existing.isEmpty()) {
-            ObjectNode annotations = MAPPER.createObjectNode();
-            annotations.put(Annotations.PROXY_CONFIG, proxyConfig);
-            annotations.put(Annotations.SIDECAR_STATUS, "injected");
-            addOp(patch, OP_ADD, "/metadata/annotations", annotations);
+            addOp(patch, OP_ADD, "/metadata/annotations",
+                    toJson(Map.of(
+                            Annotations.PROXY_CONFIG, proxyConfig,
+                            Annotations.SIDECAR_STATUS, "injected")));
         }
         else {
             addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.PROXY_CONFIG), proxyConfig);
@@ -142,68 +153,70 @@ class PodMutator {
                 && pod.getSpec().getVolumes() != null
                 && !pod.getSpec().getVolumes().isEmpty();
 
-        ObjectNode configVolume = buildProxyConfigVolume();
+        Volume configVolume = buildProxyConfigVolume();
         if (hasVolumes) {
-            addOp(patch, OP_ADD, "/spec/volumes/-", configVolume);
+            addOp(patch, OP_ADD, "/spec/volumes/-", toJson(configVolume));
         }
         else {
-            ArrayNode volumes = MAPPER.createArrayNode();
-            volumes.add(configVolume);
-            addOp(patch, OP_ADD, "/spec/volumes", volumes);
+            addOp(patch, OP_ADD, "/spec/volumes", toJson(List.of(configVolume)));
         }
 
-        // Upstream TLS volume (Secret)
-        UpstreamTls tls = spec.getUpstreamTls();
+        TargetClusterTls tls = spec.getTargetClusterTls();
         if (tls != null && tls.getTrustAnchorSecretRef() != null) {
-            TrustAnchorSecretRef secretRef = tls.getTrustAnchorSecretRef();
-            ObjectNode tlsVolume = MAPPER.createObjectNode();
-            tlsVolume.put("name", UPSTREAM_TLS_VOLUME_NAME);
-            ObjectNode secret = tlsVolume.putObject("secret");
-            secret.put("secretName", secretRef.getName());
-            addOp(patch, OP_ADD, "/spec/volumes/-", tlsVolume);
+            addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildTlsSecretVolume(tls)));
         }
 
-        // Plugin volumes
         List<Plugins> plugins = spec.getPlugins();
         if (plugins != null) {
             for (Plugins plugin : plugins) {
-                addOp(patch, OP_ADD, "/spec/volumes/-", buildPluginVolume(useOciImageVolumes, plugin));
+                addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildPluginVolume(useOciImageVolumes, plugin)));
             }
         }
     }
 
     @NonNull
-    private static ObjectNode buildPluginVolume(boolean useOciImageVolumes, Plugins plugin) {
-        ObjectNode pluginVolume = MAPPER.createObjectNode();
-        pluginVolume.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
+    private static Volume buildTlsSecretVolume(TargetClusterTls tls) {
+        TrustAnchorSecretRef secretRef = tls.getTrustAnchorSecretRef();
+        return new VolumeBuilder()
+                .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)
+                .withNewSecret()
+                .withSecretName(secretRef.getName())
+                .endSecret()
+                .build();
+    }
+
+    @NonNull
+    private static Volume buildPluginVolume(boolean useOciImageVolumes, Plugins plugin) {
+        VolumeBuilder builder = new VolumeBuilder()
+                .withName(PLUGIN_VOLUME_PREFIX + plugin.getName());
 
         if (useOciImageVolumes) {
-            ObjectNode image = pluginVolume.putObject("image");
-            image.put("reference", plugin.getImage().getReference());
+            ImageVolumeSourceBuilder imageBuilder = new ImageVolumeSourceBuilder()
+                    .withReference(plugin.getImage().getReference());
             if (plugin.getImage().getPullPolicy() != null) {
-                image.put("pullPolicy", plugin.getImage().getPullPolicy().getValue());
+                imageBuilder.withPullPolicy(plugin.getImage().getPullPolicy().getValue());
             }
+            builder.withImage(imageBuilder.build());
         }
         else {
-            // Fallback: emptyDir volume, populated by an init container
-            pluginVolume.putObject("emptyDir");
+            builder.withEmptyDir(new EmptyDirVolumeSource());
         }
-        return pluginVolume;
+        return builder.build();
     }
 
     @NonNull
-    private static ObjectNode buildProxyConfigVolume() {
-        // Use downwardAPI to mount a volume such that the container's proxy-config.yaml has the content of the
-        // kroxylicious.io/proxy-config annotation's value.
-        ObjectNode configVolume = MAPPER.createObjectNode();
-        configVolume.put("name", SIDECAR_VOLUME_NAME);
-        ObjectNode downwardAPI = configVolume.putObject("downwardAPI");
-        ArrayNode items = downwardAPI.putArray("items");
-        ObjectNode item = items.addObject();
-        item.put("path", CONFIG_FILE_NAME);
-        ObjectNode fieldRef = item.putObject("fieldRef");
-        fieldRef.put("fieldPath", "metadata.annotations['" + Annotations.PROXY_CONFIG + "']");
-        return configVolume;
+    private static Volume buildProxyConfigVolume() {
+        return new VolumeBuilder()
+                .withName(SIDECAR_VOLUME_NAME)
+                .withNewDownwardAPI()
+                .addNewItem()
+                .withPath(CONFIG_FILE_NAME)
+                .withNewFieldRef()
+                .withFieldPath("metadata.annotations['" + Annotations.PROXY_CONFIG + "']")
+                .endFieldRef()
+                .endItem()
+                .endDownwardAPI()
+                .build();
     }
 
     /**
@@ -222,26 +235,22 @@ class PodMutator {
         }
 
         for (Plugins plugin : plugins) {
-            ObjectNode initContainer = MAPPER.createObjectNode();
-            initContainer.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy");
-            initContainer.put("image", plugin.getImage().getReference());
-
-            ArrayNode command = initContainer.putArray("command");
-            command.add("sh");
-            command.add("-c");
-            command.add("cp -r /. /plugins/");
-
-            ArrayNode mounts = initContainer.putArray("volumeMounts");
-            ObjectNode mount = mounts.addObject();
-            mount.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
-            mount.put("mountPath", "/plugins");
-
-            // Security context for init container
-            ObjectNode secCtx = initContainer.putObject("securityContext");
-            secCtx.put("allowPrivilegeEscalation", false);
-            secCtx.put("readOnlyRootFilesystem", true);
-            ObjectNode capabilities = secCtx.putObject("capabilities");
-            capabilities.putArray("drop").add("ALL");
+            Container initContainer = new ContainerBuilder()
+                    .withName(PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy")
+                    .withImage(plugin.getImage().getReference())
+                    .withCommand("sh", "-c", "cp -r /. /plugins/")
+                    .addNewVolumeMount()
+                    .withName(PLUGIN_VOLUME_PREFIX + plugin.getName())
+                    .withMountPath("/plugins")
+                    .endVolumeMount()
+                    .withNewSecurityContext()
+                    .withAllowPrivilegeEscalation(false)
+                    .withReadOnlyRootFilesystem(true)
+                    .withNewCapabilities()
+                    .addToDrop("ALL")
+                    .endCapabilities()
+                    .endSecurityContext()
+                    .build();
 
             addInitContainer(patch, pod, initContainer);
         }
@@ -256,78 +265,64 @@ class PodMutator {
                                               boolean useNativeSidecar,
                                               boolean useOciImageVolumes) {
 
-        ObjectNode container = MAPPER.createObjectNode();
-        container.put("name", InjectionDecision.SIDECAR_CONTAINER_NAME);
-        container.put("image", proxyImage);
+        ContainerBuilder builder = new ContainerBuilder()
+                .withName(InjectionDecision.SIDECAR_CONTAINER_NAME)
+                .withImage(proxyImage);
 
         if (useNativeSidecar) {
-            container.put("restartPolicy", "Always");
+            builder.withRestartPolicy("Always");
         }
 
-        ArrayNode args = container.putArray("args");
-        args.add("--config");
-        args.add(CONFIG_MOUNT_PATH);
+        builder.withArgs("--config", CONFIG_MOUNT_PATH)
+                .withNewSecurityContext()
+                .withAllowPrivilegeEscalation(false)
+                .withReadOnlyRootFilesystem(true)
+                .withNewCapabilities()
+                .addToDrop("ALL")
+                .endCapabilities()
+                .endSecurityContext()
+                .addNewPort()
+                .withContainerPort(managementPort)
+                .withName(MANAGEMENT_PORT_NAME)
+                .withProtocol("TCP")
+                .endPort()
+                .withStartupProbe(buildProbe(5, 2, 30))
+                .withLivenessProbe(buildProbe(30, 10, 3))
+                .withReadinessProbe(buildProbe(5, 2, 5));
 
-        // Security context
-        ObjectNode secCtx = container.putObject("securityContext");
-        secCtx.put("allowPrivilegeEscalation", false);
-        secCtx.put("readOnlyRootFilesystem", true);
-        ObjectNode capabilities = secCtx.putObject("capabilities");
-        ArrayNode drop = capabilities.putArray("drop");
-        drop.add("ALL");
+        builder.addNewVolumeMount()
+                .withName(SIDECAR_VOLUME_NAME)
+                .withMountPath(CONFIG_MOUNT_PATH)
+                .withSubPath(CONFIG_FILE_NAME)
+                .withReadOnly(true)
+                .endVolumeMount();
 
-        // Ports
-        ArrayNode ports = container.putArray("ports");
-        ObjectNode mgmtPort = ports.addObject();
-        mgmtPort.put("containerPort", managementPort);
-        mgmtPort.put("name", MANAGEMENT_PORT_NAME);
-        mgmtPort.put("protocol", "TCP");
-
-        // Probes
-        addProbe(container, "startupProbe", 5, 2, 30);
-        addProbe(container, "livenessProbe", 30, 10, 3);
-        addProbe(container, "readinessProbe", 5, 2, 5);
-
-        // Volume mounts
-        ArrayNode volumeMounts = container.putArray("volumeMounts");
-        ObjectNode configMount = volumeMounts.addObject();
-        configMount.put("name", SIDECAR_VOLUME_NAME);
-        configMount.put("mountPath", CONFIG_MOUNT_PATH);
-        configMount.put("subPath", CONFIG_FILE_NAME);
-        configMount.put("readOnly", true);
-
-        // Upstream TLS volume mount
-        if (spec.getUpstreamTls() != null && spec.getUpstreamTls().getTrustAnchorSecretRef() != null) {
-            ObjectNode tlsMount = volumeMounts.addObject();
-            tlsMount.put("name", UPSTREAM_TLS_VOLUME_NAME);
-            tlsMount.put("mountPath", UPSTREAM_TLS_MOUNT_PATH);
-            tlsMount.put("readOnly", true);
+        if (spec.getTargetClusterTls() != null && spec.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
+            builder.addNewVolumeMount()
+                    .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)
+                    .withMountPath(TARGET_CLUSTER_TLS_MOUNT_PATH)
+                    .withReadOnly(true)
+                    .endVolumeMount();
         }
 
-        // Plugin volume mounts
         List<Plugins> plugins = spec.getPlugins();
         if (plugins != null) {
             for (Plugins plugin : plugins) {
-                ObjectNode pluginMount = volumeMounts.addObject();
-                pluginMount.put("name", PLUGIN_VOLUME_PREFIX + plugin.getName());
-                pluginMount.put("mountPath", PLUGINS_BASE_PATH + "/" + plugin.getName());
-                pluginMount.put("readOnly", true);
+                builder.addNewVolumeMount()
+                        .withName(PLUGIN_VOLUME_PREFIX + plugin.getName())
+                        .withMountPath(PLUGINS_BASE_PATH + "/" + plugin.getName())
+                        .withReadOnly(true)
+                        .endVolumeMount();
             }
         }
 
-        // Resources
         if (spec.getResources() != null) {
-            try {
-                String resourcesJson = MAPPER.writeValueAsString(spec.getResources());
-                container.set("resources", MAPPER.readTree(resourcesJson));
-            }
-            catch (JsonProcessingException e) {
-                // Ignore resource serialization failures — sidecar will run without limits
-            }
+            builder.withResources(spec.getResources());
         }
 
-        container.put("terminationMessagePolicy", "FallbackToLogsOnError");
+        builder.withTerminationMessagePolicy("FallbackToLogsOnError");
 
+        Container container = builder.build();
         if (useNativeSidecar) {
             addInitContainer(patch, pod, container);
         }
@@ -336,56 +331,50 @@ class PodMutator {
         }
     }
 
-    private static void addRegularContainer(ArrayNode patch, Pod pod, ObjectNode container) {
+    private static void addRegularContainer(ArrayNode patch, Pod pod, Container container) {
         boolean hasContainers = pod.getSpec() != null
                 && pod.getSpec().getContainers() != null
                 && !pod.getSpec().getContainers().isEmpty();
 
+        JsonNode containerNode = toJson(container);
         if (hasContainers) {
-            addOp(patch, OP_ADD, "/spec/containers/-", container);
+            addOp(patch, OP_ADD, "/spec/containers/-", containerNode);
         }
         else {
-            ArrayNode containers = MAPPER.createArrayNode();
-            containers.add(container);
-            addOp(patch, OP_ADD, "/spec/containers", containers);
+            addOp(patch, OP_ADD, "/spec/containers", toJson(List.of(container)));
         }
     }
 
-    private static void addInitContainer(ArrayNode patch, Pod pod, ObjectNode container) {
+    private static void addInitContainer(ArrayNode patch, Pod pod, Container container) {
         boolean hasInitContainers = pod.getSpec() != null
                 && pod.getSpec().getInitContainers() != null
                 && !pod.getSpec().getInitContainers().isEmpty();
 
+        JsonNode containerNode = toJson(container);
         if (hasInitContainers) {
-            addOp(patch, OP_ADD, "/spec/initContainers/-", container);
+            addOp(patch, OP_ADD, "/spec/initContainers/-", containerNode);
         }
         else {
-            ArrayNode initContainers = MAPPER.createArrayNode();
-            initContainers.add(container);
-            addOp(patch, OP_ADD, "/spec/initContainers", initContainers);
+            addOp(patch, OP_ADD, "/spec/initContainers", toJson(List.of(container)));
         }
     }
 
-    private static void addProbe(
-                                 ObjectNode container,
-                                 String probeName,
-                                 int initialDelay,
-                                 int period,
-                                 int failureThreshold) {
-
-        ObjectNode probe = container.putObject(probeName);
-        ObjectNode httpGet = probe.putObject("httpGet");
-        httpGet.put("path", "/livez");
-        httpGet.put("port", MANAGEMENT_PORT_NAME);
-        probe.put("initialDelaySeconds", initialDelay);
-        probe.put("periodSeconds", period);
-        probe.put("failureThreshold", failureThreshold);
-        probe.put("timeoutSeconds", 1);
+    private static Probe buildProbe(
+                                    int initialDelay,
+                                    int period,
+                                    int failureThreshold) {
+        return new ProbeBuilder()
+                .withNewHttpGet()
+                .withPath("/livez")
+                .withPort(new IntOrString(MANAGEMENT_PORT_NAME))
+                .endHttpGet()
+                .withInitialDelaySeconds(initialDelay)
+                .withPeriodSeconds(period)
+                .withFailureThreshold(failureThreshold)
+                .withTimeoutSeconds(1)
+                .build();
     }
 
-    @SuppressWarnings("java:S1192") // dupe strings:
-    // "value": env var "value" here is not the same as json path op "value" later on
-    // "/spec/containers/": could use a constant, but it would make the code harder to understand
     private static void addBootstrapEnvVarOps(
                                               ArrayNode patch,
                                               Pod pod,
@@ -402,18 +391,19 @@ class PodMutator {
         }
 
         String bootstrapValue = "localhost:" + bootstrapPort;
-        List<io.fabric8.kubernetes.api.model.Container> containers = pod.getSpec().getContainers();
+        List<Container> containers = pod.getSpec().getContainers();
 
         for (int i = 0; i < containers.size(); i++) {
-            io.fabric8.kubernetes.api.model.Container c = containers.get(i);
+            Container c = containers.get(i);
             if (InjectionDecision.SIDECAR_CONTAINER_NAME.equals(c.getName())) {
                 continue;
             }
 
             boolean hasEnv = c.getEnv() != null && !c.getEnv().isEmpty();
-            ObjectNode envVar = MAPPER.createObjectNode();
-            envVar.put("name", KAFKA_BOOTSTRAP_SERVERS_ENV);
-            envVar.put("value", bootstrapValue);
+            EnvVar envVar = new EnvVarBuilder()
+                    .withName(KAFKA_BOOTSTRAP_SERVERS_ENV)
+                    .withValue(bootstrapValue)
+                    .build();
 
             if (hasEnv) {
                 int existingIdx = findEnvVarIndex(c.getEnv(), KAFKA_BOOTSTRAP_SERVERS_ENV);
@@ -425,22 +415,19 @@ class PodMutator {
                 else {
                     addOp(patch, OP_ADD,
                             "/spec/containers/" + i + "/env/-",
-                            envVar);
+                            toJson(envVar));
                 }
             }
             else {
-                ArrayNode envArray = MAPPER.createArrayNode();
-                envArray.add(envVar);
                 addOp(patch, OP_ADD,
                         "/spec/containers/" + i + "/env",
-                        envArray);
+                        toJson(List.of(envVar)));
             }
         }
     }
 
-    // TODO add an import and avoid the fq name below
     private static int findEnvVarIndex(
-                                       List<io.fabric8.kubernetes.api.model.EnvVar> env,
+                                       List<EnvVar> env,
                                        String name) {
         for (int i = 0; i < env.size(); i++) {
             if (name.equals(env.get(i).getName())) {
@@ -456,25 +443,33 @@ class PodMutator {
         }
 
         if (pod.getSpec().getSecurityContext() == null) {
-            ObjectNode secCtx = MAPPER.createObjectNode();
-            secCtx.put("runAsNonRoot", true);
-            ObjectNode seccompProfile = secCtx.putObject("seccompProfile");
-            seccompProfile.put("type", "RuntimeDefault");
-            addOp(patch, OP_ADD, "/spec/securityContext", secCtx);
+            addOp(patch, OP_ADD, "/spec/securityContext",
+                    toJson(new PodSecurityContextBuilder()
+                            .withRunAsNonRoot(true)
+                            .withNewSeccompProfile()
+                            .withType("RuntimeDefault")
+                            .endSeccompProfile()
+                            .build()));
         }
     }
 
-    @SuppressWarnings("java:S1192") // dupe "value" strings, but env var "value" not the same as json path op "value"
-    private static void addOp(ArrayNode patch, String op, String path, Object value) {
+    private static JsonNode toJson(Object value) {
+        return MAPPER.valueToTree(value);
+    }
+
+    private static void addOp(ArrayNode patch, String op, String path, String value) {
         ObjectNode opNode = MAPPER.createObjectNode();
         opNode.put("op", op);
         opNode.put("path", path);
-        if (value instanceof String s) {
-            opNode.put("value", s);
-        }
-        else if (value instanceof com.fasterxml.jackson.databind.JsonNode jsonNode) {
-            opNode.set("value", jsonNode);
-        }
+        opNode.put("value", value);
+        patch.add(opNode);
+    }
+
+    private static void addOp(ArrayNode patch, String op, String path, JsonNode value) {
+        ObjectNode opNode = MAPPER.createObjectNode();
+        opNode.put("op", op);
+        opNode.put("path", path);
+        opNode.set("value", value);
         patch.add(opNode);
     }
 

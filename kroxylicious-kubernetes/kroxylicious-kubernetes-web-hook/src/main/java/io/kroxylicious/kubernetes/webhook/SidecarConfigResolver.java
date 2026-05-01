@@ -36,21 +36,35 @@ class SidecarConfigResolver implements Closeable {
     private final Map<String, Map<String, KroxyliciousSidecarConfig>> cache = new ConcurrentHashMap<>();
     @Nullable
     private final SharedIndexInformer<KroxyliciousSidecarConfig> informer;
+    @Nullable
+    private final SidecarConfigStatusUpdater statusUpdater;
 
     /**
      * Creates a resolver that watches all namespaces using the given client.
+     * This blocks while the initial {@code KroxyliciousSidecarConfig} are loaded.
      */
-    SidecarConfigResolver(@NonNull KubernetesClient client) {
+    SidecarConfigResolver(
+                          @NonNull KubernetesClient client,
+                          @NonNull SidecarConfigStatusUpdater statusUpdater) {
+        this.statusUpdater = statusUpdater;
         this.informer = client.resources(KroxyliciousSidecarConfig.class)
                 .inAnyNamespace()
-                .inform(new Handler());
-        // TODO comment that this blocks, because that's necessary to avoid a race condition during startup
+                .inform(new Handler()); // blocks for initial watch and list
+    }
+
+    /**
+     * Creates a resolver with no informer and no status updater, for testing.
+     */
+    SidecarConfigResolver() {
+        this(null);
     }
 
     /**
      * Creates a resolver with no informer, for testing.
      */
-    SidecarConfigResolver() {
+    @VisibleForTesting
+    SidecarConfigResolver(@Nullable SidecarConfigStatusUpdater statusUpdater) {
+        this.statusUpdater = statusUpdater;
         this.informer = null;
     }
 
@@ -115,6 +129,24 @@ class SidecarConfigResolver implements Closeable {
     }
 
     /**
+     * Simulates an informer add event, for testing.
+     */
+    @VisibleForTesting
+    void simulateAdd(@NonNull KroxyliciousSidecarConfig config) {
+        new Handler().onAdd(config);
+    }
+
+    /**
+     * Simulates an informer update event, for testing.
+     */
+    @VisibleForTesting
+    void simulateUpdate(
+                        @NonNull KroxyliciousSidecarConfig oldConfig,
+                        @NonNull KroxyliciousSidecarConfig newConfig) {
+        new Handler().onUpdate(oldConfig, newConfig);
+    }
+
+    /**
      * Removes a config from the cache, for testing.
      */
     @VisibleForTesting
@@ -142,6 +174,9 @@ class SidecarConfigResolver implements Closeable {
         @Override
         public void onAdd(KroxyliciousSidecarConfig obj) {
             put(obj);
+            if (statusUpdater != null) {
+                statusUpdater.setReady(obj);
+            }
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, obj.getMetadata().getNamespace())
                     .addKeyValue(WebhookLoggingKeys.NAME, obj.getMetadata().getName())
@@ -153,6 +188,9 @@ class SidecarConfigResolver implements Closeable {
                              KroxyliciousSidecarConfig oldObj,
                              KroxyliciousSidecarConfig newObj) {
             put(newObj);
+            if (statusUpdater != null) {
+                statusUpdater.setReady(newObj);
+            }
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, newObj.getMetadata().getNamespace())
                     .addKeyValue(WebhookLoggingKeys.NAME, newObj.getMetadata().getName())
