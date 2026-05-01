@@ -31,6 +31,8 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigBuilder;
 import io.kroxylicious.test.ShellUtils;
 
@@ -218,13 +220,17 @@ abstract class AbstractWebhookInstallKT {
         client.resource(sidecarConfig).create();
 
         LOGGER.info("Waiting for webhook to set Ready condition on sidecar config");
-        assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
-                "kubectl", "wait", "-n", TEST_NS,
-                "--for=condition=Ready",
-                "ksc/test-config",
-                "--timeout=30s"))
-                .as("KroxyliciousSidecarConfig should become Ready")
-                .isTrue();
+        client.resources(KroxyliciousSidecarConfig.class)
+                .inNamespace(TEST_NS)
+                .withName("test-config")
+                .waitUntilCondition(
+                        ksc -> ksc != null
+                                && ksc.getStatus() != null
+                                && ksc.getStatus().getConditions() != null
+                                && ksc.getStatus().getConditions().stream()
+                                        .anyMatch(c -> Condition.Type.Ready.equals(c.getType())
+                                                && Condition.Status.TRUE.equals(c.getStatus())),
+                        30, TimeUnit.SECONDS);
     }
 
     private void verifyInjection() {
