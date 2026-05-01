@@ -27,7 +27,7 @@
         <io.kroxylicious.webhook.image.archive>target/kroxylicious-webhook.img.tar.gz</io.kroxylicious.webhook.image.archive>
         <!-- Used in packaging/install/03.Deployment manifest for the KROXYLICIOUS_IMAGE env var -->
         <io.kroxylicious.proxy.image.name>quay.io/kroxylicious/proxy:${project.version}</io.kroxylicious.proxy.image.name>
-        <io.kroxylicious.proxy.image.archive>../kroxylicious-app/target/kroxylicious-proxy.img.tar.gz</io.kroxylicious.proxy.image.archive>
+        <io.kroxylicious.proxy.image.archive>../../kroxylicious-app/target/kroxylicious-proxy.img.tar.gz</io.kroxylicious.proxy.image.archive>
         <!-- Test plugin OCI image (simple-transform filter packaged as a scratch image) -->
         <io.kroxylicious.test.plugin.image.name>localhost/kroxylicious/test-plugin:latest</io.kroxylicious.test.plugin.image.name>
         <io.kroxylicious.test.plugin.image.archive>target/test-plugin.img.tar.gz</io.kroxylicious.test.plugin.image.archive>
