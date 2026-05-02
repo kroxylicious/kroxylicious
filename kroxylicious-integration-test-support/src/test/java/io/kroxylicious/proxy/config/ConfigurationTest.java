@@ -678,7 +678,7 @@ class ConfigurationTest {
                 null);
 
         // When
-        var model = configuration.virtualClusterModel();
+        var model = configuration.virtualClusterModel(null);
 
         // Then
         assertThat(model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst())

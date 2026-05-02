@@ -468,7 +468,7 @@ class ConfigParserTest {
                         bootstrapAddress: cluster1:9192
                 """);
         // When
-        var actualValidClusters = configurationModel.virtualClusterModel();
+        var actualValidClusters = configurationModel.virtualClusterModel(null);
 
         // Then
         assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo("myAwesomeCluster");
@@ -489,7 +489,7 @@ class ConfigParserTest {
                         bootstrapAddress: cluster1:9192
                 """);
         // When/Then
-        assertThatThrownBy(configuration::virtualClusterModel).isInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(() -> configuration.virtualClusterModel(null)).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
         // We can't assert the full message as the link will change with every release
     }
@@ -894,7 +894,7 @@ class ConfigParserTest {
                                 advertisedBrokerAddressPattern: cluster1-broker-$(nodeId).example:9192
                 """.formatted(keyStore, TlsTestConstants.STOREPASS.getProvidedPassword(), bootstrapAddress));
         // When
-        var models = configurationModel.virtualClusterModel();
+        var models = configurationModel.virtualClusterModel(null);
 
         // Then
         assertThat(models)
@@ -919,7 +919,7 @@ class ConfigParserTest {
                                 bootstrapAddress: "%s"
                 """.formatted(bootstrapAddress));
         // When
-        var models = configurationModel.virtualClusterModel();
+        var models = configurationModel.virtualClusterModel(null);
 
         // Then
         assertThat(models)
@@ -998,6 +998,105 @@ class ConfigParserTest {
         var mapper = ConfigParser.createBaseObjectMapper();
         var result = mapper.writeValueAsString(new UnannotatedDurationRecord(Duration.ofMinutes(5)));
         assertThat(result).contains("5m");
+    }
+
+    @Test
+    void shouldSupportTargetClusterTlsConfigurationWithoutCredentialSupplier() {
+        // When - test backward compatibility, existing configs without tlsCredentialSupplier should work
+        var configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      trust:
+                        storeFile: /tmp/foo.jks
+                        storePassword:
+                          password: changeit
+                        storeType: JKS
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """);
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::virtualClusters, InstanceOfAssertFactories.collection(VirtualCluster.class))
+                .singleElement()
+                .extracting(VirtualCluster::targetCluster)
+                .satisfies(targetCluster -> {
+                    assertThat(targetCluster.tls()).isPresent();
+                    assertThat(targetCluster.tls().get().credentialSupplier()).isNull();
+                });
+    }
+
+    @Test
+    void shouldValidateTargetClusterTlsCredentialSupplierInvalidPlugin() {
+        // Given/When/Then - verifies that configuration validation fails fast at startup for invalid plugin
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      credentialSupplier:
+                        type: UnknownSupplier
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("Unknown io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory plugin instance");
+    }
+
+    @Test
+    void shouldValidateTargetClusterTlsCredentialSupplierInvalidPluginWithConfig() {
+        // Given/When/Then - verifies that configuration validation fails fast at startup for invalid plugin with config
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      credentialSupplier:
+                        type: UnknownSupplier
+                        config:
+                          path: /etc/certs
+                          refreshInterval: 60s
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("Unknown io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory plugin instance");
+    }
+
+    @Test
+    void shouldRejectTargetClusterTlsCredentialSupplierWithoutType() {
+        // Given/When/Then
+        assertThatThrownBy(() -> configParser.parseConfiguration("""
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                    tls:
+                      credentialSupplier:
+                        config:
+                          path: /etc/certs
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """))
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("Missing external type id property 'type'");
     }
 
     private record NonSerializableConfig(String id) {

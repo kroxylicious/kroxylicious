@@ -31,6 +31,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -43,6 +44,7 @@ import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.SslContextBuildException;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
@@ -82,6 +84,17 @@ public class VirtualClusterModel {
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
+    private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
+
+    @VisibleForTesting
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
+    }
+
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
                                boolean logNetwork,
@@ -90,6 +103,18 @@ public class VirtualClusterModel {
                                CacheConfiguration topicNameCacheConfig,
                                @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
                                Duration drainTimeout) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig, transportSubjectBuilderConfig, drainTimeout, null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               CacheConfiguration topicNameCacheConfig,
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
+                               Duration drainTimeout,
+                               @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
@@ -98,6 +123,16 @@ public class VirtualClusterModel {
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
+
+        if (pluginFactoryRegistry != null) {
+            TlsCredentialSupplierConfig definition = targetCluster.tls()
+                    .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
+                    .orElse(null);
+            this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, definition);
+        }
+        else {
+            this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
+        }
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -188,7 +223,36 @@ public class VirtualClusterModel {
         return upstreamSslContext;
     }
 
-    private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
+    /**
+     * Returns the TLS credential supplier manager for this virtual cluster.
+     * This is never null; if no supplier is configured, an unconfigured manager is returned.
+     *
+     * @return The TLS credential supplier manager
+     */
+    public TlsCredentialSupplierManager getTlsCredentialSupplierManager() {
+        return tlsCredentialSupplierManager;
+    }
+
+    /**
+     * Closes resources associated with this virtual cluster.
+     * Currently closes the TLS credential supplier manager.
+     */
+    public void close() {
+        tlsCredentialSupplierManager.close();
+    }
+
+    /**
+     * Checks if this virtual cluster uses dynamic TLS credential supplier.
+     *
+     * @return true if a credential supplier is configured
+     */
+    public boolean usesDynamicTlsCredentials() {
+        return targetCluster.tls()
+                .map(tls -> tls.credentialSupplier() != null)
+                .orElse(false);
+    }
+
+    public static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
         final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
         return new NettyTrustProvider(trustProvider);
     }
@@ -219,14 +283,14 @@ public class VirtualClusterModel {
         });
     }
 
-    private static void configureCipherSuites(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
+    public static void configureCipherSuites(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
         Optional.ofNullable(tlsConfiguration.cipherSuites())
                 .ifPresent(ciphers -> sslContextBuilder.ciphers(
                         tlsConfiguration.cipherSuites().allowed(),
                         new DenyCipherSuiteFilter(tlsConfiguration.cipherSuites().denied())));
     }
 
-    private static void configureEnabledProtocols(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
+    public static void configureEnabledProtocols(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
         var protocols = Optional.ofNullable(tlsConfiguration.protocols());
         var defaultProtocols = Arrays.stream(getDefaultSSLParameters().getProtocols()).toList();
         var supportedProtocols = Arrays.stream(getSupportedSSLParameters().getProtocols()).toList();
