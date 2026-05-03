@@ -33,7 +33,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -205,8 +204,8 @@ class SidecarConfigStatusUpdaterTest {
     @SuppressWarnings("unchecked")
     private void stubClientChain() {
         when(client.resources(KroxyliciousSidecarConfig.class)).thenReturn(mixedOp);
-        when(mixedOp.inNamespace(eq(NAMESPACE))).thenReturn(mixedOp);
-        when(mixedOp.withName(eq(NAME))).thenReturn(resource);
+        when(mixedOp.inNamespace(NAMESPACE)).thenReturn(mixedOp);
+        when(mixedOp.withName(NAME)).thenReturn(resource);
     }
 
     private static KroxyliciousSidecarConfig createConfig(Long generation) {
