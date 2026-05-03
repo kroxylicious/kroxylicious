@@ -32,10 +32,13 @@ spec:
   issuerRef:
     name: kroxylicious-webhook-selfsigned
     kind: Issuer
+  commonName: kroxylicious-webhook.kroxylicious-webhook.svc.cluster.local
   dnsNames:
     - kroxylicious-webhook
     - kroxylicious-webhook.kroxylicious-webhook
     - kroxylicious-webhook.kroxylicious-webhook.svc
     - kroxylicious-webhook.kroxylicious-webhook.svc.cluster.local
+  privateKey:
+    encoding: PKCS8
   duration: 8760h   # 1 year
   renewBefore: 720h  # 30 days

@@ -244,6 +244,7 @@ Alternatively, to test locally made changes, push the built operator and proxy i
 ```
 minikube image load kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
+minikube image load kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook/target/kroxylicious-webhook.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 ```
 
 > :warning: Some minikube container runtimes may not be able to load a gzipped tar (https://github.com/kubernetes/minikube/issues/21678), if the above commands report a failure 
@@ -251,6 +252,7 @@ minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --also
 > ```
 > gunzip --to-stdout kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
 > gunzip --to-stdout kroxylicious-app/target/kroxylicious-proxy.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
+> gunzip --to-stdout kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook/target/kroxylicious-webhook.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
 > ```
 
 ## IDE setup
