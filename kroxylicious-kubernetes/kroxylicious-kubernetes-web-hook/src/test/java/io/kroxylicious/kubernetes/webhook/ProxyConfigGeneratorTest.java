@@ -29,7 +29,7 @@ class ProxyConfigGeneratorTest {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
         spec.setTargetBootstrapServers("kafka.example.com:9092");
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         // Management
@@ -56,7 +56,7 @@ class ProxyConfigGeneratorTest {
         spec.setTargetBootstrapServers("kafka:9092");
         spec.setBootstrapPort(29092L);
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         JsonNode portStrategy = root.path("virtualClusters").get(0)
@@ -72,7 +72,7 @@ class ProxyConfigGeneratorTest {
         spec.setTargetBootstrapServers("kafka:9092");
         spec.setManagementPort(8080L);
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         assertThat(root.path("management").path("port").asInt()).isEqualTo(8080);
@@ -87,7 +87,7 @@ class ProxyConfigGeneratorTest {
         nodeIdRange.setEndInclusive(9L);
         spec.setNodeIdRange(nodeIdRange);
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         JsonNode namedRange = root.path("virtualClusters").get(0)
@@ -133,7 +133,7 @@ class ProxyConfigGeneratorTest {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
         spec.setTargetBootstrapServers("my-kafka.ns.svc.cluster.local:9092");
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
 
         // Verify it's valid YAML with expected structure
         JsonNode root = YAML_MAPPER.readTree(yaml);
@@ -153,7 +153,7 @@ class ProxyConfigGeneratorTest {
         filter.setType("com.example.MyFilterFactory");
         spec.setFilterDefinitions(List.of(filter));
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         JsonNode filterDefs = root.path("filterDefinitions");
@@ -180,7 +180,7 @@ class ProxyConfigGeneratorTest {
         f2.setType("com.example.FilterB");
         spec.setFilterDefinitions(List.of(f1, f2));
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         assertThat(root.path("filterDefinitions")).hasSize(2);
@@ -194,7 +194,7 @@ class ProxyConfigGeneratorTest {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
         spec.setTargetBootstrapServers("kafka:9092");
 
-        String yaml = ProxyConfigGenerator.generateConfig(spec);
+        String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
 
         assertThat(root.path("filterDefinitions").isMissingNode() || root.path("filterDefinitions").isNull())

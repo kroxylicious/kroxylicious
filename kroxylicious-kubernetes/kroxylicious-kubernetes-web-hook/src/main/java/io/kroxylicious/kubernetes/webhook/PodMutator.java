@@ -82,8 +82,8 @@ class PodMutator {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
-            String upstreamTrustStorePath = resolveUpstreamTrustStorePath(spec);
-            String proxyConfig = ProxyConfigGenerator.generateConfig(spec, upstreamTrustStorePath);
+            String targetClusterTrustStorePath = resolveTargetClusterTrustStorePath(spec);
+            String proxyConfig = ProxyConfigGenerator.generateConfig(spec, targetClusterTrustStorePath);
             int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(spec);
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
@@ -114,11 +114,11 @@ class PodMutator {
     }
 
     /**
-     * Computes the path where the upstream CA cert will be mounted inside the sidecar,
-     * or null if upstream TLS is not configured.
+     * Computes the path where the target cluster CA cert will be mounted inside the sidecar,
+     * or null if target cluster TLS is not configured.
      */
     @Nullable
-    static String resolveUpstreamTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
+    static String resolveTargetClusterTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
         TargetClusterTls tls = spec.getTargetClusterTls();
         if (tls == null || tls.getTrustAnchorSecretRef() == null) {
             return null;

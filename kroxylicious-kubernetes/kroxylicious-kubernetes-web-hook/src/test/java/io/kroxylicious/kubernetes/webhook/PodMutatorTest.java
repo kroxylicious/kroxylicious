@@ -247,14 +247,14 @@ class PodMutatorTest {
         assertThat(patch).isNotEmpty();
     }
 
-    // --- Phase 2: Upstream TLS ---
+    // --- Phase 2: Target Cluster TLS ---
 
     @Test
-    void patchAddsUpstreamTlsVolume() throws Exception {
+    void patchAddsTargetClusterTlsVolume() throws Exception {
         Pod pod = podWithAppContainer(null);
         // Give the pod existing volumes so both config and TLS use the append path
         pod.getSpec().setVolumes(new ArrayList<>(List.of(new Volume())));
-        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
 
         String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
         JsonNode patch = MAPPER.readTree(patchStr);
@@ -268,9 +268,9 @@ class PodMutatorTest {
     }
 
     @Test
-    void patchAddsUpstreamTlsVolumeMount() throws Exception {
+    void patchAddsTargetClusterTlsVolumeMount() throws Exception {
         Pod pod = podWithAppContainer(null);
-        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
 
         String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
         JsonNode patch = MAPPER.readTree(patchStr);
@@ -295,32 +295,32 @@ class PodMutatorTest {
         for (JsonNode op : patch) {
             if ("add".equals(op.path("op").asText())) {
                 JsonNode value = op.path("value");
-                if (value.isObject() && "upstream-tls".equals(value.path("name").asText())) {
+                if (value.isObject() && value.path("name").asText().matches(".*tls.*")) {
                     hasTlsVolume = true;
                 }
                 if (value.isArray()) {
                     for (JsonNode item : value) {
-                        if ("upstream-tls".equals(item.path("name").asText())) {
+                        if (item.path("name").asText().matches(".*tls.*")) {
                             hasTlsVolume = true;
                         }
                     }
                 }
             }
         }
-        assertThat(hasTlsVolume).as("no TLS volume expected without upstream TLS config").isFalse();
+        assertThat(hasTlsVolume).as("no TLS volume expected without target cluster TLS config").isFalse();
     }
 
     @Test
-    void resolveUpstreamTrustStorePathWithTls() {
-        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
-        String path = PodMutator.resolveUpstreamTrustStorePath(spec);
+    void resolveTargetClusterTrustStorePathWithTls() {
+        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
+        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
         assertThat(path).isEqualTo(PodMutator.TARGET_CLUSTER_TLS_MOUNT_PATH + "/ca.crt");
     }
 
     @Test
-    void resolveUpstreamTrustStorePathWithoutTls() {
+    void resolveTargetClusterTrustStorePathWithoutTls() {
         KroxyliciousSidecarConfigSpec spec = defaultSpec();
-        String path = PodMutator.resolveUpstreamTrustStorePath(spec);
+        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
         assertThat(path).isNull();
     }
 
@@ -511,7 +511,7 @@ class PodMutatorTest {
         return spec;
     }
 
-    private static KroxyliciousSidecarConfigSpec specWithUpstreamTls() {
+    private static KroxyliciousSidecarConfigSpec specWithTargetClusterTls() {
         KroxyliciousSidecarConfigSpec spec = defaultSpec();
         TargetClusterTls tls = new TargetClusterTls();
         TrustAnchorSecretRef ref = new TrustAnchorSecretRef();

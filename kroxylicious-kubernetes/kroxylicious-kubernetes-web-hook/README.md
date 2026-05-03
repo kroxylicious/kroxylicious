@@ -10,7 +10,7 @@ The webhook automates the "sidecar injection" pattern (as used by Istio/Linkerd)
 
 The webhook operates under a strict trust boundary between two roles:
 
-- **Webhook administrator**: Controls what gets injected (proxy image, filters, upstream cluster, security context). Creates `KroxyliciousSidecarConfig` resources.
+- **Webhook administrator**: Controls what gets injected (proxy image, filters, target cluster, security context). Creates `KroxyliciousSidecarConfig` resources.
 - **Application pod owner**: Can only influence injection through explicitly delegated annotations. Cannot tamper with the proxy config, image, or security context.
 
 The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, preventing app owners from pre-setting malicious config.
@@ -24,24 +24,24 @@ The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, pre
    - Adds a downwardAPI volume projecting the proxy config from a pod annotation
    - Sets `KAFKA_BOOTSTRAP_SERVERS=localhost:<port>` on existing app containers
    - Sets pod-level security context if not already present
-   - Adds upstream TLS trust anchor volumes if configured
+   - Adds target cluster TLS trust anchor volumes if configured
 
 ## Custom Resource: `KroxyliciousSidecarConfig`
 
 A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines sidecar configuration per namespace. Key fields:
 
-| Field | Description |
-|-------|-------------|
-| `upstreamBootstrapServers` | Bootstrap servers of the upstream Kafka cluster (required) |
-| `proxyImage` | Override the proxy container image |
-| `bootstrapPort` | Proxy bootstrap port on localhost (default: 19092) |
-| `nodeIdRange` | Broker node ID range (default: 0-2) |
-| `managementPort` | Management endpoint port (default: 9190) |
-| `filterDefinitions` | Filters applied to proxied traffic |
-| `upstreamTls` | TLS configuration for the upstream Kafka connection |
-| `delegatedAnnotations` | Annotations app owners may set to override config |
-| `setBootstrapEnvVar` | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
-| `resources` | Resource requests/limits for the sidecar container |
+| Field                    | Description |
+|--------------------------|-------------|
+| `targetBootstrapServers` | Bootstrap servers of the target Kafka cluster (required) |
+| `proxyImage`             | Override the proxy container image |
+| `bootstrapPort`          | Proxy bootstrap port on localhost (default: 19092) |
+| `nodeIdRange`            | Broker node ID range (default: 0-2) |
+| `managementPort`         | Management endpoint port (default: 9190) |
+| `filterDefinitions`      | Filters applied to proxied traffic |
+| `targetClusterTls`       | TLS configuration for the target Kafka connection |
+| `delegatedAnnotations`   | Annotations app owners may set to override config |
+| `setBootstrapEnvVar`     | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
+| `resources`              | Resource requests/limits for the sidecar container |
 
 ## Annotations
 

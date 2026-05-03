@@ -61,12 +61,12 @@ class ProxyConfigGenerator {
      * Generates proxy configuration YAML for a sidecar.
      *
      * @param spec the sidecar config spec from the CRD
-     * @param upstreamTrustStorePath path to the mounted CA cert file for upstream TLS, or null if no TLS
+     * @param targetClusterTrustStorePath path to the mounted CA cert file for target cluster TLS, or null if no TLS
      * @return YAML string suitable for passing to the proxy via {@code --config}
      */
     static String generateConfig(
                                  KroxyliciousSidecarConfigSpec spec,
-                                 @Nullable String upstreamTrustStorePath) {
+                                 @Nullable String targetClusterTrustStorePath) {
         int bootstrapPort = resolveBootstrapPort(spec);
         int managementPort = resolveManagementPort(spec);
         int nodeIdStart = DEFAULT_NODE_ID_START;
@@ -94,18 +94,18 @@ class ProxyConfigGenerator {
                 null,
                 Optional.empty());
 
-        Optional<Tls> upstreamTls = Optional.empty();
-        if (upstreamTrustStorePath != null) {
-            upstreamTls = Optional.of(new Tls(
+        Optional<Tls> targetClusterTls = Optional.empty();
+        if (targetClusterTrustStorePath != null) {
+            targetClusterTls = Optional.of(new Tls(
                     null,
-                    new TrustStore(upstreamTrustStorePath, null, "PEM"),
+                    new TrustStore(targetClusterTrustStorePath, null, "PEM"),
                     null,
                     null));
         }
 
         var targetCluster = new TargetCluster(
                 spec.getTargetBootstrapServers(),
-                upstreamTls);
+                targetClusterTls);
 
         var virtualCluster = new VirtualCluster(
                 VIRTUAL_CLUSTER_NAME,
@@ -138,13 +138,6 @@ class ProxyConfigGenerator {
                 null);
 
         return toYaml(configuration);
-    }
-
-    /**
-     * Overload for backwards compatibility (no upstream TLS).
-     */
-    static String generateConfig(KroxyliciousSidecarConfigSpec spec) {
-        return generateConfig(spec, null);
     }
 
     @Nullable
