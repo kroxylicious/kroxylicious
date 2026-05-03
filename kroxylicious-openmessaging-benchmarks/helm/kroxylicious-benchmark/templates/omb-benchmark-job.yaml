@@ -31,6 +31,10 @@ spec:
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
         - name: PRODUCER_RATE
           value: {{ .Values.omb.coordinatorProducerRate | quote }}
+        - name: PRODUCERS_PER_TOPIC
+          value: {{ .Values.omb.coordinatorProducersPerTopic | quote }}
+        - name: CONSUMER_PER_SUBSCRIPTION
+          value: {{ .Values.omb.coordinatorConsumerPerSubscription | quote }}
         - name: HEAP_OPTS
           value: {{ .Values.omb.coordinatorHeapOpts | quote }}
         - name: JAVA_TOOL_OPTIONS
@@ -63,12 +67,16 @@ spec:
           done
           echo "Kafka is ready"
 
-          # Apply producer rate override if specified
+          # Apply per-probe overrides (rate, producers, consumers) if specified
+          cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml
           if [[ -n "${PRODUCER_RATE}" ]]; then
-            sed "s|^producerRate:.*|producerRate: ${PRODUCER_RATE}|" \
-              /etc/omb/workloads/workload.yaml > /tmp/workload.yaml
-          else
-            cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml
+            sed -i "s|^producerRate:.*|producerRate: ${PRODUCER_RATE}|" /tmp/workload.yaml
+          fi
+          if [[ -n "${PRODUCERS_PER_TOPIC}" ]]; then
+            sed -i "s|^producersPerTopic:.*|producersPerTopic: ${PRODUCERS_PER_TOPIC}|" /tmp/workload.yaml
+          fi
+          if [[ -n "${CONSUMER_PER_SUBSCRIPTION}" ]]; then
+            sed -i "s|^consumerPerSubscription:.*|consumerPerSubscription: ${CONSUMER_PER_SUBSCRIPTION}|" /tmp/workload.yaml
           fi
 
           # Run the benchmark — this is the Job's primary work

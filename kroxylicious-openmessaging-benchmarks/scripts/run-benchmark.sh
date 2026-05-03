@@ -65,6 +65,9 @@ Options:
                             The script will print the teardown commands to run manually.
   --producer-rate <n>       Override the producerRate in the workload (msg/sec).
                             When set, the rate is injected via sed before running.
+  --producers-per-topic <n> Override producersPerTopic in the workload.
+  --consumers-per-subscription <n>
+                            Override consumerPerSubscription in the workload.
   --skip-proxy-isolation        Skip the pod anti-affinity patch that keeps the proxy off Kafka
                             broker nodes. Use only on clusters with fewer than 5 workers where
                             the proxy cannot avoid sharing a node with a broker. Results from
@@ -101,6 +104,8 @@ HELM_SET_ARGS=()
 SKIP_DEPLOY=false
 SKIP_TEARDOWN=false
 PRODUCER_RATE=""
+PRODUCERS_PER_TOPIC=""
+CONSUMERS_PER_SUBSCRIPTION=""
 ISOLATE_PROXY=true
 
 while [[ $# -gt 0 ]]; do
@@ -127,6 +132,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --producer-rate)
             PRODUCER_RATE="$2"
+            shift 2
+            ;;
+        --producers-per-topic)
+            PRODUCERS_PER_TOPIC="$2"
+            shift 2
+            ;;
+        --consumers-per-subscription)
+            CONSUMERS_PER_SUBSCRIPTION="$2"
             shift 2
             ;;
         --skip-proxy-isolation)
@@ -332,11 +345,13 @@ EOF
 # so the Job inherits all chart config (image, resources, ConfigMap names, etc.).
 # HELM_ARGS must be set before calling this function.
 create_benchmark_job() {
-    echo "Creating benchmark Job (rate=${PRODUCER_RATE:-workload default})..."
+    echo "Creating benchmark Job (rate=${PRODUCER_RATE:-workload default}, producers=${PRODUCERS_PER_TOPIC:-workload default}, consumers=${CONSUMERS_PER_SUBSCRIPTION:-workload default})..."
     kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     helm template "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" \
         --set omb.createBenchmarkJob=true \
         --set "omb.coordinatorProducerRate=${PRODUCER_RATE:-}" \
+        --set "omb.coordinatorProducersPerTopic=${PRODUCERS_PER_TOPIC:-}" \
+        --set "omb.coordinatorConsumerPerSubscription=${CONSUMERS_PER_SUBSCRIPTION:-}" \
         --show-only templates/omb-benchmark-job.yaml \
         | kubectl apply -n "${NAMESPACE}" -f -
 }
