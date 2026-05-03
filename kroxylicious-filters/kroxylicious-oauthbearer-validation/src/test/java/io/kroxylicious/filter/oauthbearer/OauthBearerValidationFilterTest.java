@@ -41,7 +41,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 
-import static io.kroxylicious.test.condition.kafka.SaslAuthenticateResponseDataCondition.saslAuthenticateResponseMatching;
+import static io.kroxylicious.testing.filter.condition.kafka.SaslAuthenticateResponseDataCondition.saslAuthenticateResponseMatching;
 import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
 import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
 import static org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;

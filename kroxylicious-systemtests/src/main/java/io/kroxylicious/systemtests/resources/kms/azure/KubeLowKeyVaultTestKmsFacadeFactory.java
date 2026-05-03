@@ -6,7 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.kms.azure;
 
-import io.kroxylicious.kms.provider.azure.kms.AbstractAzureKeyVaultKmsTestKmsFacadeFactory;
+import io.kroxylicious.testing.kms.azure.AbstractAzureKeyVaultKmsTestKmsFacadeFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

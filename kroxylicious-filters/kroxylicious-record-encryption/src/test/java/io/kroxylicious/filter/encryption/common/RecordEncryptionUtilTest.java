@@ -19,7 +19,7 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kafka.transform.BatchAwareMemoryRecordsBuilder;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

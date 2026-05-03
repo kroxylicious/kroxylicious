@@ -17,14 +17,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static java.util.UUID.randomUUID;
 import static org.apache.kafka.clients.producer.ProducerConfig.LINGER_MS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;

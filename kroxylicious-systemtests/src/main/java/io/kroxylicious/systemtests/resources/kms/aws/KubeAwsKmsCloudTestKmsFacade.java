@@ -8,12 +8,12 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 
 import java.net.URI;
 
-import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.provider.aws.kms.config.CredentialsConfig;
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsCloud;
+import io.kroxylicious.testing.kms.aws.AbstractAwsKmsTestKmsFacade;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

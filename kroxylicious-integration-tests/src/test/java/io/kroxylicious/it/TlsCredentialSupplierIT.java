@@ -38,15 +38,15 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierContext;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import io.kroxylicious.proxy.tls.TlsCredentials;
-import io.kroxylicious.test.certificate.CertificateGenerator;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.certificate.CertificateGenerator;
+import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 

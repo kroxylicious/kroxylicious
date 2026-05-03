@@ -41,17 +41,17 @@ import io.kroxylicious.filter.multitenant.MultiTenant;
 import io.kroxylicious.it.BaseIT;
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 

@@ -6,7 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.kms.fortanix;
 
-import io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKmsTestKmsFacadeFactory;
+import io.kroxylicious.testing.kms.fortanix.FortanixDsmKmsTestKmsFacadeFactory;
 
 /**
  * Wrapper Factory for FortanixDsmKmsTestKmsFacade.

@@ -57,11 +57,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingress
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-import io.kroxylicious.kubernetes.operator.assertj.MetadataAssert;
-import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.testing.operator.assertj.ConditionListAssert;
+import io.kroxylicious.testing.operator.assertj.MetadataAssert;
+import io.kroxylicious.testing.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;

@@ -37,9 +37,9 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.newBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.newBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

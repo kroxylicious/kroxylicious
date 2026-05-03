@@ -20,20 +20,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.jws.JwsTestUtils;
+import io.kroxylicious.testing.filter.jws.JwsTestUtils;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
-import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.JWS_HEADER_NAME;
-import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_PAYLOAD;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_RSA_JWK_PAYLOAD;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.JWS_HEADER_NAME;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_PAYLOAD;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.VALID_JWS_USING_RSA_JWK_PAYLOAD;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)

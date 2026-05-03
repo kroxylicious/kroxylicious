@@ -32,7 +32,7 @@ import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

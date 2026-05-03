@@ -48,7 +48,7 @@ import static java.net.http.HttpRequest.Builder;
  * An implementation of HttpRequestBuilder that signs AWS requests
  * accordance with <a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/create-signed-request.html">AWS v4</a>.
  */
-class AwsV4SigningHttpRequestBuilder implements Builder {
+public class AwsV4SigningHttpRequestBuilder implements Builder {
 
     private static final Pattern CONSECUTIVE_WHITESPACE = Pattern.compile("\\s+");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);

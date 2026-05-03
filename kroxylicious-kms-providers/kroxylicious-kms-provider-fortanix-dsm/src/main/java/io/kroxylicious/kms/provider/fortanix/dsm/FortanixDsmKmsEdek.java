@@ -16,13 +16,13 @@ import java.util.Objects;
  * @param iv dek iv bytes
  * @param edek - edek bytes
  */
-record FortanixDsmKmsEdek(String kekRef,
-                          byte[] iv,
-                          byte[] edek) {
+public record FortanixDsmKmsEdek(String kekRef,
+                                 byte[] iv,
+                                 byte[] edek) {
 
     public static final int IV_LENGTH = 16;
 
-    FortanixDsmKmsEdek {
+    public FortanixDsmKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(iv);
         Objects.requireNonNull(edek);

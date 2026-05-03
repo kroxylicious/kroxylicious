@@ -31,8 +31,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
-import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
+import io.kroxylicious.testing.operator.assertj.ConditionListAssert;
+import io.kroxylicious.testing.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;

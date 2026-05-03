@@ -17,8 +17,8 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.threeten.extra.MutableClock;
 
-import io.kroxylicious.test.assertj.MockFilterContextAssert;
-import io.kroxylicious.test.context.MockFilterContext;
+import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

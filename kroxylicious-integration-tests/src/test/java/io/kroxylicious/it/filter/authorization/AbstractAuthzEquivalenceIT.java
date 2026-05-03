@@ -44,16 +44,16 @@ import io.kroxylicious.it.BaseIT;
 import io.kroxylicious.it.testplugins.SaslPlainTermination;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.client.KafkaClient;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.client.KafkaClient;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

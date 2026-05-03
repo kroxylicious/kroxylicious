@@ -20,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.validation.validators.Result;
 import io.kroxylicious.filter.validation.validators.record.RecordValidator;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.STRING;

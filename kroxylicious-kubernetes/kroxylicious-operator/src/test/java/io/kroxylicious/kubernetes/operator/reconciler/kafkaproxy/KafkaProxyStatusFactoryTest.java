@@ -18,10 +18,10 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.testing.operator.assertj.AssertFactory;
 
-import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
+import static io.kroxylicious.testing.operator.assertj.OperatorAssertions.assertThat;
 
 class KafkaProxyStatusFactoryTest {
     private static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));

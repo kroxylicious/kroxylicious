@@ -120,7 +120,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
         return key.clone();
     }
 
-    static void checkNotDestroyed(SecretKey key) {
+    public static void checkNotDestroyed(SecretKey key) {
         if (key.isDestroyed()) {
             throw new IllegalStateException("Key has been destroyed");
         }

@@ -23,12 +23,12 @@ import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
-import io.kroxylicious.kms.service.SecretKeyUtils;
-import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.testing.kms.SecretKeyUtils;
+import io.kroxylicious.testing.kms.TestKekManager;
+import io.kroxylicious.testing.kms.TestKmsFacade;
+import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

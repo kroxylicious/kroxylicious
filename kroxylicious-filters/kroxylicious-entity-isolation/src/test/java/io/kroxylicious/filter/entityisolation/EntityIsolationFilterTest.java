@@ -41,7 +41,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter;
+import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

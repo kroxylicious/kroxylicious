@@ -20,14 +20,14 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.Response;
-import io.kroxylicious.test.ResponsePayload;
-import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
-import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.Response;
+import io.kroxylicious.testing.integration.ResponsePayload;
+import io.kroxylicious.testing.integration.client.KafkaClient;
+import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester;
 
-import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
