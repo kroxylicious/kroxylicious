@@ -6,9 +6,12 @@
 
 package io.kroxylicious.proxy.config;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 /**
  * This interface intentionally has the same simple class name as {@link io.kroxylicious.proxy.config.ambiguous1.AmbiguousShortPluginName}.
  * Used for tests.
  */
+@ApiVersion("v1")
 public interface ServiceWithAmbiguousImpls {
 }

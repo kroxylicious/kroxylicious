@@ -8,6 +8,8 @@ package io.kroxylicious.kms.service;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -17,6 +19,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <E> The type of encrypted DEK
  */
 @ThreadSafe
+@ApiVersion("v1")
 public interface KmsService<C, K, E> extends AutoCloseable {
 
     /**

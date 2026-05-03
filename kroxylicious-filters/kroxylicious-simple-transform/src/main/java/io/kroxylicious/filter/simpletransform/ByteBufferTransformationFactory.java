@@ -6,8 +6,10 @@
 
 package io.kroxylicious.filter.simpletransform;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
+@ApiVersion("v1")
 public interface ByteBufferTransformationFactory<C> {
 
     /**

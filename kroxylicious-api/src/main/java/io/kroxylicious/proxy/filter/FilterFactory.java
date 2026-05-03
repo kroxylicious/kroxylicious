@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.UnknownNullness;
@@ -31,6 +32,7 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  * @param <C> the type of configuration used to create the {@code Filter}. Use {@link Void} if the {@code Filter} is not configurable.
  * @param <I> The type of the initialization data
  */
+@ApiVersion("v1beta1")
 public interface FilterFactory<C, I> {
 
     /**

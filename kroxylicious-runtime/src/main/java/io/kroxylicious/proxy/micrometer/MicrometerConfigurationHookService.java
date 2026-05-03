@@ -5,12 +5,15 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 /**
  * Service to build a MicrometerConfigurationHook for a configuration. Implementations should be
  * annotated with {@link io.kroxylicious.proxy.plugin.Plugin} and added to the ServiceLoader
  * metadata for this interface.
  * @param <T> config type
  */
+@ApiVersion("v1")
 public interface MicrometerConfigurationHookService<T> {
 
     /**

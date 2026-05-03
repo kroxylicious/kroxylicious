@@ -6,9 +6,12 @@
 
 package io.kroxylicious.filter.sasl.inspection;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 /**
  * Factory for {@link SaslObserver} instances.
  */
+@ApiVersion("v1")
 public interface SaslObserverFactory {
     /**
      * Creates the SASL Observer.

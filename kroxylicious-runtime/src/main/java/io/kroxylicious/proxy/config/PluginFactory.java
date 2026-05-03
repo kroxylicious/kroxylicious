@@ -18,19 +18,19 @@ public interface PluginFactory<P> {
 
     /**
      * Resolves a plugin reference to a plugin implementation.
-     * @param instanceName The name of the plugin implementation
+     * @param pluginImplementation The name of the plugin implementation
      * @return The plugin implementation
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
-    P pluginInstance(String instanceName);
+    P pluginInstance(String pluginImplementation);
 
     /**
      * Resolves a plugin reference to the plugins config type.
-     * @param instanceName The name of the plugin implementation
+     * @param pluginImplementation The name of the plugin implementation
      * @return The plugin's config type'
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
-    Class<?> configType(String instanceName);
+    Class<?> configType(String pluginImplementation);
 
     /**
      * Returns the names of the registered instances of this plugin.

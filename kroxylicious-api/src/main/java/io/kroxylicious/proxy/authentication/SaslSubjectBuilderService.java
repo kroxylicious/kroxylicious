@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.authentication;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
+@ApiVersion("v1")
 public interface SaslSubjectBuilderService<C> extends AutoCloseable {
     void initialize(C config);
 
