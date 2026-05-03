@@ -336,9 +336,8 @@ class PodMutator {
                 && pod.getSpec().getContainers() != null
                 && !pod.getSpec().getContainers().isEmpty();
 
-        JsonNode containerNode = toJson(container);
         if (hasContainers) {
-            addOp(patch, OP_ADD, "/spec/containers/-", containerNode);
+            addOp(patch, OP_ADD, "/spec/containers/-", toJson(container));
         }
         else {
             addOp(patch, OP_ADD, "/spec/containers", toJson(List.of(container)));
@@ -350,9 +349,8 @@ class PodMutator {
                 && pod.getSpec().getInitContainers() != null
                 && !pod.getSpec().getInitContainers().isEmpty();
 
-        JsonNode containerNode = toJson(container);
         if (hasInitContainers) {
-            addOp(patch, OP_ADD, "/spec/initContainers/-", containerNode);
+            addOp(patch, OP_ADD, "/spec/initContainers/-", toJson(container));
         }
         else {
             addOp(patch, OP_ADD, "/spec/initContainers", toJson(List.of(container)));
