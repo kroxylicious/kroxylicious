@@ -341,17 +341,29 @@ spec:
 EOF
 }
 
+# Re-renders and applies the workload ConfigMap from the Helm chart, picking up any
+# per-probe benchmark.* overrides (rate, producers, consumers) without redeploying
+# infrastructure. Called unconditionally before every benchmark run.
+# HELM_ARGS must be set before calling this function.
+apply_workload_configmap() {
+    local extra_args=()
+    [[ -n "${PRODUCER_RATE}" ]]             && extra_args+=(--set "benchmark.producerRate=${PRODUCER_RATE}")
+    [[ -n "${PRODUCERS_PER_TOPIC}" ]]       && extra_args+=(--set "benchmark.producersPerTopic=${PRODUCERS_PER_TOPIC}")
+    [[ -n "${CONSUMERS_PER_SUBSCRIPTION}" ]] && extra_args+=(--set "benchmark.consumerPerSubscription=${CONSUMERS_PER_SUBSCRIPTION}")
+    helm template "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" \
+        ${extra_args[@]+"${extra_args[@]}"} \
+        --show-only "templates/configmaps/workload-${WORKLOAD}.yaml" \
+        | kubectl apply -n "${NAMESPACE}" -f -
+}
+
 # Deletes any existing benchmark Job then creates a fresh one using helm template,
 # so the Job inherits all chart config (image, resources, ConfigMap names, etc.).
 # HELM_ARGS must be set before calling this function.
 create_benchmark_job() {
-    echo "Creating benchmark Job (rate=${PRODUCER_RATE:-workload default}, producers=${PRODUCERS_PER_TOPIC:-workload default}, consumers=${CONSUMERS_PER_SUBSCRIPTION:-workload default})..."
+    echo "Creating benchmark Job..."
     kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     helm template "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" \
         --set omb.createBenchmarkJob=true \
-        --set "omb.coordinatorProducerRate=${PRODUCER_RATE:-}" \
-        --set "omb.coordinatorProducersPerTopic=${PRODUCERS_PER_TOPIC:-}" \
-        --set "omb.coordinatorConsumerPerSubscription=${CONSUMERS_PER_SUBSCRIPTION:-}" \
         --show-only templates/omb-benchmark-job.yaml \
         | kubectl apply -n "${NAMESPACE}" -f -
 }
@@ -621,6 +633,11 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
 fi
 
 # --- Run benchmark ---
+
+# Apply workload ConfigMap with per-probe overrides (rate, producers, consumers).
+# Done unconditionally — works both on first deploy and on --skip-deploy probes so
+# the ConfigMap always reflects the current probe's parameters.
+apply_workload_configmap
 
 # Create the benchmark Job now — after JFR is set up on the proxy so profiling starts
 # before load begins.  The Job is the entrypoint for the benchmark binary; it writes

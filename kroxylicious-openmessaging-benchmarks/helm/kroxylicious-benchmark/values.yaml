@@ -81,9 +81,6 @@ omb:
   workerJavaOpts: "-XX:MaxRAMPercentage=50"  # JVM opts for OMB workers
   logLevel: warn  # SLF4J SimpleLogger log level (debug, info, warn, error)
   createBenchmarkJob: false  # Job is created explicitly by run-benchmark.sh; not managed by Helm install
-  coordinatorProducerRate: ""         # Producer rate override injected per-probe; empty uses workload default
-  coordinatorProducersPerTopic: ""    # Producers-per-topic override injected per-probe; empty uses workload default
-  coordinatorConsumerPerSubscription: ""  # Consumer-per-subscription override injected per-probe; empty uses workload default
   # Coordinator heap sizing passed as HEAP_OPTS to the OMB launcher script.
   # The coordinator is an orchestrator only — workers do the actual producing/consuming.
   coordinatorHeapOpts: "-Xms512m -Xmx1g"
