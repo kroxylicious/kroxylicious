@@ -55,6 +55,9 @@
                                         <include>io.kroxylicious:kroxylicious-kubernetes-api</include>
                                         <include>io.kroxylicious:kroxylicious-operator-test-support:*:*:test</include>
                                         <include>io.kroxylicious:kroxylicious-integration-test-support:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-certificate-test-support:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-simple-transform:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-kafka-message-tools:*:*:test</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>
