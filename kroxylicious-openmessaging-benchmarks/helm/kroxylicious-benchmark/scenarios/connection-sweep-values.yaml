@@ -1,0 +1,23 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Connection-sweep profile: shorter durations to keep per-probe time manageable
+# when running many probes across a producer-count range.
+#
+# 5 min warmup allows JIT to stabilise before measurement begins.
+# 5 min test gives enough samples for stable p99 latency at typical rates.
+#
+# workerReplicas is raised to 6 to give headroom at high producer counts (up to
+# 16 producers + 16 consumers per step) without workers becoming the bottleneck.
+#
+# Applied automatically by connection-sweep.sh unless overridden with --profile.
+
+benchmark:
+  testDurationMinutes: 5
+  warmupDurationMinutes: 5
+
+omb:
+  workerReplicas: 6
