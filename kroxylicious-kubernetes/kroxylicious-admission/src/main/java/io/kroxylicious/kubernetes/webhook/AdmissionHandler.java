@@ -26,6 +26,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Status;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionRequest;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
@@ -52,21 +53,24 @@ class AdmissionHandler implements HttpHandler {
     private final String proxyImage;
     private final boolean useNativeSidecar;
     private final boolean useOciImageVolumes;
+    private final boolean failClosed;
 
     AdmissionHandler(
                      @NonNull SidecarConfigResolver configResolver,
                      @NonNull String proxyImage,
-                     KubernetesVersion kubernetesVersion) {
+                     KubernetesVersion kubernetesVersion,
+                     boolean failClosed) {
         this.configResolver = configResolver;
         this.proxyImage = proxyImage;
         this.useNativeSidecar = kubernetesVersion.supportedNativeSidecar();
         this.useOciImageVolumes = kubernetesVersion.supportsOciImageVolumes();
+        this.failClosed = failClosed;
     }
 
     AdmissionHandler(
                      @NonNull SidecarConfigResolver configResolver,
                      @NonNull String proxyImage) {
-        this(configResolver, proxyImage, new KubernetesVersion(1, 0));
+        this(configResolver, proxyImage, new KubernetesVersion(1, 0), true);
     }
 
     @Override
@@ -82,7 +86,6 @@ class AdmissionHandler implements HttpHandler {
                 review = MAPPER.readValue(is, AdmissionReview.class);
             }
 
-            // TODO the below code share a lot of statements in common with sendAllowResponse()
             AdmissionResponse response = processReview(review);
             AdmissionReview responseReview = new AdmissionReview();
             responseReview.setApiVersion("admission.k8s.io/v1");
@@ -100,8 +103,7 @@ class AdmissionHandler implements HttpHandler {
             LOGGER.atError()
                     .setCause(e)
                     .log("Unexpected error handling admission request");
-            sendAllowResponse(exchange, null);
-            // TODO this will need to change when we default to fail closed.
+            sendErrorResponse(exchange, null, "Failed to process admission request");
         }
         finally {
             exchange.close();
@@ -169,8 +171,8 @@ class AdmissionHandler implements HttpHandler {
             LOGGER.atError()
                     .setCause(e)
                     .addKeyValue("uid", uid)
-                    .log("Error processing admission request, allowing pod without sidecar");
-            return allowResponse(uid);
+                    .log("Error processing admission request");
+            return errorResponse(uid, "Error processing admission request: " + e.getMessage());
         }
     }
 
@@ -413,12 +415,34 @@ class AdmissionHandler implements HttpHandler {
         return response;
     }
 
-    private void sendAllowResponse(HttpExchange exchange, String uid) {
+    @NonNull
+    private static AdmissionResponse denyResponse(String uid, String reason) {
+        AdmissionResponse response = new AdmissionResponse();
+        response.setUid(uid != null ? uid : UUID.randomUUID().toString());
+        response.setAllowed(false);
+        Status status = new Status();
+        status.setCode(403);
+        status.setMessage(reason);
+        status.setReason("Forbidden");
+        status.setStatus("Failure");
+        response.setStatus(status);
+        return response;
+    }
+
+    @NonNull
+    private AdmissionResponse errorResponse(String uid, String reason) {
+        if (failClosed) {
+            return denyResponse(uid, reason);
+        }
+        return allowResponse(uid);
+    }
+
+    private void sendErrorResponse(HttpExchange exchange, String uid, String reason) {
         try {
             AdmissionReview responseReview = new AdmissionReview();
             responseReview.setApiVersion("admission.k8s.io/v1");
             responseReview.setKind("AdmissionReview");
-            responseReview.setResponse(allowResponse(uid));
+            responseReview.setResponse(errorResponse(uid, reason));
             byte[] responseBytes = MAPPER.writeValueAsBytes(responseReview);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
             exchange.sendResponseHeaders(200, responseBytes.length);

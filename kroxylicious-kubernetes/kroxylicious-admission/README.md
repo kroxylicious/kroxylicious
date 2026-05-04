@@ -72,9 +72,13 @@ The admin can list annotation keys in `delegatedAnnotations` to allow app owners
 
 On Kubernetes 1.28+, the webhook injects the sidecar as an init container with `restartPolicy: Always` (native sidecar). This ensures proper startup ordering (sidecar starts before app containers) and shutdown ordering (sidecar stops after). On older clusters, the sidecar is injected as a regular container. The webhook auto-detects the cluster version at startup.
 
-## Fail-Open Semantics
+## Failure Policy
 
-The webhook always returns `allowed: true`, even on internal errors. If the webhook is unavailable, the `MutatingWebhookConfiguration` uses `failurePolicy: Ignore` so pods are created without sidecars. This is the standard approach for sidecar injection webhooks.
+By default, the webhook is **fail-closed**: on internal errors, it denies the admission request, and if the webhook is unreachable, the `MutatingWebhookConfiguration` uses `failurePolicy: Fail` to block pod creation. This is the standard approach for sidecar injection webhooks (consistent with Istio and Linkerd).
+
+Non-error paths (null request, null pod, opt-out, no config found, already injected) always allow the pod regardless of failure policy.
+
+The failure policy is configurable via the `FAILURE_POLICY` environment variable on the webhook `Deployment`. To opt into fail-open behaviour, set `FAILURE_POLICY=Ignore` in the `Deployment` **and** change `failurePolicy: Ignore` in the `MutatingWebhookConfiguration`. The environment variable controls the webhook's response to internal errors; the `MutatingWebhookConfiguration` `failurePolicy` controls the API server's behaviour when the webhook is unreachable.
 
 ## Key Classes
 
@@ -98,10 +102,11 @@ The webhook is configured via environment variables:
 | `TLS_CERT_PATH` | `/etc/webhook/tls/tls.crt` | PEM certificate file |
 | `TLS_KEY_PATH` | `/etc/webhook/tls/tls.key` | PEM private key file |
 | `KROXYLICIOUS_IMAGE` | (required) | Default proxy container image |
+| `FAILURE_POLICY` | `Fail` | Error handling policy: `Fail` (deny on error) or `Ignore` (allow on error) |
 
 ## Deployment
 
-Install manifests are in `packaging/install/`. They include namespace, RBAC, deployment, service, `MutatingWebhookConfiguration`, and cert-manager resources.
+Install manifests are in `packaging/install/`. They include namespace, RBAC, deployment, service, `MutatingWebhookConfiguration`, `PodDisruptionBudget`, and cert-manager resources. The deployment runs 2 replicas with pod anti-affinity and a PDB to ensure availability during voluntary disruptions.
 
 **With cert-manager:**
 ```bash
