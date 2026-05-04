@@ -285,22 +285,6 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void appliesDelegatedNodeIdRange() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "0-9");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getNodeIdRange()).isNotNull();
-        assertThat(effective.getNodeIdRange().getStartInclusive()).isZero();
-        assertThat(effective.getNodeIdRange().getEndInclusive()).isEqualTo(9L);
-    }
-
-    @Test
     void ignoresUndelegatedAnnotation() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setTargetBootstrapServers("kafka:9092");
@@ -329,20 +313,6 @@ class AdmissionHandlerTest {
                 adminSpec, annotations, "test-pod", "test-ns");
 
         assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    @Test
-    void ignoresInvalidNodeIdRangeFormat() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "invalid");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getNodeIdRange()).isNull();
     }
 
     // --- Phase 4: Delegated plugin images ---

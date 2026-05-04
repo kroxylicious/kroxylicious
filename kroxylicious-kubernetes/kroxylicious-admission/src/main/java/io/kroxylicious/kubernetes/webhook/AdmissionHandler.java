@@ -33,7 +33,6 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpecBuilder;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 
@@ -203,8 +202,6 @@ class AdmissionHandler implements HttpHandler {
 
         applyBootstrapPortOverride(podAnnotations, podName, namespace, delegatedSet, effective);
 
-        applyNodeIdRangeOverride(podAnnotations, podName, namespace, delegatedSet, effective);
-
         // Apply delegated plugin images (JSON array of {name, reference} objects)
         applyDelegatedPluginImages(adminSpec, podAnnotations, podName, namespace, delegatedSet, effective);
 
@@ -230,44 +227,6 @@ class AdmissionHandler implements HttpHandler {
         }
     }
 
-    // TODO: Do we really want to support this for the initial feature?
-    private static void applyNodeIdRangeOverride(Map<String, String> podAnnotations,
-                                                 String podName,
-                                                 String namespace,
-                                                 Set<String> delegatedSet,
-                                                 KroxyliciousSidecarConfigSpec effective) {
-        if (delegatedSet.contains(Annotations.DELEGATED_NODE_ID_RANGE)) {
-            String rangeStr = podAnnotations.get(Annotations.DELEGATED_NODE_ID_RANGE);
-            if (rangeStr != null) {
-                String[] parts = rangeStr.split("-", 2);
-                if (parts.length == 2) {
-                    try {
-                        NodeIdRange range = new NodeIdRange();
-                        range.setStartInclusive(Long.parseLong(parts[0]));
-                        range.setEndInclusive(Long.parseLong(parts[1]));
-                        effective.setNodeIdRange(range);
-                    }
-                    catch (NumberFormatException e) {
-                        LOGGER.atWarn()
-                                .addKeyValue(WebhookLoggingKeys.POD, podName)
-                                .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                                .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_NODE_ID_RANGE)
-                                .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, rangeStr)
-                                .log("Invalid node ID range in delegated annotation, using admin default");
-                    }
-                }
-                else {
-                    LOGGER.atWarn()
-                            .addKeyValue(WebhookLoggingKeys.POD, podName)
-                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_NODE_ID_RANGE)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, rangeStr)
-                            .log("Invalid node ID range format in delegated annotation (expected start-end), using admin default");
-                }
-            }
-        }
-    }
-
     private static void applyBootstrapPortOverride(Map<String, String> podAnnotations,
                                                    String podName,
                                                    String namespace,
@@ -283,7 +242,7 @@ class AdmissionHandler implements HttpHandler {
                     LOGGER.atWarn()
                             .addKeyValue(WebhookLoggingKeys.POD, podName)
                             .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_NODE_ID_RANGE)
+                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_BOOTSTRAP_PORT)
                             .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, portStr)
                             .log("Invalid bootstrap port in delegated annotation, using admin default");
                 }
