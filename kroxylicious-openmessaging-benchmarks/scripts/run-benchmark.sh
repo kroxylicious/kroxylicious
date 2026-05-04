@@ -12,7 +12,6 @@ MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 HELM_CHART="${MODULE_DIR}/helm/kroxylicious-benchmark"
 
 NAMESPACE="${NAMESPACE:-kafka}"
-KROXYLICIOUS_OPERATOR_NS="${KROXYLICIOUS_OPERATOR_NS:-kroxylicious-operator}"
 HELM_RELEASE="benchmark"
 KAFKA_READY_TIMEOUT="${KAFKA_READY_TIMEOUT:-600s}"
 POD_READY_TIMEOUT="${POD_READY_TIMEOUT:-300s}"
@@ -77,7 +76,6 @@ Options:
 
 Environment:
   NAMESPACE                    Kubernetes namespace (default: kafka)
-  KROXYLICIOUS_OPERATOR_NS     Namespace where the Kroxylicious operator runs (default: kroxylicious-operator)
   KAFKA_READY_TIMEOUT          Timeout waiting for Kafka to be ready (default: 600s)
   POD_READY_TIMEOUT            Timeout waiting for pods to be ready (default: 300s)
   PROBE_TIMEOUT                Max seconds to wait for the benchmark to complete (default: 3600)
@@ -534,22 +532,6 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
         -n "${NAMESPACE}"
     echo "Kafka is ready."
 
-    # Restart the Kroxylicious operator so it gets a fresh start with Strimzi CRDs available.
-    # The operator is installed at cluster provision time, before Strimzi is installed.
-    # Its Kafka informer fails immediately (kafka.strimzi.io/v1beta2/kafkas not served yet),
-    # causing JOSDK to exit the process. By the time benchmarks run the operator may be in
-    # CrashLoopBackOff with a long backoff delay. Rolling it here — after Strimzi CRDs are
-    # ready — bypasses the backoff and gives it a clean start.
-    if kubectl get deployment/kroxylicious-operator \
-            -n "${KROXYLICIOUS_OPERATOR_NS}" &>/dev/null; then
-        echo "Restarting Kroxylicious operator to pick up Strimzi CRDs..."
-        kubectl rollout restart deployment/kroxylicious-operator \
-            -n "${KROXYLICIOUS_OPERATOR_NS}"
-        kubectl rollout status deployment/kroxylicious-operator \
-            -n "${KROXYLICIOUS_OPERATOR_NS}" --timeout=120s
-        echo "Kroxylicious operator is ready."
-    fi
-
     # --- Wait for OMB workers ---
 
     echo "Waiting for OMB workers to be ready..."
@@ -557,17 +539,6 @@ if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     echo "OMB workers are ready."
 
     ensure_results_pvc
-
-    # If this scenario deployed a KafkaProxy CR, wait for the operator to reconcile it
-    # and bring the proxy pod up before the JFR setup code runs.
-    if kubectl get kafkaproxy -n "${NAMESPACE}" --no-headers 2>/dev/null | grep -q .; then
-        echo "Waiting for KafkaProxy to be ready (timeout: ${POD_READY_TIMEOUT})..."
-        kubectl wait kafkaproxy --all \
-            --for=condition=Ready \
-            --timeout="${POD_READY_TIMEOUT}" \
-            -n "${NAMESPACE}"
-        echo "KafkaProxy is ready."
-    fi
 else
     # Infrastructure already up — delete the previous benchmark Job, restart workers for
     # a clean probe, then reset topics.  Workers do not recover after a benchmark run ends
