@@ -9,6 +9,9 @@ package io.kroxylicious.kubernetes.webhook;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
@@ -17,8 +20,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.Mockito.verify;
 
+@ExtendWith(MockitoExtension.class)
 class SidecarConfigResolverTest {
+
+    @Mock
+    private SidecarConfigStatusUpdater statusUpdater;
 
     @Test
     void resolveByExplicitName() {
@@ -147,6 +155,40 @@ class SidecarConfigResolverTest {
         assertThatCode(resolver::close).doesNotThrowAnyException();
     }
 
+    // --- status updater integration tests ---
+
+    @Test
+    void onAddCallsStatusUpdater() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver(statusUpdater);
+        KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
+
+        resolver.simulateAdd(config);
+
+        verify(statusUpdater).setReady(config);
+        assertThat(resolver.resolve("ns1", "my-config")).isPresent();
+    }
+
+    @Test
+    void onUpdateCallsStatusUpdater() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver(statusUpdater);
+        KroxyliciousSidecarConfig oldConfig = createConfig("ns1", "my-config");
+        KroxyliciousSidecarConfig newConfig = createConfig("ns1", "my-config");
+
+        resolver.simulateUpdate(oldConfig, newConfig);
+
+        verify(statusUpdater).setReady(newConfig);
+        assertThat(resolver.resolve("ns1", "my-config")).isPresent();
+    }
+
+    @Test
+    void noStatusUpdaterDoesNotThrow() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
+
+        assertThatCode(() -> resolver.simulateAdd(config)).doesNotThrowAnyException();
+        assertThat(resolver.resolve("ns1", "my-config")).isPresent();
+    }
+
     private static KroxyliciousSidecarConfig createConfig(String namespace, String name) {
         KroxyliciousSidecarConfig config = new KroxyliciousSidecarConfig();
         ObjectMeta meta = new ObjectMeta();
@@ -154,7 +196,7 @@ class SidecarConfigResolverTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setUpstreamBootstrapServers("kafka.example.com:9092");
+        spec.setTargetBootstrapServers("kafka.example.com:9092");
         config.setSpec(spec);
         return config;
     }

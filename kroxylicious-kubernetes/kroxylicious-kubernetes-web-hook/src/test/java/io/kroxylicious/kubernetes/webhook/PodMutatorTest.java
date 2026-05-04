@@ -26,9 +26,9 @@ import io.fabric8.kubernetes.api.model.Volume;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.UpstreamTls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
 import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.upstreamtls.TrustAnchorSecretRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -182,14 +182,14 @@ class PodMutatorTest {
         Container app = pod.getSpec().getContainers().get(0);
         EnvVar bootstrapEnv = new EnvVar();
         bootstrapEnv.setName("KAFKA_BOOTSTRAP_SERVERS");
-        bootstrapEnv.setValue("old-kafka:9092");
+        bootstrapEnv.setValue("old-kafka:19092");
         app.setEnv(new ArrayList<>(List.of(bootstrapEnv)));
 
         JsonNode patch = createPatchJson(pod);
 
         List<JsonNode> replaceOps = patchOps(patch, "replace", "/spec/containers/0/env/0/value");
         assertThat(replaceOps).hasSize(1);
-        assertThat(replaceOps.get(0).path("value").asText()).isEqualTo("localhost:19092");
+        assertThat(replaceOps.get(0).path("value").asText()).isEqualTo("localhost:" + ProxyConfigGenerator.DEFAULT_BOOTSTRAP_PORT);
     }
 
     @Test
@@ -247,14 +247,14 @@ class PodMutatorTest {
         assertThat(patch).isNotEmpty();
     }
 
-    // --- Phase 2: Upstream TLS ---
+    // --- Phase 2: Target Cluster TLS ---
 
     @Test
-    void patchAddsUpstreamTlsVolume() throws Exception {
+    void patchAddsTargetClusterTlsVolume() throws Exception {
         Pod pod = podWithAppContainer(null);
         // Give the pod existing volumes so both config and TLS use the append path
         pod.getSpec().setVolumes(new ArrayList<>(List.of(new Volume())));
-        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
 
         String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
         JsonNode patch = MAPPER.readTree(patchStr);
@@ -263,14 +263,14 @@ class PodMutatorTest {
         assertThat(volumeOps).hasSizeGreaterThanOrEqualTo(2);
 
         boolean hasTlsVolume = volumeOps.stream()
-                .anyMatch(op -> "upstream-tls".equals(op.path("value").path("name").asText()));
-        assertThat(hasTlsVolume).as("patch should add upstream-tls volume").isTrue();
+                .anyMatch(op -> PodMutator.TARGET_CLUSTER_TLS_VOLUME_NAME.equals(op.path("value").path("name").asText()));
+        assertThat(hasTlsVolume).as("patch should add %s volume", PodMutator.TARGET_CLUSTER_TLS_VOLUME_NAME).isTrue();
     }
 
     @Test
-    void patchAddsUpstreamTlsVolumeMount() throws Exception {
+    void patchAddsTargetClusterTlsVolumeMount() throws Exception {
         Pod pod = podWithAppContainer(null);
-        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
+        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
 
         String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
         JsonNode patch = MAPPER.readTree(patchStr);
@@ -280,8 +280,8 @@ class PodMutatorTest {
         assertThat(mounts).hasSize(2);
 
         JsonNode tlsMount = mounts.get(1);
-        assertThat(tlsMount.path("name").asText()).isEqualTo("upstream-tls");
-        assertThat(tlsMount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/tls/upstream");
+        assertThat(tlsMount.path("name").asText()).isEqualTo(PodMutator.TARGET_CLUSTER_TLS_VOLUME_NAME);
+        assertThat(tlsMount.path("mountPath").asText()).isEqualTo(PodMutator.TARGET_CLUSTER_TLS_MOUNT_PATH);
         assertThat(tlsMount.path("readOnly").asBoolean()).isTrue();
     }
 
@@ -295,32 +295,32 @@ class PodMutatorTest {
         for (JsonNode op : patch) {
             if ("add".equals(op.path("op").asText())) {
                 JsonNode value = op.path("value");
-                if (value.isObject() && "upstream-tls".equals(value.path("name").asText())) {
+                if (value.isObject() && value.path("name").asText().matches(".*tls.*")) {
                     hasTlsVolume = true;
                 }
                 if (value.isArray()) {
                     for (JsonNode item : value) {
-                        if ("upstream-tls".equals(item.path("name").asText())) {
+                        if (item.path("name").asText().matches(".*tls.*")) {
                             hasTlsVolume = true;
                         }
                     }
                 }
             }
         }
-        assertThat(hasTlsVolume).as("no TLS volume expected without upstream TLS config").isFalse();
+        assertThat(hasTlsVolume).as("no TLS volume expected without target cluster TLS config").isFalse();
     }
 
     @Test
-    void resolveUpstreamTrustStorePathWithTls() {
-        KroxyliciousSidecarConfigSpec spec = specWithUpstreamTls();
-        String path = PodMutator.resolveUpstreamTrustStorePath(spec);
-        assertThat(path).isEqualTo("/opt/kroxylicious/tls/upstream/ca.crt");
+    void resolveTargetClusterTrustStorePathWithTls() {
+        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
+        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
+        assertThat(path).isEqualTo(PodMutator.TARGET_CLUSTER_TLS_MOUNT_PATH + "/ca.crt");
     }
 
     @Test
-    void resolveUpstreamTrustStorePathWithoutTls() {
+    void resolveTargetClusterTrustStorePathWithoutTls() {
         KroxyliciousSidecarConfigSpec spec = defaultSpec();
-        String path = PodMutator.resolveUpstreamTrustStorePath(spec);
+        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
         assertThat(path).isNull();
     }
 
@@ -507,18 +507,18 @@ class PodMutatorTest {
 
     private static KroxyliciousSidecarConfigSpec defaultSpec() {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setUpstreamBootstrapServers("kafka.example.com:9092");
+        spec.setTargetBootstrapServers("kafka.example.com:9092");
         return spec;
     }
 
-    private static KroxyliciousSidecarConfigSpec specWithUpstreamTls() {
+    private static KroxyliciousSidecarConfigSpec specWithTargetClusterTls() {
         KroxyliciousSidecarConfigSpec spec = defaultSpec();
-        UpstreamTls tls = new UpstreamTls();
+        TargetClusterTls tls = new TargetClusterTls();
         TrustAnchorSecretRef ref = new TrustAnchorSecretRef();
         ref.setName("kafka-ca");
         ref.setKey("ca.crt");
         tls.setTrustAnchorSecretRef(ref);
-        spec.setUpstreamTls(tls);
+        spec.setTargetClusterTls(tls);
         return spec;
     }
 

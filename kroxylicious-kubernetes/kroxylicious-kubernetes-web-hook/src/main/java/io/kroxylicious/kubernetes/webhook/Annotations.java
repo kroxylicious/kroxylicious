@@ -15,7 +15,6 @@ final class Annotations {
 
     private static final String KROXYLICIOUS_ANNOTATION_PREFIX = "kroxylicious.io/";
 
-    // TODO Javadoc these things, so we know what they're for
     /**
      * Annotation on the target Pod, when the value is false the sidecar will not be injected into the Pod
      */

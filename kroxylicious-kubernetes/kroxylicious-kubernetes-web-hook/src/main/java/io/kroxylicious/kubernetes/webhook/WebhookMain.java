@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
+import java.time.Clock;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -37,7 +38,9 @@ public class WebhookMain {
     private static final String KROXYLICIOUS_IMAGE_VAR = "KROXYLICIOUS_IMAGE";
 
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0:8443";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String DEFAULT_CERT_PATH = "/etc/webhook/tls/tls.crt";
+    @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String DEFAULT_KEY_PATH = "/etc/webhook/tls/tls.key";
 
     private final WebhookServer server;
@@ -83,7 +86,8 @@ public class WebhookMain {
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
         var kubernetesVersion = detectVersion(kubeClient);
-        SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient);
+        SidecarConfigStatusUpdater statusUpdater = new SidecarConfigStatusUpdater(kubeClient, Clock.systemUTC());
+        SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient, statusUpdater);
         AdmissionHandler admissionHandler = new AdmissionHandler(
                 configResolver, proxyImage, kubernetesVersion);
         WebhookServer server = new WebhookServer(bindAddress, certPath, keyPath, admissionHandler);
