@@ -54,7 +54,7 @@ abstract class AbstractWebhookInstallKT {
     private static final String TEST_NS = "webhook-test";
 
     private static final Path CRD_PATH = Path.of(
-            "../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml");
+            "../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml");
 
     private KubernetesClient client;
 

@@ -51,7 +51,7 @@ RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
 
 ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
-COPY target/kroxylicious-kubernetes-web-hook-${KROXYLICIOUS_VERSION}-app/kroxylicious-kubernetes-web-hook-${KROXYLICIOUS_VERSION}/ .
+COPY target/kroxylicious-admission-${KROXYLICIOUS_VERSION}-app/kroxylicious-admission-${KROXYLICIOUS_VERSION}/ .
 
 USER ${CONTAINER_USER_UID}
 

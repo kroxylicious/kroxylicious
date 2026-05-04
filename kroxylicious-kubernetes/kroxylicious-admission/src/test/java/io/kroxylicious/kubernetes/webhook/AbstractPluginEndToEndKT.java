@@ -66,7 +66,7 @@ abstract class AbstractPluginEndToEndKT {
     static final String TOPIC = "plugin-test-topic";
 
     private static final Path CRD_PATH = Path.of(
-            "../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/"
+            "../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/"
                     + "kroxylicioussidecarconfigs.kroxylicious.io-v1.yml");
 
     static final WebhookInfo INFO = WebhookInfo.fromResource();
