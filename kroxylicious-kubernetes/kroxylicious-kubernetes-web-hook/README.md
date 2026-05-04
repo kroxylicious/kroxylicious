@@ -10,7 +10,7 @@ The webhook automates the "sidecar injection" pattern (as used by Istio/Linkerd)
 
 The webhook operates under a strict trust boundary between two roles:
 
-- **Webhook administrator**: Controls what gets injected (proxy image, filters, upstream cluster, security context). Creates `KroxyliciousSidecarConfig` resources.
+- **Webhook administrator**: Controls what gets injected (proxy image, filters, target cluster, security context). Creates `KroxyliciousSidecarConfig` resources.
 - **Application pod owner**: Can only influence injection through explicitly delegated annotations. Cannot tamper with the proxy config, image, or security context.
 
 The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, preventing app owners from pre-setting malicious config.
@@ -24,24 +24,24 @@ The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, pre
    - Adds a downwardAPI volume projecting the proxy config from a pod annotation
    - Sets `KAFKA_BOOTSTRAP_SERVERS=localhost:<port>` on existing app containers
    - Sets pod-level security context if not already present
-   - Adds upstream TLS trust anchor volumes if configured
+   - Adds target cluster TLS trust anchor volumes if configured
 
 ## Custom Resource: `KroxyliciousSidecarConfig`
 
 A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines sidecar configuration per namespace. Key fields:
 
-| Field | Description |
-|-------|-------------|
-| `upstreamBootstrapServers` | Bootstrap servers of the upstream Kafka cluster (required) |
-| `proxyImage` | Override the proxy container image |
-| `bootstrapPort` | Proxy bootstrap port on localhost (default: 19092) |
-| `nodeIdRange` | Broker node ID range (default: 0-2) |
-| `managementPort` | Management endpoint port (default: 9190) |
-| `filterDefinitions` | Filters applied to proxied traffic |
-| `upstreamTls` | TLS configuration for the upstream Kafka connection |
-| `delegatedAnnotations` | Annotations app owners may set to override config |
-| `setBootstrapEnvVar` | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
-| `resources` | Resource requests/limits for the sidecar container |
+| Field                    | Description |
+|--------------------------|-------------|
+| `targetBootstrapServers` | Bootstrap servers of the target Kafka cluster (required) |
+| `proxyImage`             | Override the proxy container image |
+| `bootstrapPort`          | Proxy bootstrap port on localhost (default: 19092) |
+| `nodeIdRange`            | Broker node ID range (default: 0-2) |
+| `managementPort`         | Management endpoint port (default: 9190) |
+| `filterDefinitions`      | Filters applied to proxied traffic |
+| `targetClusterTls`       | TLS configuration for the target Kafka connection |
+| `delegatedAnnotations`   | Annotations app owners may set to override config |
+| `setBootstrapEnvVar`     | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
+| `resources`              | Resource requests/limits for the sidecar container |
 
 ## Annotations
 
@@ -127,6 +127,54 @@ mvn verify -pl kroxylicious-kubernetes-web-hook -Pdist
 
 - **Unit tests** (`*Test.java`): Test individual classes in isolation. Run with `mvn test`.
 - **KT tests** (`*KT.java`): Kubernetes integration tests requiring a real cluster and the `dist` Maven profile. Gated by `@EnabledIf` annotations that check for cluster availability.
+
+### Running KT Tests
+
+KT tests require:
+
+1. **`openssl`** on `PATH` (for generating self-signed TLS certificates).
+2. **Container image archives** built by the `dist` Maven profile:
+   ```bash
+   mvn package -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook -Pdist -am -DskipTests
+   ```
+3. **A Kubernetes cluster whose container runtime supports OCI image volumes.** The plugin end-to-end test (`*PluginEndToEndKT`) mounts third-party plugin JARs as image volumes (Kubernetes `ImageVolume` feature gate, beta since 1.33). This requires **containerd 2.0+** or **CRI-O**; the Docker runtime does not support image volumes.
+
+#### Minikube
+
+Start Minikube with containerd and ensure your current kubectl context is `minikube`:
+
+```bash
+minikube start --container-runtime=containerd
+```
+
+Then run:
+
+```bash
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+  -Dtest=io.kroxylicious.kubernetes.webhook.MinikubePluginEndToEndKT
+```
+
+The test loads and removes container images from the Minikube registry automatically. Requires `minikube` on `PATH`.
+
+#### Kind
+
+The Kind variant creates and deletes a dedicated cluster with the `ImageVolume` feature gate enabled:
+
+```bash
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+  -Dtest=io.kroxylicious.kubernetes.webhook.KindPluginEndToEndKT
+```
+
+Requires `kind` on `PATH`.
+
+#### Webhook Install Tests
+
+The webhook install tests (`*WebhookInstallKT`) verify manifest installation and sidecar injection without deploying Kafka. They have the same cluster requirements but do not need the `ImageVolume` feature gate. Run with:
+
+```bash
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+  -Dtest=io.kroxylicious.kubernetes.webhook.MinikubeWebhookInstallKT
+```
 
 ## Cross-References
 

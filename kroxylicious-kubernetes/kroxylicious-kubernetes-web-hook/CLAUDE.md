@@ -24,7 +24,7 @@ See [README.md](README.md) for comprehensive webhook documentation including:
 
 When working with this module:
 - Follow fail-open semantics in error handling
-- Never allow app owners to control the proxy image, security context, or upstream address
+- Never allow app owners to control the proxy image, security context, or target cluster address
 - Delegated annotations must be explicitly listed in `KroxyliciousSidecarConfig`
 - The proxy config YAML is generated using the same `Configuration` model from `kroxylicious-runtime`
 - Use structured logging with `addKeyValue()` per the [logging rules](../.claude/rules/logging.md)

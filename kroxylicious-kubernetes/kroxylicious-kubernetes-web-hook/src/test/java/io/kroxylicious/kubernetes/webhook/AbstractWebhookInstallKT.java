@@ -31,6 +31,8 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigBuilder;
 import io.kroxylicious.test.ShellUtils;
 
@@ -212,22 +214,23 @@ abstract class AbstractWebhookInstallKT {
                 .withNamespace(TEST_NS)
                 .endMetadata()
                 .withNewSpec()
-                .withUpstreamBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
+                .withTargetBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
                 .endSpec()
                 .build();
         client.resource(sidecarConfig).create();
 
-        // Wait for the webhook's informer to sync the config
-
-        LOGGER.info("Waiting for webhook to observe sidecar config");
-        try {
-            // TODO replace this sleep with watching for a Ready condition in the
-            // status of the KroxyliciousSidecarConfig
-            Thread.sleep(5000);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        LOGGER.info("Waiting for webhook to set Ready condition on sidecar config");
+        client.resources(KroxyliciousSidecarConfig.class)
+                .inNamespace(TEST_NS)
+                .withName("test-config")
+                .waitUntilCondition(
+                        ksc -> ksc != null
+                                && ksc.getStatus() != null
+                                && ksc.getStatus().getConditions() != null
+                                && ksc.getStatus().getConditions().stream()
+                                        .anyMatch(c -> Condition.Type.Ready.equals(c.getType())
+                                                && Condition.Status.TRUE.equals(c.getStatus())),
+                        30, TimeUnit.SECONDS);
     }
 
     private void verifyInjection() {
