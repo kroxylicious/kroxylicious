@@ -148,11 +148,16 @@ else
     trap 'rm -rf "${WORK_DIR}"' EXIT
 
     TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
+    TARBALL_URL="https://github.com/kroxylicious/kroxylicious/releases/download/v${KROXYLICIOUS_VERSION}/${TARBALL}"
     echo "  Downloading ${TARBALL}..."
-    gh release download "v${KROXYLICIOUS_VERSION}" \
-        --repo kroxylicious/kroxylicious \
-        --pattern "${TARBALL}" \
-        --output "${WORK_DIR}/${TARBALL}"
+    if command -v gh &>/dev/null; then
+        gh release download "v${KROXYLICIOUS_VERSION}" \
+            --repo kroxylicious/kroxylicious \
+            --pattern "${TARBALL}" \
+            --output "${WORK_DIR}/${TARBALL}"
+    else
+        curl -fsSL "${TARBALL_URL}" -o "${WORK_DIR}/${TARBALL}"
+    fi
 
     echo "  Extracting..."
     tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"
