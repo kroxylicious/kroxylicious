@@ -206,7 +206,7 @@ spec:
                 delegatedAnnotations:
                   description: |
                     Annotations that the application pod owner is permitted to set to override
-                    sidecar configuration. Any annotation in the kroxylicious.io/ namespace
+                    sidecar configuration. Any annotation in the sidecar.kroxylicious.io/ namespace
                     that is not in this list will be ignored with a warning.
                   type: array
                   items:

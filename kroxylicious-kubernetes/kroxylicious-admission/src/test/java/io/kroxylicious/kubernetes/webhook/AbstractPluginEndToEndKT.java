@@ -292,7 +292,7 @@ abstract class AbstractPluginEndToEndKT {
         var ns = new NamespaceBuilder()
                 .withNewMetadata()
                 .withName(TEST_NS)
-                .addToLabels("kroxylicious.io/sidecar-injection", "enabled")
+                .addToLabels("sidecar.kroxylicious.io/injection", "enabled")
                 .endMetadata()
                 .build();
         client.namespaces().resource(ns).create();

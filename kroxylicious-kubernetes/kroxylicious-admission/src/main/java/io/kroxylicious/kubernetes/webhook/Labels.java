@@ -16,10 +16,10 @@ final class Labels {
      * {@code Pods} created in that {@code Namespace} will be intercepted by the webhook.
      * Interception is enabled when this label has the value {@code enabled}.
      */
-    static final String SIDECAR_INJECTION = "kroxylicious.io/sidecar-injection";
+    static final String SIDECAR_INJECTION = "sidecar.kroxylicious.io/injection";
 
     /**
-     * The value of the {@code kroxylicious.io/sidecar-injection} label which enables
+     * The value of the {@code sidecar.kroxylicious.io/injection} label which enables
      * interception by the webhook.
      */
     static final String SIDECAR_INJECTION_ENABLED = "enabled";
@@ -29,7 +29,7 @@ final class Labels {
      * Also used as an {@code objectSelector} on the {@code MutatingWebhookConfiguration}
      * so that pods with this label set to {@code "false"} are never sent to the webhook.
      */
-    static final String INJECT_SIDECAR = "kroxylicious.io/inject-sidecar";
+    static final String INJECT_SIDECAR = "sidecar.kroxylicious.io/inject";
 
     private Labels() {
     }

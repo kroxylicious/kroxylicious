@@ -205,7 +205,7 @@ abstract class AbstractWebhookInstallKT {
         var ns = new NamespaceBuilder()
                 .withNewMetadata()
                 .withName(TEST_NS)
-                .addToLabels("kroxylicious.io/sidecar-injection", "enabled")
+                .addToLabels("sidecar.kroxylicious.io/injection", "enabled")
                 .endMetadata()
                 .build();
         client.namespaces().resource(ns).create();
@@ -268,7 +268,7 @@ abstract class AbstractWebhookInstallKT {
         // Verify the proxy config annotation was set
         assertThat(created.getMetadata().getAnnotations())
                 .as("Pod should have sidecar-status annotation set to 'injected'")
-                .containsEntry("kroxylicious.io/sidecar-status", "injected");
+                .containsEntry("sidecar.kroxylicious.io/status", "injected");
 
         // Verify KAFKA_BOOTSTRAP_SERVERS env var was set on the app container
         Container appContainer = created.getSpec().getContainers().stream()
@@ -292,7 +292,7 @@ abstract class AbstractWebhookInstallKT {
                 .withNewMetadata()
                 .withName("test-app-no-sidecar")
                 .withNamespace(TEST_NS)
-                .addToLabels("kroxylicious.io/inject-sidecar", "false")
+                .addToLabels("sidecar.kroxylicious.io/inject", "false")
                 .endMetadata()
                 .withNewSpec()
                 .withTerminationGracePeriodSeconds(0L)

@@ -13,41 +13,41 @@ import java.util.Set;
  */
 final class Annotations {
 
-    private static final String KROXYLICIOUS_ANNOTATION_PREFIX = "kroxylicious.io/";
+    private static final String ANNOTATION_PREFIX = "sidecar.kroxylicious.io/";
 
     /**
      * Annotation on the target Pod used to name the {@code KroxyliciousSidecarConfig}
      * resource which should apply to that Pod.
      */
-    static final String SIDECAR_CONFIG = "kroxylicious.io/sidecar-config";
+    static final String SIDECAR_CONFIG = "sidecar.kroxylicious.io/config";
 
     /**
      * Annotation on the target Pod used to store the proxy configuration, consumed
      * by the sidecar container via a downwardAPI volume mount.
      */
-    static final String PROXY_CONFIG = "kroxylicious.io/proxy-config";
+    static final String PROXY_CONFIG = "sidecar.kroxylicious.io/proxy-config";
 
     /**
      * Annotation on the target Pod which takes the value {@code "injected"} when
      * the webhook has mutated the pod spec (used because the
-     * {@ocde MutatingWebhookConfiguration} is configured with
+     * {@code MutatingWebhookConfiguration} is configured with
      * {@code reinvocationPolicy: IfNeeded}).
      */
-    static final String SIDECAR_STATUS = "kroxylicious.io/sidecar-status";
+    static final String SIDECAR_STATUS = "sidecar.kroxylicious.io/status";
 
     /**
      * <p>Annotation that app owners may set on the {@code Pod}
      * to configure the port used in the value of the
-     * {@code KAFKA_BOOTSTRAP_SERVERS} which is set on the all the containers
+     * {@code KAFKA_BOOTSTRAP_SERVERS} which is set on all the containers
      * in the target {@code Pod} except the proxy sidecar container.</p>
      *
      * <p>The ability of the app owner to use this annotation
-     * depends on whether this annotation has been delegatated to them in the
-     * {@ocde MutatingWebhookConfiguration}</p>
+     * depends on whether this annotation has been delegated to them in the
+     * {@code KroxyliciousSidecarConfig}.</p>
      */
-    static final String DELEGATED_BOOTSTRAP_PORT = "kroxylicious.io/sidecar-bootstrap-port";
+    static final String DELEGATED_BOOTSTRAP_PORT = "sidecar.kroxylicious.io/bootstrap-port";
 
-    static final String DELEGATED_PLUGIN_IMAGES = "kroxylicious.io/sidecar-plugin-images";
+    static final String DELEGATED_PLUGIN_IMAGES = "sidecar.kroxylicious.io/plugin-images";
 
     /** The set of annotations managed by the webhook itself — never treated as undelegated. */
     static final Set<String> WEBHOOK_MANAGED_ANNOTATIONS = Set.of(
@@ -63,7 +63,7 @@ final class Annotations {
     }
 
     static boolean isKroxyliciousAnnotation(String key) {
-        return key.startsWith(KROXYLICIOUS_ANNOTATION_PREFIX);
+        return key.startsWith(ANNOTATION_PREFIX);
     }
 
     private Annotations() {
