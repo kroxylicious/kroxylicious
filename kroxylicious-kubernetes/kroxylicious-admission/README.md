@@ -53,7 +53,6 @@ A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines side
 | `kroxylicious.io/proxy-config` | Generated proxy YAML (set by webhook) | Webhook |
 | `kroxylicious.io/sidecar-status` | Injection status (set by webhook) | Webhook |
 | `kroxylicious.io/sidecar-bootstrap-port` | Override bootstrap port (if delegated) | App owner |
-| `kroxylicious.io/sidecar-node-id-range` | Override node ID range (if delegated) | App owner |
 
 ## Injection Decision Logic
 
