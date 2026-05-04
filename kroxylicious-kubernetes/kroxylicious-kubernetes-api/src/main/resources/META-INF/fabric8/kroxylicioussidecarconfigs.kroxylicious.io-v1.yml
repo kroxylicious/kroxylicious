@@ -34,10 +34,9 @@ spec:
       subresources:
         status: {}
       additionalPrinterColumns:
-        - name: Upstream
-          # TODO All the "Upstream" in this API should be "Target", because that aligns with the terminology we use in non-Kube proxy configuration
-          description: The bootstrap servers of the upstream Kafka cluster.
-          jsonPath: ".spec.upstreamBootstrapServers"
+        - name: Target
+          description: The bootstrap servers of the target Kafka cluster.
+          jsonPath: ".spec.targetBootstrapServers"
           type: string
           priority: 0
       schema:
@@ -54,11 +53,11 @@ spec:
             spec:
               type: object
               required:
-                - upstreamBootstrapServers
+                - targetBootstrapServers
               properties:
-                upstreamBootstrapServers:
+                targetBootstrapServers:
                   description: |
-                    The bootstrap servers of the upstream Kafka cluster that the sidecar proxy
+                    The bootstrap servers of the target Kafka cluster that the sidecar proxy
                     will forward traffic to.
                   type: string
                 proxyImage:
@@ -73,8 +72,7 @@ spec:
                     connections. Broker ports are allocated sequentially starting from
                     bootstrapPort + 1.
                   type: integer
-                  default: 19092
-                  # TODO Change to 9092
+                  default: 9092
                   minimum: 1024
                   maximum: 65535
                 nodeIdRange:
@@ -98,8 +96,7 @@ spec:
                     The port on which the sidecar proxy exposes its management endpoints
                     (/livez, /metrics). Bound to all interfaces so that kubelet probes work.
                   type: integer
-                  default: 9190
-                  # TODO change to 9082
+                  default: 9082
                   minimum: 1024
                   maximum: 65535
                 resources:
@@ -136,16 +133,16 @@ spec:
                         description: Plugin-specific configuration for this filter.
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
-                upstreamTls:
+                targetClusterTls:
                   description: |
-                    TLS configuration for the connection from the sidecar proxy to the upstream
+                    TLS configuration for the connection from the sidecar proxy to the target
                     Kafka cluster. If omitted, the proxy connects to Kafka without TLS.
                   type: object
                   properties:
                     trustAnchorSecretRef:
                       description: |
                         A reference to a Secret containing the trusted CA certificate(s) for
-                        validation of the upstream Kafka broker's TLS server certificate.
+                        validation of the target Kafka broker's TLS server certificate.
                         The referenced key should contain a PEM-encoded certificate bundle.
                       type: object
                       required:

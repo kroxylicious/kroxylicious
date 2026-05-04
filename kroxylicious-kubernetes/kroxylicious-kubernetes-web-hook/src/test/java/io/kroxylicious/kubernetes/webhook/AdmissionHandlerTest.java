@@ -268,7 +268,7 @@ class AdmissionHandlerTest {
     @Test
     void appliesDelegatedBootstrapPort() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setBootstrapPort(19092L);
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
 
@@ -285,7 +285,7 @@ class AdmissionHandlerTest {
     @Test
     void appliesDelegatedNodeIdRange() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
 
         Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "0-9");
@@ -301,7 +301,7 @@ class AdmissionHandlerTest {
     @Test
     void ignoresUndelegatedAnnotation() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setBootstrapPort(19092L);
         // No delegatedAnnotations set
 
@@ -317,7 +317,7 @@ class AdmissionHandlerTest {
     @Test
     void ignoresInvalidBootstrapPort() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setBootstrapPort(19092L);
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
 
@@ -332,7 +332,7 @@ class AdmissionHandlerTest {
     @Test
     void ignoresInvalidNodeIdRangeFormat() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_NODE_ID_RANGE));
 
         Map<String, String> annotations = Map.of(Annotations.DELEGATED_NODE_ID_RANGE, "invalid");
@@ -348,7 +348,7 @@ class AdmissionHandlerTest {
     @Test
     void parsesValidDelegatedPlugins() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setAllowedPluginRegistries(List.of("reg.io/"));
 
         String json = """
@@ -364,7 +364,7 @@ class AdmissionHandlerTest {
     @Test
     void rejectsDelegatedPluginWithoutDigest() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
 
         String json = """
                 [{"name":"my-filter","reference":"reg.io/filter:latest"}]""";
@@ -377,7 +377,7 @@ class AdmissionHandlerTest {
     @Test
     void rejectsDelegatedPluginFromDisallowedRegistry() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setAllowedPluginRegistries(List.of("trusted.io/"));
 
         String json = """
@@ -391,7 +391,7 @@ class AdmissionHandlerTest {
     @Test
     void acceptsDelegatedPluginWhenNoRegistryRestrictions() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         // No allowedPluginRegistries set — all registries allowed
 
         String json = """
@@ -405,7 +405,7 @@ class AdmissionHandlerTest {
     @Test
     void skipsDelegatedPluginEntryMissingName() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
 
         String json = """
                 [{"reference":"reg.io/filter@sha256:abc123"}]""";
@@ -418,7 +418,7 @@ class AdmissionHandlerTest {
     @Test
     void ignoresNonArrayDelegatedPluginsJson() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
 
         List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins("{\"not\":\"array\"}", adminSpec,
                 "pod", "ns");
@@ -429,7 +429,7 @@ class AdmissionHandlerTest {
     @Test
     void ignoresMalformedDelegatedPluginsJson() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
 
         List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins("not json at all", adminSpec, "pod",
                 "ns");
@@ -440,7 +440,7 @@ class AdmissionHandlerTest {
     @Test
     void appliesDelegatedPluginImages() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
         adminSpec.setAllowedPluginRegistries(List.of("reg.io/"));
 
@@ -458,7 +458,7 @@ class AdmissionHandlerTest {
     @Test
     void mergesDelegatedPluginsWithAdminPlugins() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
 
         io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins adminPlugin = new io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins();
@@ -483,7 +483,7 @@ class AdmissionHandlerTest {
     @Test
     void returnsOriginalSpecWhenNoAnnotations() {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setUpstreamBootstrapServers("kafka:9092");
+        adminSpec.setTargetBootstrapServers("kafka:9092");
 
         KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
                 adminSpec, null, "test-pod", "test-ns");
@@ -538,7 +538,7 @@ class AdmissionHandlerTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setUpstreamBootstrapServers("kafka.example.com:9092");
+        spec.setTargetBootstrapServers("kafka.example.com:9092");
         config.setSpec(spec);
         return config;
     }
