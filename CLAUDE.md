@@ -82,7 +82,7 @@ See module README.md files for detailed context:
 - [kroxylicious-authorizer-api/README.md](kroxylicious-authorizer-api/README.md) - Authoriser API
 - [kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md](kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md) - Kubernetes CRDs documentation)
 - [kroxylicious-kubernetes/kroxylicious-operator/README.md](kroxylicious-kubernetes/kroxylicious-operator/README.md) - Kubernetes operator
-- [kroxylicious-kubernetes-web-hook/README.md](kroxylicious-kubernetes-web-hook/README.md) - Sidecar injection webhook
+- [kroxylicious-kubernetes/kroxylicious-admission/README.md](kroxylicious-kubernetes/kroxylicious-admission/README.md) - Kubernetes mutating admission webhook for sidecar injection
 - [kroxylicious-docs/README.md](kroxylicious-docs/README.md) - Documentation
 
 ## Kubernetes
