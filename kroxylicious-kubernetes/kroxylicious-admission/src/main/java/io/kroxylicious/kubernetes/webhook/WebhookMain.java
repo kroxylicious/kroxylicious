@@ -36,6 +36,7 @@ public class WebhookMain {
     private static final String TLS_CERT_PATH_VAR = "TLS_CERT_PATH";
     private static final String TLS_KEY_PATH_VAR = "TLS_KEY_PATH";
     private static final String KROXYLICIOUS_IMAGE_VAR = "KROXYLICIOUS_IMAGE";
+    private static final String FAILURE_POLICY_VAR = "FAILURE_POLICY";
 
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0:8443";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
@@ -83,13 +84,17 @@ public class WebhookMain {
         Path certPath = Path.of(env.getOrDefault(TLS_CERT_PATH_VAR, DEFAULT_CERT_PATH));
         Path keyPath = Path.of(env.getOrDefault(TLS_KEY_PATH_VAR, DEFAULT_KEY_PATH));
         String proxyImage = requiredEnv(env, KROXYLICIOUS_IMAGE_VAR);
+        boolean failClosed = parseFailClosed(env);
+        LOGGER.atInfo()
+                .addKeyValue("failurePolicy", failClosed ? "Fail" : "Ignore")
+                .log("Webhook failure policy configured");
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
         var kubernetesVersion = detectVersion(kubeClient);
         SidecarConfigStatusUpdater statusUpdater = new SidecarConfigStatusUpdater(kubeClient, Clock.systemUTC());
         SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient, statusUpdater);
         AdmissionHandler admissionHandler = new AdmissionHandler(
-                configResolver, proxyImage, kubernetesVersion);
+                configResolver, proxyImage, kubernetesVersion, failClosed);
         WebhookServer server = new WebhookServer(bindAddress, certPath, keyPath, admissionHandler);
 
         return new WebhookMain(server, configResolver, kubeClient);
@@ -169,5 +174,17 @@ public class WebhookMain {
             throw new IllegalStateException("Required environment variable " + name + " is not set");
         }
         return value;
+    }
+
+    @VisibleForTesting
+    static boolean parseFailClosed(@NonNull Map<String, String> env) {
+        String value = env.getOrDefault(FAILURE_POLICY_VAR, "Fail");
+        return switch (value) {
+            case "Fail" -> true;
+            case "Ignore" -> false;
+            default -> throw new IllegalStateException(
+                    "Invalid " + FAILURE_POLICY_VAR + " value '" + value
+                            + "': must be 'Fail' or 'Ignore'");
+        };
     }
 }

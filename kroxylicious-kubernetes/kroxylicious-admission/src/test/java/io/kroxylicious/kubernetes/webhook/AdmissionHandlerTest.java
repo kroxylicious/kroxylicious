@@ -57,10 +57,13 @@ class AdmissionHandlerTest {
     private SidecarConfigResolver configResolver;
 
     private AdmissionHandler handler;
+    private AdmissionHandler failOpenHandler;
 
     @BeforeEach
     void setUp() {
         handler = new AdmissionHandler(configResolver, PROXY_IMAGE);
+        failOpenHandler = new AdmissionHandler(configResolver, PROXY_IMAGE,
+                new KubernetesVersion(1, 0), false);
     }
 
     // --- processReview() tests ---
@@ -151,14 +154,41 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void failsOpenOnException() {
+    void failsClosedOnExceptionByDefault() {
         when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
 
+        assertThat(response.getAllowed()).isFalse();
+        assertThat(response.getStatus()).isNotNull();
+        assertThat(response.getStatus().getMessage()).contains("kaboom");
+        assertThat(response.getPatch()).isNull();
+    }
+
+    @Test
+    void failsOpenOnExceptionWhenConfigured() {
+        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = failOpenHandler.processReview(review);
+
         assertThat(response.getAllowed()).isTrue();
         assertThat(response.getPatch()).isNull();
+    }
+
+    @Test
+    void denyResponseIncludesStatusDetails() {
+        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("test error"));
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isFalse();
+        assertThat(response.getStatus()).isNotNull();
+        assertThat(response.getStatus().getCode()).isEqualTo(403);
+        assertThat(response.getStatus().getReason()).isEqualTo("Forbidden");
+        assertThat(response.getStatus().getMessage()).contains("test error");
     }
 
     @Test
@@ -238,10 +268,39 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void handleFailsOpenOnDeserialisationError() throws IOException {
+    void handleFailsClosedOnDeserialisationError() throws IOException {
         HttpExchange exchange = createMockExchange("POST", "not json".getBytes(StandardCharsets.UTF_8));
 
         handler.handle(exchange);
+
+        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
+        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
+
+        assertThat(responseJson.get("response").get("allowed").asBoolean()).isFalse();
+        assertThat(responseJson.get("response").get("status").get("message").asText()).isNotEmpty();
+    }
+
+    @Test
+    void handleFailsClosedOnProcessReviewException() throws IOException {
+        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        byte[] requestBody = MAPPER.writeValueAsBytes(review);
+        HttpExchange exchange = createMockExchange("POST", requestBody);
+
+        handler.handle(exchange);
+
+        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
+        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
+
+        assertThat(responseJson.get("response").get("allowed").asBoolean()).isFalse();
+    }
+
+    @Test
+    void handleFailsOpenOnDeserialisationErrorWhenConfigured() throws IOException {
+        HttpExchange exchange = createMockExchange("POST", "not json".getBytes(StandardCharsets.UTF_8));
+
+        failOpenHandler.handle(exchange);
 
         ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
         JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
@@ -250,14 +309,14 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void handleFailsOpenOnProcessReviewException() throws IOException {
+    void handleFailsOpenOnProcessReviewExceptionWhenConfigured() throws IOException {
         when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         byte[] requestBody = MAPPER.writeValueAsBytes(review);
         HttpExchange exchange = createMockExchange("POST", requestBody);
 
-        handler.handle(exchange);
+        failOpenHandler.handle(exchange);
 
         ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
         JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
