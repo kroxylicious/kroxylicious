@@ -39,7 +39,7 @@ See the [Release Guide](RELEASING.md)
 
 ## Performance Testing
 
-See the [Performance Guide](PERFORMANCE.md) for information on running basic performance tests for this proxy.
+See [OpenMessaging Benchmarks](kroxylicious-openmessaging-benchmarks/README.md) for information on running performance tests for Kroxylicious.
 
 ## Kroxylicious Filter Development
 
