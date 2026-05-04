@@ -1,4 +1,4 @@
-# kroxylicious-kubernetes-web-hook Module
+# kroxylicious-kubernetes-admission Module
 
 This module implements a Kubernetes mutating admission webhook that injects Kroxylicious proxy sidecars into Kafka application pods. See also [`../README.md`](../README.md) for project-wide context.
 
@@ -114,13 +114,13 @@ kubectl apply -f packaging/install/
 
 ```bash
 # Build the module
-mvn clean install -pl kroxylicious-kubernetes-web-hook -am
+mvn clean install -pl kroxylicious-kubernetes-admission -am
 
 # Build container image (requires dist profile)
-mvn clean install -pl kroxylicious-kubernetes-web-hook -am -Pdist
+mvn clean install -pl kroxylicious-kubernetes-admission -am -Pdist
 
 # Run integration tests on Kind
-mvn verify -pl kroxylicious-kubernetes-web-hook -Pdist
+mvn verify -pl kroxylicious-kubernetes-admission -Pdist
 ```
 
 ## Testing
@@ -135,7 +135,7 @@ KT tests require:
 1. **`openssl`** on `PATH` (for generating self-signed TLS certificates).
 2. **Container image archives** built by the `dist` Maven profile:
    ```bash
-   mvn package -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook -Pdist -am -DskipTests
+   mvn package -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission -Pdist -am -DskipTests
    ```
 3. **A Kubernetes cluster whose container runtime supports OCI image volumes.** The plugin end-to-end test (`*PluginEndToEndKT`) mounts third-party plugin JARs as image volumes (Kubernetes `ImageVolume` feature gate, beta since 1.33). This requires **containerd 2.0+** or **CRI-O**; the Docker runtime does not support image volumes.
 
@@ -150,7 +150,7 @@ minikube start --container-runtime=containerd
 Then run:
 
 ```bash
-mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
   -Dtest=io.kroxylicious.kubernetes.webhook.MinikubePluginEndToEndKT
 ```
 
@@ -161,7 +161,7 @@ The test loads and removes container images from the Minikube registry automatic
 The Kind variant creates and deletes a dedicated cluster with the `ImageVolume` feature gate enabled:
 
 ```bash
-mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
   -Dtest=io.kroxylicious.kubernetes.webhook.KindPluginEndToEndKT
 ```
 
@@ -172,7 +172,7 @@ Requires `kind` on `PATH`.
 The webhook install tests (`*WebhookInstallKT`) verify manifest installation and sidecar injection without deploying Kafka. They have the same cluster requirements but do not need the `ImageVolume` feature gate. Run with:
 
 ```bash
-mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-web-hook \
+mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
   -Dtest=io.kroxylicious.kubernetes.webhook.MinikubeWebhookInstallKT
 ```
 
