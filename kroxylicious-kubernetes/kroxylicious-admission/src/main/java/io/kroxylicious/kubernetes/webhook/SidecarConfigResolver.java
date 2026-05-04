@@ -18,7 +18,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;

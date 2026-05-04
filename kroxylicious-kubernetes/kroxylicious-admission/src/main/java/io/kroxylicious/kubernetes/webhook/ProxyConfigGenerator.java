@@ -11,9 +11,9 @@ import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;

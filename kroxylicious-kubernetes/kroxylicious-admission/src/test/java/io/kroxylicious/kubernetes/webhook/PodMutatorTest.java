@@ -24,11 +24,11 @@ import io.fabric8.kubernetes.api.model.PodSecurityContext;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

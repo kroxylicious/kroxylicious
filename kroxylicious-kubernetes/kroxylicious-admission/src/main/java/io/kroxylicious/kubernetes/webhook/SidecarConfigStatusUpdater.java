@@ -14,10 +14,10 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 
-import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigStatus;
+import io.kroxylicious.kubernetes.api.admission.common.Condition;
+import io.kroxylicious.kubernetes.api.admission.common.ConditionBuilder;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigStatus;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;

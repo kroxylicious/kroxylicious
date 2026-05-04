@@ -30,12 +30,12 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionRequest;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpecBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpecBuilder;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

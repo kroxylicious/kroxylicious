@@ -35,8 +35,10 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionRequest;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -354,7 +356,7 @@ class AdmissionHandlerTest {
         String json = """
                 [{"name":"my-filter","reference":"reg.io/filter@sha256:abc123def"}]""";
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getName()).isEqualTo("my-filter");
@@ -369,7 +371,7 @@ class AdmissionHandlerTest {
         String json = """
                 [{"name":"my-filter","reference":"reg.io/filter:latest"}]""";
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
 
         assertThat(result).isEmpty();
     }
@@ -383,7 +385,7 @@ class AdmissionHandlerTest {
         String json = """
                 [{"name":"my-filter","reference":"evil.io/filter@sha256:abc123"}]""";
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
 
         assertThat(result).isEmpty();
     }
@@ -397,7 +399,7 @@ class AdmissionHandlerTest {
         String json = """
                 [{"name":"my-filter","reference":"any.io/filter@sha256:abc123"}]""";
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
 
         assertThat(result).hasSize(1);
     }
@@ -410,7 +412,7 @@ class AdmissionHandlerTest {
         String json = """
                 [{"reference":"reg.io/filter@sha256:abc123"}]""";
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
+        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
 
         assertThat(result).isEmpty();
     }
@@ -420,7 +422,7 @@ class AdmissionHandlerTest {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setTargetBootstrapServers("kafka:9092");
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins("{\"not\":\"array\"}", adminSpec,
+        List<Plugins> result = handler.parseDelegatedPlugins("{\"not\":\"array\"}", adminSpec,
                 "pod", "ns");
 
         assertThat(result).isEmpty();
@@ -431,7 +433,7 @@ class AdmissionHandlerTest {
         KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
         adminSpec.setTargetBootstrapServers("kafka:9092");
 
-        List<io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins> result = handler.parseDelegatedPlugins("not json at all", adminSpec, "pod",
+        List<Plugins> result = handler.parseDelegatedPlugins("not json at all", adminSpec, "pod",
                 "ns");
 
         assertThat(result).isEmpty();
@@ -461,9 +463,9 @@ class AdmissionHandlerTest {
         adminSpec.setTargetBootstrapServers("kafka:9092");
         adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
 
-        io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins adminPlugin = new io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Plugins();
+        Plugins adminPlugin = new Plugins();
         adminPlugin.setName("admin-plugin");
-        io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image adminImage = new io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image();
+        Image adminImage = new Image();
         adminImage.setReference("reg.io/admin@sha256:aaa");
         adminPlugin.setImage(adminImage);
         adminSpec.setPlugins(List.of(adminPlugin));

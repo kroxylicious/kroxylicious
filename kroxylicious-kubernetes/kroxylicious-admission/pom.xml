@@ -17,7 +17,7 @@
     </parent>
 
     <artifactId>kroxylicious-admission</artifactId>
-    <name>Kubernetes Sidecar Injection Webhook</name>
+    <name>Kubernetes Admission Webhook</name>
     <description>A mutating admission webhook that injects Kroxylicious proxy sidecars into Kafka application pods</description>
 
     <properties>
@@ -59,7 +59,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kubernetes-api</artifactId>
+            <artifactId>kroxylicious-admission-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
