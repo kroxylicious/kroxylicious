@@ -16,7 +16,7 @@ KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.22.0-SNAPSHOT}"
 NAMESPACE="${NAMESPACE:-kafka}"
 KROXYLICIOUS_OPERATOR_NAMESPACE="kroxylicious-operator"
 
-STRIMZI_INSTALL_URL="https://strimzi.io/install/${STRIMZI_VERSION}?namespace=${NAMESPACE}"
+STRIMZI_INSTALL_URL="https://strimzi.io/install/latest?namespace=${NAMESPACE}&version=${STRIMZI_VERSION}"
 
 usage() {
     cat >&2 <<EOF
