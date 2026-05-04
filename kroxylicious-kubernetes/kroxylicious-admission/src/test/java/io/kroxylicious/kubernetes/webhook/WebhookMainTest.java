@@ -134,6 +134,42 @@ class WebhookMainTest {
         assertThat(value).isEqualTo("my-image:latest");
     }
 
+    // --- parseFailClosed tests ---
+
+    @Test
+    void parseFailClosedDefaultsToTrue() {
+        boolean result = WebhookMain.parseFailClosed(Map.of());
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void parseFailClosedReturnsTrueForFail() {
+        boolean result = WebhookMain.parseFailClosed(Map.of("FAILURE_POLICY", "Fail"));
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void parseFailClosedReturnsFalseForIgnore() {
+        boolean result = WebhookMain.parseFailClosed(Map.of("FAILURE_POLICY", "Ignore"));
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void parseFailClosedThrowsForInvalidValue() {
+        assertThatThrownBy(() -> WebhookMain.parseFailClosed(
+                Map.of("FAILURE_POLICY", "invalid")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("FAILURE_POLICY")
+                .hasMessageContaining("invalid");
+    }
+
+    @Test
+    void parseFailClosedIsCaseSensitive() {
+        assertThatThrownBy(() -> WebhookMain.parseFailClosed(
+                Map.of("FAILURE_POLICY", "fail")))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     // --- create() environment variable tests ---
 
     @Test

@@ -9,12 +9,12 @@ See [README.md](README.md) for comprehensive webhook documentation including:
 - Injection decision logic
 - Delegated annotations
 - Native sidecar support (K8s 1.28+)
-- Fail-open semantics
+- Failure policy (fail-closed by default, configurable)
 - Key classes and configuration
 
 ## Critical Constraints
 
-**Fail-open**: The webhook must always return `allowed: true`. Never reject a pod admission request, even on internal errors.
+**Fail-closed by default**: On internal errors, the webhook denies the admission request. This is configurable via the `FAILURE_POLICY` environment variable (`Fail` or `Ignore`). Non-error paths (null request, null pod, opt-out, no config, already injected) always return `allowed: true` regardless of the failure policy.
 
 **Trust model**: The webhook administrator does not trust the application pod owner. The webhook always overwrites the proxy config annotation. Non-delegated annotations in the `kroxylicious.io/` namespace are ignored.
 
@@ -23,7 +23,7 @@ See [README.md](README.md) for comprehensive webhook documentation including:
 ## For Claude
 
 When working with this module:
-- Follow fail-open semantics in error handling
+- Error paths use `errorResponse()` which delegates to `denyResponse()` or `allowResponse()` based on `failClosed`
 - Never allow app owners to control the proxy image, security context, or target cluster address
 - Delegated annotations must be explicitly listed in `KroxyliciousSidecarConfig`
 - The proxy config YAML is generated using the same `Configuration` model from `kroxylicious-runtime`

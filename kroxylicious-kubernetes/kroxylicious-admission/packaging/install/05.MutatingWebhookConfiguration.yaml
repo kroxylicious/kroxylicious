@@ -18,9 +18,8 @@ webhooks:
   - name: sidecar-injector.kroxylicious.io
     admissionReviewVersions: ["v1"]
     sideEffects: None
-    # Fail-open: if the webhook is unavailable, pods are created without sidecars
-    failurePolicy: Ignore
-    # TODO fail closed by default
+    # Fail-closed: if the webhook is unavailable, pod creation is blocked
+    failurePolicy: Fail
     reinvocationPolicy: IfNeeded
     timeoutSeconds: 10
     clientConfig:
