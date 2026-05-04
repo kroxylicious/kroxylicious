@@ -125,15 +125,6 @@ class SidecarConfigStatusUpdaterTest {
     }
 
     @Test
-    void isAlreadyReadyReturnsFalseWhenOnlyOtherConditionTypes() {
-        KroxyliciousSidecarConfig config = createConfig(1L);
-        KroxyliciousSidecarConfigStatus status = new KroxyliciousSidecarConfigStatus();
-        status.setConditions(List.of(buildCondition(Condition.Type.Accepted, Condition.Status.TRUE, 1L)));
-        config.setStatus(status);
-        assertThat(SidecarConfigStatusUpdater.isAlreadyReady(config)).isFalse();
-    }
-
-    @Test
     void isAlreadyReadyHandlesNullMetadataGeneration() {
         KroxyliciousSidecarConfig config = createConfig(null);
         KroxyliciousSidecarConfigStatus status = new KroxyliciousSidecarConfigStatus();

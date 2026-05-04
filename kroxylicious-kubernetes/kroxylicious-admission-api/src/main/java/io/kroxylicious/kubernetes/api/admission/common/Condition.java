@@ -34,15 +34,6 @@ import io.fabric8.generator.annotation.Required;
 })
 public class Condition implements io.fabric8.kubernetes.api.builder.Editable<ConditionBuilder>, io.fabric8.kubernetes.api.model.KubernetesResource {
 
-    public static final String REASON_INTERPOLATED_REFS_NOT_FOUND = "InterpolatedReferencedResourcesNotFound";
-    public static final String REASON_REF_GROUP_KIND_NOT_SUPPORTED = "ReferencedGroupKindNotSupported";
-    public static final String REASON_REFS_NOT_FOUND = "ReferencedResourcesNotFound";
-    public static final String REASON_TRANSITIVE_REFS_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
-    public static final String REASON_INVALID_REFERENCED_RESOURCE = "InvalidReferencedResource";
-    public static final String REASON_REFERENCED_RESOURCE_NOT_RECONCILED = "ReferencedResourceNotReconciled";
-    public static final String REASON_REQUESTED_RESOURCE_KIND_NOT_SUPPORTED = "RequestedResourceKindNotSupported";
-    public static final String REASON_INVALID = "Invalid";
-
     @Override
     public ConditionBuilder edit() {
         return new ConditionBuilder(this);
@@ -191,9 +182,7 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     }
 
     public enum Type {
-        Ready("Ready"),
-        ResolvedRefs("ResolvedRefs"),
-        Accepted("Accepted");
+        Ready("Ready");
 
         private final String value;
 
@@ -204,17 +193,5 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
         public String getValue() {
             return value;
         }
-    }
-
-    public static boolean isResolvedRefsFalse(Condition condition) {
-        Objects.requireNonNull(condition);
-        return Type.ResolvedRefs.equals(condition.getType())
-                && Status.FALSE.equals(condition.getStatus());
-    }
-
-    public static boolean isResolvedRefsTrue(Condition condition) {
-        Objects.requireNonNull(condition);
-        return Type.ResolvedRefs.equals(condition.getType())
-                && Status.TRUE.equals(condition.getStatus());
     }
 }
