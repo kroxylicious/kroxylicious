@@ -52,17 +52,6 @@ final class Annotations {
      */
     static final String DELEGATED_BOOTSTRAP_PORT = "kroxylicious.io/sidecar-bootstrap-port";
 
-    /**
-     * <p>Annotation that app owners may set on the target {@code Pod} to configure
-     * node id range which will be used in the proxy configuration
-     * consumed by the proxy sidecar.</p>
-     *
-     * <p>The ability of the app owner to use this annotation
-     * depends on whether this annotation has been delegatated to them in the
-     * {@ocde MutatingWebhookConfiguration}</p>
-     */
-    static final String DELEGATED_NODE_ID_RANGE = "kroxylicious.io/sidecar-node-id-range";
-
     static final String DELEGATED_PLUGIN_IMAGES = "kroxylicious.io/sidecar-plugin-images";
 
     /** The set of annotations managed by the webhook itself — never treated as undelegated. */
