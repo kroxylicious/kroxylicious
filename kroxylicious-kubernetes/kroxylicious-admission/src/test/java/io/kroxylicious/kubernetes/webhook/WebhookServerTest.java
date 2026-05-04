@@ -116,13 +116,45 @@ class WebhookServerTest {
         Path badKey = tempDir.resolve("bad.pem");
         byte[] randomBytes = new byte[64];
         new SecureRandom().nextBytes(randomBytes);
-        String badPem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getEncoder().encodeToString(randomBytes)
-                + "\n-----END PRIVATE KEY-----\n";
+        String badPem = """
+                -----BEGIN PRIVATE KEY-----
+                %s
+                -----END PRIVATE KEY-----
+                """.formatted(Base64.getEncoder().encodeToString(randomBytes));
         Files.writeString(badKey, badPem);
 
         assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, badKey))
                 .isInstanceOf(GeneralSecurityException.class);
+    }
+
+    @Test
+    void createSslContextThrowsForPkcs1RsaKey(@TempDir Path tempDir) throws Exception {
+        Path pkcs1Key = tempDir.resolve("pkcs1-rsa.pem");
+        String pkcs1Pem = """
+                -----BEGIN RSA PRIVATE KEY-----
+                MIIEpAIBAAKCAQEA...
+                -----END RSA PRIVATE KEY-----
+                """;
+        Files.writeString(pkcs1Key, pkcs1Pem);
+
+        assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, pkcs1Key))
+                .isInstanceOf(GeneralSecurityException.class)
+                .hasMessageContaining("is in PKCS1 format, which is not supported");
+    }
+
+    @Test
+    void createSslContextThrowsForPkcs1EcKey(@TempDir Path tempDir) throws Exception {
+        Path pkcs1Key = tempDir.resolve("pkcs1-ec.pem");
+        String pkcs1Pem = """
+                -----BEGIN EC PRIVATE KEY-----
+                MHcCAQEEIIGlRDpz...
+                -----END EC PRIVATE KEY-----
+                """;
+        Files.writeString(pkcs1Key, pkcs1Pem);
+
+        assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, pkcs1Key))
+                .isInstanceOf(GeneralSecurityException.class)
+                .hasMessageContaining("is in PKCS1 format, which is not supported");
     }
 
     // --- Server lifecycle tests ---

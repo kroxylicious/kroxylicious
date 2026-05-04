@@ -114,14 +114,18 @@ class WebhookServer implements Closeable {
     @NonNull
     private static PrivateKey loadPrivateKey(@NonNull Path keyPath) throws IOException, GeneralSecurityException {
         String keyPem = Files.readString(keyPath);
+
+        // Detect PKCS1 format and fail fast
+        if (keyPem.contains("-----BEGIN RSA PRIVATE KEY-----") || keyPem.contains("-----BEGIN EC PRIVATE KEY-----")) {
+            throw new GeneralSecurityException("Private key at " + keyPath + " is in PKCS1 format, which is not supported." +
+                    "The only supported format is PKCS8. (if you are using cert-manager, you can set 'spec.privateKey.encoding' "
+                    + "on your Certificate to 'PKCS8')");
+        }
+
         // Strip PEM headers/footers and whitespace
         String keyBase64 = keyPem
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
-                .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-                .replace("-----END RSA PRIVATE KEY-----", "")
-                .replace("-----BEGIN EC PRIVATE KEY-----", "")
-                .replace("-----END EC PRIVATE KEY-----", "")
                 .replaceAll("\\s", "");
 
         byte[] keyBytes = Base64.getDecoder().decode(keyBase64);
