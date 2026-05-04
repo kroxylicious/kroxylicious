@@ -38,10 +38,21 @@ class ProxyConfigGenerator {
     private static final String VIRTUAL_CLUSTER_NAME = "sidecar";
     private static final String GATEWAY_NAME = "local";
     private static final String LOCALHOST = "localhost";
-    private static final int DEFAULT_BOOTSTRAP_PORT = 19092;
-    private static final int DEFAULT_MANAGEMENT_PORT = 9190;
-    private static final int DEFAULT_NODE_ID_START = 0;
-    private static final int DEFAULT_NODE_ID_END = 2;
+    static final int DEFAULT_BOOTSTRAP_PORT;
+    static final int DEFAULT_MANAGEMENT_PORT;
+    static {
+        // Use the fact that the generated code does actually apply the defaults
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        DEFAULT_BOOTSTRAP_PORT = spec.getBootstrapPort().intValue();
+        DEFAULT_MANAGEMENT_PORT = spec.getManagementPort().intValue();
+    }
+    private static final int DEFAULT_NODE_ID_START;
+    private static final int DEFAULT_NODE_ID_END;
+    static {
+        NodeIdRange nodeIdRange = new NodeIdRange();
+        DEFAULT_NODE_ID_START = nodeIdRange.getStartInclusive().intValue();
+        DEFAULT_NODE_ID_END = nodeIdRange.getEndInclusive().intValue();
+    }
 
     private ProxyConfigGenerator() {
     }
@@ -50,12 +61,12 @@ class ProxyConfigGenerator {
      * Generates proxy configuration YAML for a sidecar.
      *
      * @param spec the sidecar config spec from the CRD
-     * @param upstreamTrustStorePath path to the mounted CA cert file for upstream TLS, or null if no TLS
+     * @param targetClusterTrustStorePath path to the mounted CA cert file for target cluster TLS, or null if no TLS
      * @return YAML string suitable for passing to the proxy via {@code --config}
      */
     static String generateConfig(
                                  KroxyliciousSidecarConfigSpec spec,
-                                 @Nullable String upstreamTrustStorePath) {
+                                 @Nullable String targetClusterTrustStorePath) {
         int bootstrapPort = resolveBootstrapPort(spec);
         int managementPort = resolveManagementPort(spec);
         int nodeIdStart = DEFAULT_NODE_ID_START;
@@ -83,18 +94,18 @@ class ProxyConfigGenerator {
                 null,
                 Optional.empty());
 
-        Optional<Tls> upstreamTls = Optional.empty();
-        if (upstreamTrustStorePath != null) {
-            upstreamTls = Optional.of(new Tls(
+        Optional<Tls> targetClusterTls = Optional.empty();
+        if (targetClusterTrustStorePath != null) {
+            targetClusterTls = Optional.of(new Tls(
                     null,
-                    new TrustStore(upstreamTrustStorePath, null, "PEM"),
+                    new TrustStore(targetClusterTrustStorePath, null, "PEM"),
                     null,
                     null));
         }
 
         var targetCluster = new TargetCluster(
-                spec.getUpstreamBootstrapServers(),
-                upstreamTls);
+                spec.getTargetBootstrapServers(),
+                targetClusterTls);
 
         var virtualCluster = new VirtualCluster(
                 VIRTUAL_CLUSTER_NAME,
@@ -127,13 +138,6 @@ class ProxyConfigGenerator {
                 null);
 
         return toYaml(configuration);
-    }
-
-    /**
-     * Overload for backwards compatibility (no upstream TLS).
-     */
-    static String generateConfig(KroxyliciousSidecarConfigSpec spec) {
-        return generateConfig(spec, null);
     }
 
     @Nullable
