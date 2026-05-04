@@ -35,7 +35,7 @@ The webhook only intercepts pod creation requests in namespaces that carry the l
 
 [source,yaml]
 ----
-kroxylicious.io/sidecar-injection: enabled
+sidecar.kroxylicious.io/injection: enabled
 ----
 
 Namespaces without this label are unaffected.
@@ -46,7 +46,7 @@ Individual pods can opt out of sidecar injection by setting the following label:
 
 [source,yaml]
 ----
-kroxylicious.io/inject-sidecar: "false"
+sidecar.kroxylicious.io/inject: "false"
 ----
 
 Pods that already have a container named `kroxylicious-proxy` are also skipped to avoid double injection.
@@ -73,11 +73,13 @@ Application pod owner::
 Can only influence injection through annotations that have been explicitly delegated by the administrator.
 Cannot tamper with the proxy configuration, image, or security context.
 
-The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, preventing application pod owners from pre-setting a malicious configuration.
+The webhook always overwrites the `sidecar.kroxylicious.io/proxy-config` annotation, preventing application pod owners from pre-setting a malicious configuration.
 
 == Native sidecar support
 
-On Kubernetes 1.28 and later, the webhook injects the sidecar as a native sidecar (an init container with `restartPolicy: Always`).
+On Kubernetes 1.29 and later (where the `SidecarContainers` feature gate is enabled by default), the webhook injects the sidecar as a native sidecar (an init container with `restartPolicy: Always`).
 This ensures proper startup ordering (the sidecar starts before application containers) and shutdown ordering (the sidecar stops after application containers).
 On older clusters, the sidecar is injected as a regular container.
 The webhook detects the cluster version automatically at startup.
+
+For clusters running alpha versions of features (e.g. native sidecars on 1.28, OCI image volumes on 1.31-1.32), set the `FEATURE_GATES` environment variable on the webhook deployment to override version-based defaults (e.g. `FEATURE_GATES=SidecarContainers=true,ImageVolume=true`).

@@ -55,7 +55,7 @@ kubectl apply -f my-sidecar-config.yaml
 +
 [source,shell,subs="+quotes"]
 ----
-kubectl label namespace my-app-namespace kroxylicious.io/sidecar-injection=enabled
+kubectl label namespace my-app-namespace sidecar.kroxylicious.io/injection=enabled
 ----
 
 . Create or recreate application pods in the labelled namespace.
@@ -77,5 +77,5 @@ The output should include `kroxylicious-proxy` alongside your application contai
 ----
 metadata:
   labels:
-    kroxylicious.io/inject-sidecar: "false"
+    sidecar.kroxylicious.io/inject: "false"
 ----
