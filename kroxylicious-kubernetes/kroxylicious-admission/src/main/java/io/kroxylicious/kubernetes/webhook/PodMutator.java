@@ -67,6 +67,7 @@ class PodMutator {
      * @param pod the original pod
      * @param spec the sidecar configuration
      * @param proxyImage the container image to use for the proxy
+     * @param configGeneration the {@code metadata.generation} of the {@code KroxyliciousSidecarConfig}
      * @param useNativeSidecar if true, inject as an init container with restartPolicy: Always (K8s 1.28+)
      * @param useOciImageVolumes if true, mount plugin images as OCI image volumes (K8s 1.31+);
      *                          otherwise use init-container + emptyDir fallback
@@ -77,6 +78,7 @@ class PodMutator {
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage,
+                              long configGeneration,
                               boolean useNativeSidecar,
                               boolean useOciImageVolumes) {
         try {
@@ -87,7 +89,7 @@ class PodMutator {
             int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(spec);
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
-            addAnnotationOps(patch, pod, proxyConfig);
+            addAnnotationOps(patch, pod, proxyConfig, configGeneration);
             addVolumeOps(patch, pod, spec, useOciImageVolumes);
             addPluginCopyInitContainers(patch, pod, spec, useOciImageVolumes);
             addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec,
@@ -110,7 +112,7 @@ class PodMutator {
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage) {
-        return createPatch(pod, spec, proxyImage, false, false);
+        return createPatch(pod, spec, proxyImage, 0L, false, false);
     }
 
     /**
@@ -129,18 +131,20 @@ class PodMutator {
     private static void addAnnotationOps(
                                          ArrayNode patch,
                                          Pod pod,
-                                         String proxyConfig) {
+                                         String proxyConfig,
+                                         long configGeneration) {
 
+        String generationStr = Long.toString(configGeneration);
         Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
         if (existing == null || existing.isEmpty()) {
             addOp(patch, OP_ADD, "/metadata/annotations",
                     toJson(Map.of(
                             Annotations.PROXY_CONFIG, proxyConfig,
-                            Annotations.SIDECAR_STATUS, "injected")));
+                            Annotations.CONFIG_GENERATION, generationStr)));
         }
         else {
             addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.PROXY_CONFIG), proxyConfig);
-            addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.SIDECAR_STATUS), "injected");
+            addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.CONFIG_GENERATION), generationStr);
         }
     }
 

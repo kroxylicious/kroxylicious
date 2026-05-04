@@ -267,8 +267,8 @@ abstract class AbstractWebhookInstallKT {
 
         // Verify the proxy config annotation was set
         assertThat(created.getMetadata().getAnnotations())
-                .as("Pod should have sidecar-status annotation set to 'injected'")
-                .containsEntry("sidecar.kroxylicious.io/status", "injected");
+                .as("Pod should have config-generation annotation")
+                .containsKey("sidecar.kroxylicious.io/config-generation");
 
         // Verify KAFKA_BOOTSTRAP_SERVERS env var was set on the app container
         Container appContainer = created.getSpec().getContainers().stream()

@@ -63,11 +63,11 @@ class PodMutatorTest {
     }
 
     @Test
-    void patchAddsSidecarStatusAnnotation() throws Exception {
+    void patchAddsConfigGenerationAnnotation() throws Exception {
         Pod pod = podWithAppContainer(Map.of("existing", "value"));
         JsonNode patch = createPatchJson(pod);
 
-        String escapedKey = PodMutator.escapeJsonPointer(Annotations.SIDECAR_STATUS);
+        String escapedKey = PodMutator.escapeJsonPointer(Annotations.CONFIG_GENERATION);
         assertThat(patchOps(patch, "add", "/metadata/annotations/" + escapedKey))
                 .isNotEmpty();
     }

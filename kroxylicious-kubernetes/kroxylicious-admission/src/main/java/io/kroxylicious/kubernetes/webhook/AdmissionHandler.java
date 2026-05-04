@@ -158,8 +158,9 @@ class AdmissionHandler implements HttpHandler {
                     sidecarConfig.getSpec(), annotations, podName, namespace);
 
             String image = proxyImage(sidecarConfig);
+            long configGeneration = sidecarConfig.getMetadata().getGeneration();
             String jsonPatch = PodMutator.createPatch(
-                    pod, effectiveSpec, image, useNativeSidecar, useOciImageVolumes);
+                    pod, effectiveSpec, image, configGeneration, useNativeSidecar, useOciImageVolumes);
 
             AdmissionResponse response = allowResponse(uid);
             response.setPatchType(JSON_PATCH_TYPE);

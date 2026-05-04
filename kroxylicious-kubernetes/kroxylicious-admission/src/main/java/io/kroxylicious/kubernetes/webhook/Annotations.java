@@ -28,12 +28,12 @@ final class Annotations {
     static final String PROXY_CONFIG = "sidecar.kroxylicious.io/proxy-config";
 
     /**
-     * Annotation on the target Pod which takes the value {@code "injected"} when
-     * the webhook has mutated the pod spec (used because the
-     * {@code MutatingWebhookConfiguration} is configured with
-     * {@code reinvocationPolicy: IfNeeded}).
+     * Annotation on the target Pod recording the {@code metadata.generation} of the
+     * {@code KroxyliciousSidecarConfig} at injection time. Serves as both an idempotency
+     * guard (presence means the sidecar was already injected) and a drift detection
+     * mechanism (value can be compared with the current generation of the config).
      */
-    static final String SIDECAR_STATUS = "sidecar.kroxylicious.io/status";
+    static final String CONFIG_GENERATION = "sidecar.kroxylicious.io/config-generation";
 
     /**
      * <p>Annotation that app owners may set on the {@code Pod}
@@ -53,7 +53,7 @@ final class Annotations {
     static final Set<String> WEBHOOK_MANAGED_ANNOTATIONS = Set.of(
             SIDECAR_CONFIG,
             PROXY_CONFIG,
-            SIDECAR_STATUS);
+            CONFIG_GENERATION);
 
     /**
      * Determines whether the given annotation is one that's managed by the webhook itself
