@@ -13,8 +13,7 @@ metadata:
     app.kubernetes.io/name: kroxylicious
     app.kubernetes.io/component: webhook
 spec:
-  replicas: 1
-  # TODO single replica, maybe okay for alpha, but better to have >1 and a PodDisruptionBudget to prevent them all being evicted simultaneously
+  replicas: 2
   selector:
     matchLabels:
       app: kroxylicious-webhook
@@ -26,6 +25,15 @@ spec:
         app.kubernetes.io/component: webhook
     spec:
       serviceAccountName: kroxylicious-webhook
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: kroxylicious-webhook
+                topologyKey: kubernetes.io/hostname
       securityContext:
         runAsNonRoot: true
         seccompProfile:
@@ -44,6 +52,8 @@ spec:
               value: /etc/webhook/tls/tls.crt
             - name: TLS_KEY_PATH
               value: /etc/webhook/tls/tls.key
+            - name: FAILURE_POLICY
+              value: "Fail"
           volumeMounts:
             - name: tls
               mountPath: /etc/webhook/tls

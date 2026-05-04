@@ -30,6 +30,7 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
@@ -37,6 +38,7 @@ import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConf
 import io.kroxylicious.test.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
@@ -76,6 +78,7 @@ abstract class AbstractWebhookInstallKT {
             createTestNamespaceAndConfig();
             verifyInjection();
             verifyOptOut();
+            verifyFailClosed();
         }
         finally {
             cleanup();
@@ -311,6 +314,67 @@ abstract class AbstractWebhookInstallKT {
                 .doesNotContain("kroxylicious-proxy");
 
         LOGGER.info("Opt-out verified successfully");
+    }
+
+    private void verifyFailClosed() {
+        LOGGER.info("Scaling webhook deployment to 0 replicas to verify fail-closed behaviour");
+        client.apps().deployments()
+                .inNamespace(WEBHOOK_NS)
+                .withName("kroxylicious-webhook")
+                .scale(0);
+
+        client.apps().deployments()
+                .inNamespace(WEBHOOK_NS)
+                .withName("kroxylicious-webhook")
+                .waitUntilCondition(
+                        d -> d != null
+                                && d.getStatus() != null
+                                && (d.getStatus().getReadyReplicas() == null
+                                        || d.getStatus().getReadyReplicas() == 0),
+                        60, TimeUnit.SECONDS);
+
+        // Wait for the Service endpoints to be drained so the API server
+        // considers the webhook unreachable
+        client.endpoints()
+                .inNamespace(WEBHOOK_NS)
+                .withName("kroxylicious-webhook")
+                .waitUntilCondition(
+                        ep -> ep == null
+                                || ep.getSubsets() == null
+                                || ep.getSubsets().isEmpty()
+                                || ep.getSubsets().stream()
+                                        .allMatch(s -> s.getAddresses() == null
+                                                || s.getAddresses().isEmpty()),
+                        60, TimeUnit.SECONDS);
+
+        LOGGER.info("Webhook scaled to 0, attempting pod creation (expecting rejection)");
+        var pod = new PodBuilder()
+                .withNewMetadata()
+                .withName("test-app-fail-closed")
+                .withNamespace(TEST_NS)
+                .endMetadata()
+                .withNewSpec()
+                .withTerminationGracePeriodSeconds(0L)
+                .addNewContainer()
+                .withName("app")
+                .withImage("busybox:latest")
+                .withCommand("sleep", "3600")
+                .endContainer()
+                .endSpec()
+                .build();
+
+        assertThatThrownBy(() -> client.resource(pod).create())
+                .isInstanceOf(KubernetesClientException.class)
+                .hasMessageContaining("sidecar-injector.kroxylicious.io");
+
+        LOGGER.info("Fail-closed verified: pod creation rejected when webhook unavailable");
+
+        LOGGER.info("Scaling webhook back to 2 replicas");
+        client.apps().deployments()
+                .inNamespace(WEBHOOK_NS)
+                .withName("kroxylicious-webhook")
+                .scale(2);
+        waitForWebhookReady();
     }
 
     private void cleanup() {
