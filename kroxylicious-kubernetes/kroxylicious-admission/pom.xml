@@ -16,7 +16,7 @@
         <version>0.21.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kroxylicious-kubernetes-web-hook</artifactId>
+    <artifactId>kroxylicious-admission</artifactId>
     <name>Kubernetes Sidecar Injection Webhook</name>
     <description>A mutating admission webhook that injects Kroxylicious proxy sidecars into Kafka application pods</description>
 
