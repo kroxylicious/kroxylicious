@@ -26,14 +26,14 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
  * proxy lifecycle where contention is not a concern.
  * </p>
  */
-public class VirtualClusterLifecycleManager {
+public class VirtualClusterLifecycle {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterLifecycleManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterLifecycle.class);
 
     private final String clusterName;
     private VirtualClusterLifecycleState state = new Initializing();
 
-    public VirtualClusterLifecycleManager(String clusterName) {
+    public VirtualClusterLifecycle(String clusterName) {
         this.clusterName = Objects.requireNonNull(clusterName);
     }
 

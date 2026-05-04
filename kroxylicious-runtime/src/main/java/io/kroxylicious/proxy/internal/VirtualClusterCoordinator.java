@@ -31,15 +31,18 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * During reload, the Draining → Initializing → Serving cycle is managed internally
  * without involving the callback — reload never reaches Stopped.
  * </p>
+ * <p>
+ * Each virtual cluster's per-cluster state machine is a {@link VirtualClusterLifecycle}.
+ * </p>
  */
-public class VirtualClusterManager {
+public class VirtualClusterCoordinator {
 
     private final List<VirtualClusterModel> virtualClusterModels;
-    private final Map<String, VirtualClusterLifecycleManager> lifecycleManagers;
+    private final Map<String, VirtualClusterLifecycle> lifecycleManagers;
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
-     * Creates a new VirtualClusterManager for the given set of virtual clusters.
+     * Creates a new VirtualClusterCoordinator for the given set of virtual clusters.
      *
      * @param virtualClusterModels the complete set of virtual cluster configurations
      * @param onVirtualClusterStopped callback invoked with {@code (clusterName, priorFailureCause)}
@@ -49,8 +52,8 @@ public class VirtualClusterManager {
      * @throws NullPointerException if either argument is null
      * @throws IllegalArgumentException if the list contains duplicate cluster names
      */
-    public VirtualClusterManager(List<VirtualClusterModel> virtualClusterModels,
-                                 BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
+    public VirtualClusterCoordinator(List<VirtualClusterModel> virtualClusterModels,
+                                     BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
         this.virtualClusterModels = List.copyOf(virtualClusterModels);
@@ -60,7 +63,7 @@ public class VirtualClusterManager {
             if (lifecycleManagers.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate cluster name: " + name);
             }
-            lifecycleManagers.put(name, new VirtualClusterLifecycleManager(name));
+            lifecycleManagers.put(name, new VirtualClusterLifecycle(name));
         }
     }
 
@@ -140,16 +143,16 @@ public class VirtualClusterManager {
     }
 
     /**
-     * Returns the lifecycle manager for the given virtual cluster name.
+     * Returns the lifecycle for the given virtual cluster name.
      * @param clusterName the virtual cluster name
-     * @return the lifecycle manager, or null if no cluster with that name exists
+     * @return the lifecycle, or null if no cluster with that name exists
      */
     @Nullable
-    public VirtualClusterLifecycleManager lifecycleManagerFor(String clusterName) {
+    public VirtualClusterLifecycle lifecycleFor(String clusterName) {
         return lifecycleManagers.get(clusterName);
     }
 
-    private VirtualClusterLifecycleManager requireKnownCluster(String clusterName) {
+    private VirtualClusterLifecycle requireKnownCluster(String clusterName) {
         var manager = lifecycleManagers.get(clusterName);
         if (manager == null) {
             throw new IllegalArgumentException("Unknown cluster: " + clusterName);

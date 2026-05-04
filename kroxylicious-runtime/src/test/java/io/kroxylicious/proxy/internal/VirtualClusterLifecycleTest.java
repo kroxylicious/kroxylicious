@@ -23,14 +23,14 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class VirtualClusterLifecycleManagerTest {
+class VirtualClusterLifecycleTest {
 
     private static final String CLUSTER_NAME = "test-cluster";
-    private VirtualClusterLifecycleManager manager;
+    private VirtualClusterLifecycle manager;
 
     @BeforeEach
     void setUp() {
-        manager = new VirtualClusterLifecycleManager(CLUSTER_NAME);
+        manager = new VirtualClusterLifecycle(CLUSTER_NAME);
     }
 
     @Test
@@ -143,26 +143,26 @@ class VirtualClusterLifecycleManagerTest {
     static Stream<Arguments> invalidTransitions() {
         return Stream.of(
                 Arguments.argumentSet("initializationSucceeded from SERVING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycleManager("c");
+                    var m = new VirtualClusterLifecycle("c");
                     m.initializationSucceeded();
                     m.initializationSucceeded();
                 }),
                 Arguments.argumentSet("startDraining from INITIALIZING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycleManager("c");
+                    var m = new VirtualClusterLifecycle("c");
                     m.startDraining();
                 }),
                 Arguments.argumentSet("drainComplete from SERVING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycleManager("c");
+                    var m = new VirtualClusterLifecycle("c");
                     m.initializationSucceeded();
                     m.drainComplete();
                 }),
                 Arguments.argumentSet("stop from SERVING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycleManager("c");
+                    var m = new VirtualClusterLifecycle("c");
                     m.initializationSucceeded();
                     m.stop();
                 }),
                 Arguments.argumentSet("initializationSucceeded from STOPPED", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycleManager("c");
+                    var m = new VirtualClusterLifecycle("c");
                     m.initializationFailed(new RuntimeException("x"));
                     m.stop();
                     m.initializationSucceeded();

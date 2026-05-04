@@ -58,8 +58,8 @@ import io.kroxylicious.proxy.internal.DrainCoordinator;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
-import io.kroxylicious.proxy.internal.VirtualClusterLifecycleManager;
-import io.kroxylicious.proxy.internal.VirtualClusterManager;
+import io.kroxylicious.proxy.internal.VirtualClusterLifecycle;
+import io.kroxylicious.proxy.internal.VirtualClusterCoordinator;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -153,7 +153,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
-    private final VirtualClusterManager virtualClusterManager;
+    private final VirtualClusterCoordinator clusterCoordinator;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
@@ -172,7 +172,7 @@ public final class KafkaProxy implements AutoCloseable {
         this.virtualClusterModels = config.virtualClusterModel(pfr);
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
-        this.virtualClusterManager = new VirtualClusterManager(virtualClusterModels, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
+        this.clusterCoordinator = new VirtualClusterCoordinator(virtualClusterModels, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
                 .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
@@ -275,7 +275,7 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            virtualClusterModels.forEach(model -> virtualClusterManager.initializationSucceeded(model.getClusterName()));
+            virtualClusterModels.forEach(model -> clusterCoordinator.initializationSucceeded(model.getClusterName()));
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
@@ -289,7 +289,7 @@ public final class KafkaProxy implements AutoCloseable {
             // rather than relying on the caller to call shutdown() separately. Currently the callback only logs.
             // All VCs are failed with the same exception because startup is all-or-nothing:
             // initializationSucceeded is only called after all VCs register successfully (line 263).
-            virtualClusterModels.forEach(model -> virtualClusterManager.initializationFailed(model.getClusterName(), e));
+            virtualClusterModels.forEach(model -> clusterCoordinator.initializationFailed(model.getClusterName(), e));
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
@@ -388,7 +388,7 @@ public final class KafkaProxy implements AutoCloseable {
         try {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Shutting down");
-            virtualClusterManager.transitionAllToDraining();
+            clusterCoordinator.transitionAllToDraining();
 
             // Unbind ports first so no new connections can arrive after the drain snapshot
             // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —
@@ -418,7 +418,7 @@ public final class KafkaProxy implements AutoCloseable {
             if (filterChainFactory != null) {
                 filterChainFactory.close();
             }
-            virtualClusterManager.completeDraining();
+            clusterCoordinator.completeDraining();
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
@@ -464,8 +464,8 @@ public final class KafkaProxy implements AutoCloseable {
      */
     @VisibleForTesting
     @Nullable
-    VirtualClusterLifecycleManager lifecycleManagerFor(String clusterName) {
-        return virtualClusterManager.lifecycleManagerFor(clusterName);
+    VirtualClusterLifecycle lifecycleFor(String clusterName) {
+        return clusterCoordinator.lifecycleFor(clusterName);
     }
 
     /**
