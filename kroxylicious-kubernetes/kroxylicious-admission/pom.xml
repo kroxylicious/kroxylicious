@@ -402,6 +402,31 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <groupId>dev.jbang</groupId>
+                        <artifactId>jbang-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
+                            <execution>
+                                <id>rename-crds</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <script>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/package_crds.java</script>
+                                    <args>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/packaged/install</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <executions>
                             <execution>
