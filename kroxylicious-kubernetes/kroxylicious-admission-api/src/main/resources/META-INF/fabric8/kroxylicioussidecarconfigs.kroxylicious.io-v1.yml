@@ -195,14 +195,6 @@ spec:
                               - IfNotPresent
                               - Never
                             default: IfNotPresent
-                allowedPluginRegistries:
-                  description: |
-                    Registry prefixes allowed for delegated plugin images. When plugin image
-                    selection is delegated to app owners, only images matching one of these
-                    prefixes are accepted.
-                  type: array
-                  items:
-                    type: string
                 delegatedAnnotations:
                   description: |
                     Annotations that the application pod owner is permitted to set to override

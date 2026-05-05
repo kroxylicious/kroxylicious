@@ -47,8 +47,6 @@ final class Annotations {
      */
     static final String DELEGATED_BOOTSTRAP_PORT = "sidecar.kroxylicious.io/bootstrap-port";
 
-    static final String DELEGATED_PLUGIN_IMAGES = "sidecar.kroxylicious.io/plugin-images";
-
     /** The set of annotations managed by the webhook itself — never treated as undelegated. */
     static final Set<String> WEBHOOK_MANAGED_ANNOTATIONS = Set.of(
             SIDECAR_CONFIG,
