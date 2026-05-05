@@ -389,8 +389,9 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Override
     public List<EventSource<?, VirtualKafkaCluster>> prepareEventSources(EventSourceContext<VirtualKafkaCluster> context) {
-        // Get the shared Secret informer - all Secret event sources share the same underlying cache
+        // Get shared informers - all event sources of the same type share the same underlying cache
         var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
         var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
 
         InformerEventSourceConfiguration<KafkaProxy> clusterToProxy = InformerEventSourceConfiguration.from(
@@ -404,18 +405,19 @@ public final class VirtualKafkaClusterReconciler implements
                         cluster -> Optional.of(cluster.getSpec().getProxyRef())))
                 .build();
 
-        InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigState = InformerEventSourceConfiguration.from(
+        // Proxy config state ConfigMaps - uses shared informer
+        SharedInformerEventSource<VirtualKafkaCluster, ConfigMap> clusterToProxyConfigState = new SharedInformerEventSource<>(
                 ConfigMap.class,
-                VirtualKafkaCluster.class)
-                .withName(PROXY_CONFIG_STATE_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(VirtualKafkaClusterReconciler::toConfigStateResourceName)
-                .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
+                PROXY_CONFIG_STATE_SOURCE_NAME,
+                sharedConfigMapInformer,
+                VirtualKafkaClusterReconciler::toConfigStateResourceName,
+                configMap -> ResourcesUtil.findReferrers(context,
                         configMap,
                         VirtualKafkaCluster.class,
                         cluster -> Optional.of(new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap")
                                 .withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX)
-                                .build())))
-                .build();
+                                .build())),
+                allowedNamespaces);
 
         InformerEventSourceConfiguration<KafkaService> clusterToService = InformerEventSourceConfiguration.from(
                 KafkaService.class,
@@ -464,13 +466,14 @@ public final class VirtualKafkaClusterReconciler implements
                 new SecretSecondaryJoinedOnIngressCertificateRefToVirtualKafkaClusterPrimaryMapper(context),
                 allowedNamespaces);
 
-        InformerEventSourceConfiguration<ConfigMap> clusterToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
+        // Trust anchor ConfigMaps - uses shared informer
+        SharedInformerEventSource<VirtualKafkaCluster, ConfigMap> clusterToConfigMapTrustAnchorRef = new SharedInformerEventSource<>(
                 ConfigMap.class,
-                VirtualKafkaCluster.class)
-                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context))
-                .build();
+                CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedConfigMapInformer,
+                new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper(),
+                new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context),
+                allowedNamespaces);
 
         // Trust anchor Secrets - uses shared informer
         SharedInformerEventSource<VirtualKafkaCluster, Secret> clusterToSecretTrustAnchorRef = new SharedInformerEventSource<>(
@@ -483,13 +486,13 @@ public final class VirtualKafkaClusterReconciler implements
 
         return List.of(
                 new InformerEventSource<>(clusterToProxy, context),
-                new InformerEventSource<>(clusterToProxyConfigState, context),
+                clusterToProxyConfigState,
                 new InformerEventSource<>(clusterToIngresses, context),
                 new InformerEventSource<>(clusterToService, context),
                 new InformerEventSource<>(clusterToFilters, context),
                 new InformerEventSource<>(clusterToKubeService, context),
                 clusterToSecret,
-                new InformerEventSource<>(clusterToConfigMapTrustAnchorRef, context),
+                clusterToConfigMapTrustAnchorRef,
                 clusterToSecretTrustAnchorRef);
     }
 

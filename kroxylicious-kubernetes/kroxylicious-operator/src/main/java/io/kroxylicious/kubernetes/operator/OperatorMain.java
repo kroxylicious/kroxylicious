@@ -78,6 +78,7 @@ public class OperatorMain {
     private final HttpServer managementServer;
     @Nullable
     private final Set<String> watchedNamespaces;
+    @Nullable
     private SharedInformerManager sharedInformerManager;
 
     public OperatorMain() throws IOException {

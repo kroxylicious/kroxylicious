@@ -33,7 +33,6 @@ import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -61,6 +60,7 @@ public class KafkaProtocolFilterReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
     private static final String SECRETS = "secrets";
+    private static final String CONFIG_MAPS = "configmaps";
     private final KafkaProtocolFilterStatusFactory statusFactory;
     private final SecureConfigInterpolator secureConfigInterpolator;
     private final SharedInformerManager sharedInformerManager;
@@ -73,8 +73,9 @@ public class KafkaProtocolFilterReconciler implements
 
     @Override
     public List<EventSource<?, KafkaProtocolFilter>> prepareEventSources(EventSourceContext<KafkaProtocolFilter> context) {
-        // Get the shared Secret informer
+        // Get shared informers - all event sources of the same type share the same underlying cache
         var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
         var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
 
         // Secret event source config
@@ -87,22 +88,31 @@ public class KafkaProtocolFilterReconciler implements
         // Create SharedInformerEventSource for Secrets
         SharedInformerEventSource<KafkaProtocolFilter, Secret> secretEventSource = new SharedInformerEventSource<>(
                 Secret.class,
-                SECRETS, // event source name
+                SECRETS,
                 sharedSecretInformer,
                 secretEventSourceConfig.getPrimaryToSecondaryMapper(),
                 secretEventSourceConfig.getSecondaryToPrimaryMapper(),
                 allowedNamespaces);
 
-        // ConfigMap event source (not shared)
-        InformerEventSourceConfiguration<ConfigMap> configMapEventSourceConfig = templateResourceReferenceEventSourceConfig(context, ConfigMap.class,
+        // ConfigMap event source config
+        var configMapEventSourceConfig = templateResourceReferenceEventSourceConfig(context, ConfigMap.class,
                 interpolationResult -> interpolationResult.volumes().stream()
                         .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
                                 .map(ConfigMapVolumeSource::getName)
                                 .stream()));
 
+        // Create SharedInformerEventSource for ConfigMaps
+        SharedInformerEventSource<KafkaProtocolFilter, ConfigMap> configMapEventSource = new SharedInformerEventSource<>(
+                ConfigMap.class,
+                CONFIG_MAPS,
+                sharedConfigMapInformer,
+                configMapEventSourceConfig.getPrimaryToSecondaryMapper(),
+                configMapEventSourceConfig.getSecondaryToPrimaryMapper(),
+                allowedNamespaces);
+
         return List.of(
                 secretEventSource,
-                new InformerEventSource<>(configMapEventSourceConfig, context));
+                configMapEventSource);
     }
 
     /**

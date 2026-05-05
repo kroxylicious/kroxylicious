@@ -90,8 +90,9 @@ public final class KafkaServiceReconciler implements
 
     @Override
     public List<EventSource<?, KafkaService>> prepareEventSources(EventSourceContext<KafkaService> context) {
-        // Get the shared Secret informer - all Secret event sources share the same underlying cache
+        // Get shared informers - all event sources of the same type share the same underlying cache
         var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
         var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
 
         // TLS certificate Secrets - uses shared informer
@@ -103,14 +104,14 @@ public final class KafkaServiceReconciler implements
                 new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context),
                 allowedNamespaces);
 
-        // ConfigMap trust anchors
-        InformerEventSourceConfiguration<ConfigMap> serviceToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
+        // ConfigMap trust anchors - uses shared informer
+        SharedInformerEventSource<KafkaService, ConfigMap> serviceToConfigMapTrustAnchorRef = new SharedInformerEventSource<>(
                 ConfigMap.class,
-                KafkaService.class)
-                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
-                .build();
+                CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedConfigMapInformer,
+                new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper(),
+                new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context),
+                allowedNamespaces);
 
         // Secret trust anchors - uses shared informer
         SharedInformerEventSource<KafkaService, Secret> serviceToSecretTrustAnchorRef = new SharedInformerEventSource<>(
@@ -133,7 +134,7 @@ public final class KafkaServiceReconciler implements
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(serviceToSecret);
-        informersList.add(new InformerEventSource<>(serviceToConfigMapTrustAnchorRef, context));
+        informersList.add(serviceToConfigMapTrustAnchorRef);
         informersList.add(serviceToSecretTrustAnchorRef);
 
         if (context.getClient().supports(Kafka.class)) {
