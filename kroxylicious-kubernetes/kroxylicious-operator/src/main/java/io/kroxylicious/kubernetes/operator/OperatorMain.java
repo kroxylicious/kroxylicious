@@ -78,6 +78,7 @@ public class OperatorMain {
     private final HttpServer managementServer;
     @Nullable
     private final Set<String> watchedNamespaces;
+    private SharedInformerManager sharedInformerManager;
 
     public OperatorMain() throws IOException {
         this(createHttpServer(), null, null);
@@ -121,7 +122,7 @@ public class OperatorMain {
         // Create SharedInformerManager to share informer caches across reconcilers
         // This reduces memory usage by preventing duplicate caches for the same resource types
         Set<String> effectiveNamespaces = Optional.ofNullable(watchedNamespaces).orElse(Set.of());
-        SharedInformerManager sharedInformerManager = new SharedInformerManager(
+        sharedInformerManager = new SharedInformerManager(
                 operator.getKubernetesClient(),
                 effectiveNamespaces);
 
@@ -190,6 +191,9 @@ public class OperatorMain {
 
     void stop() {
         operator.stop();
+        if (sharedInformerManager != null) {
+            sharedInformerManager.stopAll();
+        }
         managementServer.stop(0); // TODO maybe this should be configurable
         LOGGER.atInfo().log("Operator stopped");
     }
