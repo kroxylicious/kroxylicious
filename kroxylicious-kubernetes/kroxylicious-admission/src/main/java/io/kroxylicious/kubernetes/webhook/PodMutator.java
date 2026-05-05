@@ -23,7 +23,6 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.ImageVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodSecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
@@ -95,7 +94,6 @@ class PodMutator {
             addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec,
                     useNativeSidecar, useOciImageVolumes);
             addBootstrapEnvVarOps(patch, pod, spec, bootstrapPort);
-            addSecurityContextOps(patch, pod);
 
             return MAPPER.writeValueAsString(patch);
         }
@@ -437,22 +435,6 @@ class PodMutator {
             }
         }
         return -1;
-    }
-
-    private static void addSecurityContextOps(ArrayNode patch, Pod pod) {
-        if (pod.getSpec() == null) {
-            return;
-        }
-
-        if (pod.getSpec().getSecurityContext() == null) {
-            addOp(patch, OP_ADD, "/spec/securityContext",
-                    toJson(new PodSecurityContextBuilder()
-                            .withRunAsNonRoot(true)
-                            .withNewSeccompProfile()
-                            .withType("RuntimeDefault")
-                            .endSeccompProfile()
-                            .build()));
-        }
     }
 
     private static JsonNode toJson(Object value) {

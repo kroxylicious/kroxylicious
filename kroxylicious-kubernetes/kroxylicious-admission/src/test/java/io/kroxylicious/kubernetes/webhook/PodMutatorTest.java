@@ -20,7 +20,6 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodSecurityContext;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 
@@ -207,28 +206,6 @@ class PodMutatorTest {
     }
 
     @Test
-    void patchAddsPodSecurityContextWhenAbsent() throws Exception {
-        Pod pod = podWithAppContainer(null);
-        JsonNode patch = createPatchJson(pod);
-
-        List<JsonNode> secCtxOps = patchOps(patch, "add", "/spec/securityContext");
-        assertThat(secCtxOps).hasSize(1);
-        assertThat(secCtxOps.get(0).path("value").path("runAsNonRoot").asBoolean()).isTrue();
-    }
-
-    @Test
-    void patchPreservesExistingPodSecurityContext() throws Exception {
-        Pod pod = podWithAppContainer(null);
-        PodSecurityContext secCtx = new PodSecurityContext();
-        secCtx.setRunAsNonRoot(true);
-        pod.getSpec().setSecurityContext(secCtx);
-
-        JsonNode patch = createPatchJson(pod);
-
-        assertThat(patchOps(patch, "add", "/spec/securityContext")).isEmpty();
-    }
-
-    @Test
     void escapeJsonPointerHandsTildeAndSlash() {
         assertThat(PodMutator.escapeJsonPointer("a~b/c")).isEqualTo("a~0b~1c");
     }
@@ -329,7 +306,7 @@ class PodMutatorTest {
     @Test
     void nativeSidecarInjectsAsInitContainer() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, true, false);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, 0L, true, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         // Should add to initContainers, not containers
@@ -344,7 +321,7 @@ class PodMutatorTest {
     @Test
     void regularSidecarDoesNotSetRestartPolicy() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, false, false);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, 0L, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
@@ -359,7 +336,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         boolean hasPluginVolume = false;
@@ -382,7 +359,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, false);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         boolean hasPluginVolume = false;
@@ -404,7 +381,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, false);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
@@ -421,7 +398,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
@@ -433,7 +410,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
@@ -459,7 +436,7 @@ class PodMutatorTest {
         plugins.add(createPlugin("filter-b", "reg.io/b@sha256:bbb"));
         spec.setPlugins(plugins);
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         int pluginVolumeCount = 0;
