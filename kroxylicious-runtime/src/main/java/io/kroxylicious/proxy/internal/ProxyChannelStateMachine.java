@@ -92,7 +92,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * </pre>
  *
  * <p>The {@link ProxyChannelState.Draining Draining} state is optional: a connection only enters it
- * when {@link #initiateClose(Duration)} is invoked externally (typically by the {@code DrainCoordinator}
+ * when {@link #initiateClose(Duration)} is invoked externally (typically by {@code VirtualClusterLifecycle}
  * during proxy shutdown or virtual-cluster hot-reload). The {@code on*} methods that perform the actual
  * state transitions ({@code onDraining}, {@code onDrainCompleted}, {@code onDrainTimeout}) are private
  * and orchestrated internally by {@code initiateClose}. Any {@code channelInactive} or error event that
@@ -211,7 +211,6 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    private final DrainCoordinator drainCoordinator;
     /** Tracks requests sent to the server that haven't received a response yet (proxy↔server). */
     private int serverMessagesInFlightCount;
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
@@ -219,11 +218,9 @@ public class ProxyChannelStateMachine {
 
     public ProxyChannelStateMachine(EndpointBinding endpointBinding,
                                     TransportSubjectBuilder transportSubjectBuilder,
-                                    KafkaSession kafkaSession,
-                                    DrainCoordinator drainCoordinator) {
+                                    KafkaSession kafkaSession) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
-        this.drainCoordinator = Objects.requireNonNull(drainCoordinator);
         this.kafkaSession = kafkaSession;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
 
@@ -811,7 +808,6 @@ public class ProxyChannelStateMachine {
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
 
-        drainCoordinator.register(clusterName(), this);
     }
 
     void onTransportSubjectBuilt() {
@@ -943,9 +939,6 @@ public class ProxyChannelStateMachine {
             frontendHandler.inClosed(errorCodeEx);
             clientToProxyConnectionToken.release();
         }
-
-        // Deregister from drain coordinator
-        drainCoordinator.deregister(clusterName(), this);
 
         // Fire the drain policy if we were draining when we entered toClosed — signals the
         // coordinator that this connection is closed regardless of whether drain completed

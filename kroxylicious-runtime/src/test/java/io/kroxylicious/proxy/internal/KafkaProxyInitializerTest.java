@@ -31,6 +31,7 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -121,6 +122,7 @@ class KafkaProxyInitializerTest {
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.eventLoop()).thenReturn(eventLoop);
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
+        when(channel.closeFuture()).thenReturn(mock(ChannelFuture.class));
 
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
@@ -401,7 +403,7 @@ class KafkaProxyInitializerTest {
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
-                new DrainCoordinator());
+                mock(VirtualClusterCoordinator.class));
     }
 
     private void assertErrorHandlerAdded() {

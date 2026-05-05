@@ -54,7 +54,6 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
-import io.kroxylicious.proxy.internal.DrainCoordinator;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
@@ -158,15 +157,8 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
-    private @Nullable DrainCoordinator drainCoordinator;
-    private final DrainCoordinator drainCoordinatorOverride;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
-        this(pfr, config, features, new DrainCoordinator());
-    }
-
-    @VisibleForTesting
-    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, DrainCoordinator drainCoordinatorOverride) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterModels = config.virtualClusterModel(pfr);
@@ -176,7 +168,16 @@ public final class KafkaProxy implements AutoCloseable {
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
                 .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
-        this.drainCoordinatorOverride = requireNonNull(drainCoordinatorOverride);
+    }
+
+    @VisibleForTesting
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterCoordinator clusterCoordinatorOverride) {
+        this.pfr = requireNonNull(pfr);
+        this.config = validate(requireNonNull(config), requireNonNull(features));
+        this.virtualClusterModels = config.virtualClusterModel(pfr);
+        this.managementConfiguration = config.management();
+        this.micrometerConfig = config.getMicrometer();
+        this.clusterCoordinator = requireNonNull(clusterCoordinatorOverride);
     }
 
     @VisibleForTesting
@@ -253,16 +254,14 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
-            this.drainCoordinator = drainCoordinatorOverride;
-
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, drainCoordinator));
+                            proxyNettySettings, clusterCoordinator));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, drainCoordinator));
+                            proxyNettySettings, clusterCoordinator));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -388,7 +387,6 @@ public final class KafkaProxy implements AutoCloseable {
         try {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Shutting down");
-            clusterCoordinator.initiateShutdown();
 
             // Unbind ports first so no new connections can arrive after the drain snapshot
             // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —
@@ -404,7 +402,15 @@ public final class KafkaProxy implements AutoCloseable {
                 return null;
             }).toCompletableFuture().join();
 
-            drainAllClusters();
+            try {
+                clusterCoordinator.initiateShutdown();
+                STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
+            }
+            catch (Exception e) {
+                STARTUP_SHUTDOWN_LOGGER.atWarn()
+                        .addKeyValue("error", e.getMessage())
+                        .log("Connection drain completed with errors — Netty shutdown will force-close remaining");
+            }
 
             var closeFutures = new ArrayList<Future<?>>();
             if (proxyEventGroup != null) {
@@ -426,7 +432,6 @@ public final class KafkaProxy implements AutoCloseable {
         finally {
             // Close virtual cluster models to release TLS credential supplier resources
             virtualClusterModels.forEach(VirtualClusterModel::close);
-            drainCoordinator = null;
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
@@ -434,26 +439,6 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown.complete(null);
             LOGGER.atInfo()
                     .log("Shut down completed");
-        }
-    }
-
-    private void drainAllClusters() {
-        if (drainCoordinator == null) {
-            return;
-        }
-        // Each virtual cluster carries its own drainTimeout — different clusters may
-        // have different workload profiles.
-        var drainFutures = virtualClusterModels.stream()
-                .map(model -> drainCoordinator.drainCluster(model.getClusterName(), model.drainTimeout()))
-                .toArray(CompletableFuture[]::new);
-        try {
-            CompletableFuture.allOf(drainFutures).join();
-            STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
-        }
-        catch (Exception e) {
-            STARTUP_SHUTDOWN_LOGGER.atWarn()
-                    .addKeyValue("error", e.getMessage())
-                    .log("Connection drain completed with errors — Netty shutdown will force-close remaining");
         }
     }
 
