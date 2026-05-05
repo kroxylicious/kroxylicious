@@ -1,0 +1,25 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KroxyliciousSidecarConfig
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+metadata:
+  name: plugins-config
+  namespace: webhook-validation-test
+spec:
+  virtualClusters:
+    - name: demo
+      targetBootstrapServers: kafka.example.com:9092
+  plugins:
+    - name: plugin1
+      image:
+        reference: quay.io/kroxylicious/plugin1@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        pullPolicy: Always
+    - name: plugin-2
+      image:
+        reference: quay.io/kroxylicious/plugin2:latest
+        pullPolicy: Never
