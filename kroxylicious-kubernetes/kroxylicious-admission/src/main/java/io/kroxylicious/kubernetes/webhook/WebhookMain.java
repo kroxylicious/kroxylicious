@@ -138,8 +138,8 @@ public class WebhookMain {
     }
 
     private static KubernetesVersion detectVersion(
-                                                    @NonNull KubernetesClient client,
-                                                    @NonNull Map<String, String> env) {
+                                                   @NonNull KubernetesClient client,
+                                                   @NonNull Map<String, String> env) {
         Map<String, Boolean> featureGates = KubernetesVersion.parseFeatureGates(
                 env.getOrDefault(FEATURE_GATES_VAR, ""));
         if (!featureGates.isEmpty()) {
