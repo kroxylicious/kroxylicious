@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
@@ -34,6 +36,7 @@ public class VirtualClusterLifecycle {
     private final String clusterName;
     private final Duration drainTimeout;
     private VirtualClusterLifecycleState state = new Initializing();
+    private final Set<ProxyChannelStateMachine> activeConnections = ConcurrentHashMap.newKeySet();
 
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
@@ -110,6 +113,18 @@ public class VirtualClusterLifecycle {
 
     public String clusterName() {
         return clusterName;
+    }
+
+    public void registerConnection(ProxyChannelStateMachine pcsm) {
+        activeConnections.add(pcsm);
+    }
+
+    public void deregisterConnection(ProxyChannelStateMachine pcsm) {
+        activeConnections.remove(pcsm);
+    }
+
+    public Set<ProxyChannelStateMachine> activeConnections() {
+        return Set.copyOf(activeConnections);
     }
 
     private synchronized void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {

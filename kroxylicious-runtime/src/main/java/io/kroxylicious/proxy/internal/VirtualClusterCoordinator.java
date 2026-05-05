@@ -11,9 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -162,6 +164,20 @@ public class VirtualClusterCoordinator {
     @Nullable
     public VirtualClusterLifecycle lifecycleFor(String clusterName) {
         return lifecycleManagers.get(clusterName);
+    }
+
+    public void registerConnection(String clusterName, ProxyChannelStateMachine pcsm) {
+        requireKnownCluster(clusterName).registerConnection(pcsm);
+    }
+
+    public void deregisterConnection(String clusterName, ProxyChannelStateMachine pcsm) {
+        requireKnownCluster(clusterName).deregisterConnection(pcsm);
+    }
+
+    @VisibleForTesting
+    Set<ProxyChannelStateMachine> activeConnectionsFor(String clusterName) {
+        var lifecycle = lifecycleManagers.get(clusterName);
+        return lifecycle == null ? Set.of() : lifecycle.activeConnections();
     }
 
     private VirtualClusterLifecycle requireKnownCluster(String clusterName) {

@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 import org.assertj.core.api.Assumptions;
@@ -480,5 +481,37 @@ class VirtualClusterCoordinatorTest {
                 .isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
                 .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
+    }
+
+    // Connection registration
+
+    @Test
+    void shouldTrackRegisteredConnectionForCluster() {
+        // given
+        var pcsm = mock(ProxyChannelStateMachine.class);
+
+        // when
+        vcc.registerConnection(CLUSTER_A, pcsm);
+
+        // then
+        assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEqualTo(Set.of(pcsm));
+    }
+
+    @Test
+    void shouldRemoveConnectionOnDeregister() {
+        // given
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        vcc.registerConnection(CLUSTER_A, pcsm);
+
+        // when
+        vcc.deregisterConnection(CLUSTER_A, pcsm);
+
+        // then
+        assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEmpty();
+    }
+
+    @Test
+    void shouldReturnEmptySetForClusterWithNoConnections() {
+        assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEmpty();
     }
 }
