@@ -6,12 +6,14 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -116,10 +118,15 @@ public class VirtualClusterCoordinator {
      */
     @SuppressWarnings("StatementWithEmptyBody")
     public void initiateShutdown() {
+        var drainFutures = new ArrayList<CompletableFuture<Void>>();
         lifecycleManagers.forEach((name, manager) -> {
             var state = manager.state();
             if (state instanceof VirtualClusterLifecycleState.Serving) {
-                manager.startDraining();
+                drainFutures.add(manager.startDraining()
+                        .thenRun(() -> {
+                            manager.drainComplete();
+                            onVirtualClusterStopped.accept(name, Optional.empty());
+                        }));
             }
             else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
                 manager.stop();
@@ -136,6 +143,7 @@ public class VirtualClusterCoordinator {
                 onVirtualClusterStopped.accept(name, Optional.empty());
             }
         });
+        CompletableFuture.allOf(drainFutures.toArray(CompletableFuture[]::new)).join();
     }
 
     /**

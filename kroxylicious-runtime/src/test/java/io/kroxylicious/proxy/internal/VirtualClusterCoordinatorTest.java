@@ -10,10 +10,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,6 +24,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -206,7 +210,7 @@ class VirtualClusterCoordinatorTest {
     // Bulk shutdown transitions
 
     @Test
-    void shouldTransitionServingToDrainingOnBulkDrain() {
+    void shouldTransitionServingToStoppedOnShutdownWhenNoConnections() {
         // given
         vcc.initializationSucceeded(CLUSTER_A);
 
@@ -216,7 +220,7 @@ class VirtualClusterCoordinatorTest {
         // then
         assertThat(vcc.lifecycleFor(CLUSTER_A)).isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
-                .isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
@@ -240,7 +244,7 @@ class VirtualClusterCoordinatorTest {
     }
 
     @Test
-    void shouldNotFireCallbackForServingToDrainingOnBulkDrain() {
+    void shouldFireCallbackForServingClusterOnShutdownWhenNoConnections() {
         // given
         vcc.initializationSucceeded(CLUSTER_A);
 
@@ -248,7 +252,67 @@ class VirtualClusterCoordinatorTest {
         vcc.initiateShutdown();
 
         // then
-        verifyNoInteractions(noOpCallback);
+        verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
+    }
+
+    @Test
+    void shouldDrainAllClustersInParallel() throws InterruptedException {
+        // Given — two clusters, each with one connection.
+        // clusterA's drain blocks indefinitely; clusterB's drain completes immediately.
+        // If drains are initiated in parallel, B is called while A is still pending.
+        // If initiated sequentially (await A before starting B), B is never called and
+        // Awaitility times out with a clear assertion failure.
+        var pendingDrainA = new CompletableFuture<Void>();
+
+        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.initializationSucceeded(CLUSTER_B);
+
+        var pcsmA = mock(ProxyChannelStateMachine.class);
+        when(pcsmA.initiateClose(any())).thenReturn(pendingDrainA);
+
+        var pcsmB = mock(ProxyChannelStateMachine.class);
+        when(pcsmB.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        vcc.registerConnection(CLUSTER_A, pcsmA);
+        vcc.registerConnection(CLUSTER_B, pcsmB);
+
+        // Run shutdown on a background thread since it blocks until all drains complete
+        var shutdownThread = new Thread(() -> vcc.initiateShutdown());
+        shutdownThread.start();
+
+        // then — B must be called even while A is still draining
+        Awaitility.await("cluster-b drain should start while cluster-a is still draining")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> verify(pcsmB).initiateClose(any()));
+
+        // cleanup
+        pendingDrainA.complete(null);
+        shutdownThread.join(5000);
+    }
+
+    @Test
+    void shouldKeepServingClusterInDrainingWhileConnectionIsPending() {
+        // given
+        var pendingDrain = new CompletableFuture<Void>();
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        when(pcsm.initiateClose(any())).thenReturn(pendingDrain);
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.registerConnection(CLUSTER_A, pcsm);
+
+        // Run shutdown on a separate thread since it blocks until drain completes
+        var shutdownThread = new Thread(() -> vcc.initiateShutdown());
+        shutdownThread.start();
+
+        // then — cluster stays Draining while the connection is pending
+        assertThat(shutdownThread.isAlive()).isTrue();
+        assertThat(vcc.lifecycleFor(CLUSTER_A))
+                .isNotNull()
+                .extracting(VirtualClusterLifecycle::state)
+                .isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+
+        // cleanup
+        pendingDrain.complete(null);
     }
 
     @Test
@@ -305,7 +369,7 @@ class VirtualClusterCoordinatorTest {
     }
 
     @Test
-    void shouldDrainAllServingClustersWhenShuttingDown() {
+    void shouldStopServingClustersWhenShuttingDownWithNoConnections() {
         // Given
         vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
@@ -317,7 +381,7 @@ class VirtualClusterCoordinatorTest {
         assertThat(vcc.lifecycleFor(CLUSTER_A))
                 .isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
-                .isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
@@ -455,11 +519,12 @@ class VirtualClusterCoordinatorTest {
         vcc.initiateShutdown();
 
         // Then
-        assertThat(requireLifecycle(serving).state()).isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+        assertThat(requireLifecycle(serving).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         assertThat(requireLifecycle(initializing).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         assertThat(requireLifecycle(draining).state()).isInstanceOf(VirtualClusterLifecycleState.Draining.class);
         assertThat(requireLifecycle(failed).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         assertThat(requireLifecycle(stopped).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
+        verify(noOpCallback).accept(serving, Optional.empty());
         verify(noOpCallback).accept(initializing, Optional.empty());
         verify(noOpCallback).accept(failed, Optional.of(failureCause));
     }
@@ -531,5 +596,55 @@ class VirtualClusterCoordinatorTest {
     void shouldThrowForUnknownClusterOnActiveConnectionsFor() {
         assertThatThrownBy(() -> vcc.activeConnectionsFor("nonexistent"))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    // Drain on shutdown
+
+    @Test
+    void shouldInitiateCloseOnRegisteredConnectionWhenShuttingDown() {
+        // given
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        when(pcsm.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.registerConnection(CLUSTER_A, pcsm);
+
+        // when
+        vcc.initiateShutdown();
+
+        // then
+        verify(pcsm).initiateClose(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void shouldTransitionToStoppedAfterConnectionsDrainOnShutdown() {
+        // given
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        when(pcsm.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.registerConnection(CLUSTER_A, pcsm);
+
+        // when
+        vcc.initiateShutdown();
+
+        // then
+        assertThat(vcc.lifecycleFor(CLUSTER_A))
+                .isNotNull()
+                .extracting(VirtualClusterLifecycle::state)
+                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
+    }
+
+    @Test
+    void shouldFireStoppedCallbackAfterConnectionsDrainOnShutdown() {
+        // given
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        when(pcsm.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.registerConnection(CLUSTER_A, pcsm);
+
+        // when
+        vcc.initiateShutdown();
+
+        // then
+        verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
 }

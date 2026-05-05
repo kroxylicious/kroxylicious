@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
 
@@ -69,15 +70,22 @@ public class VirtualClusterLifecycle {
     }
 
     /**
-     * Transitions from {@link Serving} to {@link Draining}.
+     * Transitions from {@link Serving} to {@link Draining} and initiates close on all
+     * active connections.
+     *
+     * @return future that completes when all connections have closed
      */
-    public void startDraining() {
+    public CompletableFuture<Void> startDraining() {
         transition(current -> {
             if (current instanceof Serving s) {
                 return s.toDraining(drainTimeout);
             }
             throw unexpectedState(current, "startDraining");
         });
+        var closeFutures = activeConnections.stream()
+                .map(pcsm -> pcsm.initiateClose(drainTimeout))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(closeFutures);
     }
 
     /**
