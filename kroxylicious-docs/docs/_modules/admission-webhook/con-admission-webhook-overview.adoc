@@ -83,3 +83,17 @@ On older clusters, the sidecar is injected as a regular container.
 The webhook detects the cluster version automatically at startup.
 
 For clusters running alpha versions of features (e.g. native sidecars on 1.28, OCI image volumes on 1.31-1.32), set the `FEATURE_GATES` environment variable on the webhook deployment to override version-based defaults (e.g. `FEATURE_GATES=SidecarContainers=true,ImageVolume=true`).
+
+== Pod security context
+
+The webhook sets a container-level security context on the sidecar (`allowPrivilegeEscalation: false`, `capabilities: drop ALL`, `readOnlyRootFilesystem: true`) but does not set a pod-level `securityContext`.
+
+Pod-level security policies such as `runAsNonRoot` and `seccompProfile: RuntimeDefault` should be enforced using Kubernetes https://kubernetes.io/docs/concepts/security/pod-security-standards/[Pod Security Standards] via the `PodSecurity` admission controller.
+Label the namespace with the appropriate enforcement level:
+
+[source,shell,subs="+quotes"]
+----
+kubectl label namespace _my-app-namespace_ pod-security.kubernetes.io/enforce=restricted
+----
+
+This is the recommended approach because it applies uniformly to all pods in the namespace and avoids ordering conflicts between multiple mutating admission webhooks.
