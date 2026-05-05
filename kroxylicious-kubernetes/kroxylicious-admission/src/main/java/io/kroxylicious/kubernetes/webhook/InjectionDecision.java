@@ -59,8 +59,8 @@ final class InjectionDecision {
 
     private static boolean isOptedOut(@NonNull Pod pod) {
         Map<String, String> labels = labels(pod);
-        String value = labels.get(Labels.INJECT_SIDECAR);
-        return "false".equals(value);
+        String value = labels.get(Labels.SIDECAR_INJECTION);
+        return Labels.SIDECAR_INJECTION_DISABLED.equals(value);
     }
 
     private static boolean isAlreadyInjected(@NonNull Pod pod) {

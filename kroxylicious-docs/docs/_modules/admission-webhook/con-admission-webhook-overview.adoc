@@ -46,7 +46,7 @@ Individual pods can opt out of sidecar injection by setting the following label:
 
 [source,yaml]
 ----
-sidecar.kroxylicious.io/inject: "false"
+sidecar.kroxylicious.io/injection: disabled
 ----
 
 Pods that already have a container named `kroxylicious-proxy` are also skipped to avoid double injection.

@@ -375,7 +375,7 @@ abstract class AbstractWebhookInstallKT {
                 .withNewMetadata()
                 .withName("test-app-no-sidecar")
                 .withNamespace(TEST_NS)
-                .addToLabels("sidecar.kroxylicious.io/inject", "false")
+                .addToLabels("sidecar.kroxylicious.io/injection", "disabled")
                 .endMetadata()
                 .withNewSpec()
                 .withTerminationGracePeriodSeconds(0L)

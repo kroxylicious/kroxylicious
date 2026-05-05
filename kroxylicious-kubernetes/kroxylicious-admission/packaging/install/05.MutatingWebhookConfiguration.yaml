@@ -47,6 +47,6 @@ webhooks:
     # Skip pods that have explicitly opted out
     objectSelector:
       matchExpressions:
-        - key: sidecar.kroxylicious.io/inject
+        - key: sidecar.kroxylicious.io/injection
           operator: NotIn
-          values: ["false"]
+          values: ["disabled"]

@@ -78,5 +78,5 @@ The output should include `kroxylicious-proxy` alongside your application contai
 ----
 metadata:
   labels:
-    sidecar.kroxylicious.io/inject: "false"
+    sidecar.kroxylicious.io/injection: disabled
 ----

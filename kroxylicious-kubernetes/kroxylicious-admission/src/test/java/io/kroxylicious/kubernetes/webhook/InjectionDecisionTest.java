@@ -35,13 +35,13 @@ class InjectionDecisionTest {
 
     @Test
     void shouldSkipWhenOptedOut() {
-        Pod pod = podWithLabels(Map.of(Labels.INJECT_SIDECAR, "false"));
+        Pod pod = podWithLabels(Map.of(Labels.SIDECAR_INJECTION, "disabled"));
         assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.SKIP_OPT_OUT);
     }
 
     @Test
-    void shouldInjectWhenLabelIsNotFalse() {
-        Pod pod = podWithLabels(Map.of(Labels.INJECT_SIDECAR, "true"));
+    void shouldInjectWhenLabelIsNotDisabled() {
+        Pod pod = podWithLabels(Map.of(Labels.SIDECAR_INJECTION, "enabled"));
         assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.INJECT);
     }
 
@@ -63,7 +63,7 @@ class InjectionDecisionTest {
 
     @Test
     void optOutTakesPriorityOverAlreadyInjected() {
-        Pod pod = podWithLabels(Map.of(Labels.INJECT_SIDECAR, "false"));
+        Pod pod = podWithLabels(Map.of(Labels.SIDECAR_INJECTION, "disabled"));
         Container sidecar = new Container();
         sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
         pod.getSpec().getContainers().add(sidecar);
