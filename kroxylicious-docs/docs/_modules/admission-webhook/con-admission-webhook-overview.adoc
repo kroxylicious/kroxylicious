@@ -63,14 +63,15 @@ To switch to fail-open semantics, set both to `Ignore`.
 
 == Trust model
 
-The webhook enforces a strict trust boundary between two roles:
+The webhook enforces a trust boundary between two roles:
 
 Webhook administrator::
 Controls what gets injected: the proxy image, filters, target Kafka cluster, and security context.
 Creates `KroxyliciousSidecarConfig` resources.
 
 Application pod owner::
-Can only influence injection through annotations that have been explicitly delegated by the administrator.
+Can opt out of injection via pod labels.
+Can select a specific `KroxyliciousSidecarConfig` by name via the `sidecar.kroxylicious.io/config` annotation.
 Cannot tamper with the proxy configuration, image, or security context.
 
 The webhook always overwrites the `sidecar.kroxylicious.io/proxy-config` annotation, preventing application pod owners from pre-setting a malicious configuration.

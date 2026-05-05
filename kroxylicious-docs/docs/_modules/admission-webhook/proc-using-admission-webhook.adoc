@@ -21,8 +21,6 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 // TODO: Document configuring TLS to the target Kafka cluster via targetClusterTls.
 // TODO: Document resource requests and limits configuration.
 // TODO: Document third-party plugin image configuration.
-// TODO: Document delegated annotations for application pod owner overrides.
-
 .Prerequisites
 
 * The admission webhook is xref:proc-install-admission-webhook-{context}[installed and running].
@@ -31,7 +29,7 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 .Procedure
 
 . Create a `KroxyliciousSidecarConfig` custom resource in the namespace where your application pods run.
-At a minimum, you must specify the `targetBootstrapServers` field:
+At a minimum, you must specify a virtual cluster with the target Kafka bootstrap address:
 +
 [source,yaml,subs="+quotes,attributes+"]
 ----
@@ -41,7 +39,9 @@ metadata:
   name: my-sidecar-config
   namespace: _my-app-namespace_
 spec:
-  targetBootstrapServers: my-kafka-cluster-bootstrap:9092
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-kafka-cluster-bootstrap:9092
 ----
 +
 Apply the resource:
