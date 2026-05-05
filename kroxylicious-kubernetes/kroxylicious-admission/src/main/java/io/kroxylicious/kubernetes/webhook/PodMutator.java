@@ -30,8 +30,9 @@ import io.fabric8.kubernetes.api.model.VolumeBuilder;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -83,9 +84,10 @@ class PodMutator {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
-            String targetClusterTrustStorePath = resolveTargetClusterTrustStorePath(spec);
+            VirtualClusters vc = spec.getVirtualClusters().get(0);
+            String targetClusterTrustStorePath = resolveTargetClusterTrustStorePath(vc);
             String proxyConfig = ProxyConfigGenerator.generateConfig(spec, targetClusterTrustStorePath);
-            int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(spec);
+            int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(vc);
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
             addAnnotationOps(patch, pod, proxyConfig, configGeneration);
@@ -118,8 +120,8 @@ class PodMutator {
      * or null if target cluster TLS is not configured.
      */
     @Nullable
-    static String resolveTargetClusterTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
-        TargetClusterTls tls = spec.getTargetClusterTls();
+    static String resolveTargetClusterTrustStorePath(VirtualClusters vc) {
+        TargetClusterTls tls = vc.getTargetClusterTls();
         if (tls == null || tls.getTrustAnchorSecretRef() == null) {
             return null;
         }
@@ -163,7 +165,8 @@ class PodMutator {
             addOp(patch, OP_ADD, "/spec/volumes", toJson(List.of(configVolume)));
         }
 
-        TargetClusterTls tls = spec.getTargetClusterTls();
+        VirtualClusters vc = spec.getVirtualClusters().get(0);
+        TargetClusterTls tls = vc.getTargetClusterTls();
         if (tls != null && tls.getTrustAnchorSecretRef() != null) {
             addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildTlsSecretVolume(tls)));
         }
@@ -299,7 +302,8 @@ class PodMutator {
                 .withReadOnly(true)
                 .endVolumeMount();
 
-        if (spec.getTargetClusterTls() != null && spec.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
+        VirtualClusters vcForTls = spec.getVirtualClusters().get(0);
+        if (vcForTls.getTargetClusterTls() != null && vcForTls.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
             builder.addNewVolumeMount()
                     .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)
                     .withMountPath(TARGET_CLUSTER_TLS_MOUNT_PATH)

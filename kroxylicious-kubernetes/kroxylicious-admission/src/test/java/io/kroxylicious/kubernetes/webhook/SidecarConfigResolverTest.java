@@ -17,6 +17,7 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -196,7 +197,10 @@ class SidecarConfigResolverTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(java.util.List.of(vc));
         config.setSpec(spec);
         return config;
     }

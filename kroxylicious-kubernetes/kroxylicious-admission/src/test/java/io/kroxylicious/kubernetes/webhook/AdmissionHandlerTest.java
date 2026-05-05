@@ -37,6 +37,7 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -322,67 +323,6 @@ class AdmissionHandlerTest {
         assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
     }
 
-    // --- Phase 2: Delegated annotations ---
-
-    @Test
-    void appliesDelegatedBootstrapPort() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setBootstrapPort(19092L);
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getBootstrapPort()).isEqualTo(29092L);
-        // Original should be unchanged
-        assertThat(adminSpec.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    @Test
-    void ignoresUndelegatedAnnotation() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setBootstrapPort(19092L);
-        // No delegatedAnnotations set
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        // Port should remain at admin default since annotation is not delegated
-        assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    @Test
-    void ignoresInvalidBootstrapPort() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setBootstrapPort(19092L);
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "not-a-number");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    @Test
-    void returnsOriginalSpecWhenNoAnnotations() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, null, "test-pod", "test-ns");
-
-        assertThat(effective).isSameAs(adminSpec);
-    }
-
     // --- helpers ---
 
     private static HttpExchange createMockExchange(
@@ -430,7 +370,10 @@ class AdmissionHandlerTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(List.of(vc));
         config.setSpec(spec);
         return config;
     }

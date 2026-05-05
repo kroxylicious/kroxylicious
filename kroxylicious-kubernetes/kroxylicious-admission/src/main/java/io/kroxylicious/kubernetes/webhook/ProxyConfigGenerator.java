@@ -13,7 +13,8 @@ import java.util.Optional;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.NodeIdRange;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -35,16 +36,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 class ProxyConfigGenerator {
 
-    private static final String VIRTUAL_CLUSTER_NAME = "sidecar";
     private static final String GATEWAY_NAME = "local";
     private static final String LOCALHOST = "localhost";
     static final int DEFAULT_BOOTSTRAP_PORT;
     static final int DEFAULT_MANAGEMENT_PORT;
     static {
-        // Use the fact that the generated code does actually apply the defaults
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        DEFAULT_BOOTSTRAP_PORT = spec.getBootstrapPort().intValue();
         DEFAULT_MANAGEMENT_PORT = spec.getManagementPort().intValue();
+        VirtualClusters vc = new VirtualClusters();
+        DEFAULT_BOOTSTRAP_PORT = vc.getBootstrapPort().intValue();
     }
     private static final int DEFAULT_NODE_ID_START;
     private static final int DEFAULT_NODE_ID_END;
@@ -67,12 +67,14 @@ class ProxyConfigGenerator {
     static String generateConfig(
                                  KroxyliciousSidecarConfigSpec spec,
                                  @Nullable String targetClusterTrustStorePath) {
-        int bootstrapPort = resolveBootstrapPort(spec);
+        VirtualClusters vc = spec.getVirtualClusters().get(0);
+
+        int bootstrapPort = resolveBootstrapPort(vc);
         int managementPort = resolveManagementPort(spec);
         int nodeIdStart = DEFAULT_NODE_ID_START;
         int nodeIdEnd = DEFAULT_NODE_ID_END;
 
-        NodeIdRange nodeIdRange = spec.getNodeIdRange();
+        NodeIdRange nodeIdRange = vc.getNodeIdRange();
         if (nodeIdRange != null) {
             if (nodeIdRange.getStartInclusive() != null) {
                 nodeIdStart = nodeIdRange.getStartInclusive().intValue();
@@ -104,11 +106,11 @@ class ProxyConfigGenerator {
         }
 
         var targetCluster = new TargetCluster(
-                spec.getTargetBootstrapServers(),
+                vc.getTargetBootstrapServers(),
                 targetClusterTls);
 
         var virtualCluster = new VirtualCluster(
-                VIRTUAL_CLUSTER_NAME,
+                vc.getName(),
                 targetCluster,
                 List.of(gateway),
                 false,
@@ -120,7 +122,6 @@ class ProxyConfigGenerator {
                 managementPort,
                 null);
 
-        // Convert CRD filter definitions to proxy config model
         List<NamedFilterDefinition> filterDefs = toNamedFilterDefinitions(spec);
         List<String> defaultFilters = filterDefs != null
                 ? filterDefs.stream().map(NamedFilterDefinition::name).toList()
@@ -151,8 +152,8 @@ class ProxyConfigGenerator {
                 .toList();
     }
 
-    static int resolveBootstrapPort(KroxyliciousSidecarConfigSpec spec) {
-        Long port = spec.getBootstrapPort();
+    static int resolveBootstrapPort(VirtualClusters vc) {
+        Long port = vc.getBootstrapPort();
         return port != null ? port.intValue() : DEFAULT_BOOTSTRAP_PORT;
     }
 

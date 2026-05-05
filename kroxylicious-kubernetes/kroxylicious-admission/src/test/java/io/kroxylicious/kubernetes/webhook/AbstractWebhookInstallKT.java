@@ -217,7 +217,10 @@ abstract class AbstractWebhookInstallKT {
                 .withNamespace(TEST_NS)
                 .endMetadata()
                 .withNewSpec()
+                .addNewVirtualCluster()
+                .withName("sidecar")
                 .withTargetBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
+                .endVirtualCluster()
                 .endSpec()
                 .build();
         client.resource(sidecarConfig).create();

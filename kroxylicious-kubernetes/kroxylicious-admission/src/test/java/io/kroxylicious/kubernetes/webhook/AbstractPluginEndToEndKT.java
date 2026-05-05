@@ -304,9 +304,12 @@ abstract class AbstractPluginEndToEndKT {
                 .withNamespace(TEST_NS)
                 .endMetadata()
                 .withNewSpec()
+                .addNewVirtualCluster()
+                .withName("sidecar")
                 .withTargetBootstrapServers(
                         "my-cluster-kafka-bootstrap." + KAFKA_NS
                                 + ".svc.cluster.local:9092")
+                .endVirtualCluster()
                 .addNewPlugin()
                 .withName("simple-transform")
                 .withNewImage()

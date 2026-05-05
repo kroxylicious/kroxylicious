@@ -11,10 +11,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -31,8 +29,6 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpecBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -149,16 +145,14 @@ class AdmissionHandler implements HttpHandler {
                 return allowResponse(uid);
             }
 
-            // Apply delegated annotation overrides
             KroxyliciousSidecarConfig sidecarConfig = configOpt.orElseThrow();
-            KroxyliciousSidecarConfigSpec effectiveSpec = applyDelegatedOverrides(
-                    sidecarConfig.getSpec(), annotations, podName, namespace);
 
             String image = proxyImage(sidecarConfig);
             Long gen = sidecarConfig.getMetadata().getGeneration();
             long configGeneration = gen != null ? gen : 0L;
             String jsonPatch = PodMutator.createPatch(
-                    pod, effectiveSpec, image, configGeneration, useNativeSidecar, useOciImageVolumes);
+                    pod, sidecarConfig.getSpec(), image, configGeneration,
+                    useNativeSidecar, useOciImageVolumes);
 
             AdmissionResponse response = allowResponse(uid);
             response.setPatchType(JSON_PATCH_TYPE);
@@ -172,84 +166,6 @@ class AdmissionHandler implements HttpHandler {
                     .log("Error processing admission request");
             return errorResponse(uid, "Error processing admission request: " + e.getMessage());
         }
-    }
-
-    /**
-     * Applies delegated annotation overrides from the pod to the sidecar config spec.
-     * Logs warnings for undelegated annotations in the {@code kroxylicious.io/} namespace.
-     */
-    @NonNull
-    KroxyliciousSidecarConfigSpec applyDelegatedOverrides(
-                                                          @NonNull KroxyliciousSidecarConfigSpec adminSpec,
-                                                          Map<String, String> podAnnotations,
-                                                          String podName,
-                                                          String namespace) {
-
-        if (podAnnotations == null || podAnnotations.isEmpty()) {
-            return adminSpec;
-        }
-
-        List<String> delegated = adminSpec.getDelegatedAnnotations();
-        Set<String> delegatedSet = delegated != null ? Set.copyOf(delegated) : Set.of();
-
-        warnAboutUndelegatedAnnotations(namespace, podName, podAnnotations, delegatedSet);
-
-        if (delegatedSet.isEmpty()) {
-            return adminSpec;
-        }
-
-        // Copy the spec so we don't mutate the cached admin config
-        KroxyliciousSidecarConfigSpec effective = copySpec(adminSpec);
-
-        applyBootstrapPortOverride(podAnnotations, podName, namespace, delegatedSet, effective);
-
-        return effective;
-    }
-
-    private static void applyBootstrapPortOverride(Map<String, String> podAnnotations,
-                                                   String podName,
-                                                   String namespace,
-                                                   Set<String> delegatedSet,
-                                                   KroxyliciousSidecarConfigSpec effective) {
-        if (delegatedSet.contains(Annotations.DELEGATED_BOOTSTRAP_PORT)) {
-            String portStr = podAnnotations.get(Annotations.DELEGATED_BOOTSTRAP_PORT);
-            if (portStr != null) {
-                try {
-                    effective.setBootstrapPort(Long.parseLong(portStr));
-                }
-                catch (NumberFormatException e) {
-                    LOGGER.atWarn()
-                            .addKeyValue(WebhookLoggingKeys.POD, podName)
-                            .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION, Annotations.DELEGATED_BOOTSTRAP_PORT)
-                            .addKeyValue(WebhookLoggingKeys.ANNOTATION_VALUE, portStr)
-                            .log("Invalid bootstrap port in delegated annotation, using admin default");
-                }
-            }
-        }
-    }
-
-    private static void warnAboutUndelegatedAnnotations(String namespace,
-                                                        String podName,
-                                                        Map<String, String> podAnnotations,
-                                                        Set<String> delegatedSet) {
-        for (String key : podAnnotations.keySet()) {
-            if (Annotations.isKroxyliciousAnnotation(key)
-                    && !Annotations.isWebhookManagedAnnotation(key)
-                    && !delegatedSet.contains(key)) {
-                LOGGER.atWarn()
-                        .addKeyValue(WebhookLoggingKeys.POD, podName)
-                        .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                        .addKeyValue("annotation", key)
-                        .log("Pod has undelegated kroxylicious.io annotation, ignoring");
-            }
-        }
-    }
-
-    @NonNull
-    private static KroxyliciousSidecarConfigSpec copySpec(@NonNull KroxyliciousSidecarConfigSpec src) {
-        KroxyliciousSidecarConfigSpecBuilder builder = new KroxyliciousSidecarConfigSpecBuilder(src);
-        return builder.build();
     }
 
     @NonNull

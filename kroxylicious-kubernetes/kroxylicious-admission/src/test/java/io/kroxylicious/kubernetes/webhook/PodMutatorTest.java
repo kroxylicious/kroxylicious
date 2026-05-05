@@ -25,9 +25,10 @@ import io.fabric8.kubernetes.api.model.Volume;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -289,15 +290,15 @@ class PodMutatorTest {
 
     @Test
     void resolveTargetClusterTrustStorePathWithTls() {
-        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
-        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
+        VirtualClusters vc = virtualClusterWithTargetClusterTls();
+        String path = PodMutator.resolveTargetClusterTrustStorePath(vc);
         assertThat(path).isEqualTo(PodMutator.TARGET_CLUSTER_TLS_MOUNT_PATH + "/ca.crt");
     }
 
     @Test
     void resolveTargetClusterTrustStorePathWithoutTls() {
-        KroxyliciousSidecarConfigSpec spec = defaultSpec();
-        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
+        VirtualClusters vc = defaultVirtualCluster();
+        String path = PodMutator.resolveTargetClusterTrustStorePath(vc);
         assertThat(path).isNull();
     }
 
@@ -459,10 +460,8 @@ class PodMutatorTest {
         assertThat(mountNames).contains("plugin-filter-a", "plugin-filter-b");
     }
 
-    /**
-     * Creates a pod with one application container already present.
-     * This ensures PodMutator uses the append ({@code /-}) path for adding the sidecar.
-     */
+    // --- helpers ---
+
     private static Pod podWithAppContainer(Map<String, String> annotations) {
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();
@@ -482,20 +481,33 @@ class PodMutatorTest {
         return pod;
     }
 
+    private static VirtualClusters defaultVirtualCluster() {
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        return vc;
+    }
+
     private static KroxyliciousSidecarConfigSpec defaultSpec() {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(List.of(defaultVirtualCluster()));
         return spec;
     }
 
-    private static KroxyliciousSidecarConfigSpec specWithTargetClusterTls() {
-        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+    private static VirtualClusters virtualClusterWithTargetClusterTls() {
+        VirtualClusters vc = defaultVirtualCluster();
         TargetClusterTls tls = new TargetClusterTls();
         TrustAnchorSecretRef ref = new TrustAnchorSecretRef();
         ref.setName("kafka-ca");
         ref.setKey("ca.crt");
         tls.setTrustAnchorSecretRef(ref);
-        spec.setTargetClusterTls(tls);
+        vc.setTargetClusterTls(tls);
+        return vc;
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithTargetClusterTls() {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setVirtualClusters(List.of(virtualClusterWithTargetClusterTls()));
         return spec;
     }
 
