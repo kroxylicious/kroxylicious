@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -31,10 +32,12 @@ public class VirtualClusterLifecycle {
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterLifecycle.class);
 
     private final String clusterName;
+    private final Duration drainTimeout;
     private VirtualClusterLifecycleState state = new Initializing();
 
-    public VirtualClusterLifecycle(String clusterName) {
+    public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
+        this.drainTimeout = drainTimeout;
     }
 
     /**
@@ -68,7 +71,7 @@ public class VirtualClusterLifecycle {
     public void startDraining() {
         transition(current -> {
             if (current instanceof Serving s) {
-                return s.toDraining();
+                return s.toDraining(drainTimeout);
             }
             throw unexpectedState(current, "startDraining");
         });

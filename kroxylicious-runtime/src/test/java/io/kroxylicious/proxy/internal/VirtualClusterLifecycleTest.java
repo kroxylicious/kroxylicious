@@ -6,8 +6,10 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,15 +24,17 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class VirtualClusterLifecycleTest {
 
     private static final String CLUSTER_NAME = "test-cluster";
+    private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(5);
     private VirtualClusterLifecycle manager;
 
     @BeforeEach
     void setUp() {
-        manager = new VirtualClusterLifecycle(CLUSTER_NAME);
+        manager = new VirtualClusterLifecycle(CLUSTER_NAME, DRAIN_TIMEOUT);
     }
 
     @Test
@@ -74,7 +78,9 @@ class VirtualClusterLifecycleTest {
         manager.startDraining();
 
         // then
-        assertThat(manager.state()).isInstanceOf(Draining.class);
+        VirtualClusterLifecycleState state = manager.state();
+        assertThat(state).asInstanceOf(InstanceOfAssertFactories.type(Draining.class))
+                .satisfies(draining -> assertThat(draining.drainTimeout()).isEqualTo(DRAIN_TIMEOUT));
     }
 
     @Test
@@ -142,27 +148,27 @@ class VirtualClusterLifecycleTest {
 
     static Stream<Arguments> invalidTransitions() {
         return Stream.of(
-                Arguments.argumentSet("initializationSucceeded from SERVING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycle("c");
+                argumentSet("initializationSucceeded from SERVING", (Runnable) () -> {
+                    var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
                     m.initializationSucceeded();
                     m.initializationSucceeded();
                 }),
-                Arguments.argumentSet("startDraining from INITIALIZING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycle("c");
+                argumentSet("startDraining from INITIALIZING", (Runnable) () -> {
+                    var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
                     m.startDraining();
                 }),
-                Arguments.argumentSet("drainComplete from SERVING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycle("c");
+                argumentSet("drainComplete from SERVING", (Runnable) () -> {
+                    var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
                     m.initializationSucceeded();
                     m.drainComplete();
                 }),
-                Arguments.argumentSet("stop from SERVING", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycle("c");
+                argumentSet("stop from SERVING", (Runnable) () -> {
+                    var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
                     m.initializationSucceeded();
                     m.stop();
                 }),
-                Arguments.argumentSet("initializationSucceeded from STOPPED", (Runnable) () -> {
-                    var m = new VirtualClusterLifecycle("c");
+                argumentSet("initializationSucceeded from STOPPED", (Runnable) () -> {
+                    var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
                     m.initializationFailed(new RuntimeException("x"));
                     m.stop();
                     m.initializationSucceeded();

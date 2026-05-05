@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.Objects;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -57,13 +58,16 @@ public sealed interface VirtualClusterLifecycleState {
          * The cluster is being shut down or reconfigured.
          * @return the new draining state
          */
-        public Draining toDraining() {
-            return new Draining();
+        public Draining toDraining(Duration drainTimeout) {
+            return new Draining(drainTimeout);
         }
     }
 
     /** New connections are rejected. Existing in-flight requests are completing. */
-    record Draining() implements VirtualClusterLifecycleState {
+    // TODO: consider storing an Instant (expiry time) rather than a Duration so that
+    // callers resuming a drain in progress (e.g. shutdown racing a hot-reload) don't
+    // inadvertently reset the timer.
+    record Draining(Duration drainTimeout) implements VirtualClusterLifecycleState {
 
         /**
          * Drain complete, cluster permanently removed.

@@ -58,8 +58,8 @@ import io.kroxylicious.proxy.internal.DrainCoordinator;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
-import io.kroxylicious.proxy.internal.VirtualClusterLifecycle;
 import io.kroxylicious.proxy.internal.VirtualClusterCoordinator;
+import io.kroxylicious.proxy.internal.VirtualClusterLifecycle;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -388,7 +388,7 @@ public final class KafkaProxy implements AutoCloseable {
         try {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Shutting down");
-            clusterCoordinator.transitionAllToDraining();
+            clusterCoordinator.initiateShutdown();
 
             // Unbind ports first so no new connections can arrive after the drain snapshot
             // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —

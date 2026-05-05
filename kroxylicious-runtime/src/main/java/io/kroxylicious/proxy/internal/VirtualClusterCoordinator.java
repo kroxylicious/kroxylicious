@@ -63,7 +63,7 @@ public class VirtualClusterCoordinator {
             if (lifecycleManagers.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate cluster name: " + name);
             }
-            lifecycleManagers.put(name, new VirtualClusterLifecycle(name));
+            lifecycleManagers.put(name, new VirtualClusterLifecycle(name, vcm.drainTimeout()));
         }
     }
 
@@ -106,18 +106,30 @@ public class VirtualClusterCoordinator {
      * Transitions all virtual clusters toward draining/stopped as appropriate for shutdown.
      * <ul>
      *   <li>Serving → Draining</li>
+     *   <li>Draining → Draining (a pre-existing drain, e.g. from hot-reload, is left to complete)</li>
      *   <li>Initializing → Stopped (fires callback with empty cause)</li>
+     *   <li>Failed → Stopped (fires callback with cause)</li>
+     *   <li>Stopped → Stopped (no-op)</li>
      * </ul>
-     * Clusters already in Failed or Stopped state are skipped — these were already
-     * handled by prior {@link #initializationFailed} calls.
      */
-    public void transitionAllToDraining() {
+    @SuppressWarnings("StatementWithEmptyBody")
+    public void initiateShutdown() {
         lifecycleManagers.forEach((name, manager) -> {
             var state = manager.state();
             if (state instanceof VirtualClusterLifecycleState.Serving) {
                 manager.startDraining();
             }
-            else if (state instanceof VirtualClusterLifecycleState.Initializing) {
+            else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
+                manager.stop();
+                onVirtualClusterStopped.accept(name, Optional.of(failed.cause()));
+            }
+            else if (state instanceof VirtualClusterLifecycleState.Draining) {
+                // we leave draining clusters in Draining.
+            }
+            else if (state instanceof VirtualClusterLifecycleState.Stopped) {
+                // its already dead, let sleeping dogs lie
+            }
+            else {
                 manager.stop();
                 onVirtualClusterStopped.accept(name, Optional.empty());
             }
