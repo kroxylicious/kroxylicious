@@ -66,28 +66,28 @@ class FilterChainFactoryTest {
                 if (pluginClass == FilterFactory.class) {
                     return new PluginFactory() {
                         @Override
-                        public FilterFactory pluginInstance(String instanceName) {
-                            if (instanceName.endsWith(TestFilterFactory.class.getSimpleName())) {
+                        public FilterFactory pluginInstance(String pluginImplementation) {
+                            if (pluginImplementation.endsWith(TestFilterFactory.class.getSimpleName())) {
                                 return new TestFilterFactory();
                             }
-                            else if (instanceName.endsWith(RequiresConfigFactory.class.getSimpleName())) {
+                            else if (pluginImplementation.endsWith(RequiresConfigFactory.class.getSimpleName())) {
                                 return new RequiresConfigFactory();
                             }
-                            else if (instanceName.endsWith(OptionalConfigFactory.class.getSimpleName())) {
+                            else if (pluginImplementation.endsWith(OptionalConfigFactory.class.getSimpleName())) {
                                 return new OptionalConfigFactory();
                             }
-                            else if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
+                            else if (pluginImplementation.endsWith(FlakyFactory.class.getSimpleName())) {
                                 return new FlakyFactory();
                             }
-                            else if (instanceName.endsWith(DeprecatedMethodsFilterFactory.class.getSimpleName())) {
+                            else if (pluginImplementation.endsWith(DeprecatedMethodsFilterFactory.class.getSimpleName())) {
                                 return new DeprecatedMethodsFilterFactory();
                             }
-                            throw new RuntimeException("Unknown FilterFactory: " + instanceName);
+                            throw new RuntimeException("Unknown FilterFactory: " + pluginImplementation);
                         }
 
                         @Override
-                        public Class<?> configType(String instanceName) {
-                            if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
+                        public Class<?> configType(String pluginImplementation) {
+                            if (pluginImplementation.endsWith(FlakyFactory.class.getSimpleName())) {
                                 return FlakyConfig.class;
                             }
                             return ExampleConfig.class;

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.authentication;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
 import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
 /**
@@ -13,6 +15,7 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  *
  * @param <C> The configuration type consumed by the particular {@link TransportSubjectBuilder} implementation.
  */
+@ApiVersion("v1")
 public interface TransportSubjectBuilderService<C> extends AutoCloseable {
     void initialize(@UnknownNullness C config);
 

@@ -122,7 +122,7 @@
                     <execution>
                         <id>analyze</id>
                         <configuration>
-                            <ignoredUnusedDeclaredDependencies>
+                            <ignoredUnusedDeclaredDependencies combine.children="append">
                                 <ignoredUnusedDeclaredDependency>org.bitbucket.b_c:jose4j</ignoredUnusedDeclaredDependency>
                                 <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>

@@ -129,7 +129,7 @@
                             <goal>analyze-only</goal>
                         </goals>
                         <configuration>
-                            <ignoredUnusedDeclaredDependencies>
+                            <ignoredUnusedDeclaredDependencies combine.children="append">
                                 <!-- this is a provided dependency we only need for testing-->
                                 <ignoredUnusedDeclaredDependency>com.github.nagyesta.lowkey-vault:lowkey-vault-client</ignoredUnusedDeclaredDependency>
                             </ignoredUnusedDeclaredDependencies>

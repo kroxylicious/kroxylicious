@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.config;
 
 import io.kroxylicious.kms.service.Kms;
+import io.kroxylicious.proxy.plugin.ApiVersion;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -15,6 +16,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <C> The config type
  * @param <K> the type of key
  */
+@ApiVersion("v1")
 public interface KekSelectorService<C, K> {
     @NonNull
     TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, C options);

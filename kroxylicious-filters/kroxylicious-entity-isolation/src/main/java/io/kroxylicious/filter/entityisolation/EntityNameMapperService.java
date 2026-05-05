@@ -6,6 +6,9 @@
 
 package io.kroxylicious.filter.entityisolation;
 
+import io.kroxylicious.proxy.plugin.ApiVersion;
+
+@ApiVersion("v1")
 public interface EntityNameMapperService<C> {
 
     /**

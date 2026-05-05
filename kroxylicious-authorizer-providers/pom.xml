@@ -30,4 +30,32 @@
         <module>kroxylicious-authorizer-acl</module>
     </modules>
 
+    <dependencies>
+        <dependency>
+            <!-- Not a real dependency: forces reactor build order so the processor is available
+             for annotationProcessorPaths, which doesn't participate in reactor resolution. -->
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api-version-processor</artifactId>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>io.kroxylicious</groupId>
+                            <artifactId>kroxylicious-api-version-processor</artifactId>
+                            <version>${project.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
