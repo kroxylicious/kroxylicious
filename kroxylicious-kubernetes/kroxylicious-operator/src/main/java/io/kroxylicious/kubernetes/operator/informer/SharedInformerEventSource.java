@@ -79,6 +79,8 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
 
     @Override
     public void stop() {
+        // Remove this event handler from the shared informer
+        sharedInformer.removeEventHandler(this);
         // Note: We don't stop the shared informer as other event sources may be using it
         // The SharedInformerManager is responsible for stopping shared informers
     }
