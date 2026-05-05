@@ -11,7 +11,11 @@
 # 5 min test gives enough samples for stable p99 latency at typical rates.
 #
 # workerReplicas is raised to 6 to give headroom at high producer counts (up to
-# 16 producers + 16 consumers per step) without workers becoming the bottleneck.
+# 8 producers + 8 consumers per step) without workers becoming the bottleneck.
+# OMB assigns ~1/3 of workers to producers and the rest to consumers, so 6 workers
+# gives 2 producer workers.  At 8 producers × 10k msg/s = 80k total, each producer
+# worker handles ~40k msg/s — the CPU limit is raised to 2000m to keep workers
+# well clear of saturation before the proxy CPU becomes the bottleneck.
 #
 # Applied automatically by connection-sweep.sh unless overridden with --profile.
 
@@ -21,3 +25,10 @@ benchmark:
 
 omb:
   workerReplicas: 6
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "2000m"
+      memory: "6Gi"
