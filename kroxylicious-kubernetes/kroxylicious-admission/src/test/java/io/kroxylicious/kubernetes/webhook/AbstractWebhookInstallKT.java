@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -27,6 +28,8 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -77,6 +80,7 @@ abstract class AbstractWebhookInstallKT {
             waitForWebhookReady();
             createTestNamespaceAndConfig();
             verifyInjection();
+            verifySecretMount();
             verifyOptOut();
             verifyFailClosed();
         }
@@ -210,6 +214,16 @@ abstract class AbstractWebhookInstallKT {
                 .build();
         client.namespaces().resource(ns).create();
 
+        LOGGER.info("Creating test Secret for secret mount verification");
+        var testSecret = new SecretBuilder()
+                .withNewMetadata()
+                .withName("kms-credentials")
+                .withNamespace(TEST_NS)
+                .endMetadata()
+                .addToStringData("credentials.json", "{\"key\": \"test-value\"}")
+                .build();
+        client.resource(testSecret).create();
+
         LOGGER.info("Creating KroxyliciousSidecarConfig");
         var sidecarConfig = new KroxyliciousSidecarConfigBuilder()
                 .withNewMetadata()
@@ -221,6 +235,10 @@ abstract class AbstractWebhookInstallKT {
                 .withName("sidecar")
                 .withTargetBootstrapServers("kafka-bootstrap.kafka.svc.cluster.local:9092")
                 .endVirtualCluster()
+                .addNewSecretMount()
+                .withName("kms")
+                .withSecretName("kms-credentials")
+                .endSecretMount()
                 .endSpec()
                 .build();
         client.resource(sidecarConfig).create();
@@ -287,6 +305,68 @@ abstract class AbstractWebhookInstallKT {
                 .contains("localhost:");
 
         LOGGER.info("Sidecar injection verified successfully");
+    }
+
+    private void verifySecretMount() {
+        LOGGER.info("Creating test pod to verify secret mount injection");
+        var testPod = new PodBuilder()
+                .withNewMetadata()
+                .withName("test-app-secret")
+                .withNamespace(TEST_NS)
+                .endMetadata()
+                .withNewSpec()
+                .withTerminationGracePeriodSeconds(0L)
+                .addNewContainer()
+                .withName("app")
+                .withImage("busybox:latest")
+                .withCommand("sleep", "3600")
+                .endContainer()
+                .endSpec()
+                .build();
+        Pod created = client.resource(testPod).create();
+
+        LOGGER.info("Verifying secret volume was added to pod");
+        List<Volume> volumes = created.getSpec().getVolumes();
+        assertThat(volumes)
+                .as("Pod should have a secret-kms volume")
+                .filteredOn(v -> "secret-kms".equals(v.getName()))
+                .singleElement()
+                .satisfies(v -> assertThat(v.getSecret().getSecretName()).isEqualTo("kms-credentials"));
+
+        LOGGER.info("Verifying secret volume mount on sidecar container");
+        var allContainers = new ArrayList<Container>();
+        allContainers.addAll(created.getSpec().getContainers());
+        if (created.getSpec().getInitContainers() != null) {
+            allContainers.addAll(created.getSpec().getInitContainers());
+        }
+        Container sidecar = allContainers.stream()
+                .filter(c -> InjectionDecision.SIDECAR_CONTAINER_NAME.equals(c.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("sidecar container not found in pod"));
+
+        assertThat(sidecar.getVolumeMounts())
+                .as("Sidecar should have secret-kms volume mount")
+                .filteredOn(vm -> "secret-kms".equals(vm.getName()))
+                .singleElement()
+                .satisfies(vm -> {
+                    assertThat(vm.getMountPath()).isEqualTo("/opt/kroxylicious/secrets/kms");
+                    assertThat(vm.getReadOnly()).isTrue();
+                });
+
+        LOGGER.info("Verifying app container does NOT have the secret volume mount");
+        Container appContainer = created.getSpec().getContainers().stream()
+                .filter(c -> "app".equals(c.getName()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("app container not found in pod"));
+        List<VolumeMount> appMounts = appContainer.getVolumeMounts();
+        if (appMounts != null) {
+            assertThat(appMounts)
+                    .as("App container should NOT have the secret volume mount")
+                    .filteredOn(vm -> "secret-kms".equals(vm.getName()))
+                    .isEmpty();
+        }
+
+        LOGGER.info("Secret mount injection verified successfully");
     }
 
     private void verifyOptOut() {
