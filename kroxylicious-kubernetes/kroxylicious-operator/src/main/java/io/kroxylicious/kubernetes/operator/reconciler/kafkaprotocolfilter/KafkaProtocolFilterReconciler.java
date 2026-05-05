@@ -60,6 +60,7 @@ public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
+    private static final String SECRETS = "secrets";
     private final KafkaProtocolFilterStatusFactory statusFactory;
     private final SecureConfigInterpolator secureConfigInterpolator;
     private final SharedInformerManager sharedInformerManager;
@@ -86,7 +87,7 @@ public class KafkaProtocolFilterReconciler implements
         // Create SharedInformerEventSource for Secrets
         SharedInformerEventSource<Secret, KafkaProtocolFilter> secretEventSource = new SharedInformerEventSource<>(
                 Secret.class,
-                "secrets", // event source name
+                SECRETS, // event source name
                 sharedSecretInformer,
                 secretEventSourceConfig.getSecondaryToPrimaryMapper(),
                 allowedNamespaces);

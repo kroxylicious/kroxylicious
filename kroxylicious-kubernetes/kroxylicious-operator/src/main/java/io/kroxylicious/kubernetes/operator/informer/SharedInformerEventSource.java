@@ -96,9 +96,7 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
         Set<ResourceID> primaryResourceIDs = secondaryToPrimaryMapper.toPrimaryResourceIDs(resource);
 
         // Trigger reconciliation for each affected primary resource
-        primaryResourceIDs.forEach(primaryID -> {
-            getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID));
-        });
+        primaryResourceIDs.forEach(primaryID -> getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID)));
     }
 
     @Override
@@ -115,9 +113,7 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
         // Trigger reconciliation for all affected primary resources
         Stream.concat(oldPrimaryIDs.stream(), newPrimaryIDs.stream())
                 .distinct()
-                .forEach(primaryID -> {
-                    getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID));
-                });
+                .forEach(primaryID -> getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID)));
     }
 
     @Override
@@ -129,9 +125,7 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
 
         Set<ResourceID> primaryResourceIDs = secondaryToPrimaryMapper.toPrimaryResourceIDs(resource);
 
-        primaryResourceIDs.forEach(primaryID -> {
-            getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID));
-        });
+        primaryResourceIDs.forEach(primaryID -> getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID)));
     }
 
     // Cache implementation - delegates to the shared informer's cache

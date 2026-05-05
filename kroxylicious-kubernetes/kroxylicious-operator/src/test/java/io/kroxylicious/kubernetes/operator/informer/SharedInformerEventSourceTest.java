@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator.informer;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -171,7 +170,7 @@ class SharedInformerEventSourceTest {
         Predicate<Secret> predicate = s -> s.getMetadata().getName().equals("secret1");
 
         // when
-        List<Secret> result = eventSource.list(predicate).collect(Collectors.toList());
+        List<Secret> result = eventSource.list(predicate).toList();
 
         // then
         assertThat(result).containsExactly(secret1);
@@ -195,7 +194,7 @@ class SharedInformerEventSourceTest {
                 Set.of("ns1"));
 
         // when - list() returns unfiltered stream from informer, namespace filtering happens elsewhere
-        List<Secret> result = eventSource.list(s -> true).collect(Collectors.toList());
+        List<Secret> result = eventSource.list(s -> true).toList();
 
         // then - all secrets from informer are returned
         assertThat(result).containsExactlyInAnyOrder(secret1, secret2, secret3);
@@ -218,7 +217,7 @@ class SharedInformerEventSourceTest {
                 Set.of("ns1"));
 
         // when
-        List<ResourceID> keys = eventSource.keys().collect(Collectors.toList());
+        List<ResourceID> keys = eventSource.keys().toList();
 
         // then
         assertThat(keys).hasSize(2);
