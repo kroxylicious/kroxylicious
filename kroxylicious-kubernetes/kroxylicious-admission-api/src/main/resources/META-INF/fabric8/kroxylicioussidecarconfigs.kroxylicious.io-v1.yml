@@ -176,6 +176,29 @@ spec:
                         description: Plugin-specific configuration for this filter.
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
+                secretMounts:
+                  description: |
+                    Secrets to mount in the sidecar container. Each entry mounts all keys
+                    from the named Secret as read-only files under
+                    /opt/kroxylicious/secrets/<name>/. Use this to provide credentials or
+                    other sensitive data to filters without exposing them in pod annotations.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - secretName
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this mount, used as the subdirectory under
+                          /opt/kroxylicious/secrets/. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      secretName:
+                        description: The name of the Secret in the pod's namespace.
+                        type: string
                 plugins:
                   description: |
                     Third-party plugin images to mount in the sidecar container. Each plugin's

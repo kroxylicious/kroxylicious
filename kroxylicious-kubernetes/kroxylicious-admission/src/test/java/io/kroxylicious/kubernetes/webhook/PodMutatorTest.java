@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
@@ -460,6 +461,102 @@ class PodMutatorTest {
         assertThat(mountNames).contains("plugin-filter-a", "plugin-filter-b");
     }
 
+    // --- Phase 5: Secret mounts ---
+
+    @Test
+    void patchAddsSecretVolume() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        pod.getSpec().setVolumes(new ArrayList<>(List.of(new Volume())));
+        KroxyliciousSidecarConfigSpec spec = specWithSecretMount("kms", "kms-credentials");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> volumeOps = patchOps(patch, "add", "/spec/volumes/-");
+        boolean hasSecretVolume = volumeOps.stream()
+                .anyMatch(op -> "secret-kms".equals(op.path("value").path("name").asText())
+                        && "kms-credentials".equals(op.path("value").path("secret").path("secretName").asText()));
+        assertThat(hasSecretVolume).as("patch should add secret volume").isTrue();
+    }
+
+    @Test
+    void patchAddsSecretVolumeMount() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithSecretMount("kms", "kms-credentials");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode mounts = containerOps.get(0).path("value").path("volumeMounts");
+
+        boolean hasSecretMount = false;
+        for (JsonNode mount : mounts) {
+            if ("secret-kms".equals(mount.path("name").asText())) {
+                assertThat(mount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/secrets/kms");
+                assertThat(mount.path("readOnly").asBoolean()).isTrue();
+                hasSecretMount = true;
+            }
+        }
+        assertThat(hasSecretMount).as("sidecar should have secret volume mount").isTrue();
+    }
+
+    @Test
+    void patchSupportsMultipleSecretMounts() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        List<SecretMounts> mounts = new ArrayList<>();
+        mounts.add(createSecretMount("kms", "kms-credentials"));
+        mounts.add(createSecretMount("auth", "auth-secret"));
+        spec.setSecretMounts(mounts);
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        int secretVolumeCount = 0;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && value.path("name").asText().startsWith("secret-")) {
+                    secretVolumeCount++;
+                }
+            }
+        }
+        assertThat(secretVolumeCount).isEqualTo(2);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode volumeMounts = containerOps.get(0).path("value").path("volumeMounts");
+        List<String> mountNames = new ArrayList<>();
+        for (JsonNode mount : volumeMounts) {
+            mountNames.add(mount.path("name").asText());
+        }
+        assertThat(mountNames).contains("secret-kms", "secret-auth");
+    }
+
+    @Test
+    void noSecretVolumeWhenNotConfigured() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        JsonNode patch = createPatchJson(pod);
+
+        boolean hasSecretVolume = false;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && value.path("name").asText().startsWith("secret-")) {
+                    hasSecretVolume = true;
+                }
+                if (value.isArray()) {
+                    for (JsonNode item : value) {
+                        if (item.path("name").asText().startsWith("secret-")) {
+                            hasSecretVolume = true;
+                        }
+                    }
+                }
+            }
+        }
+        assertThat(hasSecretVolume).as("no secret volume expected without secretMounts config").isFalse();
+    }
+
     // --- helpers ---
 
     private static Pod podWithAppContainer(Map<String, String> annotations) {
@@ -533,6 +630,23 @@ class PodMutatorTest {
         image.setReference(reference);
         plugin.setImage(image);
         return plugin;
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithSecretMount(
+                                                                     String name,
+                                                                     String secretName) {
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        spec.setSecretMounts(new ArrayList<>(List.of(createSecretMount(name, secretName))));
+        return spec;
+    }
+
+    private static SecretMounts createSecretMount(
+                                                  String name,
+                                                  String secretName) {
+        SecretMounts sm = new SecretMounts();
+        sm.setName(name);
+        sm.setSecretName(secretName);
+        return sm;
     }
 
     private static List<JsonNode> patchOps(

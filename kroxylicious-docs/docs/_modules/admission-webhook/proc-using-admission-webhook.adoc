@@ -18,6 +18,7 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 
 // TODO: Add a complete end-to-end example with a sample Kafka client application.
 // TODO: Document configuring filters via filterDefinitions.
+// TODO: Document configuring secret mounts for filter credentials.
 // TODO: Document configuring TLS to the target Kafka cluster via targetClusterTls.
 // TODO: Document resource requests and limits configuration.
 // TODO: Document third-party plugin image configuration.

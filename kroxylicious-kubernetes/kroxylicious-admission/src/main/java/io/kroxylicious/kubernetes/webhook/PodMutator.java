@@ -30,6 +30,7 @@ import io.fabric8.kubernetes.api.model.VolumeBuilder;
 
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
 import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
@@ -50,6 +51,9 @@ class PodMutator {
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
     private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
+    private static final String SECRET_VOLUME_PREFIX = "secret-";
+    @SuppressWarnings("java:S1075")
+    private static final String SECRETS_BASE_PATH = "/opt/kroxylicious/secrets";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String CONFIG_MOUNT_PATH = "/opt/kroxylicious/config/proxy-config.yaml";
     private static final String CONFIG_FILE_NAME = "proxy-config.yaml";
@@ -171,6 +175,13 @@ class PodMutator {
             addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildTlsSecretVolume(tls)));
         }
 
+        List<SecretMounts> secretMounts = spec.getSecretMounts();
+        if (secretMounts != null) {
+            for (SecretMounts sm : secretMounts) {
+                addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildSecretVolume(sm)));
+            }
+        }
+
         List<Plugins> plugins = spec.getPlugins();
         if (plugins != null) {
             for (Plugins plugin : plugins) {
@@ -186,6 +197,16 @@ class PodMutator {
                 .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)
                 .withNewSecret()
                 .withSecretName(secretRef.getName())
+                .endSecret()
+                .build();
+    }
+
+    @NonNull
+    private static Volume buildSecretVolume(SecretMounts sm) {
+        return new VolumeBuilder()
+                .withName(SECRET_VOLUME_PREFIX + sm.getName())
+                .withNewSecret()
+                .withSecretName(sm.getSecretName())
                 .endSecret()
                 .build();
     }
@@ -309,6 +330,17 @@ class PodMutator {
                     .withMountPath(TARGET_CLUSTER_TLS_MOUNT_PATH)
                     .withReadOnly(true)
                     .endVolumeMount();
+        }
+
+        List<SecretMounts> secretMounts = spec.getSecretMounts();
+        if (secretMounts != null) {
+            for (SecretMounts sm : secretMounts) {
+                builder.addNewVolumeMount()
+                        .withName(SECRET_VOLUME_PREFIX + sm.getName())
+                        .withMountPath(SECRETS_BASE_PATH + "/" + sm.getName())
+                        .withReadOnly(true)
+                        .endVolumeMount();
+            }
         }
 
         List<Plugins> plugins = spec.getPlugins();
