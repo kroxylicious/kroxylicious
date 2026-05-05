@@ -177,7 +177,7 @@ class DerivedResourcesTest {
     }
 
     @TestFactory
-    @SetEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR, value = "quay.io/kroxylicious/kroxylicious:test")
+    @SetEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR, value = "quay.io/kroxylicious/proxy:test")
     Stream<DynamicContainer> dependentResourcesShouldEqual() {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that

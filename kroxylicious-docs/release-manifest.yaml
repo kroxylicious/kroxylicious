@@ -23,8 +23,8 @@ assets:
         path: kroxylicious-operator-$(VERSION).tar.gz
 images:
   - name: Proxy
-    url: https://quay.io/repository/kroxylicious/kroxylicious?tab=tags
-    registry: quay.io/kroxylicious/kroxylicious
+    url: https://quay.io/repository/kroxylicious/proxy?tab=tags
+    registry: quay.io/kroxylicious/proxy
     tag: $(VERSION)
     digest: sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE
   - name: Operator
