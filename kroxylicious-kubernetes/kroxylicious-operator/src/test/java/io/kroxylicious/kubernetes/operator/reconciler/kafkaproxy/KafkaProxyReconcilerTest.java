@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -559,18 +560,26 @@ class KafkaProxyReconcilerTest {
         var eventBuilder = mock(LoggingEventBuilder.class);
         when(eventBuilder.addKeyValue(anyString(), anyString())).thenReturn(eventBuilder);
         when(logger.atWarn()).thenReturn(eventBuilder);
+        var conditions = new ArrayList<Condition>();
 
         // When
-        kafkaProxyReconciler.reportAbsentSpecIfNecessary(proxy, logger);
+        kafkaProxyReconciler.reportAbsentSpecIfNecessary(proxy, logger, conditions);
         // Then
 
         if (warnExpected) {
             verify(logger).atWarn();
             verify(eventBuilder).log("No spec, please add an empty one. "
                     + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+            assertThat(conditions).hasSize(1).allSatisfy(condition -> {
+                assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
+                assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
+                assertThat(condition.getReason()).isEqualTo(Condition.Type.DeprecationWarning.name());
+                assertThat(condition.getMessage()).isEqualTo("Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+            });
         }
         else {
             verifyNoInteractions(logger);
+            assertThat(conditions).isEmpty();
         }
     }
 

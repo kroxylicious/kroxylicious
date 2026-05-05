@@ -67,6 +67,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.operator.DeploymentReadyCondition;
 import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
+import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
@@ -493,13 +494,17 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        reportAbsentSpecIfNecessary(primary, LOGGER);
+        var conditions = new ArrayList<Condition>();
+        reportAbsentSpecIfNecessary(primary, LOGGER, conditions);
+
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)
                 .map(Deployment::getStatus)
                 .map(DeploymentStatus::getReadyReplicas)
                 .orElse(0);
 
-        var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready, readyReplicas));
+        conditions.add(statusFactory.newTrueCondition(primary, Condition.Type.Ready));
+        var update = statusFactory.kafkaProxyStatusPatch(primary, ResourceState.fromList(conditions), readyReplicas);
+        var uc = UpdateControl.patchStatus(update);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()
                     .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(primary))
@@ -548,7 +553,7 @@ public class KafkaProxyReconciler implements
     }
 
     @VisibleForTesting
-    void reportAbsentSpecIfNecessary(KafkaProxy proxy, Logger log) {
+    void reportAbsentSpecIfNecessary(KafkaProxy proxy, Logger log, ArrayList<Condition> conditions) {
         var resourceUid = Optional.of(proxy).map(HasMetadata::getMetadata).map(ObjectMeta::getUid);
         resourceUid.ifPresent(uid -> {
             if (proxy.getSpec() == null) {
@@ -559,7 +564,11 @@ public class KafkaProxyReconciler implements
                             .addKeyValue(OperatorLoggingKeys.NAMESPACE, ResourcesUtil.namespace(proxy))
                             .log("No spec, please add an empty one. "
                                     + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+
                 }
+
+                conditions.add(statusFactory.newTrueCondition(proxy, Condition.Type.DeprecationWarning,
+                        "Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release."));
             }
             else {
                 resourcesWithAbsentSpecs.invalidate(uid);
