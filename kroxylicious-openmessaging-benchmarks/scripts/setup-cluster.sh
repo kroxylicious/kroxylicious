@@ -16,7 +16,7 @@ KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.22.0-SNAPSHOT}"
 NAMESPACE="${NAMESPACE:-kafka}"
 KROXYLICIOUS_OPERATOR_NAMESPACE="kroxylicious-operator"
 
-STRIMZI_INSTALL_URL="https://strimzi.io/install/latest?namespace=${NAMESPACE}&version=${STRIMZI_VERSION}"
+STRIMZI_BASE_URL="https://github.com/strimzi/strimzi-kafka-operator/releases/download/${STRIMZI_VERSION}"
 
 usage() {
     cat >&2 <<EOF
@@ -32,8 +32,8 @@ Options:
 
 Environment:
   NAMESPACE                     Kafka namespace (default: kafka)
-  STRIMZI_VERSION               Strimzi version to install (default: latest)
-  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.18.0)
+  STRIMZI_VERSION               Strimzi version to install from GitHub releases (default: latest)
+  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.22.0-SNAPSHOT)
 
 Examples:
   # Full setup (baseline + proxy scenarios)
@@ -126,7 +126,13 @@ fi
 
 echo ""
 echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
-kubectl apply -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}"
+# Apply CRDs first (cluster-scoped, no namespace substitution needed)
+curl -fsSL "${STRIMZI_BASE_URL}/strimzi-crds-${STRIMZI_VERSION}.yaml" \
+    | kubectl apply -f -
+# Apply the cluster operator with namespace substituted (default is 'myproject')
+curl -fsSL "${STRIMZI_BASE_URL}/strimzi-cluster-operator-${STRIMZI_VERSION}.yaml" \
+    | sed "s/namespace: myproject/namespace: ${NAMESPACE}/g" \
+    | kubectl apply -n "${NAMESPACE}" -f -
 
 echo "Waiting for Strimzi operator to be ready..."
 kubectl rollout status deployment/strimzi-cluster-operator \
