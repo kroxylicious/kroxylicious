@@ -256,7 +256,7 @@ class VirtualClusterCoordinatorTest {
     }
 
     @Test
-    void shouldDrainAllClustersInParallel() throws InterruptedException {
+    void shouldDrainAllClustersInParallel() {
         // Given — two clusters, each with one connection.
         // clusterA's drain blocks indefinitely; clusterB's drain completes immediately.
         // If drains are initiated in parallel, B is called while A is still pending.
@@ -277,18 +277,16 @@ class VirtualClusterCoordinatorTest {
         vcc.registerConnection(CLUSTER_A, pcsmA);
         vcc.registerConnection(CLUSTER_B, pcsmB);
 
-        // Run shutdown on a background thread since it blocks until all drains complete
-        var shutdownThread = new Thread(() -> vcc.initiateShutdown());
-        shutdownThread.start();
+        // initiateShutdown() blocks, so run it asynchronously
+        var shutdown = CompletableFuture.runAsync(() -> vcc.initiateShutdown());
 
         // then — B must be called even while A is still draining
         Awaitility.await("cluster-b drain should start while cluster-a is still draining")
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> verify(pcsmB).initiateClose(any()));
 
-        // cleanup
         pendingDrainA.complete(null);
-        shutdownThread.join(5000);
+        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -300,19 +298,19 @@ class VirtualClusterCoordinatorTest {
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.registerConnection(CLUSTER_A, pcsm);
 
-        // Run shutdown on a separate thread since it blocks until drain completes
-        var shutdownThread = new Thread(() -> vcc.initiateShutdown());
-        shutdownThread.start();
+        // initiateShutdown() blocks, so run it asynchronously
+        var shutdown = CompletableFuture.runAsync(() -> vcc.initiateShutdown());
 
         // then — cluster stays Draining while the connection is pending
-        assertThat(shutdownThread.isAlive()).isTrue();
-        assertThat(vcc.lifecycleFor(CLUSTER_A))
-                .isNotNull()
-                .extracting(VirtualClusterLifecycle::state)
-                .isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+        Awaitility.await("cluster should enter Draining state")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(vcc.lifecycleFor(CLUSTER_A))
+                        .isNotNull()
+                        .extracting(VirtualClusterLifecycle::state)
+                        .isInstanceOf(VirtualClusterLifecycleState.Draining.class));
 
-        // cleanup
         pendingDrain.complete(null);
+        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
     }
 
     @Test
