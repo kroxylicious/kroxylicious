@@ -95,10 +95,11 @@ public final class KafkaServiceReconciler implements
         var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
 
         // TLS certificate Secrets - uses shared informer
-        SharedInformerEventSource<Secret, KafkaService> serviceToSecret = new SharedInformerEventSource<>(
+        SharedInformerEventSource<KafkaService, Secret> serviceToSecret = new SharedInformerEventSource<>(
                 Secret.class,
                 SECRETS_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
+                new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper(),
                 new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context),
                 allowedNamespaces);
 
@@ -112,18 +113,20 @@ public final class KafkaServiceReconciler implements
                 .build();
 
         // Secret trust anchors - uses shared informer
-        SharedInformerEventSource<Secret, KafkaService> serviceToSecretTrustAnchorRef = new SharedInformerEventSource<>(
+        SharedInformerEventSource<KafkaService, Secret> serviceToSecretTrustAnchorRef = new SharedInformerEventSource<>(
                 Secret.class,
                 SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
+                new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper(),
                 new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context),
                 allowedNamespaces);
 
         // Strimzi CA certificate Secrets - uses shared informer
-        SharedInformerEventSource<Secret, KafkaService> serviceToStrimziCaCertificate = new SharedInformerEventSource<>(
+        SharedInformerEventSource<KafkaService, Secret> serviceToStrimziCaCertificate = new SharedInformerEventSource<>(
                 Secret.class,
                 SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
+                new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper(),
                 new StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper(context),
                 allowedNamespaces);
 

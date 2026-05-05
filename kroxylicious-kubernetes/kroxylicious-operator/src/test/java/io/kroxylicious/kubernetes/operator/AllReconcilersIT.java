@@ -101,7 +101,9 @@ class AllReconcilersIT {
     @RegisterExtension
     static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(TestFiles.INSTALL_MANIFESTS_DIR, "*.ClusterRole.*.yaml");
 
-    static final SharedInformerManager sharedInformerManager = new SharedInformerManager(rbacHandler.operatorClient(), Set.of());
+    // Non-static so each test gets a fresh SharedInformerManager instance with its own informer caches
+    // This prevents handler accumulation across test methods
+    final SharedInformerManager sharedInformerManager = new SharedInformerManager(rbacHandler.operatorClient(), Set.of());
 
     @RegisterExtension
     @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect, so we can use it as an instance field.
@@ -121,6 +123,7 @@ class AllReconcilersIT {
     @AfterEach
     void stopOperator() {
         extension.getOperator().stop();
+        sharedInformerManager.stopAll();
         LOGGER.atInfo().log("Test finished");
     }
 

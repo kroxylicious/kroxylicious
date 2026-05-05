@@ -17,6 +17,7 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.AbstractEventSource;
 import io.javaoperatorsdk.operator.processing.event.source.Cache;
+import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
 /**
@@ -25,15 +26,16 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
  * This allows multiple reconcilers to share the same underlying informer cache
  * while each having their own event handling and mapping logic.
  *
- * @param <R> the secondary resource type (e.g., Secret)
  * @param <P> the primary resource type (e.g., KafkaService)
+ * @param <R> the secondary resource type (e.g., Secret)
  */
-public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetadata>
+public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetadata>
         extends AbstractEventSource<R, P>
         implements Cache<R>, ResourceEventHandler<R> {
 
     private final SharedIndexInformer<R> sharedInformer;
     private final SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper;
+    private final PrimaryToSecondaryMapper<P> primaryToSecondaryMapper;
     private final Set<String> allowedNamespaces;
 
     /**
@@ -42,6 +44,7 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
      * @param resourceClass the secondary resource class
      * @param name the event source name
      * @param sharedInformer the shared Fabric8 informer
+     * @param primaryToSecondaryMapper mapper to determine which secondary resources are related to a primary resource
      * @param secondaryToPrimaryMapper mapper to determine which primary resources are affected by secondary resource changes
      * @param allowedNamespaces namespaces to filter events (empty means all namespaces)
      */
@@ -49,11 +52,13 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
                                      Class<R> resourceClass,
                                      String name,
                                      SharedIndexInformer<R> sharedInformer,
+                                     PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
                                      SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
                                      Set<String> allowedNamespaces) {
         super(resourceClass, name);
         this.sharedInformer = sharedInformer;
         this.secondaryToPrimaryMapper = secondaryToPrimaryMapper;
+        this.primaryToSecondaryMapper = primaryToSecondaryMapper;
         this.allowedNamespaces = allowedNamespaces;
     }
 
@@ -152,9 +157,13 @@ public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetad
 
     @Override
     public Set<R> getSecondaryResources(P primary) {
-        // This is called during reconciliation to get related secondary resources
-        // We don't maintain a reverse index here, so we return an empty set
-        // Reconcilers can use get() directly if they know the resource IDs
-        return Set.of();
+        // Use the primary-to-secondary mapper to get ResourceIDs of related secondary resources
+        Set<ResourceID> secondaryResourceIDs = primaryToSecondaryMapper.toSecondaryResourceIDs(primary);
+
+        // Look up each ResourceID from the shared informer's cache
+        return secondaryResourceIDs.stream()
+                .map(this::get)
+                .flatMap(Optional::stream)
+                .collect(java.util.stream.Collectors.toSet());
     }
 }

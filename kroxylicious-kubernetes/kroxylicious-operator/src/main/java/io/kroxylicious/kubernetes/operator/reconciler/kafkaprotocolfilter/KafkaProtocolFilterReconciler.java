@@ -85,10 +85,11 @@ public class KafkaProtocolFilterReconciler implements
                                 .stream()));
 
         // Create SharedInformerEventSource for Secrets
-        SharedInformerEventSource<Secret, KafkaProtocolFilter> secretEventSource = new SharedInformerEventSource<>(
+        SharedInformerEventSource<KafkaProtocolFilter, Secret> secretEventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 SECRETS, // event source name
                 sharedSecretInformer,
+                secretEventSourceConfig.getPrimaryToSecondaryMapper(),
                 secretEventSourceConfig.getSecondaryToPrimaryMapper(),
                 allowedNamespaces);
 
