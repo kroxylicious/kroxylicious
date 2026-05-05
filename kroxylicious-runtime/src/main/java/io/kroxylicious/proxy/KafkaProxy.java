@@ -159,25 +159,25 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig proxyEventGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
-        this.pfr = requireNonNull(pfr);
-        this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.virtualClusterModels = config.virtualClusterModel(pfr);
-        this.managementConfiguration = config.management();
-        this.micrometerConfig = config.getMicrometer();
-        this.clusterCoordinator = new VirtualClusterCoordinator(virtualClusterModels, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
-                .addKeyValue("virtualCluster", clusterName)
-                .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
-                .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
+        this(pfr, config, features, defaultCoordinator(config, pfr));
     }
 
     @VisibleForTesting
-    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterCoordinator clusterCoordinatorOverride) {
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterCoordinator clusterCoordinator) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.virtualClusterModels = config.virtualClusterModel(pfr);
+        this.clusterCoordinator = requireNonNull(clusterCoordinator);
+        this.virtualClusterModels = clusterCoordinator.virtualClusterModels();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
-        this.clusterCoordinator = requireNonNull(clusterCoordinatorOverride);
+    }
+
+    private static VirtualClusterCoordinator defaultCoordinator(Configuration config, PluginFactoryRegistry pfr) {
+        var models = config.virtualClusterModel(pfr);
+        return new VirtualClusterCoordinator(models, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
+                .addKeyValue("virtualCluster", clusterName)
+                .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
+                .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
     }
 
     @VisibleForTesting
