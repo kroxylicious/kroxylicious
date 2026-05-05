@@ -514,4 +514,22 @@ class VirtualClusterCoordinatorTest {
     void shouldReturnEmptySetForClusterWithNoConnections() {
         assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEmpty();
     }
+
+    @Test
+    void shouldThrowForUnknownClusterOnRegisterConnection() {
+        assertThatThrownBy(() -> vcc.registerConnection("nonexistent", mock(ProxyChannelStateMachine.class)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowForUnknownClusterOnDeregisterConnection() {
+        assertThatThrownBy(() -> vcc.deregisterConnection("nonexistent", mock(ProxyChannelStateMachine.class)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowForUnknownClusterOnActiveConnectionsFor() {
+        assertThatThrownBy(() -> vcc.activeConnectionsFor("nonexistent"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

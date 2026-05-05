@@ -176,8 +176,7 @@ public class VirtualClusterCoordinator {
 
     @VisibleForTesting
     Set<ProxyChannelStateMachine> activeConnectionsFor(String clusterName) {
-        var lifecycle = lifecycleManagers.get(clusterName);
-        return lifecycle == null ? Set.of() : lifecycle.activeConnections();
+        return requireKnownCluster(clusterName).activeConnections();
     }
 
     private VirtualClusterLifecycle requireKnownCluster(String clusterName) {
