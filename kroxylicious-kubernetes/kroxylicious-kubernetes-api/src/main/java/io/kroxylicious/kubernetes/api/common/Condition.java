@@ -192,7 +192,8 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     public enum Type {
         Ready("Ready"),
         ResolvedRefs("ResolvedRefs"),
-        Accepted("Accepted");
+        Accepted("Accepted"),
+        DeprecationWarning("DeprecationWarning");
 
         private final String value;
 
