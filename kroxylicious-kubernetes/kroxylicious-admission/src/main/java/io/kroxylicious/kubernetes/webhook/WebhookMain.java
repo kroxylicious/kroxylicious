@@ -37,6 +37,7 @@ public class WebhookMain {
     private static final String TLS_KEY_PATH_VAR = "TLS_KEY_PATH";
     private static final String KROXYLICIOUS_IMAGE_VAR = "KROXYLICIOUS_IMAGE";
     private static final String FAILURE_POLICY_VAR = "FAILURE_POLICY";
+    private static final String FEATURE_GATES_VAR = "FEATURE_GATES";
 
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0:8443";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
@@ -90,7 +91,7 @@ public class WebhookMain {
                 .log("Webhook failure policy configured");
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
-        var kubernetesVersion = detectVersion(kubeClient);
+        var kubernetesVersion = detectVersion(kubeClient, env);
         SidecarConfigStatusUpdater statusUpdater = new SidecarConfigStatusUpdater(kubeClient, Clock.systemUTC());
         SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient, statusUpdater);
         AdmissionHandler admissionHandler = new AdmissionHandler(
@@ -136,7 +137,16 @@ public class WebhookMain {
         LOGGER.atInfo().log("Webhook stopped");
     }
 
-    private static KubernetesVersion detectVersion(@NonNull KubernetesClient client) {
+    private static KubernetesVersion detectVersion(
+                                                   @NonNull KubernetesClient client,
+                                                   @NonNull Map<String, String> env) {
+        Map<String, Boolean> featureGates = KubernetesVersion.parseFeatureGates(
+                env.getOrDefault(FEATURE_GATES_VAR, ""));
+        if (!featureGates.isEmpty()) {
+            LOGGER.atInfo()
+                    .addKeyValue("featureGates", featureGates)
+                    .log("Feature gates configured via environment");
+        }
         try {
             VersionInfo version = client.getKubernetesVersion();
             int major = Integer.parseInt(version.getMajor().replaceAll("\\D", ""));
@@ -147,13 +157,13 @@ public class WebhookMain {
                     .addKeyValue("major", major)
                     .addKeyValue("minor", minor)
                     .log("Detected Kubernetes version");
-            return new KubernetesVersion(major, minor);
+            return new KubernetesVersion(major, minor, featureGates);
         }
         catch (Exception e) {
             LOGGER.atWarn()
                     .setCause(e)
                     .log("Could not detect Kubernetes version, defaulting to conservative feature set");
-            return new KubernetesVersion(1, 0);
+            return new KubernetesVersion(1, 0, featureGates);
         }
     }
 

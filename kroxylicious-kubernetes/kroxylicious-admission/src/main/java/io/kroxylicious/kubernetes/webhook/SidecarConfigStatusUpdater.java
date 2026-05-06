@@ -16,9 +16,9 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
 import io.kroxylicious.kubernetes.api.admission.common.ConditionBuilder;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigStatus;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

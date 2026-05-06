@@ -4,8 +4,6 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# TODO This should be factored into its own maven module so that the operator and sidecar are completely independent.
-
 # Note the v1 in the filename refers to the version of the CustomResourceDefinition
 # not any of the versions of API being defined.
 ---
@@ -13,10 +11,10 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   # name must match the spec fields below, and be in the form: <plural>.<group>
-  name: kroxylicioussidecarconfigs.kroxylicious.io
+  name: kroxylicioussidecarconfigs.sidecar.kroxylicious.io
 spec:
   # group name to use for REST API: /apis/<group>/<version>
-  group: kroxylicious.io
+  group: sidecar.kroxylicious.io
   scope: Namespaced
   names:
     plural: kroxylicioussidecarconfigs
@@ -35,8 +33,8 @@ spec:
         status: {}
       additionalPrinterColumns:
         - name: Target
-          description: The bootstrap servers of the target Kafka cluster.
-          jsonPath: ".spec.targetBootstrapServers"
+          description: The bootstrap servers of the first virtual cluster.
+          jsonPath: ".spec.virtualClusters[0].targetBootstrapServers"
           type: string
           priority: 0
       schema:
@@ -53,44 +51,87 @@ spec:
             spec:
               type: object
               required:
-                - targetBootstrapServers
+                - virtualClusters
               properties:
-                targetBootstrapServers:
+                virtualClusters:
                   description: |
-                    The bootstrap servers of the target Kafka cluster that the sidecar proxy
-                    will forward traffic to.
-                  type: string
+                    The virtual clusters that the sidecar proxy will serve. Each entry defines
+                    a target Kafka cluster and the localhost ports the proxy listens on for that
+                    cluster. Currently only a single virtual cluster is supported.
+                  type: array
+                  minItems: 1
+                  maxItems: 1
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - targetBootstrapServers
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this virtual cluster, used internally by the proxy
+                          configuration. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      targetBootstrapServers:
+                        description: |
+                          The bootstrap servers of the target Kafka cluster that the sidecar
+                          proxy will forward traffic to.
+                        type: string
+                      bootstrapPort:
+                        description: |
+                          The port on localhost where the sidecar proxy listens for Kafka
+                          bootstrap connections. Broker ports are allocated sequentially
+                          starting from bootstrapPort + 1.
+                        type: integer
+                        default: 9092
+                        minimum: 1024
+                        maximum: 65535
+                      nodeIdRange:
+                        description: |
+                          The range of Kafka broker node IDs that the sidecar proxy will
+                          allocate ports for. The number of broker ports is
+                          endInclusive - startInclusive + 1.
+                        type: object
+                        properties:
+                          startInclusive:
+                            description: The first node ID in the range (inclusive).
+                            type: integer
+                            default: 0
+                            minimum: 0
+                          endInclusive:
+                            description: The last node ID in the range (inclusive).
+                            type: integer
+                            default: 2
+                            minimum: 0
+                      targetClusterTls:
+                        description: |
+                          TLS configuration for the connection from the sidecar proxy to the
+                          target Kafka cluster. If omitted, the proxy connects without TLS.
+                        type: object
+                        properties:
+                          trustAnchorSecretRef:
+                            description: |
+                              A reference to a Secret containing the trusted CA certificate(s)
+                              for validation of the target Kafka broker's TLS server certificate.
+                              The referenced key should contain a PEM-encoded certificate bundle.
+                            type: object
+                            required:
+                              - name
+                              - key
+                            properties:
+                              name:
+                                description: The name of the Secret in the pod's namespace.
+                                type: string
+                              key:
+                                description: The key within the Secret data identifying the CA certificate bundle.
+                                type: string
                 proxyImage:
                   description: |
                     The container image to use for the sidecar proxy. If omitted, the webhook
                     uses the image configured via the KROXYLICIOUS_IMAGE environment variable.
-                  # TODO Can we reword this to avoid assuming the're a single consumer of this API which supports that env var?
                   type: string
-                bootstrapPort:
-                  description: |
-                    The port on localhost where the sidecar proxy listens for Kafka bootstrap
-                    connections. Broker ports are allocated sequentially starting from
-                    bootstrapPort + 1.
-                  type: integer
-                  default: 9092
-                  minimum: 1024
-                  maximum: 65535
-                nodeIdRange:
-                  description: |
-                    The range of Kafka broker node IDs that the sidecar proxy will allocate
-                    ports for. The number of broker ports is endInclusive - startInclusive + 1.
-                  type: object
-                  properties:
-                    startInclusive:
-                      description: The first node ID in the range (inclusive).
-                      type: integer
-                      default: 0
-                      minimum: 0
-                    endInclusive:
-                      description: The last node ID in the range (inclusive).
-                      type: integer
-                      default: 2
-                      minimum: 0
                 managementPort:
                   description: |
                     The port on which the sidecar proxy exposes its management endpoints
@@ -133,28 +174,29 @@ spec:
                         description: Plugin-specific configuration for this filter.
                         type: object
                         x-kubernetes-preserve-unknown-fields: true
-                targetClusterTls:
+                secretMounts:
                   description: |
-                    TLS configuration for the connection from the sidecar proxy to the target
-                    Kafka cluster. If omitted, the proxy connects to Kafka without TLS.
-                  type: object
-                  properties:
-                    trustAnchorSecretRef:
-                      description: |
-                        A reference to a Secret containing the trusted CA certificate(s) for
-                        validation of the target Kafka broker's TLS server certificate.
-                        The referenced key should contain a PEM-encoded certificate bundle.
-                      type: object
-                      required:
-                        - name
-                        - key
-                      properties:
-                        name:
-                          description: The name of the Secret in the pod's namespace.
-                          type: string
-                        key:
-                          description: The key within the Secret data identifying the CA certificate bundle.
-                          type: string
+                    Secrets to mount in the sidecar container. Each entry mounts all keys
+                    from the named Secret as read-only files under
+                    /opt/kroxylicious/secrets/[name]/. Use this to provide credentials or
+                    other sensitive data to filters without exposing them in pod annotations.
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - secretName
+                    properties:
+                      name:
+                        description: |
+                          A unique name for this mount, used as the subdirectory under
+                          /opt/kroxylicious/secrets/. Must be a valid DNS label.
+                        type: string
+                        pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+                        maxLength: 63
+                      secretName:
+                        description: The name of the Secret in the pod's namespace.
+                        type: string
                 plugins:
                   description: |
                     Third-party plugin images to mount in the sidecar container. Each plugin's
@@ -183,9 +225,7 @@ spec:
                           - reference
                         properties:
                           reference:
-                            description: |
-                              OCI image reference. For delegated plugin images, this must include
-                              a @sha256: digest.
+                            description: OCI image reference.
                             type: string
                           pullPolicy:
                             description: Image pull policy for the plugin image.
@@ -195,22 +235,6 @@ spec:
                               - IfNotPresent
                               - Never
                             default: IfNotPresent
-                allowedPluginRegistries:
-                  description: |
-                    Registry prefixes allowed for delegated plugin images. When plugin image
-                    selection is delegated to app owners, only images matching one of these
-                    prefixes are accepted.
-                  type: array
-                  items:
-                    type: string
-                delegatedAnnotations:
-                  description: |
-                    Annotations that the application pod owner is permitted to set to override
-                    sidecar configuration. Any annotation in the kroxylicious.io/ namespace
-                    that is not in this list will be ignored with a warning.
-                  type: array
-                  items:
-                    type: string
             status:
               type: object
               properties:

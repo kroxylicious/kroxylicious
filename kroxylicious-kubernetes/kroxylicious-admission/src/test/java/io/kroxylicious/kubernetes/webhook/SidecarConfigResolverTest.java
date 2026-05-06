@@ -6,8 +6,6 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
-import java.util.Optional;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -15,8 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -34,17 +33,19 @@ class SidecarConfigResolverTest {
         KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
         resolver.put(config);
 
-        Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns1", "my-config");
-        assertThat(result).isPresent().get().isSameAs(config);
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", "my-config");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(result.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(config));
     }
 
     @Test
-    void resolveByExplicitNameReturnsEmptyWhenNotFound() {
+    void resolveByExplicitNameReturnsNoConfigWhenNotFound() {
         SidecarConfigResolver resolver = new SidecarConfigResolver();
         resolver.put(createConfig("ns1", "my-config"));
 
-        Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns1", "nonexistent");
-        assertThat(result).isEmpty();
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", "nonexistent");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.NO_CONFIG);
+        assertThat(result.config()).isEmpty();
     }
 
     @Test
@@ -53,26 +54,29 @@ class SidecarConfigResolverTest {
         KroxyliciousSidecarConfig config = createConfig("ns1", "only-one");
         resolver.put(config);
 
-        Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns1", null);
-        assertThat(result).isPresent().get().isSameAs(config);
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", null);
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(result.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(config));
     }
 
     @Test
-    void returnsEmptyWhenMultipleConfigsAndNoExplicitName() {
+    void returnsMultipleConfigsWhenMultipleAndNoExplicitName() {
         SidecarConfigResolver resolver = new SidecarConfigResolver();
         resolver.put(createConfig("ns1", "config-a"));
         resolver.put(createConfig("ns1", "config-b"));
 
-        Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns1", null);
-        assertThat(result).isEmpty();
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", null);
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.MULTIPLE_CONFIGS);
+        assertThat(result.config()).isEmpty();
     }
 
     @Test
-    void returnsEmptyWhenNoConfigsInNamespace() {
+    void returnsNoConfigWhenNoConfigsInNamespace() {
         SidecarConfigResolver resolver = new SidecarConfigResolver();
 
-        Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns1", null);
-        assertThat(result).isEmpty();
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", null);
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.NO_CONFIG);
+        assertThat(result.config()).isEmpty();
     }
 
     @Test
@@ -83,8 +87,13 @@ class SidecarConfigResolverTest {
         resolver.put(ns1Config);
         resolver.put(ns2Config);
 
-        assertThat(resolver.resolve("ns1", null)).isPresent().get().isSameAs(ns1Config);
-        assertThat(resolver.resolve("ns2", null)).isPresent().get().isSameAs(ns2Config);
+        SidecarConfigResolver.Resolution r1 = resolver.resolve("ns1", null);
+        assertThat(r1.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(r1.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(ns1Config));
+
+        SidecarConfigResolver.Resolution r2 = resolver.resolve("ns2", null);
+        assertThat(r2.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(r2.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(ns2Config));
     }
 
     @Test
@@ -92,8 +101,9 @@ class SidecarConfigResolverTest {
         SidecarConfigResolver resolver = new SidecarConfigResolver();
         resolver.put(createConfig("ns1", "config"));
 
-        Optional<KroxyliciousSidecarConfig> result = resolver.resolve("ns2", "config");
-        assertThat(result).isEmpty();
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns2", "config");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.NO_CONFIG);
+        assertThat(result.config()).isEmpty();
     }
 
     @Test
@@ -103,7 +113,8 @@ class SidecarConfigResolverTest {
         resolver.put(config);
         resolver.remove(config);
 
-        assertThat(resolver.resolve("ns1", "my-config")).isEmpty();
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", "my-config");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.NO_CONFIG);
     }
 
     @Test
@@ -115,7 +126,9 @@ class SidecarConfigResolverTest {
 
         KroxyliciousSidecarConfig newConfig = createConfig("ns1", "config-b");
         resolver.put(newConfig);
-        assertThat(resolver.resolve("ns1", "config-b")).isPresent().get().isSameAs(newConfig);
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", "config-b");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(result.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(newConfig));
     }
 
     @Test
@@ -134,7 +147,9 @@ class SidecarConfigResolverTest {
 
         resolver.remove(createConfig("ns1", "config-b"));
 
-        assertThat(resolver.resolve("ns1", "config-a")).isPresent().get().isSameAs(kept);
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", "config-a");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(result.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(kept));
     }
 
     @Test
@@ -146,7 +161,9 @@ class SidecarConfigResolverTest {
         KroxyliciousSidecarConfig replacement = createConfig("ns1", "new");
         resolver.put(replacement);
 
-        assertThat(resolver.resolve("ns1", null)).isPresent().get().isSameAs(replacement);
+        SidecarConfigResolver.Resolution r = resolver.resolve("ns1", null);
+        assertThat(r.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+        assertThat(r.config()).hasValueSatisfying(c -> assertThat(c).isSameAs(replacement));
     }
 
     @Test
@@ -165,7 +182,8 @@ class SidecarConfigResolverTest {
         resolver.simulateAdd(config);
 
         verify(statusUpdater).setReady(config);
-        assertThat(resolver.resolve("ns1", "my-config")).isPresent();
+        assertThat(resolver.resolve("ns1", "my-config").outcome())
+                .isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
     }
 
     @Test
@@ -177,7 +195,8 @@ class SidecarConfigResolverTest {
         resolver.simulateUpdate(oldConfig, newConfig);
 
         verify(statusUpdater).setReady(newConfig);
-        assertThat(resolver.resolve("ns1", "my-config")).isPresent();
+        assertThat(resolver.resolve("ns1", "my-config").outcome())
+                .isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
     }
 
     @Test
@@ -186,7 +205,8 @@ class SidecarConfigResolverTest {
         KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
 
         assertThatCode(() -> resolver.simulateAdd(config)).doesNotThrowAnyException();
-        assertThat(resolver.resolve("ns1", "my-config")).isPresent();
+        assertThat(resolver.resolve("ns1", "my-config").outcome())
+                .isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
     }
 
     private static KroxyliciousSidecarConfig createConfig(String namespace, String name) {
@@ -196,7 +216,10 @@ class SidecarConfigResolverTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(java.util.List.of(vc));
         config.setSpec(spec);
         return config;
     }

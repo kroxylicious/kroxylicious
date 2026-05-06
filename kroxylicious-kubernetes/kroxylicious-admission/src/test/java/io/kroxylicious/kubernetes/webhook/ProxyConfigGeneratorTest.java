@@ -14,9 +14,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.NodeIdRange;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.FilterDefinitions;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.NodeIdRange;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,8 +27,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void generatesValidYamlWithDefaults() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
@@ -52,9 +52,9 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void usesCustomBootstrapPort() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
-        spec.setBootstrapPort(29092L);
+        VirtualClusters vc = defaultVirtualCluster();
+        vc.setBootstrapPort(29092L);
+        KroxyliciousSidecarConfigSpec spec = specWithVirtualCluster(vc);
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
@@ -68,8 +68,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void usesCustomManagementPort() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
         spec.setManagementPort(8080L);
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
@@ -80,12 +79,12 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void usesCustomNodeIdRange() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        VirtualClusters vc = defaultVirtualCluster();
         NodeIdRange nodeIdRange = new NodeIdRange();
         nodeIdRange.setStartInclusive(0L);
         nodeIdRange.setEndInclusive(9L);
-        spec.setNodeIdRange(nodeIdRange);
+        vc.setNodeIdRange(nodeIdRange);
+        KroxyliciousSidecarConfigSpec spec = specWithVirtualCluster(vc);
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
@@ -100,42 +99,36 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void resolveBootstrapPortUsesDefault() {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
-        assertThat(ProxyConfigGenerator.resolveBootstrapPort(spec)).isEqualTo(ProxyConfigGenerator.DEFAULT_BOOTSTRAP_PORT);
+        VirtualClusters vc = defaultVirtualCluster();
+        assertThat(ProxyConfigGenerator.resolveBootstrapPort(vc)).isEqualTo(ProxyConfigGenerator.DEFAULT_BOOTSTRAP_PORT);
     }
 
     @Test
     void resolveBootstrapPortUsesSpecified() {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
-        spec.setBootstrapPort(29092L);
-        assertThat(ProxyConfigGenerator.resolveBootstrapPort(spec)).isEqualTo(29092);
+        VirtualClusters vc = defaultVirtualCluster();
+        vc.setBootstrapPort(29092L);
+        assertThat(ProxyConfigGenerator.resolveBootstrapPort(vc)).isEqualTo(29092);
     }
 
     @Test
     void resolveManagementPortUsesDefault() {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
         assertThat(ProxyConfigGenerator.resolveManagementPort(spec)).isEqualTo(ProxyConfigGenerator.DEFAULT_MANAGEMENT_PORT);
     }
 
     @Test
     void resolveManagementPortUsesSpecified() {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
         spec.setManagementPort(8080L);
         assertThat(ProxyConfigGenerator.resolveManagementPort(spec)).isEqualTo(8080);
     }
 
     @Test
     void generatedConfigIsParseable() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("my-kafka.ns.svc.cluster.local:9092");
+        KroxyliciousSidecarConfigSpec spec = specWithTarget("my-kafka.ns.svc.cluster.local:9092");
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
 
-        // Verify it's valid YAML with expected structure
         JsonNode root = YAML_MAPPER.readTree(yaml);
         assertThat(root.has("management")).isTrue();
         assertThat(root.has("virtualClusters")).isTrue();
@@ -145,8 +138,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void includesFilterDefinitions() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
 
         FilterDefinitions filter = new FilterDefinitions();
         filter.setName("my-filter");
@@ -169,8 +161,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void includesMultipleFilterDefinitions() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
 
         FilterDefinitions f1 = new FilterDefinitions();
         f1.setName("filter-a");
@@ -191,8 +182,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void omitsFiltersWhenNoneConfigured() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
@@ -204,8 +194,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void includesUpstreamTlsConfig() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9093");
+        KroxyliciousSidecarConfigSpec spec = specWithTarget("kafka:9093");
 
         String trustStorePath = "/opt/kroxylicious/tls/upstream/ca.crt";
         String yaml = ProxyConfigGenerator.generateConfig(spec, trustStorePath);
@@ -220,8 +209,7 @@ class ProxyConfigGeneratorTest {
 
     @Test
     void omitsUpstreamTlsWhenPathIsNull() throws Exception {
-        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka:9092");
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
 
         String yaml = ProxyConfigGenerator.generateConfig(spec, null);
         JsonNode root = YAML_MAPPER.readTree(yaml);
@@ -231,5 +219,31 @@ class ProxyConfigGeneratorTest {
         assertThat(tls.isMissingNode() || tls.isNull())
                 .as("TLS should be absent when no trust store path")
                 .isTrue();
+    }
+
+    // --- helpers ---
+
+    private static VirtualClusters defaultVirtualCluster() {
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        return vc;
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithVirtualCluster(VirtualClusters vc) {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setVirtualClusters(List.of(vc));
+        return spec;
+    }
+
+    private static KroxyliciousSidecarConfigSpec defaultSpec() {
+        return specWithVirtualCluster(defaultVirtualCluster());
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithTarget(String bootstrapServers) {
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers(bootstrapServers);
+        return specWithVirtualCluster(vc);
     }
 }

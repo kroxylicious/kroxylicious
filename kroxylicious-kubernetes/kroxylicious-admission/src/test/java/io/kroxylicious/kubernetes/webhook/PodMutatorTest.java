@@ -20,15 +20,16 @@ import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodSecurityContext;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -63,11 +64,11 @@ class PodMutatorTest {
     }
 
     @Test
-    void patchAddsSidecarStatusAnnotation() throws Exception {
+    void patchAddsConfigGenerationAnnotation() throws Exception {
         Pod pod = podWithAppContainer(Map.of("existing", "value"));
         JsonNode patch = createPatchJson(pod);
 
-        String escapedKey = PodMutator.escapeJsonPointer(Annotations.SIDECAR_STATUS);
+        String escapedKey = PodMutator.escapeJsonPointer(Annotations.CONFIG_GENERATION);
         assertThat(patchOps(patch, "add", "/metadata/annotations/" + escapedKey))
                 .isNotEmpty();
     }
@@ -207,28 +208,6 @@ class PodMutatorTest {
     }
 
     @Test
-    void patchAddsPodSecurityContextWhenAbsent() throws Exception {
-        Pod pod = podWithAppContainer(null);
-        JsonNode patch = createPatchJson(pod);
-
-        List<JsonNode> secCtxOps = patchOps(patch, "add", "/spec/securityContext");
-        assertThat(secCtxOps).hasSize(1);
-        assertThat(secCtxOps.get(0).path("value").path("runAsNonRoot").asBoolean()).isTrue();
-    }
-
-    @Test
-    void patchPreservesExistingPodSecurityContext() throws Exception {
-        Pod pod = podWithAppContainer(null);
-        PodSecurityContext secCtx = new PodSecurityContext();
-        secCtx.setRunAsNonRoot(true);
-        pod.getSpec().setSecurityContext(secCtx);
-
-        JsonNode patch = createPatchJson(pod);
-
-        assertThat(patchOps(patch, "add", "/spec/securityContext")).isEmpty();
-    }
-
-    @Test
     void escapeJsonPointerHandsTildeAndSlash() {
         assertThat(PodMutator.escapeJsonPointer("a~b/c")).isEqualTo("a~0b~1c");
     }
@@ -312,15 +291,15 @@ class PodMutatorTest {
 
     @Test
     void resolveTargetClusterTrustStorePathWithTls() {
-        KroxyliciousSidecarConfigSpec spec = specWithTargetClusterTls();
-        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
+        VirtualClusters vc = virtualClusterWithTargetClusterTls();
+        String path = PodMutator.resolveTargetClusterTrustStorePath(vc);
         assertThat(path).isEqualTo(PodMutator.TARGET_CLUSTER_TLS_MOUNT_PATH + "/ca.crt");
     }
 
     @Test
     void resolveTargetClusterTrustStorePathWithoutTls() {
-        KroxyliciousSidecarConfigSpec spec = defaultSpec();
-        String path = PodMutator.resolveTargetClusterTrustStorePath(spec);
+        VirtualClusters vc = defaultVirtualCluster();
+        String path = PodMutator.resolveTargetClusterTrustStorePath(vc);
         assertThat(path).isNull();
     }
 
@@ -329,7 +308,7 @@ class PodMutatorTest {
     @Test
     void nativeSidecarInjectsAsInitContainer() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, true, false);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, 0L, true, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         // Should add to initContainers, not containers
@@ -344,7 +323,7 @@ class PodMutatorTest {
     @Test
     void regularSidecarDoesNotSetRestartPolicy() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, false, false);
+        String patchStr = PodMutator.createPatch(pod, defaultSpec(), PROXY_IMAGE, 0L, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
@@ -359,7 +338,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         boolean hasPluginVolume = false;
@@ -382,7 +361,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, false);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         boolean hasPluginVolume = false;
@@ -404,7 +383,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, false);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, false);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
@@ -421,7 +400,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> initOps = patchOps(patch, "add", "/spec/initContainers");
@@ -433,7 +412,7 @@ class PodMutatorTest {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
@@ -459,7 +438,7 @@ class PodMutatorTest {
         plugins.add(createPlugin("filter-b", "reg.io/b@sha256:bbb"));
         spec.setPlugins(plugins);
 
-        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, false, true);
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, true);
         JsonNode patch = MAPPER.readTree(patchStr);
 
         int pluginVolumeCount = 0;
@@ -482,10 +461,131 @@ class PodMutatorTest {
         assertThat(mountNames).contains("plugin-filter-a", "plugin-filter-b");
     }
 
-    /**
-     * Creates a pod with one application container already present.
-     * This ensures PodMutator uses the append ({@code /-}) path for adding the sidecar.
-     */
+    // --- Phase 5: Secret mounts ---
+
+    @Test
+    void patchAddsSecretVolume() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        pod.getSpec().setVolumes(new ArrayList<>(List.of(new Volume())));
+        KroxyliciousSidecarConfigSpec spec = specWithSecretMount("kms", "kms-credentials");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> volumeOps = patchOps(patch, "add", "/spec/volumes/-");
+        boolean hasSecretVolume = volumeOps.stream()
+                .anyMatch(op -> "secret-kms".equals(op.path("value").path("name").asText())
+                        && "kms-credentials".equals(op.path("value").path("secret").path("secretName").asText()));
+        assertThat(hasSecretVolume).as("patch should add secret volume").isTrue();
+    }
+
+    @Test
+    void patchAddsSecretVolumeMount() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithSecretMount("kms", "kms-credentials");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode mounts = containerOps.get(0).path("value").path("volumeMounts");
+
+        boolean hasSecretMount = false;
+        for (JsonNode mount : mounts) {
+            if ("secret-kms".equals(mount.path("name").asText())) {
+                assertThat(mount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/secrets/kms");
+                assertThat(mount.path("readOnly").asBoolean()).isTrue();
+                hasSecretMount = true;
+            }
+        }
+        assertThat(hasSecretMount).as("sidecar should have secret volume mount").isTrue();
+    }
+
+    @Test
+    void patchSupportsMultipleSecretMounts() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        List<SecretMounts> mounts = new ArrayList<>();
+        mounts.add(createSecretMount("kms", "kms-credentials"));
+        mounts.add(createSecretMount("auth", "auth-secret"));
+        spec.setSecretMounts(mounts);
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        int secretVolumeCount = 0;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && value.path("name").asText().startsWith("secret-")) {
+                    secretVolumeCount++;
+                }
+            }
+        }
+        assertThat(secretVolumeCount).isEqualTo(2);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode volumeMounts = containerOps.get(0).path("value").path("volumeMounts");
+        List<String> mountNames = new ArrayList<>();
+        for (JsonNode mount : volumeMounts) {
+            mountNames.add(mount.path("name").asText());
+        }
+        assertThat(mountNames).contains("secret-kms", "secret-auth");
+    }
+
+    @Test
+    void noSecretVolumeWhenNotConfigured() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        JsonNode patch = createPatchJson(pod);
+
+        boolean hasSecretVolume = false;
+        for (JsonNode op : patch) {
+            if ("add".equals(op.path("op").asText())) {
+                JsonNode value = op.path("value");
+                if (value.isObject() && value.path("name").asText().startsWith("secret-")) {
+                    hasSecretVolume = true;
+                }
+                if (value.isArray()) {
+                    for (JsonNode item : value) {
+                        if (item.path("name").asText().startsWith("secret-")) {
+                            hasSecretVolume = true;
+                        }
+                    }
+                }
+            }
+        }
+        assertThat(hasSecretVolume).as("no secret volume expected without secretMounts config").isFalse();
+    }
+
+    // --- Skip label patch ---
+
+    @Test
+    void skipLabelPatchAddsLabelWhenNoExistingLabels() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        String patchStr = PodMutator.createSkipLabelPatch(pod, "no-config");
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> ops = patchOps(patch, "add", "/metadata/labels");
+        assertThat(ops).hasSize(1);
+        assertThat(ops.get(0).path("value").path(Labels.INJECTION_SKIPPED).asText())
+                .isEqualTo("no-config");
+    }
+
+    @Test
+    void skipLabelPatchAddsLabelWhenExistingLabels() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        pod.getMetadata().setLabels(new HashMap<>(Map.of("app", "my-app")));
+        String patchStr = PodMutator.createSkipLabelPatch(pod, "already-injected");
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        String escapedKey = PodMutator.escapeJsonPointer(Labels.INJECTION_SKIPPED);
+        List<JsonNode> ops = patchOps(patch, "add", "/metadata/labels/" + escapedKey);
+        assertThat(ops).hasSize(1);
+        assertThat(ops.get(0).path("value").asText()).isEqualTo("already-injected");
+    }
+
+    // --- helpers ---
+
     private static Pod podWithAppContainer(Map<String, String> annotations) {
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();
@@ -505,20 +605,33 @@ class PodMutatorTest {
         return pod;
     }
 
+    private static VirtualClusters defaultVirtualCluster() {
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        return vc;
+    }
+
     private static KroxyliciousSidecarConfigSpec defaultSpec() {
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(List.of(defaultVirtualCluster()));
         return spec;
     }
 
-    private static KroxyliciousSidecarConfigSpec specWithTargetClusterTls() {
-        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+    private static VirtualClusters virtualClusterWithTargetClusterTls() {
+        VirtualClusters vc = defaultVirtualCluster();
         TargetClusterTls tls = new TargetClusterTls();
         TrustAnchorSecretRef ref = new TrustAnchorSecretRef();
         ref.setName("kafka-ca");
         ref.setKey("ca.crt");
         tls.setTrustAnchorSecretRef(ref);
-        spec.setTargetClusterTls(tls);
+        vc.setTargetClusterTls(tls);
+        return vc;
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithTargetClusterTls() {
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        spec.setVirtualClusters(List.of(virtualClusterWithTargetClusterTls()));
         return spec;
     }
 
@@ -544,6 +657,23 @@ class PodMutatorTest {
         image.setReference(reference);
         plugin.setImage(image);
         return plugin;
+    }
+
+    private static KroxyliciousSidecarConfigSpec specWithSecretMount(
+                                                                     String name,
+                                                                     String secretName) {
+        KroxyliciousSidecarConfigSpec spec = defaultSpec();
+        spec.setSecretMounts(new ArrayList<>(List.of(createSecretMount(name, secretName))));
+        return spec;
+    }
+
+    private static SecretMounts createSecretMount(
+                                                  String name,
+                                                  String secretName) {
+        SecretMounts sm = new SecretMounts();
+        sm.setName(name);
+        sm.setSecretName(secretName);
+        return sm;
     }
 
     private static List<JsonNode> patchOps(

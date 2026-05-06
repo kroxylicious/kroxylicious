@@ -13,10 +13,10 @@ metadata:
     app.kubernetes.io/component: webhook
 rules:
   # Read sidecar configs across all namespaces
-  - apiGroups: ["kroxylicious.io"]
+  - apiGroups: ["sidecar.kroxylicious.io"]
     resources: ["kroxylicioussidecarconfigs"]
     verbs: ["get", "list", "watch"]
   # Update sidecar config status
-  - apiGroups: ["kroxylicious.io"]
+  - apiGroups: ["sidecar.kroxylicious.io"]
     resources: ["kroxylicioussidecarconfigs/status"]
     verbs: ["get", "patch", "update"]
