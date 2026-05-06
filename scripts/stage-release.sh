@@ -17,7 +17,8 @@ BRANCH_FROM="main"
 WORK_BRANCH_NAME="release-work-$(openssl rand -hex 12)"
 SKIP_VALIDATION="false"
 RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
-while getopts ":l:v:b:k:r:n:w:sh" opt; do
+PROXY_IMAGE_REPO="quay.io/kroxylicious/proxy"
+while getopts ":i:l:v:b:k:r:n:w:sh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
@@ -29,6 +30,8 @@ while getopts ":l:v:b:k:r:n:w:sh" opt; do
     ;;
     k) GPG_KEY="${OPTARG}"
     ;;
+    i) PROXY_IMAGE_REPO="${OPTARG}"
+    ;;
     l) RELCAND_ID_LABEL="${OPTARG}"
     ;;
     w) WORK_BRANCH_NAME="${OPTARG}"
@@ -37,13 +40,14 @@ while getopts ":l:v:b:k:r:n:w:sh" opt; do
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-s] [-d] [-h]
+usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-i proxy-image-repo] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
  -n development version e.g. 0.4.0-SNAPSHOT
  -l Release candidate label to be applied to the PR.
  -r the remote name of the kroxylicious repository (defaults to 'origin')
+ -i proxy image repo override for arm64 verification (default: quay.io/kroxylicious/proxy)
  -w release work branch
  -s skips validation
  -h this help message
@@ -246,4 +250,54 @@ gh pr create --head "${PREPARE_DEVELOPMENT_BRANCH}" \
              --body "${BODY}" \
              --repo "$(gh repo set-default -v)" \
              --label "${RELCAND_ID_LABEL}"
+
+# ── Verification: arm64 proxy image contains correct native libs ──────────────
+# The docker.yaml workflow was triggered by the tag push earlier in this script.
+# By the time we reach here (after mvn deploy + release prep), the workflow has
+# had significant time to run.  We poll for the run, wait for completion, then
+# spot-check that the linux/arm64 image layer contains aarch_64 Netty native
+# libraries and NO x86_64 ones.
+#
+# Defaults to quay.io/kroxylicious/proxy; override with -i for fork testing.
+if [[ -n "${PROXY_IMAGE_REPO}" ]]; then
+  echo "Waiting for docker workflow triggered by ${RELEASE_TAG} to appear..."
+  DOCKER_RUN_ID=""
+  for _attempt in 1 2 3 4 5 6 7 8 9 10; do
+    DOCKER_RUN_ID=$(gh run list \
+      --workflow docker.yaml \
+      --branch "${RELEASE_TAG}" \
+      --json databaseId \
+      --jq '.[0].databaseId // empty' 2>/dev/null || true)
+    [[ -n "${DOCKER_RUN_ID}" ]] && break
+    echo "  Run not yet visible (attempt ${_attempt}/10); retrying in 15s..."
+    sleep 15
+  done
+
+  if [[ -z "${DOCKER_RUN_ID}" ]]; then
+    echo "ERROR: Could not find docker workflow run for tag ${RELEASE_TAG}." >&2
+    echo "       Check the Actions tab and verify the arm64 image manually." >&2
+    exit 1
+  fi
+
+  echo "Found docker workflow run ${DOCKER_RUN_ID}; waiting for completion..."
+  gh run watch "${DOCKER_RUN_ID}" --exit-status
+
+  echo "Verifying arm64 proxy image native libraries in ${PROXY_IMAGE_REPO}:${RELEASE_VERSION}..."
+  _CONTAINER_ID=$(docker create --platform linux/arm64 "${PROXY_IMAGE_REPO}:${RELEASE_VERSION}")
+  _NATIVE_DIR=$(mktemp -d)
+  docker cp "${_CONTAINER_ID}:/opt/kroxylicious/libs/native/netty/." "${_NATIVE_DIR}/"
+  docker rm "${_CONTAINER_ID}" > /dev/null
+
+  _AARCH64_COUNT=$(find "${_NATIVE_DIR}" -name '*aarch_64*' | wc -l | tr -d ' ')
+  _X86_64_COUNT=$(find "${_NATIVE_DIR}" -name '*x86_64*' | wc -l | tr -d ' ')
+  rm -rf "${_NATIVE_DIR}"
+
+  if [[ "${_AARCH64_COUNT}" -gt 0 && "${_X86_64_COUNT}" -eq 0 ]]; then
+    echo "arm64 proxy image OK: ${_AARCH64_COUNT} aarch_64 native lib(s), no x86_64 libs."
+  else
+    echo "ERROR: arm64 native lib check failed (aarch_64=${_AARCH64_COUNT}, x86_64=${_X86_64_COUNT})." >&2
+    echo "       Use drop-release to clean up, then investigate the docker workflow." >&2
+    exit 1
+  fi
+fi
 
