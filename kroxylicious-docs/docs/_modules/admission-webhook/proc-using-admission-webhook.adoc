@@ -41,7 +41,7 @@ metadata:
   name: my-sidecar-config
   namespace: _my-app-namespace_
 spec:
-  targetBootstrapServers: _my-kafka-cluster-bootstrap:9092_
+  targetBootstrapServers: my-kafka-cluster-bootstrap:9092
 ----
 +
 Apply the resource:
@@ -55,7 +55,7 @@ kubectl apply -f my-sidecar-config.yaml
 +
 [source,shell,subs="+quotes"]
 ----
-kubectl label namespace _my-app-namespace_ kroxylicious.io/sidecar-injection=enabled
+kubectl label namespace my-app-namespace kroxylicious.io/sidecar-injection=enabled
 ----
 
 . Create or recreate application pods in the labelled namespace.
@@ -66,7 +66,7 @@ IMPORTANT: The webhook only processes pod `CREATE` requests. Existing pods are n
 +
 [source,shell,subs="+quotes"]
 ----
-kubectl get pod _my-pod_ -n _my-app-namespace_ -o jsonpath='{.spec.containers[*].name}'
+kubectl get pod my-pod -n my-app-namespace -o jsonpath='{.spec.initContainers[*].name}'
 ----
 +
 The output should include `kroxylicious-proxy` alongside your application containers.

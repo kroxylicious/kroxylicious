@@ -35,14 +35,14 @@ On Linux, use:
 +
 [source, subs="+quotes"]
 ----
-sed -i 's/namespace: .*/namespace: my-webhook-namespace/' install/*.yaml
+sed -i 's/namespace: ./namespace: my-webhook-namespace/' install/.yaml
 ----
 +
 On MacOS, use:
 +
 [source, subs="+quotes"]
 ----
-sed -i '' 's/namespace: .*/namespace: my-webhook-namespace/' install/*.yaml
+sed -i '' 's/namespace: ./namespace: my-webhook-namespace/' install/.yaml
 ----
 
 
@@ -71,7 +71,7 @@ kubectl get deployments -n kroxylicious-webhook
 [source,shell,subs="+quotes"]
 ----
 NAME                      READY  UP-TO-DATE  AVAILABLE
-kroxylicious-webhook      1/1    1           1
+kroxylicious-webhook      2/2    2           2
 ----
 +
 `READY` shows the number of replicas that are ready/expected.
