@@ -28,7 +28,7 @@ import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.test.certificate.CertificateGenerator;
+import io.kroxylicious.testing.certificate.CertificateGenerator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;

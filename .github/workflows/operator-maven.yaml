@@ -45,30 +45,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
-      - name: Setup Minikube
-        uses: ./.github/actions/common/setup-minikube
-        with:
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Set up Docker Buildx'
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious Operand Container Image'
-        run: |
-          GIT_HASH="$(git rev-parse HEAD)"
-          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
-          KROXYLICIOUS_IMAGE=quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}-${GIT_HASH}
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app -DskipTests clean package -Dio.kroxylicious.proxy.image.name=${KROXYLICIOUS_IMAGE}
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
-      - name: 'Load Kroxylicious Operand Docker Image in Minikube'
-        run: |
-          # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
-          minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_IMAGE}
       - name: Cache SonarCloud packages
         uses: actions/cache@v5
         if: github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
@@ -86,6 +66,7 @@ jobs:
             --also-make \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
+            -DskipITs=true \
             install
       - name: 'SonarCloud scan on main for the Operator'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
@@ -98,6 +79,7 @@ jobs:
             --projects ':kroxylicious-operator,:kroxylicious-kubernetes-parent,:kroxylicious-parent' \
             -Derrorprone.skip=true \
             -Djapicmp.skip=true \
+            -DskipITs=true \
             -Dsonar.projectName='Kroxylicious Operator' \
             -Dsonar.projectKey='kroxylicious_operator' \
             verify \

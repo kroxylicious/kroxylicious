@@ -41,10 +41,10 @@ import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
-import io.kroxylicious.test.Response;
-import io.kroxylicious.test.codec.ByteBufAccessorImpl;
-import io.kroxylicious.test.codec.OpaqueRequestFrame;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.integration.Response;
+import io.kroxylicious.testing.integration.codec.ByteBufAccessorImpl;
+import io.kroxylicious.testing.integration.codec.OpaqueRequestFrame;
+import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -52,9 +52,9 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.newBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.newBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

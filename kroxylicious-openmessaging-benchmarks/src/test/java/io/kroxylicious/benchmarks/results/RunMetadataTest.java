@@ -242,6 +242,130 @@ class RunMetadataTest {
         assertThat(info).isEmpty();
     }
 
+    // --- firstWorkerNodeName tests ---
+
+    @Test
+    void firstWorkerNodeNameReturnsFirstNodeWhenNoRoleLabels() throws Exception {
+        JsonNode items = MAPPER.readTree("""
+                [
+                  {"metadata":{"name":"node-0","labels":{}},"status":{}},
+                  {"metadata":{"name":"node-1","labels":{}},"status":{}}
+                ]
+                """);
+        assertThat(RunMetadata.firstWorkerNodeName(items)).isEqualTo("node-0");
+    }
+
+    @Test
+    void firstWorkerNodeNameSkipsMasterLabelledNodes() throws Exception {
+        JsonNode items = MAPPER.readTree("""
+                [
+                  {"metadata":{"name":"master-0","labels":{"node-role.kubernetes.io/master":""}},"status":{}},
+                  {"metadata":{"name":"worker-0","labels":{}},"status":{}}
+                ]
+                """);
+        assertThat(RunMetadata.firstWorkerNodeName(items)).isEqualTo("worker-0");
+    }
+
+    @Test
+    void firstWorkerNodeNameSkipsControlPlaneLabelledNodes() throws Exception {
+        JsonNode items = MAPPER.readTree("""
+                [
+                  {"metadata":{"name":"cp-0","labels":{"node-role.kubernetes.io/control-plane":""}},"status":{}},
+                  {"metadata":{"name":"worker-0","labels":{}},"status":{}}
+                ]
+                """);
+        assertThat(RunMetadata.firstWorkerNodeName(items)).isEqualTo("worker-0");
+    }
+
+    @Test
+    void firstWorkerNodeNameReturnsNullWhenAllNodesAreControlPlane() throws Exception {
+        JsonNode items = MAPPER.readTree("""
+                [
+                  {"metadata":{"name":"cp-0","labels":{"node-role.kubernetes.io/control-plane":""}},"status":{}},
+                  {"metadata":{"name":"cp-1","labels":{"node-role.kubernetes.io/master":""}},"status":{}}
+                ]
+                """);
+        assertThat(RunMetadata.firstWorkerNodeName(items)).isNull();
+    }
+
+    // --- tryGetNicSpeedMbps tests ---
+
+    @Test
+    void tryGetNicSpeedMbpsReturnsParsedSpeed() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        // First call returns the MCD pod name, second call returns the NIC speed
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn("machine-config-daemon-abc12", "10000");
+
+        assertThat(RunMetadata.tryGetNicSpeedMbps(runner, "worker-0")).isEqualTo(10000L);
+    }
+
+    @Test
+    void tryGetNicSpeedMbpsReturnsNullWhenMcdPodIsBlank() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("");
+
+        assertThat(RunMetadata.tryGetNicSpeedMbps(runner, "worker-0")).isNull();
+    }
+
+    @Test
+    void tryGetNicSpeedMbpsReturnsNullWhenMcdPodIsUnknown() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        assertThat(RunMetadata.tryGetNicSpeedMbps(runner, "worker-0")).isNull();
+    }
+
+    @Test
+    void tryGetNicSpeedMbpsReturnsNullWhenRunnerThrows() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class))).thenThrow(new java.io.IOException("kubectl not found"));
+
+        assertThat(RunMetadata.tryGetNicSpeedMbps(runner, "worker-0")).isNull();
+    }
+
+    @Test
+    void tryGetNicSpeedMbpsReturnsNullWhenSpeedIsNotNumeric() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        // Speed command returns a non-numeric string (e.g., file not found message)
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn("machine-config-daemon-abc12", "N/A");
+
+        assertThat(RunMetadata.tryGetNicSpeedMbps(runner, "worker-0")).isNull();
+    }
+
+    @Test
+    void nicSpeedPopulatedInClusterNodesWhenMcdAvailable(@TempDir Path tempDir) throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        // kubectl calls in order: get nodes, get pods (MCD pod), exec (NIC speed)
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn(kubectlGetNodesJson, "machine-config-daemon-abc12", "10000");
+
+        RunMetadata.generate(tempDir, runner);
+
+        JsonNode clusterNodes = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json"))).get("clusterNodes");
+        assertThat(clusterNodes).isNotNull();
+        assertThat(clusterNodes.get("nicSpeedMbps").asLong()).isEqualTo(10000L);
+    }
+
+    @Test
+    void nicSpeedAbsentFromClusterNodesWhenMcdUnavailable(@TempDir Path tempDir) throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        // MCD pod lookup returns blank — NIC speed is skipped
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn(kubectlGetNodesJson, "");
+
+        RunMetadata.generate(tempDir, runner);
+
+        JsonNode clusterNodes = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json"))).get("clusterNodes");
+        assertThat(clusterNodes).isNotNull();
+        assertThat(clusterNodes.has("nicSpeedMbps")).isFalse();
+    }
+
     private static Path fixture(String name) throws URISyntaxException {
         URL fixtureUrl = RunMetadataTest.class.getResource("/fixtures/" + name);
         Assumptions.assumeTrue(fixtureUrl != null);

@@ -53,6 +53,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.InfrastructureBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;

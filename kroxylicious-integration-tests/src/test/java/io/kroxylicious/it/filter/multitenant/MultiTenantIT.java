@@ -52,14 +52,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.test.tester.KroxyliciousTester;
-import io.kroxylicious.test.tester.KroxyliciousTesters;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.common.GroupType.CLASSIC;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;

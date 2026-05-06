@@ -44,8 +44,8 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.InvalidResourceException;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
-import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
-import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.testing.operator.assertj.AssertFactory;
+import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

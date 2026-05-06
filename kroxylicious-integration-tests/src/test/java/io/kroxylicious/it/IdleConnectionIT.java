@@ -21,16 +21,16 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.NetworkDefinitionBuilder;
-import io.kroxylicious.test.tester.ManagementClient;
-import io.kroxylicious.test.tester.SimpleMetric;
-import io.kroxylicious.test.tester.SimpleMetricAssert;
+import io.kroxylicious.testing.integration.tester.ManagementClient;
+import io.kroxylicious.testing.integration.tester.SimpleMetric;
+import io.kroxylicious.testing.integration.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)

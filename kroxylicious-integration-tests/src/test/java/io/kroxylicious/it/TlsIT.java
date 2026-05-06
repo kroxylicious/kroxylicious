@@ -47,18 +47,18 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
-import io.kroxylicious.test.Request;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

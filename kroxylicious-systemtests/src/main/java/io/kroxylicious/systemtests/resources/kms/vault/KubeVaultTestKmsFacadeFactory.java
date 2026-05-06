@@ -6,7 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.kms.vault;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacadeFactory;
+import io.kroxylicious.testing.kms.vault.AbstractVaultTestKmsFacadeFactory;
 
 /**
  * Factory for {@link KubeVaultTestKmsFacade}s.

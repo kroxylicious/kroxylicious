@@ -31,6 +31,7 @@ When writing code, follow these prescriptive rules:
 - [Security](.claude/rules/security-patterns.md) - Security coding requirements
 - [Logging](.claude/rules/logging.md) - Logging conventions
 - [Documentation](.claude/rules/documentation-requirements.md) - When to write docs
+- [Pull Requests](.claude/rules/pull-requests.md) - PR checklist requirements
 
 ## Commit Conventions
 

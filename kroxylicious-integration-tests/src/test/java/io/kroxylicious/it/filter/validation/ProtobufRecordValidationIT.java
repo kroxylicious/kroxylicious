@@ -40,14 +40,14 @@ import io.apicurio.registry.serde.protobuf.ProtobufSerde;
 import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;

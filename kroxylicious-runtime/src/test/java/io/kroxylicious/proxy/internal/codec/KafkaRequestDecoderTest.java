@@ -38,7 +38,7 @@ import io.netty.handler.codec.DecoderException;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
-import io.kroxylicious.test.record.RecordTestUtils;
+import io.kroxylicious.testing.filter.record.RecordTestUtils;
 
 import static java.util.function.Function.identity;
 import static org.assertj.core.api.Assertions.assertThat;

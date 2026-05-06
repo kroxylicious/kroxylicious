@@ -44,8 +44,8 @@ import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
-import io.kroxylicious.test.assertj.MockFilterContextAssert;
-import io.kroxylicious.test.context.MockFilterContext;
+import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

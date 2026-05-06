@@ -36,7 +36,7 @@ import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestFiles;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
+import io.kroxylicious.testing.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.assertj.core.api.Assertions.assertThat;

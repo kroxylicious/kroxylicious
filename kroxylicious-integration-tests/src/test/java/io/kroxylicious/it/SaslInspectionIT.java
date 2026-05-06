@@ -37,8 +37,8 @@ import io.kroxylicious.it.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.proxy.authentication.UserFactory;
 import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
 import io.kroxylicious.proxy.internal.subject.PrincipalAdderConf;
-import io.kroxylicious.test.assertj.HeadersAssert;
-import io.kroxylicious.test.assertj.KafkaAssertions;
+import io.kroxylicious.testing.filter.assertj.HeadersAssert;
+import io.kroxylicious.testing.filter.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -47,7 +47,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
 
-import io.kroxylicious.test.client.KafkaClient;
+import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 /**

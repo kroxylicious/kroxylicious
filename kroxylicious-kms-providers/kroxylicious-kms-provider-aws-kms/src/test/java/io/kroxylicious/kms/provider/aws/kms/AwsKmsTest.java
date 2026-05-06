@@ -26,9 +26,9 @@ import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderCo
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.testing.kms.SecretKeyUtils;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;

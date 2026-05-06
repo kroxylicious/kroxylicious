@@ -25,7 +25,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
-import io.kroxylicious.test.RequestFactory;
+import io.kroxylicious.testing.filter.RequestFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
