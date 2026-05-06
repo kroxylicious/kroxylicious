@@ -28,6 +28,7 @@
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-admission-api</module>
         <module>kroxylicious-admission</module>
+        <module>kroxylicious-admission-dist</module>
     </modules>
 
     <build>
@@ -52,6 +53,7 @@
                                         <include>io.kroxylicious:kroxylicious-runtime</include>
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
                                         <include>io.kroxylicious:kroxylicious-operator</include>
+                                        <include>io.kroxylicious:kroxylicious-admission</include>
                                         <include>io.kroxylicious:kroxylicious-docs</include>
                                         <include>io.kroxylicious:kroxylicious-kubernetes-api</include>
                                         <include>io.kroxylicious:kroxylicious-admission-api</include>
