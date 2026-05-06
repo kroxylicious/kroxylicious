@@ -212,10 +212,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         var lifecycle = virtualClusterCoordinator.lifecycleFor(clusterName);
         if (lifecycle != null && lifecycle.state() instanceof VirtualClusterLifecycleState.Draining) {
-            LOGGER.atInfo()
-                    .addKeyValue("virtualCluster", clusterName)
-                    .log("Rejecting new connection — virtual cluster is draining");
-            ch.close();
+            rejectConnection(ch, clusterName);
             return;
         }
 
@@ -283,6 +280,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(clusterName, nodeId);
         return new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
+    }
+
+    private void rejectConnection(Channel ch, String clusterName) {
+        LOGGER.atInfo()
+                .addKeyValue("virtualCluster", clusterName)
+                .log("Rejecting new connection — virtual cluster is draining");
+        ch.close();
     }
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {
