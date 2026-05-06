@@ -17,7 +17,7 @@
     <includeBaseDirectory>false</includeBaseDirectory>
     <fileSets>
         <fileSet>
-            <directory>${project.basedir}/..</directory>
+            <directory>${project.basedir}/../..</directory>
             <outputDirectory>/</outputDirectory>
             <includes>
                 <include>LICENSE</include>
