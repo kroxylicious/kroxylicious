@@ -24,7 +24,8 @@ final class InjectionDecision {
         INJECT(null),
         SKIP_ALREADY_INJECTED("already-injected"),
         SKIP_OPT_OUT(null),
-        SKIP_NO_CONFIG("no-config");
+        SKIP_NO_CONFIG("no-config"),
+        SKIP_MULTIPLE_CONFIGS("multiple-configs");
 
         private final String skipLabel;
 
@@ -48,13 +49,13 @@ final class InjectionDecision {
      * Evaluates whether the given pod should have a sidecar injected.
      *
      * @param pod the pod being admitted
-     * @param hasConfigResource whether a {@code KroxyliciousSidecarConfig} was found for the pod's namespace
+     * @param resolveOutcome the outcome of resolving the {@code KroxyliciousSidecarConfig}
      * @return the injection decision
      */
     @NonNull
     static Decision evaluate(
                              @NonNull Pod pod,
-                             boolean hasConfigResource) {
+                             @NonNull SidecarConfigResolver.Resolution.Outcome resolveOutcome) {
 
         if (isOptedOut(pod)) {
             return Decision.SKIP_OPT_OUT;
@@ -64,11 +65,11 @@ final class InjectionDecision {
             return Decision.SKIP_ALREADY_INJECTED;
         }
 
-        if (!hasConfigResource) {
-            return Decision.SKIP_NO_CONFIG;
-        }
-
-        return Decision.INJECT;
+        return switch (resolveOutcome) {
+            case FOUND -> Decision.INJECT;
+            case NO_CONFIG -> Decision.SKIP_NO_CONFIG;
+            case MULTIPLE_CONFIGS -> Decision.SKIP_MULTIPLE_CONFIGS;
+        };
     }
 
     private static boolean isOptedOut(@NonNull Pod pod) {

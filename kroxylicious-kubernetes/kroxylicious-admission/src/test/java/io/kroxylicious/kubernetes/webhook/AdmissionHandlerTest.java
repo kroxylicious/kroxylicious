@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,7 +87,7 @@ class AdmissionHandlerTest {
     @Test
     void allowsAndPatchesWhenConfigExists() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "config");
-        when(configResolver.resolve("test-ns", null)).thenReturn(Optional.of(config));
+        when(configResolver.resolve("test-ns", null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -100,7 +99,7 @@ class AdmissionHandlerTest {
 
     @Test
     void labelsSkippedPodWhenNoConfig() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -119,7 +118,8 @@ class AdmissionHandlerTest {
                 new HashMap<>(Map.of(Labels.SIDECAR_INJECTION, Labels.SIDECAR_INJECTION_DISABLED)));
 
         // Config resolver should still be called, but injection is skipped
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.of(sidecarConfig("test-ns", "config")));
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
 
         AdmissionReview review = reviewWithPod(pod, "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -130,7 +130,8 @@ class AdmissionHandlerTest {
 
     @Test
     void labelsSkippedPodWhenAlreadyInjected() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.of(sidecarConfig("test-ns", "config")));
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
 
         Pod pod = minimalPod();
         io.fabric8.kubernetes.api.model.Container sidecar = new io.fabric8.kubernetes.api.model.Container();
@@ -148,9 +149,23 @@ class AdmissionHandlerTest {
     }
 
     @Test
+    void labelsSkippedPodWhenMultipleConfigs() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.multipleConfigs());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("multiple-configs");
+    }
+
+    @Test
     void usesExplicitConfigName() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "my-config");
-        when(configResolver.resolve("test-ns", "my-config")).thenReturn(Optional.of(config));
+        when(configResolver.resolve("test-ns", "my-config")).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         Pod pod = minimalPod();
         pod.getMetadata().setAnnotations(
@@ -165,7 +180,7 @@ class AdmissionHandlerTest {
 
     @Test
     void preservesUidInResponse() {
-        when(configResolver.resolve(any(), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(any(), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         review.getRequest().setUid("test-uid-123");
@@ -216,7 +231,7 @@ class AdmissionHandlerTest {
     void usesProxyImageFromConfig() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "config");
         config.getSpec().setProxyImage("custom-image:v1");
-        when(configResolver.resolve("test-ns", null)).thenReturn(Optional.of(config));
+        when(configResolver.resolve("test-ns", null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -230,7 +245,7 @@ class AdmissionHandlerTest {
 
     @Test
     void processReviewHandlesPodWithGenerateNameButNoName() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();
@@ -248,6 +263,8 @@ class AdmissionHandlerTest {
 
     @Test
     void processReviewHandlesPodWithNullMetadata() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
+
         Pod pod = new Pod();
 
         AdmissionReview review = reviewWithPod(pod, "test-ns");
@@ -270,7 +287,7 @@ class AdmissionHandlerTest {
 
     @Test
     void handlePostReturnsAdmissionReviewResponse() throws IOException {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         byte[] requestBody = MAPPER.writeValueAsBytes(review);

@@ -69,6 +69,32 @@ class SidecarConfigResolver implements Closeable {
     }
 
     /**
+     * The outcome of resolving a {@link KroxyliciousSidecarConfig} for a namespace.
+     */
+    record Resolution(
+                      @NonNull Outcome outcome,
+                      @NonNull Optional<KroxyliciousSidecarConfig> config) {
+
+        enum Outcome {
+            FOUND,
+            NO_CONFIG,
+            MULTIPLE_CONFIGS
+        }
+
+        static Resolution found(@NonNull KroxyliciousSidecarConfig config) {
+            return new Resolution(Outcome.FOUND, Optional.of(config));
+        }
+
+        static Resolution noConfig() {
+            return new Resolution(Outcome.NO_CONFIG, Optional.empty());
+        }
+
+        static Resolution multipleConfigs() {
+            return new Resolution(Outcome.MULTIPLE_CONFIGS, Optional.empty());
+        }
+    }
+
+    /**
      * Resolves the sidecar config for the given namespace.
      *
      * <p>Resolution strategy:
@@ -80,12 +106,12 @@ class SidecarConfigResolver implements Closeable {
      *
      * @param namespace the pod's namespace
      * @param configName optional explicit config name from pod annotation
-     * @return the resolved config, or empty
+     * @return the resolution outcome
      */
     @NonNull
-    Optional<KroxyliciousSidecarConfig> resolve(
-                                                @NonNull String namespace,
-                                                @Nullable String configName) {
+    Resolution resolve(
+                       @NonNull String namespace,
+                       @Nullable String configName) {
 
         Map<String, KroxyliciousSidecarConfig> nsConfigs = cache.getOrDefault(namespace, Map.of());
 
@@ -96,26 +122,27 @@ class SidecarConfigResolver implements Closeable {
                         .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                         .addKeyValue(WebhookLoggingKeys.NAME, configName)
                         .log("KroxyliciousSidecarConfig not found");
+                return Resolution.noConfig();
             }
-            return Optional.ofNullable(config);
+            return Resolution.found(config);
         }
 
         if (nsConfigs.size() == 1) {
-            return Optional.of(nsConfigs.values().iterator().next());
+            return Resolution.found(nsConfigs.values().iterator().next());
         }
 
         if (nsConfigs.isEmpty()) {
             LOGGER.atDebug()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                     .log("No KroxyliciousSidecarConfig found in namespace");
+            return Resolution.noConfig();
         }
-        else {
-            LOGGER.atWarn()
-                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                    .addKeyValue("count", nsConfigs.size())
-                    .log("Multiple KroxyliciousSidecarConfig resources found, explicit annotation required");
-        }
-        return Optional.empty();
+
+        LOGGER.atWarn()
+                .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                .addKeyValue("count", nsConfigs.size())
+                .log("Multiple KroxyliciousSidecarConfig resources found, explicit annotation required");
+        return Resolution.multipleConfigs();
     }
 
     /**

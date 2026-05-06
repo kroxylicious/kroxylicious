@@ -12,7 +12,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -129,10 +128,10 @@ class AdmissionHandler implements HttpHandler {
             // Resolve sidecar config
             Map<String, String> annotations = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
             String explicitConfigName = annotations != null ? annotations.get(Annotations.SIDECAR_CONFIG) : null;
-            Optional<KroxyliciousSidecarConfig> configOpt = configResolver.resolve(namespace, explicitConfigName);
+            SidecarConfigResolver.Resolution resolution = configResolver.resolve(namespace, explicitConfigName);
 
             // Evaluate injection decision
-            InjectionDecision.Decision decision = InjectionDecision.evaluate(pod, configOpt.isPresent());
+            InjectionDecision.Decision decision = InjectionDecision.evaluate(pod, resolution.outcome());
 
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.POD, podName)
@@ -154,7 +153,7 @@ class AdmissionHandler implements HttpHandler {
                 return allowResponse(uid);
             }
 
-            KroxyliciousSidecarConfig sidecarConfig = configOpt.orElseThrow();
+            KroxyliciousSidecarConfig sidecarConfig = resolution.config().orElseThrow();
 
             String image = proxyImage(sidecarConfig);
             Long gen = sidecarConfig.getMetadata().getGeneration();
