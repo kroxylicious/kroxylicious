@@ -413,4 +413,20 @@ public class DeploymentUtils {
         LOGGER.debug("Deduced route address for service: {} as: {}", serviceName, address);
         return address;
     }
+
+    /**
+     * Get the pod Uid
+     * @param deployNamespace the namespace
+     * @param podName the pod Name
+     * @return the uid
+     */
+    public static String getPodUid(String deployNamespace, String podName) {
+        final Pod pod = kubeClient().getPod(deployNamespace, podName);
+        if (pod != null) {
+            return pod.getMetadata().getUid();
+        }
+        else {
+            return "";
+        }
+    }
 }

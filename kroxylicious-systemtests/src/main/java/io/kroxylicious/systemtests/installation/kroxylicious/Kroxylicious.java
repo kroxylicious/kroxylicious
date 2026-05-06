@@ -15,6 +15,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
@@ -29,7 +30,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+import io.kroxylicious.systemtests.utils.KroxyliciousUtils;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -117,8 +120,43 @@ public class Kroxylicious {
     }
 
     public void createOrUpdateResources() {
-        this.kafkaProtocolFilters.forEach(resourceManager::createOrUpdateResourceWithWait);
-        resourceManager.createOrUpdateResourceWithWait(this.kafkaProxy, this.kafkaProxyIngress, this.kafkaService, this.virtualKafkaCluster);
+        String currentNamespace = namespace != null ? namespace : this.kafkaProxy.getMetadata().getNamespace();
+        if (kubeClient().getClient().resources(KafkaProxy.class).inNamespace(currentNamespace).withName(this.kafkaProxy.getMetadata().getName()).get() == null) {
+            this.kafkaProtocolFilters.forEach(resourceManager::createOrUpdateResourceWithWait);
+            resourceManager.createOrUpdateResourceWithWait(this.kafkaProxy, this.kafkaProxyIngress, this.kafkaService, this.virtualKafkaCluster);
+        }
+        else {
+            this.kafkaProtocolFilters.forEach(kafkaProtocolFilter -> {
+
+                if (kubeClient().getClient().resources(KafkaProtocolFilter.class).inNamespace(currentNamespace).withName(kafkaProtocolFilter.getMetadata().getName()).get() == null) {
+                    resourceManager.createOrUpdateResourceWithWait(kafkaProtocolFilter);
+                    return;
+                }
+
+                updateResourceAndWaitToRollout(KafkaProtocolFilter.class, currentNamespace, kafkaProtocolFilter);
+            });
+
+            updateResourceAndWaitToRollout(KafkaProxy.class, currentNamespace, this.kafkaProxy);
+            updateResourceAndWaitToRollout(KafkaProxyIngress.class, currentNamespace, this.kafkaProxyIngress);
+            updateResourceAndWaitToRollout(KafkaService.class, currentNamespace, this.kafkaService);
+            updateResourceAndWaitToRollout(VirtualKafkaCluster.class, currentNamespace, this.virtualKafkaCluster);
+        }
+    }
+
+    private <T extends HasMetadata> void updateResourceAndWaitToRollout(Class<T> resourceType, String currentNamespace, T resource) {
+        String kafkaProxyPodName = kubeClient().listPodsByPrefixInName(currentNamespace, this.kafkaProxy.getMetadata().getName()).get(0).getMetadata().getName();
+        String currentPid = DeploymentUtils.getPodUid(currentNamespace, kafkaProxyPodName);
+
+        Long previousGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+
+        kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName())
+                .edit(current -> resource);
+
+        Long currentGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+        // wait only if rolled out
+        if (!currentGeneration.equals(previousGeneration)) {
+            KroxyliciousUtils.waitForKafkaProxyRolling(currentNamespace, currentPid, this.kafkaProxy.getMetadata().getName());
+        }
     }
 
     /**

@@ -238,6 +238,9 @@ class KroxyliciousST extends AbstractSystemTests {
                 .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+
+        // Scale down to 1 replica to restore kroxylicious
+        kroxylicious.scaleReplicasTo(Constants.KROXYLICIOUS_NAMESPACE, 1, Duration.ofMinutes(2));
     }
 
     @Test
@@ -283,6 +286,9 @@ class KroxyliciousST extends AbstractSystemTests {
                 .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+
+        // Scale down to 1 replica to restore kroxylicious
+        kroxylicious.scaleReplicasTo(Constants.KROXYLICIOUS_NAMESPACE, 1, Duration.ofMinutes(2));
     }
 
     @AfterAll

@@ -182,17 +182,7 @@ public class KafkaUtils {
         }
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofMinutes(5));
-        return !Objects.equals(podUid, getPodUid(deployNamespace, podName));
-    }
-
-    private static String getPodUid(String deployNamespace, String podName) {
-        final Pod pod = kubeClient().getPod(deployNamespace, podName);
-        if (pod != null) {
-            return pod.getMetadata().getUid();
-        }
-        else {
-            return "";
-        }
+        return !Objects.equals(podUid, DeploymentUtils.getPodUid(deployNamespace, podName));
     }
 
     /**
