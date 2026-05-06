@@ -18,11 +18,10 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 
 // TODO: Add a complete end-to-end example with a sample Kafka client application.
 // TODO: Document configuring filters via filterDefinitions.
+// TODO: Document configuring secret mounts for filter credentials.
 // TODO: Document configuring TLS to the target Kafka cluster via targetClusterTls.
 // TODO: Document resource requests and limits configuration.
 // TODO: Document third-party plugin image configuration.
-// TODO: Document delegated annotations for application pod owner overrides.
-
 .Prerequisites
 
 * The admission webhook is xref:proc-install-admission-webhook-{context}[installed and running].
@@ -31,17 +30,19 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 .Procedure
 
 . Create a `KroxyliciousSidecarConfig` custom resource in the namespace where your application pods run.
-At a minimum, you must specify the `targetBootstrapServers` field:
+At a minimum, you must specify a virtual cluster with the target Kafka bootstrap address:
 +
 [source,yaml,subs="+quotes,attributes+"]
 ----
-apiVersion: kroxylicious.io/v1alpha1
+apiVersion: sidecar.kroxylicious.io/v1alpha1
 kind: KroxyliciousSidecarConfig
 metadata:
   name: my-sidecar-config
   namespace: _my-app-namespace_
 spec:
-  targetBootstrapServers: my-kafka-cluster-bootstrap:9092
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-kafka-cluster-bootstrap:9092
 ----
 +
 Apply the resource:
@@ -55,7 +56,7 @@ kubectl apply -f my-sidecar-config.yaml
 +
 [source,shell,subs="+quotes"]
 ----
-kubectl label namespace my-app-namespace kroxylicious.io/sidecar-injection=enabled
+kubectl label namespace my-app-namespace sidecar.kroxylicious.io/injection=enabled
 ----
 
 . Create or recreate application pods in the labelled namespace.
@@ -77,5 +78,22 @@ The output should include `kroxylicious-proxy` alongside your application contai
 ----
 metadata:
   labels:
-    kroxylicious.io/inject-sidecar: "false"
+    sidecar.kroxylicious.io/injection: disabled
+----
+
+. (Optional) To find pods where sidecar injection was skipped, query the `sidecar.kroxylicious.io/injection-skipped` label.
+The webhook sets this label on any pod where injection was skipped for a reason other than opt-out.
++
+To list all skipped pods in a namespace:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get pods -n _my-app-namespace_ -l sidecar.kroxylicious.io/injection-skipped
+----
++
+To filter by a specific skip reason (e.g. `no-config` when no `KroxyliciousSidecarConfig` exists in the namespace):
++
+[source,shell,subs="+quotes"]
+----
+kubectl get pods -n _my-app-namespace_ -l sidecar.kroxylicious.io/injection-skipped=no-config
 ----

@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,10 +34,9 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionRequest;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -89,7 +87,7 @@ class AdmissionHandlerTest {
     @Test
     void allowsAndPatchesWhenConfigExists() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "config");
-        when(configResolver.resolve("test-ns", null)).thenReturn(Optional.of(config));
+        when(configResolver.resolve("test-ns", null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -100,24 +98,28 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void allowsWithoutPatchWhenNoConfig() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+    void labelsSkippedPodWhenNoConfig() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
-        assertThat(response.getPatch()).isNull();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("no-config");
     }
 
     @Test
     void allowsWithoutPatchWhenOptedOut() {
         Pod pod = minimalPod();
         pod.getMetadata().setLabels(
-                new HashMap<>(Map.of(Labels.INJECT_SIDECAR, "false")));
+                new HashMap<>(Map.of(Labels.SIDECAR_INJECTION, Labels.SIDECAR_INJECTION_DISABLED)));
 
         // Config resolver should still be called, but injection is skipped
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.of(sidecarConfig("test-ns", "config")));
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
 
         AdmissionReview review = reviewWithPod(pod, "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -127,9 +129,43 @@ class AdmissionHandlerTest {
     }
 
     @Test
+    void labelsSkippedPodWhenAlreadyInjected() {
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
+
+        Pod pod = minimalPod();
+        io.fabric8.kubernetes.api.model.Container sidecar = new io.fabric8.kubernetes.api.model.Container();
+        sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
+        pod.getSpec().getContainers().add(sidecar);
+
+        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("already-injected");
+    }
+
+    @Test
+    void labelsSkippedPodWhenMultipleConfigs() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.multipleConfigs());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("multiple-configs");
+    }
+
+    @Test
     void usesExplicitConfigName() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "my-config");
-        when(configResolver.resolve("test-ns", "my-config")).thenReturn(Optional.of(config));
+        when(configResolver.resolve("test-ns", "my-config")).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         Pod pod = minimalPod();
         pod.getMetadata().setAnnotations(
@@ -144,7 +180,7 @@ class AdmissionHandlerTest {
 
     @Test
     void preservesUidInResponse() {
-        when(configResolver.resolve(any(), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(any(), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         review.getRequest().setUid("test-uid-123");
@@ -195,7 +231,7 @@ class AdmissionHandlerTest {
     void usesProxyImageFromConfig() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "config");
         config.getSpec().setProxyImage("custom-image:v1");
-        when(configResolver.resolve("test-ns", null)).thenReturn(Optional.of(config));
+        when(configResolver.resolve("test-ns", null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
@@ -209,7 +245,7 @@ class AdmissionHandlerTest {
 
     @Test
     void processReviewHandlesPodWithGenerateNameButNoName() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();
@@ -227,6 +263,8 @@ class AdmissionHandlerTest {
 
     @Test
     void processReviewHandlesPodWithNullMetadata() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
+
         Pod pod = new Pod();
 
         AdmissionReview review = reviewWithPod(pod, "test-ns");
@@ -249,7 +287,7 @@ class AdmissionHandlerTest {
 
     @Test
     void handlePostReturnsAdmissionReviewResponse() throws IOException {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         byte[] requestBody = MAPPER.writeValueAsBytes(review);
@@ -324,204 +362,6 @@ class AdmissionHandlerTest {
         assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
     }
 
-    // --- Phase 2: Delegated annotations ---
-
-    @Test
-    void appliesDelegatedBootstrapPort() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setBootstrapPort(19092L);
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getBootstrapPort()).isEqualTo(29092L);
-        // Original should be unchanged
-        assertThat(adminSpec.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    @Test
-    void ignoresUndelegatedAnnotation() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setBootstrapPort(19092L);
-        // No delegatedAnnotations set
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "29092");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        // Port should remain at admin default since annotation is not delegated
-        assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    @Test
-    void ignoresInvalidBootstrapPort() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setBootstrapPort(19092L);
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_BOOTSTRAP_PORT));
-
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_BOOTSTRAP_PORT, "not-a-number");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getBootstrapPort()).isEqualTo(19092L);
-    }
-
-    // --- Phase 4: Delegated plugin images ---
-
-    @Test
-    void parsesValidDelegatedPlugins() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setAllowedPluginRegistries(List.of("reg.io/"));
-
-        String json = """
-                [{"name":"my-filter","reference":"reg.io/filter@sha256:abc123def"}]""";
-
-        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
-
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getName()).isEqualTo("my-filter");
-        assertThat(result.get(0).getImage().getReference()).isEqualTo("reg.io/filter@sha256:abc123def");
-    }
-
-    @Test
-    void rejectsDelegatedPluginWithoutDigest() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-
-        String json = """
-                [{"name":"my-filter","reference":"reg.io/filter:latest"}]""";
-
-        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void rejectsDelegatedPluginFromDisallowedRegistry() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setAllowedPluginRegistries(List.of("trusted.io/"));
-
-        String json = """
-                [{"name":"my-filter","reference":"evil.io/filter@sha256:abc123"}]""";
-
-        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void acceptsDelegatedPluginWhenNoRegistryRestrictions() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        // No allowedPluginRegistries set — all registries allowed
-
-        String json = """
-                [{"name":"my-filter","reference":"any.io/filter@sha256:abc123"}]""";
-
-        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
-
-        assertThat(result).hasSize(1);
-    }
-
-    @Test
-    void skipsDelegatedPluginEntryMissingName() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-
-        String json = """
-                [{"reference":"reg.io/filter@sha256:abc123"}]""";
-
-        List<Plugins> result = handler.parseDelegatedPlugins(json, adminSpec, "pod", "ns");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void ignoresNonArrayDelegatedPluginsJson() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-
-        List<Plugins> result = handler.parseDelegatedPlugins("{\"not\":\"array\"}", adminSpec,
-                "pod", "ns");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void ignoresMalformedDelegatedPluginsJson() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-
-        List<Plugins> result = handler.parseDelegatedPlugins("not json at all", adminSpec, "pod",
-                "ns");
-
-        assertThat(result).isEmpty();
-    }
-
-    @Test
-    void appliesDelegatedPluginImages() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
-        adminSpec.setAllowedPluginRegistries(List.of("reg.io/"));
-
-        String pluginsJson = """
-                [{"name":"my-filter","reference":"reg.io/filter@sha256:abc123"}]""";
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_PLUGIN_IMAGES, pluginsJson);
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getPlugins()).hasSize(1);
-        assertThat(effective.getPlugins().get(0).getName()).isEqualTo("my-filter");
-    }
-
-    @Test
-    void mergesDelegatedPluginsWithAdminPlugins() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-        adminSpec.setDelegatedAnnotations(List.of(Annotations.DELEGATED_PLUGIN_IMAGES));
-
-        Plugins adminPlugin = new Plugins();
-        adminPlugin.setName("admin-plugin");
-        Image adminImage = new Image();
-        adminImage.setReference("reg.io/admin@sha256:aaa");
-        adminPlugin.setImage(adminImage);
-        adminSpec.setPlugins(List.of(adminPlugin));
-
-        String pluginsJson = """
-                [{"name":"user-plugin","reference":"any.io/user@sha256:bbb"}]""";
-        Map<String, String> annotations = Map.of(Annotations.DELEGATED_PLUGIN_IMAGES, pluginsJson);
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, annotations, "test-pod", "test-ns");
-
-        assertThat(effective.getPlugins()).hasSize(2);
-        assertThat(effective.getPlugins().get(0).getName()).isEqualTo("admin-plugin");
-        assertThat(effective.getPlugins().get(1).getName()).isEqualTo("user-plugin");
-    }
-
-    @Test
-    void returnsOriginalSpecWhenNoAnnotations() {
-        KroxyliciousSidecarConfigSpec adminSpec = new KroxyliciousSidecarConfigSpec();
-        adminSpec.setTargetBootstrapServers("kafka:9092");
-
-        KroxyliciousSidecarConfigSpec effective = handler.applyDelegatedOverrides(
-                adminSpec, null, "test-pod", "test-ns");
-
-        assertThat(effective).isSameAs(adminSpec);
-    }
-
     // --- helpers ---
 
     private static HttpExchange createMockExchange(
@@ -569,7 +409,10 @@ class AdmissionHandlerTest {
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(List.of(vc));
         config.setSpec(spec);
         return config;
     }

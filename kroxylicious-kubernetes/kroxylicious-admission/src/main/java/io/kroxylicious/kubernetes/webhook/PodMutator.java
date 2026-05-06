@@ -23,16 +23,17 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.ImageVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodSecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.Probe;
 import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.TargetClusterTls;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -50,6 +51,9 @@ class PodMutator {
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
     private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
+    private static final String SECRET_VOLUME_PREFIX = "secret-";
+    @SuppressWarnings("java:S1075")
+    private static final String SECRETS_BASE_PATH = "/opt/kroxylicious/secrets";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String CONFIG_MOUNT_PATH = "/opt/kroxylicious/config/proxy-config.yaml";
     private static final String CONFIG_FILE_NAME = "proxy-config.yaml";
@@ -67,6 +71,7 @@ class PodMutator {
      * @param pod the original pod
      * @param spec the sidecar configuration
      * @param proxyImage the container image to use for the proxy
+     * @param configGeneration the {@code metadata.generation} of the {@code KroxyliciousSidecarConfig}
      * @param useNativeSidecar if true, inject as an init container with restartPolicy: Always (K8s 1.28+)
      * @param useOciImageVolumes if true, mount plugin images as OCI image volumes (K8s 1.31+);
      *                          otherwise use init-container + emptyDir fallback
@@ -77,23 +82,24 @@ class PodMutator {
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage,
+                              long configGeneration,
                               boolean useNativeSidecar,
                               boolean useOciImageVolumes) {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
-            String targetClusterTrustStorePath = resolveTargetClusterTrustStorePath(spec);
+            VirtualClusters vc = spec.getVirtualClusters().get(0);
+            String targetClusterTrustStorePath = resolveTargetClusterTrustStorePath(vc);
             String proxyConfig = ProxyConfigGenerator.generateConfig(spec, targetClusterTrustStorePath);
-            int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(spec);
+            int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(vc);
             int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
 
-            addAnnotationOps(patch, pod, proxyConfig);
+            addAnnotationOps(patch, pod, proxyConfig, configGeneration);
             addVolumeOps(patch, pod, spec, useOciImageVolumes);
             addPluginCopyInitContainers(patch, pod, spec, useOciImageVolumes);
             addSidecarContainerOp(patch, pod, proxyImage, managementPort, spec,
                     useNativeSidecar, useOciImageVolumes);
             addBootstrapEnvVarOps(patch, pod, spec, bootstrapPort);
-            addSecurityContextOps(patch, pod);
 
             return MAPPER.writeValueAsString(patch);
         }
@@ -110,7 +116,7 @@ class PodMutator {
                               @NonNull Pod pod,
                               @NonNull KroxyliciousSidecarConfigSpec spec,
                               @NonNull String proxyImage) {
-        return createPatch(pod, spec, proxyImage, false, false);
+        return createPatch(pod, spec, proxyImage, 0L, false, false);
     }
 
     /**
@@ -118,8 +124,8 @@ class PodMutator {
      * or null if target cluster TLS is not configured.
      */
     @Nullable
-    static String resolveTargetClusterTrustStorePath(KroxyliciousSidecarConfigSpec spec) {
-        TargetClusterTls tls = spec.getTargetClusterTls();
+    static String resolveTargetClusterTrustStorePath(VirtualClusters vc) {
+        TargetClusterTls tls = vc.getTargetClusterTls();
         if (tls == null || tls.getTrustAnchorSecretRef() == null) {
             return null;
         }
@@ -129,18 +135,20 @@ class PodMutator {
     private static void addAnnotationOps(
                                          ArrayNode patch,
                                          Pod pod,
-                                         String proxyConfig) {
+                                         String proxyConfig,
+                                         long configGeneration) {
 
+        String generationStr = Long.toString(configGeneration);
         Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
         if (existing == null || existing.isEmpty()) {
             addOp(patch, OP_ADD, "/metadata/annotations",
                     toJson(Map.of(
                             Annotations.PROXY_CONFIG, proxyConfig,
-                            Annotations.SIDECAR_STATUS, "injected")));
+                            Annotations.CONFIG_GENERATION, generationStr)));
         }
         else {
             addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.PROXY_CONFIG), proxyConfig);
-            addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.SIDECAR_STATUS), "injected");
+            addOp(patch, OP_ADD, "/metadata/annotations/" + escapeJsonPointer(Annotations.CONFIG_GENERATION), generationStr);
         }
     }
 
@@ -161,9 +169,17 @@ class PodMutator {
             addOp(patch, OP_ADD, "/spec/volumes", toJson(List.of(configVolume)));
         }
 
-        TargetClusterTls tls = spec.getTargetClusterTls();
+        VirtualClusters vc = spec.getVirtualClusters().get(0);
+        TargetClusterTls tls = vc.getTargetClusterTls();
         if (tls != null && tls.getTrustAnchorSecretRef() != null) {
             addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildTlsSecretVolume(tls)));
+        }
+
+        List<SecretMounts> secretMounts = spec.getSecretMounts();
+        if (secretMounts != null) {
+            for (SecretMounts sm : secretMounts) {
+                addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildSecretVolume(sm)));
+            }
         }
 
         List<Plugins> plugins = spec.getPlugins();
@@ -181,6 +197,16 @@ class PodMutator {
                 .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)
                 .withNewSecret()
                 .withSecretName(secretRef.getName())
+                .endSecret()
+                .build();
+    }
+
+    @NonNull
+    private static Volume buildSecretVolume(SecretMounts sm) {
+        return new VolumeBuilder()
+                .withName(SECRET_VOLUME_PREFIX + sm.getName())
+                .withNewSecret()
+                .withSecretName(sm.getSecretName())
                 .endSecret()
                 .build();
     }
@@ -297,12 +323,24 @@ class PodMutator {
                 .withReadOnly(true)
                 .endVolumeMount();
 
-        if (spec.getTargetClusterTls() != null && spec.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
+        VirtualClusters vcForTls = spec.getVirtualClusters().get(0);
+        if (vcForTls.getTargetClusterTls() != null && vcForTls.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
             builder.addNewVolumeMount()
                     .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)
                     .withMountPath(TARGET_CLUSTER_TLS_MOUNT_PATH)
                     .withReadOnly(true)
                     .endVolumeMount();
+        }
+
+        List<SecretMounts> secretMounts = spec.getSecretMounts();
+        if (secretMounts != null) {
+            for (SecretMounts sm : secretMounts) {
+                builder.addNewVolumeMount()
+                        .withName(SECRET_VOLUME_PREFIX + sm.getName())
+                        .withMountPath(SECRETS_BASE_PATH + "/" + sm.getName())
+                        .withReadOnly(true)
+                        .endVolumeMount();
+            }
         }
 
         List<Plugins> plugins = spec.getPlugins();
@@ -435,22 +473,6 @@ class PodMutator {
         return -1;
     }
 
-    private static void addSecurityContextOps(ArrayNode patch, Pod pod) {
-        if (pod.getSpec() == null) {
-            return;
-        }
-
-        if (pod.getSpec().getSecurityContext() == null) {
-            addOp(patch, OP_ADD, "/spec/securityContext",
-                    toJson(new PodSecurityContextBuilder()
-                            .withRunAsNonRoot(true)
-                            .withNewSeccompProfile()
-                            .withType("RuntimeDefault")
-                            .endSeccompProfile()
-                            .build()));
-        }
-    }
-
     private static JsonNode toJson(Object value) {
         return MAPPER.valueToTree(value);
     }
@@ -469,6 +491,32 @@ class PodMutator {
         opNode.put("path", path);
         opNode.set("value", value);
         patch.add(opNode);
+    }
+
+    /**
+     * Generates a JSON Patch that adds the {@code injection-skipped} label to a pod.
+     */
+    @NonNull
+    static String createSkipLabelPatch(
+                                       @NonNull Pod pod,
+                                       @NonNull String reason) {
+        try {
+            ArrayNode patch = MAPPER.createArrayNode();
+            Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getLabels() : null;
+            if (existing == null || existing.isEmpty()) {
+                addOp(patch, OP_ADD, "/metadata/labels",
+                        toJson(Map.of(Labels.INJECTION_SKIPPED, reason)));
+            }
+            else {
+                addOp(patch, OP_ADD,
+                        "/metadata/labels/" + escapeJsonPointer(Labels.INJECTION_SKIPPED),
+                        reason);
+            }
+            return MAPPER.writeValueAsString(patch);
+        }
+        catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialise JSON patch", e);
+        }
     }
 
     /**

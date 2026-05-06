@@ -6,11 +6,26 @@
 
 package io.kroxylicious.kubernetes.webhook;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-record KubernetesVersion(int major, int minor) implements Comparable<KubernetesVersion> {
+/**
+ * Kubernetes cluster version and feature gate information, used to determine
+ * which pod injection strategy to use.
+ */
+record KubernetesVersion(int major, int minor, Map<String, Boolean> featureGates) implements Comparable<KubernetesVersion> {
+
+    static final String SIDECAR_CONTAINERS_GATE = "SidecarContainers";
+    static final String IMAGE_VOLUME_GATE = "ImageVolume";
+
+    KubernetesVersion(int major, int minor) {
+        this(major, minor, Map.of());
+    }
+
     KubernetesVersion {
         if (major < 1) {
             throw new IllegalArgumentException("Major must be at least 1");
@@ -18,6 +33,7 @@ record KubernetesVersion(int major, int minor) implements Comparable<KubernetesV
         else if (minor < 0) {
             throw new IllegalArgumentException("Minor must be at least 0");
         }
+        featureGates = Map.copyOf(featureGates);
     }
 
     @Override
@@ -30,18 +46,52 @@ record KubernetesVersion(int major, int minor) implements Comparable<KubernetesV
     }
 
     /**
-     * Detects whether the cluster supports native sidecar containers (Kubernetes 1.28+).
+     * Detects whether the cluster supports native sidecar containers.
+     * Enabled by default since Kubernetes 1.29 (beta). On 1.28 (alpha),
+     * requires the {@code SidecarContainers} feature gate to be explicitly enabled.
      */
     @VisibleForTesting
     boolean supportedNativeSidecar() {
-        return this.compareTo(new KubernetesVersion(1, 28)) >= 0;
+        Boolean gate = featureGates.get(SIDECAR_CONTAINERS_GATE);
+        if (gate != null) {
+            return gate;
+        }
+        return isAtLeast(1, 29);
     }
 
     /**
-     * Detects whether the cluster supports OCI image volumes (Kubernetes 1.31+).
-     * Note that the {@code ImageVolume} feature gate must also be enabled on the cluster.
+     * Detects whether the cluster supports OCI image volumes.
+     * Enabled by default since Kubernetes 1.33 (beta). On 1.31-1.32 (alpha),
+     * requires the {@code ImageVolume} feature gate to be explicitly enabled.
      */
     boolean supportsOciImageVolumes() {
-        return this.compareTo(new KubernetesVersion(1, 31)) >= 0;
+        Boolean gate = featureGates.get(IMAGE_VOLUME_GATE);
+        if (gate != null) {
+            return gate;
+        }
+        return isAtLeast(1, 33);
+    }
+
+    private boolean isAtLeast(int reqMajor, int reqMinor) {
+        return this.compareTo(new KubernetesVersion(reqMajor, reqMinor)) >= 0;
+    }
+
+    /**
+     * Parses a feature gates string of the form {@code "Gate1=true,Gate2=false"}.
+     *
+     * @return a mutable map of gate name to enabled state
+     */
+    static Map<String, Boolean> parseFeatureGates(@NonNull String featureGatesStr) {
+        Map<String, Boolean> gates = new HashMap<>();
+        if (featureGatesStr.isBlank()) {
+            return gates;
+        }
+        for (String entry : featureGatesStr.split(",")) {
+            String[] parts = entry.strip().split("=", 2);
+            if (parts.length == 2) {
+                gates.put(parts[0].strip(), Boolean.parseBoolean(parts[1].strip()));
+            }
+        }
+        return gates;
     }
 }
