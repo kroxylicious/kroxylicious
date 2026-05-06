@@ -24,6 +24,13 @@ final class Labels {
      */
     static final String SIDECAR_INJECTION_ENABLED = "enabled";
 
+    /**
+     * Label on the target Pod; when the value is {@code "false"} the sidecar will not be injected.
+     * Also used as an {@code objectSelector} on the {@code MutatingWebhookConfiguration}
+     * so that pods with this label set to {@code "false"} are never sent to the webhook.
+     */
+    static final String INJECT_SIDECAR = "kroxylicious.io/inject-sidecar";
+
     private Labels() {
     }
 }

@@ -21,12 +21,12 @@ class InjectionDecisionTest {
 
     @Test
     void shouldInjectWhenConfigAvailableAndNotOptedOut() {
-        Pod pod = podWithAnnotations(Map.of());
+        Pod pod = podWithLabels(Map.of());
         assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.INJECT);
     }
 
     @Test
-    void shouldInjectWhenNoAnnotations() {
+    void shouldInjectWhenNoLabels() {
         Pod pod = new Pod();
         pod.setMetadata(new ObjectMeta());
         pod.setSpec(new PodSpec());
@@ -35,19 +35,19 @@ class InjectionDecisionTest {
 
     @Test
     void shouldSkipWhenOptedOut() {
-        Pod pod = podWithAnnotations(Map.of(Annotations.INJECT_SIDECAR, "false"));
+        Pod pod = podWithLabels(Map.of(Labels.INJECT_SIDECAR, "false"));
         assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.SKIP_OPT_OUT);
     }
 
     @Test
-    void shouldInjectWhenAnnotationIsNotFalse() {
-        Pod pod = podWithAnnotations(Map.of(Annotations.INJECT_SIDECAR, "true"));
+    void shouldInjectWhenLabelIsNotFalse() {
+        Pod pod = podWithLabels(Map.of(Labels.INJECT_SIDECAR, "true"));
         assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.INJECT);
     }
 
     @Test
     void shouldSkipWhenAlreadyInjected() {
-        Pod pod = podWithAnnotations(Map.of());
+        Pod pod = podWithLabels(Map.of());
         Container sidecar = new Container();
         sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
         pod.getSpec().getContainers().add(sidecar);
@@ -57,13 +57,13 @@ class InjectionDecisionTest {
 
     @Test
     void shouldSkipWhenNoConfig() {
-        Pod pod = podWithAnnotations(Map.of());
+        Pod pod = podWithLabels(Map.of());
         assertThat(InjectionDecision.evaluate(pod, false)).isEqualTo(InjectionDecision.Decision.SKIP_NO_CONFIG);
     }
 
     @Test
     void optOutTakesPriorityOverAlreadyInjected() {
-        Pod pod = podWithAnnotations(Map.of(Annotations.INJECT_SIDECAR, "false"));
+        Pod pod = podWithLabels(Map.of(Labels.INJECT_SIDECAR, "false"));
         Container sidecar = new Container();
         sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
         pod.getSpec().getContainers().add(sidecar);
@@ -73,7 +73,7 @@ class InjectionDecisionTest {
 
     @Test
     void alreadyInjectedTakesPriorityOverNoConfig() {
-        Pod pod = podWithAnnotations(Map.of());
+        Pod pod = podWithLabels(Map.of());
         Container sidecar = new Container();
         sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
         pod.getSpec().getContainers().add(sidecar);
@@ -83,7 +83,7 @@ class InjectionDecisionTest {
 
     @Test
     void shouldSkipWhenAlreadyInjectedAsInitContainer() {
-        Pod pod = podWithAnnotations(Map.of());
+        Pod pod = podWithLabels(Map.of());
         Container sidecar = new Container();
         sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
         pod.getSpec().setInitContainers(new java.util.ArrayList<>(java.util.List.of(sidecar)));
@@ -98,10 +98,10 @@ class InjectionDecisionTest {
         assertThat(InjectionDecision.evaluate(pod, true)).isEqualTo(InjectionDecision.Decision.INJECT);
     }
 
-    private static Pod podWithAnnotations(Map<String, String> annotations) {
+    private static Pod podWithLabels(Map<String, String> labels) {
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();
-        meta.setAnnotations(new java.util.HashMap<>(annotations));
+        meta.setLabels(new java.util.HashMap<>(labels));
         pod.setMetadata(meta);
         PodSpec spec = new PodSpec();
         spec.setContainers(new java.util.ArrayList<>());
