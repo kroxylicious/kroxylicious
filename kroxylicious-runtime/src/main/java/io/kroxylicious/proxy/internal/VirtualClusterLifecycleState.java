@@ -64,9 +64,6 @@ public sealed interface VirtualClusterLifecycleState {
     }
 
     /** New connections are rejected. Existing in-flight requests are completing. */
-    // TODO: consider storing an Instant (expiry time) rather than a Duration so that
-    // callers resuming a drain in progress (e.g. shutdown racing a hot-reload) don't
-    // inadvertently reset the timer.
     record Draining(Duration drainTimeout) implements VirtualClusterLifecycleState {
 
         /**
