@@ -604,7 +604,14 @@ public class ProxyChannelStateMachine {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         executeOnEventLoop(() -> {
             if (state instanceof ProxyChannelState.Draining existing) {
-                existing.closedFuture().whenComplete((v, t) -> promise.complete(null));
+                existing.closedFuture().whenComplete((v, t) -> {
+                    if (t != null) {
+                        promise.completeExceptionally(t);
+                    }
+                    else {
+                        promise.complete(null);
+                    }
+                });
                 return;
             }
             ScheduledFuture<?> timeoutTask = scheduleOnEventLoop(this::onDrainTimeout, timeout);

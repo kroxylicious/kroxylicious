@@ -22,6 +22,8 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Initializing;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Serving;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Manages the lifecycle state of a single virtual cluster.
  * <p>
@@ -38,6 +40,8 @@ public class VirtualClusterLifecycle {
     private final Duration drainTimeout;
     private VirtualClusterLifecycleState state = new Initializing();
     private final Set<ProxyChannelStateMachine> activeConnections = ConcurrentHashMap.newKeySet();
+    @Nullable
+    private CompletableFuture<Void> drainFuture;
 
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
@@ -85,7 +89,16 @@ public class VirtualClusterLifecycle {
         var closeFutures = activeConnections.stream()
                 .map(pcsm -> pcsm.drain(drainTimeout))
                 .toArray(CompletableFuture[]::new);
-        return CompletableFuture.allOf(closeFutures);
+        drainFuture = CompletableFuture.allOf(closeFutures);
+        return drainFuture;
+    }
+
+    /**
+     * Returns the future that completes when all connections have drained.
+     * Only valid to call when the cluster is in {@link Draining} state.
+     */
+    public CompletableFuture<Void> drainFuture() {
+        return Objects.requireNonNull(drainFuture, "drainFuture is only set after startDraining()");
     }
 
     /**

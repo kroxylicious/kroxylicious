@@ -424,27 +424,24 @@ class VirtualClusterCoordinatorTest {
     }
 
     @Test
-    void shouldLeaveDrainingClustersInDraining() {
-        // Given
+    void shouldTransitionPreexistingDrainingClusterToStoppedOnShutdown() {
+        // Given — cluster already draining (e.g. from hot-reload) with no active connections
         vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
-
-        // Force into Draining directly, bypassing initiateShutdown(), to simulate
-        // a cluster mid-drain (e.g. hot-reload) when shutdown is called.
         requireLifecycle(CLUSTER_A).startDraining();
 
         // When
         vcc.initiateShutdown();
 
-        // Then
+        // Then — shutdown joins the in-progress drain rather than leaving it in Draining
         assertThat(vcc.lifecycleFor(CLUSTER_A))
                 .isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
-                .isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
-    void shouldNotFireCallbackForDrainingClustersWhenShuttingDown() {
+    void shouldFireCallbackForPreexistingDrainingClusterOnShutdown() {
         // Given
         vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
@@ -454,7 +451,40 @@ class VirtualClusterCoordinatorTest {
         vcc.initiateShutdown();
 
         // Then
-        verifyNoInteractions(noOpCallback);
+        verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
+    }
+
+    @Test
+    void shouldWaitForPreexistingDrainToCompleteBeforeShuttingDown() {
+        // Given — cluster draining with a pending connection
+        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc.initializationSucceeded(CLUSTER_A);
+
+        var pendingDrain = new CompletableFuture<Void>();
+        var pcsm = mock(ProxyChannelStateMachine.class);
+        when(pcsm.drain(any())).thenReturn(pendingDrain);
+        vcc.registerConnection(CLUSTER_A, pcsm);
+        requireLifecycle(CLUSTER_A).startDraining();
+
+        // initiateShutdown() blocks, so run it asynchronously
+        var shutdown = CompletableFuture.runAsync(() -> vcc.initiateShutdown());
+
+        Awaitility.await("cluster should remain Draining while connection is pending")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(vcc.lifecycleFor(CLUSTER_A))
+                        .isNotNull()
+                        .extracting(VirtualClusterLifecycle::state)
+                        .isInstanceOf(VirtualClusterLifecycleState.Draining.class));
+
+        // When — connection drain completes
+        pendingDrain.complete(null);
+
+        // Then — shutdown unblocks and cluster is Stopped
+        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(vcc.lifecycleFor(CLUSTER_A))
+                .isNotNull()
+                .extracting(VirtualClusterLifecycle::state)
+                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
@@ -519,11 +549,12 @@ class VirtualClusterCoordinatorTest {
         // Then
         assertThat(requireLifecycle(serving).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         assertThat(requireLifecycle(initializing).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
-        assertThat(requireLifecycle(draining).state()).isInstanceOf(VirtualClusterLifecycleState.Draining.class);
+        assertThat(requireLifecycle(draining).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         assertThat(requireLifecycle(failed).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         assertThat(requireLifecycle(stopped).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
         verify(noOpCallback).accept(serving, Optional.empty());
         verify(noOpCallback).accept(initializing, Optional.empty());
+        verify(noOpCallback).accept(draining, Optional.empty());
         verify(noOpCallback).accept(failed, Optional.of(failureCause));
     }
 

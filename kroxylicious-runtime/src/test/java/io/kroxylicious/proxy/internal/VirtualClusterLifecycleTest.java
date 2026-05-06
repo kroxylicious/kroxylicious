@@ -7,6 +7,14 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -25,6 +33,7 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.mockito.Mockito.mock;
 
 class VirtualClusterLifecycleTest {
 
@@ -180,5 +189,104 @@ class VirtualClusterLifecycleTest {
     void shouldRejectInvalidTransition(Runnable action) {
         assertThatThrownBy(action::run)
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    // --- Concurrency ---
+
+    @Test
+    void concurrentRegisterAndDeregisterDoesNotLoseConnection() throws Exception {
+        for (int iter = 0; iter < 200; iter++) {
+            var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
+            var pcsm1 = mock(ProxyChannelStateMachine.class);
+            var pcsm2 = mock(ProxyChannelStateMachine.class);
+            lifecycle.registerConnection(pcsm1);
+
+            var startGate = new CountDownLatch(1);
+            var deregisterer = new Thread(() -> {
+                awaitGate(startGate);
+                lifecycle.deregisterConnection(pcsm1);
+            });
+            var registerer = new Thread(() -> {
+                awaitGate(startGate);
+                lifecycle.registerConnection(pcsm2);
+            });
+            deregisterer.start();
+            registerer.start();
+            startGate.countDown();
+            deregisterer.join();
+            registerer.join();
+
+            assertThat(lifecycle.activeConnections())
+                    .as("iteration %d: pcsm2 must still be registered after concurrent register/deregister", iter)
+                    .containsExactly(pcsm2);
+        }
+    }
+
+    /**
+     * Higher-volume contention test. Each thread registers a batch of distinct PCSMs and
+     * deregisters half of them. The expected end state is exactly the never-deregistered
+     * PCSMs from every thread — no PCSM lost, no ghost PCSM remaining.
+     */
+    @Test
+    void registerAndDeregisterAreThreadSafeUnderContention() throws Exception {
+        int threads = 8;
+        int operationsPerThread = 500;
+        var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
+        var pcsms = new ProxyChannelStateMachine[threads * operationsPerThread];
+        for (int i = 0; i < pcsms.length; i++) {
+            pcsms[i] = mock(ProxyChannelStateMachine.class);
+        }
+
+        var executor = Executors.newFixedThreadPool(threads);
+        try {
+            var startGate = new CountDownLatch(1);
+            var futures = new ArrayList<Future<?>>();
+            for (int t = 0; t < threads; t++) {
+                int threadIdx = t;
+                futures.add(executor.submit(() -> {
+                    awaitGate(startGate);
+                    int base = threadIdx * operationsPerThread;
+                    for (int i = 0; i < operationsPerThread; i++) {
+                        lifecycle.registerConnection(pcsms[base + i]);
+                    }
+                    // Deregister even-indexed half, leaving odd-indexed ones registered
+                    for (int i = 0; i < operationsPerThread; i += 2) {
+                        lifecycle.deregisterConnection(pcsms[base + i]);
+                    }
+                    return null;
+                }));
+            }
+            startGate.countDown();
+            for (Future<?> f : futures) {
+                try {
+                    f.get(30, TimeUnit.SECONDS);
+                }
+                catch (ExecutionException e) {
+                    throw new AssertionError("worker thread failed", e.getCause());
+                }
+            }
+        }
+        finally {
+            executor.shutdownNow();
+        }
+
+        Set<ProxyChannelStateMachine> expected = new HashSet<>();
+        for (int t = 0; t < threads; t++) {
+            int base = t * operationsPerThread;
+            for (int i = 1; i < operationsPerThread; i += 2) {
+                expected.add(pcsms[base + i]);
+            }
+        }
+        assertThat(lifecycle.activeConnections()).containsExactlyInAnyOrderElementsOf(expected);
+    }
+
+    private static void awaitGate(CountDownLatch gate) {
+        try {
+            gate.await();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("test thread interrupted", e);
+        }
     }
 }

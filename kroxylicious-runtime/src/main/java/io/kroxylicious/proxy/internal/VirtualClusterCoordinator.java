@@ -42,7 +42,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class VirtualClusterCoordinator {
 
     private final List<VirtualClusterModel> virtualClusterModels;
-    private final Map<String, VirtualClusterLifecycle> lifecycleManagers;
+    private final Map<String, VirtualClusterLifecycle> lifecyclesByCluster;
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
@@ -61,13 +61,13 @@ public class VirtualClusterCoordinator {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
         this.virtualClusterModels = List.copyOf(virtualClusterModels);
-        this.lifecycleManagers = new LinkedHashMap<>();
+        this.lifecyclesByCluster = new LinkedHashMap<>();
         for (var vcm : this.virtualClusterModels) {
             var name = vcm.getClusterName();
-            if (lifecycleManagers.containsKey(name)) {
+            if (lifecyclesByCluster.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate cluster name: " + name);
             }
-            lifecycleManagers.put(name, new VirtualClusterLifecycle(name, vcm.drainTimeout()));
+            lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, vcm.drainTimeout()));
         }
     }
 
@@ -100,9 +100,9 @@ public class VirtualClusterCoordinator {
      * @throws IllegalArgumentException if no cluster with that name exists
      */
     public void initializationFailed(String clusterName, Throwable cause) {
-        var manager = requireKnownCluster(clusterName);
-        manager.initializationFailed(cause);
-        manager.stop();
+        var lifecycle = requireKnownCluster(clusterName);
+        lifecycle.initializationFailed(cause);
+        lifecycle.stop();
         onVirtualClusterStopped.accept(clusterName, Optional.of(cause));
     }
 
@@ -116,30 +116,34 @@ public class VirtualClusterCoordinator {
      *   <li>Stopped → Stopped (no-op)</li>
      * </ul>
      */
-    @SuppressWarnings("StatementWithEmptyBody")
     public void initiateShutdown() {
         var drainFutures = new ArrayList<CompletableFuture<Void>>();
-        lifecycleManagers.forEach((name, manager) -> {
-            var state = manager.state();
+        lifecyclesByCluster.forEach((name, lifecycle) -> {
+            var state = lifecycle.state();
             if (state instanceof VirtualClusterLifecycleState.Serving) {
-                drainFutures.add(manager.startDraining()
+                drainFutures.add(lifecycle.startDraining()
                         .thenRun(() -> {
-                            manager.drainComplete();
+                            lifecycle.drainComplete();
+                            onVirtualClusterStopped.accept(name, Optional.empty());
+                        }));
+            }
+            else if (state instanceof VirtualClusterLifecycleState.Draining) {
+                // Pre-existing drain (e.g. hot-reload) — join it rather than starting a new one.
+                drainFutures.add(lifecycle.drainFuture()
+                        .thenRun(() -> {
+                            lifecycle.drainComplete();
                             onVirtualClusterStopped.accept(name, Optional.empty());
                         }));
             }
             else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
-                manager.stop();
+                lifecycle.stop();
                 onVirtualClusterStopped.accept(name, Optional.of(failed.cause()));
             }
-            else if (state instanceof VirtualClusterLifecycleState.Draining) {
-                // we leave draining clusters in Draining.
-            }
             else if (state instanceof VirtualClusterLifecycleState.Stopped) {
-                // its already dead, let sleeping dogs lie
+                // it's already dead, let sleeping dogs lie
             }
             else {
-                manager.stop();
+                lifecycle.stop();
                 onVirtualClusterStopped.accept(name, Optional.empty());
             }
         });
@@ -153,15 +157,15 @@ public class VirtualClusterCoordinator {
      * @return true if all virtual clusters are now in the Stopped state
      */
     public boolean completeDraining() {
-        lifecycleManagers.forEach((name, manager) -> {
-            var state = manager.state();
+        lifecyclesByCluster.forEach((name, lifecycle) -> {
+            var state = lifecycle.state();
             if (state instanceof VirtualClusterLifecycleState.Draining) {
-                manager.drainComplete();
+                lifecycle.drainComplete();
                 onVirtualClusterStopped.accept(name, Optional.empty());
             }
         });
-        return lifecycleManagers.values().stream()
-                .allMatch(m -> m.state() instanceof VirtualClusterLifecycleState.Stopped);
+        return lifecyclesByCluster.values().stream()
+                .allMatch(lifecycle -> lifecycle.state() instanceof VirtualClusterLifecycleState.Stopped);
     }
 
     /**
@@ -171,7 +175,7 @@ public class VirtualClusterCoordinator {
      */
     @Nullable
     public VirtualClusterLifecycle lifecycleFor(String clusterName) {
-        return lifecycleManagers.get(clusterName);
+        return lifecyclesByCluster.get(clusterName);
     }
 
     public void registerConnection(String clusterName, ProxyChannelStateMachine pcsm) {
@@ -188,10 +192,10 @@ public class VirtualClusterCoordinator {
     }
 
     private VirtualClusterLifecycle requireKnownCluster(String clusterName) {
-        var manager = lifecycleManagers.get(clusterName);
-        if (manager == null) {
+        var lifecycle = lifecyclesByCluster.get(clusterName);
+        if (lifecycle == null) {
             throw new IllegalArgumentException("Unknown cluster: " + clusterName);
         }
-        return manager;
+        return lifecycle;
     }
 }
