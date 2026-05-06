@@ -81,7 +81,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *      ↓
  *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╭───┤
- *  │   ↓ {@link #onDraining(Runnable) onDraining}
+ *  │   ↓ {@link #onDraining(Runnable, CompletableFuture) onDraining}
  *  │  {@link ProxyChannelState.Draining Draining} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  │   │ {@link #onDrainCompleted() onDrainCompleted} (drained naturally)
  *  │   │ or {@link #onDrainTimeout() onDrainTimeout} (force-closed after timeout)
@@ -582,42 +582,46 @@ public class ProxyChannelStateMachine {
      * {@code timeout} force-closes it. Safe to call from any thread; orchestration is dispatched
      * onto the channel's event loop.
      * <p>
-     * Mechanics:
+     * Idempotent: if the connection is already draining, no new timer is scheduled and the
+     * returned future completes when the in-progress drain finishes.
+     * <p>
+     * Mechanics (first call):
      * <ul>
-     *   <li>Schedules a force-close timer that invokes {@link #onDrainTimeout()} after
-     *       {@code timeout}.</li>
-     *   <li>Dispatches {@link #onDraining(Runnable)} onto the event loop, injecting a policy
-     *       that cancels the timer, completes the returned future, and invokes
-     *       {@link #onDrainCompleted()} (transitioning the PCSM to {@link Closed} with
-     *       {@code DRAIN_COMPLETED}).</li>
+     *   <li>Dispatches onto the event loop, where a force-close timer is scheduled after
+     *       {@code timeout} and {@link #onDraining(Runnable, CompletableFuture)} transitions
+     *       the PCSM to {@link ProxyChannelState.Draining}, storing the returned future.</li>
      * </ul>
-     * The injected policy is idempotent: cancellation and future completion are no-ops once
-     * already invoked, and {@code onDrainCompleted} is a no-op when the state has already
-     * transitioned away from {@link ProxyChannelState.Draining}. This lets the three drain-
-     * termination paths (natural completion, timeout, orphan close via {@link #toClosed})
-     * converge on the same future without double-firing.
+     * Mechanics (subsequent calls while already draining):
+     * <ul>
+     *   <li>Dispatches onto the event loop, finds existing {@link ProxyChannelState.Draining}
+     *       state, and chains the new promise to the existing drain future — no new timer.</li>
+     * </ul>
      *
      * @param timeout maximum time to wait for in-flight responses before force-closing
      * @return future that completes when this connection has reached {@link Closed}
      */
     CompletableFuture<Void> drain(Duration timeout) {
-        CompletableFuture<Void> closedFuture = new CompletableFuture<>();
-
-        ScheduledFuture<?> timeoutTask = scheduleOnEventLoop(this::onDrainTimeout, timeout);
-
-        Runnable onDrained = () -> {
-            timeoutTask.cancel(false);
-            closedFuture.complete(null);
-            onDrainCompleted();
-        };
-
-        executeOnEventLoop(() -> onDraining(onDrained));
-        return closedFuture;
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        executeOnEventLoop(() -> {
+            if (state instanceof ProxyChannelState.Draining existing) {
+                existing.closedFuture().whenComplete((v, t) -> promise.complete(null));
+                return;
+            }
+            ScheduledFuture<?> timeoutTask = scheduleOnEventLoop(this::onDrainTimeout, timeout);
+            Runnable onDrained = () -> {
+                timeoutTask.cancel(false);
+                promise.complete(null);
+                onDrainCompleted();
+            };
+            onDraining(onDrained, promise);
+        });
+        return promise;
     }
 
     /**
      * Begin draining: disable autoRead on the downstream channel and transition to
-     * {@link ProxyChannelState.Draining}, carrying the injected {@code onDrained} policy.
+     * {@link ProxyChannelState.Draining}, carrying the injected {@code onDrained} policy
+     * and the {@code closedFuture} that callers wait on.
      * If no requests are already in-flight, the policy fires immediately.
      * <p>
      * Internal: invoked only from {@link #drain(Duration)}, which dispatches it
@@ -626,8 +630,10 @@ public class ProxyChannelStateMachine {
      * @param onDrained policy to invoke when the in-flight counter reaches zero; responsible
      *                  for closing the connection (via {@link #onDrainCompleted()}) and any
      *                  bookkeeping (future completion, timer cancellation)
+     * @param closedFuture future completed by {@code onDrained}; stored in the state so that
+     *                     subsequent {@link #drain(Duration)} calls can chain to it
      */
-    private void onDraining(Runnable onDrained) {
+    private void onDraining(Runnable onDrained, CompletableFuture<Void> closedFuture) {
         if (!(state instanceof Forwarding)) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
@@ -641,7 +647,7 @@ public class ProxyChannelStateMachine {
         // Disable downstream reads — no new requests from client
         Objects.requireNonNull(frontendHandler).applyBackpressure();
 
-        setState(new ProxyChannelState.Draining(onDrained));
+        setState(new ProxyChannelState.Draining(onDrained, closedFuture));
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())

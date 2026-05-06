@@ -1441,6 +1441,40 @@ class ProxyChannelStateMachineTest {
                     .tag("cause", "drain_completed").counter().count()).isEqualTo(drainCompletedBefore);
         }
 
+        // --- drain() idempotency ---
+
+        @Test
+        void secondDrainCallWhileAlreadyDrainingDoesNotScheduleNewTimer() {
+            // Given — drain in progress with in-flight work pending
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+
+            // When — drain() called again while already draining
+            CompletableFuture<Void> secondFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then — only one timer scheduled in total (from the first drain call), second future pending
+            verify(eventLoop, times(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            assertThat(secondFuture).isNotCompleted();
+        }
+
+        @Test
+        void secondDrainFutureCompletesWhenDrainCompletes() {
+            // Given — drain in progress with in-flight work, second drain() already called
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> secondFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(secondFuture).isNotCompleted();
+
+            // When — the in-flight response arrives, completing the drain naturally
+            proxyChannelStateMachine.messageFromServer(new Object());
+
+            // Then — the second future completes along with the connection closing
+            assertThat(secondFuture).isCompleted();
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        }
+
         /**
          * Drives a request through {@code onClientRequest} while in Forwarding to bump
          * the internal client-in-flight counter by one. {@code admitToFilterChain} is

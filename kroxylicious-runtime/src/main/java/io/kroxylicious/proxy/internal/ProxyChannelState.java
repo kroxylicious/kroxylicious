@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
@@ -198,8 +199,12 @@ sealed interface ProxyChannelState permits
      * (typically wired by {@code VirtualClusterLifecycle}) that decides what to do next
      * (cancel the timeout timer, complete the per-connection future, close the
      * connection with {@code DisconnectCause.DRAIN_COMPLETED}).
+     * <p>
+     * {@code closedFuture} completes when this connection has fully closed. Callers of
+     * {@link ProxyChannelStateMachine#drain(java.time.Duration)} that arrive while the
+     * connection is already draining chain their own promise to this future.
      */
-    record Draining(Runnable onDrained) implements ProxyChannelState {
+    record Draining(Runnable onDrained, CompletableFuture<Void> closedFuture) implements ProxyChannelState {
 
     }
 
