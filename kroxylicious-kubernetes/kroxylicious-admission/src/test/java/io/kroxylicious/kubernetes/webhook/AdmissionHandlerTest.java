@@ -113,8 +113,8 @@ class AdmissionHandlerTest {
     @Test
     void allowsWithoutPatchWhenOptedOut() {
         Pod pod = minimalPod();
-        pod.getMetadata().setAnnotations(
-                new HashMap<>(Map.of(Annotations.INJECT_SIDECAR, "false")));
+        pod.getMetadata().setLabels(
+                new HashMap<>(Map.of(Labels.INJECT_SIDECAR, "false")));
 
         // Config resolver should still be called, but injection is skipped
         when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.of(sidecarConfig("test-ns", "config")));

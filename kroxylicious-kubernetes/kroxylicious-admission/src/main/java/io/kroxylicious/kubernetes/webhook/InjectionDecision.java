@@ -58,8 +58,8 @@ final class InjectionDecision {
     }
 
     private static boolean isOptedOut(@NonNull Pod pod) {
-        Map<String, String> annotations = annotations(pod);
-        String value = annotations.get(Annotations.INJECT_SIDECAR);
+        Map<String, String> labels = labels(pod);
+        String value = labels.get(Labels.INJECT_SIDECAR);
         return "false".equals(value);
     }
 
@@ -79,9 +79,9 @@ final class InjectionDecision {
     }
 
     @NonNull
-    private static Map<String, String> annotations(@NonNull Pod pod) {
+    private static Map<String, String> labels(@NonNull Pod pod) {
         @Nullable
-        Map<String, String> annotations = pod.getMetadata() != null ? pod.getMetadata().getAnnotations() : null;
-        return annotations != null ? annotations : Map.of();
+        Map<String, String> labels = pod.getMetadata() != null ? pod.getMetadata().getLabels() : null;
+        return labels != null ? labels : Map.of();
     }
 }
