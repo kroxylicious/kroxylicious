@@ -92,10 +92,10 @@ import static org.slf4j.LoggerFactory.getLogger;
  * </pre>
  *
  * <p>The {@link ProxyChannelState.Draining Draining} state is optional: a connection only enters it
- * when {@link #initiateClose(Duration)} is invoked externally (typically by {@code VirtualClusterLifecycle}
+ * when {@link #drain(Duration)} is invoked externally (typically by {@code VirtualClusterLifecycle}
  * during proxy shutdown or virtual-cluster hot-reload). The {@code on*} methods that perform the actual
  * state transitions ({@code onDraining}, {@code onDrainCompleted}, {@code onDrainTimeout}) are private
- * and orchestrated internally by {@code initiateClose}. Any {@code channelInactive} or error event that
+ * and orchestrated internally by {@code drain}. Any {@code channelInactive} or error event that
  * arrives while in {@code Draining} routes through {@link #toClosed} the same way it would from
  * {@code Forwarding}; the merged-edge label applies to both paths.</p>
  *
@@ -600,7 +600,7 @@ public class ProxyChannelStateMachine {
      * @param timeout maximum time to wait for in-flight responses before force-closing
      * @return future that completes when this connection has reached {@link Closed}
      */
-    CompletableFuture<Void> initiateClose(Duration timeout) {
+    CompletableFuture<Void> drain(Duration timeout) {
         CompletableFuture<Void> closedFuture = new CompletableFuture<>();
 
         ScheduledFuture<?> timeoutTask = scheduleOnEventLoop(this::onDrainTimeout, timeout);
@@ -620,7 +620,7 @@ public class ProxyChannelStateMachine {
      * {@link ProxyChannelState.Draining}, carrying the injected {@code onDrained} policy.
      * If no requests are already in-flight, the policy fires immediately.
      * <p>
-     * Internal: invoked only from {@link #initiateClose(Duration)}, which dispatches it
+     * Internal: invoked only from {@link #drain(Duration)}, which dispatches it
      * onto the event loop. Must run on the channel's event loop thread.
      *
      * @param onDrained policy to invoke when the in-flight counter reaches zero; responsible
@@ -664,7 +664,7 @@ public class ProxyChannelStateMachine {
      * {@code DRAIN_COMPLETED} cause for metrics. No-op if the state has already transitioned
      * away from {@link ProxyChannelState.Draining}.
      * <p>
-     * Internal: only called from the policy assembled in {@link #initiateClose(Duration)}.
+     * Internal: only called from the policy assembled in {@link #drain(Duration)}.
      */
     private void onDrainCompleted() {
         if (state instanceof ProxyChannelState.Draining) {
@@ -678,7 +678,7 @@ public class ProxyChannelStateMachine {
      * {@link ProxyChannelState.Draining} (e.g. drain already completed or the connection closed
      * for another reason).
      * <p>
-     * Internal: only invoked by the timer scheduled in {@link #initiateClose(Duration)}.
+     * Internal: only invoked by the timer scheduled in {@link #drain(Duration)}.
      */
     private void onDrainTimeout() {
         if (state instanceof ProxyChannelState.Draining) {
@@ -998,7 +998,7 @@ public class ProxyChannelStateMachine {
     /**
      * Dispatch a task onto this PCSM's event loop. Used internally so that {@code on*()}
      * transition methods always run on the channel's event loop thread, regardless of which
-     * thread {@link #initiateClose(Duration)} is invoked from.
+     * thread {@link #drain(Duration)} is invoked from.
      * @throws IllegalStateException if the PCSM has no frontend channel attached yet
      */
     private void executeOnEventLoop(Runnable task) {

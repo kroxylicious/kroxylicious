@@ -269,10 +269,10 @@ class VirtualClusterCoordinatorTest {
         vcc.initializationSucceeded(CLUSTER_B);
 
         var pcsmA = mock(ProxyChannelStateMachine.class);
-        when(pcsmA.initiateClose(any())).thenReturn(pendingDrainA);
+        when(pcsmA.drain(any())).thenReturn(pendingDrainA);
 
         var pcsmB = mock(ProxyChannelStateMachine.class);
-        when(pcsmB.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(pcsmB.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         vcc.registerConnection(CLUSTER_A, pcsmA);
         vcc.registerConnection(CLUSTER_B, pcsmB);
@@ -283,7 +283,7 @@ class VirtualClusterCoordinatorTest {
         // then — B must be called even while A is still draining
         Awaitility.await("cluster-b drain should start while cluster-a is still draining")
                 .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(pcsmB).initiateClose(any()));
+                .untilAsserted(() -> verify(pcsmB).drain(any()));
 
         pendingDrainA.complete(null);
         assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
@@ -294,7 +294,7 @@ class VirtualClusterCoordinatorTest {
         // given
         var pendingDrain = new CompletableFuture<Void>();
         var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.initiateClose(any())).thenReturn(pendingDrain);
+        when(pcsm.drain(any())).thenReturn(pendingDrain);
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.registerConnection(CLUSTER_A, pcsm);
 
@@ -602,7 +602,7 @@ class VirtualClusterCoordinatorTest {
     void shouldInitiateCloseOnRegisteredConnectionWhenShuttingDown() {
         // given
         var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(pcsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.registerConnection(CLUSTER_A, pcsm);
 
@@ -610,14 +610,14 @@ class VirtualClusterCoordinatorTest {
         vcc.initiateShutdown();
 
         // then
-        verify(pcsm).initiateClose(Duration.ofSeconds(30));
+        verify(pcsm).drain(Duration.ofSeconds(30));
     }
 
     @Test
     void shouldTransitionToStoppedAfterConnectionsDrainOnShutdown() {
         // given
         var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(pcsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.registerConnection(CLUSTER_A, pcsm);
 
@@ -635,7 +635,7 @@ class VirtualClusterCoordinatorTest {
     void shouldFireStoppedCallbackAfterConnectionsDrainOnShutdown() {
         // given
         var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.initiateClose(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(pcsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.registerConnection(CLUSTER_A, pcsm);
 

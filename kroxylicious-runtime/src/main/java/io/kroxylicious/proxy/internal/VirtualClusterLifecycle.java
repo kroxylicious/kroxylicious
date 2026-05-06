@@ -83,7 +83,7 @@ public class VirtualClusterLifecycle {
             throw unexpectedState(current, "startDraining");
         });
         var closeFutures = activeConnections.stream()
-                .map(pcsm -> pcsm.initiateClose(drainTimeout))
+                .map(pcsm -> pcsm.drain(drainTimeout))
                 .toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(closeFutures);
     }
