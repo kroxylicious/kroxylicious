@@ -178,7 +178,7 @@ spec:
                   description: |
                     Secrets to mount in the sidecar container. Each entry mounts all keys
                     from the named Secret as read-only files under
-                    /opt/kroxylicious/secrets/<name>/. Use this to provide credentials or
+                    /opt/kroxylicious/secrets/[name]/. Use this to provide credentials or
                     other sensitive data to filters without exposing them in pod annotations.
                   type: array
                   items:
