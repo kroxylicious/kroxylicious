@@ -132,17 +132,13 @@
                     <source>src/main/resources/META-INF/fabric8</source>
                     <extraAnnotations>true</extraAnnotations>
                     <existingJavaTypes>
-                        <io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Resources>
+                        <io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.Resources>
                             io.fabric8.kubernetes.api.model.ResourceRequirements
-                        </io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Resources>
-                        <io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigstatus.Conditions>
+                        </io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.Resources>
+                        <io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigstatus.Conditions>
                             io.kroxylicious.kubernetes.api.admission.common.Condition
-                        </io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigstatus.Conditions>
+                        </io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigstatus.Conditions>
                     </existingJavaTypes>
-                    <packageOverrides>
-                        <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
-                        <io.kroxylicious.v1alpha1>io.kroxylicious.kubernetes.api.admission.v1alpha1</io.kroxylicious.v1alpha1>
-                    </packageOverrides>
                 </configuration>
             </plugin>
             <plugin>

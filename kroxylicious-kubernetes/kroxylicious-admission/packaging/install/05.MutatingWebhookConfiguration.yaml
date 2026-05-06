@@ -36,7 +36,7 @@ webhooks:
     # Only intercept pods in namespaces that have opted in
     namespaceSelector:
       matchLabels:
-        kroxylicious.io/sidecar-injection: enabled
+        sidecar.kroxylicious.io/injection: enabled
       matchExpressions:
         - key: kubernetes.io/metadata.name
           operator: NotIn
@@ -47,6 +47,6 @@ webhooks:
     # Skip pods that have explicitly opted out
     objectSelector:
       matchExpressions:
-        - key: kroxylicious.io/inject-sidecar
+        - key: sidecar.kroxylicious.io/injection
           operator: NotIn
-          values: ["false"]
+          values: ["disabled"]

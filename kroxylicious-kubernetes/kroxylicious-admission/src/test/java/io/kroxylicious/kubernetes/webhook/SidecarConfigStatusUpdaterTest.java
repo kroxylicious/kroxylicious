@@ -26,9 +26,10 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
 import io.kroxylicious.kubernetes.api.admission.common.ConditionBuilder;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigStatus;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigStatus;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -207,7 +208,10 @@ class SidecarConfigStatusUpdaterTest {
         meta.setGeneration(generation);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
-        spec.setTargetBootstrapServers("kafka.example.com:9092");
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
+        vc.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(List.of(vc));
         config.setSpec(spec);
         return config;
     }

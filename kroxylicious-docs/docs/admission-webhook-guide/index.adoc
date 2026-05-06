@@ -17,7 +17,7 @@ include::_assets/attributes.adoc[]
 ====
 The Kroxylicious Admission Webhook is an *early access* feature and is not yet ready for general use.
 
-The `KroxyliciousSidecarConfig` custom resource API (`kroxylicious.io/v1alpha1`) is subject to change without notice in future releases.
+The `KroxyliciousSidecarConfig` custom resource API (`sidecar.kroxylicious.io/v1alpha1`) is subject to change without notice in future releases.
 Do not rely on the stability of this API for production workloads.
 ====
 

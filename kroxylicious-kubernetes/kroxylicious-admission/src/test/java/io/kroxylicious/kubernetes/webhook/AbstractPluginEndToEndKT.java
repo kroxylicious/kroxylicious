@@ -37,9 +37,9 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigBuilder;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigBuilder;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
 import io.kroxylicious.test.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,7 +67,7 @@ abstract class AbstractPluginEndToEndKT {
 
     private static final Path CRD_PATH = Path.of(
             "../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/"
-                    + "kroxylicioussidecarconfigs.kroxylicious.io-v1.yml");
+                    + "kroxylicioussidecarconfigs.sidecar.kroxylicious.io-v1.yml");
 
     static final WebhookInfo INFO = WebhookInfo.fromResource();
 
@@ -190,7 +190,7 @@ abstract class AbstractPluginEndToEndKT {
         }
 
         LOGGER.info("Waiting for KSC CRD to be established");
-        waitForCrdEstablished("kroxylicioussidecarconfigs.kroxylicious.io");
+        waitForCrdEstablished("kroxylicioussidecarconfigs.sidecar.kroxylicious.io");
 
         LOGGER.info("Applying install manifests");
         applyAllManifests();
@@ -292,7 +292,7 @@ abstract class AbstractPluginEndToEndKT {
         var ns = new NamespaceBuilder()
                 .withNewMetadata()
                 .withName(TEST_NS)
-                .addToLabels("kroxylicious.io/sidecar-injection", "enabled")
+                .addToLabels("sidecar.kroxylicious.io/injection", "enabled")
                 .endMetadata()
                 .build();
         client.namespaces().resource(ns).create();
@@ -304,9 +304,12 @@ abstract class AbstractPluginEndToEndKT {
                 .withNamespace(TEST_NS)
                 .endMetadata()
                 .withNewSpec()
+                .addNewVirtualCluster()
+                .withName("sidecar")
                 .withTargetBootstrapServers(
                         "my-cluster-kafka-bootstrap." + KAFKA_NS
                                 + ".svc.cluster.local:9092")
+                .endVirtualCluster()
                 .addNewPlugin()
                 .withName("simple-transform")
                 .withNewImage()
