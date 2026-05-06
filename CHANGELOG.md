@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 * [#3861](https://github.com/kroxylicious/kroxylicious/pull/3861): refactor: move test-support modules to `io.kroxylicious.testing`
+* [#3882](https://github.com/kroxylicious/kroxylicious/pull/3882): build(image): proxy container image renamed from `quay.io/kroxylicious/kroxylicious` to `quay.io/kroxylicious/proxy`
 * [#3236](https://github.com/kroxylicious/kroxylicious/issues/3236): build(deps): bump strimzi.version from 0.51.0 to 1.0.0
 * [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): refactor(archetype): reuse record batch transform module
 * [#3842](https://github.com/kroxylicious/kroxylicious/pull/3842): fix(operator): use precise Kafka CRD detection for Strimzi support (prerequisite for Strimzi v1 upgrade)
@@ -26,6 +27,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#3882](https://github.com/kroxylicious/kroxylicious/pull/3882): The primary proxy container image is now `quay.io/kroxylicious/proxy`. `quay.io/kroxylicious/kroxylicious` is deprecated and subject to removal following our deprecation policy. Users deploying the proxy image directly (without the operator) should update their deployment configurations to use the new image name. The operator will automatically use the new image name.
 * [#3861](https://github.com/kroxylicious/kroxylicious/pull/3861): The `kroxylicious-*-test-support` modules now consistently use the package prefix `io.kroxylicious.testing`. Many of these modules modules are effectively internal, but 3rd party filters may have a dependency on `kroxylicious-filter-test-support` and 3rd party KMSes may have a dependency on `kroxylicious-kms-test-support`. When upgrading you will need to use the new package name in your tests.
 * [#3236](https://github.com/kroxylicious/kroxylicious/issues/3236): **BREAKING CHANGE** - If making use of the Strimzi integration feature in the KafkaService CR (`spec.strimziKafkaRef`), Strimzi 0.49.0 or later is now **required**. The Kroxylicious Operator now uses the Strimzi Kafka CR v1 API exclusively; v1beta2 API support has been dropped. Users running Strimzi versions prior to 0.49.0 must upgrade Strimzi.
 * [#3786](https://github.com/kroxylicious/kroxylicious/issues/3786): The deprecated method `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type)` (two-parameter form) is removed. Use `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)` instead, passing `MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED` if no checksum tracking is needed.

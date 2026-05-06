@@ -62,8 +62,9 @@ jobs:
             echo "platforms=linux/amd64" >> $GITHUB_OUTPUT
           else
             PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
+            LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
             OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
-            echo "proxy_tags=${PROXY_IMAGE}:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+            echo "proxy_tags=${PROXY_IMAGE}:${RELEASE_VERSION},${LEGACY_PROXY_IMAGE}:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
             echo "operator_tags=${OPERATOR_IMAGE}:${RELEASE_VERSION},${OPERATOR_IMAGE}:latest" >> $GITHUB_OUTPUT
             echo "push_images=true" >> $GITHUB_OUTPUT
             echo "platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT

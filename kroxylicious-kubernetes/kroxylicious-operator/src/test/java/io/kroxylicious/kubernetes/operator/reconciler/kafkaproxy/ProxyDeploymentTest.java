@@ -70,7 +70,7 @@ class ProxyDeploymentTest {
     @ClearEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR)
     void operandImageDefault() {
         assertThat(ProxyDeploymentDependentResource.getOperandImage())
-                .matches("^quay.io/kroxylicious/kroxylicious:.*");
+                .matches("^quay.io/kroxylicious/proxy:.*");
     }
 
     @Test

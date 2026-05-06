@@ -17,17 +17,13 @@ _Why are you making this pull request?_
 
 ### Checklist
 
-_Please go through this checklist and make sure all applicable tasks have been done_
+The checklist is used to help Committers judge a PR's readiness for merge.
+Contributors: please check off items you consider done.
 
-- [ ] PR raised from a fork of this repository and made from a branch rather than main. 
-- [ ] Write tests
-- [ ] Update documentation
-- [ ] Make sure all unit/integration tests pass
-- [ ] Make sure all Sonarcloud warnings are addressed or are justifiably ignored.
-- [ ] If applicable to the change, make sure system tests pass.
-- [ ] If applicable to the change, [trigger the performance test suite](../blob/main/PERFORMANCE.md#jenkins-pipeline-for-performance). Ensure that any degradations to performance numbers are understood and justified.
-- [ ] Ensure the PR references relevant issue(s) so they are closed on merging.
-- [ ] For user facing changes, update CHANGELOG.md (remember to include changes affecting the API of the test artefacts too).
+- [ ] New tests written (where applicable).
+- [ ] User facing documentation written/updated (where applicable).
+- [ ] Existing unit/integration/system tests passing.
+- [ ] Any Sonarcloud warnings are addressed (or suppressed with `@SuppressWarnings` and a justifying comment).
+- [ ] PR references related GitHub issue(s) so they are closed on merging.
 - [ ] If AI tools assisted with code changes, ensure commit messages include `Assisted-by:` trailer (see [DEV_GUIDE.md](../blob/main/DEV_GUIDE.md#ai-disclosure-requirement)).
-
-> **_NOTE:_**  You must be a member of `@kroxylicious/developers` to trigger the system test and performance test suites.  If you are not part of this group, comment on the PR requesting a trigger, tagging `@kroxylicious/developers`.
+- [ ] For user facing changes, update CHANGELOG.md (remember to include changes affecting the API of the test artefacts too).

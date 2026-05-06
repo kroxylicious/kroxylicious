@@ -39,7 +39,7 @@ spec:
     spec:
       containers:
         - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:test"
+          image: "quay.io/kroxylicious/proxy:test"
           livenessProbe:
             failureThreshold: 3
             httpGet:

@@ -426,7 +426,7 @@ example config entry:
 * `ARCHITECTURE`: architecture of the cluster where the test clients are deployed. Default value: `System.getProperty("os.arch")`
 * `KROXYLICIOUS_OPERATOR_VERSION`: version of kroxylicious operator to be used. Default value: `${project.version}` in pom file
 * `KROXYLICIOUS_OPERATOR_INSTALL_DIR`: directory of the operator install files. Used for operator yaml installation. Default value: `System.getProperty("user.dir") + "/target/kroxylicious-operator-dist/install/"`
-* `KROXYLICIOUS_IMAGE`: image location of the kroxylicious (proxy) image. Defaults to `quay.io/kroxylicious/kroxylicious:${project.version}`
+* `KROXYLICIOUS_IMAGE`: image location of the kroxylicious (proxy) image. Defaults to `quay.io/kroxylicious/proxy:${project.version}`
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
 * `STRIMZI_NAMESPACE`: namespace used for strimzi cluster operator installation. Useful when strimzi is previously installed. Default value: `kafka`
@@ -452,7 +452,7 @@ First of all, start Minikube:
 minikube start --cpus 4
 ```
 
-By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/kroxylicious:${project.version}`.
+By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/proxy:${project.version}`.
 These will be the latest images built by CI.  You can change this behaviour by setting the environment variables shown in the table above.
 
 Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube. Refer to section [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images).
