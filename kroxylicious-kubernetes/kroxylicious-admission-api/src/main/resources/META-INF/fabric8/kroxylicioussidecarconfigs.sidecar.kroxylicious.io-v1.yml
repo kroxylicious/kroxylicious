@@ -166,7 +166,7 @@ spec:
                       name:
                         description: A unique name for this filter instance.
                         type: string
-                        pattern: "[a-z0-9A-Z]([a-z0-9A-Z_.\\-]{0,251}[a-z0-9A-Z])?"
+                        pattern: "^[a-z0-9A-Z]([a-z0-9A-Z_.\\-]{0,251}[a-z0-9A-Z])?$"
                       type:
                         description: The fully qualified type name of the FilterFactory plugin.
                         type: string

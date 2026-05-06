@@ -1,0 +1,22 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KroxyliciousSidecarConfig
+  apiVersion: sidecar.kroxylicious.io/v1alpha1
+  metadata:
+    name: invalid-plugin-name-length
+    namespace: webhook-validation-test
+  spec:
+    virtualClusters:
+      - name: demo
+        targetBootstrapServers: kafka.example.com:9092
+    plugins:
+      - name: "this-plugin-name-is-way-too-long-and-exceeds-the-sixty-three-character-limit-imposed-by-the-crd"
+        image:
+          reference: quay.io/kroxylicious/example@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+expectFailureMessageToContain: "spec.plugins"

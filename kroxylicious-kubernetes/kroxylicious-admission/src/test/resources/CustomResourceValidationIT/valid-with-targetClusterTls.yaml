@@ -1,0 +1,20 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KroxyliciousSidecarConfig
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+metadata:
+  name: tls-config
+  namespace: webhook-validation-test
+spec:
+  virtualClusters:
+    - name: secure-cluster
+      targetBootstrapServers: kafka-secure.example.com:9093
+      targetClusterTls:
+        trustAnchorSecretRef:
+          name: kafka-ca-bundle
+          key: ca.crt

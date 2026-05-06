@@ -1,0 +1,16 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KroxyliciousSidecarConfig
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+metadata:
+  name: minimal-config
+  namespace: webhook-validation-test
+spec:
+  virtualClusters:
+    - name: demo
+      targetBootstrapServers: kafka.example.com:9092
