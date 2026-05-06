@@ -23,13 +23,13 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -555,6 +555,33 @@ class PodMutatorTest {
             }
         }
         assertThat(hasSecretVolume).as("no secret volume expected without secretMounts config").isFalse();
+    }
+
+    // --- Skip label patch ---
+
+    @Test
+    void skipLabelPatchAddsLabelWhenNoExistingLabels() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        String patchStr = PodMutator.createSkipLabelPatch(pod, "no-config");
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> ops = patchOps(patch, "add", "/metadata/labels");
+        assertThat(ops).hasSize(1);
+        assertThat(ops.get(0).path("value").path(Labels.INJECTION_SKIPPED).asText())
+                .isEqualTo("no-config");
+    }
+
+    @Test
+    void skipLabelPatchAddsLabelWhenExistingLabels() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        pod.getMetadata().setLabels(new HashMap<>(Map.of("app", "my-app")));
+        String patchStr = PodMutator.createSkipLabelPatch(pod, "already-injected");
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        String escapedKey = PodMutator.escapeJsonPointer(Labels.INJECTION_SKIPPED);
+        List<JsonNode> ops = patchOps(patch, "add", "/metadata/labels/" + escapedKey);
+        assertThat(ops).hasSize(1);
+        assertThat(ops.get(0).path("value").asText()).isEqualTo("already-injected");
     }
 
     // --- helpers ---

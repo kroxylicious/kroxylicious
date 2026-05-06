@@ -28,12 +28,12 @@ import io.fabric8.kubernetes.api.model.ProbeBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.Plugins;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.SecretMounts;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.TargetClusterTls;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.targetclustertls.TrustAnchorSecretRef;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -491,6 +491,32 @@ class PodMutator {
         opNode.put("path", path);
         opNode.set("value", value);
         patch.add(opNode);
+    }
+
+    /**
+     * Generates a JSON Patch that adds the {@code injection-skipped} label to a pod.
+     */
+    @NonNull
+    static String createSkipLabelPatch(
+                                       @NonNull Pod pod,
+                                       @NonNull String reason) {
+        try {
+            ArrayNode patch = MAPPER.createArrayNode();
+            Map<String, String> existing = pod.getMetadata() != null ? pod.getMetadata().getLabels() : null;
+            if (existing == null || existing.isEmpty()) {
+                addOp(patch, OP_ADD, "/metadata/labels",
+                        toJson(Map.of(Labels.INJECTION_SKIPPED, reason)));
+            }
+            else {
+                addOp(patch, OP_ADD,
+                        "/metadata/labels/" + escapeJsonPointer(Labels.INJECTION_SKIPPED),
+                        reason);
+            }
+            return MAPPER.writeValueAsString(patch);
+        }
+        catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialise JSON patch", e);
+        }
     }
 
     /**

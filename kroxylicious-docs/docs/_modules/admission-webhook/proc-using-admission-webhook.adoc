@@ -34,7 +34,7 @@ At a minimum, you must specify a virtual cluster with the target Kafka bootstrap
 +
 [source,yaml,subs="+quotes,attributes+"]
 ----
-apiVersion: kroxylicious.io/v1alpha1
+apiVersion: sidecar.kroxylicious.io/v1alpha1
 kind: KroxyliciousSidecarConfig
 metadata:
   name: my-sidecar-config
@@ -79,4 +79,21 @@ The output should include `kroxylicious-proxy` alongside your application contai
 metadata:
   labels:
     sidecar.kroxylicious.io/injection: disabled
+----
+
+. (Optional) To find pods where sidecar injection was skipped, query the `sidecar.kroxylicious.io/injection-skipped` label.
+The webhook sets this label on any pod where injection was skipped for a reason other than opt-out.
++
+To list all skipped pods in a namespace:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get pods -n _my-app-namespace_ -l sidecar.kroxylicious.io/injection-skipped
+----
++
+To filter by a specific skip reason (e.g. `no-config` when no `KroxyliciousSidecarConfig` exists in the namespace):
++
+[source,shell,subs="+quotes"]
+----
+kubectl get pods -n _my-app-namespace_ -l sidecar.kroxylicious.io/injection-skipped=no-config
 ----

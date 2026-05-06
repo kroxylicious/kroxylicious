@@ -32,6 +32,13 @@ final class Labels {
      */
     static final String SIDECAR_INJECTION_DISABLED = "disabled";
 
+    /**
+     * Label set on pods where sidecar injection was skipped for a reason
+     * other than opt-out. The value indicates the reason (e.g. {@code no-config},
+     * {@code already-injected}).
+     */
+    static final String INJECTION_SKIPPED = "sidecar.kroxylicious.io/injection-skipped";
+
     private Labels() {
     }
 }

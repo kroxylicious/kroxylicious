@@ -28,7 +28,7 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionRequest;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -142,6 +142,15 @@ class AdmissionHandler implements HttpHandler {
                     .log("Sidecar injection decision");
 
             if (decision != InjectionDecision.Decision.INJECT) {
+                String skipLabel = decision.skipLabel();
+                if (skipLabel != null) {
+                    String labelPatch = PodMutator.createSkipLabelPatch(pod, skipLabel);
+                    AdmissionResponse skipResponse = allowResponse(uid);
+                    skipResponse.setPatchType(JSON_PATCH_TYPE);
+                    skipResponse.setPatch(Base64.getEncoder().encodeToString(
+                            labelPatch.getBytes(StandardCharsets.UTF_8)));
+                    return skipResponse;
+                }
                 return allowResponse(uid);
             }
 

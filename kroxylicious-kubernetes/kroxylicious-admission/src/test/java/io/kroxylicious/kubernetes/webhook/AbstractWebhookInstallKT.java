@@ -36,8 +36,8 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigBuilder;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigBuilder;
 import io.kroxylicious.test.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +59,7 @@ abstract class AbstractWebhookInstallKT {
     private static final String TEST_NS = "webhook-test";
 
     private static final Path CRD_PATH = Path.of(
-            "../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml");
+            "../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.sidecar.kroxylicious.io-v1.yml");
 
     private KubernetesClient client;
 

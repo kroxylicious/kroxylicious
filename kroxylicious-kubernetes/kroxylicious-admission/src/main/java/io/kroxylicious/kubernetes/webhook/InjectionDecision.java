@@ -21,10 +21,24 @@ final class InjectionDecision {
     static final String SIDECAR_CONTAINER_NAME = "kroxylicious-proxy";
 
     enum Decision {
-        INJECT,
-        SKIP_ALREADY_INJECTED,
-        SKIP_OPT_OUT,
-        SKIP_NO_CONFIG
+        INJECT(null),
+        SKIP_ALREADY_INJECTED("already-injected"),
+        SKIP_OPT_OUT(null),
+        SKIP_NO_CONFIG("no-config");
+
+        private final String skipLabel;
+
+        Decision(String skipLabel) {
+            this.skipLabel = skipLabel;
+        }
+
+        /**
+         * @return the value for the {@code sidecar.kroxylicious.io/injection-skipped}
+         *         label, or {@code null} if this decision should not label the pod.
+         */
+        String skipLabel() {
+            return skipLabel;
+        }
     }
 
     private InjectionDecision() {
@@ -34,13 +48,13 @@ final class InjectionDecision {
      * Evaluates whether the given pod should have a sidecar injected.
      *
      * @param pod the pod being admitted
-     * @param hasConfig whether a {@code KroxyliciousSidecarConfig} was found for the pod's namespace
+     * @param hasConfigResource whether a {@code KroxyliciousSidecarConfig} was found for the pod's namespace
      * @return the injection decision
      */
     @NonNull
     static Decision evaluate(
                              @NonNull Pod pod,
-                             boolean hasConfig) {
+                             boolean hasConfigResource) {
 
         if (isOptedOut(pod)) {
             return Decision.SKIP_OPT_OUT;
@@ -50,7 +64,7 @@ final class InjectionDecision {
             return Decision.SKIP_ALREADY_INJECTED;
         }
 
-        if (!hasConfig) {
+        if (!hasConfigResource) {
             return Decision.SKIP_NO_CONFIG;
         }
 

@@ -35,9 +35,9 @@ import io.fabric8.kubernetes.api.model.admission.v1.AdmissionRequest;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionResponse;
 import io.fabric8.kubernetes.api.model.admission.v1.AdmissionReview;
 
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfig;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.KroxyliciousSidecarConfigSpec;
-import io.kroxylicious.kubernetes.api.admission.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
+import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -99,14 +99,17 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void allowsWithoutPatchWhenNoConfig() {
+    void labelsSkippedPodWhenNoConfig() {
         when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.empty());
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
-        assertThat(response.getPatch()).isNull();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("no-config");
     }
 
     @Test
@@ -123,6 +126,25 @@ class AdmissionHandlerTest {
 
         assertThat(response.getAllowed()).isTrue();
         assertThat(response.getPatch()).isNull();
+    }
+
+    @Test
+    void labelsSkippedPodWhenAlreadyInjected() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(Optional.of(sidecarConfig("test-ns", "config")));
+
+        Pod pod = minimalPod();
+        io.fabric8.kubernetes.api.model.Container sidecar = new io.fabric8.kubernetes.api.model.Container();
+        sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
+        pod.getSpec().getContainers().add(sidecar);
+
+        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("already-injected");
     }
 
     @Test

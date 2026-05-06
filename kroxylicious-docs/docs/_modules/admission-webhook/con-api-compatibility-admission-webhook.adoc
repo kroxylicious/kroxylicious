@@ -14,7 +14,7 @@
 = Custom resource API compatibility
 
 [role="_abstract"]
-The admission webhook uses a single custom resource: `KroxyliciousSidecarConfig`, in the `kroxylicious.io` API group at version `v1alpha1`.
+The admission webhook uses a single custom resource: `KroxyliciousSidecarConfig`, in the `sidecar.kroxylicious.io` API group at version `v1alpha1`.
 
 [WARNING]
 ====
