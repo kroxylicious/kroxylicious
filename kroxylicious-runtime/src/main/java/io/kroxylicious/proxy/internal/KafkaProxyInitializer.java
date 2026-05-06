@@ -208,6 +208,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @VisibleForTesting
     void addHandlers(Channel ch, EndpointBinding binding, KafkaSession kafkaSession) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
+        var clusterName = virtualCluster.getClusterName();
+
+        var lifecycle = virtualClusterCoordinator.lifecycleFor(clusterName);
+        if (lifecycle != null && lifecycle.state() instanceof VirtualClusterLifecycleState.Draining) {
+            LOGGER.atInfo()
+                    .addKeyValue("virtualCluster", clusterName)
+                    .log("Rejecting new connection — virtual cluster is draining");
+            ch.close();
+            return;
+        }
+
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
@@ -215,7 +226,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        var clusterName = virtualCluster.getClusterName();
         ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
         virtualClusterCoordinator.registerConnection(clusterName, proxyChannelStateMachine);
         ch.closeFuture().addListener(f -> virtualClusterCoordinator.deregisterConnection(clusterName, proxyChannelStateMachine));

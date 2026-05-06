@@ -372,6 +372,27 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
+    void shouldCloseNewConnectionWhenVirtualClusterIsDraining() {
+        // given
+        var vcl = new VirtualClusterLifecycle("testCluster", Duration.ofSeconds(5));
+        vcl.initializationSucceeded();
+        vcl.startDraining();
+
+        var vcc = mock(VirtualClusterCoordinator.class);
+        when(vcc.lifecycleFor("testCluster")).thenReturn(vcl);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, ProxyProtocolMode.DISABLED,
+                (endpoint, sniHostname) -> bindingStage, vcc);
+
+        // when
+        kafkaProxyInitializer.addHandlers(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
+
+        // then
+        verify(channel).close();
+        verify(channelPipeline, never()).remove(anyString());
+        verify(channelPipeline, never()).addLast(anyString(), any());
+    }
+
+    @Test
     void testLoggingErrorHandlerPreventsExceptionPropagatingToChannel() {
         EmbeddedChannel embeddedChannel = new EmbeddedChannel();
         embeddedChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
@@ -395,6 +416,14 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver) {
+        return createKafkaProxyInitializer(tls, proxyProtocolMode, bindingResolver, mock(VirtualClusterCoordinator.class));
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                              ProxyProtocolMode proxyProtocolMode,
+                                                              EndpointBindingResolver bindingResolver,
+                                                              VirtualClusterCoordinator vcc) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
@@ -403,7 +432,7 @@ class KafkaProxyInitializerTest {
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
-                mock(VirtualClusterCoordinator.class));
+                vcc);
     }
 
     private void assertErrorHandlerAdded() {
