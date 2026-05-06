@@ -16,11 +16,6 @@ final class Annotations {
     private static final String KROXYLICIOUS_ANNOTATION_PREFIX = "kroxylicious.io/";
 
     /**
-     * Annotation on the target Pod, when the value is false the sidecar will not be injected into the Pod
-     */
-    static final String INJECT_SIDECAR = "kroxylicious.io/inject-sidecar";
-
-    /**
      * Annotation on the target Pod used to name the {@code KroxyliciousSidecarConfig}
      * resource which should apply to that Pod.
      */
@@ -56,7 +51,6 @@ final class Annotations {
 
     /** The set of annotations managed by the webhook itself — never treated as undelegated. */
     static final Set<String> WEBHOOK_MANAGED_ANNOTATIONS = Set.of(
-            INJECT_SIDECAR,
             SIDECAR_CONFIG,
             PROXY_CONFIG,
             SIDECAR_STATUS);

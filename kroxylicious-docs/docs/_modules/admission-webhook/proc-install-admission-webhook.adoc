@@ -1,0 +1,78 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// Module included in the following:
+//
+// _assemblies/assembly-admission-webhook-install.adoc
+
+[id='proc-install-admission-webhook-{context}']
+= Installing the admission webhook using installation files
+
+[role="_abstract"]
+This procedure shows how to install the Kroxylicious Admission Webhook in your Kubernetes cluster using cert-manager for TLS certificate provisioning.
+
+// TODO: Document the procedure for installing without cert-manager (manual TLS certificate provisioning).
+
+.Prerequisites
+
+* You need an account with permission to create `CustomResourceDefinition`, `MutatingWebhookConfiguration`, and RBAC (`ClusterRole`) resources.
+* You have downloaded the xref:con-admission-webhook-release-artifacts-{context}[release artifacts] and extracted the contents into the current directory.
+* link:https://cert-manager.io/[cert-manager^] is installed in the cluster.
+
+.Procedure
+
+. (Optional) Edit the installation files to change the namespace the webhook is installed into.
++
+By default, the webhook is installed into the `kroxylicious-webhook` namespace.
+For example, to install into the namespace `my-webhook-namespace`:
++
+On Linux, use:
++
+[source, subs="+quotes"]
+----
+sed -i 's/namespace: ./namespace: my-webhook-namespace/' install/.yaml
+----
++
+On MacOS, use:
++
+[source, subs="+quotes"]
+----
+sed -i '' 's/namespace: ./namespace: my-webhook-namespace/' install/.yaml
+----
+
+
+. Install the cert-manager resources for TLS certificate provisioning:
++
+[source,shell,subs="+quotes"]
+----
+kubectl apply -f examples/cert-manager/
+----
+
+. Deploy the admission webhook:
++
+[source,shell,subs="+quotes"]
+----
+kubectl apply -f install/
+----
+
+. Check the status of the deployment:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get deployments -n kroxylicious-webhook
+----
++
+.Output shows the deployment name and readiness
+[source,shell,subs="+quotes"]
+----
+NAME                      READY  UP-TO-DATE  AVAILABLE
+kroxylicious-webhook      2/2    2           2
+----
++
+`READY` shows the number of replicas that are ready/expected.
+The deployment is successful when the `AVAILABLE` output shows `1`.

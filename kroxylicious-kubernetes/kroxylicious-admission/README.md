@@ -43,12 +43,17 @@ A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines side
 | `setBootstrapEnvVar`     | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
 | `resources`              | Resource requests/limits for the sidecar container |
 
+## Labels
+
+| Label | Purpose | Controlled by |
+|-------|---------|---------------|
+| `kroxylicious.io/sidecar-injection` | Namespace-level opt-in (`enabled`) | Admin |
+| `kroxylicious.io/inject-sidecar` | Pod-level opt-out (`"false"`) | App owner |
+
 ## Annotations
 
 | Annotation | Purpose | Controlled by |
 |------------|---------|---------------|
-| `kroxylicious.io/sidecar-injection` | Namespace-level opt-in (label) | Admin |
-| `kroxylicious.io/inject-sidecar` | Pod-level opt-out (`"false"`) | App owner |
 | `kroxylicious.io/sidecar-config` | Select specific config by name | App owner |
 | `kroxylicious.io/proxy-config` | Generated proxy YAML (set by webhook) | Webhook |
 | `kroxylicious.io/sidecar-status` | Injection status (set by webhook) | Webhook |
@@ -58,7 +63,7 @@ A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines side
 
 The injection decision follows this order:
 
-1. **Opt-out**: Pod has annotation `kroxylicious.io/inject-sidecar: "false"` &rarr; skip
+1. **Opt-out**: Pod has label `kroxylicious.io/inject-sidecar: "false"` &rarr; skip
 2. **Already injected**: Pod has a container named `kroxylicious-proxy` &rarr; skip
 3. **No config**: No `KroxyliciousSidecarConfig` found for the namespace &rarr; skip
 4. Otherwise &rarr; inject
