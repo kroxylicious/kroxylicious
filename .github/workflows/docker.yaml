@@ -1,9 +1,11 @@
-# docker.yaml - builds and pushes a kroxylicious container image.
+# docker.yaml - builds and pushes kroxylicious container images.
 #
 # Requires repository variables:
 # - REGISTRY_SERVER - the server of the container registry service e.g. `quay.io` or `docker.io`
 # - REGISTRY_USERNAME - your username on the service (or username of your robot account)
-# - REGISTRY_DESTINATION - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious`
+# - PROXY_IMAGE_NAME - the proxy image name (without tag)
+# - OPERATOR_IMAGE_NAME - the operator image name (without tag)
+# - ADMISSION_IMAGE_NAME - the admission webhook image name (without tag)
 # and a repository secret
 # - REGISTRY_TOKEN - the access token that corresponds to `REGISTRY_USERNAME`
 #
@@ -75,10 +77,13 @@ jobs:
             echo "proxy_final_tags=" >> $GITHUB_OUTPUT
             echo "operator_platforms=linux/amd64" >> $GITHUB_OUTPUT
             echo "operator_tags=kroxylicious-operator:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+            echo "admission_platforms=linux/amd64" >> $GITHUB_OUTPUT
+            echo "admission_tags=kroxylicious-admission:${RELEASE_VERSION}" >> $GITHUB_OUTPUT            
           else
             PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
             LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
             OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
+            ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
             # Per-arch intermediate tags are pushed individually then merged into the
             # final manifest list (which also covers the legacy kroxylicious image name).
             echo "push_images=true" >> $GITHUB_OUTPUT
@@ -88,6 +93,8 @@ jobs:
             echo "proxy_final_tags=${PROXY_IMAGE}:${RELEASE_VERSION},${LEGACY_PROXY_IMAGE}:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
             echo "operator_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
             echo "operator_tags=${OPERATOR_IMAGE}:${RELEASE_VERSION},${OPERATOR_IMAGE}:latest" >> $GITHUB_OUTPUT
+            echo "admission_platforms=linux/amd64,linux/arm64" >> $GITHUB_OUTPUT
+            echo "admission_tags=${ADMISSION_IMAGE}:${RELEASE_VERSION},${ADMISSION_IMAGE}:latest" >> $GITHUB_OUTPUT
           fi
 
       # ── Phase 1: compile and install ─────────────────────────────────────────
@@ -100,7 +107,7 @@ jobs:
             --batch-mode \
             --activate-profiles '!qa' \
             --also-make \
-            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
@@ -123,7 +130,7 @@ jobs:
           mvn --quiet \
             --batch-mode \
             --activate-profiles 'dist,!qa' \
-            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
@@ -156,6 +163,19 @@ jobs:
           tags: ${{ steps.build_configuration.outputs.operator_tags }}
           cache-from: type=gha,scope=operator
           cache-to: type=gha,mode=max,compression=zstd,scope=operator
+
+      - name: Build and maybe push Admission webhook image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
+        with:
+          context: ./kroxylicious-kubernetes/kroxylicious-admission
+          file: ./kroxylicious-kubernetes/kroxylicious-admission/src/main/docker/webhook.dockerfile
+          platforms: ${{ steps.build_configuration.outputs.admission_platforms }}
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.admission_tags }}
+          cache-from: type=gha,scope=admission
+          cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
       # ── Phase 3: arm64 dist + image ──────────────────────────────────────────
       # `clean package` on kroxylicious-app alone wipes its target/ directory so
