@@ -23,6 +23,8 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,8 +45,21 @@ public final class ShellUtils {
         execValidate(ALWAYS_VALID, ALWAYS_VALID, args);
     }
 
+    public static boolean execValidate(
+                                       Predicate<Stream<String>> stdOutValidator,
+                                       Predicate<Stream<String>> stdErrValidator,
+                                       String... args) {
+        return execValidate(stdOutValidator, stdErrValidator, 5, TimeUnit.MINUTES, args);
+    }
+
     @SuppressFBWarnings("COMMAND_INJECTION") // this is not production code
-    public static boolean execValidate(Predicate<Stream<String>> stdOutValidator, Predicate<Stream<String>> stdErrValidator, String... args) {
+    @VisibleForTesting
+    static boolean execValidate(
+                                Predicate<Stream<String>> stdOutValidator,
+                                Predicate<Stream<String>> stdErrValidator,
+                                long timeout,
+                                TimeUnit unit,
+                                String... args) {
         Process process = null;
         try {
             List<String> argList = List.of(args);
@@ -56,7 +71,7 @@ public final class ShellUtils {
                     .redirectOutput(out.toFile())
                     .redirectError(err.toFile())
                     .start();
-            boolean exited = process.waitFor(5, TimeUnit.MINUTES);
+            boolean exited = process.waitFor(timeout, unit);
             if (exited) {
                 if (process.exitValue() != 0 || LOGGER.isDebugEnabled()) {
                     String description = ("'%s' exited with value: %d%n"
