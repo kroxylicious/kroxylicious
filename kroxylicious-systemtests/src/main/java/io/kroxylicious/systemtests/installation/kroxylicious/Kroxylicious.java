@@ -128,7 +128,8 @@ public class Kroxylicious {
         else {
             this.kafkaProtocolFilters.forEach(kafkaProtocolFilter -> {
 
-                if (kubeClient().getClient().resources(KafkaProtocolFilter.class).inNamespace(currentNamespace).withName(kafkaProtocolFilter.getMetadata().getName()).get() == null) {
+                if (kubeClient().getClient().resources(KafkaProtocolFilter.class).inNamespace(currentNamespace).withName(kafkaProtocolFilter.getMetadata().getName())
+                        .get() == null) {
                     resourceManager.createOrUpdateResourceWithWait(kafkaProtocolFilter);
                     return;
                 }
@@ -147,12 +148,14 @@ public class Kroxylicious {
         String kafkaProxyPodName = kubeClient().listPodsByPrefixInName(currentNamespace, this.kafkaProxy.getMetadata().getName()).get(0).getMetadata().getName();
         String currentPid = DeploymentUtils.getPodUid(currentNamespace, kafkaProxyPodName);
 
-        Long previousGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+        Long previousGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get()
+                .getMetadata().getGeneration();
 
         kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName())
                 .edit(current -> resource);
 
-        Long currentGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+        Long currentGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get()
+                .getMetadata().getGeneration();
         // wait only if rolled out
         if (!currentGeneration.equals(previousGeneration)) {
             KroxyliciousUtils.waitForKafkaProxyRolling(currentNamespace, currentPid, this.kafkaProxy.getMetadata().getName());
