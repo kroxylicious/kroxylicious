@@ -52,8 +52,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.InfrastructureBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
-import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
-
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
@@ -67,6 +65,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxy
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.utils.KroxyliciousUtils;
+import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;

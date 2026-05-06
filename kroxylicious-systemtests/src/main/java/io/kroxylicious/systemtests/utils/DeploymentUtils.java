@@ -207,6 +207,17 @@ public class DeploymentUtils {
         }
     }
 
+    public static void waitForPodDeletion(String namespaceName, String podName, Duration timeout) {
+        LOGGER.info("Waiting for pod run: {}/{} to be deleted", namespaceName, podName);
+        var pollInterval = 200;
+
+        await().alias("await pod to reach terminal phase")
+                .atMost(timeout)
+                .pollInterval(Duration.ofMillis(pollInterval))
+                .conditionEvaluationListener(new TimeoutLoggingEvaluationListener(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)))
+                .until(() -> kubeClient().getPod(namespaceName, podName) == null);
+    }
+
     /**
      * Wait for service ready.
      *

@@ -94,6 +94,7 @@ public class KroxyliciousUtils {
      * @param kafkaProxyName the name of the Kafka proxy deployment
      */
     public static void waitForKafkaProxyRolling(String namespace, String previousPodPid, String kafkaProxyName) {
+        DeploymentUtils.waitForPodDeletion(namespace, kafkaProxyName, Duration.ofSeconds(30));
         await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(200)).until(() -> {
             String currentKafkaProxyPod = kubeClient().listPodsByPrefixInName(namespace, kafkaProxyName).get(0).getMetadata().getName();
             return !Objects.equals(DeploymentUtils.getPodUid(namespace, currentKafkaProxyPod), previousPodPid);
