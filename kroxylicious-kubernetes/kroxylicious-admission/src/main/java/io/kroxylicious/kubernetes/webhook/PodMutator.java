@@ -261,10 +261,14 @@ class PodMutator {
         }
 
         for (Plugins plugin : plugins) {
-            Container initContainer = new ContainerBuilder()
+            ContainerBuilder cb = new ContainerBuilder()
                     .withName(PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy")
                     .withImage(plugin.getImage().getReference())
-                    .withCommand("sh", "-c", "cp -r /. /plugins/")
+                    .withCommand("sh", "-c", "find / -maxdepth 1 -not -type d -exec cp {} /plugins/ \\;");
+            if (plugin.getImage().getPullPolicy() != null) {
+                cb.withImagePullPolicy(plugin.getImage().getPullPolicy().getValue());
+            }
+            Container initContainer = cb
                     .addNewVolumeMount()
                     .withName(PLUGIN_VOLUME_PREFIX + plugin.getName())
                     .withMountPath("/plugins")
