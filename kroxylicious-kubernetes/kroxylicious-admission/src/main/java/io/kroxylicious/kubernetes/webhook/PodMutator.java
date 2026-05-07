@@ -51,6 +51,8 @@ class PodMutator {
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
     private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
+    private static final String PLUGIN_IMAGE_JAR_PATH = "/plugins";
+    private static final String PLUGIN_COPY_DEST_PATH = "/dest";
     private static final String SECRET_VOLUME_PREFIX = "secret-";
     @SuppressWarnings("java:S1075")
     private static final String SECRETS_BASE_PATH = "/opt/kroxylicious/secrets";
@@ -264,14 +266,16 @@ class PodMutator {
             ContainerBuilder cb = new ContainerBuilder()
                     .withName(PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy")
                     .withImage(plugin.getImage().getReference())
-                    .withCommand("sh", "-c", "cp /*.jar /plugins/");
+                    .withCommand("sh", "-c",
+                            "cp " + PLUGIN_IMAGE_JAR_PATH + "/*.jar "
+                                    + PLUGIN_COPY_DEST_PATH + "/");
             if (plugin.getImage().getPullPolicy() != null) {
                 cb.withImagePullPolicy(plugin.getImage().getPullPolicy().getValue());
             }
             Container initContainer = cb
                     .addNewVolumeMount()
                     .withName(PLUGIN_VOLUME_PREFIX + plugin.getName())
-                    .withMountPath("/plugins")
+                    .withMountPath(PLUGIN_COPY_DEST_PATH)
                     .endVolumeMount()
                     .withNewSecurityContext()
                     .withAllowPrivilegeEscalation(false)
@@ -350,11 +354,14 @@ class PodMutator {
         List<Plugins> plugins = spec.getPlugins();
         if (plugins != null) {
             for (Plugins plugin : plugins) {
-                builder.addNewVolumeMount()
+                var mount = builder.addNewVolumeMount()
                         .withName(PLUGIN_VOLUME_PREFIX + plugin.getName())
                         .withMountPath(PLUGINS_BASE_PATH + "/" + plugin.getName())
-                        .withReadOnly(true)
-                        .endVolumeMount();
+                        .withReadOnly(true);
+                if (useOciImageVolumes) {
+                    mount.withSubPath(PLUGIN_IMAGE_JAR_PATH.substring(1));
+                }
+                mount.endVolumeMount();
             }
         }
 

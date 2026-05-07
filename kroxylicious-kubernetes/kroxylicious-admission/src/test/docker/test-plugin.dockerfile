@@ -5,9 +5,9 @@
 #
 
 # Test plugin OCI image for integration tests.
-# Contains the simple-transform filter JARs at the image root.
-# Used to verify OCI image volume plugin mounting in the sidecar.
+# Plugin JARs go in /plugins/ — the webhook mounts this subdirectory
+# (via subPath for OCI, or copies from it for emptyDir fallback).
 # Uses busybox (not scratch) so the emptyDir fallback init container
 # can run "sh -c cp" when OCI image volumes are unavailable.
 FROM quay.io/quay/busybox
-COPY target/test-plugin-jars/*.jar /
+COPY target/test-plugin-jars/*.jar /plugins/
