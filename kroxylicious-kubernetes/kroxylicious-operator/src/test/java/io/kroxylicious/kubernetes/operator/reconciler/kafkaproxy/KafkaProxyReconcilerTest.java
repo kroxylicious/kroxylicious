@@ -11,6 +11,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -38,6 +40,7 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkf
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
@@ -47,6 +50,9 @@ import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
 import io.kroxylicious.testing.operator.assertj.AssertFactory;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
+import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
+import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -555,15 +561,19 @@ class KafkaProxyReconcilerTest {
     @MethodSource("absentSourceScenarios")
     void shouldWarnAboutAbsentSpec(KafkaProxy proxy, boolean warnExpected) {
         // Given
-        KafkaProxyReconciler kafkaProxyReconciler = newKafkaProxyReconciler(TEST_CLOCK);
         var logger = mock(Logger.class);
         var eventBuilder = mock(LoggingEventBuilder.class);
         when(eventBuilder.addKeyValue(anyString(), anyString())).thenReturn(eventBuilder);
         when(logger.atWarn()).thenReturn(eventBuilder);
+
+        var statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(TEST_CLOCK));
+        List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> deprecationCheckers = List.of(
+                new AbsentSpecDeprecationChecker());
         var conditions = new ArrayList<Condition>();
+        var ctx = new DeprecationCheckContext<>(proxy, logger, statusFactory, conditions);
 
         // When
-        kafkaProxyReconciler.reportAbsentSpecIfNecessary(proxy, logger, conditions);
+        deprecationCheckers.forEach(checker -> checker.check(ctx));
         // Then
 
         if (warnExpected) {
