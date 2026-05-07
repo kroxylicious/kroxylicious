@@ -168,7 +168,7 @@ jobs:
           mvn --quiet \
             --batch-mode \
             --activate-profiles 'dist,aarch64,!qa' \
-            --projects :kroxylicious-app \
+            --projects :kroxylicious-runtime,:kroxylicious-app \
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
