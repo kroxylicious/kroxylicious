@@ -118,6 +118,7 @@ class AbsentSpecDeprecationCheckerTest {
     @Test
     void resourceWithoutUidShouldResultInNothing() {
         // Given
+        // @formatter:off
         var proxy = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withName("my-proxy")
@@ -125,6 +126,7 @@ class AbsentSpecDeprecationCheckerTest {
                 .endMetadata()
                 .build();
         var ctx = contextFor(proxy);
+        // @formatter:on
 
         // When
         checker.check(ctx);
@@ -189,11 +191,13 @@ class AbsentSpecDeprecationCheckerTest {
     }
 
     private static KafkaProxyBuilder proxyBuilderWithUid(String uid) {
+        // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withName("my-proxy")
                     .withNamespace("my-ns")
                     .withUid(uid)
                 .endMetadata();
+        // @formatter:on
     }
 }
