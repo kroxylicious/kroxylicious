@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.test.ShellUtils;
 
 /**
- * Runs the plugin end-to-end test on a dedicated Kind cluster with the
+ * Runs the plugin end-to-end tests on a dedicated Kind cluster with the
  * {@code ImageVolume} feature gate enabled.
  */
 @EnabledIf("io.kroxylicious.kubernetes.webhook.KindPluginEndToEndKT#isEnvironmentValid")
@@ -32,7 +32,7 @@ class KindPluginEndToEndKT extends AbstractPluginEndToEndKT {
     }
 
     @BeforeAll
-    static void createKindCluster() {
+    void setUp() {
         LOGGER.info("Creating Kind cluster '{}' with ImageVolume feature gate", KIND_CLUSTER_NAME);
         ShellUtils.exec("bash", "-c", """
                 cat <<'EOF' | kind create cluster --name %s --config=-
@@ -51,10 +51,12 @@ class KindPluginEndToEndKT extends AbstractPluginEndToEndKT {
                 "--name", KIND_CLUSTER_NAME);
         ShellUtils.exec("kind", "load", "image-archive", INFO.testPluginImageArchive(),
                 "--name", KIND_CLUSTER_NAME);
+
+        initClientAndInstallStrimzi();
     }
 
     @AfterAll
-    static void deleteKindCluster() {
+    void tearDown() {
         LOGGER.info("Deleting Kind cluster '{}'", KIND_CLUSTER_NAME);
         ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID,
                 "kind", "delete", "cluster", "--name", KIND_CLUSTER_NAME);

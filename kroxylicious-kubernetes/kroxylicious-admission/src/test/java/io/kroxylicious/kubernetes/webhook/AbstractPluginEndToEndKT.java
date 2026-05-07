@@ -19,19 +19,25 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
@@ -45,15 +51,14 @@ import io.kroxylicious.test.ShellUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * End-to-end integration test for 3rd party plugin support via OCI image volumes.
- * Deploys Strimzi + a single-node Kafka cluster, installs the webhook, and verifies
- * that a plugin filter loaded from an OCI image volume transforms Kafka traffic.
- * Subclasses provide cluster lifecycle and image loading.
+ * End-to-end integration test for sidecar injection across feature gate configurations.
+ * Deploys Strimzi and a single-node Kafka cluster once per class, then runs each test
+ * with a fresh webhook configuration. Subclasses provide cluster lifecycle and image loading.
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 abstract class AbstractPluginEndToEndKT {
 
     // TODO switch away from using the exec openssl pattern and use the kroxylicious-certificate-test-support module.
-    // TODO The the scenario where the kubernetes does not have the OCI volume mounting feature gate enabled.
     // TODO have a test that covers indirectly creates pods, e.g. pods which are part of the deployment, sts, job.
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractPluginEndToEndKT.class);
@@ -75,22 +80,95 @@ abstract class AbstractPluginEndToEndKT {
 
     abstract String kubeContext();
 
-    @Test
-    void pluginFilterTransformsTrafficThroughSidecar() {
+    protected void initClientAndInstallStrimzi() {
         Config config = Config.autoConfigure(kubeContext());
         client = new KubernetesClientBuilder().withConfig(config).build();
-        try {
-            installStrimzi();
-            installWebhook();
-            createTestNamespaceAndConfig();
-            runProducerAndVerify();
-        }
-        finally {
-            cleanup();
-        }
+        installStrimzi();
     }
 
-    // --- Strimzi + Kafka ---
+    @AfterAll
+    void tearDownSharedInfrastructure() {
+        if (client == null) {
+            return;
+        }
+        ignoreCleanupErrors("Strimzi operator",
+                () -> {
+                    try (InputStream is = URI.create(strimziInstallUrl())
+                            .toURL().openStream()) {
+                        client.load(is).delete();
+                    }
+                });
+        ignoreCleanupErrors("kafka namespace",
+                () -> client.namespaces().withName(KAFKA_NS).delete());
+        ignoreCleanupErrors("Kubernetes client", client::close);
+    }
+
+    @Test
+    void pluginFilterTransformsTrafficThroughSidecar() {
+        testWithFeatureGates("", pod -> {
+            var pluginVolume = pod.getSpec().getVolumes().stream()
+                    .filter(v -> "plugin-simple-transform".equals(v.getName()))
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(pluginVolume.getImage())
+                    .as("Plugin volume should be an OCI image volume")
+                    .isNotNull();
+            assertThat(pluginVolume.getImage().getReference())
+                    .as("Plugin volume should reference the test plugin image")
+                    .contains(INFO.testPluginImageName());
+
+            assertThat(pod.getSpec().getInitContainers())
+                    .as("Sidecar should be a native sidecar (in initContainers)")
+                    .extracting(Container::getName)
+                    .contains(InjectionDecision.SIDECAR_CONTAINER_NAME);
+        });
+    }
+
+    @Test
+    void pluginFilterWorksWithoutNativeSidecarOrImageVolume() {
+        testWithFeatureGates("SidecarContainers=false,ImageVolume=false", pod -> {
+            var pluginVolume = pod.getSpec().getVolumes().stream()
+                    .filter(v -> "plugin-simple-transform".equals(v.getName()))
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(pluginVolume.getEmptyDir())
+                    .as("Plugin volume should be emptyDir (no OCI image volumes)")
+                    .isNotNull();
+            assertThat(pluginVolume.getImage())
+                    .as("Plugin volume should NOT be an OCI image volume")
+                    .isNull();
+
+            List<String> initContainerNames = pod.getSpec().getInitContainers() != null
+                    ? pod.getSpec().getInitContainers().stream()
+                            .map(Container::getName)
+                            .toList()
+                    : List.of();
+            assertThat(initContainerNames)
+                    .as("Sidecar should NOT be in initContainers")
+                    .doesNotContain(InjectionDecision.SIDECAR_CONTAINER_NAME);
+            assertThat(pod.getSpec().getContainers())
+                    .as("Sidecar should be a regular container")
+                    .extracting(Container::getName)
+                    .contains(InjectionDecision.SIDECAR_CONTAINER_NAME);
+
+            assertThat(initContainerNames)
+                    .as("Plugin copy init container should exist")
+                    .contains("plugin-simple-transform-copy");
+        });
+    }
+
+    private void testWithFeatureGates(
+                                      String featureGates,
+                                      Consumer<Pod> podStructureAssertions) {
+        try {
+            installWebhook(featureGates);
+            createTestNamespaceAndConfig();
+            runProducerAndVerify(podStructureAssertions);
+        }
+        finally {
+            perTestCleanup();
+        }
+    }
 
     private void installStrimzi() {
         LOGGER.info("Installing Strimzi operator");
@@ -178,9 +256,7 @@ abstract class AbstractPluginEndToEndKT {
                         280, TimeUnit.SECONDS);
     }
 
-    // --- Webhook installation ---
-
-    private void installWebhook() {
+    private void installWebhook(String featureGates) {
         LOGGER.info("Installing CRDs");
         try (InputStream is = Files.newInputStream(CRD_PATH)) {
             client.load(is).serverSideApply();
@@ -195,23 +271,37 @@ abstract class AbstractPluginEndToEndKT {
         LOGGER.info("Applying install manifests");
         applyAllManifests();
 
+        if (featureGates != null && !featureGates.isEmpty()) {
+            LOGGER.atInfo()
+                    .addKeyValue("featureGates", featureGates)
+                    .log("Patching webhook deployment with feature gates");
+            client.apps().deployments()
+                    .inNamespace(WEBHOOK_NS)
+                    .withName("kroxylicious-webhook")
+                    .edit(d -> {
+                        var envList = d.getSpec().getTemplate().getSpec()
+                                .getContainers().get(0).getEnv();
+                        if (envList == null) {
+                            envList = new ArrayList<>();
+                            d.getSpec().getTemplate().getSpec()
+                                    .getContainers().get(0).setEnv(envList);
+                        }
+                        envList.add(new EnvVarBuilder()
+                                .withName(WebhookMain.FEATURE_GATES_VAR)
+                                .withValue(featureGates)
+                                .build());
+                        return d;
+                    });
+        }
+
         LOGGER.info("Creating self-signed TLS certificate for webhook");
         createWebhookTlsSecret();
 
         LOGGER.info("Patching MutatingWebhookConfiguration with CA bundle");
         patchWebhookCaBundle();
 
-        LOGGER.info("Waiting for webhook deployment to become ready");
-        client.apps().deployments()
-                .inNamespace(WEBHOOK_NS)
-                .withName("kroxylicious-webhook")
-                .waitUntilCondition(
-                        d -> d != null
-                                && d.getStatus() != null
-                                && d.getStatus().getReadyReplicas() != null
-                                && d.getStatus().getReadyReplicas() >= 1,
-                        300, TimeUnit.SECONDS);
-        LOGGER.info("Webhook deployment is ready");
+        LOGGER.info("Waiting for webhook deployment rollout to complete");
+        waitForDeploymentRollout("kroxylicious-webhook", 300);
     }
 
     private void applyAllManifests() {
@@ -285,8 +375,6 @@ abstract class AbstractPluginEndToEndKT {
         }
     }
 
-    // --- Test namespace with plugin config ---
-
     private void createTestNamespaceAndConfig() {
         LOGGER.info("Creating test namespace with injection label");
         var ns = new NamespaceBuilder()
@@ -343,11 +431,10 @@ abstract class AbstractPluginEndToEndKT {
                                                 && Condition.Status.TRUE
                                                         .equals(cond.getStatus())),
                         30, TimeUnit.SECONDS);
+
     }
 
-    // --- Producer + verification ---
-
-    private void runProducerAndVerify() {
+    private void runProducerAndVerify(Consumer<Pod> podStructureAssertions) {
         String kafkaImage = discoverKafkaImage();
         LOGGER.atInfo()
                 .addKeyValue("kafkaImage", kafkaImage)
@@ -381,6 +468,7 @@ abstract class AbstractPluginEndToEndKT {
         Pod created = client.resource(producerPod).create();
 
         verifyPodStructure(created);
+        podStructureAssertions.accept(created);
         waitForProxyReady();
         verifyProducerCompletes();
         verifyConsumedMessagesUpperCased();
@@ -395,27 +483,22 @@ abstract class AbstractPluginEndToEndKT {
             pod.getSpec().getInitContainers()
                     .forEach(c -> allContainerNames.add(c.getName()));
         }
+
+        LOGGER.atInfo()
+                .addKeyValue("containers", allContainerNames)
+                .addKeyValue("volumes", pod.getSpec().getVolumes().stream()
+                        .map(Volume::getName)
+                        .toList())
+                .log("Pod structure after admission");
+
         assertThat(allContainerNames)
                 .as("Pod should have kroxylicious-proxy sidecar container")
-                .contains("kroxylicious-proxy");
+                .contains(InjectionDecision.SIDECAR_CONTAINER_NAME);
 
-        LOGGER.info("Verifying plugin volume was mounted");
         assertThat(pod.getSpec().getVolumes())
                 .as("Pod should have plugin-simple-transform volume")
                 .extracting(Volume::getName)
                 .contains("plugin-simple-transform");
-
-        LOGGER.info("Verifying OCI image volume (not emptyDir)");
-        var pluginVolume = pod.getSpec().getVolumes().stream()
-                .filter(v -> "plugin-simple-transform".equals(v.getName()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(pluginVolume.getImage())
-                .as("Plugin volume should be an OCI image volume")
-                .isNotNull();
-        assertThat(pluginVolume.getImage().getReference())
-                .as("Plugin volume should reference the test plugin image")
-                .contains(INFO.testPluginImageName());
     }
 
     private void waitForProxyReady() {
@@ -425,16 +508,7 @@ abstract class AbstractPluginEndToEndKT {
                     .inNamespace(TEST_NS)
                     .withName("test-producer")
                     .waitUntilCondition(
-                            pod -> pod != null
-                                    && pod.getStatus() != null
-                                    && pod.getStatus()
-                                            .getInitContainerStatuses() != null
-                                    && pod.getStatus()
-                                            .getInitContainerStatuses().stream()
-                                            .anyMatch(s -> "kroxylicious-proxy"
-                                                    .equals(s.getName())
-                                                    && Boolean.TRUE
-                                                            .equals(s.getReady())),
+                            AbstractPluginEndToEndKT::isProxyReady,
                             120, TimeUnit.SECONDS);
         }
         catch (Exception e) {
@@ -442,6 +516,19 @@ abstract class AbstractPluginEndToEndKT {
             throw new AssertionError("Sidecar proxy did not become ready", e);
         }
         LOGGER.info("Sidecar proxy is ready");
+    }
+
+    private static boolean isProxyReady(Pod pod) {
+        if (pod == null || pod.getStatus() == null) {
+            return false;
+        }
+        return Stream.of(
+                pod.getStatus().getInitContainerStatuses(),
+                pod.getStatus().getContainerStatuses())
+                .filter(list -> list != null)
+                .flatMap(List::stream)
+                .anyMatch(s -> InjectionDecision.SIDECAR_CONTAINER_NAME.equals(s.getName())
+                        && Boolean.TRUE.equals(s.getReady()));
     }
 
     private void dumpPodDiagnostics() {
@@ -459,7 +546,7 @@ abstract class AbstractPluginEndToEndKT {
             String proxyLogs = client.pods()
                     .inNamespace(TEST_NS)
                     .withName("test-producer")
-                    .inContainer("kroxylicious-proxy")
+                    .inContainer(InjectionDecision.SIDECAR_CONTAINER_NAME)
                     .getLog();
             LOGGER.atError()
                     .addKeyValue("logs", proxyLogs)
@@ -576,10 +663,8 @@ abstract class AbstractPluginEndToEndKT {
         LOGGER.info("Plugin end-to-end test passed");
     }
 
-    // --- Cleanup ---
-
-    private void cleanup() {
-        LOGGER.info("Cleaning up test resources");
+    private void perTestCleanup() {
+        LOGGER.info("Cleaning up per-test resources");
         if (client == null) {
             return;
         }
@@ -597,16 +682,11 @@ abstract class AbstractPluginEndToEndKT {
                         client.load(is).delete();
                     }
                 });
-        ignoreCleanupErrors("Strimzi operator",
-                () -> {
-                    try (InputStream is = URI.create(strimziInstallUrl())
-                            .toURL().openStream()) {
-                        client.load(is).delete();
-                    }
-                });
-        ignoreCleanupErrors("kafka namespace",
-                () -> client.namespaces().withName(KAFKA_NS).delete());
-        ignoreCleanupErrors("Kubernetes client", client::close);
+        ignoreCleanupErrors("webhook namespace deletion wait",
+                () -> client.namespaces().withName(WEBHOOK_NS)
+                        .waitUntilCondition(
+                                ns -> ns == null,
+                                60, TimeUnit.SECONDS));
     }
 
     private void deleteAllManifests() {
@@ -628,7 +708,44 @@ abstract class AbstractPluginEndToEndKT {
         }
     }
 
-    // --- Helpers ---
+    private void waitForDeploymentRollout(
+                                          String name,
+                                          int timeoutSeconds) {
+        var dep = client.apps().deployments()
+                .inNamespace(WEBHOOK_NS)
+                .withName(name)
+                .get();
+        long expectedGeneration = dep.getMetadata().getGeneration();
+        LOGGER.atInfo()
+                .addKeyValue("deployment", name)
+                .addKeyValue("expectedGeneration", expectedGeneration)
+                .log("Waiting for deployment rollout");
+
+        client.apps().deployments()
+                .inNamespace(WEBHOOK_NS)
+                .withName(name)
+                .waitUntilCondition(
+                        d -> isRolloutComplete(d, expectedGeneration),
+                        timeoutSeconds, TimeUnit.SECONDS);
+        LOGGER.info("Deployment rollout complete");
+    }
+
+    private static boolean isRolloutComplete(
+                                             Deployment d,
+                                             long expectedGeneration) {
+        if (d == null || d.getStatus() == null) {
+            return false;
+        }
+        var status = d.getStatus();
+        return status.getObservedGeneration() != null
+                && status.getObservedGeneration() >= expectedGeneration
+                && status.getReadyReplicas() != null
+                && status.getReadyReplicas().equals(d.getSpec().getReplicas())
+                && status.getUpdatedReplicas() != null
+                && status.getUpdatedReplicas().equals(d.getSpec().getReplicas())
+                && status.getReplicas() != null
+                && status.getReplicas().equals(d.getSpec().getReplicas());
+    }
 
     private String strimziInstallUrl() {
         return "https://strimzi.io/install/latest?namespace=" + KAFKA_NS;

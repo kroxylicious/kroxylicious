@@ -408,7 +408,7 @@ class PodMutatorTest {
     }
 
     @Test
-    void patchAddsPluginVolumeMountOnSidecar() throws Exception {
+    void patchAddsPluginVolumeMountWithSubPathForOci() throws Exception {
         Pod pod = podWithAppContainer(null);
         KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
 
@@ -423,6 +423,30 @@ class PodMutatorTest {
             if ("plugin-my-filter".equals(mount.path("name").asText())) {
                 assertThat(mount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/classpath-plugins/my-filter");
                 assertThat(mount.path("readOnly").asBoolean()).isTrue();
+                assertThat(mount.path("subPath").asText()).isEqualTo("plugins");
+                hasPluginMount = true;
+            }
+        }
+        assertThat(hasPluginMount).as("sidecar should have plugin volume mount").isTrue();
+    }
+
+    @Test
+    void patchAddsPluginVolumeMountWithoutSubPathForEmptyDir() throws Exception {
+        Pod pod = podWithAppContainer(null);
+        KroxyliciousSidecarConfigSpec spec = specWithPlugin("my-filter", "reg.io/filter:v1@sha256:abc123");
+
+        String patchStr = PodMutator.createPatch(pod, spec, PROXY_IMAGE, 0L, false, false);
+        JsonNode patch = MAPPER.readTree(patchStr);
+
+        List<JsonNode> containerOps = patchOps(patch, "add", "/spec/containers/-");
+        JsonNode mounts = containerOps.get(0).path("value").path("volumeMounts");
+
+        boolean hasPluginMount = false;
+        for (JsonNode mount : mounts) {
+            if ("plugin-my-filter".equals(mount.path("name").asText())) {
+                assertThat(mount.path("mountPath").asText()).isEqualTo("/opt/kroxylicious/classpath-plugins/my-filter");
+                assertThat(mount.path("readOnly").asBoolean()).isTrue();
+                assertThat(mount.has("subPath")).isFalse();
                 hasPluginMount = true;
             }
         }

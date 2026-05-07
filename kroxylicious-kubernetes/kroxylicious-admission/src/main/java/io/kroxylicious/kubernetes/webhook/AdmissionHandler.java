@@ -158,9 +158,25 @@ class AdmissionHandler implements HttpHandler {
             String image = proxyImage(sidecarConfig);
             Long gen = sidecarConfig.getMetadata().getGeneration();
             long configGeneration = gen != null ? gen : 0L;
+
+            var spec = sidecarConfig.getSpec();
+            LOGGER.atDebug()
+                    .addKeyValue(WebhookLoggingKeys.POD, podName)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue("plugins", spec.getPlugins())
+                    .addKeyValue("useNativeSidecar", useNativeSidecar)
+                    .addKeyValue("useOciImageVolumes", useOciImageVolumes)
+                    .log("Resolved sidecar config for patch generation");
+
             String jsonPatch = PodMutator.createPatch(
-                    pod, sidecarConfig.getSpec(), image, configGeneration,
+                    pod, spec, image, configGeneration,
                     useNativeSidecar, useOciImageVolumes);
+
+            LOGGER.atDebug()
+                    .addKeyValue(WebhookLoggingKeys.POD, podName)
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue("jsonPatch", jsonPatch)
+                    .log("Generated admission response patch");
 
             AdmissionResponse response = allowResponse(uid);
             response.setPatchType(JSON_PATCH_TYPE);
