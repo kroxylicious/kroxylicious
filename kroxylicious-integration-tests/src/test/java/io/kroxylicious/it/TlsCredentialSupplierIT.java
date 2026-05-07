@@ -7,6 +7,8 @@
 package io.kroxylicious.it;
 
 import java.nio.file.Files;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +31,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
@@ -39,6 +42,7 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import io.kroxylicious.proxy.tls.TlsCredentials;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
+import io.kroxylicious.testing.certificate.PemParser;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.Tls;
@@ -159,8 +163,8 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                 try {
                     byte[] certBytes = Files.readAllBytes(keys.selfSignedCertificatePem());
                     byte[] keyBytes = Files.readAllBytes(keys.privateKeyPem());
-                    java.security.PrivateKey key = io.kroxylicious.proxy.internal.tls.TlsUtil.parsePrivateKey(keyBytes);
-                    java.security.cert.X509Certificate[] chain = io.kroxylicious.proxy.internal.tls.TlsUtil.parseCertificateChain(certBytes);
+                    PrivateKey key = PemParser.parsePrivateKey(keyBytes);
+                    X509Certificate[] chain = PemParser.parseCertificateChain(certBytes);
                     TlsCredentials creds = context.tlsCredentials(key, chain);
                     return CompletableFuture.completedFuture(creds);
                 }
@@ -173,8 +177,8 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
             try {
                 byte[] certBytes = Files.readAllBytes(sharedContext.defaultKeys.selfSignedCertificatePem());
                 byte[] keyBytes = Files.readAllBytes(sharedContext.defaultKeys.privateKeyPem());
-                java.security.PrivateKey key = io.kroxylicious.proxy.internal.tls.TlsUtil.parsePrivateKey(keyBytes);
-                java.security.cert.X509Certificate[] chain = io.kroxylicious.proxy.internal.tls.TlsUtil.parseCertificateChain(certBytes);
+                PrivateKey key = PemParser.parsePrivateKey(keyBytes);
+                X509Certificate[] chain = PemParser.parseCertificateChain(certBytes);
                 TlsCredentials creds = context.tlsCredentials(key, chain);
                 return CompletableFuture.completedFuture(creds);
             }
@@ -203,7 +207,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
                                 // Configure TLS credential supplier using plugin name
-                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
+                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "default")))
                             .endTls()
@@ -251,7 +255,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withBootstrapServers(bootstrapServers)
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
-                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
+                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "default")))
                             .endTls()
@@ -302,7 +306,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withBootstrapServers(bootstrapServers)
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
-                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
+                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "tracking")))
                             .endTls()
@@ -355,7 +359,7 @@ class TlsCredentialSupplierIT extends AbstractTlsIT {
                             .withBootstrapServers(bootstrapServers)
                             .withNewTls()
                                 .withNewInsecureTlsTrust(true)
-                                .withCredentialSupplier(new io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig(
+                                .withCredentialSupplier(new TlsCredentialSupplierConfig(
                                     TestCredentialSupplierFactory.class.getName(),
                                     new TestSupplierConfig("demo", "multi-client")))
                             .endTls()
