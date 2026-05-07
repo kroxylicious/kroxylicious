@@ -39,9 +39,33 @@ A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines side
 | `managementPort`         | Management endpoint port (default: 9190) |
 | `filterDefinitions`      | Filters applied to proxied traffic |
 | `targetClusterTls`       | TLS configuration for the target Kafka connection |
+| `plugins`                | Third-party plugin images providing additional filter JARs |
 | `delegatedAnnotations`   | Annotations app owners may set to override config |
 | `setBootstrapEnvVar`     | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
 | `resources`              | Resource requests/limits for the sidecar container |
+
+### Plugin Images
+
+Third-party filter plugins are packaged as OCI images. JARs must be placed in the `/plugins` directory within the image.
+
+How the webhook mounts plugin JARs depends on the Kubernetes cluster version:
+
+- **OCI image volumes (Kubernetes 1.35+):** The image is mounted directly as a read-only volume. The image can be built `FROM scratch` since no executable is needed — the container runtime handles the mount.
+- **EmptyDir fallback (older clusters):** The webhook creates an init container that runs the plugin image and executes `cp /plugins/*.jar /dest/` to copy JARs into an emptyDir volume. This requires the image to include at least `sh` and `cp` (e.g. a busybox base image).
+
+If your plugin image needs to work on clusters both with and without OCI image volume support, use a base image that provides a shell:
+
+```dockerfile
+FROM quay.io/quay/busybox
+COPY my-filter.jar /plugins/
+```
+
+If you know your target cluster supports OCI image volumes, a scratch-based image is sufficient:
+
+```dockerfile
+FROM scratch
+COPY my-filter.jar /plugins/
+```
 
 ## Labels
 
@@ -107,6 +131,7 @@ The webhook is configured via environment variables:
 | `TLS_KEY_PATH` | `/etc/webhook/tls/tls.key` | PEM private key file |
 | `KROXYLICIOUS_IMAGE` | (required) | Default proxy container image |
 | `FAILURE_POLICY` | `Fail` | Error handling policy: `Fail` (deny on error) or `Ignore` (allow on error) |
+| `FEATURE_GATES` | (auto-detect) | Comma-separated feature gate overrides, e.g. `SidecarContainers=false,ImageVolume=false` |
 
 ## Deployment
 
@@ -146,7 +171,7 @@ KT tests require:
    ```bash
    mvn package -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission -Pdist -am -DskipTests
    ```
-3. **A Kubernetes cluster whose container runtime supports OCI image volumes.** The plugin end-to-end test (`*PluginEndToEndKT`) mounts third-party plugin JARs as image volumes (Kubernetes `ImageVolume` feature gate, beta since 1.33). This requires **containerd 2.0+** or **CRI-O**; the Docker runtime does not support image volumes.
+3. **A Kubernetes cluster.** The plugin end-to-end tests (`*PluginEndToEndKT`) cover both OCI image volume mounting (Kubernetes 1.35+, `ImageVolume` feature gate) and the emptyDir fallback path. The Kind variant creates a cluster with `ImageVolume` enabled; the Minikube variant requires Kubernetes 1.35+ (the test will be skipped with an `assumeTrue` message if the version is too old).
 
 #### Minikube
 

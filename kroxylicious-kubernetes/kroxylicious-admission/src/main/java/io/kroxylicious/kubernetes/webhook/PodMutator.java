@@ -51,7 +51,9 @@ class PodMutator {
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
     private static final String PLUGINS_BASE_PATH = "/opt/kroxylicious/classpath-plugins";
     private static final String PLUGIN_VOLUME_PREFIX = "plugin-";
+    /** Path within plugin OCI images where JARs must be placed. */
     private static final String PLUGIN_IMAGE_JAR_PATH = "/plugins";
+    /** Mount path for the emptyDir volume inside plugin-copy init containers. */
     private static final String PLUGIN_COPY_DEST_PATH = "/dest";
     private static final String SECRET_VOLUME_PREFIX = "secret-";
     @SuppressWarnings("java:S1075")
