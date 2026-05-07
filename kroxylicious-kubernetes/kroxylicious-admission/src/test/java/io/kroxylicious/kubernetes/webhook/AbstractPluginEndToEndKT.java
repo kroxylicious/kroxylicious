@@ -80,8 +80,6 @@ abstract class AbstractPluginEndToEndKT {
 
     abstract String kubeContext();
 
-    // --- Shared lifecycle (called by subclass @BeforeAll) ---
-
     protected void initClientAndInstallStrimzi() {
         Config config = Config.autoConfigure(kubeContext());
         client = new KubernetesClientBuilder().withConfig(config).build();
@@ -104,8 +102,6 @@ abstract class AbstractPluginEndToEndKT {
                 () -> client.namespaces().withName(KAFKA_NS).delete());
         ignoreCleanupErrors("Kubernetes client", client::close);
     }
-
-    // --- Test methods ---
 
     @Test
     void pluginFilterTransformsTrafficThroughSidecar() {
@@ -161,8 +157,6 @@ abstract class AbstractPluginEndToEndKT {
         });
     }
 
-    // --- Common test flow ---
-
     private void testWithFeatureGates(
                                       String featureGates,
                                       Consumer<Pod> podStructureAssertions) {
@@ -175,8 +169,6 @@ abstract class AbstractPluginEndToEndKT {
             perTestCleanup();
         }
     }
-
-    // --- Strimzi + Kafka ---
 
     private void installStrimzi() {
         LOGGER.info("Installing Strimzi operator");
@@ -263,8 +255,6 @@ abstract class AbstractPluginEndToEndKT {
                         kafka -> hasCondition(kafka, "Ready", "True"),
                         280, TimeUnit.SECONDS);
     }
-
-    // --- Webhook installation ---
 
     private void installWebhook(String featureGates) {
         LOGGER.info("Installing CRDs");
@@ -385,8 +375,6 @@ abstract class AbstractPluginEndToEndKT {
         }
     }
 
-    // --- Test namespace with plugin config ---
-
     private void createTestNamespaceAndConfig() {
         LOGGER.info("Creating test namespace with injection label");
         var ns = new NamespaceBuilder()
@@ -445,8 +433,6 @@ abstract class AbstractPluginEndToEndKT {
                         30, TimeUnit.SECONDS);
 
     }
-
-    // --- Producer + verification ---
 
     private void runProducerAndVerify(Consumer<Pod> podStructureAssertions) {
         String kafkaImage = discoverKafkaImage();
@@ -677,8 +663,6 @@ abstract class AbstractPluginEndToEndKT {
         LOGGER.info("Plugin end-to-end test passed");
     }
 
-    // --- Per-test cleanup ---
-
     private void perTestCleanup() {
         LOGGER.info("Cleaning up per-test resources");
         if (client == null) {
@@ -723,8 +707,6 @@ abstract class AbstractPluginEndToEndKT {
                     .log("failed to list install directory during cleanup");
         }
     }
-
-    // --- Helpers ---
 
     private void waitForDeploymentRollout(
                                           String name,
