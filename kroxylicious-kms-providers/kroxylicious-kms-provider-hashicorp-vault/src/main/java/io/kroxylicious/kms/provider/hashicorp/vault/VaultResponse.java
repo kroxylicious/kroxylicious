@@ -12,15 +12,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-record VaultResponse<D>(D data) {
+public record VaultResponse<D>(D data) {
 
-    VaultResponse {
+    public VaultResponse {
         Objects.requireNonNull(data);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {
-        ReadKeyData {
+    public record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {
+        public ReadKeyData {
             Objects.requireNonNull(name);
         }
     }

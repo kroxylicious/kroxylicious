@@ -37,9 +37,9 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.newBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.newBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -132,6 +132,85 @@ class KroxyliciousIT {
                 var consumer = tester.consumer()) {
             assertProxies(producer, consumer);
         }
+    }
+
+    @Test
+    void shouldLogInPlainTextWhenFormatIsNotJson(KafkaCluster cluster, @TempDir Path tempDir) throws Exception {
+        String output = runKroxyliciousAndGetLog(cluster, tempDir, Map.of("KROXYLICIOUS_LOG_FORMAT", "test"));
+        assertThat(output).doesNotContain("\"@timestamp\"");
+    }
+
+    @Test
+    void shouldLogInLogstashJsonFormatWhenFormatIsJson(KafkaCluster cluster, @TempDir Path tempDir) throws Exception {
+        String output = runKroxyliciousAndGetLog(cluster, tempDir, Map.of("KROXYLICIOUS_LOG_FORMAT", "json"));
+        assertThat(output).contains("\"@timestamp\"");
+        assertThat(output).contains("\"source_host\"");
+        assertThat(output).doesNotContain("\"short_message\"");
+    }
+
+    @Test
+    void shouldLogInGelfFormatWhenTemplateIsSet(KafkaCluster cluster, @TempDir Path tempDir) throws Exception {
+        String output = runKroxyliciousAndGetLog(cluster, tempDir, Map.of(
+                "KROXYLICIOUS_LOG_FORMAT", "json",
+                "KROXYLICIOUS_LOG_JSON_TEMPLATE", "classpath:GelfLayout.json"));
+        assertThat(output).contains("\"short_message\"");
+        assertThat(output).doesNotContain("\"@timestamp\"");
+    }
+
+    private String runKroxyliciousAndGetLog(KafkaCluster cluster, Path tempDir, Map<String, String> envVars) throws Exception {
+        Path logOutput = tempDir.resolve("kroxylicious.log");
+
+        String logFormat = envVars.getOrDefault("KROXYLICIOUS_LOG_FORMAT", "text");
+        String templateUri = envVars.getOrDefault("KROXYLICIOUS_LOG_JSON_TEMPLATE",
+                "classpath:LogstashJsonEventLayoutV1.json");
+
+        String log4j2Config = """
+                Configuration:
+                  status: WARN
+                  Appenders:
+                    Console:
+                      - name: STDOUT-JSON
+                        target: SYSTEM_OUT
+                        JsonTemplateLayout:
+                          eventTemplateUri: "%s"
+                      - name: STDOUT-PATTERN
+                        target: SYSTEM_OUT
+                        PatternLayout:
+                          pattern: "%%d{yyyy-MM-dd HH:mm:ss} %%-5p <%%t> %%c{2.} - %%m%%n"
+                    Routing:
+                      name: STDOUT
+                      Routes:
+                        pattern: "%s"
+                        Route:
+                          - key: json
+                            ref: STDOUT-JSON
+                          - key: text
+                            ref: STDOUT-PATTERN
+                  Loggers:
+                    Root:
+                      level: WARN
+                      AppenderRef:
+                        - ref: STDOUT
+                    Logger:
+                      - name: io.kroxylicious
+                        level: INFO
+                        AppenderRef:
+                          - ref: STDOUT
+                """.formatted(templateUri, logFormat);
+
+        Path log4j2Path = tempDir.resolve("log4j2-test.yaml");
+        Files.writeString(log4j2Path, log4j2Config);
+
+        SubprocessKroxyliciousFactory kroxyliciousFactory = new SubprocessKroxyliciousFactory(tempDir,
+                (features, processBuilder) -> {
+                    processBuilder.redirectOutput(logOutput.toFile());
+                    processBuilder.redirectErrorStream(true);
+                }, List.of("-Dlog4j2.configurationFile=" + log4j2Path.toUri()));
+
+        try (var tester = kroxyliciousTester(proxy(cluster), kroxyliciousFactory)) {
+            Thread.sleep(3000);
+        }
+        return Files.readString(logOutput, StandardCharsets.UTF_8);
     }
 
     private static void assertProxies(Producer<String, String> producer, Consumer<String, String> consumer)

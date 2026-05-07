@@ -67,6 +67,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
+    private final DrainCoordinator drainCoordinator;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -76,7 +77,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointReconciler endpointReconciler,
                                  ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
-                                 Optional<NettySettings> proxyNettySettings) {
+                                 Optional<NettySettings> proxyNettySettings,
+                                 DrainCoordinator drainCoordinator) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.proxyProtocolMode = proxyProtocolMode;
@@ -87,6 +89,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
+        this.drainCoordinator = Objects.requireNonNull(drainCoordinator);
     }
 
     @Override
@@ -212,7 +215,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession, drainCoordinator);
 
         var dp = new DelegatingDecodePredicate();
         // The decoder, this only cares about the filters

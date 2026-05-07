@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,6 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -84,7 +86,7 @@ public abstract class FilterHarness {
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, false,
-                false, List.of());
+                false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
@@ -96,7 +98,7 @@ public abstract class FilterHarness {
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession, new DrainCoordinator());
         var forwarding = new ProxyChannelState.Forwarding(null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,

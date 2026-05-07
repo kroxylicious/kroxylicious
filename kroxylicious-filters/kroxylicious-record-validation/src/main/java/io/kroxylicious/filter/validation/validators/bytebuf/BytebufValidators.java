@@ -67,6 +67,28 @@ public class BytebufValidators {
     }
 
     /**
+     * get validator that validates if a non-null/non-empty buffer contains data that matches an Avro schema registered in the Schema Registry
+     * @param schemaResolverConfig schema resolver configuration
+     * @param contentId content ID to validate against
+     * @param wireFormatVersion wire format version (V2 or V3)
+     * @return validator
+     */
+    public static BytebufValidator avroSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
+        return new AvroSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
+    }
+
+    /**
+     * get validator that validates if a non-null/non-empty buffer contains data that matches a Protobuf schema registered in the Schema Registry
+     * @param schemaResolverConfig schema resolver configuration
+     * @param contentId content ID to validate against
+     * @param wireFormatVersion wire format version (V2 or V3)
+     * @return validator
+     */
+    public static BytebufValidator protobufSchemaValidator(Map<String, Object> schemaResolverConfig, Long contentId, WireFormatVersion wireFormatVersion) {
+        return new ProtobufSchemaBytebufValidator(schemaResolverConfig, contentId, wireFormatVersion);
+    }
+
+    /**
      * Returns a validator that can validate whether a record contains a valid JWS (JSON Web Signature) Signature
      *
      * <p>

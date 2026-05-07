@@ -6,7 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.kms.aws;
 
-import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacadeFactory;
+import io.kroxylicious.testing.kms.aws.AbstractAwsKmsTestKmsFacadeFactory;
 
 /**
  * Factory for {@link KubeAwsKmsCloudTestKmsFacade}s.

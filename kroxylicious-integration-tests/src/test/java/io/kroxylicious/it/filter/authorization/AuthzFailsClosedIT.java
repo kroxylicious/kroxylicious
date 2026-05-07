@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.LifecycleException;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AuthzFailsClosedIT extends AuthzIT {

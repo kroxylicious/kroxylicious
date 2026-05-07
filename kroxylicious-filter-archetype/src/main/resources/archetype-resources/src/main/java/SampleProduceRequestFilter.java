@@ -4,7 +4,9 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.record.MemoryRecords;
 
+import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -56,8 +58,12 @@ class SampleProduceRequestFilter implements ProduceRequestFilter {
      */
     private void applyTransformation(ProduceRequestData request, FilterContext context) {
         request.topicData().forEach(topicData -> {
-            for (ProduceRequestData.PartitionProduceData partitionData : topicData.partitionData()) {
-                SampleFilterTransformer.transform(partitionData, context, this.config);
+            for (ProduceRequestData.PartitionProduceData partitionDatum : topicData.partitionData()) {
+                MemoryRecords records = (MemoryRecords) partitionDatum.records();
+                partitionDatum.setRecords(RecordStream.ofRecords(records)
+                        .toMemoryRecords(
+                                context.createByteBufferOutputStream(records.sizeInBytes()),
+                                new SampleFilterTransformer(config.getFindValue(), config.getReplacementValue()){}));
             }
         });
     }

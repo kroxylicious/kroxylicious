@@ -59,7 +59,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-test-support</artifactId>
+            <artifactId>kroxylicious-certificate-test-support</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

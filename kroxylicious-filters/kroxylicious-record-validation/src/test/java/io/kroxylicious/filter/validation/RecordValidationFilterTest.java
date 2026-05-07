@@ -31,8 +31,8 @@ import io.kroxylicious.filter.validation.validators.request.ProduceRequestValida
 import io.kroxylicious.filter.validation.validators.topic.PartitionValidationResult;
 import io.kroxylicious.filter.validation.validators.topic.RecordValidationFailure;
 import io.kroxylicious.filter.validation.validators.topic.TopicValidationResult;
-import io.kroxylicious.test.assertj.MockFilterContextAssert;
-import io.kroxylicious.test.context.MockFilterContext;
+import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
 
 import static org.apache.kafka.common.message.ProduceRequestData.HIGHEST_SUPPORTED_VERSION;
 import static org.assertj.core.api.Assertions.assertThat;

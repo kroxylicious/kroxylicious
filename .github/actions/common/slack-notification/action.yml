@@ -34,6 +34,15 @@ inputs:
     description: "Message to be published on Slack"
     required: false
     default: 'The workflow ${{ job.status }} on branch ${{ github.ref_name }}.'
+  serverUrl:
+    description: "GitHub server URL"
+    required: true
+  repository:
+    description: "GitHub repository"
+    required: true
+  runId:
+    description: "GitHub run ID"
+    required: true
 
 runs:
   using: "composite"
@@ -44,4 +53,7 @@ runs:
         SLACK_WEBHOOK: ${{ inputs.slackWebhook }}
         SLACK_COLOR: ${{ inputs.slackColor }}
         SLACK_TITLE: ${{ inputs.slackTitle }}
-        SLACK_MESSAGE: ${{ inputs.slackMessage }}
+        SLACK_MESSAGE: |
+          ${{ inputs.slackMessage }}
+
+          <${{ inputs.serverUrl }}/${{ inputs.repository }}/actions/runs/${{ inputs.runId }}|:mag: View workflow run details>

@@ -36,14 +36,14 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.test.Response;
-import io.kroxylicious.test.client.KafkaClient;
-import io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.Converter;
+import io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter.Converter;
+import io.kroxylicious.testing.integration.Response;
+import io.kroxylicious.testing.integration.client.KafkaClient;
 
 import static io.kroxylicious.it.filter.authorization.AuthzIT.getRequest;
 import static io.kroxylicious.it.filter.authorization.AuthzIT.prettyJsonString;
-import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.requestConverterFor;
-import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
+import static io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter.requestConverterFor;
+import static io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 

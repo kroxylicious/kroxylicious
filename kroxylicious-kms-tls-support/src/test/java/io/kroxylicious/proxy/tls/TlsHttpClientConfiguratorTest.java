@@ -36,10 +36,11 @@ import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.testing.certificate.CertificateGenerator;
 
-import static io.kroxylicious.proxy.tls.CertificateGenerator.createJksKeystore;
-import static io.kroxylicious.proxy.tls.CertificateGenerator.generateRsaKeyPair;
-import static io.kroxylicious.proxy.tls.CertificateGenerator.generateSelfSignedX509Certificate;
+import static io.kroxylicious.testing.certificate.CertificateGenerator.createJksKeystore;
+import static io.kroxylicious.testing.certificate.CertificateGenerator.generateRsaKeyPair;
+import static io.kroxylicious.testing.certificate.CertificateGenerator.generateSelfSignedX509Certificate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -254,7 +255,7 @@ class TlsHttpClientConfiguratorTest {
 
     @Test
     void detectsNoEnabledProtocols() {
-        var tls = new TlsHttpClientConfigurator(new Tls(null, null, null, new AllowDeny<>(List.of(TLS_V1_3), Set.of(TLS_V1_3))));
+        var tls = new TlsHttpClientConfigurator(new Tls(null, null, null, new AllowDeny<>(List.of(TLS_V1_3), Set.of(TLS_V1_3)), null));
         assertThatThrownBy(() -> tls.apply(builder))
                 .isInstanceOf(SslConfigurationException.class);
     }
@@ -287,7 +288,7 @@ class TlsHttpClientConfiguratorTest {
 
     @Test
     void detectsNoEnabledCipherSuites() {
-        var tls = new TlsHttpClientConfigurator(new Tls(null, null, new AllowDeny<>(List.of(KNOWN_CIPHER_SUITE1), Set.of(KNOWN_CIPHER_SUITE1)), null));
+        var tls = new TlsHttpClientConfigurator(new Tls(null, null, new AllowDeny<>(List.of(KNOWN_CIPHER_SUITE1), Set.of(KNOWN_CIPHER_SUITE1)), null, null));
         assertThatThrownBy(() -> tls.apply(builder))
                 .isInstanceOf(SslConfigurationException.class);
     }

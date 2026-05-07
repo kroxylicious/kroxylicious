@@ -362,19 +362,24 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var toRemove = new ArrayList<ApiVersionsResponseData.ApiVersion>();
         ApiVersionsResponseData.ApiVersionCollection apiVersions = response.apiKeys();
         for (var version : apiVersions) {
-            ApiKeys key = ApiKeys.forId(version.apiKey());
-            var enforcement = apiEnforcement.get(key);
-            if (enforcement != null) {
-                // Kafka 4.0 presents itself as supporting v0-v2 of Produce despite it not really supporting
-                // those versions. This is to maintain support for older librdkafka versions.
-                // see https://issues.apache.org/jira/browse/KAFKA-18659
-                if (key != ApiKeys.PRODUCE) {
-                    version.setMinVersion(Passthrough.asShort(Math.max(enforcement.minSupportedVersion(), version.minVersion())));
-                }
-                version.setMaxVersion(Passthrough.asShort(Math.min(enforcement.maxSupportedVersion(), version.maxVersion())));
+            if (!ApiKeys.hasId(version.apiKey())) {
+                toRemove.add(version);
             }
             else {
-                toRemove.add(version);
+                ApiKeys key = ApiKeys.forId(version.apiKey());
+                var enforcement = apiEnforcement.get(key);
+                if (enforcement != null) {
+                    // Kafka 4.0 presents itself as supporting v0-v2 of Produce despite it not really supporting
+                    // those versions. This is to maintain support for older librdkafka versions.
+                    // see https://issues.apache.org/jira/browse/KAFKA-18659
+                    if (key != ApiKeys.PRODUCE) {
+                        version.setMinVersion(Passthrough.asShort(Math.max(enforcement.minSupportedVersion(), version.minVersion())));
+                    }
+                    version.setMaxVersion(Passthrough.asShort(Math.min(enforcement.maxSupportedVersion(), version.maxVersion())));
+                }
+                else {
+                    toRemove.add(version);
+                }
             }
         }
         apiVersions.removeAll(toRemove);

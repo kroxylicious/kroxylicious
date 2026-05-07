@@ -7,6 +7,14 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3861](https://github.com/kroxylicious/kroxylicious/pull/3861): refactor: move test-support modules to `io.kroxylicious.testing`
+* [#3882](https://github.com/kroxylicious/kroxylicious/pull/3882): build(image): proxy container image renamed from `quay.io/kroxylicious/kroxylicious` to `quay.io/kroxylicious/proxy`
+* [#3236](https://github.com/kroxylicious/kroxylicious/issues/3236): build(deps): bump strimzi.version from 0.51.0 to 1.0.0
+* [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): refactor(archetype): reuse record batch transform module
+* [#3842](https://github.com/kroxylicious/kroxylicious/pull/3842): fix(operator): use precise Kafka CRD detection for Strimzi support (prerequisite for Strimzi v1 upgrade)
+* [#2820](https://github.com/kroxylicious/kroxylicious/issues/2820): feat(operator): add automatic TLS trust discovery for Strimzi-managed Kafka clusters via `trustStrimziCaCertificate` field in KafkaService
+* [#3498](https://github.com/kroxylicious/kroxylicious/pull/3498): feat(record-validation): add Avro and Protobuf schema validation support
+* [#3760](https://github.com/kroxylicious/kroxylicious/issues/3760): fix: remove unknown apis in Authorization & EntityIsolation Filters
 * [#3769](https://github.com/kroxylicious/kroxylicious/pull/3769): fix(runtime): messages enter Filter chain before Transport Subject built
 * [#3757](https://github.com/kroxylicious/kroxylicious/issues/3757): fix(runtime): trigger read after HAProxy message to prevent deadlock when autoread disabled
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): feat(aws-kms): add IRSA and EKS Pod Identity credential providers, and restructure AWS KMS credential configuration under a new `credentials` node (see [note](#note-021-aws-kms-credentials-restructure))
@@ -19,8 +27,13 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#3882](https://github.com/kroxylicious/kroxylicious/pull/3882): The primary proxy container image is now `quay.io/kroxylicious/proxy`. `quay.io/kroxylicious/kroxylicious` is deprecated and subject to removal following our deprecation policy. Users deploying the proxy image directly (without the operator) should update their deployment configurations to use the new image name. The operator will automatically use the new image name.
+* [#3861](https://github.com/kroxylicious/kroxylicious/pull/3861): The `kroxylicious-*-test-support` modules now consistently use the package prefix `io.kroxylicious.testing`. Many of these modules modules are effectively internal, but 3rd party filters may have a dependency on `kroxylicious-filter-test-support` and 3rd party KMSes may have a dependency on `kroxylicious-kms-test-support`. When upgrading you will need to use the new package name in your tests.
+* [#3236](https://github.com/kroxylicious/kroxylicious/issues/3236): **BREAKING CHANGE** - If making use of the Strimzi integration feature in the KafkaService CR (`spec.strimziKafkaRef`), Strimzi 0.49.0 or later is now **required**. The Kroxylicious Operator now uses the Strimzi Kafka CR v1 API exclusively; v1beta2 API support has been dropped. Users running Strimzi versions prior to 0.49.0 must upgrade Strimzi.
+* [#3786](https://github.com/kroxylicious/kroxylicious/issues/3786): The deprecated method `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type)` (two-parameter form) is removed. Use `StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)` instead, passing `MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED` if no checksum tracking is needed.
 * The deprecated method `FilterContext#clientSaslAuthenticationSuccess(String, String)` is removed. Filter authors must use `FilterContext#clientSaslAuthenticationSuccess(String, Subject)` to announce a successful SASL authentication to the other filters in the chain.
 * [#1295](https://github.com/kroxylicious/kroxylicious/issues/1295): The AWS KMS top-level `longTermCredentials` and `ec2MetadataCredentials` YAML keys are deprecated.  Use the new `credentials.longTerm` and `credentials.ec2Metadata` forms under the grouped `credentials` node instead.  The old keys continue to work for backward compatibility.
+* [#3824](https://github.com/kroxylicious/kroxylicious/pull/3824): `kroxylicious-filter-archetype` has been refactored to reuse the record batch transform module from `kroxylicious-kafka-message-tools`. It is recommended for filter authors to use this approach when transforming records.
 
 #### Note 0.21 AWS KMS credentials restructure
 

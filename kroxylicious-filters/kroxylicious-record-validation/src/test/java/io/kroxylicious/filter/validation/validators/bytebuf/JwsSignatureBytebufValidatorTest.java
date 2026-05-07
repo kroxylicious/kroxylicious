@@ -20,15 +20,15 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.validation.validators.Result;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.test.jws.JwsTestUtils;
+import io.kroxylicious.testing.filter.jws.JwsTestUtils;
 
-import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.JWS_HEADER_NAME;
-import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.RSA_VERIFY_JWKS;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD;
-import static io.kroxylicious.test.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
-import static io.kroxylicious.test.record.RecordTestUtils.record;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.JWS_HEADER_NAME;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.RSA_VERIFY_JWKS;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD;
+import static io.kroxylicious.testing.filter.jws.JwsTestUtils.VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD;
+import static io.kroxylicious.testing.filter.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class JwsSignatureBytebufValidatorTest {

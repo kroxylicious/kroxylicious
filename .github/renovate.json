@@ -281,6 +281,17 @@
       ],
       "datasourceTemplate": "docker",
       "versioningTemplate": "regex:^omb-[a-f0-9]+-krox-[a-f0-9]+-(?<major>\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/pom.xml/"
+      ],
+      "matchStrings": [
+        "<jbangVersion>(?<currentValue>\\d+\\.\\d+\\.\\d+)</jbangVersion>"
+      ],
+      "depNameTemplate": "jbangdev/jbang",
+      "datasourceTemplate": "github-releases"
     }
   ],
   "managerFilePatterns": [

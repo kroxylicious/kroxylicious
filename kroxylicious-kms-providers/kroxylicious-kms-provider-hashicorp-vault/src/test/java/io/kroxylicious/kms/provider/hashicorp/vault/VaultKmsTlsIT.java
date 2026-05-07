@@ -28,7 +28,7 @@ import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.proxy.tls.CertificateGenerator;
+import io.kroxylicious.testing.certificate.CertificateGenerator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -117,7 +117,7 @@ class VaultKmsTlsIT {
         CertificateGenerator.KeyStore keyStore = clientKeys.jksServerKeystore();
         VaultKms service = getTlsVaultKms(
                 new Tls(new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
-                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null),
+                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null, null),
                 testVault.getEndpoint());
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)

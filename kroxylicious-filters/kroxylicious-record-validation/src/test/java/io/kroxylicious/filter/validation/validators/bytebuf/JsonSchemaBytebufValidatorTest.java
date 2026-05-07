@@ -30,7 +30,7 @@ import io.kroxylicious.filter.validation.validators.Result;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
-import static io.kroxylicious.test.record.RecordTestUtils.record;
+import static io.kroxylicious.testing.filter.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class JsonSchemaBytebufValidatorTest {

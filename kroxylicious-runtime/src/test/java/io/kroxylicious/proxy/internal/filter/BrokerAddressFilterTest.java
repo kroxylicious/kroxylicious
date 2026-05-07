@@ -41,12 +41,12 @@ import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
-import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
+import io.kroxylicious.testing.filter.requestresponsetestdef.ApiMessageTestDef;
+import io.kroxylicious.testing.filter.requestresponsetestdef.RequestResponseTestDef;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.getOnlyElement;
-import static io.kroxylicious.test.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
+import static io.kroxylicious.testing.filter.requestresponsetestdef.KafkaApiMessageConverter.responseConverterFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;

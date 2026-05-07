@@ -168,7 +168,12 @@ public class DeploymentUtils {
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
     }
 
-    private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
+    /**
+     * Wait for pod leaving a pending phase
+     * @param namespaceName the namespace
+     * @param podName the pod name
+     */
+    public static void waitForLeavingPendingPhase(String namespaceName, String podName) {
         await().alias("await pod to leave pending phase")
                 .atMost(Duration.ofMinutes(1))
                 .pollInterval(Duration.ofMillis(200))
