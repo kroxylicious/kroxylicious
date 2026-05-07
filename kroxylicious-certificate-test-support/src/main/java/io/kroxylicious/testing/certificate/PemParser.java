@@ -18,6 +18,7 @@ import java.util.List;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMEncryptedKeyPair;
 import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
@@ -82,7 +83,9 @@ public final class PemParser {
                     throw new IOException("Encrypted private key requires a password");
                 }
                 PrivateKeyInfo decrypted = encryptedInfo.decryptPrivateKeyInfo(
-                        new JceOpenSSLPKCS8DecryptorProviderBuilder().build(password));
+                        new JceOpenSSLPKCS8DecryptorProviderBuilder()
+                                .setProvider(new BouncyCastleProvider())
+                                .build(password));
                 return converter.getPrivateKey(decrypted);
             }
             else if (object instanceof PEMEncryptedKeyPair encryptedKeyPair) {
@@ -90,7 +93,9 @@ public final class PemParser {
                     throw new IOException("Encrypted private key requires a password");
                 }
                 PEMKeyPair decrypted = encryptedKeyPair.decryptKeyPair(
-                        new JcePEMDecryptorProviderBuilder().build(password));
+                        new JcePEMDecryptorProviderBuilder()
+                                .setProvider(new BouncyCastleProvider())
+                                .build(password));
                 return converter.getKeyPair(decrypted).getPrivate();
             }
             else {
