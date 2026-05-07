@@ -218,8 +218,9 @@ spec:
                         maxLength: 63
                       image:
                         description: |
-                          The OCI image containing the plugin JARs. The image should be built
-                          FROM scratch with JARs at the image root.
+                          The OCI image containing the plugin JARs. JARs must be placed in
+                          the /plugins directory within the image. If OCI image volumes are
+                          not available the image must also include a shell (e.g. busybox).
                         type: object
                         required:
                           - reference

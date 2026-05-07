@@ -37,7 +37,7 @@ public class WebhookMain {
     private static final String TLS_KEY_PATH_VAR = "TLS_KEY_PATH";
     private static final String KROXYLICIOUS_IMAGE_VAR = "KROXYLICIOUS_IMAGE";
     private static final String FAILURE_POLICY_VAR = "FAILURE_POLICY";
-    private static final String FEATURE_GATES_VAR = "FEATURE_GATES";
+    static final String FEATURE_GATES_VAR = "FEATURE_GATES";
 
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0:8443";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.

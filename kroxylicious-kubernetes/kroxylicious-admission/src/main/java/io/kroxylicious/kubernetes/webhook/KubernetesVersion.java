@@ -61,15 +61,15 @@ record KubernetesVersion(int major, int minor, Map<String, Boolean> featureGates
 
     /**
      * Detects whether the cluster supports OCI image volumes.
-     * Enabled by default since Kubernetes 1.33 (beta). On 1.31-1.32 (alpha),
-     * requires the {@code ImageVolume} feature gate to be explicitly enabled.
+     * Enabled by default since Kubernetes 1.35. On 1.31-1.34 the
+     * {@code ImageVolume} feature gate must be explicitly enabled.
      */
     boolean supportsOciImageVolumes() {
         Boolean gate = featureGates.get(IMAGE_VOLUME_GATE);
         if (gate != null) {
             return gate;
         }
-        return isAtLeast(1, 33);
+        return isAtLeast(1, 35);
     }
 
     private boolean isAtLeast(int reqMajor, int reqMinor) {
