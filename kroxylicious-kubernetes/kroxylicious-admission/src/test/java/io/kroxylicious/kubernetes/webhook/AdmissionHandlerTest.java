@@ -108,7 +108,7 @@ class AdmissionHandlerTest {
         assertThat(response.getPatchType()).isEqualTo("JSONPatch");
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
         assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
-        assertThat(patchJson).contains("no-config");
+        assertThat(patchJson).contains("no-KroxyliciousSidecarConfig");
     }
 
     @Test
@@ -145,7 +145,7 @@ class AdmissionHandlerTest {
         assertThat(response.getPatchType()).isEqualTo("JSONPatch");
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
         assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
-        assertThat(patchJson).contains("already-injected");
+        assertThat(patchJson).contains("container-name-conflict");
     }
 
     @Test
@@ -159,7 +159,7 @@ class AdmissionHandlerTest {
         assertThat(response.getPatchType()).isEqualTo("JSONPatch");
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
         assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
-        assertThat(patchJson).contains("multiple-configs");
+        assertThat(patchJson).contains("ambiguous-KroxyliciousSidecarConfig");
     }
 
     @Test

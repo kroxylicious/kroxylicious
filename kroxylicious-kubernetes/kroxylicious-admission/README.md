@@ -117,7 +117,7 @@ The webhook is configured via environment variables:
 | `TLS_KEY_PATH` | `/etc/webhook/tls/tls.key` | PEM private key file |
 | `KROXYLICIOUS_IMAGE` | (required) | Default proxy container image |
 | `FAILURE_POLICY` | `Fail` | Error handling policy: `Fail` (deny on error) or `Ignore` (allow on error) |
-| `FEATURE_GATES` | (auto-detect) | Comma-separated feature gate overrides, e.g. `SidecarContainers=false,ImageVolume=false` |
+| `K8S_FEATURE_GATES` | (auto-detect) | Comma-separated Kubernetes feature gate overrides, e.g. `SidecarContainers=false,ImageVolume=false`. Escape hatch for when version-based detection is insufficient; deployers are responsible for keeping it in sync with their cluster. |
 
 ## Deployment
 
