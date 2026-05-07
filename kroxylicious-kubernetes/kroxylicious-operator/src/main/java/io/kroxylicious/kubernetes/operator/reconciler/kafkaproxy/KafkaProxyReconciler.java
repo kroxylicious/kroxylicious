@@ -7,7 +7,6 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.nio.file.Path;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -26,11 +25,6 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -61,6 +55,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -71,6 +67,9 @@ import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
+import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
+import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
+import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
@@ -99,7 +98,6 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -158,14 +156,12 @@ public class KafkaProxyReconciler implements
     private static final Path SERVER_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("server-certs");
     private static final Path SERVER_TRUSTED_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("trusted-certs");
 
+    private static final List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> deprecationCheckers = List.of(
+            new AbsentSpecDeprecationChecker());
+
     private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
     private final KafkaProxyStatusFactory statusFactory;
-
-    private final Cache<String, Boolean> resourcesWithAbsentSpecs = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofHours(1))
-            .maximumSize(100)
-            .build();
 
     public KafkaProxyReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
         this.statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(clock));
@@ -495,7 +491,8 @@ public class KafkaProxyReconciler implements
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
         var conditions = new ArrayList<Condition>();
-        reportAbsentSpecIfNecessary(primary, LOGGER, conditions);
+        var ctx = new DeprecationCheckContext<>(primary, LOGGER, statusFactory, conditions);
+        deprecationCheckers.forEach(checker -> checker.check(ctx));
 
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)
                 .map(Deployment::getStatus)
@@ -550,30 +547,6 @@ public class KafkaProxyReconciler implements
                 buildVirtualKafkaClusterEventSource(context),
                 buildKafkaServiceEventSource(context),
                 buildKafkaProxyIngressEventSource(context));
-    }
-
-    @VisibleForTesting
-    void reportAbsentSpecIfNecessary(KafkaProxy proxy, Logger log, ArrayList<Condition> conditions) {
-        var resourceUid = Optional.of(proxy).map(HasMetadata::getMetadata).map(ObjectMeta::getUid);
-        resourceUid.ifPresent(uid -> {
-            if (proxy.getSpec() == null) {
-                if (resourcesWithAbsentSpecs.asMap().putIfAbsent(uid, true) == null) {
-                    log.atWarn()
-                            .addKeyValue(OperatorLoggingKeys.KIND, ResourcesUtil.kind(proxy))
-                            .addKeyValue(OperatorLoggingKeys.NAME, ResourcesUtil.name(proxy))
-                            .addKeyValue(OperatorLoggingKeys.NAMESPACE, ResourcesUtil.namespace(proxy))
-                            .log("No spec, please add an empty one. "
-                                    + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
-
-                }
-
-                conditions.add(statusFactory.newTrueCondition(proxy, Condition.Type.DeprecationWarning,
-                        "Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release."));
-            }
-            else {
-                resourcesWithAbsentSpecs.invalidate(uid);
-            }
-        });
     }
 
     private static Optional<AllowDeny<String>> buildProtocols(@Nullable Protocols protocols) {
