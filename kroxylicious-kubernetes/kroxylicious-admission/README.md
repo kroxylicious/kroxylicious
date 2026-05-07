@@ -28,21 +28,7 @@ The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, pre
 
 ## Custom Resource: `KroxyliciousSidecarConfig`
 
-A namespaced CRD (group `kroxylicious.io`, version `v1alpha1`) that defines sidecar configuration per namespace. Key fields:
-
-| Field                    | Description |
-|--------------------------|-------------|
-| `targetBootstrapServers` | Bootstrap servers of the target Kafka cluster (required) |
-| `proxyImage`             | Override the proxy container image |
-| `bootstrapPort`          | Proxy bootstrap port on localhost (default: 19092) |
-| `nodeIdRange`            | Broker node ID range (default: 0-2) |
-| `managementPort`         | Management endpoint port (default: 9190) |
-| `filterDefinitions`      | Filters applied to proxied traffic |
-| `targetClusterTls`       | TLS configuration for the target Kafka connection |
-| `plugins`                | Third-party plugin images providing additional filter JARs |
-| `delegatedAnnotations`   | Annotations app owners may set to override config |
-| `setBootstrapEnvVar`     | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
-| `resources`              | Resource requests/limits for the sidecar container |
+A namespaced CRD that defines sidecar configuration per namespace. See the [CRD definition](../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.sidecar.kroxylicious.io-v1.yml) for the full field reference.
 
 ### Plugin Images
 
@@ -212,7 +198,7 @@ mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
 
 ## Cross-References
 
-- **CRD definition**: See `../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.kroxylicious.io-v1.yml`
+- **CRD definition**: See `../kroxylicious-admission-api/src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.sidecar.kroxylicious.io-v1.yml`
 - **Proxy configuration model**: See `../kroxylicious-runtime/`
 - **Operator (standalone proxy deployment)**: See [`../kroxylicious-operator/README.md`](../kroxylicious-operator/README.md)
 - **Security patterns**: See [`../.claude/rules/security-patterns.md`](../.claude/rules/security-patterns.md)
