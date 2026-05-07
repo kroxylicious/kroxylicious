@@ -151,24 +151,6 @@ public class VirtualClusterCoordinator {
     }
 
     /**
-     * Completes the shutdown by transitioning all draining virtual clusters to stopped,
-     * firing the callback for each.
-     *
-     * @return true if all virtual clusters are now in the Stopped state
-     */
-    public boolean completeDraining() {
-        lifecyclesByCluster.forEach((name, lifecycle) -> {
-            var state = lifecycle.state();
-            if (state instanceof VirtualClusterLifecycleState.Draining) {
-                lifecycle.drainComplete();
-                onVirtualClusterStopped.accept(name, Optional.empty());
-            }
-        });
-        return lifecyclesByCluster.values().stream()
-                .allMatch(lifecycle -> lifecycle.state() instanceof VirtualClusterLifecycleState.Stopped);
-    }
-
-    /**
      * Returns the lifecycle for the given virtual cluster name.
      * @param clusterName the virtual cluster name
      * @return the lifecycle, or null if no cluster with that name exists

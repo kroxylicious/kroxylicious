@@ -314,59 +314,6 @@ class VirtualClusterCoordinatorTest {
     }
 
     @Test
-    void shouldTransitionDrainingToStoppedOnBulkStop() {
-        // given
-        vcc.initializationSucceeded(CLUSTER_A);
-        vcc.initiateShutdown();
-
-        // when
-        vcc.completeDraining();
-
-        // then
-        assertThat(vcc.lifecycleFor(CLUSTER_A)).isNotNull()
-                .extracting(VirtualClusterLifecycle::state)
-                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
-    }
-
-    @Test
-    void shouldFireCallbackWithEmptyCauseOnBulkStop() {
-        // given
-        vcc.initializationSucceeded(CLUSTER_A);
-        vcc.initiateShutdown();
-
-        // when
-        vcc.completeDraining();
-
-        // then
-        verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
-    }
-
-    @Test
-    void shouldReturnTrueWhenAllClustersStopped() {
-        // given
-        vcc.initializationSucceeded(CLUSTER_A);
-        vcc.initiateShutdown();
-
-        // when
-        var allStopped = vcc.completeDraining();
-
-        // then
-        assertThat(allStopped).isTrue();
-    }
-
-    @Test
-    void shouldReturnFalseWhenNotAllClustersStopped() {
-        // given
-        vcc.initializationSucceeded(CLUSTER_A);
-
-        // when
-        var allStopped = vcc.completeDraining();
-
-        // then
-        assertThat(allStopped).isFalse();
-    }
-
-    @Test
     void shouldStopServingClustersWhenShuttingDownWithNoConnections() {
         // Given
         vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);

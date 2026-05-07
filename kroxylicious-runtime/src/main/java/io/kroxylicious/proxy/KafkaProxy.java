@@ -377,8 +377,12 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
-     * Shuts down a running proxy using the hybrid approach: starts the Netty shutdown
-     * timer (non-blocking safety net), then runs custom per-channel drain within that window.
+     * Shuts down a running proxy. The sequence is:
+     * <ol>
+     *   <li>Unbind ports — prevents new connections from arriving</li>
+     *   <li>Drain existing connections gracefully via {@code initiateShutdown()}</li>
+     *   <li>Shut down Netty event groups — force-closes any connections that did not drain in time</li>
+     * </ol>
      */
     public void shutdown() {
         if (!running.getAndSet(false)) {
@@ -424,7 +428,6 @@ public final class KafkaProxy implements AutoCloseable {
             if (filterChainFactory != null) {
                 filterChainFactory.close();
             }
-            clusterCoordinator.completeDraining();
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
