@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Timeout;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.internal.DrainCoordinator;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -75,7 +76,7 @@ class KafkaProxyShutdownOrderingTest {
 
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
             proxy.startup();
-            int proxyPort = proxy.listeningPort(null, KafkaProxy.OS_ASSIGNED_PORT);
+            int proxyPort = proxy.listeningPort(null, EndpointRegistry.OS_ASSIGNED_PORT);
 
             assertThat(canConnect(proxyPort))
                     .as("port should be reachable before shutdown")

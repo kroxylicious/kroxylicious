@@ -83,6 +83,13 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
     public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
+
+    /**
+     * Sentinel port value meaning "let the OS assign a free port at bind time".
+     * Use with {@link io.kroxylicious.proxy.KafkaProxy#listeningPort(String, int)} to discover
+     * the actual port after startup.
+     */
+    public static final int OS_ASSIGNED_PORT = 0;
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
     interface RoutingKey {

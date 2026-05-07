@@ -83,12 +83,6 @@ public final class KafkaProxy implements AutoCloseable {
     private static final int JRE_FEATURE_VERSION = Runtime.version().feature();
     private static final TreeSet<Integer> TESTED_JRE_VERSIONS = new TreeSet<>(Set.of(21, 25));
 
-    /**
-     * Sentinel port value meaning "let the OS assign a free port at bind time".
-     * Pass to {@link #listeningPort(String, int)} to discover the actual port after startup.
-     */
-    public static final int OS_ASSIGNED_PORT = 0;
-
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz,
                             Duration shutdownQuietPeriod, Duration shutdownTimeout) {
@@ -476,11 +470,11 @@ public final class KafkaProxy implements AutoCloseable {
 
     /**
      * Returns the actual local port that the proxy is listening on for the given bind address and configured port.
-     * Useful when the configured port is {@link #OS_ASSIGNED_PORT} (meaning the OS assigns an ephemeral port at startup).
+     * Useful when the configured port is {@link EndpointRegistry#OS_ASSIGNED_PORT} (meaning the OS assigns an ephemeral port at startup).
      * Must only be called after a successful {@link #startup()}.
      *
      * @param bindAddress the bind address used in the proxy configuration, or {@code null} for any-address bindings
-     * @param port the port number used in the proxy configuration (e.g. {@link #OS_ASSIGNED_PORT} for OS-assigned)
+     * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
      * @return the actual local port the proxy is listening on
      */
     @VisibleForTesting
