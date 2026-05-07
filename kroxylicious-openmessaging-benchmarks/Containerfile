@@ -29,7 +29,7 @@ RUN mvn clean package -DskipTests && \
     tar -xzf /build/package/target/openmessaging-benchmark-*-bin.tar.gz --strip-components=1 -C /opt/benchmark
 
 # ---------- Stage 2: runtime ----------
-FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24-2.1777575919@sha256:40a0e187612f9a8a660f6fce8f35ce59ab550eafa4a0695e7fe38dc1861eedc3
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24-2.1777977956@sha256:c90cac905559f62d1b63705f3eb48411465ce9966e1fe84f7ad620aa95011f80
 USER root
 
 COPY --from=builder --chown=185:0 /opt/benchmark /opt/benchmark
