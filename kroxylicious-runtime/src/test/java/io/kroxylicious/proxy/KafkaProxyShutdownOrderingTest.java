@@ -75,7 +75,7 @@ class KafkaProxyShutdownOrderingTest {
 
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
             proxy.startup();
-            int proxyPort = proxy.listeningPort(0);
+            int proxyPort = proxy.listeningPort(null, KafkaProxy.OS_ASSIGNED_PORT);
 
             assertThat(canConnect(proxyPort))
                     .as("port should be reachable before shutdown")
