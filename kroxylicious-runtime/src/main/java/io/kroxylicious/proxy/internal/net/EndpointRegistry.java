@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import java.net.InetSocketAddress;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -439,6 +440,15 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     @VisibleForTesting
     int listeningChannelCount() {
         return listeningChannels.size();
+    }
+
+    @VisibleForTesting
+    public int localPortFor(Endpoint endpoint) {
+        var record = listeningChannels.get(endpoint);
+        if (record == null) {
+            throw new IllegalStateException("No listening channel for endpoint " + endpoint);
+        }
+        return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
     }
 
     private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding) {
