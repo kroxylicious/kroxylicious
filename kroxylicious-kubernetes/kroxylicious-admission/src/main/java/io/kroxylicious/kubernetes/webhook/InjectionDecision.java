@@ -40,6 +40,10 @@ final class InjectionDecision {
         String skipLabel() {
             return skipLabel;
         }
+
+        boolean isConfigUnavailable() {
+            return this == SKIP_NO_CONFIG || this == SKIP_MULTIPLE_CONFIGS;
+        }
     }
 
     private InjectionDecision() {

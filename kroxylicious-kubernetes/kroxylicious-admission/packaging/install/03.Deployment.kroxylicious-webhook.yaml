@@ -52,8 +52,6 @@ spec:
               value: /etc/webhook/tls/tls.crt
             - name: TLS_KEY_PATH
               value: /etc/webhook/tls/tls.key
-            - name: FAILURE_POLICY
-              value: "Fail"
           volumeMounts:
             - name: tls
               mountPath: /etc/webhook/tls

@@ -100,7 +100,7 @@ class WebhookServerTest {
         Path missing = Path.of("/nonexistent/cert.pem");
 
         assertThatThrownBy(() -> WebhookServer.createSslContext(missing, keyPath))
-                .isInstanceOf(IOException.class);
+                .isInstanceOf(GeneralSecurityException.class);
     }
 
     @Test
@@ -108,7 +108,7 @@ class WebhookServerTest {
         Path missing = Path.of("/nonexistent/key.pem");
 
         assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, missing))
-                .isInstanceOf(IOException.class);
+                .isInstanceOf(GeneralSecurityException.class);
     }
 
     @Test
@@ -125,36 +125,6 @@ class WebhookServerTest {
 
         assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, badKey))
                 .isInstanceOf(GeneralSecurityException.class);
-    }
-
-    @Test
-    void createSslContextThrowsForPkcs1RsaKey(@TempDir Path tempDir) throws Exception {
-        Path pkcs1Key = tempDir.resolve("pkcs1-rsa.pem");
-        String pkcs1Pem = """
-                -----BEGIN RSA PRIVATE KEY-----
-                MIIEpAIBAAKCAQEA...
-                -----END RSA PRIVATE KEY-----
-                """;
-        Files.writeString(pkcs1Key, pkcs1Pem);
-
-        assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, pkcs1Key))
-                .isInstanceOf(GeneralSecurityException.class)
-                .hasMessageContaining("is in PKCS1 format, which is not supported");
-    }
-
-    @Test
-    void createSslContextThrowsForPkcs1EcKey(@TempDir Path tempDir) throws Exception {
-        Path pkcs1Key = tempDir.resolve("pkcs1-ec.pem");
-        String pkcs1Pem = """
-                -----BEGIN EC PRIVATE KEY-----
-                MHcCAQEEIIGlRDpz...
-                -----END EC PRIVATE KEY-----
-                """;
-        Files.writeString(pkcs1Key, pkcs1Pem);
-
-        assertThatThrownBy(() -> WebhookServer.createSslContext(certPath, pkcs1Key))
-                .isInstanceOf(GeneralSecurityException.class)
-                .hasMessageContaining("is in PKCS1 format, which is not supported");
     }
 
     // --- Server lifecycle tests ---

@@ -39,6 +39,7 @@ import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
 import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.VirtualClusters;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -55,13 +56,10 @@ class AdmissionHandlerTest {
     private SidecarConfigResolver configResolver;
 
     private AdmissionHandler handler;
-    private AdmissionHandler failOpenHandler;
 
     @BeforeEach
     void setUp() {
         handler = new AdmissionHandler(configResolver, PROXY_IMAGE);
-        failOpenHandler = new AdmissionHandler(configResolver, PROXY_IMAGE,
-                new KubernetesVersion(1, 0), false);
     }
 
     // --- processReview() tests ---
@@ -163,6 +161,53 @@ class AdmissionHandlerTest {
     }
 
     @Test
+    void deniesWhenNoConfigAndPolicyIsDeny() {
+        var denyHandler = new AdmissionHandler(
+                configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.noConfig());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = denyHandler.processReview(review);
+
+        assertThat(response.getAllowed()).isFalse();
+        assertThat(response.getStatus().getCode()).isEqualTo(403);
+        assertThat(response.getStatus().getMessage()).contains("SKIP_NO_CONFIG");
+    }
+
+    @Test
+    void deniesWhenMultipleConfigsAndPolicyIsDeny() {
+        var denyHandler = new AdmissionHandler(
+                configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.multipleConfigs());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = denyHandler.processReview(review);
+
+        assertThat(response.getAllowed()).isFalse();
+        assertThat(response.getStatus().getCode()).isEqualTo(403);
+        assertThat(response.getStatus().getMessage()).contains("SKIP_MULTIPLE_CONFIGS");
+    }
+
+    @Test
+    void allowsOptOutEvenWhenPolicyIsDeny() {
+        var denyHandler = new AdmissionHandler(
+                configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
+
+        Pod pod = minimalPod();
+        pod.getMetadata().setLabels(
+                new HashMap<>(Map.of(Labels.SIDECAR_INJECTION, Labels.SIDECAR_INJECTION_DISABLED)));
+
+        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionResponse response = denyHandler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+    }
+
+    @Test
     void usesExplicitConfigName() {
         KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "my-config");
         when(configResolver.resolve("test-ns", "my-config")).thenReturn(SidecarConfigResolver.Resolution.found(config));
@@ -190,41 +235,14 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void failsClosedOnExceptionByDefault() {
+    void propagatesExceptionFromProcessReview() {
         when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
-        AdmissionResponse response = handler.processReview(review);
 
-        assertThat(response.getAllowed()).isFalse();
-        assertThat(response.getStatus()).isNotNull();
-        assertThat(response.getStatus().getMessage()).contains("kaboom");
-        assertThat(response.getPatch()).isNull();
-    }
-
-    @Test
-    void failsOpenOnExceptionWhenConfigured() {
-        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
-
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
-        AdmissionResponse response = failOpenHandler.processReview(review);
-
-        assertThat(response.getAllowed()).isTrue();
-        assertThat(response.getPatch()).isNull();
-    }
-
-    @Test
-    void denyResponseIncludesStatusDetails() {
-        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("test error"));
-
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
-        AdmissionResponse response = handler.processReview(review);
-
-        assertThat(response.getAllowed()).isFalse();
-        assertThat(response.getStatus()).isNotNull();
-        assertThat(response.getStatus().getCode()).isEqualTo(403);
-        assertThat(response.getStatus().getReason()).isEqualTo("Forbidden");
-        assertThat(response.getStatus().getMessage()).contains("test error");
+        assertThatThrownBy(() -> handler.processReview(review))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("kaboom");
     }
 
     @Test
@@ -306,20 +324,16 @@ class AdmissionHandlerTest {
     }
 
     @Test
-    void handleFailsClosedOnDeserialisationError() throws IOException {
+    void handleReturns500OnDeserialisationError() throws IOException {
         HttpExchange exchange = createMockExchange("POST", "not json".getBytes(StandardCharsets.UTF_8));
 
         handler.handle(exchange);
 
-        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
-        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
-
-        assertThat(responseJson.get("response").get("allowed").asBoolean()).isFalse();
-        assertThat(responseJson.get("response").get("status").get("message").asText()).isNotEmpty();
+        verify(exchange).sendResponseHeaders(eq(500), eq(-1L));
     }
 
     @Test
-    void handleFailsClosedOnProcessReviewException() throws IOException {
+    void handleReturns500OnProcessReviewException() throws IOException {
         when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
 
         AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
@@ -328,38 +342,7 @@ class AdmissionHandlerTest {
 
         handler.handle(exchange);
 
-        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
-        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
-
-        assertThat(responseJson.get("response").get("allowed").asBoolean()).isFalse();
-    }
-
-    @Test
-    void handleFailsOpenOnDeserialisationErrorWhenConfigured() throws IOException {
-        HttpExchange exchange = createMockExchange("POST", "not json".getBytes(StandardCharsets.UTF_8));
-
-        failOpenHandler.handle(exchange);
-
-        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
-        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
-
-        assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
-    }
-
-    @Test
-    void handleFailsOpenOnProcessReviewExceptionWhenConfigured() throws IOException {
-        when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
-
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
-        byte[] requestBody = MAPPER.writeValueAsBytes(review);
-        HttpExchange exchange = createMockExchange("POST", requestBody);
-
-        failOpenHandler.handle(exchange);
-
-        ByteArrayOutputStream responseBody = (ByteArrayOutputStream) exchange.getResponseBody();
-        JsonNode responseJson = MAPPER.readTree(responseBody.toByteArray());
-
-        assertThat(responseJson.get("response").get("allowed").asBoolean()).isTrue();
+        verify(exchange).sendResponseHeaders(eq(500), eq(-1L));
     }
 
     // --- helpers ---
