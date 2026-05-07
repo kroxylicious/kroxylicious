@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterAll;
@@ -42,7 +41,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
 import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
@@ -126,7 +124,7 @@ abstract class AbstractPluginEndToEndKT {
             assertThat(pod.getSpec().getInitContainers())
                     .as("Sidecar should be a native sidecar (in initContainers)")
                     .extracting(Container::getName)
-                    .contains("kroxylicious-proxy");
+                    .contains(InjectionDecision.SIDECAR_CONTAINER_NAME);
         });
     }
 
@@ -151,11 +149,11 @@ abstract class AbstractPluginEndToEndKT {
                     : List.of();
             assertThat(initContainerNames)
                     .as("Sidecar should NOT be in initContainers")
-                    .doesNotContain("kroxylicious-proxy");
+                    .doesNotContain(InjectionDecision.SIDECAR_CONTAINER_NAME);
             assertThat(pod.getSpec().getContainers())
                     .as("Sidecar should be a regular container")
                     .extracting(Container::getName)
-                    .contains("kroxylicious-proxy");
+                    .contains(InjectionDecision.SIDECAR_CONTAINER_NAME);
 
             assertThat(initContainerNames)
                     .as("Plugin copy init container should exist")
@@ -287,20 +285,23 @@ abstract class AbstractPluginEndToEndKT {
             LOGGER.atInfo()
                     .addKeyValue("featureGates", featureGates)
                     .log("Patching webhook deployment with feature gates");
-            editDeploymentWithRetry("kroxylicious-webhook", d -> {
-                var envList = d.getSpec().getTemplate().getSpec()
-                        .getContainers().get(0).getEnv();
-                if (envList == null) {
-                    envList = new ArrayList<>();
-                    d.getSpec().getTemplate().getSpec()
-                            .getContainers().get(0).setEnv(envList);
-                }
-                envList.add(new EnvVarBuilder()
-                        .withName("FEATURE_GATES")
-                        .withValue(featureGates)
-                        .build());
-                return d;
-            });
+            client.apps().deployments()
+                    .inNamespace(WEBHOOK_NS)
+                    .withName("kroxylicious-webhook")
+                    .edit(d -> {
+                        var envList = d.getSpec().getTemplate().getSpec()
+                                .getContainers().get(0).getEnv();
+                        if (envList == null) {
+                            envList = new ArrayList<>();
+                            d.getSpec().getTemplate().getSpec()
+                                    .getContainers().get(0).setEnv(envList);
+                        }
+                        envList.add(new EnvVarBuilder()
+                                .withName(WebhookMain.FEATURE_GATES_VAR)
+                                .withValue(featureGates)
+                                .build());
+                        return d;
+                    });
         }
 
         LOGGER.info("Creating self-signed TLS certificate for webhook");
@@ -506,7 +507,7 @@ abstract class AbstractPluginEndToEndKT {
 
         assertThat(allContainerNames)
                 .as("Pod should have kroxylicious-proxy sidecar container")
-                .contains("kroxylicious-proxy");
+                .contains(InjectionDecision.SIDECAR_CONTAINER_NAME);
 
         assertThat(pod.getSpec().getVolumes())
                 .as("Pod should have plugin-simple-transform volume")
@@ -540,7 +541,7 @@ abstract class AbstractPluginEndToEndKT {
                 pod.getStatus().getContainerStatuses())
                 .filter(list -> list != null)
                 .flatMap(List::stream)
-                .anyMatch(s -> "kroxylicious-proxy".equals(s.getName())
+                .anyMatch(s -> InjectionDecision.SIDECAR_CONTAINER_NAME.equals(s.getName())
                         && Boolean.TRUE.equals(s.getReady()));
     }
 
@@ -559,7 +560,7 @@ abstract class AbstractPluginEndToEndKT {
             String proxyLogs = client.pods()
                     .inNamespace(TEST_NS)
                     .withName("test-producer")
-                    .inContainer("kroxylicious-proxy")
+                    .inContainer(InjectionDecision.SIDECAR_CONTAINER_NAME)
                     .getLog();
             LOGGER.atError()
                     .addKeyValue("logs", proxyLogs)
@@ -742,45 +743,26 @@ abstract class AbstractPluginEndToEndKT {
                 .inNamespace(WEBHOOK_NS)
                 .withName(name)
                 .waitUntilCondition(
-                        d -> d != null
-                                && d.getStatus() != null
-                                && d.getStatus().getObservedGeneration() != null
-                                && d.getStatus().getObservedGeneration() >= expectedGeneration
-                                && d.getStatus().getReadyReplicas() != null
-                                && d.getStatus().getReadyReplicas()
-                                        .equals(d.getSpec().getReplicas())
-                                && d.getStatus().getUpdatedReplicas() != null
-                                && d.getStatus().getUpdatedReplicas()
-                                        .equals(d.getSpec().getReplicas())
-                                && d.getStatus().getReplicas() != null
-                                && d.getStatus().getReplicas()
-                                        .equals(d.getSpec().getReplicas()),
+                        d -> isRolloutComplete(d, expectedGeneration),
                         timeoutSeconds, TimeUnit.SECONDS);
         LOGGER.info("Deployment rollout complete");
     }
 
-    private void editDeploymentWithRetry(
-                                         String name,
-                                         UnaryOperator<Deployment> editor) {
-        int maxRetries = 5;
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                client.apps().deployments()
-                        .inNamespace(WEBHOOK_NS)
-                        .withName(name)
-                        .edit(editor);
-                return;
-            }
-            catch (KubernetesClientException e) {
-                if (e.getCode() == 409 && attempt < maxRetries) {
-                    LOGGER.atInfo()
-                            .addKeyValue("attempt", attempt)
-                            .log("Retrying deployment edit after conflict");
-                    continue;
-                }
-                throw e;
-            }
+    private static boolean isRolloutComplete(
+                                             Deployment d,
+                                             long expectedGeneration) {
+        if (d == null || d.getStatus() == null) {
+            return false;
         }
+        var status = d.getStatus();
+        return status.getObservedGeneration() != null
+                && status.getObservedGeneration() >= expectedGeneration
+                && status.getReadyReplicas() != null
+                && status.getReadyReplicas().equals(d.getSpec().getReplicas())
+                && status.getUpdatedReplicas() != null
+                && status.getUpdatedReplicas().equals(d.getSpec().getReplicas())
+                && status.getReplicas() != null
+                && status.getReplicas().equals(d.getSpec().getReplicas());
     }
 
     private String strimziInstallUrl() {

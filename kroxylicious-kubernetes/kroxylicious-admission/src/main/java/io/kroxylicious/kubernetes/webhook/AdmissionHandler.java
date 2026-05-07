@@ -163,9 +163,7 @@ class AdmissionHandler implements HttpHandler {
             LOGGER.atDebug()
                     .addKeyValue(WebhookLoggingKeys.POD, podName)
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
-                    .addKeyValue("pluginCount",
-                            spec.getPlugins() != null ? spec.getPlugins().size() : 0)
-                    .addKeyValue("pluginsNull", spec.getPlugins() == null)
+                    .addKeyValue("plugins", spec.getPlugins())
                     .addKeyValue("useNativeSidecar", useNativeSidecar)
                     .addKeyValue("useOciImageVolumes", useOciImageVolumes)
                     .log("Resolved sidecar config for patch generation");

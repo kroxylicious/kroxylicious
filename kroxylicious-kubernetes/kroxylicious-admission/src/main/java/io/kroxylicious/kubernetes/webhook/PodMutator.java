@@ -264,7 +264,7 @@ class PodMutator {
             ContainerBuilder cb = new ContainerBuilder()
                     .withName(PLUGIN_VOLUME_PREFIX + plugin.getName() + "-copy")
                     .withImage(plugin.getImage().getReference())
-                    .withCommand("sh", "-c", "find / -maxdepth 1 -not -type d -exec cp {} /plugins/ \\;");
+                    .withCommand("sh", "-c", "cp /*.jar /plugins/");
             if (plugin.getImage().getPullPolicy() != null) {
                 cb.withImagePullPolicy(plugin.getImage().getPullPolicy().getValue());
             }
