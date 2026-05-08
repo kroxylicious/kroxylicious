@@ -26,9 +26,6 @@ PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component
 # JFR configuration
 JFR_MAX_SIZE_MB="${JFR_MAX_SIZE_MB:-64}"
 JFR_MAX_SIZE="${JFR_MAX_SIZE_MB}m"
-JFR_PVC_SIZE_MI=$(( JFR_MAX_SIZE_MB * 110 / 100 ))
-JFR_PVC_SIZE="${JFR_PVC_SIZE_MI}Mi"
-JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
@@ -221,13 +218,10 @@ teardown() {
     # Wait explicitly so the pvc-protection finalizer on the JFR PVC is released.
     kubectl wait pod -l "${PROXY_POD_LABEL}" -n "${NAMESPACE}" \
         --for=delete --timeout=60s 2>/dev/null || true
-    # Delete any stale results-reader or jfr-collect pods — they mount PVCs and prevent deletion
+    # Delete any stale results-reader pods — they mount the results PVC and prevent its deletion
     kubectl delete pod -l app=omb-results-reader -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
-    kubectl delete pod -l app=jfr-collect -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
-    # Delete JFR PVC if one was created
-    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete the benchmark Job (not Helm-managed so helm uninstall won't remove it)
     kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete vault-init Job — previously created as a Helm hook (no Helm ownership labels),
@@ -565,24 +559,10 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
 
-    # Ensure any stale JFR PVC from a previous run is fully gone before creating a new one.
-    # It may be Terminating (teardown in progress) or simply orphaned (--skip-teardown was used).
-    # kubectl delete --timeout waits for full removal in both cases.
-    if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} and waiting for full removal..."
-        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
-    fi
-
-    echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
-    JFR_PVC_NAME="${JFR_PVC_NAME}" NAMESPACE="${NAMESPACE}" JFR_PVC_SIZE="${JFR_PVC_SIZE}" \
-        envsubst '${JFR_PVC_NAME} ${NAMESPACE} ${JFR_PVC_SIZE}' \
-        < "${HELM_CHART}/patches/proxy-jfr-pvc.yaml" \
-        | kubectl apply -f -
-
-    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount JFR PVC at /tmp and enable JFR + async-profiler..."
+    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount emptyDir at /tmp and enable JFR + async-profiler..."
     PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
-        JFR_PVC_NAME="${JFR_PVC_NAME}" JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
-        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_PVC_NAME} ${JFR_MAX_SIZE}' \
+        JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
+        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_MAX_SIZE}' \
         < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
         | kubectl apply --server-side --field-manager=benchmark-jfr -f - >/dev/null
 
@@ -827,7 +807,7 @@ fi
 
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     # Full collection: JFR dump + flamegraph + run metadata (JSON already collected above)
-    JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" \
+    PROXY_POD="${PROXY_POD:-}" \
         "${SCRIPT_DIR}/collect-results.sh" \
         --scenario "${SCENARIO}" --workload "${WORKLOAD}" --target-rate "${PRODUCER_RATE:-0}" \
         "${METADATA_ARGS[@]+"${METADATA_ARGS[@]}"}" \
@@ -875,9 +855,7 @@ if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
     echo ""
     echo "Infrastructure left running (--skip-teardown). To tear down manually:"
     echo "  helm uninstall ${HELM_RELEASE} -n ${NAMESPACE} --wait"
-    echo "  kubectl delete pod -l app=jfr-collect -n ${NAMESPACE} --ignore-not-found"
     echo "  kubectl delete pvc -l strimzi.io/cluster=kafka -n ${NAMESPACE} --ignore-not-found"
-    echo "  kubectl delete pvc ${JFR_PVC_NAME} -n ${NAMESPACE} --ignore-not-found"
 fi
 # teardown runs via trap on EXIT (unless --skip-teardown was set)
 exit "${BENCHMARK_EXIT}"

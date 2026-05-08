@@ -40,7 +40,6 @@ Options:
 
 Environment:
   NAMESPACE                 Kubernetes namespace (default: kafka)
-  JFR_PVC_NAME              Name of the PVC holding the JFR recording (set by run-benchmark.sh)
   PROXY_POD                 Name of the proxy pod to collect JFR from (set by run-benchmark.sh)
 
 Prerequisites:
@@ -110,69 +109,29 @@ fi
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Copy JFR recording if one was created by run-benchmark.sh.
-# Prefer copying directly from the proxy pod (still running at this point) to avoid
-# EBS ReadWriteOnce attachment conflicts: a jfr-collect pod may land on a different
-# node and block waiting for the volume to detach from the proxy node.
-# Fall back to a jfr-collect pod only when the proxy pod is no longer available.
-JFR_PVC_NAME="${JFR_PVC_NAME:-}"
+# Copy JFR recording and flamegraph directly from the proxy pod while it is still running.
+# run-benchmark.sh calls jcmd JFR.stop before invoking this script, so the files are
+# already written to /tmp inside the pod's emptyDir volume.
 PROXY_POD="${PROXY_POD:-}"
 JFR_FILE="/tmp/benchmark.jfr"
 FLAMEGRAPH_FILE="/tmp/flamegraph.html"
 
-copy_jfr_files() {
-    local src_pod="$1"
+if [[ -n "${PROXY_POD}" ]] && kubectl get pod "${PROXY_POD}" -n "${NAMESPACE}" &>/dev/null; then
+    echo "Copying JFR recording from proxy pod ${PROXY_POD}..."
     # Use 'kubectl exec -- cat' rather than 'kubectl cp' — the proxy container does not
-    # have tar, which kubectl cp requires.  Streaming via cat works for any container.
-    kubectl exec -n "${NAMESPACE}" "${src_pod}" -- cat "${JFR_FILE}" > "${OUTPUT_DIR}/benchmark.jfr" 2>/dev/null || true
+    # have tar, which kubectl cp requires.
+    kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- cat "${JFR_FILE}" > "${OUTPUT_DIR}/benchmark.jfr" 2>/dev/null || true
     if [[ ! -s "${OUTPUT_DIR}/benchmark.jfr" ]]; then
-        echo "Warning: benchmark.jfr is empty — JFR dump may not have completed before pod terminated" >&2
+        echo "Warning: benchmark.jfr is empty — JFR dump may not have completed" >&2
     else
         echo "  benchmark.jfr ($(du -h "${OUTPUT_DIR}/benchmark.jfr" | cut -f1))"
     fi
-    if kubectl exec -n "${NAMESPACE}" "${src_pod}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
-        kubectl exec -n "${NAMESPACE}" "${src_pod}" -- cat "${FLAMEGRAPH_FILE}" > "${OUTPUT_DIR}/flamegraph.html" 2>/dev/null || true
+    if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
+        kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- cat "${FLAMEGRAPH_FILE}" > "${OUTPUT_DIR}/flamegraph.html" 2>/dev/null || true
         echo "  flamegraph.html ($(du -h "${OUTPUT_DIR}/flamegraph.html" | cut -f1))"
     else
         echo "Warning: flamegraph.html is absent or empty — async-profiler may not have run or perf events were unavailable" >&2
     fi
-}
-
-if [[ -n "${PROXY_POD}" ]] && kubectl get pod "${PROXY_POD}" -n "${NAMESPACE}" &>/dev/null; then
-    echo "Copying JFR recording directly from proxy pod ${PROXY_POD}..."
-    copy_jfr_files "${PROXY_POD}"
-elif [[ -n "${JFR_PVC_NAME}" ]] && kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-    echo "Proxy pod gone — copying JFR recording from PVC ${JFR_PVC_NAME} via collector pod..."
-    DEBUG_POD="jfr-collect-$$"
-    delete_debug_pod() {
-        kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
-    }
-    trap delete_debug_pod EXIT
-    kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ${DEBUG_POD}
-  namespace: ${NAMESPACE}
-  labels:
-    app: jfr-collect
-spec:
-  restartPolicy: Never
-  volumes:
-  - name: jfr
-    persistentVolumeClaim:
-      claimName: ${JFR_PVC_NAME}
-  containers:
-  - name: debug
-    image: busybox:1.37.0@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
-    command: ["sleep", "infinity"]
-    volumeMounts:
-    - name: jfr
-      mountPath: /tmp
-EOF
-    kubectl wait pod "${DEBUG_POD}" -n "${NAMESPACE}" --for=condition=ready --timeout=120s
-    copy_jfr_files "${DEBUG_POD}"
-    # trap handles deletion on exit
 fi
 
 # Generate run metadata
