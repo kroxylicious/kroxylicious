@@ -6,7 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.checkers;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 
@@ -26,7 +26,7 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
  * @param resource      the custom resource being reconciled
  * @param logger        the reconciler's logger, for use by checkers
  * @param statusFactory factory for building {@link Condition} instances
- * @param conditions    mutable list that checkers append deprecation conditions to
+ * @param conditions    mutable {@link List} that checkers append deprecation conditions to; callers must supply a mutable list
  *
  * @param <S> the spec type of the custom resource
  * @param <T> the status type of the custom resource
@@ -39,4 +39,4 @@ public record DeprecationCheckContext<S, T, R extends CustomResource<S, T>, F ex
                                                                                                         R resource,
                                                                                                         Logger logger,
                                                                                                         F statusFactory,
-                                                                                                        ArrayList<Condition> conditions) {}
+                                                                                                        List<Condition> conditions) {}
