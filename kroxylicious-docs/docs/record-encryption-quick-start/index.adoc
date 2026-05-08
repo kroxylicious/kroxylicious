@@ -121,8 +121,7 @@ Let's install Strimzi next:
 
 [source,terminal,subs="attributes"]
 ----
-$ helm repo add --force-update strimzi https://strimzi.io/charts/
-$ helm upgrade --install strimzi-operator strimzi/strimzi-kafka-operator --namespace kafka --create-namespace --version {strimzi-version}
+$ helm upgrade --install strimzi-operator oci://quay.io/strimzi-helm/strimzi-kafka-operator --namespace kafka --create-namespace --version {strimzi-version}
 ----
 
 [#install_the_operator]
