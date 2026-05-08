@@ -69,6 +69,11 @@
             <artifactId>kroxylicious-runtime</artifactId>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <!-- Only for knowing what TLS key material is acceptable -->
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+        </dependency>
         <!-- fabric8 kubernetes client -->
         <dependency>
             <groupId>io.fabric8</groupId>

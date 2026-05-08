@@ -36,8 +36,8 @@ public class WebhookMain {
     private static final String TLS_CERT_PATH_VAR = "TLS_CERT_PATH";
     private static final String TLS_KEY_PATH_VAR = "TLS_KEY_PATH";
     private static final String KROXYLICIOUS_IMAGE_VAR = "KROXYLICIOUS_IMAGE";
-    private static final String FAILURE_POLICY_VAR = "FAILURE_POLICY";
-    static final String FEATURE_GATES_VAR = "FEATURE_GATES";
+    private static final String UNINJECTED_POD_POLICY_VAR = "UNINJECTED_POD_POLICY";
+    static final String FEATURE_GATES_VAR = "K8S_FEATURE_GATES";
 
     private static final String DEFAULT_BIND_ADDRESS = "0.0.0.0:8443";
     @SuppressWarnings("java:S1075") // there's nothing wrong with hard coding this path.
@@ -85,17 +85,17 @@ public class WebhookMain {
         Path certPath = Path.of(env.getOrDefault(TLS_CERT_PATH_VAR, DEFAULT_CERT_PATH));
         Path keyPath = Path.of(env.getOrDefault(TLS_KEY_PATH_VAR, DEFAULT_KEY_PATH));
         String proxyImage = requiredEnv(env, KROXYLICIOUS_IMAGE_VAR);
-        boolean failClosed = parseFailClosed(env);
+        boolean denyUninjected = parseDenyUninjected(env);
         LOGGER.atInfo()
-                .addKeyValue("failurePolicy", failClosed ? "Fail" : "Ignore")
-                .log("Webhook failure policy configured");
+                .addKeyValue("uninjectedPodPolicy", denyUninjected ? "Deny" : "Admit")
+                .log("Uninjected pod policy configured");
 
         KubernetesClient kubeClient = new KubernetesClientBuilder().build();
         var kubernetesVersion = detectVersion(kubeClient, env);
         SidecarConfigStatusUpdater statusUpdater = new SidecarConfigStatusUpdater(kubeClient, Clock.systemUTC());
         SidecarConfigResolver configResolver = new SidecarConfigResolver(kubeClient, statusUpdater);
         AdmissionHandler admissionHandler = new AdmissionHandler(
-                configResolver, proxyImage, kubernetesVersion, failClosed);
+                configResolver, proxyImage, kubernetesVersion, denyUninjected);
         WebhookServer server = new WebhookServer(bindAddress, certPath, keyPath, admissionHandler);
 
         return new WebhookMain(server, configResolver, kubeClient);
@@ -187,14 +187,14 @@ public class WebhookMain {
     }
 
     @VisibleForTesting
-    static boolean parseFailClosed(@NonNull Map<String, String> env) {
-        String value = env.getOrDefault(FAILURE_POLICY_VAR, "Fail");
+    static boolean parseDenyUninjected(@NonNull Map<String, String> env) {
+        String value = env.getOrDefault(UNINJECTED_POD_POLICY_VAR, "Admit");
         return switch (value) {
-            case "Fail" -> true;
-            case "Ignore" -> false;
+            case "Deny" -> true;
+            case "Admit" -> false;
             default -> throw new IllegalStateException(
-                    "Invalid " + FAILURE_POLICY_VAR + " value '" + value
-                            + "': must be 'Fail' or 'Ignore'");
+                    "Invalid " + UNINJECTED_POD_POLICY_VAR + " value '" + value
+                            + "': must be 'Admit' or 'Deny'");
         };
     }
 }

@@ -22,10 +22,10 @@ final class InjectionDecision {
 
     enum Decision {
         INJECT(null),
-        SKIP_ALREADY_INJECTED("already-injected"),
+        SKIP_ALREADY_INJECTED("container-name-conflict"),
         SKIP_OPT_OUT(null),
-        SKIP_NO_CONFIG("no-config"),
-        SKIP_MULTIPLE_CONFIGS("multiple-configs");
+        SKIP_NO_CONFIG("no-KroxyliciousSidecarConfig"),
+        SKIP_MULTIPLE_CONFIGS("ambiguous-KroxyliciousSidecarConfig");
 
         private final String skipLabel;
 
@@ -39,6 +39,10 @@ final class InjectionDecision {
          */
         String skipLabel() {
             return skipLabel;
+        }
+
+        boolean isConfigUnavailable() {
+            return this == SKIP_NO_CONFIG || this == SKIP_MULTIPLE_CONFIGS;
         }
     }
 

@@ -191,6 +191,50 @@ class SidecarConfigStatusUpdaterTest {
         assertThatCode(() -> updater.setReady(config)).doesNotThrowAnyException();
     }
 
+    // --- setNotReady tests ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void setNotReadySetsReadyFalseWithInvalidReason() {
+        KroxyliciousSidecarConfig config = createConfig(2L);
+        stubClientChain();
+        KroxyliciousSidecarConfig serverState = createConfig(2L);
+        when(resource.editStatus(any(UnaryOperator.class))).thenAnswer(invocation -> {
+            UnaryOperator<KroxyliciousSidecarConfig> op = invocation.getArgument(0);
+            return op.apply(serverState);
+        });
+
+        updater.setNotReady(config, "spec.virtualClusters[0].targetBootstrapServers is required");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<UnaryOperator<KroxyliciousSidecarConfig>> captor = ArgumentCaptor.forClass(UnaryOperator.class);
+        verify(resource).editStatus(captor.capture());
+
+        KroxyliciousSidecarConfig result = captor.getValue().apply(createConfig(2L));
+        assertThat(result.getStatus()).isNotNull();
+        assertThat(result.getStatus().getObservedGeneration()).isEqualTo(2L);
+        assertThat(result.getStatus().getConditions()).hasSize(1);
+
+        Condition condition = result.getStatus().getConditions().get(0);
+        assertThat(condition.getType()).isEqualTo(Condition.Type.Ready);
+        assertThat(condition.getStatus()).isEqualTo(Condition.Status.FALSE);
+        assertThat(condition.getReason()).isEqualTo(SidecarConfigStatusUpdater.REASON_INVALID);
+        assertThat(condition.getMessage()).isEqualTo("spec.virtualClusters[0].targetBootstrapServers is required");
+        assertThat(condition.getLastTransitionTime()).isEqualTo(NOW);
+        assertThat(condition.getObservedGeneration()).isEqualTo(2L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void setNotReadySwallowsExceptions() {
+        KroxyliciousSidecarConfig config = createConfig(1L);
+        stubClientChain();
+        when(resource.editStatus(any(UnaryOperator.class)))
+                .thenThrow(new RuntimeException("API server error"));
+
+        assertThatCode(() -> updater.setNotReady(config, "bad config")).doesNotThrowAnyException();
+    }
+
     // --- helpers ---
 
     @SuppressWarnings("unchecked")

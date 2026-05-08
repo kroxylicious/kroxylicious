@@ -38,7 +38,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.kroxylicious.kubernetes.api.admission.common.Condition;
 import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigBuilder;
-import io.kroxylicious.test.ShellUtils;
+import io.kroxylicious.testing.integration.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

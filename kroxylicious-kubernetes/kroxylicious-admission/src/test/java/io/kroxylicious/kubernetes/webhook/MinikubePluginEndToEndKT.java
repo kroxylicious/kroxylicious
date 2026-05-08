@@ -16,7 +16,7 @@ import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
-import io.kroxylicious.test.ShellUtils;
+import io.kroxylicious.testing.integration.ShellUtils;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 

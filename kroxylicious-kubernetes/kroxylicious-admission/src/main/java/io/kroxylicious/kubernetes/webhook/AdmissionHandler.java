@@ -44,24 +44,24 @@ class AdmissionHandler implements HttpHandler {
     private final String proxyImage;
     private final boolean useNativeSidecar;
     private final boolean useOciImageVolumes;
-    private final boolean failClosed;
+    private final boolean denyUninjected;
 
     AdmissionHandler(
                      @NonNull SidecarConfigResolver configResolver,
                      @NonNull String proxyImage,
                      KubernetesVersion kubernetesVersion,
-                     boolean failClosed) {
+                     boolean denyUninjected) {
         this.configResolver = configResolver;
         this.proxyImage = proxyImage;
         this.useNativeSidecar = kubernetesVersion.supportedNativeSidecar();
         this.useOciImageVolumes = kubernetesVersion.supportsOciImageVolumes();
-        this.failClosed = failClosed;
+        this.denyUninjected = denyUninjected;
     }
 
     AdmissionHandler(
                      @NonNull SidecarConfigResolver configResolver,
                      @NonNull String proxyImage) {
-        this(configResolver, proxyImage, new KubernetesVersion(1, 0), true);
+        this(configResolver, proxyImage, new KubernetesVersion(1, 0), false);
     }
 
     @Override
@@ -94,7 +94,14 @@ class AdmissionHandler implements HttpHandler {
             LOGGER.atError()
                     .setCause(e)
                     .log("Unexpected error handling admission request");
-            sendErrorResponse(exchange, null, "Failed to process admission request");
+            try {
+                exchange.sendResponseHeaders(500, -1);
+            }
+            catch (IOException ioe) {
+                LOGGER.atError()
+                        .setCause(ioe)
+                        .log("Failed to send 500 response");
+            }
         }
         finally {
             exchange.close();
@@ -141,6 +148,11 @@ class AdmissionHandler implements HttpHandler {
                     .log("Sidecar injection decision");
 
             if (decision != InjectionDecision.Decision.INJECT) {
+                if (denyUninjected && decision.isConfigUnavailable()) {
+                    return denyResponse(uid,
+                            "Sidecar injection skipped (" + decision.name()
+                                    + ") and UNINJECTED_POD_POLICY is Deny");
+                }
                 String skipLabel = decision.skipLabel();
                 if (skipLabel != null) {
                     String labelPatch = PodMutator.createSkipLabelPatch(pod, skipLabel);
@@ -188,7 +200,7 @@ class AdmissionHandler implements HttpHandler {
                     .setCause(e)
                     .addKeyValue("uid", uid)
                     .log("Error processing admission request");
-            return errorResponse(uid, "Error processing admission request: " + e.getMessage());
+            throw e;
         }
     }
 
@@ -220,31 +232,4 @@ class AdmissionHandler implements HttpHandler {
         return response;
     }
 
-    @NonNull
-    private AdmissionResponse errorResponse(String uid, String reason) {
-        if (failClosed) {
-            return denyResponse(uid, reason);
-        }
-        return allowResponse(uid);
-    }
-
-    private void sendErrorResponse(HttpExchange exchange, String uid, String reason) {
-        try {
-            AdmissionReview responseReview = new AdmissionReview();
-            responseReview.setApiVersion("admission.k8s.io/v1");
-            responseReview.setKind("AdmissionReview");
-            responseReview.setResponse(errorResponse(uid, reason));
-            byte[] responseBytes = MAPPER.writeValueAsBytes(responseReview);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, responseBytes.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(responseBytes);
-            }
-        }
-        catch (IOException e) {
-            LOGGER.atError()
-                    .setCause(e)
-                    .log("Failed to send error response");
-        }
-    }
 }
