@@ -665,6 +665,7 @@ LOGS_PID=$!
 # kubectl wait --for=condition=complete alone would block indefinitely on failure.
 BENCHMARK_EXIT=0
 PROBE_START=${SECONDS}
+BENCHMARK_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 while true; do
     if kubectl wait job/omb-benchmark -n "${NAMESPACE}" \
             --for=condition=complete --timeout=10s 2>/dev/null; then
@@ -682,6 +683,7 @@ while true; do
     fi
 done
 stop_logs_tailer
+BENCHMARK_COMPLETED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 if [[ "${BENCHMARK_EXIT}" -eq 124 ]]; then
     echo "TIMED OUT after ${PROBE_TIMEOUT}s" >&2
@@ -792,11 +794,43 @@ mkdir -p "${OUTPUT_DIR}"
 # before exiting, and exec into a completed/failed pod is not possible.
 collect_result_from_pvc
 
+# Assemble phase timing and workload parameters for run-metadata.json.
+# Warmup/test durations come from the live Helm release values.
+# Workload shape (topics, partitions, messageSize, producer/consumer counts)
+# comes from result.json which is already collected at this point.
+METADATA_ARGS=()
+METADATA_ARGS+=(--benchmark-started-at "${BENCHMARK_STARTED_AT}")
+METADATA_ARGS+=(--benchmark-completed-at "${BENCHMARK_COMPLETED_AT}")
+if command -v helm &>/dev/null; then
+    _helm_vals=$(helm get values benchmark -n "${NAMESPACE}" --all -o json 2>/dev/null || true)
+    if [[ -n "${_helm_vals}" ]]; then
+        _warmup=$(printf '%s' "${_helm_vals}" | jq -r '.benchmark.warmupDurationMinutes // empty' 2>/dev/null || true)
+        _test=$(printf '%s' "${_helm_vals}" | jq -r '.benchmark.testDurationMinutes // empty' 2>/dev/null || true)
+        [[ -n "${_warmup}" ]] && METADATA_ARGS+=(--warmup-duration-minutes "${_warmup}")
+        [[ -n "${_test}" ]]   && METADATA_ARGS+=(--test-duration-minutes "${_test}")
+    fi
+fi
+if [[ -f "${OUTPUT_DIR}/result.json" ]] && command -v jq &>/dev/null; then
+    _topics=$(jq -r '.topics // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _parts=$(jq -r '.partitions // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _msgsize=$(jq -r '.messageSize // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _prods=$(jq -r '.producersPerTopic // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _cons=$(jq -r '.consumersPerTopic // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    [[ -n "${_topics}" ]]  && METADATA_ARGS+=(--topics "${_topics}")
+    if [[ -n "${_parts}" && -n "${_topics}" && "${_topics}" -gt 0 ]]; then
+        METADATA_ARGS+=(--partitions-per-topic "$(( _parts / _topics ))")
+    fi
+    [[ -n "${_msgsize}" ]] && METADATA_ARGS+=(--message-size "${_msgsize}")
+    [[ -n "${_prods}" ]]   && METADATA_ARGS+=(--producers-per-topic "${_prods}")
+    [[ -n "${_cons}" ]]    && METADATA_ARGS+=(--consumer-per-subscription "${_cons}")
+fi
+
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     # Full collection: JFR dump + flamegraph + run metadata (JSON already collected above)
     JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" \
         "${SCRIPT_DIR}/collect-results.sh" \
         --scenario "${SCENARIO}" --workload "${WORKLOAD}" --target-rate "${PRODUCER_RATE:-0}" \
+        "${METADATA_ARGS[@]+"${METADATA_ARGS[@]}"}" \
         "${OUTPUT_DIR}"
     [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
     [[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
@@ -828,6 +862,7 @@ else
         [[ -n "${SCENARIO}" ]]        && JBANG_ARGS+=(--scenario "${SCENARIO}")
         [[ -n "${WORKLOAD}" ]]        && JBANG_ARGS+=(--workload "${WORKLOAD}")
         [[ -n "${PRODUCER_RATE:-}" ]] && JBANG_ARGS+=(--target-rate "${PRODUCER_RATE}")
+        JBANG_ARGS+=("${METADATA_ARGS[@]+"${METADATA_ARGS[@]}"}")
         jbang "${FILTERED}" "${JBANG_ARGS[@]}"
     fi
 fi
