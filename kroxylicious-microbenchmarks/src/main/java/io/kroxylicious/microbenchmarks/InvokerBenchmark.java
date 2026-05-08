@@ -15,8 +15,8 @@ import io.kroxylicious.microbenchmarks.filters.EightInterfaceFilter;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter;
 import io.kroxylicious.microbenchmarks.filters.OneInterfaceFilter;
 import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter;
-import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
+import io.kroxylicious.proxy.internal.filter.FilterInvoker;
+import io.kroxylicious.proxy.internal.filter.FilterInvokers;
 
 public class InvokerBenchmark {
 

@@ -44,11 +44,11 @@ import com.google.common.reflect.ClassPath.ResourceInfo;
 
 import io.kroxylicious.filter.multitenant.config.MultiTenantConfig;
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.testing.filter.condition.kafka.FetchResponseDataCondition;
 import io.kroxylicious.testing.filter.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.testing.filter.requestresponsetestdef.RequestResponseTestDef;

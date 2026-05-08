@@ -29,7 +29,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.kroxylicious.proxy.filter;
+package ${outputPackage};
 
 import java.util.concurrent.CompletionStage;
 
@@ -43,16 +43,20 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.${filterClass};
+import io.kroxylicious.proxy.filter.${filterResultClass};
+
 /**
  * An invoker for ${filterClass}. The point is that this invoker knows the type of
  * ${filterClass} to avoid using instanceof/cast, which has a performance issue in
  * the current LTS java (17).
  */
-class ${filterInvokerClass} implements FilterInvoker {
+public class ${filterInvokerClass} implements FilterInvoker {
 
     private final ${filterClass} filter;
 
-    ${filterInvokerClass}(${filterClass} filter) {
+    public ${filterInvokerClass}(${filterClass} filter) {
         this.filter = filter;
     }
 

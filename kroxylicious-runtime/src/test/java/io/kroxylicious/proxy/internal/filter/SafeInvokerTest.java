@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter;
+package io.kroxylicious.proxy.internal.filter;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -17,6 +17,10 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import static org.apache.kafka.common.protocol.ApiKeys.API_VERSIONS;
 import static org.assertj.core.api.Assertions.assertThat;

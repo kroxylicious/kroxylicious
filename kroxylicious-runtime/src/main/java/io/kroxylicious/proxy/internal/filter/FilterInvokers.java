@@ -4,11 +4,15 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter;
+package io.kroxylicious.proxy.internal.filter;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.RequestFilter;
+import io.kroxylicious.proxy.filter.ResponseFilter;
 
 /**
  * Factory for FilterInvokers. The intention is to keep the Invoker implementations
@@ -39,8 +43,6 @@ public class FilterInvokers {
      */
     static List<FilterAndInvoker> from(String filterName, Filter filter) {
         List<FilterAndInvoker> filterInvokers = invokersForFilter(filterName, filter);
-        // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
-        // even if the invoker isn't interested in that message.
         return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
