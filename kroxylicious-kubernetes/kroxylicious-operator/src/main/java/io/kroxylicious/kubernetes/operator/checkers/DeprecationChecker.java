@@ -6,6 +6,11 @@
 
 package io.kroxylicious.kubernetes.operator.checkers;
 
+import java.time.Duration;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import io.fabric8.kubernetes.client.CustomResource;
 
 import io.kroxylicious.kubernetes.operator.StatusFactory;
@@ -22,7 +27,16 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
  *
  * @see DeprecationCheckContext
  */
-@FunctionalInterface
-public interface DeprecationChecker<S, T, R extends CustomResource<S, T>, F extends StatusFactory<R>> {
-    void check(DeprecationCheckContext<S, T, R, F> context);
+public abstract class DeprecationChecker<S, T, R extends CustomResource<S, T>, F extends StatusFactory<R>> {
+    private static final Cache<String, Boolean> LOG_CACHE = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofHours(1))
+            .maximumSize(100)
+            .build();
+
+    public static Cache<String, Boolean> getLogCache() {
+        return LOG_CACHE;
+    }
+
+    public abstract void check(DeprecationCheckContext<S, T, R, F> context);
+
 }

@@ -6,11 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.checkers;
 
-import java.time.Duration;
 import java.util.Optional;
-
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -37,19 +33,14 @@ import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyStatu
  * Once a resource gains a spec the cached entry is invalidated so that if the spec is later
  * removed again the warning is re-emitted.
  */
-public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> {
-    private static final Cache<String, Boolean> resourcesWithAbsentSpecs = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofHours(1))
-            .maximumSize(100)
-            .build();
-
+public class AbsentSpecDeprecationChecker extends DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> {
     public void check(DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> context) {
         var proxy = context.resource();
 
         var resourceUid = Optional.of(proxy).map(HasMetadata::getMetadata).map(ObjectMeta::getUid);
         resourceUid.ifPresent(uid -> {
             if (proxy.getSpec() == null) {
-                if (resourcesWithAbsentSpecs.asMap().putIfAbsent(uid, true) == null) {
+                if (getLogCache().asMap().putIfAbsent(getCacheKey(uid), true) == null) {
                     context.logger().atWarn()
                             .addKeyValue(OperatorLoggingKeys.KIND, ResourcesUtil.kind(proxy))
                             .addKeyValue(OperatorLoggingKeys.NAME, ResourcesUtil.name(proxy))
@@ -63,8 +54,12 @@ public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaPro
                         "Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release."));
             }
             else {
-                resourcesWithAbsentSpecs.invalidate(uid);
+                getLogCache().invalidate(getCacheKey(uid));
             }
         });
+    }
+
+    private String getCacheKey(String uid) {
+        return "absent-spec/" + uid;
     }
 }
