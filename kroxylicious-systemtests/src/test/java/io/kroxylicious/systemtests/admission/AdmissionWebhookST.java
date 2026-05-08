@@ -9,18 +9,16 @@ package io.kroxylicious.systemtests.admission;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.skodjob.testframe.listeners.TestVisualSeparatorExtension;
 
 import io.kroxylicious.systemtests.AbstractSystemTests;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.installation.admission.AdmissionWebhook;
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_CONFIG_NAME;
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_DEPLOYMENT_NAME;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,13 +28,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Phase 1: Validates that the admission webhook can be deployed from distribution
  * manifests and becomes ready. Future phases will test actual sidecar injection.
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(TestVisualSeparatorExtension.class)
 class AdmissionWebhookST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhookST.class);
     private static final String WEBHOOK_NAMESPACE = "kroxylicious-webhook";
-    private static final String WEBHOOK_DEPLOYMENT_NAME = "kroxylicious-webhook";
-    private static final String WEBHOOK_CONFIG_NAME = "kroxylicious-sidecar-injector";
 
     private static CertManager certManager;
     private static AdmissionWebhook admissionWebhook;

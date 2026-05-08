@@ -23,6 +23,8 @@ import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_CONFIG_NAME;
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_DEPLOYMENT_NAME;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -32,8 +34,6 @@ public class AdmissionWebhook {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhook.class);
     private static final String DISTRIBUTION_DIR = "target/kroxylicious-admission-dist";
     private static final String INSTALL_DIR = DISTRIBUTION_DIR + "/install";
-    private static final String WEBHOOK_DEPLOYMENT_NAME = "kroxylicious-webhook";
-    private static final String WEBHOOK_CONFIG_NAME = "kroxylicious-sidecar-injector";
     private static final String ISSUER_NAME = "kroxylicious-webhook-selfsigned";
     private static final String CERT_NAME = "kroxylicious-webhook-cert";
 
@@ -115,7 +115,10 @@ public class AdmissionWebhook {
     private void applyInstallManifests() {
         LOGGER.info("Applying install manifests from {}", INSTALL_DIR);
         try (var files = Files.list(Path.of(INSTALL_DIR))) {
-            files.filter(p -> !p.getFileName().toString().startsWith("00.CustomResourceDefinition"))
+            files.filter(p -> {
+                Path fileName = p.getFileName();
+                return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
+            })
                     .sorted()
                     .forEach(this::applyManifest);
         }
@@ -223,7 +226,10 @@ public class AdmissionWebhook {
     private void deleteInstallManifests() {
         LOGGER.info("Deleting install manifests");
         try (var files = Files.list(Path.of(INSTALL_DIR))) {
-            files.filter(p -> !p.getFileName().toString().startsWith("00.CustomResourceDefinition"))
+            files.filter(p -> {
+                Path fileName = p.getFileName();
+                return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
+            })
                     .sorted()
                     .forEach(this::deleteManifest);
         }
