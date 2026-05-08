@@ -107,8 +107,11 @@ public final class Constants {
     /**
      * Webhook related constants
      */
+    public static final String WEBHOOK_NAMESPACE = "kroxylicious-webhook";
     public static final String WEBHOOK_DEPLOYMENT_NAME = "kroxylicious-webhook";
     public static final String WEBHOOK_CONFIG_NAME = "kroxylicious-sidecar-injector";
+    public static final String WEBHOOK_ISSUER_NAME = "kroxylicious-webhook-selfsigned";
+    public static final String WEBHOOK_CERT_NAME = "kroxylicious-webhook-cert";
 
     /**
      * Service type names.

@@ -23,8 +23,12 @@ import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_CERT_NAME;
 import static io.kroxylicious.systemtests.Constants.WEBHOOK_CONFIG_NAME;
 import static io.kroxylicious.systemtests.Constants.WEBHOOK_DEPLOYMENT_NAME;
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_ISSUER_NAME;
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_NAMESPACE;
+import static io.kroxylicious.systemtests.Environment.KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -32,21 +36,13 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class AdmissionWebhook {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhook.class);
-    private static final String DISTRIBUTION_DIR = "target/kroxylicious-admission-dist";
-    private static final String INSTALL_DIR = DISTRIBUTION_DIR + "/install";
-    private static final String ISSUER_NAME = "kroxylicious-webhook-selfsigned";
-    private static final String CERT_NAME = "kroxylicious-webhook-cert";
 
-    private final String deploymentNamespace;
     private boolean deleteWebhook = true;
 
     /**
      * Creates a new AdmissionWebhook installer.
-     *
-     * @param deploymentNamespace the namespace to deploy the webhook into
      */
-    public AdmissionWebhook(String deploymentNamespace) {
-        this.deploymentNamespace = deploymentNamespace;
+    public AdmissionWebhook() {
     }
 
     /**
@@ -61,7 +57,7 @@ public class AdmissionWebhook {
             return;
         }
 
-        LOGGER.info("Deploying admission webhook in {} namespace", deploymentNamespace);
+        LOGGER.info("Deploying admission webhook in {} namespace", WEBHOOK_NAMESPACE);
 
         validateDistribution();
         applyCrd();
@@ -81,7 +77,7 @@ public class AdmissionWebhook {
             return;
         }
 
-        LOGGER.info("Deleting admission webhook in {} namespace", deploymentNamespace);
+        LOGGER.info("Deleting admission webhook in {} namespace", WEBHOOK_NAMESPACE);
 
         deleteInstallManifests();
         deleteCrd();
@@ -91,13 +87,13 @@ public class AdmissionWebhook {
 
     private boolean isDeployed() {
         return kubeClient().getClient().apps().deployments()
-                .inNamespace(deploymentNamespace)
+                .inNamespace(WEBHOOK_NAMESPACE)
                 .withName(WEBHOOK_DEPLOYMENT_NAME)
                 .get() != null;
     }
 
     private void validateDistribution() {
-        Path installPath = Path.of(INSTALL_DIR);
+        Path installPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR);
         if (!Files.exists(installPath) || !Files.isDirectory(installPath)) {
             throw new IllegalStateException(
                     "Distribution directory not found at " + installPath.toAbsolutePath() +
@@ -108,13 +104,13 @@ public class AdmissionWebhook {
 
     private void applyCrd() {
         LOGGER.info("Applying CRD");
-        Path crdPath = Path.of(INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
+        Path crdPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
         applyManifest(crdPath);
     }
 
     private void applyInstallManifests() {
-        LOGGER.info("Applying install manifests from {}", INSTALL_DIR);
-        try (var files = Files.list(Path.of(INSTALL_DIR))) {
+        LOGGER.info("Applying install manifests from {}", KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR);
+        try (var files = Files.list(Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR))) {
             files.filter(p -> {
                 Path fileName = p.getFileName();
                 return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
@@ -142,8 +138,8 @@ public class AdmissionWebhook {
 
         var issuer = new IssuerBuilder()
                 .withNewMetadata()
-                .withName(ISSUER_NAME)
-                .withNamespace(deploymentNamespace)
+                .withName(WEBHOOK_ISSUER_NAME)
+                .withNamespace(WEBHOOK_NAMESPACE)
                 .addToLabels("app.kubernetes.io/name", "kroxylicious")
                 .addToLabels("app.kubernetes.io/component", "webhook")
                 .endMetadata()
@@ -158,23 +154,23 @@ public class AdmissionWebhook {
 
         var certificate = new CertificateBuilder()
                 .withNewMetadata()
-                .withName(CERT_NAME)
-                .withNamespace(deploymentNamespace)
+                .withName(WEBHOOK_CERT_NAME)
+                .withNamespace(WEBHOOK_NAMESPACE)
                 .addToLabels("app.kubernetes.io/name", "kroxylicious")
                 .addToLabels("app.kubernetes.io/component", "webhook")
                 .endMetadata()
                 .withNewSpec()
-                .withSecretName(CERT_NAME)
+                .withSecretName(WEBHOOK_CERT_NAME)
                 .withNewIssuerRef()
-                .withName(ISSUER_NAME)
+                .withName(WEBHOOK_ISSUER_NAME)
                 .withKind("Issuer")
                 .endIssuerRef()
-                .withCommonName(WEBHOOK_DEPLOYMENT_NAME + "." + deploymentNamespace + ".svc.cluster.local")
+                .withCommonName(WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE + ".svc.cluster.local")
                 .withDnsNames(
                         WEBHOOK_DEPLOYMENT_NAME,
-                        WEBHOOK_DEPLOYMENT_NAME + "." + deploymentNamespace,
-                        WEBHOOK_DEPLOYMENT_NAME + "." + deploymentNamespace + ".svc",
-                        WEBHOOK_DEPLOYMENT_NAME + "." + deploymentNamespace + ".svc.cluster.local")
+                        WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE,
+                        WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE + ".svc",
+                        WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE + ".svc.cluster.local")
                 .withNewPrivateKey()
                 .withEncoding("PKCS8")
                 .endPrivateKey()
@@ -190,8 +186,8 @@ public class AdmissionWebhook {
     private void waitForCertificateReady() {
         LOGGER.info("Waiting for Certificate to be ready");
         kubeClient().getClient().resources(io.fabric8.certmanager.api.model.v1.Certificate.class)
-                .inNamespace(deploymentNamespace)
-                .withName(CERT_NAME)
+                .inNamespace(WEBHOOK_NAMESPACE)
+                .withName(WEBHOOK_CERT_NAME)
                 .waitUntilCondition(
                         cert -> cert != null
                                 && cert.getStatus() != null
@@ -204,7 +200,7 @@ public class AdmissionWebhook {
 
     private void waitForWebhookReady() {
         LOGGER.info("Waiting for webhook deployment to become ready");
-        DeploymentUtils.waitForDeploymentReady(deploymentNamespace, WEBHOOK_DEPLOYMENT_NAME);
+        DeploymentUtils.waitForDeploymentReady(WEBHOOK_NAMESPACE, WEBHOOK_DEPLOYMENT_NAME);
 
         waitForCaBundleInjected();
     }
@@ -225,7 +221,7 @@ public class AdmissionWebhook {
 
     private void deleteInstallManifests() {
         LOGGER.info("Deleting install manifests");
-        try (var files = Files.list(Path.of(INSTALL_DIR))) {
+        try (var files = Files.list(Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR))) {
             files.filter(p -> {
                 Path fileName = p.getFileName();
                 return fileName != null && !fileName.toString().startsWith("00.CustomResourceDefinition");
@@ -242,7 +238,7 @@ public class AdmissionWebhook {
 
     private void deleteCrd() {
         LOGGER.info("Deleting CRD");
-        Path crdPath = Path.of(INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
+        Path crdPath = Path.of(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR, "00.CustomResourceDefinition.kroxylicioussidecarconfig.yaml");
         deleteManifest(crdPath);
     }
 

@@ -19,6 +19,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 
 import static io.kroxylicious.systemtests.Constants.WEBHOOK_CONFIG_NAME;
 import static io.kroxylicious.systemtests.Constants.WEBHOOK_DEPLOYMENT_NAME;
+import static io.kroxylicious.systemtests.Constants.WEBHOOK_NAMESPACE;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,7 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AdmissionWebhookST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhookST.class);
-    private static final String WEBHOOK_NAMESPACE = "kroxylicious-webhook";
 
     private static CertManager certManager;
     private static AdmissionWebhook admissionWebhook;
@@ -44,7 +44,7 @@ class AdmissionWebhookST extends AbstractSystemTests {
         certManager.deploy();
 
         LOGGER.info("Deploying admission webhook from distribution");
-        admissionWebhook = new AdmissionWebhook(WEBHOOK_NAMESPACE);
+        admissionWebhook = new AdmissionWebhook();
         admissionWebhook.deploy(certManager);
 
         LOGGER.info("Admission webhook setup complete");
