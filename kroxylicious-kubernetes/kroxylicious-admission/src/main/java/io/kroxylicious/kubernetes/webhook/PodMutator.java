@@ -285,6 +285,9 @@ class PodMutator {
                     .withNewCapabilities()
                     .addToDrop("ALL")
                     .endCapabilities()
+                    .withNewSeccompProfile()
+                    .withType("RuntimeDefault")
+                    .endSeccompProfile()
                     .endSecurityContext()
                     .build();
 
@@ -316,6 +319,9 @@ class PodMutator {
                 .withNewCapabilities()
                 .addToDrop("ALL")
                 .endCapabilities()
+                .withNewSeccompProfile()
+                .withType("RuntimeDefault")
+                .endSeccompProfile()
                 .endSecurityContext()
                 .addNewPort()
                 .withContainerPort(managementPort)

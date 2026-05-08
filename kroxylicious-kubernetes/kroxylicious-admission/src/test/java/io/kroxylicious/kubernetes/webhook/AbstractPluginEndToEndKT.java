@@ -46,7 +46,7 @@ import io.kroxylicious.kubernetes.api.admission.common.Condition;
 import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
 import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigBuilder;
 import io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.plugins.Image;
-import io.kroxylicious.test.ShellUtils;
+import io.kroxylicious.testing.integration.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -7,6 +7,8 @@
 package io.kroxylicious.kubernetes.webhook;
 
 import java.io.Closeable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +22,7 @@ import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfig;
+import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -196,14 +199,45 @@ class SidecarConfigResolver implements Closeable {
         }
     }
 
+    @VisibleForTesting
+    static List<String> validate(@NonNull KroxyliciousSidecarConfig config) {
+        List<String> errors = new ArrayList<>();
+        KroxyliciousSidecarConfigSpec spec = config.getSpec();
+        if (spec == null) {
+            errors.add("spec is required");
+            return errors;
+        }
+        if (spec.getVirtualClusters() == null || spec.getVirtualClusters().isEmpty()) {
+            errors.add("spec.virtualClusters must contain at least one entry");
+        }
+        else {
+            var vc = spec.getVirtualClusters().get(0);
+            if (vc.getTargetBootstrapServers() == null || vc.getTargetBootstrapServers().isBlank()) {
+                errors.add("spec.virtualClusters[0].targetBootstrapServers is required");
+            }
+        }
+        return errors;
+    }
+
+    private void updateStatus(@NonNull KroxyliciousSidecarConfig config) {
+        if (statusUpdater == null) {
+            return;
+        }
+        List<String> errors = validate(config);
+        if (errors.isEmpty()) {
+            statusUpdater.setReady(config);
+        }
+        else {
+            statusUpdater.setNotReady(config, String.join("; ", errors));
+        }
+    }
+
     private class Handler implements ResourceEventHandler<KroxyliciousSidecarConfig> {
 
         @Override
         public void onAdd(KroxyliciousSidecarConfig obj) {
             put(obj);
-            if (statusUpdater != null) {
-                statusUpdater.setReady(obj);
-            }
+            updateStatus(obj);
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, obj.getMetadata().getNamespace())
                     .addKeyValue(WebhookLoggingKeys.NAME, obj.getMetadata().getName())
@@ -215,9 +249,7 @@ class SidecarConfigResolver implements Closeable {
                              KroxyliciousSidecarConfig oldObj,
                              KroxyliciousSidecarConfig newObj) {
             put(newObj);
-            if (statusUpdater != null) {
-                statusUpdater.setReady(newObj);
-            }
+            updateStatus(newObj);
             LOGGER.atInfo()
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, newObj.getMetadata().getNamespace())
                     .addKeyValue(WebhookLoggingKeys.NAME, newObj.getMetadata().getName())

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.test.ShellUtils;
+import io.kroxylicious.testing.integration.ShellUtils;
 
 /**
  * Runs the plugin end-to-end tests on a dedicated Kind cluster with the

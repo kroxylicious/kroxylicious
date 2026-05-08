@@ -134,39 +134,41 @@ class WebhookMainTest {
         assertThat(value).isEqualTo("my-image:latest");
     }
 
-    // --- parseFailClosed tests ---
+    // --- parseDenyUninjected tests ---
 
     @Test
-    void parseFailClosedDefaultsToTrue() {
-        boolean result = WebhookMain.parseFailClosed(Map.of());
-        assertThat(result).isTrue();
-    }
-
-    @Test
-    void parseFailClosedReturnsTrueForFail() {
-        boolean result = WebhookMain.parseFailClosed(Map.of("FAILURE_POLICY", "Fail"));
-        assertThat(result).isTrue();
-    }
-
-    @Test
-    void parseFailClosedReturnsFalseForIgnore() {
-        boolean result = WebhookMain.parseFailClosed(Map.of("FAILURE_POLICY", "Ignore"));
+    void parseDenyUninjectedDefaultsToFalse() {
+        boolean result = WebhookMain.parseDenyUninjected(Map.of());
         assertThat(result).isFalse();
     }
 
     @Test
-    void parseFailClosedThrowsForInvalidValue() {
-        assertThatThrownBy(() -> WebhookMain.parseFailClosed(
-                Map.of("FAILURE_POLICY", "invalid")))
+    void parseDenyUninjectedReturnsTrueForDeny() {
+        boolean result = WebhookMain.parseDenyUninjected(
+                Map.of("UNINJECTED_POD_POLICY", "Deny"));
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void parseDenyUninjectedReturnsFalseForAdmit() {
+        boolean result = WebhookMain.parseDenyUninjected(
+                Map.of("UNINJECTED_POD_POLICY", "Admit"));
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void parseDenyUninjectedThrowsForInvalidValue() {
+        assertThatThrownBy(() -> WebhookMain.parseDenyUninjected(
+                Map.of("UNINJECTED_POD_POLICY", "invalid")))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("FAILURE_POLICY")
+                .hasMessageContaining("UNINJECTED_POD_POLICY")
                 .hasMessageContaining("invalid");
     }
 
     @Test
-    void parseFailClosedIsCaseSensitive() {
-        assertThatThrownBy(() -> WebhookMain.parseFailClosed(
-                Map.of("FAILURE_POLICY", "fail")))
+    void parseDenyUninjectedIsCaseSensitive() {
+        assertThatThrownBy(() -> WebhookMain.parseDenyUninjected(
+                Map.of("UNINJECTED_POD_POLICY", "deny")))
                 .isInstanceOf(IllegalStateException.class);
     }
 

@@ -29,6 +29,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 class SidecarConfigStatusUpdater {
 
     static final String REASON_ACCEPTED = "Accepted";
+    static final String REASON_INVALID = "Invalid";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SidecarConfigStatusUpdater.class);
 
@@ -81,6 +82,57 @@ class SidecarConfigStatusUpdater {
                     .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
                     .addKeyValue(WebhookLoggingKeys.NAME, name)
                     .log("Set Ready condition on KroxyliciousSidecarConfig");
+        }
+        catch (Exception e) {
+            LOGGER.atWarn()
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue(WebhookLoggingKeys.NAME, name)
+                    .addKeyValue("error", e.getMessage())
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Failed to update KroxyliciousSidecarConfig status"
+                            : "Failed to update KroxyliciousSidecarConfig status, increase log level to DEBUG for stacktrace");
+        }
+    }
+
+    /**
+     * Sets the {@code Ready=False} condition on the given config's status.
+     */
+    void setNotReady(
+                     @NonNull KroxyliciousSidecarConfig config,
+                     @NonNull String message) {
+        String namespace = config.getMetadata().getNamespace();
+        String name = config.getMetadata().getName();
+        try {
+            long generation = generation(config);
+            Condition readyCondition = new ConditionBuilder()
+                    .withType(Condition.Type.Ready)
+                    .withStatus(Condition.Status.FALSE)
+                    .withReason(REASON_INVALID)
+                    .withMessage(message)
+                    .withLastTransitionTime(clock.instant())
+                    .withObservedGeneration(generation)
+                    .build();
+
+            client.resources(KroxyliciousSidecarConfig.class)
+                    .inNamespace(namespace)
+                    .withName(name)
+                    .editStatus(existing -> {
+                        KroxyliciousSidecarConfigStatus status = existing.getStatus();
+                        if (status == null) {
+                            status = new KroxyliciousSidecarConfigStatus();
+                            existing.setStatus(status);
+                        }
+                        status.setConditions(List.of(readyCondition));
+                        status.setObservedGeneration(generation);
+                        return existing;
+                    });
+
+            LOGGER.atWarn()
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue(WebhookLoggingKeys.NAME, name)
+                    .addKeyValue("message", message)
+                    .log("Set Ready=False condition on KroxyliciousSidecarConfig");
         }
         catch (Exception e) {
             LOGGER.atWarn()

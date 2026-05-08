@@ -120,6 +120,7 @@ class PodMutatorTest {
         assertThat(secCtx.path("allowPrivilegeEscalation").asBoolean()).isFalse();
         assertThat(secCtx.path("readOnlyRootFilesystem").asBoolean()).isTrue();
         assertThat(secCtx.path("capabilities").path("drop").get(0).asText()).isEqualTo("ALL");
+        assertThat(secCtx.path("seccompProfile").path("type").asText()).isEqualTo("RuntimeDefault");
     }
 
     @Test
@@ -393,6 +394,7 @@ class PodMutatorTest {
         assertThat(initContainer.path("name").asText()).isEqualTo("plugin-my-filter-copy");
         assertThat(initContainer.path("image").asText()).isEqualTo("reg.io/filter:v1@sha256:abc123");
         assertThat(initContainer.path("securityContext").path("allowPrivilegeEscalation").asBoolean()).isFalse();
+        assertThat(initContainer.path("securityContext").path("seccompProfile").path("type").asText()).isEqualTo("RuntimeDefault");
     }
 
     @Test
@@ -586,26 +588,26 @@ class PodMutatorTest {
     @Test
     void skipLabelPatchAddsLabelWhenNoExistingLabels() throws Exception {
         Pod pod = podWithAppContainer(null);
-        String patchStr = PodMutator.createSkipLabelPatch(pod, "no-config");
+        String patchStr = PodMutator.createSkipLabelPatch(pod, "no-KroxyliciousSidecarConfig");
         JsonNode patch = MAPPER.readTree(patchStr);
 
         List<JsonNode> ops = patchOps(patch, "add", "/metadata/labels");
         assertThat(ops).hasSize(1);
         assertThat(ops.get(0).path("value").path(Labels.INJECTION_SKIPPED).asText())
-                .isEqualTo("no-config");
+                .isEqualTo("no-KroxyliciousSidecarConfig");
     }
 
     @Test
     void skipLabelPatchAddsLabelWhenExistingLabels() throws Exception {
         Pod pod = podWithAppContainer(null);
         pod.getMetadata().setLabels(new HashMap<>(Map.of("app", "my-app")));
-        String patchStr = PodMutator.createSkipLabelPatch(pod, "already-injected");
+        String patchStr = PodMutator.createSkipLabelPatch(pod, "container-name-conflict");
         JsonNode patch = MAPPER.readTree(patchStr);
 
         String escapedKey = PodMutator.escapeJsonPointer(Labels.INJECTION_SKIPPED);
         List<JsonNode> ops = patchOps(patch, "add", "/metadata/labels/" + escapedKey);
         assertThat(ops).hasSize(1);
-        assertThat(ops.get(0).path("value").asText()).isEqualTo("already-injected");
+        assertThat(ops.get(0).path("value").asText()).isEqualTo("container-name-conflict");
     }
 
     // --- helpers ---

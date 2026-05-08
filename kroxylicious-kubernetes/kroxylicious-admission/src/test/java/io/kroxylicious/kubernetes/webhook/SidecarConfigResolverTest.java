@@ -175,7 +175,7 @@ class SidecarConfigResolverTest {
     // --- status updater integration tests ---
 
     @Test
-    void onAddCallsStatusUpdater() {
+    void onAddCallsSetReadyForValidConfig() {
         SidecarConfigResolver resolver = new SidecarConfigResolver(statusUpdater);
         KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
 
@@ -187,7 +187,21 @@ class SidecarConfigResolverTest {
     }
 
     @Test
-    void onUpdateCallsStatusUpdater() {
+    void onAddCallsSetNotReadyForInvalidConfig() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver(statusUpdater);
+        KroxyliciousSidecarConfig config = createConfigWithoutBootstrap("ns1", "my-config");
+
+        resolver.simulateAdd(config);
+
+        verify(statusUpdater).setNotReady(
+                org.mockito.ArgumentMatchers.eq(config),
+                org.mockito.ArgumentMatchers.contains("targetBootstrapServers"));
+        assertThat(resolver.resolve("ns1", "my-config").outcome())
+                .isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+    }
+
+    @Test
+    void onUpdateCallsSetReadyForValidConfig() {
         SidecarConfigResolver resolver = new SidecarConfigResolver(statusUpdater);
         KroxyliciousSidecarConfig oldConfig = createConfig("ns1", "my-config");
         KroxyliciousSidecarConfig newConfig = createConfig("ns1", "my-config");
@@ -200,6 +214,19 @@ class SidecarConfigResolverTest {
     }
 
     @Test
+    void onUpdateCallsSetNotReadyForInvalidConfig() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver(statusUpdater);
+        KroxyliciousSidecarConfig oldConfig = createConfig("ns1", "my-config");
+        KroxyliciousSidecarConfig newConfig = createConfigWithoutBootstrap("ns1", "my-config");
+
+        resolver.simulateUpdate(oldConfig, newConfig);
+
+        verify(statusUpdater).setNotReady(
+                org.mockito.ArgumentMatchers.eq(newConfig),
+                org.mockito.ArgumentMatchers.contains("targetBootstrapServers"));
+    }
+
+    @Test
     void noStatusUpdaterDoesNotThrow() {
         SidecarConfigResolver resolver = new SidecarConfigResolver();
         KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
@@ -207,6 +234,44 @@ class SidecarConfigResolverTest {
         assertThatCode(() -> resolver.simulateAdd(config)).doesNotThrowAnyException();
         assertThat(resolver.resolve("ns1", "my-config").outcome())
                 .isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+    }
+
+    // --- validation tests ---
+
+    @Test
+    void validateAcceptsValidConfig() {
+        KroxyliciousSidecarConfig config = createConfig("ns1", "my-config");
+        assertThat(SidecarConfigResolver.validate(config)).isEmpty();
+    }
+
+    @Test
+    void validateRejectsNullSpec() {
+        KroxyliciousSidecarConfig config = new KroxyliciousSidecarConfig();
+        config.setMetadata(new ObjectMeta());
+        config.getMetadata().setNamespace("ns1");
+        config.getMetadata().setName("bad");
+
+        assertThat(SidecarConfigResolver.validate(config)).contains("spec is required");
+    }
+
+    @Test
+    void validateRejectsEmptyVirtualClusters() {
+        KroxyliciousSidecarConfig config = new KroxyliciousSidecarConfig();
+        config.setMetadata(new ObjectMeta());
+        config.getMetadata().setNamespace("ns1");
+        config.getMetadata().setName("bad");
+        config.setSpec(new KroxyliciousSidecarConfigSpec());
+        config.getSpec().setVirtualClusters(java.util.List.of());
+
+        assertThat(SidecarConfigResolver.validate(config))
+                .contains("spec.virtualClusters must contain at least one entry");
+    }
+
+    @Test
+    void validateRejectsMissingTargetBootstrapServers() {
+        KroxyliciousSidecarConfig config = createConfigWithoutBootstrap("ns1", "bad");
+        assertThat(SidecarConfigResolver.validate(config))
+                .contains("spec.virtualClusters[0].targetBootstrapServers is required");
     }
 
     private static KroxyliciousSidecarConfig createConfig(String namespace, String name) {
@@ -219,6 +284,20 @@ class SidecarConfigResolverTest {
         VirtualClusters vc = new VirtualClusters();
         vc.setName("sidecar");
         vc.setTargetBootstrapServers("kafka.example.com:9092");
+        spec.setVirtualClusters(java.util.List.of(vc));
+        config.setSpec(spec);
+        return config;
+    }
+
+    private static KroxyliciousSidecarConfig createConfigWithoutBootstrap(String namespace, String name) {
+        KroxyliciousSidecarConfig config = new KroxyliciousSidecarConfig();
+        ObjectMeta meta = new ObjectMeta();
+        meta.setNamespace(namespace);
+        meta.setName(name);
+        config.setMetadata(meta);
+        KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();
+        VirtualClusters vc = new VirtualClusters();
+        vc.setName("sidecar");
         spec.setVirtualClusters(java.util.List.of(vc));
         config.setSpec(spec);
         return config;

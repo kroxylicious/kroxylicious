@@ -8,29 +8,23 @@ package io.kroxylicious.kubernetes.webhook;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateFactory;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.Base64;
-import java.util.Collection;
-import java.util.List;
 
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
+
+import io.netty.handler.ssl.JdkSslContext;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -83,63 +77,21 @@ class WebhookServer implements Closeable {
                                        @NonNull Path certPath,
                                        @NonNull Path keyPath)
             throws GeneralSecurityException, IOException {
-
-        CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-
-        // Load certificate chain
-        Collection<? extends Certificate> certs;
-        try (InputStream certStream = Files.newInputStream(certPath)) {
-            certs = certFactory.generateCertificates(certStream);
+        SslContext nettyCtx;
+        try {
+            nettyCtx = SslContextBuilder
+                    .forServer(certPath.toFile(), keyPath.toFile())
+                    .sslProvider(SslProvider.JDK)
+                    .build();
         }
-
-        // Load private key
-        PrivateKey privateKey = loadPrivateKey(keyPath);
-
-        // Build keystore
-        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-        keyStore.load(null, null);
-        keyStore.setKeyEntry("webhook",
-                privateKey,
-                new char[0],
-                certs.toArray(new Certificate[0]));
-
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        kmf.init(keyStore, new char[0]);
-
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(kmf.getKeyManagers(), null, null);
-        return sslContext;
-    }
-
-    @NonNull
-    private static PrivateKey loadPrivateKey(@NonNull Path keyPath) throws IOException, GeneralSecurityException {
-        String keyPem = Files.readString(keyPath);
-
-        // Detect PKCS1 format and fail fast
-        if (keyPem.contains("-----BEGIN RSA PRIVATE KEY-----") || keyPem.contains("-----BEGIN EC PRIVATE KEY-----")) {
-            throw new GeneralSecurityException("Private key at " + keyPath + " is in PKCS1 format, which is not supported." +
-                    "The only supported format is PKCS8. (if you are using cert-manager, you can set 'spec.privateKey.encoding' "
-                    + "on your Certificate to 'PKCS8')");
+        catch (SSLException | IllegalArgumentException e) {
+            throw new GeneralSecurityException(
+                    "Failed to load TLS credentials from cert=" + certPath + " key=" + keyPath, e);
         }
-
-        // Strip PEM headers/footers and whitespace
-        String keyBase64 = keyPem
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "")
-                .replaceAll("\\s", "");
-
-        byte[] keyBytes = Base64.getDecoder().decode(keyBase64);
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(keyBytes);
-
-        // Try RSA first, then EC
-        for (String algorithm : List.of("RSA", "EC")) {
-            try {
-                return KeyFactory.getInstance(algorithm).generatePrivate(keySpec);
-            }
-            catch (GeneralSecurityException ignored) {
-                // Try next algorithm
-            }
+        if (nettyCtx instanceof JdkSslContext jdkCtx) {
+            return jdkCtx.context();
         }
-        throw new GeneralSecurityException("Unable to load private key from " + keyPath + " — unsupported key type");
+        throw new GeneralSecurityException(
+                "Expected JdkSslContext but got " + nettyCtx.getClass().getName());
     }
 }
