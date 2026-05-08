@@ -37,7 +37,7 @@ public class AbsentSpecDeprecationChecker extends DeprecationChecker<KafkaProxyS
     public void check(DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> context) {
         var proxy = context.resource();
 
-        var resourceUid = Optional.of(proxy).map(HasMetadata::getMetadata).map(ObjectMeta::getUid);
+        var resourceUid = Optional.ofNullable(proxy).map(HasMetadata::getMetadata).map(ObjectMeta::getUid);
         resourceUid.ifPresent(uid -> {
             if (proxy.getSpec() == null) {
                 if (getLogCache().asMap().putIfAbsent(getCacheKey(uid), true) == null) {
