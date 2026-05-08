@@ -45,6 +45,33 @@ public class CollectResults implements Callable<Integer> {
     @Option(names = "--target-rate", description = "Target producer rate in msg/sec for this probe")
     private Integer targetRate;
 
+    @Option(names = "--warmup-duration-minutes", description = "Warmup phase duration in minutes")
+    private Integer warmupDurationMinutes;
+
+    @Option(names = "--test-duration-minutes", description = "Measurement phase duration in minutes")
+    private Integer testDurationMinutes;
+
+    @Option(names = "--benchmark-started-at", description = "ISO-8601 UTC timestamp when the benchmark job started")
+    private String benchmarkStartedAt;
+
+    @Option(names = "--benchmark-completed-at", description = "ISO-8601 UTC timestamp when the benchmark job completed")
+    private String benchmarkCompletedAt;
+
+    @Option(names = "--topics", description = "Number of topics in the workload")
+    private Integer topics;
+
+    @Option(names = "--partitions-per-topic", description = "Number of partitions per topic")
+    private Integer partitionsPerTopic;
+
+    @Option(names = "--message-size", description = "Message payload size in bytes")
+    private Integer messageSize;
+
+    @Option(names = "--producers-per-topic", description = "Number of producers per topic")
+    private Integer producersPerTopic;
+
+    @Option(names = "--consumer-per-subscription", description = "Number of consumers per subscription")
+    private Integer consumerPerSubscription;
+
     public static void main(String... args) {
         int exitCode = execute(args);
         System.exit(exitCode);
@@ -57,7 +84,10 @@ public class CollectResults implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         if (metadataDir != null) {
-            RunMetadata.generate(metadataDir, new RunMetadata.ProbeContext(scenario, workload, targetRate));
+            RunMetadata.ProbeContext context = RunMetadata.ProbeContext.of(scenario, workload, targetRate)
+                    .withPhases(warmupDurationMinutes, testDurationMinutes, benchmarkStartedAt, benchmarkCompletedAt)
+                    .withWorkload(topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription);
+            RunMetadata.generate(metadataDir, context);
             System.out.println("Generated " + metadataDir.resolve("run-metadata.json"));
             return 0;
         }

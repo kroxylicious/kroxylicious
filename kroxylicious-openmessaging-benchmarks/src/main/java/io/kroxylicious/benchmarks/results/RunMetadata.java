@@ -39,14 +39,51 @@ public class RunMetadata {
     /**
      * Probe-specific context written alongside the standard git/system metadata.
      *
-     * @param scenario   the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
-     * @param workload   the OMB workload name (e.g. {@code 1topic-1kb})
-     * @param targetRate the target producer rate in msg/sec for this probe
+     * @param scenario                the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
+     * @param workload                the OMB workload name (e.g. {@code 1topic-1kb})
+     * @param targetRate              the target producer rate in msg/sec for this probe
+     * @param warmupDurationMinutes   warmup phase duration in minutes, or {@code null} if not recorded
+     * @param testDurationMinutes     measurement phase duration in minutes, or {@code null} if not recorded
+     * @param benchmarkStartedAt      ISO-8601 UTC timestamp when the benchmark job started, or {@code null} if not recorded
+     * @param benchmarkCompletedAt    ISO-8601 UTC timestamp when the benchmark job completed, or {@code null} if not recorded
+     * @param topics                  number of topics in the workload, or {@code null} if not recorded
+     * @param partitionsPerTopic      number of partitions per topic, or {@code null} if not recorded
+     * @param messageSize             message payload size in bytes, or {@code null} if not recorded
+     * @param producersPerTopic       number of producers per topic, or {@code null} if not recorded
+     * @param consumerPerSubscription number of consumers per subscription, or {@code null} if not recorded
      */
-    public record ProbeContext(String scenario, String workload, Integer targetRate) {
+    public record ProbeContext(String scenario, String workload, Integer targetRate,
+                               Integer warmupDurationMinutes, Integer testDurationMinutes,
+                               String benchmarkStartedAt, String benchmarkCompletedAt,
+                               Integer topics, Integer partitionsPerTopic, Integer messageSize,
+                               Integer producersPerTopic, Integer consumerPerSubscription) {
+
         /** An empty context that writes no probe-specific fields. */
         public static ProbeContext empty() {
-            return new ProbeContext(null, null, null);
+            return new ProbeContext(null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** Create a context with probe identifiers but no phase timing or workload parameters. */
+        public static ProbeContext of(String scenario, String workload, Integer targetRate) {
+            return new ProbeContext(scenario, workload, targetRate, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** Return a copy of this context with benchmark phase durations and timestamps added. */
+        public ProbeContext withPhases(Integer warmupDurationMinutes, Integer testDurationMinutes,
+                                       String benchmarkStartedAt, String benchmarkCompletedAt) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription);
+        }
+
+        /** Return a copy of this context with workload shape parameters added. */
+        public ProbeContext withWorkload(Integer topics, Integer partitionsPerTopic, Integer messageSize,
+                                         Integer producersPerTopic, Integer consumerPerSubscription) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription);
         }
     }
 
@@ -103,6 +140,33 @@ public class RunMetadata {
         }
         if (probeContext.targetRate() != null) {
             metadata.put("targetRate", probeContext.targetRate());
+        }
+        if (probeContext.warmupDurationMinutes() != null) {
+            metadata.put("warmupDurationMinutes", probeContext.warmupDurationMinutes());
+        }
+        if (probeContext.testDurationMinutes() != null) {
+            metadata.put("testDurationMinutes", probeContext.testDurationMinutes());
+        }
+        if (probeContext.benchmarkStartedAt() != null) {
+            metadata.put("benchmarkStartedAt", probeContext.benchmarkStartedAt());
+        }
+        if (probeContext.benchmarkCompletedAt() != null) {
+            metadata.put("benchmarkCompletedAt", probeContext.benchmarkCompletedAt());
+        }
+        if (probeContext.topics() != null) {
+            metadata.put("topics", probeContext.topics());
+        }
+        if (probeContext.partitionsPerTopic() != null) {
+            metadata.put("partitionsPerTopic", probeContext.partitionsPerTopic());
+        }
+        if (probeContext.messageSize() != null) {
+            metadata.put("messageSize", probeContext.messageSize());
+        }
+        if (probeContext.producersPerTopic() != null) {
+            metadata.put("producersPerTopic", probeContext.producersPerTopic());
+        }
+        if (probeContext.consumerPerSubscription() != null) {
+            metadata.put("consumerPerSubscription", probeContext.consumerPerSubscription());
         }
 
         Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
