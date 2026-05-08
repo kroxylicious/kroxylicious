@@ -111,7 +111,7 @@ class KafkaProxyReconcilerTest {
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
                 .conditionList()
-                .containsOnlyTypes(Condition.Type.Ready)
+                .containsOnlyTypes(Condition.Type.Ready, Condition.Type.DeprecationWarning)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
         assertThat(updateControl.isPatchResource()).isFalse();
@@ -187,7 +187,7 @@ class KafkaProxyReconcilerTest {
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
                 .conditionList()
-                .containsOnlyTypes(Condition.Type.Ready)
+                .containsOnlyTypes(Condition.Type.Ready, Condition.Type.DeprecationWarning)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
     }
@@ -380,7 +380,7 @@ class KafkaProxyReconcilerTest {
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
                 .conditionList()
-                .containsOnlyTypes(Condition.Type.Ready)
+                .containsOnlyTypes(Condition.Type.Ready, Condition.Type.DeprecationWarning)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
     }
