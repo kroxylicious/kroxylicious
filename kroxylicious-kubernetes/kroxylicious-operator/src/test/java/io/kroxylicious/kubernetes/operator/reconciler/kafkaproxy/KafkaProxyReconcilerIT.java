@@ -453,7 +453,8 @@ public class KafkaProxyReconcilerIT {
         assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
 
         // then
-        assertStausReplicaCount(created.proxy(), desiredReplicaCount);
+        assertStausReplicaCount(created.proxy(), desiredReplicaCount); // contains its own AWAIT
+        // assertStausReplicaCount already awaited reconciliation above, so the status is current here
         assertThat(Collections.singleton(created.proxy())).noneSatisfy(this::assertStatusDeprecationWarning);
     }
 
@@ -466,7 +467,7 @@ public class KafkaProxyReconcilerIT {
         var created = doCreate(kafkaService, kafkaProxyNoSpec(PROXY_A));
 
         // then
-        AWAIT.alias("Deployment as expected").untilAsserted(() -> {
+        AWAIT.alias("DeprecationWarning condition present").untilAsserted(() -> {
             assertThat(Collections.singleton(created.proxy())).allSatisfy(this::assertStatusDeprecationWarning);
         });
     }
