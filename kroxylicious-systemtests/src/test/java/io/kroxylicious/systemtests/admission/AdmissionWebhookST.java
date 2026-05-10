@@ -17,9 +17,9 @@ import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.installation.admission.AdmissionWebhook;
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_CONFIG_NAME;
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_DEPLOYMENT_NAME;
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_NAMESPACE;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_DEPLOYMENT_NAME;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_NAMESPACE;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_REGISTRATION_NAME;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,8 +55,8 @@ class AdmissionWebhookST extends AbstractSystemTests {
         LOGGER.info("Verifying webhook deployment is ready");
 
         var deployment = kubeClient().getClient().apps().deployments()
-                .inNamespace(WEBHOOK_NAMESPACE)
-                .withName(WEBHOOK_DEPLOYMENT_NAME)
+                .inNamespace(ADMISSION_NAMESPACE)
+                .withName(ADMISSION_DEPLOYMENT_NAME)
                 .get();
 
         assertThat(deployment)
@@ -75,7 +75,7 @@ class AdmissionWebhookST extends AbstractSystemTests {
 
         var webhookConfig = kubeClient().getClient().admissionRegistration().v1()
                 .mutatingWebhookConfigurations()
-                .withName(WEBHOOK_CONFIG_NAME)
+                .withName(ADMISSION_REGISTRATION_NAME)
                 .get();
 
         assertThat(webhookConfig)

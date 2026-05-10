@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -23,11 +25,12 @@ import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_CERT_NAME;
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_CONFIG_NAME;
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_DEPLOYMENT_NAME;
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_ISSUER_NAME;
-import static io.kroxylicious.systemtests.Constants.WEBHOOK_NAMESPACE;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_DEPLOYMENT_NAME;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_NAMESPACE;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_REGISTRATION_NAME;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_SERVICE_NAME;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_TLS_CERT_NAME;
+import static io.kroxylicious.systemtests.Constants.ADMISSION_TLS_ISSUER_NAME;
 import static io.kroxylicious.systemtests.Environment.KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -38,12 +41,6 @@ public class AdmissionWebhook {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhook.class);
 
     private boolean deleteWebhook = true;
-
-    /**
-     * Creates a new AdmissionWebhook installer.
-     */
-    public AdmissionWebhook() {
-    }
 
     /**
      * Deploys the admission webhook from distribution manifests.
@@ -57,7 +54,7 @@ public class AdmissionWebhook {
             return;
         }
 
-        LOGGER.info("Deploying admission webhook in {} namespace", WEBHOOK_NAMESPACE);
+        LOGGER.info("Deploying admission webhook in {} namespace", ADMISSION_NAMESPACE);
 
         validateDistribution();
         applyCrd();
@@ -77,7 +74,7 @@ public class AdmissionWebhook {
             return;
         }
 
-        LOGGER.info("Deleting admission webhook in {} namespace", WEBHOOK_NAMESPACE);
+        LOGGER.info("Deleting admission webhook in {} namespace", ADMISSION_NAMESPACE);
 
         deleteInstallManifests();
         deleteCrd();
@@ -87,8 +84,8 @@ public class AdmissionWebhook {
 
     private boolean isDeployed() {
         return kubeClient().getClient().apps().deployments()
-                .inNamespace(WEBHOOK_NAMESPACE)
-                .withName(WEBHOOK_DEPLOYMENT_NAME)
+                .inNamespace(ADMISSION_NAMESPACE)
+                .withName(ADMISSION_DEPLOYMENT_NAME)
                 .get() != null;
     }
 
@@ -138,8 +135,8 @@ public class AdmissionWebhook {
 
         var issuer = new IssuerBuilder()
                 .withNewMetadata()
-                .withName(WEBHOOK_ISSUER_NAME)
-                .withNamespace(WEBHOOK_NAMESPACE)
+                .withName(ADMISSION_TLS_ISSUER_NAME)
+                .withNamespace(ADMISSION_NAMESPACE)
                 .addToLabels("app.kubernetes.io/name", "kroxylicious")
                 .addToLabels("app.kubernetes.io/component", "webhook")
                 .endMetadata()
@@ -154,23 +151,23 @@ public class AdmissionWebhook {
 
         var certificate = new CertificateBuilder()
                 .withNewMetadata()
-                .withName(WEBHOOK_CERT_NAME)
-                .withNamespace(WEBHOOK_NAMESPACE)
+                .withName(ADMISSION_TLS_CERT_NAME)
+                .withNamespace(ADMISSION_NAMESPACE)
                 .addToLabels("app.kubernetes.io/name", "kroxylicious")
                 .addToLabels("app.kubernetes.io/component", "webhook")
                 .endMetadata()
                 .withNewSpec()
-                .withSecretName(WEBHOOK_CERT_NAME)
+                .withSecretName(ADMISSION_TLS_CERT_NAME)
                 .withNewIssuerRef()
-                .withName(WEBHOOK_ISSUER_NAME)
+                .withName(ADMISSION_TLS_ISSUER_NAME)
                 .withKind("Issuer")
                 .endIssuerRef()
-                .withCommonName(WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE + ".svc.cluster.local")
+                .withCommonName(ADMISSION_DEPLOYMENT_NAME + "." + ADMISSION_NAMESPACE + ".svc.cluster.local")
                 .withDnsNames(
-                        WEBHOOK_DEPLOYMENT_NAME,
-                        WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE,
-                        WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE + ".svc",
-                        WEBHOOK_DEPLOYMENT_NAME + "." + WEBHOOK_NAMESPACE + ".svc.cluster.local")
+                        ADMISSION_DEPLOYMENT_NAME,
+                        ADMISSION_DEPLOYMENT_NAME + "." + ADMISSION_NAMESPACE,
+                        ADMISSION_DEPLOYMENT_NAME + "." + ADMISSION_NAMESPACE + ".svc",
+                        ADMISSION_DEPLOYMENT_NAME + "." + ADMISSION_NAMESPACE + ".svc.cluster.local")
                 .withNewPrivateKey()
                 .withEncoding("PKCS8")
                 .endPrivateKey()
@@ -186,8 +183,8 @@ public class AdmissionWebhook {
     private void waitForCertificateReady() {
         LOGGER.info("Waiting for Certificate to be ready");
         kubeClient().getClient().resources(io.fabric8.certmanager.api.model.v1.Certificate.class)
-                .inNamespace(WEBHOOK_NAMESPACE)
-                .withName(WEBHOOK_CERT_NAME)
+                .inNamespace(ADMISSION_NAMESPACE)
+                .withName(ADMISSION_TLS_CERT_NAME)
                 .waitUntilCondition(
                         cert -> cert != null
                                 && cert.getStatus() != null
@@ -199,9 +196,10 @@ public class AdmissionWebhook {
     }
 
     private void waitForWebhookReady() {
-        LOGGER.info("Waiting for webhook deployment to become ready");
-        DeploymentUtils.waitForDeploymentReady(WEBHOOK_NAMESPACE, WEBHOOK_DEPLOYMENT_NAME);
-
+        LOGGER.info("Waiting for admission webhook deployment to become ready");
+        DeploymentUtils.waitForDeploymentReady(ADMISSION_NAMESPACE, ADMISSION_DEPLOYMENT_NAME);
+        LOGGER.info("Waiting for admission webhook service to become ready");
+        DeploymentUtils.waitForServiceReady(ADMISSION_NAMESPACE, ADMISSION_SERVICE_NAME, Duration.of(1, ChronoUnit.MINUTES));
         waitForCaBundleInjected();
     }
 
@@ -209,7 +207,7 @@ public class AdmissionWebhook {
         LOGGER.info("Waiting for CA bundle to be injected into MutatingWebhookConfiguration");
         kubeClient().getClient().admissionRegistration().v1()
                 .mutatingWebhookConfigurations()
-                .withName(WEBHOOK_CONFIG_NAME)
+                .withName(ADMISSION_REGISTRATION_NAME)
                 .waitUntilCondition(
                         mwc -> mwc != null
                                 && !mwc.getWebhooks().isEmpty()
