@@ -63,6 +63,7 @@ import io.kroxylicious.proxy.internal.VirtualClusterManager;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -465,6 +466,20 @@ public final class KafkaProxy implements AutoCloseable {
     @Nullable
     VirtualClusterLifecycleManager lifecycleManagerFor(String clusterName) {
         return virtualClusterManager.lifecycleManagerFor(clusterName);
+    }
+
+    /**
+     * Returns the actual local port that the proxy is listening on for the given bind address and configured port.
+     * Useful when the configured port is {@link EndpointRegistry#OS_ASSIGNED_PORT} (meaning the OS assigns an ephemeral port at startup).
+     * Must only be called after a successful {@link #startup()}.
+     *
+     * @param bindAddress the bind address used in the proxy configuration, or {@code null} for any-address bindings
+     * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
+     * @return the actual local port the proxy is listening on
+     */
+    @VisibleForTesting
+    int listeningPort(@Nullable String bindAddress, int port) {
+        return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
     }
 
     @Override

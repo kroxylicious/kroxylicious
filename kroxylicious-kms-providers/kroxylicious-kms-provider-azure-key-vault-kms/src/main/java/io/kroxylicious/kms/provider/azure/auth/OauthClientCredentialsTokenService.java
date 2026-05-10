@@ -31,7 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
 import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
-import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
+import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 
