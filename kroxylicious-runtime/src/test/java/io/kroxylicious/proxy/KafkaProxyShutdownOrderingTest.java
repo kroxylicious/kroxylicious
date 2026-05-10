@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Timeout;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.internal.VirtualClusterCoordinator;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -96,8 +97,6 @@ class KafkaProxyShutdownOrderingTest {
      */
     @Test
     void drainFailureIsCaughtAndShutdownCompletes() throws Exception {
-        int proxyPort = freePort();
-
         var config = """
                 virtualClusters:
                   - name: demo
