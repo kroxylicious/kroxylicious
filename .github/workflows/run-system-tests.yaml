@@ -138,6 +138,12 @@ jobs:
           workflow: build_kroxylicious_images
           name: kroxylicious-operator
           run_id: ${{github.run_id}}
+      - name: Download kroxylicious admission-webhook container artifact
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
+        with:
+          workflow: build_kroxylicious_images
+          name: kroxylicious-admission-webhook
+          run_id: ${{github.run_id}}
       - name: 'Extract Kroxylicious Maven artifacts'
         run: |
           mkdir -p "$HOME/.m2/repository"
@@ -147,6 +153,7 @@ jobs:
         run: |
           minikube image load kroxylicious-proxy.img.tar.gz
           minikube image load kroxylicious-operator.img.tar.gz
+          minikube image load kroxylicious-webhook.img.tar.gz
           
           # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
           KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects :kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.5.1:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
