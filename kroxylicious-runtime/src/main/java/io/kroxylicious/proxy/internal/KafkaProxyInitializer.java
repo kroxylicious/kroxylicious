@@ -130,7 +130,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 return null;
                             }
                             try {
-                                KafkaProxyInitializer.this.addHandlers(ch, binding, kafkaSession);
+                                KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
                                 ctx.fireChannelActive();
                             }
                             catch (Throwable t1) {
@@ -171,7 +171,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
                         }
                         else {
-                            KafkaProxyInitializer.this.addHandlers(ch, binding, kafkaSession);
+                            KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
                             promise.setSuccess(sslContext.get());
                         }
                     }
@@ -206,7 +206,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     @VisibleForTesting
-    void addHandlers(Channel ch, EndpointBinding binding, KafkaSession kafkaSession) {
+    void initConnection(Channel ch, EndpointBinding binding, KafkaSession kafkaSession) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         var clusterName = virtualCluster.getClusterName();
 
@@ -216,16 +216,21 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             return;
         }
 
-        ChannelPipeline pipeline = ch.pipeline();
-        pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
-        if (virtualCluster.isLogNetwork()) {
-            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
-        }
-
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
         ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
         virtualClusterCoordinator.registerConnection(clusterName, proxyChannelStateMachine);
         ch.closeFuture().addListener(f -> virtualClusterCoordinator.deregisterConnection(clusterName, proxyChannelStateMachine));
+        addHandlers(ch, binding, subjectBuilder, proxyChannelStateMachine);
+    }
+
+    private void addHandlers(Channel ch, EndpointBinding binding, TransportSubjectBuilder subjectBuilder, ProxyChannelStateMachine proxyChannelStateMachine) {
+        var virtualCluster = binding.endpointGateway().virtualCluster();
+        ChannelPipeline pipeline = ch.pipeline();
+
+        pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
+        if (virtualCluster.isLogNetwork()) {
+            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
+        }
 
         var dp = new DelegatingDecodePredicate();
         // The decoder, this only cares about the filters

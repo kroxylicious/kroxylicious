@@ -228,7 +228,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+        kafkaProxyInitializer.initConnection(channel, endpointBinding,
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
@@ -250,7 +250,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+        kafkaProxyInitializer.initConnection(channel, endpointBinding,
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
@@ -273,7 +273,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+        kafkaProxyInitializer.initConnection(channel, endpointBinding,
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
@@ -384,7 +384,7 @@ class KafkaProxyInitializerTest {
                 (endpoint, sniHostname) -> bindingStage, vcc);
 
         // when
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
+        kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // then
         verify(channel).close();
