@@ -105,6 +105,16 @@ public final class Constants {
     public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
 
     /**
+     * Admission webhook related constants
+     */
+    public static final String ADMISSION_NAMESPACE = "kroxylicious-webhook";
+    public static final String ADMISSION_DEPLOYMENT_NAME = "kroxylicious-webhook";
+    public static final String ADMISSION_SERVICE_NAME = "kroxylicious-webhook";
+    public static final String ADMISSION_REGISTRATION_NAME = "kroxylicious-sidecar-injector";
+    public static final String ADMISSION_TLS_ISSUER_NAME = "kroxylicious-webhook-selfsigned";
+    public static final String ADMISSION_TLS_CERT_NAME = "kroxylicious-webhook-cert";
+
+    /**
      * Service type names.
      */
     public static final String LOAD_BALANCER_TYPE = "LoadBalancer";

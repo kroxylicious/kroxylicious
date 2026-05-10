@@ -40,7 +40,7 @@ jobs:
             --batch-mode \
             --activate-profiles 'dist,!qa' \
             --also-make \
-            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist \
+            --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-admission \
             -Derrorprone.skip=true \
             -DskipTests \
             -Dmaven.javadoc.skip=true \
@@ -56,3 +56,8 @@ jobs:
         with:
           name: kroxylicious-operator
           path: kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+      - name: 'Archive kroxylicious admission webhook image'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-admission-webhook
+          path: kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-webhook.img.tar.gz

@@ -20,4 +20,9 @@ public final class TestTags {
      * Tag for test suites that run operator only related tests (no kafka involved).
      */
     public static final String OPERATOR = "operator";
+
+    /**
+     * Tag for test suites that run admission webhook related tests.
+     */
+    public static final String ADMISSION_WEBHOOK = "admissionWebhook";
 }
