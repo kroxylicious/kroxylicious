@@ -285,7 +285,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private void rejectConnection(Channel ch, String clusterName) {
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", clusterName)
-                .log("Rejecting new connection — virtual cluster is draining");
+                .log("Rejecting new connection - virtual cluster is draining");
         ch.close();
     }
 
