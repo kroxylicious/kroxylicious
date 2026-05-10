@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.admission;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_DEPLOYMENT_NAME;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_NAMESPACE;
 import static io.kroxylicious.systemtests.Constants.ADMISSION_REGISTRATION_NAME;
+import static io.kroxylicious.systemtests.TestTags.ADMISSION_WEBHOOK;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Phase 1: Validates that the admission webhook can be deployed from distribution
  * manifests and becomes ready. Future phases will test actual sidecar injection.
  */
+@Tag(ADMISSION_WEBHOOK)
 class AdmissionWebhookST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdmissionWebhookST.class);
 
