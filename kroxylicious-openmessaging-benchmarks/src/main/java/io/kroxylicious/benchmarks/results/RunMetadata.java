@@ -51,21 +51,24 @@ public class RunMetadata {
      * @param messageSize             message payload size in bytes, or {@code null} if not recorded
      * @param producersPerTopic       number of producers per topic, or {@code null} if not recorded
      * @param consumerPerSubscription number of consumers per subscription, or {@code null} if not recorded
+     * @param namespace               Kubernetes namespace containing the proxy pod, or {@code null} to skip proxy info
+     * @param proxyPodName            name of the proxy pod to query for resource limits, or {@code null} to skip proxy info
      */
     public record ProbeContext(String scenario, String workload, Integer targetRate,
                                Integer warmupDurationMinutes, Integer testDurationMinutes,
                                String benchmarkStartedAt, String benchmarkCompletedAt,
                                Integer topics, Integer partitionsPerTopic, Integer messageSize,
-                               Integer producersPerTopic, Integer consumerPerSubscription) {
+                               Integer producersPerTopic, Integer consumerPerSubscription,
+                               String namespace, String proxyPodName) {
 
         /** An empty context that writes no probe-specific fields. */
         public static ProbeContext empty() {
-            return new ProbeContext(null, null, null, null, null, null, null, null, null, null, null, null);
+            return new ProbeContext(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         /** Create a context with probe identifiers but no phase timing or workload parameters. */
         public static ProbeContext of(String scenario, String workload, Integer targetRate) {
-            return new ProbeContext(scenario, workload, targetRate, null, null, null, null, null, null, null, null, null);
+            return new ProbeContext(scenario, workload, targetRate, null, null, null, null, null, null, null, null, null, null, null);
         }
 
         /** Return a copy of this context with benchmark phase durations and timestamps added. */
@@ -74,7 +77,8 @@ public class RunMetadata {
             return new ProbeContext(scenario, workload, targetRate,
                     warmupDurationMinutes, testDurationMinutes,
                     benchmarkStartedAt, benchmarkCompletedAt,
-                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription);
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
         }
 
         /** Return a copy of this context with workload shape parameters added. */
@@ -83,7 +87,17 @@ public class RunMetadata {
             return new ProbeContext(scenario, workload, targetRate,
                     warmupDurationMinutes, testDurationMinutes,
                     benchmarkStartedAt, benchmarkCompletedAt,
-                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription);
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
+        }
+
+        /** Return a copy of this context with the proxy pod coordinates added. */
+        public ProbeContext withProxy(String namespace, String proxyPodName) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
         }
     }
 
@@ -177,6 +191,12 @@ public class RunMetadata {
         if (!clusterNodes.isEmpty()) {
             metadata.put("clusterNodes", clusterNodes);
         }
+        if (probeContext.proxyPodName() != null && probeContext.namespace() != null) {
+            Map<String, Object> proxyConfig = proxyInfo(runner, probeContext.namespace(), probeContext.proxyPodName());
+            if (!proxyConfig.isEmpty()) {
+                metadata.put("proxyConfig", proxyConfig);
+            }
+        }
         metadata.put("orchestratorSystem", orchestratorSystemInfo());
 
         Path metadataFile = outputDir.resolve("run-metadata.json");
@@ -244,6 +264,58 @@ public class RunMetadata {
         }
         catch (Exception e) {
             LOGGER.debug("kubectl not available or not pointed at a cluster — cluster node info will be omitted", e);
+        }
+        return info;
+    }
+
+    static Map<String, Object> proxyInfo(CommandRunner runner, String namespace, String proxyPodName) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            String json = runner.run("kubectl", "get", "pod", proxyPodName, "-n", namespace, "-o", "json");
+            JsonNode pod = MAPPER.readTree(json);
+            for (JsonNode container : pod.path("spec").path("containers")) {
+                if ("proxy".equals(container.path("name").asText())) {
+                    JsonNode requests = container.path("resources").path("requests");
+                    JsonNode limits = container.path("resources").path("limits");
+                    if (!requests.isMissingNode()) {
+                        String cpu = requests.path("cpu").asText(null);
+                        if (cpu != null) {
+                            info.put("cpuRequest", cpu);
+                        }
+                        String mem = requests.path("memory").asText(null);
+                        if (mem != null) {
+                            info.put("memoryRequest", mem);
+                        }
+                    }
+                    if (!limits.isMissingNode()) {
+                        String cpu = limits.path("cpu").asText(null);
+                        if (cpu != null) {
+                            info.put("cpuLimit", cpu);
+                        }
+                        String mem = limits.path("memory").asText(null);
+                        if (mem != null) {
+                            info.put("memoryLimit", mem);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("proxyPodName", proxyPodName).setCause(e).log("Could not read proxy pod resources");
+        }
+        try {
+            String json = runner.run("kubectl", "get", "kafkaproxy", "-n", namespace, "-o", "json");
+            JsonNode items = MAPPER.readTree(json).path("items");
+            if (items.isArray() && !items.isEmpty()) {
+                int replicas = items.get(0).path("spec").path("replicas").asInt(0);
+                if (replicas > 0) {
+                    info.put("replicas", replicas);
+                }
+            }
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("namespace", namespace).setCause(e).log("Could not read KafkaProxy replica count");
         }
         return info;
     }

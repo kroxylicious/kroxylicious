@@ -149,6 +149,7 @@ JBANG_ARGS=(--generate-run-metadata "$OUTPUT_DIR")
 [[ -n "${MESSAGE_SIZE}" ]]              && JBANG_ARGS+=(--message-size "${MESSAGE_SIZE}")
 [[ -n "${PRODUCERS_PER_TOPIC}" ]]       && JBANG_ARGS+=(--producers-per-topic "${PRODUCERS_PER_TOPIC}")
 [[ -n "${CONSUMER_PER_SUBSCRIPTION}" ]] && JBANG_ARGS+=(--consumer-per-subscription "${CONSUMER_PER_SUBSCRIPTION}")
+[[ -n "${PROXY_POD}" ]]                 && JBANG_ARGS+=(--proxy-pod "${PROXY_POD}" --namespace "${NAMESPACE}")
 jbang "$FILTERED" "${JBANG_ARGS[@]}"
 
 echo "Done. Results collected in $OUTPUT_DIR/"

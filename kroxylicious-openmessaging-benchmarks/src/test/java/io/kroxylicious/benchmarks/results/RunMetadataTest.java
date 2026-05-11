@@ -41,6 +41,8 @@ class RunMetadataTest {
     private static Path actual;
     private static String minikubeJson;
     private static String kubectlGetNodesJson;
+    private static String kubectlGetPodProxyJson;
+    private static String kubectlGetKafkaProxyJson;
     private static String generatedJson;
 
     // --- Integration-style tests (real CommandRunner) ---
@@ -57,6 +59,8 @@ class RunMetadataTest {
         memInfoPath = fixture("proc/meminfo");
         minikubeJson = Files.readString(fixture("minikube-profile-list.json"));
         kubectlGetNodesJson = Files.readString(fixture("kubectl-get-nodes.json"));
+        kubectlGetPodProxyJson = Files.readString(fixture("kubectl-get-pod-proxy.json"));
+        kubectlGetKafkaProxyJson = Files.readString(fixture("kubectl-get-kafkaproxy.json"));
     }
 
     @Test
@@ -364,6 +368,69 @@ class RunMetadataTest {
         JsonNode clusterNodes = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json"))).get("clusterNodes");
         assertThat(clusterNodes).isNotNull();
         assertThat(clusterNodes.has("nicSpeedMbps")).isFalse();
+    }
+
+    // --- proxyInfo tests ---
+
+    @Test
+    void proxyConfigPopulatedFromClusterState(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        // kubectl calls in order: get nodes, MCD pod lookup (returns blank → NIC speed skipped),
+        // get pod (proxy resources), get kafkaproxy (replicas)
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn(kubectlGetNodesJson, "", kubectlGetPodProxyJson, kubectlGetKafkaProxyJson);
+
+        RunMetadata.ProbeContext ctx = RunMetadata.ProbeContext.of("encryption", "1topic-1kb", 8000)
+                .withProxy("kafka", "proxy-pod-xyz");
+        RunMetadata.generate(tempDir, ctx, runner);
+
+        JsonNode proxyConfig = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json"))).get("proxyConfig");
+        assertThat(proxyConfig).isNotNull();
+        assertThat(proxyConfig.get("cpuRequest").asText()).isEqualTo("4000m");
+        assertThat(proxyConfig.get("cpuLimit").asText()).isEqualTo("4000m");
+        assertThat(proxyConfig.get("memoryRequest").asText()).isEqualTo("2Gi");
+        assertThat(proxyConfig.get("memoryLimit").asText()).isEqualTo("4Gi");
+        assertThat(proxyConfig.get("replicas").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void proxyConfigAbsentWhenProxyPodNameIsNull(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.generate(tempDir, RunMetadata.ProbeContext.of("encryption", "1topic-1kb", 8000), runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("proxyConfig")).isFalse();
+    }
+
+    @Test
+    void proxyInfoExtractsCpuAndMemoryFromPodFixture() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn(kubectlGetPodProxyJson, kubectlGetKafkaProxyJson);
+
+        var info = RunMetadata.proxyInfo(runner, "kafka", "proxy-pod-xyz");
+
+        assertThat(info).containsEntry("cpuRequest", "4000m")
+                .containsEntry("cpuLimit", "4000m")
+                .containsEntry("memoryRequest", "2Gi")
+                .containsEntry("memoryLimit", "4Gi")
+                .containsEntry("replicas", 1);
+    }
+
+    @Test
+    void proxyInfoReturnsEmptyMapWhenPodQueryFails() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class))).thenThrow(new java.io.IOException("kubectl not found"));
+
+        var info = RunMetadata.proxyInfo(runner, "kafka", "proxy-pod-xyz");
+
+        assertThat(info).isEmpty();
     }
 
     private static Path fixture(String name) throws URISyntaxException {

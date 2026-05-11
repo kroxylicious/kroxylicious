@@ -72,6 +72,12 @@ public class CollectResults implements Callable<Integer> {
     @Option(names = "--consumer-per-subscription", description = "Number of consumers per subscription")
     private Integer consumerPerSubscription;
 
+    @Option(names = "--proxy-pod", description = "Name of the proxy pod to query for resource limits")
+    private String proxyPod;
+
+    @Option(names = "--namespace", description = "Kubernetes namespace containing the proxy pod")
+    private String namespace;
+
     public static void main(String... args) {
         int exitCode = execute(args);
         System.exit(exitCode);
@@ -86,7 +92,8 @@ public class CollectResults implements Callable<Integer> {
         if (metadataDir != null) {
             RunMetadata.ProbeContext context = RunMetadata.ProbeContext.of(scenario, workload, targetRate)
                     .withPhases(warmupDurationMinutes, testDurationMinutes, benchmarkStartedAt, benchmarkCompletedAt)
-                    .withWorkload(topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription);
+                    .withWorkload(topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription)
+                    .withProxy(namespace, proxyPod);
             RunMetadata.generate(metadataDir, context);
             System.out.println("Generated " + metadataDir.resolve("run-metadata.json"));
             return 0;
