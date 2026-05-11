@@ -6,9 +6,6 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.time.Duration;
-import java.util.Objects;
-
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
@@ -20,9 +17,6 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.awaitility.Awaitility.await;
 
 public class KroxyliciousUtils {
     private static final ResourceManager resourceManager = ResourceManager.getInstance();
@@ -85,19 +79,5 @@ public class KroxyliciousUtils {
         }
         tlsBuilder.withTrustAnchorRef(buildTrustAnchorRef());
         return tlsBuilder.build();
-    }
-
-    /**
-     * Waits for KafkaProxy pod to roll out
-     * @param namespace the namespace
-     * @param previousPodPid the pid of the pod prior to the rollout
-     * @param kafkaProxyName the name of the Kafka proxy deployment
-     */
-    public static void waitForKafkaProxyRolling(String namespace, String previousPodPid, String kafkaProxyName) {
-        DeploymentUtils.waitForPodDeletion(namespace, kafkaProxyName, Duration.ofSeconds(30));
-        await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofMillis(200)).until(() -> {
-            String currentKafkaProxyPod = kubeClient().listPodsByPrefixInName(namespace, kafkaProxyName).get(0).getMetadata().getName();
-            return !Objects.equals(DeploymentUtils.getPodUid(namespace, currentKafkaProxyPod), previousPodPid);
-        });
     }
 }

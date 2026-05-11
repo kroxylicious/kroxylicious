@@ -46,6 +46,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxy
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
 import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
@@ -135,7 +136,7 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     private void deployPortIdentifiesNodeWithRecordEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
-        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME;
+        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME + "-" + testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase();
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
@@ -233,6 +234,8 @@ class RecordEncryptionST extends AbstractSystemTests {
         int numberOfMessages = 1;
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(null, null, null, 5L);
 
+        // Experimental kms config change is not properly detected and the rollout is not done
+        cleanUpKroxyliciousInstance();
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         deployPortIdentifiesNodeWithRecordEncryptionFilter(testKmsFacade, experimentalKmsConfig);
@@ -347,5 +350,10 @@ class RecordEncryptionST extends AbstractSystemTests {
     private boolean isVaultKms(TestKmsFacade<?, ?, ?> testKmsFacade) {
         LOGGER.debug("Checking if Vault Kms is used");
         return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().startsWith("vault");
+    }
+
+    private void cleanUpKroxyliciousInstance() {
+        NamespaceUtils.deleteNamespaceWithWait(Constants.KROXYLICIOUS_NAMESPACE);
+        NamespaceUtils.createNamespaceAndPrepare(Constants.KROXYLICIOUS_NAMESPACE);
     }
 }
