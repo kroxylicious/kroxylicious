@@ -33,7 +33,7 @@ class KafkaProxyShutdownOrderingTest {
      * Verifies that ports are unbound <em>before</em> drain completes.
      * <p>
      * With the correct ordering — {@code endpointRegistry.shutdown()} before
-     * {@code clusterCoordinator.initiateShutdown()} — no new connections can arrive after
+     * {@code clusterCoordinator.shutdownAllClusters()} — no new connections can arrive after
      * the drain snapshot is taken, closing the race described in rodobario's review comment.
      * With the old (inverted) ordering, the port stays bound throughout drain,
      * allowing new connections to arrive after the snapshot.
@@ -128,7 +128,7 @@ class KafkaProxyShutdownOrderingTest {
                                                                    CountDownLatch drainCanComplete) {
         return new VirtualClusterRegistry(models, noOpCallback()) {
             @Override
-            public void initiateShutdown() {
+            public void shutdownAllClusters() {
                 drainStarted.countDown();
                 try {
                     drainCanComplete.await();
@@ -143,7 +143,7 @@ class KafkaProxyShutdownOrderingTest {
     private static VirtualClusterRegistry failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
         return new VirtualClusterRegistry(models, noOpCallback()) {
             @Override
-            public void initiateShutdown() {
+            public void shutdownAllClusters() {
                 throw new RuntimeException("simulated drain failure");
             }
         };

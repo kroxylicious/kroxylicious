@@ -116,7 +116,7 @@ public class VirtualClusterRegistry {
      *   <li>Stopped → Stopped (no-op)</li>
      * </ul>
      */
-    public void initiateShutdown() {
+    public void shutdownAllClusters() {
         var drainFutures = new ArrayList<CompletableFuture<Void>>();
         lifecyclesByCluster.forEach((name, lifecycle) -> {
             var state = lifecycle.state();

@@ -380,7 +380,7 @@ public final class KafkaProxy implements AutoCloseable {
      * Shuts down a running proxy. The sequence is:
      * <ol>
      *   <li>Unbind ports — prevents new connections from arriving</li>
-     *   <li>Drain existing connections gracefully via {@code initiateShutdown()}</li>
+     *   <li>Drain existing connections gracefully via {@code shutdownAllClusters()}</li>
      *   <li>Shut down Netty event groups — force-closes any connections that did not drain in time</li>
      * </ol>
      */
@@ -407,7 +407,7 @@ public final class KafkaProxy implements AutoCloseable {
             }).toCompletableFuture().join();
 
             try {
-                clusterCoordinator.initiateShutdown();
+                clusterCoordinator.shutdownAllClusters();
                 STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
             }
             catch (Exception e) {

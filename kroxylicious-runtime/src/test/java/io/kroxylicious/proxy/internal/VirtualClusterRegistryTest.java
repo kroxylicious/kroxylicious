@@ -215,7 +215,7 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
 
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         assertThat(vcc.lifecycleFor(CLUSTER_A)).isNotNull()
@@ -226,7 +226,7 @@ class VirtualClusterRegistryTest {
     @Test
     void shouldTransitionInitializingToStoppedOnBulkDrain() {
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         assertThat(vcc.lifecycleFor(CLUSTER_A)).isNotNull()
@@ -237,7 +237,7 @@ class VirtualClusterRegistryTest {
     @Test
     void shouldFireCallbackForInitializingStoppedDuringBulkDrain() {
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
@@ -249,7 +249,7 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
 
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
@@ -277,8 +277,8 @@ class VirtualClusterRegistryTest {
         vcc.registerConnection(CLUSTER_A, pcsmA);
         vcc.registerConnection(CLUSTER_B, pcsmB);
 
-        // initiateShutdown() blocks, so run it asynchronously
-        var shutdown = CompletableFuture.runAsync(() -> vcc.initiateShutdown());
+        // shutdownAllClusters() blocks, so run it asynchronously
+        var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
 
         // then — B must be called even while A is still draining
         Awaitility.await("cluster-b drain should start while cluster-a is still draining")
@@ -298,8 +298,8 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.registerConnection(CLUSTER_A, pcsm);
 
-        // initiateShutdown() blocks, so run it asynchronously
-        var shutdown = CompletableFuture.runAsync(() -> vcc.initiateShutdown());
+        // shutdownAllClusters() blocks, so run it asynchronously
+        var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
 
         // then — cluster stays Draining while the connection is pending
         Awaitility.await("cluster should enter Draining state")
@@ -320,7 +320,7 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         assertThat(vcc.lifecycleFor(CLUSTER_A))
@@ -336,7 +336,7 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         assertThat(vcc.lifecycleFor(CLUSTER_B))
@@ -359,7 +359,7 @@ class VirtualClusterRegistryTest {
         requireLifecycle(CLUSTER_B).initializationFailed(badThingsHappenedHere);
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         assertThat(vcc.lifecycleFor(CLUSTER_B))
@@ -378,7 +378,7 @@ class VirtualClusterRegistryTest {
         requireLifecycle(CLUSTER_A).startDraining();
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then — shutdown joins the in-progress drain rather than leaving it in Draining
         assertThat(vcc.lifecycleFor(CLUSTER_A))
@@ -395,7 +395,7 @@ class VirtualClusterRegistryTest {
         requireLifecycle(CLUSTER_A).startDraining();
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
@@ -413,8 +413,8 @@ class VirtualClusterRegistryTest {
         vcc.registerConnection(CLUSTER_A, pcsm);
         requireLifecycle(CLUSTER_A).startDraining();
 
-        // initiateShutdown() blocks, so run it asynchronously
-        var shutdown = CompletableFuture.runAsync(() -> vcc.initiateShutdown());
+        // shutdownAllClusters() blocks, so run it asynchronously
+        var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
 
         Awaitility.await("cluster should remain Draining while connection is pending")
                 .atMost(5, TimeUnit.SECONDS)
@@ -443,7 +443,7 @@ class VirtualClusterRegistryTest {
         requireLifecycle(CLUSTER_A).stop();
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         assertThat(vcc.lifecycleFor(CLUSTER_A))
@@ -459,7 +459,7 @@ class VirtualClusterRegistryTest {
         requireLifecycle(CLUSTER_A).stop();
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         verifyNoInteractions(noOpCallback);
@@ -491,7 +491,7 @@ class VirtualClusterRegistryTest {
         requireLifecycle(stopped).stop();
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         assertThat(requireLifecycle(serving).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
@@ -511,7 +511,7 @@ class VirtualClusterRegistryTest {
         vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
 
         // When
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // Then
         assertThat(vcc.lifecycleFor(CLUSTER_A))
@@ -585,7 +585,7 @@ class VirtualClusterRegistryTest {
         vcc.registerConnection(CLUSTER_A, pcsm);
 
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         verify(pcsm).drain(Duration.ofSeconds(30));
@@ -600,7 +600,7 @@ class VirtualClusterRegistryTest {
         vcc.registerConnection(CLUSTER_A, pcsm);
 
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         assertThat(vcc.lifecycleFor(CLUSTER_A))
@@ -618,7 +618,7 @@ class VirtualClusterRegistryTest {
         vcc.registerConnection(CLUSTER_A, pcsm);
 
         // when
-        vcc.initiateShutdown();
+        vcc.shutdownAllClusters();
 
         // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
