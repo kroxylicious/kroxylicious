@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy;
 
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.Timeout;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.internal.DrainCoordinator;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -39,8 +39,6 @@ class KafkaProxyShutdownOrderingTest {
      */
     @Test
     void portIsUnboundBeforeDrainCompletes() throws Exception {
-        int proxyPort = freePort();
-
         var drainStarted = new CountDownLatch(1);
         var drainCanComplete = new CountDownLatch(1);
 
@@ -59,6 +57,10 @@ class KafkaProxyShutdownOrderingTest {
             }
         };
 
+        // Port 0 lets the OS assign a free port, eliminating the TOCTOU race of the
+        // find-then-bind pattern. nodeStartPort is set explicitly to keep it out of
+        // the OS ephemeral-port range (32768-60999 on Linux) and away from the fixed
+        // ports used by other test classes in this module (8192-9295).
         var config = """
                 virtualClusters:
                   - name: demo
@@ -68,11 +70,13 @@ class KafkaProxyShutdownOrderingTest {
                     gateways:
                     - name: default
                       portIdentifiesNode:
-                        bootstrapAddress: localhost:%d
-                """.formatted(proxyPort);
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
 
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
             proxy.startup();
+            int proxyPort = proxy.listeningPort(null, EndpointRegistry.OS_ASSIGNED_PORT);
 
             assertThat(canConnect(proxyPort))
                     .as("port should be reachable before shutdown")
@@ -107,8 +111,6 @@ class KafkaProxyShutdownOrderingTest {
      */
     @Test
     void drainFailureIsCaughtAndShutdownCompletes() throws Exception {
-        int proxyPort = freePort();
-
         var dc = new DrainCoordinator() {
             @Override
             public CompletableFuture<Void> drainCluster(String clusterName, Duration timeout) {
@@ -125,8 +127,9 @@ class KafkaProxyShutdownOrderingTest {
                     gateways:
                     - name: default
                       portIdentifiesNode:
-                        bootstrapAddress: localhost:%d
-                """.formatted(proxyPort);
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
 
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
             proxy.startup();
@@ -144,12 +147,6 @@ class KafkaProxyShutdownOrderingTest {
         }
         catch (Exception e) {
             return false;
-        }
-    }
-
-    private static int freePort() throws Exception {
-        try (var s = new ServerSocket(0)) {
-            return s.getLocalPort();
         }
     }
 }

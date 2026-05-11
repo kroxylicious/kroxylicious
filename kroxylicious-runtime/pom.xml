@@ -369,7 +369,7 @@
                             <templateNames>FilterInvoker.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${messageSpecName}FilterInvoker.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
+                            <outputPackage>io.kroxylicious.proxy.internal.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>
@@ -387,7 +387,7 @@
                             <templateNames>SpecificFilterArrayInvoker.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
+                            <outputPackage>io.kroxylicious.proxy.internal.filter</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
                     </execution>

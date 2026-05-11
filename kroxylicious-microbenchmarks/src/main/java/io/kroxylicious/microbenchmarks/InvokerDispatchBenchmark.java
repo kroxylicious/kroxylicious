@@ -32,23 +32,23 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+import io.kroxylicious.benchmarking.jmh.ArrayFilterInvoker;
+import io.kroxylicious.benchmarking.jmh.SpecificFilterInvoker;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter0;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter1;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter2;
 import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterInvoker;
-import io.kroxylicious.proxy.filter.FilterInvokers;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
+import io.kroxylicious.proxy.internal.filter.FilterInvoker;
+import io.kroxylicious.proxy.internal.filter.FilterInvokers;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type

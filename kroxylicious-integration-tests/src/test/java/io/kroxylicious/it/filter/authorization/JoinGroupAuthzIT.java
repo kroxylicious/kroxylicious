@@ -21,8 +21,6 @@ import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -157,6 +155,11 @@ public class JoinGroupAuthzIT extends AuthzIT {
         }
 
         @Override
+        public boolean needsRetry(JoinGroupResponseData response) {
+            return Errors.forCode(response.errorCode()) == Errors.NOT_COORDINATOR;
+        }
+
+        @Override
         public void prepareCluster(BaseClusterFixture cluster) {
             KafkaDriver driver = new KafkaDriver(cluster, cluster.authenticatedClient(AuthzIT.SUPER, SUPER_PASSWORD), AuthzIT.SUPER);
             driver.findCoordinator(FindCoordinatorRequest.CoordinatorType.GROUP, group);
@@ -211,7 +214,7 @@ public class JoinGroupAuthzIT extends AuthzIT {
 
     @ParameterizedTest
     @MethodSource
-    void shouldEnforceAccessToTopics(VersionSpecificVerification<ConsumerGroupHeartbeatRequestData, ConsumerGroupHeartbeatResponseData> test) {
+    void shouldEnforceAccessToTopics(VersionSpecificVerification<JoinGroupRequestData, JoinGroupResponseData> test) {
         try (var referenceCluster = new ReferenceCluster(kafkaClusterWithAuthz, this.topicIdsInUnproxiedCluster);
                 var proxiedCluster = new ProxiedCluster(kafkaClusterNoAuthz, this.topicIdsInProxiedCluster, rulesFile)) {
             test.verifyBehaviour(referenceCluster, proxiedCluster);

@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -691,6 +692,25 @@ class EndpointRegistryTest {
         assertThat(rcf.isDone()).isTrue();
         assertThat(rcf.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+    }
+
+    @Test
+    void localPortForReturnsActualPortAfterBinding() throws Exception {
+        configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
+        verifyVirtualClusterRegisterFuture(DOWNSTREAM_BOOTSTRAP.port(), false, rf);
+
+        var endpoint = Endpoint.createEndpoint(DOWNSTREAM_BOOTSTRAP.port(), false);
+        assertThat(endpointRegistry.localPortFor(endpoint)).isEqualTo(DOWNSTREAM_BOOTSTRAP.port());
+    }
+
+    @Test
+    void localPortForThrowsWhenEndpointNotRegistered() {
+        var endpoint = Endpoint.createEndpoint(EndpointRegistry.OS_ASSIGNED_PORT, false);
+        assertThatThrownBy(() -> endpointRegistry.localPortFor(endpoint))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No listening channel for endpoint");
     }
 
     private Channel createMockNettyChannel(int port) {

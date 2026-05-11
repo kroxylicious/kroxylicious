@@ -1,0 +1,21 @@
+{
+  "test-custom-template": "kroxylicious-custom-template-active",
+  "mdc": {
+    "$resolver": "mdc"
+  },
+  "message": {
+    "$resolver": "message",
+    "stringified": true
+  },
+  "@timestamp": {
+    "$resolver": "timestamp"
+  },
+  "level": {
+    "$resolver": "level",
+    "field": "name"
+  },
+  "logger_name": {
+    "$resolver": "logger",
+    "field": "name"
+  }
+}

@@ -26,6 +26,9 @@
         <module>kroxylicious-operator</module>
         <module>kroxylicious-operator-dist</module>
         <module>kroxylicious-operator-test-support</module>
+        <module>kroxylicious-admission-api</module>
+        <module>kroxylicious-admission</module>
+        <module>kroxylicious-admission-dist</module>
     </modules>
 
     <build>
@@ -35,7 +38,7 @@
                 <artifactId>maven-enforcer-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>kubernete-components-use-limited-runtime</id>
+                        <id>kubernetes-components-use-limited-runtime</id>
                         <goals>
                             <goal>enforce</goal>
                         </goals>
@@ -50,10 +53,15 @@
                                         <include>io.kroxylicious:kroxylicious-runtime</include>
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
                                         <include>io.kroxylicious:kroxylicious-operator</include>
+                                        <include>io.kroxylicious:kroxylicious-admission</include>
                                         <include>io.kroxylicious:kroxylicious-docs</include>
                                         <include>io.kroxylicious:kroxylicious-kubernetes-api</include>
+                                        <include>io.kroxylicious:kroxylicious-admission-api</include>
                                         <include>io.kroxylicious:kroxylicious-operator-test-support:*:*:test</include>
                                         <include>io.kroxylicious:kroxylicious-integration-test-support:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-certificate-test-support:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-simple-transform:*:*:test</include>
+                                        <include>io.kroxylicious:kroxylicious-kafka-message-tools:*:*:test</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>

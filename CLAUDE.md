@@ -81,8 +81,9 @@ See module README.md files for detailed context:
 - [kroxylicious-filters/README.md](kroxylicious-filters/README.md) - End-user filters
 - [kroxylicious-kms/README.md](kroxylicious-kms/README.md) - KMS API
 - [kroxylicious-authorizer-api/README.md](kroxylicious-authorizer-api/README.md) - Authoriser API
+- [kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md](kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md) - Kubernetes CRDs documentation)
 - [kroxylicious-kubernetes/kroxylicious-operator/README.md](kroxylicious-kubernetes/kroxylicious-operator/README.md) - Kubernetes operator
-- [kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md](kroxylicious-kubernetes/kroxylicious-kubernetes-api/README.md) - Kubernetes CRDs
+- [kroxylicious-kubernetes/kroxylicious-admission/README.md](kroxylicious-kubernetes/kroxylicious-admission/README.md) - Kubernetes mutating admission webhook for sidecar injection
 - [kroxylicious-docs/README.md](kroxylicious-docs/README.md) - Documentation
 
 ## Kubernetes

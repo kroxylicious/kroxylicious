@@ -20,7 +20,7 @@
 
     <artifactId>kroxylicious-kubernetes-api</artifactId>
     <version>0.21.0-SNAPSHOT</version>
-    <name>Kubernetes CRD API</name>
+    <name>Kubernetes Operator CRD API</name>
     <description>The Kubernetes Custom Resource Definitions for the Kroxylicious Operator and their Java equivalents.
 
         Note we only consider the CRD's themselves to be our public API. We do not ensure compatability with the Java classes.
@@ -242,6 +242,15 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
                             java.lang.Object
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigstatus.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigstatus.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Resources>
+                            io.fabric8.kubernetes.api.model.ResourceRequirements
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.Resources>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.filterdefinitions.Config>
+                            java.lang.Object
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kroxylicioussidecarconfigspec.filterdefinitions.Config>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
                             io.kroxylicious.kubernetes.api.common.Protocol
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>

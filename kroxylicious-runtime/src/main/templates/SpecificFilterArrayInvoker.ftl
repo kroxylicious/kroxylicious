@@ -36,18 +36,26 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+<#list inputSpecs as inputSpec>
+import io.kroxylicious.proxy.filter.${inputSpec.name}Filter;
+</#list>
+
 /**
  * Invoker for Filters that implement any number of Specific Message interfaces (for
  * example {@link io.kroxylicious.proxy.filter.AlterConfigsResponseFilter}.
  */
-class SpecificFilterArrayInvoker implements FilterInvoker {
+public class SpecificFilterArrayInvoker implements FilterInvoker {
 
     private static final FilterInvoker[] HANDLE_NOTHING = createHandleNothing();
 
     private final FilterInvoker[] requestInvokers;
     private final FilterInvoker[] responseInvokers;
 
-    SpecificFilterArrayInvoker(Filter filter) {
+    public SpecificFilterArrayInvoker(Filter filter) {
         Map<Integer, FilterInvoker> requestInvokers = new HashMap<>();
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
         <#list inputSpecs as inputSpec>

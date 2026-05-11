@@ -16,7 +16,7 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProviderFacto
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
+import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

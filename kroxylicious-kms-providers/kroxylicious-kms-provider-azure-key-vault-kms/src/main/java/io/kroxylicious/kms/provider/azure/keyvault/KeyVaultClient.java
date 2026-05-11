@@ -26,7 +26,7 @@ import io.kroxylicious.kms.provider.azure.auth.BearerToken;
 import io.kroxylicious.kms.provider.azure.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
+import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 public class KeyVaultClient implements AutoCloseable {
     public static final String API_VERSION = "7.4";

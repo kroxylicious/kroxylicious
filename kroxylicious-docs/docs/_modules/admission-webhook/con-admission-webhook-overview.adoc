@@ -1,0 +1,100 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// Module included in the following:
+//
+// admission-webhook-guide/index.adoc
+
+[id='con-admission-webhook-overview-{context}']
+= Admission webhook overview
+
+[role="_abstract"]
+The Kroxylicious Admission Webhook is a Kubernetes mutating admission webhook that automatically injects a Kroxylicious proxy sidecar into application pods.
+The sidecar proxies Kafka traffic through `localhost`, allowing filters to be applied transparently without changes to application code.
+
+== How it works
+
+When a pod is created in an enabled namespace, the webhook intercepts the admission request and mutates the pod specification to add:
+
+* A Kroxylicious proxy sidecar container
+* A volume projecting the proxy configuration from a pod annotation
+* The `KAFKA_BOOTSTRAP_SERVERS` environment variable on application containers, pointing them to the sidecar proxy on `localhost`
+* TLS trust anchor volumes, if TLS is configured for the target Kafka cluster
+
+The sidecar forwards traffic to the target Kafka cluster specified in the `KroxyliciousSidecarConfig` custom resource.
+
+== Namespace opt-in
+
+Sidecar injection is opt-in at the namespace level.
+The webhook only intercepts pod creation requests in namespaces that carry the label:
+
+[source,yaml]
+----
+sidecar.kroxylicious.io/injection: enabled
+----
+
+Namespaces without this label are unaffected.
+
+== Pod opt-out
+
+Individual pods can opt out of sidecar injection by setting the following label:
+
+[source,yaml]
+----
+sidecar.kroxylicious.io/injection: disabled
+----
+
+Pods that already have a container named `kroxylicious-proxy` are also skipped to avoid double injection.
+
+== Failure policy
+
+By default, the webhook uses fail-closed semantics.
+If the webhook encounters an internal error while processing an admission request, it rejects the pod.
+The `MutatingWebhookConfiguration` uses `failurePolicy: Fail` so that if the webhook is unavailable pod creation is blocked until the webhook becomes available again.
+This ensures that pods in injection-enabled namespaces are never created without the expected sidecar.
+
+The failure policy is controlled in two places that must be kept in sync: the `FAILURE_POLICY` environment variable on the webhook `Deployment`, and the `failurePolicy` field in the `MutatingWebhookConfiguration`.
+To switch to fail-open semantics, set both to `Ignore`.
+
+== Trust model
+
+The webhook enforces a trust boundary between two roles:
+
+Webhook administrator::
+Controls what gets injected: the proxy image, filters, target Kafka cluster, and security context.
+Creates `KroxyliciousSidecarConfig` resources.
+
+Application pod owner::
+Can opt out of injection via pod labels.
+Can select a specific `KroxyliciousSidecarConfig` by name via the `sidecar.kroxylicious.io/config` annotation.
+Cannot tamper with the proxy configuration, image, or security context.
+
+The webhook always overwrites the `sidecar.kroxylicious.io/proxy-config` annotation, preventing application pod owners from pre-setting a malicious configuration.
+
+== Native sidecar support
+
+On Kubernetes 1.29 and later (where the `SidecarContainers` feature gate is enabled by default), the webhook injects the sidecar as a native sidecar (an init container with `restartPolicy: Always`).
+This ensures proper startup ordering (the sidecar starts before application containers) and shutdown ordering (the sidecar stops after application containers).
+On older clusters, the sidecar is injected as a regular container.
+The webhook detects the cluster version automatically at startup.
+
+For clusters running alpha versions of features (e.g. native sidecars on 1.28, OCI image volumes on 1.31-1.32), set the `K8S_FEATURE_GATES` environment variable on the webhook deployment to override version-based defaults (e.g. `K8S_FEATURE_GATES=SidecarContainers=true,ImageVolume=true`). This is an escape hatch for when version-based detection is insufficient; deployers are responsible for keeping it in sync with their cluster configuration.
+
+== Pod security context
+
+The webhook sets a container-level security context on the sidecar (`allowPrivilegeEscalation: false`, `capabilities: drop ALL`, `readOnlyRootFilesystem: true`, `seccompProfile: RuntimeDefault`) but does not set a pod-level `securityContext`.
+
+Pod-level security policies such as `runAsNonRoot` and `seccompProfile: RuntimeDefault` should be enforced using Kubernetes https://kubernetes.io/docs/concepts/security/pod-security-standards/[Pod Security Standards] via the `PodSecurity` admission controller.
+Label the namespace with the appropriate enforcement level:
+
+[source,shell,subs="+quotes"]
+----
+kubectl label namespace _my-app-namespace_ pod-security.kubernetes.io/enforce=restricted
+----
+
+This is the recommended approach because it applies uniformly to all pods in the namespace and avoids ordering conflicts between multiple mutating admission webhooks.
