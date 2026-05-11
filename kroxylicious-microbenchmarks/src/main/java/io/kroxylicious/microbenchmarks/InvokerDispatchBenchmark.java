@@ -14,8 +14,11 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -93,8 +96,10 @@ public class InvokerDispatchBenchmark {
         String invoker;
 
         private RequestHeaderData requestHeaders;
+        private ResponseHeaderData responseHeaders;
         private FilterContext filterContext;
         private Map.Entry<ApiKeys, ApiMessage>[] apiMessages;
+        private Map.Entry<ApiKeys, ApiMessage>[] apiResponseMessages;
 
         @SuppressWarnings("unchecked")
         @Setup
@@ -110,12 +115,17 @@ public class InvokerDispatchBenchmark {
                     invokerType.invokerWith(new FourInterfaceFilter2()),
                     invokerType.invokerWith(new FourInterfaceFilter3())
             };
-            final Map<ApiKeys, ApiMessage> messages = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(), ApiKeys.FETCH,
+            final Map<ApiKeys, ApiMessage> requests = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(), ApiKeys.FETCH,
                     new FetchRequestData());
-            apiMessages = messages.entrySet().toArray(new Map.Entry[0]); // Avoids iterator.next showing up in the benchmarks
+            apiMessages = requests.entrySet().toArray(new Map.Entry[0]); // Avoids iterator.next showing up in the benchmarks
+            final Map<ApiKeys, ApiMessage> responses = Map.of(ApiKeys.PRODUCE, new ProduceResponseData(), ApiKeys.API_VERSIONS, new ApiVersionsResponseData(),
+                    ApiKeys.FETCH,
+                    new FetchResponseData());
+            apiResponseMessages = responses.entrySet().toArray(new Map.Entry[0]);
             requestHeaders = new RequestHeaderData();
+            responseHeaders = new ResponseHeaderData();
             filterContext = new StubFilterContext();
-            keys = messages.keySet().toArray(new ApiKeys[0]);
+            keys = requests.keySet().toArray(new ApiKeys[0]);
         }
     }
 
@@ -125,8 +135,13 @@ public class InvokerDispatchBenchmark {
     }
 
     @Benchmark
-    public void testDispatchToHandleRequest(BenchState state) {
-        invokeHandleRequest(state.invokers, state.apiMessages, state.requestHeaders, state.filterContext);
+    public void testDispatchToHandleRequest(BenchState state, Blackhole blackhole) {
+        invokeHandleRequest(blackhole, state.invokers, state.apiMessages, state.requestHeaders, state.filterContext);
+    }
+
+    @Benchmark
+    public void testDispatchToHandleResponse(BenchState state, Blackhole blackhole) {
+        invokeHandleResponse(blackhole, state.invokers, state.apiResponseMessages, state.responseHeaders, state.filterContext);
     }
 
     @Benchmark
@@ -137,8 +152,14 @@ public class InvokerDispatchBenchmark {
 
     @Benchmark
     @Threads(4)
-    public void test4ThreadsDispatchToHandleRequest(BenchState state) {
-        invokeHandleRequest(state.invokers, state.apiMessages, state.requestHeaders, state.filterContext);
+    public void test4ThreadsDispatchToHandleRequest(BenchState state, Blackhole blackhole) {
+        invokeHandleRequest(blackhole, state.invokers, state.apiMessages, state.requestHeaders, state.filterContext);
+    }
+
+    @Benchmark
+    @Threads(4)
+    public void test4ThreadsDispatchToHandleResponse(BenchState state, Blackhole blackhole) {
+        invokeHandleResponse(blackhole, state.invokers, state.apiResponseMessages, state.responseHeaders, state.filterContext);
     }
 
     private static void invokeShouldHandle(Blackhole blackhole, FilterInvoker[] filters, ApiKeys[] apiKeys) {
@@ -151,14 +172,28 @@ public class InvokerDispatchBenchmark {
         }
     }
 
-    private static void invokeHandleRequest(FilterInvoker[] filters, Map.Entry<ApiKeys, ApiMessage>[] apiMessages, RequestHeaderData requestHeaders,
+    private static void invokeHandleRequest(Blackhole blackhole, FilterInvoker[] filters, Map.Entry<ApiKeys, ApiMessage>[] apiMessages, RequestHeaderData requestHeaders,
                                             FilterContext filterContext) {
         for (Map.Entry<ApiKeys, ApiMessage> entry : apiMessages) {
             final ApiKeys apiKey = entry.getKey();
             final short apiVersion = apiKey.latestVersion();
             for (FilterInvoker invoker : filters) {
                 if (invoker.shouldHandleRequest(apiKey, apiVersion)) {
-                    invoker.onRequest(apiKey, apiVersion, requestHeaders, entry.getValue(), filterContext);
+                    blackhole.consume(invoker.onRequest(apiKey, apiVersion, requestHeaders, entry.getValue(), filterContext));
+                }
+            }
+        }
+    }
+
+    private static void invokeHandleResponse(Blackhole blackhole, FilterInvoker[] filters, Map.Entry<ApiKeys, ApiMessage>[] apiMessages,
+                                             ResponseHeaderData responseHeaders,
+                                             FilterContext filterContext) {
+        for (Map.Entry<ApiKeys, ApiMessage> entry : apiMessages) {
+            final ApiKeys apiKey = entry.getKey();
+            final short apiVersion = apiKey.latestVersion();
+            for (FilterInvoker invoker : filters) {
+                if (invoker.shouldHandleResponse(apiKey, apiVersion)) {
+                    blackhole.consume(invoker.onResponse(apiKey, apiVersion, responseHeaders, entry.getValue(), filterContext));
                 }
             }
         }
