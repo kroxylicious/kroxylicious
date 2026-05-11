@@ -378,7 +378,7 @@ class KafkaProxyInitializerTest {
         vcl.initializationSucceeded();
         vcl.startDraining();
 
-        var vcc = mock(VirtualClusterCoordinator.class);
+        var vcc = mock(VirtualClusterRegistry.class);
         when(vcc.lifecycleFor("testCluster")).thenReturn(vcl);
         kafkaProxyInitializer = createKafkaProxyInitializer(false, ProxyProtocolMode.DISABLED,
                 (endpoint, sniHostname) -> bindingStage, vcc);
@@ -416,14 +416,14 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver) {
-        return createKafkaProxyInitializer(tls, proxyProtocolMode, bindingResolver, mock(VirtualClusterCoordinator.class));
+        return createKafkaProxyInitializer(tls, proxyProtocolMode, bindingResolver, mock(VirtualClusterRegistry.class));
     }
 
     @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver,
-                                                              VirtualClusterCoordinator vcc) {
+                                                              VirtualClusterRegistry vcc) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,

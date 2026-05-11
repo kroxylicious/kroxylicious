@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-class VirtualClusterCoordinatorTest {
+class VirtualClusterRegistryTest {
 
     private static final String CLUSTER_A = "cluster-a";
     private static final String CLUSTER_B = "cluster-b";
@@ -38,7 +38,7 @@ class VirtualClusterCoordinatorTest {
     @SuppressWarnings("unchecked")
     private final BiConsumer<String, Optional<Throwable>> noOpCallback = mock(BiConsumer.class);
 
-    private VirtualClusterCoordinator vcc;
+    private VirtualClusterRegistry vcc;
 
     private static VirtualClusterModel mockModel(String name) {
         var model = mock(VirtualClusterModel.class);
@@ -55,7 +55,7 @@ class VirtualClusterCoordinatorTest {
 
     @BeforeEach
     void setUp() {
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), noOpCallback);
     }
 
     @Test
@@ -72,7 +72,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldCreateLifecycleManagerForEachModel() {
         // given
-        var multiVcm = new VirtualClusterCoordinator(
+        var multiVcm = new VirtualClusterRegistry(
                 List.of(mockModel("cluster-a"), mockModel(CLUSTER_B)),
                 noOpCallback);
 
@@ -95,7 +95,7 @@ class VirtualClusterCoordinatorTest {
         // given
         var modelA = mockModel("cluster-a");
         var modelB = mockModel(CLUSTER_B);
-        var multiVcm = new VirtualClusterCoordinator(List.of(modelA, modelB), noOpCallback);
+        var multiVcm = new VirtualClusterRegistry(List.of(modelA, modelB), noOpCallback);
 
         // when
         var models = multiVcm.virtualClusterModels();
@@ -107,7 +107,7 @@ class VirtualClusterCoordinatorTest {
     @SuppressWarnings("DataFlowIssue")
     @Test
     void shouldRejectNullModels() {
-        assertThatThrownBy(() -> new VirtualClusterCoordinator(null, noOpCallback))
+        assertThatThrownBy(() -> new VirtualClusterRegistry(null, noOpCallback))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -115,14 +115,14 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldRejectNullCallback() {
         List<VirtualClusterModel> virtualClusterModels = List.of(mockModel(CLUSTER_A));
-        assertThatThrownBy(() -> new VirtualClusterCoordinator(virtualClusterModels, null))
+        assertThatThrownBy(() -> new VirtualClusterRegistry(virtualClusterModels, null))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void shouldRejectDuplicateClusterNames() {
         List<VirtualClusterModel> virtualClusterModels = List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_A));
-        assertThatThrownBy(() -> new VirtualClusterCoordinator(
+        assertThatThrownBy(() -> new VirtualClusterRegistry(
                 virtualClusterModels,
                 noOpCallback))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -264,7 +264,7 @@ class VirtualClusterCoordinatorTest {
         // Awaitility times out with a clear assertion failure.
         var pendingDrainA = new CompletableFuture<Void>();
 
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.initializationSucceeded(CLUSTER_B);
 
@@ -316,7 +316,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldStopServingClustersWhenShuttingDownWithNoConnections() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
 
         // When
@@ -332,7 +332,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldStopInitializingClustersWhenShuttingDown() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
 
         // When
@@ -348,10 +348,10 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldStopFailedClustersWhenShuttingDown() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
 
-        // Reach Failed state directly on the lifecycle, bypassing VirtualClusterCoordinator.initializationFailed()
+        // Reach Failed state directly on the lifecycle, bypassing VirtualClusterRegistry.initializationFailed()
         // which currently auto-transitions Failed → Stopped. Once retry/rollback is implemented, a cluster
         // will be able to sit in Failed without being immediately stopped, making this state reachable via
         // the coordinator's normal API.
@@ -373,7 +373,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldTransitionPreexistingDrainingClusterToStoppedOnShutdown() {
         // Given — cluster already draining (e.g. from hot-reload) with no active connections
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
         requireLifecycle(CLUSTER_A).startDraining();
 
@@ -390,7 +390,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldFireCallbackForPreexistingDrainingClusterOnShutdown() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
         requireLifecycle(CLUSTER_A).startDraining();
 
@@ -404,7 +404,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldWaitForPreexistingDrainToCompleteBeforeShuttingDown() {
         // Given — cluster draining with a pending connection
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), noOpCallback);
         vcc.initializationSucceeded(CLUSTER_A);
 
         var pendingDrain = new CompletableFuture<Void>();
@@ -437,7 +437,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldLeaveAlreadyStoppedClustersWhenShuttingDown() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), noOpCallback);
 
         // Force into Stopped directly, bypassing the coordinator's auto-stop logic.
         requireLifecycle(CLUSTER_A).stop();
@@ -455,7 +455,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldNotFireCallbackForAlreadyStoppedClustersWhenShuttingDown() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A)), noOpCallback);
         requireLifecycle(CLUSTER_A).stop();
 
         // When
@@ -475,7 +475,7 @@ class VirtualClusterCoordinatorTest {
         var stopped = "stopped";
         var failureCause = new RuntimeException("init failed");
 
-        vcc = new VirtualClusterCoordinator(
+        vcc = new VirtualClusterRegistry(
                 List.of(mockModel(serving), mockModel(initializing), mockModel(draining), mockModel(failed), mockModel(stopped)),
                 noOpCallback);
 
@@ -508,7 +508,7 @@ class VirtualClusterCoordinatorTest {
     @Test
     void shouldStopInitialisingWhenShuttingDown() {
         // Given
-        vcc = new VirtualClusterCoordinator(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        vcc = new VirtualClusterRegistry(List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
 
         // When
         vcc.initiateShutdown();

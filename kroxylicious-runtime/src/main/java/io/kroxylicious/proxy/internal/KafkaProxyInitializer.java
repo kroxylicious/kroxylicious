@@ -67,7 +67,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
-    private final VirtualClusterCoordinator virtualClusterCoordinator;
+    private final VirtualClusterRegistry virtualClusterRegistry;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -78,7 +78,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings,
-                                 VirtualClusterCoordinator virtualClusterCoordinator) {
+                                 VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.proxyProtocolMode = proxyProtocolMode;
@@ -89,7 +89,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
-        this.virtualClusterCoordinator = Objects.requireNonNull(virtualClusterCoordinator);
+        this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry);
     }
 
     @Override
@@ -210,7 +210,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         var clusterName = virtualCluster.getClusterName();
 
-        var lifecycle = virtualClusterCoordinator.lifecycleFor(clusterName);
+        var lifecycle = virtualClusterRegistry.lifecycleFor(clusterName);
         if (lifecycle != null && lifecycle.state() instanceof VirtualClusterLifecycleState.Draining) {
             rejectConnection(ch, clusterName);
             return;
@@ -218,8 +218,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
         ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
-        virtualClusterCoordinator.registerConnection(clusterName, proxyChannelStateMachine);
-        ch.closeFuture().addListener(f -> virtualClusterCoordinator.deregisterConnection(clusterName, proxyChannelStateMachine));
+        virtualClusterRegistry.registerConnection(clusterName, proxyChannelStateMachine);
+        ch.closeFuture().addListener(f -> virtualClusterRegistry.deregisterConnection(clusterName, proxyChannelStateMachine));
         addHandlers(ch, binding, subjectBuilder, proxyChannelStateMachine);
     }
 

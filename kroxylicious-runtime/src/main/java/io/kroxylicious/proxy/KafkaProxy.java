@@ -57,8 +57,8 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
-import io.kroxylicious.proxy.internal.VirtualClusterCoordinator;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycle;
+import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -152,7 +152,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
-    private final VirtualClusterCoordinator clusterCoordinator;
+    private final VirtualClusterRegistry clusterCoordinator;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
@@ -163,7 +163,7 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     @VisibleForTesting
-    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterCoordinator clusterCoordinator) {
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterRegistry clusterCoordinator) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.clusterCoordinator = requireNonNull(clusterCoordinator);
@@ -172,9 +172,9 @@ public final class KafkaProxy implements AutoCloseable {
         this.micrometerConfig = config.getMicrometer();
     }
 
-    private static VirtualClusterCoordinator defaultCoordinator(Configuration config, PluginFactoryRegistry pfr) {
+    private static VirtualClusterRegistry defaultCoordinator(Configuration config, PluginFactoryRegistry pfr) {
         var models = config.virtualClusterModel(pfr);
-        return new VirtualClusterCoordinator(models, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
+        return new VirtualClusterRegistry(models, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
                 .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));

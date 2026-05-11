@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.internal.VirtualClusterCoordinator;
+import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -123,10 +123,10 @@ class KafkaProxyShutdownOrderingTest {
         }
     }
 
-    private static VirtualClusterCoordinator blockingDrainCoordinator(java.util.List<VirtualClusterModel> models,
-                                                                      CountDownLatch drainStarted,
-                                                                      CountDownLatch drainCanComplete) {
-        return new VirtualClusterCoordinator(models, noOpCallback()) {
+    private static VirtualClusterRegistry blockingDrainCoordinator(java.util.List<VirtualClusterModel> models,
+                                                                   CountDownLatch drainStarted,
+                                                                   CountDownLatch drainCanComplete) {
+        return new VirtualClusterRegistry(models, noOpCallback()) {
             @Override
             public void initiateShutdown() {
                 drainStarted.countDown();
@@ -140,8 +140,8 @@ class KafkaProxyShutdownOrderingTest {
         };
     }
 
-    private static VirtualClusterCoordinator failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
-        return new VirtualClusterCoordinator(models, noOpCallback()) {
+    private static VirtualClusterRegistry failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
+        return new VirtualClusterRegistry(models, noOpCallback()) {
             @Override
             public void initiateShutdown() {
                 throw new RuntimeException("simulated drain failure");

@@ -39,14 +39,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Each virtual cluster's per-cluster state machine is a {@link VirtualClusterLifecycle}.
  * </p>
  */
-public class VirtualClusterCoordinator {
+public class VirtualClusterRegistry {
 
     private final List<VirtualClusterModel> virtualClusterModels;
     private final Map<String, VirtualClusterLifecycle> lifecyclesByCluster;
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
-     * Creates a new VirtualClusterCoordinator for the given set of virtual clusters.
+     * Creates a new VirtualClusterRegistry for the given set of virtual clusters.
      *
      * @param virtualClusterModels the complete set of virtual cluster configurations
      * @param onVirtualClusterStopped callback invoked with {@code (clusterName, priorFailureCause)}
@@ -56,8 +56,8 @@ public class VirtualClusterCoordinator {
      * @throws NullPointerException if either argument is null
      * @throws IllegalArgumentException if the list contains duplicate cluster names
      */
-    public VirtualClusterCoordinator(List<VirtualClusterModel> virtualClusterModels,
-                                     BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
+    public VirtualClusterRegistry(List<VirtualClusterModel> virtualClusterModels,
+                                  BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
         this.virtualClusterModels = List.copyOf(virtualClusterModels);
