@@ -25,7 +25,8 @@ final class InjectionDecision {
         SKIP_ALREADY_INJECTED("container-name-conflict"),
         SKIP_OPT_OUT(null),
         SKIP_NO_CONFIG("no-KroxyliciousSidecarConfig"),
-        SKIP_MULTIPLE_CONFIGS("ambiguous-KroxyliciousSidecarConfig");
+        SKIP_MULTIPLE_CONFIGS("ambiguous-KroxyliciousSidecarConfig"),
+        SKIP_INVALID_CONFIG("invalid-KroxyliciousSidecarConfig");
 
         private final String skipLabel;
 
@@ -42,7 +43,7 @@ final class InjectionDecision {
         }
 
         boolean isConfigUnavailable() {
-            return this == SKIP_NO_CONFIG || this == SKIP_MULTIPLE_CONFIGS;
+            return this == SKIP_NO_CONFIG || this == SKIP_MULTIPLE_CONFIGS || this == SKIP_INVALID_CONFIG;
         }
     }
 
@@ -73,6 +74,7 @@ final class InjectionDecision {
             case FOUND -> Decision.INJECT;
             case NO_CONFIG -> Decision.SKIP_NO_CONFIG;
             case MULTIPLE_CONFIGS -> Decision.SKIP_MULTIPLE_CONFIGS;
+            case INVALID_CONFIG -> Decision.SKIP_INVALID_CONFIG;
         };
     }
 
