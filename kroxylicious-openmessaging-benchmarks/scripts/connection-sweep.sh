@@ -199,8 +199,10 @@ print_summary() {
             continue
         fi
 
-        local achieved sat p99
+        local achieved sat p99 topics
+        topics=$(jq -r '.topics // 1' "${rd}/run-metadata.json" 2>/dev/null || echo 1)
         achieved=$(jq '[.publishRate[]] | add / length' "${rf}")
+        achieved=$(awk "BEGIN { print ${achieved} * ${topics} }")
         sat=$(awk "BEGIN { print (${achieved} < ${target} * 0.95) ? 1 : 0 }")
 
         if [[ "${sat}" == "1" ]]; then

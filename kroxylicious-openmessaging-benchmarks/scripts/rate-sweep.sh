@@ -250,8 +250,10 @@ print_summary() {
             local bf="${baseline_dir}/rate-${rate}/result.json"
             local bd="${baseline_dir}/rate-${rate}"
             if [[ -f "${bf}" ]]; then
-                local b_achieved b_sat b_p99
+                local b_achieved b_sat b_p99 b_topics
+                b_topics=$(jq -r '.topics // 1' "${bd}/run-metadata.json" 2>/dev/null || echo 1)
                 b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
+                b_achieved=$(awk "BEGIN { print ${b_achieved} * ${b_topics} }")
                 b_sat=$(awk "BEGIN { print (${b_achieved} < ${rate} * 0.95) ? 1 : 0 }")
                 if [[ "${b_sat}" == "1" ]]; then
                     local b_achieved_int
@@ -284,8 +286,10 @@ print_summary() {
                 [[ -n "${baseline_dir}" ]] && printf "  %-12s" "—"
                 continue
             fi
-            local s_achieved s_sat s_p99
+            local s_achieved s_sat s_p99 s_topics
+            s_topics=$(jq -r '.topics // 1' "${sd}/run-metadata.json" 2>/dev/null || echo 1)
             s_achieved=$(jq '[.publishRate[]] | add / length' "${sf}")
+            s_achieved=$(awk "BEGIN { print ${s_achieved} * ${s_topics} }")
             s_sat=$(awk "BEGIN { print (${s_achieved} < ${rate} * 0.95) ? 1 : 0 }")
             if [[ "${s_sat}" == "1" ]]; then
                 local s_achieved_int
