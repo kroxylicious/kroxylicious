@@ -6,9 +6,14 @@
 
 package io.kroxylicious.microbenchmarks;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 import io.kroxylicious.microbenchmarks.filters.EightInterfaceFilter;
@@ -18,34 +23,37 @@ import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvokers;
 
+@Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
+@Warmup(iterations = 5, time = 1)
+@Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 public class InvokerBenchmark {
 
     @org.openjdk.jmh.annotations.State(Scope.Benchmark)
     public static class BenchState {
-        final FilterInvoker arrayInvokerFilter2HasOneInterface = FilterInvokers.arrayInvoker(new OneInterfaceFilter());
-        final FilterInvoker arrayInvokerFilter2HasTwoInterfaces = FilterInvokers.arrayInvoker(new TwoInterfaceFilter());
-        final FilterInvoker arrayInvokerFilter2HasFourInterfaces = FilterInvokers.arrayInvoker(new FourInterfaceFilter());
-        final FilterInvoker arrayInvokerFilter2HasEightInterfaces = FilterInvokers.arrayInvoker(new EightInterfaceFilter());
+        final FilterInvoker arrayInvokerHasOneInterface = FilterInvokers.arrayInvoker(new OneInterfaceFilter());
+        final FilterInvoker arrayInvokerHasTwoInterfaces = FilterInvokers.arrayInvoker(new TwoInterfaceFilter());
+        final FilterInvoker arrayInvokerHasFourInterfaces = FilterInvokers.arrayInvoker(new FourInterfaceFilter());
+        final FilterInvoker arrayInvokerHasEightInterfaces = FilterInvokers.arrayInvoker(new EightInterfaceFilter());
     }
 
     @Benchmark
-    public void testArrayInvokerFilter2HasOneInterface(BenchState state, Blackhole blackhole) {
-        invoke(blackhole, state.arrayInvokerFilter2HasOneInterface);
+    public void testArrayInvokerHasOneInterface(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.arrayInvokerHasOneInterface);
     }
 
     @Benchmark
-    public void testArrayInvokerFilter2HasTwoInterfaces(BenchState state, Blackhole blackhole) {
-        invoke(blackhole, state.arrayInvokerFilter2HasTwoInterfaces);
+    public void testArrayInvokerHasTwoInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.arrayInvokerHasTwoInterfaces);
     }
 
     @Benchmark
-    public void testArrayInvokerFilter2HasFourInterfaces(BenchState state, Blackhole blackhole) {
-        invoke(blackhole, state.arrayInvokerFilter2HasFourInterfaces);
+    public void testArrayInvokerHasFourInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.arrayInvokerHasFourInterfaces);
     }
 
     @Benchmark
-    public void testArrayInvokerFilter2HasEightInterfaces(BenchState state, Blackhole blackhole) {
-        invoke(blackhole, state.arrayInvokerFilter2HasEightInterfaces);
+    public void testArrayInvokerHasEightInterfaces(BenchState state, Blackhole blackhole) {
+        invoke(blackhole, state.arrayInvokerHasEightInterfaces);
     }
 
     private static void invoke(Blackhole blackhole, FilterInvoker filter) {
