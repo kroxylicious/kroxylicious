@@ -210,15 +210,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         var clusterName = virtualCluster.getClusterName();
 
-        var lifecycle = virtualClusterRegistry.lifecycleFor(clusterName);
-        if (lifecycle != null && lifecycle.state() instanceof VirtualClusterLifecycleState.Draining) {
+        TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
+        if (!virtualClusterRegistry.registerConnection(clusterName, proxyChannelStateMachine)) {
             rejectConnection(ch, clusterName);
             return;
         }
-
-        TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
-        virtualClusterRegistry.registerConnection(clusterName, proxyChannelStateMachine);
         ch.closeFuture().addListener(f -> virtualClusterRegistry.deregisterConnection(clusterName, proxyChannelStateMachine));
         addHandlers(ch, binding, subjectBuilder, proxyChannelStateMachine);
     }
