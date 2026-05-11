@@ -152,27 +152,27 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
-    private final VirtualClusterRegistry clusterCoordinator;
+    private final VirtualClusterRegistry virtualClusterRegistry;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
-        this(pfr, config, features, defaultCoordinator(config, pfr));
+        this(pfr, config, features, defaultRegistry(config, pfr));
     }
 
     @VisibleForTesting
-    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterRegistry clusterCoordinator) {
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.clusterCoordinator = requireNonNull(clusterCoordinator);
-        this.virtualClusterModels = clusterCoordinator.virtualClusterModels();
+        this.virtualClusterRegistry = requireNonNull(virtualClusterRegistry);
+        this.virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
     }
 
-    private static VirtualClusterRegistry defaultCoordinator(Configuration config, PluginFactoryRegistry pfr) {
+    private static VirtualClusterRegistry defaultRegistry(Configuration config, PluginFactoryRegistry pfr) {
         var models = config.virtualClusterModel(pfr);
         return new VirtualClusterRegistry(models, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
                 .addKeyValue("virtualCluster", clusterName)
@@ -258,10 +258,10 @@ public final class KafkaProxy implements AutoCloseable {
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, clusterCoordinator));
+                            proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, clusterCoordinator));
+                            proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -274,7 +274,7 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            virtualClusterModels.forEach(model -> clusterCoordinator.initializationSucceeded(model.getClusterName()));
+            virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationSucceeded(model.getClusterName()));
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
@@ -288,7 +288,7 @@ public final class KafkaProxy implements AutoCloseable {
             // rather than relying on the caller to call shutdown() separately. Currently the callback only logs.
             // All VCs are failed with the same exception because startup is all-or-nothing:
             // initializationSucceeded is only called after all VCs register successfully (line 263).
-            virtualClusterModels.forEach(model -> clusterCoordinator.initializationFailed(model.getClusterName(), e));
+            virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationFailed(model.getClusterName(), e));
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
@@ -407,7 +407,7 @@ public final class KafkaProxy implements AutoCloseable {
             }).toCompletableFuture().join();
 
             try {
-                clusterCoordinator.shutdownAllClusters();
+                virtualClusterRegistry.shutdownAllClusters();
                 STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
             }
             catch (Exception e) {
@@ -453,7 +453,7 @@ public final class KafkaProxy implements AutoCloseable {
     @VisibleForTesting
     @Nullable
     VirtualClusterLifecycle lifecycleFor(String clusterName) {
-        return clusterCoordinator.lifecycleFor(clusterName);
+        return virtualClusterRegistry.lifecycleFor(clusterName);
     }
 
     /**
