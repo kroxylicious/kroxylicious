@@ -52,6 +52,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvokers;
+import io.kroxylicious.proxy.internal.filter.SafeInvoker;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -81,6 +82,12 @@ public class InvokerDispatchBenchmark {
             FilterInvoker invokerWith(Filter filter) {
                 return FilterInvokers.arrayInvoker(filter);
             }
+        },
+        production {
+            @Override
+            FilterInvoker invokerWith(Filter filter) {
+                return new SafeInvoker(FilterInvokers.arrayInvoker(filter));
+            }
         };
 
         abstract FilterInvoker invokerWith(Filter filter);
@@ -92,7 +99,7 @@ public class InvokerDispatchBenchmark {
 
         ApiKeys[] keys;
 
-        @Param({ "array", "specific", "switching" })
+        @Param({ "array", "specific", "switching", "production" })
         String invoker;
 
         private RequestHeaderData requestHeaders;
