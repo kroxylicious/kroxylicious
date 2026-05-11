@@ -156,7 +156,7 @@ public class KafkaProxyReconciler implements
     private static final Path SERVER_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("server-certs");
     private static final Path SERVER_TRUSTED_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("trusted-certs");
 
-    private static final List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> deprecationCheckers = List.of(
+    private static final List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> DEPRECATION_CHECKERS = List.of(
             new AbsentSpecDeprecationChecker());
 
     private final Clock clock;
@@ -492,7 +492,7 @@ public class KafkaProxyReconciler implements
                                                Context<KafkaProxy> context) {
         var conditions = new ArrayList<Condition>();
         var ctx = new DeprecationCheckContext<>(primary, LOGGER, statusFactory, conditions);
-        deprecationCheckers.forEach(checker -> checker.check(ctx));
+        DEPRECATION_CHECKERS.forEach(checker -> checker.check(ctx));
 
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)
                 .map(Deployment::getStatus)
