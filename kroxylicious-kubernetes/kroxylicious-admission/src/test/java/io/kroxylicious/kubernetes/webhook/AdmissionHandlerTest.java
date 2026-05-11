@@ -161,6 +161,35 @@ class AdmissionHandlerTest {
     }
 
     @Test
+    void labelsSkippedPodWhenConfigIsInvalid() {
+        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.invalidConfig());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
+        assertThat(patchJson).contains("invalid-KroxyliciousSidecarConfig");
+    }
+
+    @Test
+    void deniesWhenConfigIsInvalidAndPolicyIsDeny() {
+        var denyHandler = new AdmissionHandler(
+                configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
+        when(configResolver.resolve(eq("test-ns"), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.invalidConfig());
+
+        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionResponse response = denyHandler.processReview(review);
+
+        assertThat(response.getAllowed()).isFalse();
+        assertThat(response.getStatus().getCode()).isEqualTo(403);
+        assertThat(response.getStatus().getMessage()).contains("SKIP_INVALID_CONFIG");
+    }
+
+    @Test
     void deniesWhenNoConfigAndPolicyIsDeny() {
         var denyHandler = new AdmissionHandler(
                 configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
