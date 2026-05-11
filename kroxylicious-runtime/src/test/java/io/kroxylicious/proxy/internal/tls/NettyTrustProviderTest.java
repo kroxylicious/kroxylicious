@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.config.tls;
+package io.kroxylicious.proxy.internal.tls;
 
 import java.io.FileNotFoundException;
 import java.security.UnrecoverableKeyException;
@@ -19,6 +19,11 @@ import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
+import io.kroxylicious.proxy.config.tls.ServerOptions;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;

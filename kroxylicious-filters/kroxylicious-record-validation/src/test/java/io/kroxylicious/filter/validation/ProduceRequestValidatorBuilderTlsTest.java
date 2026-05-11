@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProduceRequestValidatorBuilderTlsTest {
 
-    // This test uses a copy of the same key material as io.kroxylicious.proxy.config.tls.TlsTestConstants in kroxylicious_runtime
+    // This test uses a copy of the same key material as io.kroxylicious.proxy.internal.tls.TlsTestConstants in kroxylicious_runtime
     private static final String PATH_TO_TRUSTSTORE_JKS = getResourceLocationOnFilesystem("client.jks");
     private static final String PATH_TO_TRUSTSTORE_P12 = getResourceLocationOnFilesystem("client.p12");
     private static final String PATH_TO_CLIENT_CERT_PEM = getResourceLocationOnFilesystem("client.pem");

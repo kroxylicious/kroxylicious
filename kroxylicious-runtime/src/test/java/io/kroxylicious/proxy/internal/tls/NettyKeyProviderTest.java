@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.config.tls;
+package io.kroxylicious.proxy.internal.tls;
 
 import java.io.IOException;
 import java.security.KeyException;
@@ -23,17 +23,19 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyStore;
 
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.BADPASS;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.JKS;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYPASS;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYPASS_FILE_PASSWORD;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYSTORE_FILE_PASSWORD;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.NOT_EXIST;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.PEM;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.PKCS_12;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.STOREPASS;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.getResourceLocationOnFilesystem;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.BADPASS;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.JKS;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.KEYPASS;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.KEYPASS_FILE_PASSWORD;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.KEYSTORE_FILE_PASSWORD;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.NOT_EXIST;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.PEM;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.PKCS_12;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.STOREPASS;
+import static io.kroxylicious.proxy.internal.tls.TlsTestConstants.getResourceLocationOnFilesystem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
