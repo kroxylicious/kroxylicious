@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter;
+package io.kroxylicious.proxy.internal.filter;
 
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
@@ -18,6 +18,15 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

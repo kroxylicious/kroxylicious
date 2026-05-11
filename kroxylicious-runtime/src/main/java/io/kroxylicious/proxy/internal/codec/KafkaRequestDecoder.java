@@ -22,7 +22,7 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
-import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
+import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

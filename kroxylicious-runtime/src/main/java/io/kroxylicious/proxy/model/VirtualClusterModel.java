@@ -47,7 +47,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
-import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
+import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;

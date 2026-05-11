@@ -4,11 +4,15 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.filter;
+package io.kroxylicious.proxy.internal.filter;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.RequestFilter;
+import io.kroxylicious.proxy.filter.ResponseFilter;
 
 /**
  * Factory for FilterInvokers. The intention is to keep the Invoker implementations

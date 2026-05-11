@@ -9,8 +9,8 @@ import java.util.List;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
-import io.kroxylicious.proxy.filter.FilterAndInvoker;
-import io.kroxylicious.proxy.filter.FilterInvoker;
+import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 
 /**
  * Encapsulates decisions about whether requests and responses should be
