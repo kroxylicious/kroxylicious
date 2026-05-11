@@ -328,8 +328,6 @@ class SidecarConfigResolverTest {
         assertThat(SidecarConfigResolver.validate(config)).isEmpty();
     }
 
-    // --- resolve with validation ---
-
     @Test
     void resolveReturnsInvalidConfigWhenSingleConfigIsInvalid() {
         SidecarConfigResolver resolver = new SidecarConfigResolver();
