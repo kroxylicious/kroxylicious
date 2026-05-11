@@ -27,6 +27,9 @@ import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kubernetes.webhook.ProxyConfigGenerator.DEFAULT_NODE_ID_END;
+import static io.kroxylicious.kubernetes.webhook.ProxyConfigGenerator.DEFAULT_NODE_ID_START;
+
 /**
  * Watches {@link KroxyliciousSidecarConfig} resources and maintains an in-memory
  * cache for resolving the config applicable to a given namespace.
@@ -232,8 +235,8 @@ class SidecarConfigResolver implements Closeable {
             errors.add("spec is required");
             return errors;
         }
-        if (spec.getVirtualClusters() == null || spec.getVirtualClusters().isEmpty()) {
-            errors.add("spec.virtualClusters must contain at least one entry");
+        if (spec.getVirtualClusters() == null || spec.getVirtualClusters().size() != 1) {
+            errors.add("spec.virtualClusters must contain exactly one entry");
             return errors;
         }
 
@@ -248,10 +251,10 @@ class SidecarConfigResolver implements Closeable {
         var nodeIdRange = vc.getNodeIdRange();
         int nodeIdStart = nodeIdRange != null && nodeIdRange.getStartInclusive() != null
                 ? nodeIdRange.getStartInclusive().intValue()
-                : 0;
+                : DEFAULT_NODE_ID_START;
         int nodeIdEnd = nodeIdRange != null && nodeIdRange.getEndInclusive() != null
                 ? nodeIdRange.getEndInclusive().intValue()
-                : 2;
+                : DEFAULT_NODE_ID_END;
 
         if (nodeIdStart > nodeIdEnd) {
             errors.add("spec.virtualClusters[0].nodeIdRange.startInclusive (" + nodeIdStart

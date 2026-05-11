@@ -264,7 +264,7 @@ class SidecarConfigResolverTest {
         config.getSpec().setVirtualClusters(java.util.List.of());
 
         assertThat(SidecarConfigResolver.validate(config))
-                .contains("spec.virtualClusters must contain at least one entry");
+                .contains("spec.virtualClusters must contain exactly one entry");
     }
 
     @Test
