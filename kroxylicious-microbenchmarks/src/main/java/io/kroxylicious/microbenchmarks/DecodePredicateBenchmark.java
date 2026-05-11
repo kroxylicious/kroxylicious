@@ -42,6 +42,7 @@ public class DecodePredicateBenchmark {
 
         @Setup
         public void init() {
+            // 4 concrete types × 2 instances: keeps the shouldDecodeXxx call-site megamorphic (>2 types) so the JIT cannot devirtualise the dispatch loop.
             Filter[] filters = {
                     new FourInterfaceFilter0(),
                     new FourInterfaceFilter1(),
@@ -56,7 +57,8 @@ public class DecodePredicateBenchmark {
                     .map(f -> new FilterAndInvoker(f.getClass().getSimpleName(), f, FilterInvokers.arrayInvoker(f)))
                     .toList();
             predicate = DecodePredicate.forFilters(filterAndInvokers);
-            keys = ApiKeys.values();
+            // Representative high-volume API keys; using all ApiKeys.values() would obscure per-call cost with 70+ rarely-used keys.
+            keys = new ApiKeys[]{ ApiKeys.PRODUCE, ApiKeys.FETCH, ApiKeys.API_VERSIONS, ApiKeys.METADATA };
         }
     }
 

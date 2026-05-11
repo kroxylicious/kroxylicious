@@ -17,6 +17,8 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -112,6 +114,7 @@ public class InvokerDispatchBenchmark {
         @Setup
         public void init() {
             Invoker invokerType = Invoker.valueOf(invoker);
+            // 4 concrete types × 2 instances: keeps the invoker call-site megamorphic (>2 types) so the JIT cannot devirtualise the dispatch loop.
             invokers = new FilterInvoker[]{
                     invokerType.invokerWith(new FourInterfaceFilter0()),
                     invokerType.invokerWith(new FourInterfaceFilter1()),
@@ -122,12 +125,11 @@ public class InvokerDispatchBenchmark {
                     invokerType.invokerWith(new FourInterfaceFilter2()),
                     invokerType.invokerWith(new FourInterfaceFilter3())
             };
-            final Map<ApiKeys, ApiMessage> requests = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(), ApiKeys.FETCH,
-                    new FetchRequestData());
+            final Map<ApiKeys, ApiMessage> requests = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(),
+                    ApiKeys.FETCH, new FetchRequestData(), ApiKeys.METADATA, new MetadataRequestData());
             apiMessages = requests.entrySet().toArray(new Map.Entry[0]); // Avoids iterator.next showing up in the benchmarks
             final Map<ApiKeys, ApiMessage> responses = Map.of(ApiKeys.PRODUCE, new ProduceResponseData(), ApiKeys.API_VERSIONS, new ApiVersionsResponseData(),
-                    ApiKeys.FETCH,
-                    new FetchResponseData());
+                    ApiKeys.FETCH, new FetchResponseData(), ApiKeys.METADATA, new MetadataResponseData());
             apiResponseMessages = responses.entrySet().toArray(new Map.Entry[0]);
             requestHeaders = new RequestHeaderData();
             responseHeaders = new ResponseHeaderData();
