@@ -30,13 +30,13 @@
         To accurately measure performance, it is useful to sometimes forcibly return null.
         -->
     <Match>
-        <Source name="~.*io/kroxylicious/microbenchmarks/.*"/>
+        <Source name="~.*io/kroxylicious/benchmarking/jmh/.*"/>
         <Bug pattern="NP_NONNULL_RETURN_VIOLATION" />
     </Match>
     <!--
         The source below contains generated classes used for benchmarks.
         -->
     <Match>
-        <Source name="~.*io/kroxylicious/microbenchmarks/jmh_generated/.*"/>
+        <Source name="~.*io/kroxylicious/benchmarking/jmh/jmh_generated/.*"/>
     </Match>
 </FindBugsFilter>

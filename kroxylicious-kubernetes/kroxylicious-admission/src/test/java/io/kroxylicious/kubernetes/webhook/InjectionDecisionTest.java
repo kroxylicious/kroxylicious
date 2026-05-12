@@ -99,6 +99,18 @@ class InjectionDecisionTest {
     }
 
     @Test
+    void shouldSkipWhenInvalidConfig() {
+        Pod pod = podWithLabels(Map.of());
+        assertThat(InjectionDecision.evaluate(pod, SidecarConfigResolver.Resolution.Outcome.INVALID_CONFIG))
+                .isEqualTo(InjectionDecision.Decision.SKIP_INVALID_CONFIG);
+    }
+
+    @Test
+    void invalidConfigIsConfigUnavailable() {
+        assertThat(InjectionDecision.Decision.SKIP_INVALID_CONFIG.isConfigUnavailable()).isTrue();
+    }
+
+    @Test
     void shouldHandleNullSpec() {
         Pod pod = new Pod();
         pod.setMetadata(new ObjectMeta());

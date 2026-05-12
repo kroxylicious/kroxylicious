@@ -27,6 +27,9 @@ import io.kroxylicious.sidecar.v1alpha1.KroxyliciousSidecarConfigSpec;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kubernetes.webhook.ProxyConfigGenerator.DEFAULT_NODE_ID_END;
+import static io.kroxylicious.kubernetes.webhook.ProxyConfigGenerator.DEFAULT_NODE_ID_START;
+
 /**
  * Watches {@link KroxyliciousSidecarConfig} resources and maintains an in-memory
  * cache for resolving the config applicable to a given namespace.
@@ -81,7 +84,8 @@ class SidecarConfigResolver implements Closeable {
         enum Outcome {
             FOUND,
             NO_CONFIG,
-            MULTIPLE_CONFIGS
+            MULTIPLE_CONFIGS,
+            INVALID_CONFIG
         }
 
         static Resolution found(@NonNull KroxyliciousSidecarConfig config) {
@@ -94,6 +98,10 @@ class SidecarConfigResolver implements Closeable {
 
         static Resolution multipleConfigs() {
             return new Resolution(Outcome.MULTIPLE_CONFIGS, Optional.empty());
+        }
+
+        static Resolution invalidConfig() {
+            return new Resolution(Outcome.INVALID_CONFIG, Optional.empty());
         }
     }
 
@@ -127,11 +135,11 @@ class SidecarConfigResolver implements Closeable {
                         .log("KroxyliciousSidecarConfig not found");
                 return Resolution.noConfig();
             }
-            return Resolution.found(config);
+            return validatedResolution(config, namespace);
         }
 
         if (nsConfigs.size() == 1) {
-            return Resolution.found(nsConfigs.values().iterator().next());
+            return validatedResolution(nsConfigs.values().iterator().next(), namespace);
         }
 
         if (nsConfigs.isEmpty()) {
@@ -146,6 +154,22 @@ class SidecarConfigResolver implements Closeable {
                 .addKeyValue("count", nsConfigs.size())
                 .log("Multiple KroxyliciousSidecarConfig resources found, explicit annotation required");
         return Resolution.multipleConfigs();
+    }
+
+    @NonNull
+    private Resolution validatedResolution(
+                                           @NonNull KroxyliciousSidecarConfig config,
+                                           @NonNull String namespace) {
+        List<String> errors = validate(config);
+        if (!errors.isEmpty()) {
+            LOGGER.atWarn()
+                    .addKeyValue(WebhookLoggingKeys.NAMESPACE, namespace)
+                    .addKeyValue(WebhookLoggingKeys.NAME, config.getMetadata().getName())
+                    .addKeyValue("errors", errors)
+                    .log("KroxyliciousSidecarConfig failed validation");
+            return Resolution.invalidConfig();
+        }
+        return Resolution.found(config);
     }
 
     /**
@@ -199,6 +223,10 @@ class SidecarConfigResolver implements Closeable {
         }
     }
 
+    // Structural checks (spec null, virtualClusters empty, targetBootstrapServers blank) are expected
+    // to be caught by CRD schema validation and should not be reachable in practice. They exist as a
+    // defensive guard. The cross-field semantic checks (port collisions, range overflow) cannot be
+    // expressed in the OpenAPI schema and are the primary reason this method exists.
     @VisibleForTesting
     static List<String> validate(@NonNull KroxyliciousSidecarConfig config) {
         List<String> errors = new ArrayList<>();
@@ -207,15 +235,50 @@ class SidecarConfigResolver implements Closeable {
             errors.add("spec is required");
             return errors;
         }
-        if (spec.getVirtualClusters() == null || spec.getVirtualClusters().isEmpty()) {
-            errors.add("spec.virtualClusters must contain at least one entry");
+        if (spec.getVirtualClusters() == null || spec.getVirtualClusters().size() != 1) {
+            errors.add("spec.virtualClusters must contain exactly one entry");
+            return errors;
         }
-        else {
-            var vc = spec.getVirtualClusters().get(0);
-            if (vc.getTargetBootstrapServers() == null || vc.getTargetBootstrapServers().isBlank()) {
-                errors.add("spec.virtualClusters[0].targetBootstrapServers is required");
-            }
+
+        var vc = spec.getVirtualClusters().get(0);
+        if (vc.getTargetBootstrapServers() == null || vc.getTargetBootstrapServers().isBlank()) {
+            errors.add("spec.virtualClusters[0].targetBootstrapServers is required");
         }
+
+        int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(vc);
+        int managementPort = ProxyConfigGenerator.resolveManagementPort(spec);
+
+        var nodeIdRange = vc.getNodeIdRange();
+        int nodeIdStart = nodeIdRange != null && nodeIdRange.getStartInclusive() != null
+                ? nodeIdRange.getStartInclusive().intValue()
+                : DEFAULT_NODE_ID_START;
+        int nodeIdEnd = nodeIdRange != null && nodeIdRange.getEndInclusive() != null
+                ? nodeIdRange.getEndInclusive().intValue()
+                : DEFAULT_NODE_ID_END;
+
+        if (nodeIdStart > nodeIdEnd) {
+            errors.add("spec.virtualClusters[0].nodeIdRange.startInclusive (" + nodeIdStart
+                    + ") must not exceed endInclusive (" + nodeIdEnd + ")");
+        }
+
+        int brokerPortCount = nodeIdEnd - nodeIdStart + 1;
+        int firstBrokerPort = bootstrapPort + 1;
+        int lastBrokerPort = firstBrokerPort + brokerPortCount - 1;
+
+        if (lastBrokerPort > 65535) {
+            errors.add("broker port range [" + firstBrokerPort + ", " + lastBrokerPort
+                    + "] exceeds maximum port 65535");
+        }
+
+        if (bootstrapPort == managementPort) {
+            errors.add("spec.virtualClusters[0].bootstrapPort (" + bootstrapPort
+                    + ") must not equal spec.managementPort");
+        }
+        else if (managementPort >= firstBrokerPort && managementPort <= lastBrokerPort) {
+            errors.add("spec.managementPort (" + managementPort
+                    + ") conflicts with broker port range [" + firstBrokerPort + ", " + lastBrokerPort + "]");
+        }
+
         return errors;
     }
 

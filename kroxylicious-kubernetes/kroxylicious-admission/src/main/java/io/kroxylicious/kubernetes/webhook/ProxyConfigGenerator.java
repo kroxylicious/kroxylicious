@@ -46,8 +46,8 @@ class ProxyConfigGenerator {
         VirtualClusters vc = new VirtualClusters();
         DEFAULT_BOOTSTRAP_PORT = vc.getBootstrapPort().intValue();
     }
-    private static final int DEFAULT_NODE_ID_START;
-    private static final int DEFAULT_NODE_ID_END;
+    static final int DEFAULT_NODE_ID_START;
+    static final int DEFAULT_NODE_ID_END;
     static {
         NodeIdRange nodeIdRange = new NodeIdRange();
         DEFAULT_NODE_ID_START = nodeIdRange.getStartInclusive().intValue();

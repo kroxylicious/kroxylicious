@@ -7,18 +7,19 @@ package io.kroxylicious.proxy;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.internal.DrainCoordinator;
+import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -32,8 +33,8 @@ class KafkaProxyShutdownOrderingTest {
      * Verifies that ports are unbound <em>before</em> drain completes.
      * <p>
      * With the correct ordering — {@code endpointRegistry.shutdown()} before
-     * {@code drainAllClusters()} — no new connections can arrive after the drain
-     * snapshot is taken, closing the race described in rodobario's review comment.
+     * {@code clusterCoordinator.shutdownAllClusters()} — no new connections can arrive after
+     * the drain snapshot is taken, closing the race described in rodobario's review comment.
      * With the old (inverted) ordering, the port stays bound throughout drain,
      * allowing new connections to arrive after the snapshot.
      */
@@ -42,25 +43,6 @@ class KafkaProxyShutdownOrderingTest {
         var drainStarted = new CountDownLatch(1);
         var drainCanComplete = new CountDownLatch(1);
 
-        var dc = new DrainCoordinator() {
-            @Override
-            public CompletableFuture<Void> drainCluster(String clusterName, Duration timeout) {
-                drainStarted.countDown();
-                return CompletableFuture.runAsync(() -> {
-                    try {
-                        drainCanComplete.await();
-                    }
-                    catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                });
-            }
-        };
-
-        // Port 0 lets the OS assign a free port, eliminating the TOCTOU race of the
-        // find-then-bind pattern. nodeStartPort is set explicitly to keep it out of
-        // the OS ephemeral-port range (32768-60999 on Linux) and away from the fixed
-        // ports used by other test classes in this module (8192-9295).
         var config = """
                 virtualClusters:
                   - name: demo
@@ -74,7 +56,11 @@ class KafkaProxyShutdownOrderingTest {
                         nodeStartPort: 11000
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+        var vcc = blockingDrainCoordinator(models, drainStarted, drainCanComplete);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
             proxy.startup();
             int proxyPort = proxy.listeningPort(null, EndpointRegistry.OS_ASSIGNED_PORT);
 
@@ -104,20 +90,13 @@ class KafkaProxyShutdownOrderingTest {
 
     /**
      * Verifies that an exception during drain (e.g. a per-connection drain future completing
-     * exceptionally) is caught inside {@code drainAllClusters()} and shutdown still completes
+     * exceptionally) is caught inside {@code shutdown()} and shutdown still completes
      * cleanly. Without this catch, a runaway drain failure would propagate out of shutdown
      * and the proxy would terminate abruptly without running the rest of its cleanup
      * (Netty {@code shutdownGracefully}, meter registry cleanup, lifecycle transitions).
      */
     @Test
     void drainFailureIsCaughtAndShutdownCompletes() throws Exception {
-        var dc = new DrainCoordinator() {
-            @Override
-            public CompletableFuture<Void> drainCluster(String clusterName, Duration timeout) {
-                return CompletableFuture.failedFuture(new RuntimeException("simulated drain failure"));
-            }
-        };
-
         var config = """
                 virtualClusters:
                   - name: demo
@@ -131,13 +110,48 @@ class KafkaProxyShutdownOrderingTest {
                         nodeStartPort: 11000
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures(), dc)) {
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+        var vcc = failingDrainCoordinator(models);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
             proxy.startup();
 
-            // Shutdown should complete without throwing — the catch in drainAllClusters
+            // Shutdown should complete without throwing — the catch in shutdown()
             // swallows the drain failure and lets the rest of cleanup proceed.
             assertThatCode(proxy::shutdown).doesNotThrowAnyException();
         }
+    }
+
+    private static VirtualClusterRegistry blockingDrainCoordinator(java.util.List<VirtualClusterModel> models,
+                                                                   CountDownLatch drainStarted,
+                                                                   CountDownLatch drainCanComplete) {
+        return new VirtualClusterRegistry(models, noOpCallback()) {
+            @Override
+            public void shutdownAllClusters() {
+                drainStarted.countDown();
+                try {
+                    drainCanComplete.await();
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+    }
+
+    private static VirtualClusterRegistry failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
+        return new VirtualClusterRegistry(models, noOpCallback()) {
+            @Override
+            public void shutdownAllClusters() {
+                throw new RuntimeException("simulated drain failure");
+            }
+        };
+    }
+
+    private static BiConsumer<String, Optional<Throwable>> noOpCallback() {
+        return (name, cause) -> {
+        };
     }
 
     private static boolean canConnect(int port) {

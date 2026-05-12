@@ -51,6 +51,7 @@ class AdmissionHandlerTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String PROXY_IMAGE = "quay.io/kroxylicious/kroxylicious:latest";
+    public static final String TEST_NS = "test-ns";
 
     @Mock
     private SidecarConfigResolver configResolver;
@@ -75,7 +76,7 @@ class AdmissionHandlerTest {
 
     @Test
     void allowsWhenPodObjectIsNull() {
-        AdmissionReview review = reviewWithPod(null, "test-ns");
+        AdmissionReview review = reviewWithPod(null);
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -84,10 +85,10 @@ class AdmissionHandlerTest {
 
     @Test
     void allowsAndPatchesWhenConfigExists() {
-        KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "config");
-        when(configResolver.resolve("test-ns", null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
+        KroxyliciousSidecarConfig config = sidecarConfig("config");
+        when(configResolver.resolve(TEST_NS, null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -97,16 +98,16 @@ class AdmissionHandlerTest {
 
     @Test
     void labelsSkippedPodWhenNoConfig() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
+        when(configResolver.resolve(eq(TEST_NS), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
         assertThat(response.getPatchType()).isEqualTo("JSONPatch");
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
-        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
-        assertThat(patchJson).contains("no-KroxyliciousSidecarConfig");
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED)
+                .contains("no-KroxyliciousSidecarConfig");
     }
 
     @Test
@@ -116,10 +117,10 @@ class AdmissionHandlerTest {
                 new HashMap<>(Map.of(Labels.SIDECAR_INJECTION, Labels.SIDECAR_INJECTION_DISABLED)));
 
         // Config resolver should still be called, but injection is skipped
-        when(configResolver.resolve(eq("test-ns"), isNull()))
-                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
+        when(configResolver.resolve(eq(TEST_NS), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("config")));
 
-        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionReview review = reviewWithPod(pod);
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -128,46 +129,75 @@ class AdmissionHandlerTest {
 
     @Test
     void labelsSkippedPodWhenAlreadyInjected() {
-        when(configResolver.resolve(eq("test-ns"), isNull()))
-                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
+        when(configResolver.resolve(eq(TEST_NS), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("config")));
 
         Pod pod = minimalPod();
         io.fabric8.kubernetes.api.model.Container sidecar = new io.fabric8.kubernetes.api.model.Container();
         sidecar.setName(InjectionDecision.SIDECAR_CONTAINER_NAME);
         pod.getSpec().getContainers().add(sidecar);
 
-        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionReview review = reviewWithPod(pod);
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
         assertThat(response.getPatchType()).isEqualTo("JSONPatch");
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
-        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
-        assertThat(patchJson).contains("container-name-conflict");
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED)
+                .contains("container-name-conflict");
     }
 
     @Test
     void labelsSkippedPodWhenMultipleConfigs() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.multipleConfigs());
+        when(configResolver.resolve(eq(TEST_NS), isNull())).thenReturn(SidecarConfigResolver.Resolution.multipleConfigs());
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
         assertThat(response.getPatchType()).isEqualTo("JSONPatch");
         String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
-        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED);
-        assertThat(patchJson).contains("ambiguous-KroxyliciousSidecarConfig");
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED)
+                .contains("ambiguous-KroxyliciousSidecarConfig");
+    }
+
+    @Test
+    void labelsSkippedPodWhenConfigIsInvalid() {
+        when(configResolver.resolve(eq(TEST_NS), isNull())).thenReturn(SidecarConfigResolver.Resolution.invalidConfig());
+
+        AdmissionReview review = reviewWithPod(minimalPod());
+        AdmissionResponse response = handler.processReview(review);
+
+        assertThat(response.getAllowed()).isTrue();
+        assertThat(response.getPatchType()).isEqualTo("JSONPatch");
+        String patchJson = new String(java.util.Base64.getDecoder().decode(response.getPatch()));
+        assertThat(patchJson).contains(Labels.INJECTION_SKIPPED)
+                .contains("invalid-KroxyliciousSidecarConfig");
+    }
+
+    @Test
+    void deniesWhenConfigIsInvalidAndPolicyIsDeny() {
+        var denyHandler = new AdmissionHandler(
+                configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
+        when(configResolver.resolve(eq(TEST_NS), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.invalidConfig());
+
+        AdmissionReview review = reviewWithPod(minimalPod());
+        AdmissionResponse response = denyHandler.processReview(review);
+
+        assertThat(response.getAllowed()).isFalse();
+        assertThat(response.getStatus().getCode()).isEqualTo(403);
+        assertThat(response.getStatus().getMessage()).contains("SKIP_INVALID_CONFIG");
     }
 
     @Test
     void deniesWhenNoConfigAndPolicyIsDeny() {
         var denyHandler = new AdmissionHandler(
                 configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
-        when(configResolver.resolve(eq("test-ns"), isNull()))
+        when(configResolver.resolve(eq(TEST_NS), isNull()))
                 .thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         AdmissionResponse response = denyHandler.processReview(review);
 
         assertThat(response.getAllowed()).isFalse();
@@ -179,10 +209,10 @@ class AdmissionHandlerTest {
     void deniesWhenMultipleConfigsAndPolicyIsDeny() {
         var denyHandler = new AdmissionHandler(
                 configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
-        when(configResolver.resolve(eq("test-ns"), isNull()))
+        when(configResolver.resolve(eq(TEST_NS), isNull()))
                 .thenReturn(SidecarConfigResolver.Resolution.multipleConfigs());
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         AdmissionResponse response = denyHandler.processReview(review);
 
         assertThat(response.getAllowed()).isFalse();
@@ -194,14 +224,14 @@ class AdmissionHandlerTest {
     void allowsOptOutEvenWhenPolicyIsDeny() {
         var denyHandler = new AdmissionHandler(
                 configResolver, PROXY_IMAGE, new KubernetesVersion(1, 0), true);
-        when(configResolver.resolve(eq("test-ns"), isNull()))
-                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("test-ns", "config")));
+        when(configResolver.resolve(eq(TEST_NS), isNull()))
+                .thenReturn(SidecarConfigResolver.Resolution.found(sidecarConfig("config")));
 
         Pod pod = minimalPod();
         pod.getMetadata().setLabels(
                 new HashMap<>(Map.of(Labels.SIDECAR_INJECTION, Labels.SIDECAR_INJECTION_DISABLED)));
 
-        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionReview review = reviewWithPod(pod);
         AdmissionResponse response = denyHandler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -209,14 +239,14 @@ class AdmissionHandlerTest {
 
     @Test
     void usesExplicitConfigName() {
-        KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "my-config");
-        when(configResolver.resolve("test-ns", "my-config")).thenReturn(SidecarConfigResolver.Resolution.found(config));
+        KroxyliciousSidecarConfig config = sidecarConfig("my-config");
+        when(configResolver.resolve(TEST_NS, "my-config")).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
         Pod pod = minimalPod();
         pod.getMetadata().setAnnotations(
                 new HashMap<>(Map.of(Annotations.SIDECAR_CONFIG, "my-config")));
 
-        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionReview review = reviewWithPod(pod);
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -227,7 +257,7 @@ class AdmissionHandlerTest {
     void preservesUidInResponse() {
         when(configResolver.resolve(any(), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         review.getRequest().setUid("test-uid-123");
 
         AdmissionResponse response = handler.processReview(review);
@@ -238,7 +268,7 @@ class AdmissionHandlerTest {
     void propagatesExceptionFromProcessReview() {
         when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
 
         assertThatThrownBy(() -> handler.processReview(review))
                 .isInstanceOf(RuntimeException.class)
@@ -247,11 +277,11 @@ class AdmissionHandlerTest {
 
     @Test
     void usesProxyImageFromConfig() {
-        KroxyliciousSidecarConfig config = sidecarConfig("test-ns", "config");
+        KroxyliciousSidecarConfig config = sidecarConfig("config");
         config.getSpec().setProxyImage("custom-image:v1");
-        when(configResolver.resolve("test-ns", null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
+        when(configResolver.resolve(TEST_NS, null)).thenReturn(SidecarConfigResolver.Resolution.found(config));
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -263,7 +293,7 @@ class AdmissionHandlerTest {
 
     @Test
     void processReviewHandlesPodWithGenerateNameButNoName() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
+        when(configResolver.resolve(eq(TEST_NS), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         Pod pod = new Pod();
         ObjectMeta meta = new ObjectMeta();
@@ -273,7 +303,7 @@ class AdmissionHandlerTest {
         spec.setContainers(new java.util.ArrayList<>());
         pod.setSpec(spec);
 
-        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionReview review = reviewWithPod(pod);
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -281,11 +311,11 @@ class AdmissionHandlerTest {
 
     @Test
     void processReviewHandlesPodWithNullMetadata() {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
+        when(configResolver.resolve(eq(TEST_NS), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
         Pod pod = new Pod();
 
-        AdmissionReview review = reviewWithPod(pod, "test-ns");
+        AdmissionReview review = reviewWithPod(pod);
         AdmissionResponse response = handler.processReview(review);
 
         assertThat(response.getAllowed()).isTrue();
@@ -305,9 +335,9 @@ class AdmissionHandlerTest {
 
     @Test
     void handlePostReturnsAdmissionReviewResponse() throws IOException {
-        when(configResolver.resolve(eq("test-ns"), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
+        when(configResolver.resolve(eq(TEST_NS), isNull())).thenReturn(SidecarConfigResolver.Resolution.noConfig());
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         byte[] requestBody = MAPPER.writeValueAsBytes(review);
         HttpExchange exchange = createMockExchange("POST", requestBody);
 
@@ -329,20 +359,20 @@ class AdmissionHandlerTest {
 
         handler.handle(exchange);
 
-        verify(exchange).sendResponseHeaders(eq(500), eq(-1L));
+        verify(exchange).sendResponseHeaders(500, -1L);
     }
 
     @Test
     void handleReturns500OnProcessReviewException() throws IOException {
         when(configResolver.resolve(any(), isNull())).thenThrow(new RuntimeException("kaboom"));
 
-        AdmissionReview review = reviewWithPod(minimalPod(), "test-ns");
+        AdmissionReview review = reviewWithPod(minimalPod());
         byte[] requestBody = MAPPER.writeValueAsBytes(review);
         HttpExchange exchange = createMockExchange("POST", requestBody);
 
         handler.handle(exchange);
 
-        verify(exchange).sendResponseHeaders(eq(500), eq(-1L));
+        verify(exchange).sendResponseHeaders(500, -1L);
     }
 
     // --- helpers ---
@@ -360,11 +390,11 @@ class AdmissionHandlerTest {
         return exchange;
     }
 
-    private static AdmissionReview reviewWithPod(Pod pod, String namespace) {
+    private static AdmissionReview reviewWithPod(Pod pod) {
         AdmissionReview review = new AdmissionReview();
         AdmissionRequest request = new AdmissionRequest();
         request.setUid("uid-" + System.nanoTime());
-        request.setNamespace(namespace);
+        request.setNamespace(TEST_NS);
         if (pod != null) {
             request.setObject(MAPPER.valueToTree(pod));
         }
@@ -384,11 +414,10 @@ class AdmissionHandlerTest {
     }
 
     private static KroxyliciousSidecarConfig sidecarConfig(
-                                                           String namespace,
                                                            String name) {
         KroxyliciousSidecarConfig config = new KroxyliciousSidecarConfig();
         ObjectMeta meta = new ObjectMeta();
-        meta.setNamespace(namespace);
+        meta.setNamespace(TEST_NS);
         meta.setName(name);
         config.setMetadata(meta);
         KroxyliciousSidecarConfigSpec spec = new KroxyliciousSidecarConfigSpec();

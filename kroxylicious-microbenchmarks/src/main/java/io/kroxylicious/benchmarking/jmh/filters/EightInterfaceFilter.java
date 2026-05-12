@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.microbenchmarks.filters;
+package io.kroxylicious.benchmarking.jmh.filters;
 
 import java.util.concurrent.CompletionStage;
 
@@ -36,54 +36,54 @@ public class EightInterfaceFilter implements ProduceResponseFilter, ProduceReque
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
                                                                    FilterContext context) {
-        return null;
+        return context.forwardResponse(header, response);
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
                                                                       FilterContext context) {
 
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response,
                                                                         FilterContext context) {
 
-        return null;
+        return context.forwardResponse(header, response);
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request,
                                                                       FilterContext context) {
 
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response,
                                                                         FilterContext context) {
 
-        return null;
+        return context.forwardResponse(header, response);
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request,
                                                                         FilterContext context) {
 
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onDescribeGroupsResponse(short apiVersion, ResponseHeaderData header, DescribeGroupsResponseData response,
                                                                           FilterContext context) {
 
-        return null;
+        return context.forwardResponse(header, response);
     }
 }

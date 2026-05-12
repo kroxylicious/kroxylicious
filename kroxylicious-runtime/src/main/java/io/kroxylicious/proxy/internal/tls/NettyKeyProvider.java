@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.config.tls;
+package io.kroxylicious.proxy.internal.tls;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,6 +17,10 @@ import javax.net.ssl.KeyManagerFactory;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
+import io.kroxylicious.proxy.config.tls.KeyStore;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;

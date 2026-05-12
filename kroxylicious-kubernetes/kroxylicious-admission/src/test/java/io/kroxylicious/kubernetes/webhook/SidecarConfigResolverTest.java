@@ -197,7 +197,7 @@ class SidecarConfigResolverTest {
                 org.mockito.ArgumentMatchers.eq(config),
                 org.mockito.ArgumentMatchers.contains("targetBootstrapServers"));
         assertThat(resolver.resolve("ns1", "my-config").outcome())
-                .isEqualTo(SidecarConfigResolver.Resolution.Outcome.FOUND);
+                .isEqualTo(SidecarConfigResolver.Resolution.Outcome.INVALID_CONFIG);
     }
 
     @Test
@@ -264,7 +264,7 @@ class SidecarConfigResolverTest {
         config.getSpec().setVirtualClusters(java.util.List.of());
 
         assertThat(SidecarConfigResolver.validate(config))
-                .contains("spec.virtualClusters must contain at least one entry");
+                .contains("spec.virtualClusters must contain exactly one entry");
     }
 
     @Test
@@ -272,6 +272,82 @@ class SidecarConfigResolverTest {
         KroxyliciousSidecarConfig config = createConfigWithoutBootstrap("ns1", "bad");
         assertThat(SidecarConfigResolver.validate(config))
                 .contains("spec.virtualClusters[0].targetBootstrapServers is required");
+    }
+
+    @Test
+    void validateRejectsBootstrapPortEqualsManagementPort() {
+        KroxyliciousSidecarConfig config = createConfig("ns1", "bad");
+        config.getSpec().getVirtualClusters().get(0).setBootstrapPort(9082L);
+        config.getSpec().setManagementPort(9082L);
+        assertThat(SidecarConfigResolver.validate(config))
+                .anyMatch(e -> e.contains("must not equal spec.managementPort"));
+    }
+
+    @Test
+    void validateRejectsBrokerPortRangeExceeding65535() {
+        KroxyliciousSidecarConfig config = createConfig("ns1", "bad");
+        config.getSpec().getVirtualClusters().get(0).setBootstrapPort(65530L);
+        var nodeIdRange = new io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.NodeIdRange();
+        nodeIdRange.setStartInclusive(0L);
+        nodeIdRange.setEndInclusive(10L);
+        config.getSpec().getVirtualClusters().get(0).setNodeIdRange(nodeIdRange);
+        assertThat(SidecarConfigResolver.validate(config))
+                .anyMatch(e -> e.contains("exceeds maximum port 65535"));
+    }
+
+    @Test
+    void validateRejectsManagementPortInBrokerPortRange() {
+        KroxyliciousSidecarConfig config = createConfig("ns1", "bad");
+        config.getSpec().getVirtualClusters().get(0).setBootstrapPort(9090L);
+        var nodeIdRange = new io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.NodeIdRange();
+        nodeIdRange.setStartInclusive(0L);
+        nodeIdRange.setEndInclusive(4L);
+        config.getSpec().getVirtualClusters().get(0).setNodeIdRange(nodeIdRange);
+        // broker ports: 9091-9095, management port 9093 conflicts
+        config.getSpec().setManagementPort(9093L);
+        assertThat(SidecarConfigResolver.validate(config))
+                .anyMatch(e -> e.contains("conflicts with broker port range"));
+    }
+
+    @Test
+    void validateRejectsInvertedNodeIdRange() {
+        KroxyliciousSidecarConfig config = createConfig("ns1", "bad");
+        var nodeIdRange = new io.kroxylicious.sidecar.v1alpha1.kroxylicioussidecarconfigspec.virtualclusters.NodeIdRange();
+        nodeIdRange.setStartInclusive(5L);
+        nodeIdRange.setEndInclusive(2L);
+        config.getSpec().getVirtualClusters().get(0).setNodeIdRange(nodeIdRange);
+        assertThat(SidecarConfigResolver.validate(config))
+                .anyMatch(e -> e.contains("must not exceed endInclusive"));
+    }
+
+    @Test
+    void validateAcceptsManagementPortOutsideBrokerRange() {
+        KroxyliciousSidecarConfig config = createConfig("ns1", "ok");
+        config.getSpec().getVirtualClusters().get(0).setBootstrapPort(9092L);
+        config.getSpec().setManagementPort(9082L);
+        assertThat(SidecarConfigResolver.validate(config)).isEmpty();
+    }
+
+    @Test
+    void resolveReturnsInvalidConfigWhenSingleConfigIsInvalid() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig config = createConfigWithoutBootstrap("ns1", "bad");
+        resolver.put(config);
+
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", null);
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.INVALID_CONFIG);
+        assertThat(result.config()).isEmpty();
+    }
+
+    @Test
+    void resolveReturnsInvalidConfigWhenExplicitNamedConfigIsInvalid() {
+        SidecarConfigResolver resolver = new SidecarConfigResolver();
+        KroxyliciousSidecarConfig config = createConfigWithoutBootstrap("ns1", "bad");
+        resolver.put(config);
+
+        SidecarConfigResolver.Resolution result = resolver.resolve("ns1", "bad");
+        assertThat(result.outcome()).isEqualTo(SidecarConfigResolver.Resolution.Outcome.INVALID_CONFIG);
+        assertThat(result.config()).isEmpty();
     }
 
     private static KroxyliciousSidecarConfig createConfig(String namespace, String name) {
