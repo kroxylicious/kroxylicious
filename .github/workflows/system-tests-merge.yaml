@@ -35,7 +35,7 @@ on:
 
 jobs:
   build_images:
-    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
 
   # First we run the tests that are independent of the KAFKA_CLIENT selected
   run_external_kafka_client_and_operator_system_tests:

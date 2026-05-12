@@ -41,7 +41,7 @@ concurrency:
 
 jobs:
   build_images:
-    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
 
   set_variables:
     runs-on: ubuntu-latest

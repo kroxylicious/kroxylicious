@@ -76,7 +76,7 @@ jobs:
         uses: ./.github/actions/common/setup-java
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious proxy system tests'
+      - name: 'Build Kroxylicious maven artifacts'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
