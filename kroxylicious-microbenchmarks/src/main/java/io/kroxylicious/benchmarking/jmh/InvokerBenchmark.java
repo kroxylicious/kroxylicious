@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.microbenchmarks;
+package io.kroxylicious.benchmarking.jmh;
 
 import java.util.concurrent.TimeUnit;
 
@@ -16,10 +16,10 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.microbenchmarks.filters.EightInterfaceFilter;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter;
-import io.kroxylicious.microbenchmarks.filters.OneInterfaceFilter;
-import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter;
+import io.kroxylicious.benchmarking.jmh.filters.EightInterfaceFilter;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter;
+import io.kroxylicious.benchmarking.jmh.filters.OneInterfaceFilter;
+import io.kroxylicious.benchmarking.jmh.filters.TwoInterfaceFilter;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvokers;
 

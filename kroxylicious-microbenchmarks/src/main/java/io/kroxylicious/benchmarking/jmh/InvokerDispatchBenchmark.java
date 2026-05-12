@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.microbenchmarks;
+package io.kroxylicious.benchmarking.jmh;
 
 import java.util.Collection;
 import java.util.Map;
@@ -37,12 +37,10 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.benchmarking.jmh.ArrayFilterInvoker;
-import io.kroxylicious.benchmarking.jmh.SpecificFilterInvoker;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter0;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter1;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter2;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter3;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter0;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter1;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter2;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.Filter;

@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.microbenchmarks;
+package io.kroxylicious.benchmarking.jmh;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,10 +20,10 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter0;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter1;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter2;
-import io.kroxylicious.microbenchmarks.filters.FourInterfaceFilter3;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter0;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter1;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter2;
+import io.kroxylicious.benchmarking.jmh.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;

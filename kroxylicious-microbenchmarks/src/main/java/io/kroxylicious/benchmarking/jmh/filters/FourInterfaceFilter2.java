@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.microbenchmarks.filters;
+package io.kroxylicious.benchmarking.jmh.filters;
 
 import java.util.concurrent.CompletionStage;
 
@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import static io.kroxylicious.microbenchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS;
+import static io.kroxylicious.benchmarking.jmh.InvokerDispatchBenchmark.CONSUME_TOKENS;
 
 public class FourInterfaceFilter2 implements ProduceResponseFilter, ProduceRequestFilter, FetchRequestFilter, FetchResponseFilter {
 
