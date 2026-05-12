@@ -118,6 +118,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -633,7 +634,7 @@ public class KafkaProxyReconcilerIT {
                         "Expect Service '" + serviceName + " to exist")
                 .extracting(svc -> svc.getSpec().getSelector())
                 .describedAs("Service's selector should select proxy pods")
-                .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+                .isEqualTo(standardLabels(proxy));
         assertThat(service.getSpec().getType()).isEqualTo("ClusterIP");
         assertThat(service.getSpec().getPorts()).singleElement().satisfies(onlyPort -> {
             assertThat(onlyPort.getProtocol()).isEqualTo("TCP");
@@ -680,7 +681,7 @@ public class KafkaProxyReconcilerIT {
                             "Expect shared SNI Service for proxy '" + name(proxy) + " to exist")
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+                    .isEqualTo(standardLabels(proxy));
             assertThat(service.getSpec().getType()).isEqualTo("LoadBalancer");
             // cannot use equality because the ServicePort has a random nodePort assigned to it
             assertThat(service.getSpec().getPorts()).singleElement().satisfies(onlyPort -> {
@@ -838,7 +839,7 @@ public class KafkaProxyReconcilerIT {
                             "Expect Service for cluster '" + clusterName + "' and ingress '" + ingressName + "' to still exist")
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+                    .isEqualTo(standardLabels(proxy));
             ServicePort bootstrapServicePort = clusterIpServicePort(expectedBootstrapPort);
             ServicePort node0ServicePort = clusterIpServicePort(expectedBootstrapPort + 1);
             ServicePort node1ServicePort = clusterIpServicePort(expectedBootstrapPort + 2);
@@ -920,7 +921,7 @@ public class KafkaProxyReconcilerIT {
                             "Expect shared SNI Service for proxy '" + name(proxy) + " to exist")
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+                    .isEqualTo(standardLabels(proxy));
             assertThat(service.getSpec().getType()).isEqualTo("ClusterIP");
 
             assertThat(service.getSpec().getPorts()).singleElement().satisfies(onlyPort -> {
@@ -1252,7 +1253,7 @@ public class KafkaProxyReconcilerIT {
                             "Expect Service for cluster '" + clusterName + "' and ingress '" + ingressName + "' to still exist")
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+                    .isEqualTo(standardLabels(proxy));
             assertThat(service.getSpec().getPorts()).describedAs("number of ports").hasSize(4);
         });
     }
