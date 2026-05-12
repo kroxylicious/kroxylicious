@@ -160,6 +160,14 @@ class SyncGroupAuthzIT extends AuthzIT {
         }
 
         @Override
+        public boolean needsRetry(SyncGroupResponseData response) {
+            Errors error = Errors.forCode(response.errorCode());
+            return error == Errors.NOT_COORDINATOR
+                    || error == Errors.COORDINATOR_LOAD_IN_PROGRESS
+                    || error == Errors.COORDINATOR_NOT_AVAILABLE;
+        }
+
+        @Override
         public SyncGroupRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             SyncGroupRequestData request = new SyncGroupRequestData();
             request.setGroupId(group);

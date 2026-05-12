@@ -162,6 +162,14 @@ class LeaveGroupAuthzIT extends AuthzIT {
         }
 
         @Override
+        public boolean needsRetry(LeaveGroupResponseData response) {
+            Errors error = Errors.forCode(response.errorCode());
+            return error == Errors.NOT_COORDINATOR
+                    || error == Errors.COORDINATOR_LOAD_IN_PROGRESS
+                    || error == Errors.COORDINATOR_NOT_AVAILABLE;
+        }
+
+        @Override
         public LeaveGroupRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             LeaveGroupRequestData request = new LeaveGroupRequestData();
             request.setGroupId(group);
