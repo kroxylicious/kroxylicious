@@ -50,12 +50,12 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
      * @param allowedNamespaces namespaces to filter events (empty means all namespaces)
      */
     SharedInformerEventSource(
-            Class<R> resourceClass,
-            String name,
-            SharedIndexInformer<R> sharedInformer,
-            PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
-            SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
-            Set<String> allowedNamespaces) {
+                              Class<R> resourceClass,
+                              String name,
+                              SharedIndexInformer<R> sharedInformer,
+                              PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
+                              SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
+                              Set<String> allowedNamespaces) {
         super(resourceClass, name);
         this.sharedInformer = sharedInformer;
         this.secondaryToPrimaryMapper = secondaryToPrimaryMapper;

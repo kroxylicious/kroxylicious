@@ -37,12 +37,12 @@ public final class SharedInformerEventSourceFactory {
      * @return a new SharedInformerEventSource instance
      */
     public static <P extends HasMetadata, R extends HasMetadata> SharedInformerEventSource<P, R> createSharedInformerEventSource(
-            Class<R> resourceClass,
-            String eventSourceName,
-            SharedIndexInformer<R> sharedInformer,
-            PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
-            SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
-            Set<String> allowedNamespaces) {
+                                                                                                                                 Class<R> resourceClass,
+                                                                                                                                 String eventSourceName,
+                                                                                                                                 SharedIndexInformer<R> sharedInformer,
+                                                                                                                                 PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
+                                                                                                                                 SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
+                                                                                                                                 Set<String> allowedNamespaces) {
         return new SharedInformerEventSource<>(
                 resourceClass,
                 eventSourceName,

@@ -42,7 +42,6 @@ import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
-import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSourceFactory;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
