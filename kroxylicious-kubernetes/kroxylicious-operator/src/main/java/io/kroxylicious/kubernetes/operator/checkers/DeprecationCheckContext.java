@@ -94,6 +94,7 @@ public class DeprecationCheckContext<S, T, R extends CustomResource<S, T>, F ext
      * @param message the human-readable message that is logged and attached to the condition
      * @param logMessageCacheKey unique key used to suppress repeated log emissions
      */
+    @SuppressWarnings("java:S2583") // false positive, .putIfAbsent() can return null
     public void addConditionAndLogWarning(Condition.Type type, String message, String logMessageCacheKey) {
         if (LOG_CACHE.asMap().putIfAbsent(logMessageCacheKey, true) == null) {
             logger.atWarn()
