@@ -11,13 +11,13 @@ The webhook automates the "sidecar injection" pattern (as used by Istio/Linkerd)
 The webhook operates under a strict trust boundary between two roles:
 
 - **Webhook administrator**: Controls what gets injected (proxy image, filters, target cluster, security context). Creates `KroxyliciousSidecarConfig` resources.
-- **Application pod owner**: Can only influence injection through explicitly delegated annotations. Cannot tamper with the proxy config, image, or security context.
+- **Application pod owner**: Can opt out of injection via labels and select a specific config by name via annotations. Cannot tamper with the proxy config, image, or security context.
 
-The webhook always overwrites the `kroxylicious.io/proxy-config` annotation, preventing app owners from pre-setting malicious config.
+The webhook always overwrites the `sidecar.kroxylicious.io/proxy-config` annotation, preventing app owners from pre-setting malicious config.
 
 ## How Injection Works
 
-1. The `MutatingWebhookConfiguration` uses `namespaceSelector` to intercept pod CREATE requests in namespaces labelled `kroxylicious.io/sidecar-injection: enabled`.
+1. The `MutatingWebhookConfiguration` uses `namespaceSelector` to intercept pod CREATE requests in namespaces labelled `sidecar.kroxylicious.io/injection: enabled`.
 2. The webhook resolves a `KroxyliciousSidecarConfig` for the pod's namespace.
 3. If injection should proceed, the webhook generates a JSON Patch (RFC 6902) that:
    - Adds a sidecar container running the Kroxylicious proxy
@@ -57,30 +57,28 @@ COPY my-filter.jar /plugins/
 
 | Label | Purpose | Controlled by |
 |-------|---------|---------------|
-| `kroxylicious.io/sidecar-injection` | Namespace-level opt-in (`enabled`) | Admin |
-| `kroxylicious.io/inject-sidecar` | Pod-level opt-out (`"false"`) | App owner |
+| `sidecar.kroxylicious.io/injection` | Namespace-level opt-in (value `enabled`) or pod-level opt-out (value `disabled`) | Admin / App owner |
+| `sidecar.kroxylicious.io/injection-skipped` | Set by webhook on pods where injection was skipped, value indicates reason | Webhook |
 
 ## Annotations
 
 | Annotation | Purpose | Controlled by |
 |------------|---------|---------------|
-| `kroxylicious.io/sidecar-config` | Select specific config by name | App owner |
-| `kroxylicious.io/proxy-config` | Generated proxy YAML (set by webhook) | Webhook |
-| `kroxylicious.io/sidecar-status` | Injection status (set by webhook) | Webhook |
-| `kroxylicious.io/sidecar-bootstrap-port` | Override bootstrap port (if delegated) | App owner |
+| `sidecar.kroxylicious.io/config` | Select specific config by name | App owner |
+| `sidecar.kroxylicious.io/proxy-config` | Generated proxy YAML, consumed by sidecar via downwardAPI volume | Webhook |
+| `sidecar.kroxylicious.io/config-generation` | Records `metadata.generation` of the `KroxyliciousSidecarConfig` at injection time | Webhook |
 
 ## Injection Decision Logic
 
 The injection decision follows this order:
 
-1. **Opt-out**: Pod has label `kroxylicious.io/inject-sidecar: "false"` &rarr; skip
-2. **Already injected**: Pod has a container named `kroxylicious-proxy` &rarr; skip
-3. **No config**: No `KroxyliciousSidecarConfig` found for the namespace &rarr; skip
-4. Otherwise &rarr; inject
-
-## Delegated Annotations
-
-The admin can list annotation keys in `delegatedAnnotations` to allow app owners to override specific settings. If an app owner sets a `kroxylicious.io/` annotation that is not delegated, it is ignored and a warning is logged.
+1. **Opt-out**: Pod has label `sidecar.kroxylicious.io/injection: disabled` &rarr; skip
+2. **Already injected**: Pod has a container or init container named `kroxylicious-proxy` &rarr; skip
+3. **Config resolution**: The webhook resolves a `KroxyliciousSidecarConfig` for the namespace:
+   - **No config** found &rarr; skip (pod labelled with reason)
+   - **Multiple configs** found &rarr; skip (pod labelled with reason)
+   - **Invalid config** (proxy config generation fails) &rarr; skip (pod labelled with reason)
+   - **Config found and valid** &rarr; inject
 
 ## Native Sidecar Support
 
@@ -88,11 +86,18 @@ On Kubernetes 1.28+, the webhook injects the sidecar as an init container with `
 
 ## Failure Policy
 
-By default, the webhook is **fail-closed**: on internal errors, it denies the admission request, and if the webhook is unreachable, the `MutatingWebhookConfiguration` uses `failurePolicy: Fail` to block pod creation. This is the standard approach for sidecar injection webhooks (consistent with Istio and Linkerd).
+The `MutatingWebhookConfiguration` uses `failurePolicy: Fail`, meaning the API server blocks pod creation if the webhook is unreachable or returns an HTTP error. This is the standard approach for sidecar injection webhooks (consistent with Istio and Linkerd). Internal errors in the webhook cause an HTTP 500 response, which triggers this policy.
 
-Non-error paths (null request, null pod, opt-out, no config found, already injected) always allow the pod regardless of failure policy.
+Non-error skip paths (null request, null pod, opt-out, already injected) always allow the pod.
 
-The failure policy is configurable via the `FAILURE_POLICY` environment variable on the webhook `Deployment`. To opt into fail-open behaviour, set `FAILURE_POLICY=Ignore` in the `Deployment` **and** change `failurePolicy: Ignore` in the `MutatingWebhookConfiguration`. The environment variable controls the webhook's response to internal errors; the `MutatingWebhookConfiguration` `failurePolicy` controls the API server's behaviour when the webhook is unreachable.
+## Uninjected Pod Policy
+
+By default, pods that cannot be injected (no config, multiple configs, invalid config) are **admitted without a sidecar**. The `UNINJECTED_POD_POLICY` environment variable controls this behaviour:
+
+- `Admit` (default): allow the pod without injection
+- `Deny`: reject the pod with a 403 response
+
+This is independent of the `MutatingWebhookConfiguration` `failurePolicy`, which controls the API server's behaviour when the webhook itself fails.
 
 ## Key Classes
 
@@ -105,6 +110,8 @@ The failure policy is configurable via the `FAILURE_POLICY` environment variable
 | `PodMutator` | Generates JSON Patch operations for pod mutation |
 | `ProxyConfigGenerator` | Generates proxy configuration YAML from `KroxyliciousSidecarConfigSpec` |
 | `SidecarConfigResolver` | Fabric8 informer-based cache of `KroxyliciousSidecarConfig` resources |
+| `SidecarConfigStatusUpdater` | Updates `status.conditions` on `KroxyliciousSidecarConfig` resources |
+| `KubernetesVersion` | Detects cluster version and feature gate support (native sidecars, OCI image volumes) |
 
 ## Configuration
 
@@ -116,7 +123,7 @@ The webhook is configured via environment variables:
 | `TLS_CERT_PATH` | `/etc/webhook/tls/tls.crt` | PEM certificate file |
 | `TLS_KEY_PATH` | `/etc/webhook/tls/tls.key` | PEM private key file |
 | `KROXYLICIOUS_IMAGE` | (required) | Default proxy container image |
-| `FAILURE_POLICY` | `Fail` | Error handling policy: `Fail` (deny on error) or `Ignore` (allow on error) |
+| `UNINJECTED_POD_POLICY` | `Admit` | Policy for pods that cannot be injected: `Admit` (allow without sidecar) or `Deny` (reject with 403) |
 | `K8S_FEATURE_GATES` | (auto-detect) | Comma-separated Kubernetes feature gate overrides, e.g. `SidecarContainers=false,ImageVolume=false`. Escape hatch for when version-based detection is insufficient; deployers are responsible for keeping it in sync with their cluster. |
 
 ## Deployment
@@ -134,13 +141,13 @@ kubectl apply -f packaging/install/
 
 ```bash
 # Build the module
-mvn clean install -pl kroxylicious-kubernetes-admission -am
+mvn clean install -pl kroxylicious-kubernetes/kroxylicious-admission -am
 
 # Build container image (requires dist profile)
-mvn clean install -pl kroxylicious-kubernetes-admission -am -Pdist
+mvn clean install -pl kroxylicious-kubernetes/kroxylicious-admission -am -Pdist
 
 # Run integration tests on Kind
-mvn verify -pl kroxylicious-kubernetes-admission -Pdist
+mvn verify -pl kroxylicious-kubernetes/kroxylicious-admission -Pdist
 ```
 
 ## Testing
@@ -155,7 +162,7 @@ KT tests require:
 1. **`openssl`** on `PATH` (for generating self-signed TLS certificates).
 2. **Container image archives** built by the `dist` Maven profile:
    ```bash
-   mvn package -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission -Pdist -am -DskipTests
+   mvn package -pl kroxylicious-kubernetes/kroxylicious-admission -Pdist -am -DskipTests
    ```
 3. **A Kubernetes cluster.** The plugin end-to-end tests (`*PluginEndToEndKT`) cover both OCI image volume mounting (Kubernetes 1.35+, `ImageVolume` feature gate) and the emptyDir fallback path. The Kind variant creates a cluster with `ImageVolume` enabled; the Minikube variant requires Kubernetes 1.35+ (the test will be skipped with an `assumeTrue` message if the version is too old).
 
@@ -170,7 +177,7 @@ minikube start --container-runtime=containerd
 Then run:
 
 ```bash
-mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
+mvn test -pl kroxylicious-kubernetes/kroxylicious-admission \
   -Dtest=io.kroxylicious.kubernetes.webhook.MinikubePluginEndToEndKT
 ```
 
@@ -181,7 +188,7 @@ The test loads and removes container images from the Minikube registry automatic
 The Kind variant creates and deletes a dedicated cluster with the `ImageVolume` feature gate enabled:
 
 ```bash
-mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
+mvn test -pl kroxylicious-kubernetes/kroxylicious-admission \
   -Dtest=io.kroxylicious.kubernetes.webhook.KindPluginEndToEndKT
 ```
 
@@ -192,7 +199,7 @@ Requires `kind` on `PATH`.
 The webhook install tests (`*WebhookInstallKT`) verify manifest installation and sidecar injection without deploying Kafka. They have the same cluster requirements but do not need the `ImageVolume` feature gate. Run with:
 
 ```bash
-mvn test -pl kroxylicious-kubernetes/kroxylicious-kubernetes-admission \
+mvn test -pl kroxylicious-kubernetes/kroxylicious-admission \
   -Dtest=io.kroxylicious.kubernetes.webhook.MinikubeWebhookInstallKT
 ```
 
