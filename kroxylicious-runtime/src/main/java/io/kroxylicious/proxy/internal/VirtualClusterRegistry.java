@@ -6,14 +6,18 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -31,15 +35,18 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * During reload, the Draining → Initializing → Serving cycle is managed internally
  * without involving the callback — reload never reaches Stopped.
  * </p>
+ * <p>
+ * Each virtual cluster's per-cluster state machine is a {@link VirtualClusterLifecycle}.
+ * </p>
  */
-public class VirtualClusterManager {
+public class VirtualClusterRegistry {
 
     private final List<VirtualClusterModel> virtualClusterModels;
-    private final Map<String, VirtualClusterLifecycleManager> lifecycleManagers;
+    private final Map<String, VirtualClusterLifecycle> lifecyclesByCluster;
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
-     * Creates a new VirtualClusterManager for the given set of virtual clusters.
+     * Creates a new VirtualClusterRegistry for the given set of virtual clusters.
      *
      * @param virtualClusterModels the complete set of virtual cluster configurations
      * @param onVirtualClusterStopped callback invoked with {@code (clusterName, priorFailureCause)}
@@ -49,18 +56,18 @@ public class VirtualClusterManager {
      * @throws NullPointerException if either argument is null
      * @throws IllegalArgumentException if the list contains duplicate cluster names
      */
-    public VirtualClusterManager(List<VirtualClusterModel> virtualClusterModels,
-                                 BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
+    public VirtualClusterRegistry(List<VirtualClusterModel> virtualClusterModels,
+                                  BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
         this.virtualClusterModels = List.copyOf(virtualClusterModels);
-        this.lifecycleManagers = new LinkedHashMap<>();
+        this.lifecyclesByCluster = new LinkedHashMap<>();
         for (var vcm : this.virtualClusterModels) {
             var name = vcm.getClusterName();
-            if (lifecycleManagers.containsKey(name)) {
+            if (lifecyclesByCluster.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate cluster name: " + name);
             }
-            lifecycleManagers.put(name, new VirtualClusterLifecycleManager(name));
+            lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, vcm.drainTimeout()));
         }
     }
 
@@ -93,9 +100,9 @@ public class VirtualClusterManager {
      * @throws IllegalArgumentException if no cluster with that name exists
      */
     public void initializationFailed(String clusterName, Throwable cause) {
-        var manager = requireKnownCluster(clusterName);
-        manager.initializationFailed(cause);
-        manager.stop();
+        var lifecycle = requireKnownCluster(clusterName);
+        lifecycle.initializationFailed(cause);
+        lifecycle.stop();
         onVirtualClusterStopped.accept(clusterName, Optional.of(cause));
     }
 
@@ -103,57 +110,74 @@ public class VirtualClusterManager {
      * Transitions all virtual clusters toward draining/stopped as appropriate for shutdown.
      * <ul>
      *   <li>Serving → Draining</li>
+     *   <li>Draining → Draining (a pre-existing drain, e.g. from hot-reload, is left to complete)</li>
      *   <li>Initializing → Stopped (fires callback with empty cause)</li>
+     *   <li>Failed → Stopped (fires callback with cause)</li>
+     *   <li>Stopped → Stopped (no-op)</li>
      * </ul>
-     * Clusters already in Failed or Stopped state are skipped — these were already
-     * handled by prior {@link #initializationFailed} calls.
      */
-    public void transitionAllToDraining() {
-        lifecycleManagers.forEach((name, manager) -> {
-            var state = manager.state();
+    public void shutdownAllClusters() {
+        var drainFutures = new ArrayList<CompletableFuture<Void>>();
+        lifecyclesByCluster.forEach((name, lifecycle) -> {
+            var state = lifecycle.state();
             if (state instanceof VirtualClusterLifecycleState.Serving) {
-                manager.startDraining();
+                drainFutures.add(lifecycle.startDraining()
+                        .thenRun(() -> {
+                            lifecycle.drainComplete();
+                            onVirtualClusterStopped.accept(name, Optional.empty());
+                        }));
             }
-            else if (state instanceof VirtualClusterLifecycleState.Initializing) {
-                manager.stop();
+            else if (state instanceof VirtualClusterLifecycleState.Draining) {
+                // Pre-existing drain (e.g. hot-reload) — join it rather than starting a new one.
+                drainFutures.add(lifecycle.drainFuture()
+                        .thenRun(() -> {
+                            lifecycle.drainComplete();
+                            onVirtualClusterStopped.accept(name, Optional.empty());
+                        }));
+            }
+            else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
+                lifecycle.stop();
+                onVirtualClusterStopped.accept(name, Optional.of(failed.cause()));
+            }
+            else if (state instanceof VirtualClusterLifecycleState.Stopped) {
+                // it's already dead, let sleeping dogs lie
+            }
+            else {
+                lifecycle.stop();
                 onVirtualClusterStopped.accept(name, Optional.empty());
             }
         });
+        CompletableFuture.allOf(drainFutures.toArray(CompletableFuture[]::new)).join();
     }
 
     /**
-     * Completes the shutdown by transitioning all draining virtual clusters to stopped,
-     * firing the callback for each.
-     *
-     * @return true if all virtual clusters are now in the Stopped state
-     */
-    public boolean completeDraining() {
-        lifecycleManagers.forEach((name, manager) -> {
-            var state = manager.state();
-            if (state instanceof VirtualClusterLifecycleState.Draining) {
-                manager.drainComplete();
-                onVirtualClusterStopped.accept(name, Optional.empty());
-            }
-        });
-        return lifecycleManagers.values().stream()
-                .allMatch(m -> m.state() instanceof VirtualClusterLifecycleState.Stopped);
-    }
-
-    /**
-     * Returns the lifecycle manager for the given virtual cluster name.
+     * Returns the lifecycle for the given virtual cluster name.
      * @param clusterName the virtual cluster name
-     * @return the lifecycle manager, or null if no cluster with that name exists
+     * @return the lifecycle, or null if no cluster with that name exists
      */
     @Nullable
-    public VirtualClusterLifecycleManager lifecycleManagerFor(String clusterName) {
-        return lifecycleManagers.get(clusterName);
+    public VirtualClusterLifecycle lifecycleFor(String clusterName) {
+        return lifecyclesByCluster.get(clusterName);
     }
 
-    private VirtualClusterLifecycleManager requireKnownCluster(String clusterName) {
-        var manager = lifecycleManagers.get(clusterName);
-        if (manager == null) {
+    public boolean registerConnection(String clusterName, ProxyChannelStateMachine pcsm) {
+        return requireKnownCluster(clusterName).registerConnection(pcsm);
+    }
+
+    public void deregisterConnection(String clusterName, ProxyChannelStateMachine pcsm) {
+        requireKnownCluster(clusterName).deregisterConnection(pcsm);
+    }
+
+    @VisibleForTesting
+    Set<ProxyChannelStateMachine> activeConnectionsFor(String clusterName) {
+        return requireKnownCluster(clusterName).activeConnections();
+    }
+
+    private VirtualClusterLifecycle requireKnownCluster(String clusterName) {
+        var lifecycle = lifecyclesByCluster.get(clusterName);
+        if (lifecycle == null) {
             throw new IllegalArgumentException("Unknown cluster: " + clusterName);
         }
-        return manager;
+        return lifecycle;
     }
 }
