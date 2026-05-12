@@ -158,6 +158,8 @@ public class KafkaProxyReconcilerIT {
     // Default ingress controller domain used if we can't detect it from the platform (CRC/MicroShift).
     public static final String DEFAULT_INGRESS_CONTROLLER_DOMAIN = "apps.crc.testing";
 
+    private static final String DEPRECATION_SPEC_MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
+
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
     static void preloadOperandImage() {
@@ -1359,7 +1361,7 @@ public class KafkaProxyReconcilerIT {
                     assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
                     assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
                     assertThat(condition.getReason()).isEqualTo(Condition.Type.DeprecationWarning.name());
-                    assertThat(condition.getMessage()).isEqualTo("Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+                    assertThat(condition.getMessage()).isEqualTo(DEPRECATION_SPEC_MESSAGE);
                 });
     }
 
