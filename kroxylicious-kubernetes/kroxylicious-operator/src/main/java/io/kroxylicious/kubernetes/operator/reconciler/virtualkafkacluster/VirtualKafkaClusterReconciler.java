@@ -59,6 +59,7 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
@@ -108,6 +109,10 @@ public final class VirtualKafkaClusterReconciler implements
     public VirtualKafkaClusterReconciler(Clock clock, DependencyResolver resolver) {
         this.statusFactory = new VirtualKafkaClusterStatusFactory(clock);
         this.resolver = resolver;
+    }
+
+    public static StatusFactory<VirtualKafkaCluster> newStatusFactory(Clock clock) {
+        return new VirtualKafkaClusterStatusFactory(clock);
     }
 
     @Override

@@ -40,6 +40,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -77,6 +78,10 @@ public final class KafkaServiceReconciler implements
 
     public KafkaServiceReconciler(Clock clock) {
         this.statusFactory = new KafkaServiceStatusFactory(clock);
+    }
+
+    public static StatusFactory<KafkaService> newStatusFactory(Clock clock) {
+        return new KafkaServiceStatusFactory(clock);
     }
 
     @Override

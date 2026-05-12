@@ -75,7 +75,7 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.IsOpenshiftRouteSupportedActivationCondition;
-import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
+import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
@@ -183,7 +183,7 @@ public class KafkaProxyReconciler implements
             fragment = generateProxyConfig(model, proxy);
         }
         KafkaProxyContext.init(context,
-                new VirtualKafkaClusterStatusFactory(clock),
+                VirtualKafkaClusterReconciler.newStatusFactory(clock),
                 model,
                 fragment);
     }

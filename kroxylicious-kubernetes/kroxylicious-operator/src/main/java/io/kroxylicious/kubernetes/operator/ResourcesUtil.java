@@ -49,7 +49,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
-import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceStatusFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -725,7 +724,7 @@ public class ResourcesUtil {
     }
 
     public static ResourceCheckResult<KafkaService> checkStrimziTrustAnchor(KafkaService resource, Context<KafkaService> context,
-                                                                            StrimziKafkaRef strimziKafkaRef, KafkaServiceStatusFactory statusFactory) {
+                                                                            StrimziKafkaRef strimziKafkaRef, StatusFactory<KafkaService> statusFactory) {
 
         String strimziCaCertSecretName = strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
         // Strimzi creates CA certificate secrets in the same namespace as the Kafka CR.
