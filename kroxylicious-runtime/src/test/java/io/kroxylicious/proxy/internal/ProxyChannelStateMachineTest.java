@@ -122,8 +122,7 @@ class ProxyChannelStateMachineTest {
         when(endpointBinding.nodeId()).thenReturn(null);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new KafkaSession(KafkaSessionState.ESTABLISHING),
-                new DrainCoordinator());
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), new KafkaSession(KafkaSessionState.ESTABLISHING));
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
         when(frontendHandler.remotePort()).thenReturn(9476);
@@ -1199,7 +1198,7 @@ class ProxyChannelStateMachineTest {
     /**
      * Focused tests for the drain branches of {@link ProxyChannelStateMachine}.
      * <p>
-     * Exercises the public {@link ProxyChannelStateMachine#initiateClose(Duration)}
+     * Exercises the public {@link ProxyChannelStateMachine#drain(Duration)}
      * entry point and the per-state drain branches in {@code messageFromServer},
      * {@code onClientRequest}, and {@code toClosed} that are reached only when the PCSM is
      * in {@link ProxyChannelState.Draining} state.
@@ -1237,15 +1236,15 @@ class ProxyChannelStateMachineTest {
                     .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
         }
 
-        // --- initiateClose(Duration) entry point ---
+        // --- drain(Duration) entry point ---
 
         @Test
-        void initiateCloseFromForwardingWithNoInFlightImmediatelyClosesWithDrainCompleted() {
+        void drainFromForwardingWithNoInFlightImmediatelyClosesWithDrainCompleted() {
             // Given — Forwarding state, no in-flight requests
             stateMachineInForwarding();
 
             // When
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — the immediate-fire path runs through onDrainCompleted → toClosed,
             // so the future completes and the state ends up at Closed
@@ -1259,13 +1258,13 @@ class ProxyChannelStateMachineTest {
         }
 
         @Test
-        void initiateCloseFromForwardingWithInFlightTransitionsToDrainingAndAppliesBackpressure() {
+        void drainFromForwardingWithInFlightTransitionsToDrainingAndAppliesBackpressure() {
             // Given — Forwarding with one in-flight client request (so drain has work to wait for)
             stateMachineInForwarding();
             bumpClientInFlightCount();
 
             // When
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — state is Draining, autoRead disabled, future still pending
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
@@ -1277,12 +1276,12 @@ class ProxyChannelStateMachineTest {
         }
 
         @Test
-        void initiateCloseWhenStateIsNotForwardingStillCompletesFuture() {
+        void drainWhenStateIsNotForwardingStillCompletesFuture() {
             // Given — PCSM stuck in HaProxy state (not Forwarding)
             proxyChannelStateMachine.forceState(new ProxyChannelState.HaProxy(), frontendHandler, null, TEST_KAFKA_SESSION, -1);
 
             // When
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — the reject path in onDraining still fires the onDrained policy so DC
             // (or any caller awaiting the future) doesn't hang waiting for a drain that never starts
@@ -1299,7 +1298,7 @@ class ProxyChannelStateMachineTest {
             // Given — Forwarding with one in-flight, then drain begins (state goes Draining)
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
 
             // When — server delivers a response, decrementing client-in-flight to 0
@@ -1317,7 +1316,7 @@ class ProxyChannelStateMachineTest {
             stateMachineInForwarding();
             bumpClientInFlightCount();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
 
             // When — server delivers ONE response (client-in-flight goes 2 → 1, still > 0)
@@ -1337,7 +1336,7 @@ class ProxyChannelStateMachineTest {
             // drop+compensate path
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
 
             // When — a buffered request frame arrives at onClientRequest while in Draining
@@ -1359,7 +1358,7 @@ class ProxyChannelStateMachineTest {
             // Given — drain in progress with one in-flight
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
 
             // When — a non-RequestFrame (e.g. a control object) arrives in Draining
             Object nonFrame = new Object();
@@ -1377,7 +1376,7 @@ class ProxyChannelStateMachineTest {
             // Given — drain in progress with in-flight work pending
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
             assertThat(closedFuture).isNotCompleted();
 
@@ -1402,7 +1401,7 @@ class ProxyChannelStateMachineTest {
 
             // Capture the scheduled timer task so we can fire it manually
             ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
             Runnable timerTask = timerCaptor.getValue();
 
@@ -1425,7 +1424,7 @@ class ProxyChannelStateMachineTest {
             stateMachineInForwarding();
             bumpClientInFlightCount();
             ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
-            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.initiateClose(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
             proxyChannelStateMachine.messageFromServer(new Object());
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
@@ -1440,6 +1439,40 @@ class ProxyChannelStateMachineTest {
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
             assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
                     .tag("cause", "drain_completed").counter().count()).isEqualTo(drainCompletedBefore);
+        }
+
+        // --- drain() idempotency ---
+
+        @Test
+        void secondDrainCallWhileAlreadyDrainingDoesNotScheduleNewTimer() {
+            // Given — drain in progress with in-flight work pending
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+
+            // When — drain() called again while already draining
+            CompletableFuture<Void> secondFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then — only one timer scheduled in total (from the first drain call), second future pending
+            verify(eventLoop, times(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            assertThat(secondFuture).isNotCompleted();
+        }
+
+        @Test
+        void secondDrainFutureCompletesWhenDrainCompletes() {
+            // Given — drain in progress with in-flight work, second drain() already called
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> secondFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(secondFuture).isNotCompleted();
+
+            // When — the in-flight response arrives, completing the drain naturally
+            proxyChannelStateMachine.messageFromServer(new Object());
+
+            // Then — the second future completes along with the connection closing
+            assertThat(secondFuture).isCompleted();
+            assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         }
 
         /**

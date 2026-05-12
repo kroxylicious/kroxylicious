@@ -6,7 +6,12 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
@@ -18,23 +23,32 @@ import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Initializing;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Serving;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Manages the lifecycle state of a single virtual cluster.
  * <p>
- * Thread-safe: state transitions are performed under synchronization so that the
- * read-transition-log sequence is atomic. This is sufficient for the single-shot
- * proxy lifecycle where contention is not a concern.
+ * Thread-safe: state transitions and connection registration share the same monitor,
+ * so the state transition → connection snapshot sequence in {@link #startDraining()}
+ * is atomic with respect to {@link #registerConnection(ProxyChannelStateMachine)}.
+ * This closes the TOCTOU window where a connection could be registered after the
+ * drain snapshot is taken and therefore missed by graceful drain.
  * </p>
  */
-public class VirtualClusterLifecycleManager {
+public class VirtualClusterLifecycle {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterLifecycleManager.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterLifecycle.class);
 
     private final String clusterName;
+    private final Duration drainTimeout;
     private VirtualClusterLifecycleState state = new Initializing();
+    private final Set<ProxyChannelStateMachine> activeConnections = new HashSet<>();
+    @Nullable
+    private CompletableFuture<Void> drainFuture;
 
-    public VirtualClusterLifecycleManager(String clusterName) {
+    public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
+        this.drainTimeout = drainTimeout;
     }
 
     /**
@@ -63,15 +77,35 @@ public class VirtualClusterLifecycleManager {
     }
 
     /**
-     * Transitions from {@link Serving} to {@link Draining}.
+     * Transitions from {@link Serving} to {@link Draining} and initiates close on all
+     * active connections.
+     *
+     * @return future that completes when all connections have closed
      */
-    public void startDraining() {
-        transition(current -> {
-            if (current instanceof Serving s) {
-                return s.toDraining();
-            }
-            throw unexpectedState(current, "startDraining");
-        });
+    public CompletableFuture<Void> startDraining() {
+        List<ProxyChannelStateMachine> snapshot;
+        synchronized (this) {
+            transition(current -> {
+                if (current instanceof Serving s) {
+                    return s.toDraining(drainTimeout);
+                }
+                throw unexpectedState(current, "startDraining");
+            });
+            snapshot = List.copyOf(activeConnections);
+        }
+        var closeFutures = snapshot.stream()
+                .map(pcsm -> pcsm.drain(drainTimeout))
+                .toArray(CompletableFuture[]::new);
+        drainFuture = CompletableFuture.allOf(closeFutures);
+        return drainFuture;
+    }
+
+    /**
+     * Returns the future that completes when all connections have drained.
+     * Only valid to call when the cluster is in {@link Draining} state.
+     */
+    public CompletableFuture<Void> drainFuture() {
+        return Objects.requireNonNull(drainFuture, "drainFuture is only set after startDraining()");
     }
 
     /**
@@ -107,6 +141,22 @@ public class VirtualClusterLifecycleManager {
 
     public String clusterName() {
         return clusterName;
+    }
+
+    public synchronized boolean registerConnection(ProxyChannelStateMachine pcsm) {
+        if (state instanceof Draining || state instanceof Stopped) {
+            return false;
+        }
+        activeConnections.add(pcsm);
+        return true;
+    }
+
+    public synchronized void deregisterConnection(ProxyChannelStateMachine pcsm) {
+        activeConnections.remove(pcsm);
+    }
+
+    public Set<ProxyChannelStateMachine> activeConnections() {
+        return Set.copyOf(activeConnections);
     }
 
     private synchronized void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {

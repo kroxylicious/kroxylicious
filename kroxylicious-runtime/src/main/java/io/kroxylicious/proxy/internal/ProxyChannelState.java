@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
@@ -195,11 +196,15 @@ sealed interface ProxyChannelState permits
      * Connections are being drained. autoRead is disabled on the client channel,
      * but responses to in-flight requests continue flowing. When the in-flight count
      * reaches zero, the PCSM invokes {@code onDrained} — an externally-injected policy
-     * (typically wired by {@code DrainCoordinator}) that decides what to do next
+     * (typically wired by {@code VirtualClusterLifecycle}) that decides what to do next
      * (cancel the timeout timer, complete the per-connection future, close the
      * connection with {@code DisconnectCause.DRAIN_COMPLETED}).
+     * <p>
+     * {@code closedFuture} completes when this connection has fully closed. Callers of
+     * {@link ProxyChannelStateMachine#drain(java.time.Duration)} that arrive while the
+     * connection is already draining chain their own promise to this future.
      */
-    record Draining(Runnable onDrained) implements ProxyChannelState {
+    record Draining(Runnable onDrained, CompletableFuture<Void> closedFuture) implements ProxyChannelState {
 
     }
 

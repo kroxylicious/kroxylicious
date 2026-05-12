@@ -46,7 +46,7 @@ class KafkaProxyLifecycleTest {
             proxy.startup();
 
             // then
-            assertThat(proxy.lifecycleManagerFor("demo1"))
+            assertThat(proxy.lifecycleFor("demo1"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
         }
@@ -78,10 +78,10 @@ class KafkaProxyLifecycleTest {
             proxy.startup();
 
             // then
-            assertThat(proxy.lifecycleManagerFor("cluster-a"))
+            assertThat(proxy.lifecycleFor("cluster-a"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
-            assertThat(proxy.lifecycleManagerFor("cluster-b"))
+            assertThat(proxy.lifecycleFor("cluster-b"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
         }
@@ -103,7 +103,7 @@ class KafkaProxyLifecycleTest {
 
         var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         proxy.startup();
-        var manager = proxy.lifecycleManagerFor("demo1");
+        var manager = proxy.lifecycleFor("demo1");
 
         // when
         proxy.shutdown();
@@ -140,7 +140,7 @@ class KafkaProxyLifecycleTest {
                     .isInstanceOf(PluginConfigurationException.class);
 
             // then
-            var manager = proxy.lifecycleManagerFor("demo1");
+            var manager = proxy.lifecycleFor("demo1");
             assertThat(manager).isNotNull();
             assertThat(manager.state())
                     .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(Stopped.class))

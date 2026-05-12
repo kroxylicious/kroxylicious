@@ -98,7 +98,7 @@ public abstract class FilterHarness {
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession, new DrainCoordinator());
+        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
         var forwarding = new ProxyChannelState.Forwarding(null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
