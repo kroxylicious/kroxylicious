@@ -63,6 +63,7 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSourceFactory;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
@@ -406,7 +407,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .build();
 
         // Proxy config state ConfigMaps - uses shared informer
-        SharedInformerEventSource<VirtualKafkaCluster, ConfigMap> clusterToProxyConfigState = new SharedInformerEventSource<>(
+        SharedInformerEventSource<VirtualKafkaCluster, ConfigMap> clusterToProxyConfigState = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 ConfigMap.class,
                 PROXY_CONFIG_STATE_SOURCE_NAME,
                 sharedConfigMapInformer,
@@ -458,7 +459,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .build();
 
         // Certificate Secrets - uses shared informer
-        SharedInformerEventSource<VirtualKafkaCluster, Secret> clusterToSecret = new SharedInformerEventSource<>(
+        var clusterToSecret = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 Secret.class,
                 SECRETS_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
@@ -467,7 +468,7 @@ public final class VirtualKafkaClusterReconciler implements
                 allowedNamespaces);
 
         // Trust anchor ConfigMaps - uses shared informer
-        SharedInformerEventSource<VirtualKafkaCluster, ConfigMap> clusterToConfigMapTrustAnchorRef = new SharedInformerEventSource<>(
+        var clusterToConfigMapTrustAnchorRef = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 ConfigMap.class,
                 CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedConfigMapInformer,
@@ -476,7 +477,7 @@ public final class VirtualKafkaClusterReconciler implements
                 allowedNamespaces);
 
         // Trust anchor Secrets - uses shared informer
-        SharedInformerEventSource<VirtualKafkaCluster, Secret> clusterToSecretTrustAnchorRef = new SharedInformerEventSource<>(
+        var clusterToSecretTrustAnchorRef = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 Secret.class,
                 SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedSecretInformer,

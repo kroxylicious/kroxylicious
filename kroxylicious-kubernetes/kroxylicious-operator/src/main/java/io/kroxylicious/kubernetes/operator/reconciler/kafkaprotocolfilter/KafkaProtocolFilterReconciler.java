@@ -40,7 +40,7 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
-import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSourceFactory;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -85,8 +85,7 @@ public class KafkaProtocolFilterReconciler implements
                                 .map(SecretVolumeSource::getSecretName)
                                 .stream()));
 
-        // Create SharedInformerEventSource for Secrets
-        SharedInformerEventSource<KafkaProtocolFilter, Secret> secretEventSource = new SharedInformerEventSource<>(
+        var secretEventSource = SharedInformerEventSourceFactory.<KafkaProtocolFilter, Secret> createSharedInformerEventSource(
                 Secret.class,
                 SECRETS,
                 sharedSecretInformer,
@@ -101,8 +100,7 @@ public class KafkaProtocolFilterReconciler implements
                                 .map(ConfigMapVolumeSource::getName)
                                 .stream()));
 
-        // Create SharedInformerEventSource for ConfigMaps
-        SharedInformerEventSource<KafkaProtocolFilter, ConfigMap> configMapEventSource = new SharedInformerEventSource<>(
+        var configMapEventSource = SharedInformerEventSourceFactory.<KafkaProtocolFilter, ConfigMap> createSharedInformerEventSource(
                 ConfigMap.class,
                 CONFIG_MAPS,
                 sharedConfigMapInformer,
@@ -110,9 +108,7 @@ public class KafkaProtocolFilterReconciler implements
                 configMapEventSourceConfig.getSecondaryToPrimaryMapper(),
                 allowedNamespaces);
 
-        return List.of(
-                secretEventSource,
-                configMapEventSource);
+        return List.of(secretEventSource, configMapEventSource);
     }
 
     /**

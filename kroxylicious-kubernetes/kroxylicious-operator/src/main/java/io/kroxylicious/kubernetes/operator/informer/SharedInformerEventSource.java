@@ -40,6 +40,7 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
 
     /**
      * Creates a SharedInformerEventSource.
+     * Package-private - use {@link io.kroxylicious.kubernetes.operator.reconciler.SharedInformerEventSourceFactory} instead.
      *
      * @param resourceClass the secondary resource class
      * @param name the event source name
@@ -48,13 +49,13 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
      * @param secondaryToPrimaryMapper mapper to determine which primary resources are affected by secondary resource changes
      * @param allowedNamespaces namespaces to filter events (empty means all namespaces)
      */
-    public SharedInformerEventSource(
-                                     Class<R> resourceClass,
-                                     String name,
-                                     SharedIndexInformer<R> sharedInformer,
-                                     PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
-                                     SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
-                                     Set<String> allowedNamespaces) {
+    SharedInformerEventSource(
+            Class<R> resourceClass,
+            String name,
+            SharedIndexInformer<R> sharedInformer,
+            PrimaryToSecondaryMapper<P> primaryToSecondaryMapper,
+            SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
+            Set<String> allowedNamespaces) {
         super(resourceClass, name);
         this.sharedInformer = sharedInformer;
         this.secondaryToPrimaryMapper = secondaryToPrimaryMapper;

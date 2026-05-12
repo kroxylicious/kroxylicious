@@ -43,6 +43,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSourceFactory;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -96,7 +97,7 @@ public final class KafkaServiceReconciler implements
         var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
 
         // TLS certificate Secrets - uses shared informer
-        SharedInformerEventSource<KafkaService, Secret> serviceToSecret = new SharedInformerEventSource<>(
+        var serviceToSecret = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 Secret.class,
                 SECRETS_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
@@ -105,7 +106,7 @@ public final class KafkaServiceReconciler implements
                 allowedNamespaces);
 
         // ConfigMap trust anchors - uses shared informer
-        SharedInformerEventSource<KafkaService, ConfigMap> serviceToConfigMapTrustAnchorRef = new SharedInformerEventSource<>(
+        var serviceToConfigMapTrustAnchorRef = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 ConfigMap.class,
                 CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedConfigMapInformer,
@@ -114,7 +115,7 @@ public final class KafkaServiceReconciler implements
                 allowedNamespaces);
 
         // Secret trust anchors - uses shared informer
-        SharedInformerEventSource<KafkaService, Secret> serviceToSecretTrustAnchorRef = new SharedInformerEventSource<>(
+        var serviceToSecretTrustAnchorRef = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 Secret.class,
                 SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
@@ -123,7 +124,7 @@ public final class KafkaServiceReconciler implements
                 allowedNamespaces);
 
         // Strimzi CA certificate Secrets - uses shared informer
-        SharedInformerEventSource<KafkaService, Secret> serviceToStrimziCaCertificate = new SharedInformerEventSource<>(
+        var serviceToStrimziCaCertificate = SharedInformerEventSourceFactory.createSharedInformerEventSource(
                 Secret.class,
                 SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
                 sharedSecretInformer,
