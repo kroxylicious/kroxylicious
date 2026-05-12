@@ -36,7 +36,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class LowkeyVault implements AzureKmsClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(LowkeyVault.class);
     private static final String LOWKEY_VAULT_DEFAULT_NAMESPACE = "lowkey-vault";
-    private static final String IMAGE_NAME = "nagyesta/lowkey-vault:7.2.0-ubi10-minimal@sha256:79ad37ec96fc04b60c14a396f6b013b820b63c83614bac328e4ef9dacce5e59c";
+    private static final String IMAGE_NAME = "nagyesta/lowkey-vault:7.2.18-ubi10-minimal@sha256:a8b77673282e8bbd0be9eac70a0cfcec081de8ac78a44ea2063155fde212febd";
     @VisibleForTesting
     static final String LOWKEY_VAULT_IMAGE = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/" + IMAGE_NAME;
     private final String deploymentNamespace;

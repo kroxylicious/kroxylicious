@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-name: Build Kroxylicious Container Images
+name: Build Kroxylicious Artifacts
 
 on:
   workflow_call:
@@ -51,13 +51,52 @@ jobs:
         with:
           name: kroxylicious-proxy
           path: kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+          retention-days: 1
       - name: 'Archive kroxylicious operator image'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-operator
           path: kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+          retention-days: 1
       - name: 'Archive kroxylicious admission webhook image'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: kroxylicious-admission-webhook
           path: kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-webhook.img.tar.gz
+          retention-days: 1
+
+  build_artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Build Kroxylicious maven artifacts'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The 'dist' profile builds the kroxylicious-operator artifact. This is needed by the systemtests.
+          mvn --batch-mode \
+            --activate-profiles 'dist,!qa' \
+            -DskipTests \
+            -Dmaven.javadoc.skip=true \
+            -DskipDocs=true \
+            -DskipContainerImageBuild \
+            -Derrorprone.skip=true \
+            install
+      - name: 'Package Kroxylicious Maven artifacts'
+        run: |
+          mkdir -p /tmp/kroxylicious-artifacts
+          cd "$HOME/.m2/repository"
+          tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
+      - name: 'Upload Kroxylicious Maven artifacts'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: kroxylicious-maven-artifacts
+          path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
+          retention-days: 1

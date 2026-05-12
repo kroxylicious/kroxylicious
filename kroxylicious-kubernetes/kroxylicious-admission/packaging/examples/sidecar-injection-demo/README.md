@@ -45,6 +45,17 @@ kubectl wait --for=condition=ready pod -l name=strimzi-cluster-operator -n kafka
 kubectl apply -f 01-namespace.yaml
 kubectl apply -f 02-kafka.yaml
 kubectl apply -f 03-sidecar-config.yaml
+```
+
+Wait for the sidecar configuration to be accepted:
+
+```bash
+kubectl wait kroxylicioussidecarconfig/demo-config --for=condition=Ready -n demo-app --timeout=60s
+```
+
+Apply the application:
+
+```bash
 kubectl apply -f 04-app.yaml
 ```
 

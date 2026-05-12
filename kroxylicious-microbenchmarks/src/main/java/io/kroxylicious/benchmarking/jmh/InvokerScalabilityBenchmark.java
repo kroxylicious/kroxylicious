@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.microbenchmarks;
+package io.kroxylicious.benchmarking.jmh;
 
 import java.util.concurrent.TimeUnit;
 
@@ -19,13 +19,12 @@ import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
-import io.kroxylicious.benchmarking.jmh.ArrayFilterInvoker;
-import io.kroxylicious.benchmarking.jmh.SpecificFilterInvoker;
-import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter0;
-import io.kroxylicious.microbenchmarks.filters.TwoInterfaceFilter1;
+import io.kroxylicious.benchmarking.jmh.filters.TwoInterfaceFilter0;
+import io.kroxylicious.benchmarking.jmh.filters.TwoInterfaceFilter1;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.internal.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.filter.FilterInvokers;
+import io.kroxylicious.proxy.internal.filter.SafeInvoker;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -51,6 +50,12 @@ public class InvokerScalabilityBenchmark {
             FilterInvoker invokerWith(Filter filter) {
                 return FilterInvokers.arrayInvoker(filter);
             }
+        },
+        production {
+            @Override
+            FilterInvoker invokerWith(Filter filter) {
+                return new SafeInvoker(FilterInvokers.arrayInvoker(filter));
+            }
         };
 
         abstract FilterInvoker invokerWith(Filter filter);
@@ -62,7 +67,7 @@ public class InvokerScalabilityBenchmark {
 
         ApiKeys key;
 
-        @Param({ "array", "specific", "switching" })
+        @Param({ "array", "specific", "switching", "production" })
         String invoker;
 
         @Setup

@@ -42,42 +42,6 @@ on:
     inputs: *workflow-inputs
 
 jobs:
-  build_artifacts:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 0
-      - name: Setup Java
-        uses: ./.github/actions/common/setup-java
-      - name: 'Cache Maven packages'
-        uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build Kroxylicious proxy system tests'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # The 'dist' profile builds the kroxylicious-operator artefact. This is needed by the systemtests.
-          mvn --batch-mode \
-            --activate-profiles 'dist,!qa' \
-            -DskipTests \
-            -Dmaven.javadoc.skip=true \
-            -DskipDocs=true \
-            -DskipContainerImageBuild \
-            -Derrorprone.skip=true \
-            install
-      - name: 'Package Kroxylicious Maven artifacts'
-        run: |
-          mkdir -p /tmp/kroxylicious-artifacts
-          cd "$HOME/.m2/repository"
-          tar czf /tmp/kroxylicious-artifacts/maven-repo.tar.gz io/kroxylicious
-      - name: 'Upload Kroxylicious Maven artifacts'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: kroxylicious-maven-artifacts
-          path: /tmp/kroxylicious-artifacts/maven-repo.tar.gz
-          retention-days: 1
-
   discover_system_test_chunks:
     runs-on: ubuntu-latest
     outputs:
@@ -95,7 +59,7 @@ jobs:
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
 
   run_system_tests:
-    needs: [build_artifacts, discover_system_test_chunks]
+    needs: [discover_system_test_chunks]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -122,10 +86,12 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
       - name: 'Download Kroxylicious Maven artifacts'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
+          workflow: build_artifacts
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
+          run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy container artifact
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
