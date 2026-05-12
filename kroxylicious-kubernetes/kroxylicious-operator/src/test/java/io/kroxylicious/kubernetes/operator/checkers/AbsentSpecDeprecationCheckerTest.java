@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator.checkers;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -35,9 +34,7 @@ import static org.mockito.Mockito.when;
 class AbsentSpecDeprecationCheckerTest {
 
     private static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-    private static final String WARN_LOG_MESSAGE = "No spec, please add an empty one. "
-            + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
-    private static final String CONDITION_MESSAGE = "Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
+    private static final String MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
     private KafkaProxyStatusFactory statusFactory;
     private AbsentSpecDeprecationChecker checker;
@@ -71,7 +68,7 @@ class AbsentSpecDeprecationCheckerTest {
                     assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
                     assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
                     assertThat(condition.getReason()).isEqualTo(Condition.Type.DeprecationWarning.name());
-                    assertThat(condition.getMessage()).isEqualTo(CONDITION_MESSAGE);
+                    assertThat(condition.getMessage()).isEqualTo(MESSAGE);
                 });
     }
 
@@ -86,7 +83,7 @@ class AbsentSpecDeprecationCheckerTest {
 
         // Then
         verify(logger).atWarn();
-        verify(eventBuilder).log(WARN_LOG_MESSAGE);
+        verify(eventBuilder).log(MESSAGE);
     }
 
     @Test
@@ -179,7 +176,7 @@ class AbsentSpecDeprecationCheckerTest {
     }
 
     private DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> contextFor(KafkaProxy proxy) {
-        return new DeprecationCheckContext<>(proxy, logger, statusFactory, new ArrayList<>());
+        return new DeprecationCheckContext<>(proxy, logger, statusFactory);
     }
 
     private static KafkaProxy proxyWithoutSpec() {

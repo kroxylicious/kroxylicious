@@ -10,7 +10,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -67,6 +66,7 @@ import static org.mockito.Mockito.when;
 class KafkaProxyReconcilerTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+    private static final String DEPRECATION_SPEC_MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     Context<KafkaProxy> reconcilerContext;
@@ -569,27 +569,25 @@ class KafkaProxyReconcilerTest {
         var statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(TEST_CLOCK));
         List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> deprecationCheckers = List.of(
                 new AbsentSpecDeprecationChecker());
-        var conditions = new ArrayList<Condition>();
-        var ctx = new DeprecationCheckContext<>(proxy, logger, statusFactory, conditions);
+        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, logger, statusFactory);
 
         // When
-        deprecationCheckers.forEach(checker -> checker.check(ctx));
+        deprecationCheckers.forEach(checker -> checker.check(deprecationCheckContext));
         // Then
 
         if (warnExpected) {
             verify(logger).atWarn();
-            verify(eventBuilder).log("No spec, please add an empty one. "
-                    + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
-            assertThat(conditions).hasSize(1).allSatisfy(condition -> {
+            verify(eventBuilder).log(DEPRECATION_SPEC_MESSAGE);
+            assertThat(deprecationCheckContext.conditions()).hasSize(1).allSatisfy(condition -> {
                 assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
                 assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
                 assertThat(condition.getReason()).isEqualTo(Condition.Type.DeprecationWarning.name());
-                assertThat(condition.getMessage()).isEqualTo("Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+                assertThat(condition.getMessage()).isEqualTo(DEPRECATION_SPEC_MESSAGE);
             });
         }
         else {
             verifyNoInteractions(logger);
-            assertThat(conditions).isEmpty();
+            assertThat(deprecationCheckContext.conditions()).isEmpty();
         }
     }
 

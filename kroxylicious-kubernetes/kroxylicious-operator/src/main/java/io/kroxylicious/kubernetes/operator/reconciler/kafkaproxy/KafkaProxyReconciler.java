@@ -490,15 +490,15 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        var conditions = new ArrayList<Condition>();
-        var ctx = new DeprecationCheckContext<>(primary, LOGGER, statusFactory, conditions);
-        DEPRECATION_CHECKERS.forEach(checker -> checker.check(ctx));
+        var deprecationCheckContext = new DeprecationCheckContext<>(primary, LOGGER, statusFactory);
+        DEPRECATION_CHECKERS.forEach(checker -> checker.check(deprecationCheckContext));
 
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)
                 .map(Deployment::getStatus)
                 .map(DeploymentStatus::getReadyReplicas)
                 .orElse(0);
 
+        var conditions = new ArrayList<>(deprecationCheckContext.conditions());
         conditions.add(statusFactory.newTrueCondition(primary, Condition.Type.Ready));
         var update = statusFactory.kafkaProxyStatusPatch(primary, ResourceState.fromList(conditions), readyReplicas);
         var uc = UpdateControl.patchStatus(update);
