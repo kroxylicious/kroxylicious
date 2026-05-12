@@ -27,26 +27,26 @@ public class FourInterfaceFilter implements ProduceResponseFilter, ProduceReques
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
                                                                    FilterContext context) {
-        return null;
+        return context.forwardResponse(header, response);
     }
 
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
                                                                       FilterContext context) {
 
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response,
                                                                         FilterContext context) {
 
-        return null;
+        return context.forwardResponse(header, response);
     }
 }

@@ -9,6 +9,7 @@ package io.kroxylicious.benchmarking.jmh;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
@@ -269,7 +270,7 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
@@ -279,7 +280,7 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override

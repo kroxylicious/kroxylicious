@@ -23,12 +23,12 @@ public class TwoInterfaceFilter1 implements ProduceResponseFilter, ProduceReques
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
-        return null;
+        return context.forwardRequest(header, request);
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
                                                                    FilterContext context) {
-        return null;
+        return context.forwardResponse(header, response);
     }
 }
