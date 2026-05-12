@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#3860](https://github.com/kroxylicious/kroxylicious/pull/3860): perf(operator): reduce memory usage by sharing Secret and ConfigMap informer caches across reconcilers (78% reduction in informer caches)
 * refactor: move `kroxylicious-kms-tls-support` to `io.kroxylicious.testing.kms.tls`
 * [#3861](https://github.com/kroxylicious/kroxylicious/pull/3861): refactor: move test-support modules to `io.kroxylicious.testing`
 * [#3882](https://github.com/kroxylicious/kroxylicious/pull/3882): build(image): proxy container image renamed from `quay.io/kroxylicious/kroxylicious` to `quay.io/kroxylicious/proxy`
