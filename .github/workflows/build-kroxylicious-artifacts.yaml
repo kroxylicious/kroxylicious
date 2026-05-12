@@ -20,7 +20,7 @@ on:
   workflow_call:
 
 jobs:
-  build_kroxylicious_images:
+  build_kroxylicious_artifacts:
     runs-on: ubuntu-latest
 
     steps:

@@ -88,26 +88,26 @@ jobs:
       - name: 'Download Kroxylicious Maven artifacts'
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
-          workflow: build_artifacts
+          workflow: build_kroxylicious_artifacts
           name: kroxylicious-maven-artifacts
           path: /tmp/kroxylicious-artifacts
           run_id: ${{github.run_id}}
       - name: Download kroxylicious proxy container artifact
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
-          workflow: build_kroxylicious_images
+          workflow: build_kroxylicious_artifacts
           name: kroxylicious-proxy
           run_id: ${{github.run_id}}
       - name: Download kroxylicious operator container artifact
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
-          workflow: build_kroxylicious_images
+          workflow: build_kroxylicious_artifacts
           name: kroxylicious-operator
           run_id: ${{github.run_id}}
       - name: Download kroxylicious admission-webhook container artifact
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
-          workflow: build_kroxylicious_images
+          workflow: build_kroxylicious_artifacts
           name: kroxylicious-admission-webhook
           run_id: ${{github.run_id}}
       - name: 'Extract Kroxylicious Maven artifacts'
