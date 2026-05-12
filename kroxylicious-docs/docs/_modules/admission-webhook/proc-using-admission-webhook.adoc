@@ -20,7 +20,6 @@ This procedure shows how to configure sidecar injection for a namespace and veri
 // TODO: Document configuring filters via filterDefinitions.
 // TODO: Document configuring secret mounts for filter credentials.
 // TODO: Document configuring TLS to the target Kafka cluster via targetClusterTls.
-// TODO: Document resource requests and limits configuration.
 // TODO: Document third-party plugin image configuration.
 .Prerequisites
 
@@ -51,6 +50,39 @@ Apply the resource:
 ----
 kubectl apply -f my-sidecar-config.yaml
 ----
+
+. (Optional) Configure resource requests and limits for the sidecar proxy container.
+By default, the sidecar runs without resource constraints.
+To specify CPU and memory resources, add the `resources` field to your `KroxyliciousSidecarConfig`:
++
+[source,yaml,subs="+quotes,attributes+"]
+----
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+kind: KroxyliciousSidecarConfig
+metadata:
+  name: my-sidecar-config
+  namespace: _my-app-namespace_
+spec:
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-kafka-cluster-bootstrap:9092
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+----
++
+The `resources` field follows the standard Kubernetes ResourceRequirements format:
++
+--
+* `requests.memory` and `requests.cpu`: The minimum resources guaranteed to the sidecar container.
+The scheduler uses these values when placing the pod.
+* `limits.memory` and `limits.cpu`: The maximum resources the sidecar container can consume.
+If the container exceeds the memory limit, it is terminated and restarted.
+--
 
 . Label the namespace to enable sidecar injection:
 +
