@@ -24,6 +24,8 @@ data:
     # Message configuration
     messageSize: 10240
     useRandomizedPayloads: true
+    randomBytesRatio: 1.0
+    randomizedPayloadPoolSize: 100
 
     # Subscription configuration
     subscriptionsPerTopic: 1
