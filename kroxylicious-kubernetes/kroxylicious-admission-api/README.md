@@ -1,12 +1,93 @@
-# kroxylicious-kubernetes-api Module
+# kroxylicious-admission-api Module
 
-This module defines the Kubernetes Custom Resource Definitions (CRDs) for the Kroxylicious operator. See also [`../README.md`](../README.md) for project-wide context.
+This module defines the Kubernetes Custom Resource Definition (CRD) for the Kroxylicious sidecar injection webhook. See also [`../README.md`](../README.md) for project-wide context.
 
 ## API Roles
 
-**CR Authors**: Kubernetes users who create and manage `KafkaProxy`, `KafkaProxyIngress`, and `KafkaProtocolFilter` custom resources.
+**CR Authors**: Kubernetes users who create and manage `KroxyliciousSidecarConfig` custom resources to configure sidecar injection in their namespaces.
 
-**Operator Developers**: Kroxylicious developers working on the operator (in the `kroxylicious-operator` module) that reconciles these CRs, or extending the API with new CRDs. 3rd party developers should note that the Java representation of this API is not a public API, and could change between releases.
+**Webhook Developers**: Kroxylicious developers working on the admission webhook (in the `kroxylicious-admission` module) that consumes these CRs. 3rd party developers should note that the Java representation of this API is not a public API, and could change between releases.
+
+---
+
+# Custom Resource: `KroxyliciousSidecarConfig`
+
+**API Group**: `sidecar.kroxylicious.io`
+**Version**: `v1alpha1`
+**Scope**: Namespaced
+**Short name**: `ksc`
+
+A `KroxyliciousSidecarConfig` defines how the sidecar injection webhook should configure the Kroxylicious proxy container it injects into pods in the resource's namespace.
+
+## Example CR
+
+```yaml
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+kind: KroxyliciousSidecarConfig
+metadata:
+  name: my-sidecar-config
+spec:
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: kafka.kafka.svc.cluster.local:9092
+      targetClusterTls:
+        trustAnchorSecretRef:
+          name: kafka-ca-cert
+          key: ca.crt
+  filterDefinitions:
+    - name: record-encryption
+      type: io.kroxylicious.filter.encryption.RecordEncryptionFilterFactory
+      config:
+        kmsType: vault
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      observedGeneration: 1
+      lastTransitionTime: "2025-03-15T10:30:00Z"
+      reason: Accepted
+      message: ""
+```
+
+## Spec Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `virtualClusters` | array (max 1) | Yes | Target Kafka cluster configuration |
+| `filterDefinitions` | array | No | Filter plugins applied to proxied traffic |
+| `plugins` | array | No | Third-party plugin OCI images |
+| `secretMounts` | array | No | Secrets to mount in the sidecar container |
+| `proxyImage` | string | No | Override for the sidecar container image |
+| `managementPort` | integer | No | Management endpoint port (default: 9082) |
+| `resources` | object | No | Resource requests/limits for the sidecar container |
+| `setBootstrapEnvVar` | boolean | No | Whether to set `KAFKA_BOOTSTRAP_SERVERS` on app containers (default: true) |
+
+See the [CRD YAML](src/main/resources/META-INF/fabric8/kroxylicioussidecarconfigs.sidecar.kroxylicious.io-v1.yml) for full field documentation and validation rules.
+
+## Status Conditions
+
+The webhook updates `status.conditions` to communicate validation state:
+
+**Accepted (Ready=True):**
+```yaml
+conditions:
+  - type: Ready
+    status: "True"
+    reason: Accepted
+    message: ""
+```
+
+**Invalid (Ready=False):**
+```yaml
+conditions:
+  - type: Ready
+    status: "False"
+    reason: Invalid
+    message: "proxy config generation failed: ..."
+```
+
+If `observedGeneration` is less than `metadata.generation`, the webhook hasn't processed the latest changes yet.
 
 ---
 
@@ -28,7 +109,7 @@ This API is subject to **all standard Kubernetes API versioning and compatibilit
 - Fields can be added but not removed
 - Field semantics cannot change in backwards-incompatible ways
 - Deprecated fields must be supported for at least one Kubernetes minor version
-- API version graduation (alpha → beta → stable) follows Kubernetes deprecation policy
+- API version graduation (alpha -> beta -> stable) follows Kubernetes deprecation policy
 
 ## Schema Evolution
 
@@ -51,277 +132,81 @@ This API is subject to **all standard Kubernetes API versioning and compatibilit
 
 ## Kubernetes Gateway API Model
 
-This API is **inspired by the Kubernetes Gateway API** (gateway.networking.k8s.io), particularly:
-
-**Status Conditions Model:**
-
-We use the Gateway API's pattern for communicating reconciliation state and errors through `status.conditions`:
-
-```yaml
-status:
-  conditions:
-    - type: Ready
-      status: "True"
-      observedGeneration: 2
-      lastTransitionTime: "2024-01-15T10:30:00Z"
-      reason: ReconciliationSucceeded
-      message: "Proxy deployment is ready with 3/3 replicas"
-    - type: Accepted
-      status: "True"
-      observedGeneration: 2
-      lastTransitionTime: "2024-01-15T10:29:45Z"
-      reason: Accepted
-      message: "Configuration is valid"
-```
-
-**Standard condition types:**
-
-- **`Accepted`**: Configuration has been validated and accepted
-- **`Ready`**: Resource is fully reconciled and operational
-- **`Programmed`**: Underlying resources (Deployment, Service) are created and configured
+This API is **inspired by the Kubernetes Gateway API** (gateway.networking.k8s.io), particularly its status conditions model for communicating reconciliation state and errors.
 
 **Condition fields:**
 
-- **`type`**: Condition type (e.g., "Ready", "Accepted")
-- **`status`**: "True", "False", or "Unknown"
+- **`type`**: Condition type (currently only `Ready`)
+- **`status`**: `"True"`, `"False"`, or `"Unknown"`
 - **`observedGeneration`**: Spec generation this condition relates to (detects stale status)
 - **`lastTransitionTime`**: When condition last changed
 - **`reason`**: Machine-readable reason code (CamelCase)
 - **`message`**: Human-readable message explaining the condition
 
-## Multi-Resource Model
-
-Like Gateway API, we separate concerns across multiple CRs:
-
-- **`KafkaProxy`**: Core proxy configuration (similar to Gateway)
-- **`KafkaProxyIngress`**: Network access configuration (similar to HTTPRoute)
-- **`KafkaProtocolFilter`**: Filter definitions (similar to policy attachments)
-
-This allows:
-- Independent lifecycle management
-- Role-based access control (different teams manage different CRs)
-- Shared filter definitions across multiple proxies
-
 ---
 
-# For CR Authors (Kubernetes Users)
-
-This section describes how to use the CRDs to deploy and configure Kroxylicious.
-
-## Custom Resources
-
-**Primary CRs:**
-
-- **`KafkaProxy`**: Defines a proxy deployment (replicas, configuration, filters, upstream cluster)
-- **`KafkaProxyIngress`**: Defines how clients access the proxy (load balancer, routes)
-- **`KafkaProtocolFilter`**: Defines reusable filter configurations
-
-## Understanding Status Conditions
-
-**Check resource readiness:**
-
-```bash
-kubectl get kafkaproxy my-proxy -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
-```
-
-**Common condition patterns:**
-
-**Successful reconciliation:**
-```yaml
-conditions:
-  - type: Accepted
-    status: "True"
-    reason: Accepted
-  - type: Ready
-    status: "True"
-    reason: ReconciliationSucceeded
-```
-
-**Configuration error:**
-```yaml
-conditions:
-  - type: Accepted
-    status: "False"
-    reason: Invalid
-    message: "Filter 'my-filter' references unknown KafkaProtocolFilter 'missing-filter'"
-  - type: Ready
-    status: "False"
-    reason: ConfigurationError
-```
-
-**Deployment not ready:**
-```yaml
-conditions:
-  - type: Accepted
-    status: "True"
-    reason: Accepted
-  - type: Ready
-    status: "False"
-    reason: DeploymentNotReady
-    message: "Waiting for 3/3 replicas to be ready"
-```
-
-**Check observedGeneration:**
-
-If `observedGeneration` is less than `metadata.generation`, the operator hasn't processed your latest changes yet.
-
-## Example CR
-
-```yaml
-apiVersion: kroxylicious.io/v1alpha1
-kind: KafkaProxy
-metadata:
-  name: my-proxy
-spec:
-  replicas: 3
-  filters:
-    - filterRef:
-        name: record-encryption
-  upstreamCluster:
-    bootstrapServers: kafka.kafka.svc.cluster.local:9092
-    tls:
-      trustAnchorRef:
-        name: kafka-ca-cert
-status:
-  conditions:
-    - type: Accepted
-      status: "True"
-      observedGeneration: 1
-      lastTransitionTime: "2024-01-15T10:29:45Z"
-      reason: Accepted
-    - type: Ready
-      status: "True"
-      observedGeneration: 1
-      lastTransitionTime: "2024-01-15T10:30:00Z"
-      reason: ReconciliationSucceeded
-```
-
----
-
-# For Operator Developers
-
-This section describes requirements when working on the operator or extending the API.
+# For Webhook Developers
 
 ## Java Classes Are Generated
 
-**Important:** The Java classes in this module are **generated from the CRD YAML schemas**.
+**Important:** The Java classes in this module are **generated from the CRD YAML schema**.
 
-- **CRD schemas** (YAML) are the source of truth and the public API
+- **CRD schema** (YAML) is the source of truth and the public API
 - **Java classes** are generated code (do not edit directly)
-- Changes to the API require updating the CRD schemas
+- Changes to the API require updating the CRD schema
+- The one exception is `Condition.java`, which is hand-written
 
 ## Maintaining Status Conditions
 
-**When implementing reconciliation**, you must update status conditions following Gateway API patterns:
+When updating status, follow Gateway API patterns:
 
-**Set Accepted condition:**
+**Set Ready condition on acceptance:**
 
 ```java
-var condition = new Condition();
-condition.setType("Accepted");
-condition.setStatus("True");
-condition.setObservedGeneration(resource.getMetadata().getGeneration());
-condition.setLastTransitionTime(ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT));
-condition.setReason("Accepted");
-condition.setMessage("Configuration is valid");
-
-resource.getStatus().setConditions(List.of(condition));
+Condition readyCondition = new ConditionBuilder()
+        .withType(Condition.Type.Ready)
+        .withStatus(Condition.Status.TRUE)
+        .withReason("Accepted")
+        .withMessage("")
+        .withLastTransitionTime(clock.instant())
+        .withObservedGeneration(generation)
+        .build();
 ```
 
-**Set Ready condition on success:**
+**Set Ready condition on validation failure:**
 
 ```java
-var readyCondition = new Condition();
-readyCondition.setType("Ready");
-readyCondition.setStatus("True");
-readyCondition.setObservedGeneration(resource.getMetadata().getGeneration());
-readyCondition.setLastTransitionTime(ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT));
-readyCondition.setReason("ReconciliationSucceeded");
-readyCondition.setMessage("Proxy deployment is ready with 3/3 replicas");
-```
-
-**Set Ready condition on error:**
-
-```java
-var readyCondition = new Condition();
-readyCondition.setType("Ready");
-readyCondition.setStatus("False");
-readyCondition.setObservedGeneration(resource.getMetadata().getGeneration());
-readyCondition.setLastTransitionTime(ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT));
-readyCondition.setReason("DeploymentFailed");
-readyCondition.setMessage("Failed to create deployment: " + error.getMessage());
+Condition readyCondition = new ConditionBuilder()
+        .withType(Condition.Type.Ready)
+        .withStatus(Condition.Status.FALSE)
+        .withReason("Invalid")
+        .withMessage(validationError)
+        .withLastTransitionTime(clock.instant())
+        .withObservedGeneration(generation)
+        .build();
 ```
 
 ## Standard Reason Codes
 
-**Use standard reason codes** for consistency:
-
-**Accepted condition:**
-- `Accepted`: Configuration is valid
-- `Invalid`: Configuration has errors
-- `InvalidReference`: Referenced resource not found
-- `UnsupportedValue`: Field value is not supported
-
 **Ready condition:**
-- `ReconciliationSucceeded`: Resource is ready
-- `ConfigurationError`: Configuration is invalid
-- `DeploymentNotReady`: Underlying deployment not ready
-- `DeploymentFailed`: Failed to create/update deployment
-- `ResourceError`: Error with underlying Kubernetes resources
-
-## Condition Transition Rules
-
-**Only update `lastTransitionTime` when status changes:**
-
-```java
-Optional<Condition> existing = findCondition(resource, "Ready");
-if (existing.isEmpty() || !existing.get().getStatus().equals(newStatus)) {
-    condition.setLastTransitionTime(ZonedDateTime.now().format(DateTimeFormatter.ISO_INSTANT));
-} else {
-    condition.setLastTransitionTime(existing.get().getLastTransitionTime());
-}
-```
-
-**Always update `observedGeneration`:**
-
-```java
-condition.setObservedGeneration(resource.getMetadata().getGeneration());
-```
-
-## Adding New CRDs
-
-**When adding a new CRD:**
-
-1. Define the CRD YAML schema following Kubernetes conventions
-2. Include `status.conditions` field with standard condition types
-3. Generate Java classes from the schema
-4. Implement controller following reconciliation patterns
-5. Update documentation in `kroxylicious-docs`
-6. Add integration tests
-7. Follow proposal process (this is a public API change)
+- `Accepted`: Configuration is valid
+- `Invalid`: Configuration has validation errors
 
 ## API Compatibility Requirements
 
-**When modifying CRDs:**
+**When modifying the CRD:**
 
-- ✅ Add new optional fields
-- ✅ Add new condition types
-- ✅ Add new reason codes
-- ❌ Remove fields (deprecate first, remove in next API version)
-- ❌ Change field types
-- ❌ Make optional fields required
-- ❌ Change field semantics
-
-**Deprecation process:**
-
-1. Mark field as deprecated in CRD schema and documentation
-2. Continue supporting the field for at least one minor version
-3. Log warning when deprecated field is used
-4. Remove in next major API version
-5. Provide migration guide
+- Add new optional fields
+- Add new condition types
+- Add new reason codes
+- Do not remove fields (deprecate first, remove in next API version)
+- Do not change field types
+- Do not make optional fields required
+- Do not change field semantics
 
 ## Cross-References
 
-- **Operator implementation**: See [`../kroxylicious-operator/README.md`](../kroxylicious-operator/README.md)
+- **Webhook implementation**: See [`../kroxylicious-admission/README.md`](../kroxylicious-admission/README.md)
+- **Operator API (KafkaProxy, KafkaProxyIngress, etc.)**: See [`../kroxylicious-kubernetes-api/README.md`](../kroxylicious-kubernetes-api/README.md)
 - **Kubernetes Gateway API**: https://gateway-api.sigs.k8s.io/
 - **Kubernetes API conventions**: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md

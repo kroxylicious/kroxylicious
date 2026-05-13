@@ -160,6 +160,11 @@ class SyncGroupAuthzIT extends AuthzIT {
         }
 
         @Override
+        public boolean needsRetry(SyncGroupResponseData response) {
+            return isTransientCoordinatorError(response.errorCode());
+        }
+
+        @Override
         public SyncGroupRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             SyncGroupRequestData request = new SyncGroupRequestData();
             request.setGroupId(group);

@@ -619,4 +619,9 @@ public abstract class AuthzIT extends BaseIT {
         }
     }
 
+    static boolean isTransientCoordinatorError(short errorCode) {
+        Errors error = Errors.forCode(errorCode);
+        return error == Errors.NOT_COORDINATOR || error == Errors.COORDINATOR_LOAD_IN_PROGRESS || error == Errors.COORDINATOR_NOT_AVAILABLE;
+    }
+
 }

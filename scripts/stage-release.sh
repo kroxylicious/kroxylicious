@@ -157,6 +157,7 @@ replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${RELEASE_VERSION}'_g" compose/kafka-compose.yaml
 
 updateVersionInBenchmarks "${RELEASE_VERSION}"
+replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${RELEASE_VERSION}_g" performance-tests/docker-compose.yaml
 
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
@@ -203,6 +204,7 @@ replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: main_g" kroxyliciou
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${NEXT_VERSION}'_g" compose/kafka-compose.yaml
 
 updateVersionInBenchmarks "${NEXT_VERSION}"
+replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${NEXT_VERSION}_g" performance-tests/docker-compose.yaml
 
 # bump the reference version in kroxylicious-api
 mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
