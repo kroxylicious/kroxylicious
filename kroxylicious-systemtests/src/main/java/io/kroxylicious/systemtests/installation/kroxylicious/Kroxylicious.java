@@ -79,9 +79,12 @@ public class Kroxylicious {
 
     public void setKafkaProtocolFilters(List<KafkaProtocolFilter> kafkaProtocolFilters) {
         if (namespace != null) {
-            kafkaProtocolFilters.forEach(kafkaProtocolFilter -> kafkaProtocolFilter.edit().editMetadata().withNamespace(namespace).endMetadata().build());
+            kafkaProtocolFilters.forEach(
+                    kafkaProtocolFilter -> this.kafkaProtocolFilters.add(kafkaProtocolFilter.edit().editMetadata().withNamespace(namespace).endMetadata().build()));
         }
-        this.kafkaProtocolFilters = kafkaProtocolFilters;
+        else {
+            this.kafkaProtocolFilters = kafkaProtocolFilters;
+        }
     }
 
     public void setKafkaService(KafkaService kafkaService) {
@@ -129,8 +132,8 @@ public class Kroxylicious {
 
             this.kafkaProtocolFilters.forEach(kafkaProtocolFilter -> {
 
-                if (kubeClient().getClient().resources(KafkaProtocolFilter.class).inNamespace(currentNamespace).withName(kafkaProtocolFilter.getMetadata().getName())
-                        .get() == null) {
+                if (kubeClient().getClient().resources(KafkaProtocolFilter.class).inNamespace(currentNamespace)
+                        .withName(kafkaProtocolFilter.getMetadata().getName()).get() == null) {
                     resourceManager.createOrUpdateResourceWithWait(kafkaProtocolFilter);
                     return;
                 }

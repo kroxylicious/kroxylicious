@@ -136,7 +136,7 @@ class RecordEncryptionST extends AbstractSystemTests {
     }
 
     private void deployPortIdentifiesNodeWithRecordEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
-        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME + "-" + testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase();
+        String filterName = Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME;
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
@@ -200,10 +200,7 @@ class RecordEncryptionST extends AbstractSystemTests {
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
-        // Deploy kroxylicious operand only the first compression iteration (1 per testKmsFacade)
-        if (compressionType.ordinal() == 0) {
-            deployPortIdentifiesNodeWithRecordEncryptionFilter(testKmsFacade);
-        }
+        deployPortIdentifiesNodeWithRecordEncryptionFilter(testKmsFacade);
         bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
@@ -234,8 +231,6 @@ class RecordEncryptionST extends AbstractSystemTests {
         int numberOfMessages = 1;
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(null, null, null, 5L);
 
-        // Experimental kms config change is not properly detected and the rollout is not done
-        cleanUpKroxyliciousInstance();
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         deployPortIdentifiesNodeWithRecordEncryptionFilter(testKmsFacade, experimentalKmsConfig);
