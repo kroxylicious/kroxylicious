@@ -162,10 +162,12 @@ public class Kroxylicious {
     }
 
     private <T extends HasMetadata> boolean editResource(Class<T> resourceType, String currentNamespace, T resource) {
-        Long previousGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+        Long previousGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get()
+                .getMetadata().getGeneration();
         kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName())
                 .edit(current -> resource);
-        Long currentGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+        Long currentGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get()
+                .getMetadata().getGeneration();
         return !Objects.equals(previousGeneration, currentGeneration);
     }
 
