@@ -23,6 +23,7 @@ data:
 
     # Message configuration
     messageSize: 102400
+    useRandomizedPayloads: true
 
     # Subscription configuration
     subscriptionsPerTopic: 1
