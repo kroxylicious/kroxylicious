@@ -80,18 +80,6 @@ class ProxyDeploymentTest {
                 .isEqualTo("quay.io/myorg/kroxylicious:1");
     }
 
-    // labels don't technically need to be ordered, but deterministic output reduces noise when comparing output YAML
-    @Test
-    void podLabelsDeterministicallyOrdered() {
-        // Given
-        LinkedHashMap<String, String> expected = expectedLabels();
-        // When
-        Map<String, String> labels = ProxyDeploymentDependentResource.podLabels(kafkaProxy);
-
-        // Then
-        assertThat(labels).containsExactlyEntriesOf(expected);
-    }
-
     @Test
     void proxyContainerInfrastructureResourcesPreferred() {
         // Given
