@@ -172,7 +172,7 @@ public class KafkaProxyReconciler implements
         this.secureConfigInterpolator = secureConfigInterpolator;
     }
 
-     public static StatusFactory<KafkaProxy> newStatusFactory(Clock clock) {
+    public static StatusFactory<KafkaProxy> newStatusFactory(Clock clock) {
         return new KafkaProxyStatusFactory(clock);
     }
 
