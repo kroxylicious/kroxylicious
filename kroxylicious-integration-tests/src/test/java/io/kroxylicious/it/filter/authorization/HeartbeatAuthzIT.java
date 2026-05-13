@@ -154,10 +154,7 @@ public class HeartbeatAuthzIT extends AuthzIT {
 
         @Override
         public boolean needsRetry(HeartbeatResponseData response) {
-            Errors error = Errors.forCode(response.errorCode());
-            return error == Errors.NOT_COORDINATOR
-                    || error == Errors.COORDINATOR_LOAD_IN_PROGRESS
-                    || error == Errors.COORDINATOR_NOT_AVAILABLE;
+            return isTransientCoordinatorError(response.errorCode());
         }
 
         @Override
