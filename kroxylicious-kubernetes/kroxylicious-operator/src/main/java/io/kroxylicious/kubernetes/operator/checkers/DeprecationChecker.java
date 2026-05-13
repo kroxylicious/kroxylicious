@@ -29,8 +29,7 @@ public interface DeprecationChecker<S, T, R extends CustomResource<S, T>, F exte
      * Performs the deprecation check against {@link DeprecationCheckContext#resource()}.
      * <p>
      * Implementations should call {@link DeprecationCheckContext#addConditionAndLogWarning} for each
-     * deprecation detected, and {@link DeprecationCheckContext#invalidateLogCacheEntry}
-     * when the deprecation is resolved.
+     * deprecation detected.
      *
      * @param context see {@link DeprecationCheckContext}
      */

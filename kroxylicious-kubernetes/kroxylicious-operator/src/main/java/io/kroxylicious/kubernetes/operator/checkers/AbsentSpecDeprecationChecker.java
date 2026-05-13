@@ -36,15 +36,8 @@ public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaPro
                 .map(ObjectMeta::getUid)
                 .ifPresent(uid -> {
                     if (proxy.getSpec() == null) {
-                        context.addConditionAndLogWarning(Condition.Type.DeprecationWarning, MESSAGE, cacheKey(uid));
-                    }
-                    else {
-                        context.invalidateLogCacheEntry(cacheKey(uid));
+                        context.addConditionAndLogWarning(Condition.Type.DeprecationWarning, MESSAGE);
                     }
                 });
-    }
-
-    private String cacheKey(String uid) {
-        return "absent-spec/" + uid;
     }
 }

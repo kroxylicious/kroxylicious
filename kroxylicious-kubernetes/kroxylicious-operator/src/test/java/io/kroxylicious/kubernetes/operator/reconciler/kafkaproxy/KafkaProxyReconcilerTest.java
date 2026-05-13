@@ -569,7 +569,10 @@ class KafkaProxyReconcilerTest {
         var statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(TEST_CLOCK));
         List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> deprecationCheckers = List.of(
                 new AbsentSpecDeprecationChecker());
-        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, logger, statusFactory);
+        var existingConditions = Optional.ofNullable(proxy.getStatus())
+                .map(KafkaProxyStatus::getConditions)
+                .orElse(List.of());
+        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, logger, statusFactory, TEST_CLOCK, existingConditions);
 
         // When
         deprecationCheckers.forEach(checker -> checker.check(deprecationCheckContext));
