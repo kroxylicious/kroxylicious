@@ -20,9 +20,9 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
+class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
 
-    public KafkaProxyStatusFactory(Clock clock) {
+    KafkaProxyStatusFactory(Clock clock) {
         super(clock);
     }
 

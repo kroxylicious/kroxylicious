@@ -70,6 +70,7 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
@@ -169,6 +170,10 @@ public class KafkaProxyReconciler implements
         this.statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(clock));
         this.clock = clock;
         this.secureConfigInterpolator = secureConfigInterpolator;
+    }
+
+     public static StatusFactory<KafkaProxy> newStatusFactory(Clock clock) {
+        return new KafkaProxyStatusFactory(clock);
     }
 
     @Override
