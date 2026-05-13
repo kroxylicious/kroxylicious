@@ -46,7 +46,6 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxy
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
 import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
@@ -345,10 +344,5 @@ class RecordEncryptionST extends AbstractSystemTests {
     private boolean isVaultKms(TestKmsFacade<?, ?, ?> testKmsFacade) {
         LOGGER.debug("Checking if Vault Kms is used");
         return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().startsWith("vault");
-    }
-
-    private void cleanUpKroxyliciousInstance() {
-        NamespaceUtils.deleteNamespaceWithWait(Constants.KROXYLICIOUS_NAMESPACE);
-        NamespaceUtils.createNamespaceAndPrepare(Constants.KROXYLICIOUS_NAMESPACE);
     }
 }
