@@ -13,6 +13,7 @@ import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -166,6 +167,20 @@ public class DeploymentUtils {
                 .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
+    }
+
+    /**
+     * Wait for deployment to be rolled out
+     * @param namespace the namespace
+     * @param previousPodPid the pod PID of the pod before rollout starts
+     * @param deploymentName the name of the deployment
+     * @param timeout the timeout to wait for
+     */
+    public static void waitForDeploymentRollout(String namespace, String previousPodPid, String deploymentName, Duration timeout) {
+        await().atMost(timeout).pollInterval(Duration.ofMillis(200)).until(() -> {
+            String currentKafkaProxyPod = kubeClient().listPodsByPrefixInName(namespace, deploymentName).get(0).getMetadata().getName();
+            return !Objects.equals(DeploymentUtils.getPodUid(namespace, currentKafkaProxyPod), previousPodPid);
+        });
     }
 
     /**

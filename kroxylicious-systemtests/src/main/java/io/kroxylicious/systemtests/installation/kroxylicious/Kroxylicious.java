@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
@@ -127,6 +129,10 @@ public class Kroxylicious {
             resourceManager.createOrUpdateResourceWithWait(this.kafkaProxy, this.kafkaProxyIngress, this.kafkaService, this.virtualKafkaCluster);
         }
         else {
+            String kafkaProxyPodName = kubeClient().listPodsByPrefixInName(currentNamespace, this.kafkaProxy.getMetadata().getName()).get(0).getMetadata().getName();
+            String currentPid = DeploymentUtils.getPodUid(currentNamespace, kafkaProxyPodName);
+            AtomicBoolean anyResourceEdited = new AtomicBoolean(false);
+
             kubeClient().getClient().apps().deployments().inNamespace(currentNamespace).withName(this.kafkaProxy.getMetadata().getName())
                     .rolling().pause();
 
@@ -135,24 +141,32 @@ public class Kroxylicious {
                 if (kubeClient().getClient().resources(KafkaProtocolFilter.class).inNamespace(currentNamespace)
                         .withName(kafkaProtocolFilter.getMetadata().getName()).get() == null) {
                     resourceManager.createOrUpdateResourceWithWait(kafkaProtocolFilter);
+                    anyResourceEdited.set(true);
                     return;
                 }
 
-                editResource(KafkaProtocolFilter.class, currentNamespace, kafkaProtocolFilter);
+                anyResourceEdited.set(anyResourceEdited.get() || editResource(KafkaProtocolFilter.class, currentNamespace, kafkaProtocolFilter));
             });
-            editResource(KafkaProxy.class, currentNamespace, this.kafkaProxy);
-            editResource(KafkaProxyIngress.class, currentNamespace, this.kafkaProxyIngress);
-            editResource(KafkaService.class, currentNamespace, this.kafkaService);
-            editResource(VirtualKafkaCluster.class, currentNamespace, this.virtualKafkaCluster);
+            anyResourceEdited.set(anyResourceEdited.get() || editResource(KafkaProxy.class, currentNamespace, this.kafkaProxy));
+            anyResourceEdited.set(anyResourceEdited.get() || editResource(KafkaProxyIngress.class, currentNamespace, this.kafkaProxyIngress));
+            anyResourceEdited.set(anyResourceEdited.get() || editResource(KafkaService.class, currentNamespace, this.kafkaService));
+            anyResourceEdited.set(anyResourceEdited.get() || editResource(VirtualKafkaCluster.class, currentNamespace, this.virtualKafkaCluster));
 
             kubeClient().getClient().apps().deployments().inNamespace(currentNamespace).withName(this.kafkaProxy.getMetadata().getName())
                     .rolling().resume();
+
+            if (anyResourceEdited.get()) {
+                DeploymentUtils.waitForDeploymentRollout(currentNamespace, currentPid, this.kafkaProxy.getMetadata().getName(), Duration.ofSeconds(30));
+            }
         }
     }
 
-    private <T extends HasMetadata> void editResource(Class<T> resourceType, String currentNamespace, T resource) {
+    private <T extends HasMetadata> boolean editResource(Class<T> resourceType, String currentNamespace, T resource) {
+        Long previousGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
         kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName())
                 .edit(current -> resource);
+        Long currentGeneration = kubeClient().getClient().resources(resourceType).inNamespace(currentNamespace).withName(resource.getMetadata().getName()).get().getMetadata().getGeneration();
+        return !Objects.equals(previousGeneration, currentGeneration);
     }
 
     /**
