@@ -114,10 +114,10 @@ class VirtualClusterChangeDetectorTest {
         // Build configs with the matching named filter definitions so Configuration validation passes.
         var oldConfig = new Configuration(null,
                 List.of(filterDef("filter-a"), filterDef("filter-b")),
-                null, List.of(oldVc), null, false, Optional.empty(), null, null, null);
+                null, List.of(oldVc), null, false, Optional.empty(), null, null);
         var newConfig = new Configuration(null,
                 List.of(filterDef("filter-a"), filterDef("filter-b")),
-                null, List.of(newVc), null, false, Optional.empty(), null, null, null);
+                null, List.of(newVc), null, false, Optional.empty(), null, null);
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
         assertThat(result.clustersToModify()).containsExactly("cluster");
     }
@@ -144,7 +144,7 @@ class VirtualClusterChangeDetectorTest {
 
     private static Configuration configWith(VirtualCluster... clusters) {
         return new Configuration(null, null, null, List.of(clusters), null, false,
-                Optional.empty(), null, null, null);
+                Optional.empty(), null, null);
     }
 
     private static VirtualCluster vc(String name, String bootstrap, int gatewayPort) {
