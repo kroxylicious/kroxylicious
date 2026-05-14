@@ -11,7 +11,7 @@
 // kroxylicious-operator/index.adoc
 
 [id='con-prometheus-metrics-proxy-{context}']
-= Overview of proxy metrics
+= Proxy metrics overview
 
 [role="_abstract"]
 
