@@ -67,10 +67,10 @@ import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
-import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
@@ -156,7 +156,7 @@ public class KafkaProxyReconciler implements
     private static final Path SERVER_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("server-certs");
     private static final Path SERVER_TRUSTED_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("trusted-certs");
 
-    private static final List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> DEPRECATION_CHECKERS = List.of(
+    private static final List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>>> DEPRECATION_CHECKERS = List.of(
             new AbsentSpecDeprecationChecker());
 
     private final Clock clock;
@@ -493,7 +493,7 @@ public class KafkaProxyReconciler implements
         var existingConditions = Optional.ofNullable(primary.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
-        var deprecationCheckContext = new DeprecationCheckContext<>(primary, LOGGER, statusFactory, clock, existingConditions);
+        var deprecationCheckContext = new DeprecationCheckContext<>(primary, LOGGER, (StatusFactory<KafkaProxy>) statusFactory, clock, existingConditions);
         DEPRECATION_CHECKERS.forEach(checker -> checker.check(deprecationCheckContext));
 
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)

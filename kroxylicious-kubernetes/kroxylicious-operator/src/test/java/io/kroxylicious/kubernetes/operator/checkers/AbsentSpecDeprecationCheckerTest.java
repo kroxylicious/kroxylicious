@@ -24,7 +24,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
-import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyStatusFactory;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
+import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -42,7 +43,7 @@ class AbsentSpecDeprecationCheckerTest {
     private static final MutableClock TEST_CLOCK = MutableClock.of(NOW, ZONE);
     private static final String MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
-    private KafkaProxyStatusFactory statusFactory;
+    private StatusFactory<KafkaProxy> statusFactory;
     private AbsentSpecDeprecationChecker checker;
     private Logger logger;
     private LoggingEventBuilder eventBuilder;
@@ -50,7 +51,7 @@ class AbsentSpecDeprecationCheckerTest {
 
     @BeforeEach
     void setUp() {
-        statusFactory = new KafkaProxyStatusFactory(TEST_CLOCK);
+        statusFactory = KafkaProxyReconciler.newStatusFactory(TEST_CLOCK);
         checker = new AbsentSpecDeprecationChecker();
         logger = mock(Logger.class);
         eventBuilder = mock(LoggingEventBuilder.class);
@@ -216,7 +217,7 @@ class AbsentSpecDeprecationCheckerTest {
         assertThat(ctxAbsent1.conditions()).doesNotContainAnyElementsOf(ctxAbsent2.conditions());
     }
 
-    private DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> contextFor(KafkaProxy proxy) {
+    private DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> contextFor(KafkaProxy proxy) {
         return new DeprecationCheckContext<>(proxy, logger, statusFactory, TEST_CLOCK, existingConditions);
     }
 

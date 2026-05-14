@@ -47,6 +47,7 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.InvalidResourceException;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
 import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
@@ -567,12 +568,12 @@ class KafkaProxyReconcilerTest {
         when(logger.atWarn()).thenReturn(eventBuilder);
 
         var statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(TEST_CLOCK));
-        List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory>> deprecationCheckers = List.of(
+        List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>>> deprecationCheckers = List.of(
                 new AbsentSpecDeprecationChecker());
         var existingConditions = Optional.ofNullable(proxy.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
-        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, logger, statusFactory, TEST_CLOCK, existingConditions);
+        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, logger, (StatusFactory<KafkaProxy>) statusFactory, TEST_CLOCK, existingConditions);
 
         // When
         deprecationCheckers.forEach(checker -> checker.check(deprecationCheckContext));

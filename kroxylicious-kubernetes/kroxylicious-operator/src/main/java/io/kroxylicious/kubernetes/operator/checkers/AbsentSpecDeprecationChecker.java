@@ -15,7 +15,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
-import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyStatusFactory;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 
 /**
  * Checks whether a {@link KafkaProxy} resource has a {@code null} spec.
@@ -24,11 +24,11 @@ import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyStatu
  *
  * @see DeprecationCheckContext
  */
-public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> {
+public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> {
 
     private static final String MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
-    public void check(DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, KafkaProxyStatusFactory> context) {
+    public void check(DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> context) {
         var proxy = context.resource();
 
         Optional.ofNullable(proxy)
