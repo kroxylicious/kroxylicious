@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Serving;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
+import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -215,6 +217,149 @@ class KafkaProxyLifecycleTest {
         assertThatThrownBy(proxy::startup)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("KafkaProxy is not restartable");
+    }
+
+    @Test
+    void cancelOnFutureTriggersGracefulShutdown() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        CompletableFuture<Void> future = proxy.startup();
+
+        boolean cancelled = future.cancel(true);
+
+        assertThat(cancelled).isFalse();
+        assertThat(future).isCompletedWithValue(null);
+    }
+
+    @Test
+    void closeIsIdempotent() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        proxy.startup();
+        assertThatCode(proxy::close).doesNotThrowAnyException();
+        assertThatCode(proxy::close).doesNotThrowAnyException();
+    }
+
+    @Test
+    void shutdownFromDifferentThread() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        CompletableFuture<Void> future = proxy.startup();
+
+        CompletableFuture.runAsync(proxy::shutdown).join();
+
+        assertThat(future).isCompletedWithValue(null);
+    }
+
+    @Test
+    void futureCompletesExceptionallyWhenStartupFails() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                   filterDefinitions:
+                   - name: filter1
+                     type: RequiresConfigFactory
+                   defaultFilters:
+                   - filter1
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        assertThatThrownBy(proxy::startup).isInstanceOf(LifecycleException.class);
+
+        assertThat(proxy.shutdownFuture())
+                .isCompletedExceptionally()
+                .failsWithin(java.time.Duration.ZERO)
+                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
+                .withCauseInstanceOf(LifecycleException.class);
+    }
+
+    @Test
+    void startupWhileStoppingThrows() throws InterruptedException {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+
+        var configuration = configParser.parseConfiguration(config);
+        var models = configuration.virtualClusterModel(configParser);
+
+        var shutdownStarted = new CountDownLatch(1);
+        var allowShutdown = new CountDownLatch(1);
+
+        var blockingRegistry = new VirtualClusterRegistry(models, (name, cause) -> {
+        }) {
+            @Override
+            public void shutdownAllClusters() {
+                shutdownStarted.countDown();
+                try {
+                    allowShutdown.await();
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                super.shutdownAllClusters();
+            }
+        };
+
+        var proxy = new KafkaProxy(configParser, configuration, Features.defaultFeatures(), blockingRegistry);
+        proxy.startup();
+
+        var shutdownThread = new Thread(proxy::shutdown);
+        shutdownThread.start();
+        shutdownStarted.await();
+
+        try {
+            // proxy is in STOPPING state while shutdownAllClusters() is blocked
+            assertThatThrownBy(proxy::startup)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("KafkaProxy is not restartable");
+        }
+        finally {
+            allowShutdown.countDown();
+            shutdownThread.join(5_000);
+        }
     }
 
     @Test
