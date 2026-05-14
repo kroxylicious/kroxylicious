@@ -10,6 +10,8 @@ import java.util.Set;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A PluginFactory is able to resolve references to a plugin implementation (i.e. a name) to that implementation.
  * @param <P> The plugin type
@@ -31,6 +33,15 @@ public interface PluginFactory<P> {
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
     Class<?> configType(String instanceName);
+
+    /**
+     * Returns the API version declared by a plugin implementation via the {@code @Version} annotation.
+     * @param instanceName The name of the plugin implementation
+     * @return The version from the {@code @Version} annotation, or null if the plugin is not annotated
+     * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
+     */
+    @Nullable
+    String pluginVersion(String instanceName);
 
     /**
      * Returns the names of the registered instances of this plugin.

@@ -221,4 +221,72 @@ class ServiceBasedPluginFactoryRegistryTest {
         var names = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class).registeredInstanceNames();
         assertThat(names).containsExactly("io.kroxylicious.proxy.config.ambiguous1.Ambiguous", "io.kroxylicious.proxy.config.ambiguous2.Ambiguous");
     }
+
+    @Test
+    void shouldReturnPluginVersionForVersionedPlugin() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithVersionedImpls.class);
+
+        assertThat(factory.pluginVersion("io.kroxylicious.proxy.config.versioned1.Versioned"))
+                .isEqualTo("v1");
+        assertThat(factory.pluginVersion("io.kroxylicious.proxy.config.versioned2.Versioned"))
+                .isEqualTo("v2");
+    }
+
+    @Test
+    void shouldReturnNullVersionForUnversionedPlugin() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
+
+        assertThat(factory.pluginVersion("io.kroxylicious.proxy.config.ambiguous1.Ambiguous"))
+                .isNull();
+    }
+
+    @Test
+    void shouldResolveVersionedPluginByVersionedName() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithVersionedImpls.class);
+
+        assertInstanceOf(io.kroxylicious.proxy.config.versioned1.Versioned.class,
+                factory.pluginInstance("Versioned/v1"));
+        assertInstanceOf(io.kroxylicious.proxy.config.versioned2.Versioned.class,
+                factory.pluginInstance("Versioned/v2"));
+    }
+
+    @Test
+    void shouldResolveVersionedPluginByFqn() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithVersionedImpls.class);
+
+        assertInstanceOf(io.kroxylicious.proxy.config.versioned1.Versioned.class,
+                factory.pluginInstance("io.kroxylicious.proxy.config.versioned1.Versioned"));
+        assertInstanceOf(io.kroxylicious.proxy.config.versioned2.Versioned.class,
+                factory.pluginInstance("io.kroxylicious.proxy.config.versioned2.Versioned"));
+    }
+
+    @Test
+    void shouldNotResolveVersionedPluginBySimpleNameAlone() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithVersionedImpls.class);
+
+        assertThrows(UnknownPluginInstanceException.class,
+                () -> factory.pluginInstance("Versioned"));
+    }
+
+    @Test
+    void shouldReturnCorrectConfigTypeForVersionedPlugin() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithVersionedImpls.class);
+
+        assertThat(factory.configType("Versioned/v1"))
+                .isEqualTo(String.class);
+        assertThat(factory.configType("Versioned/v2"))
+                .isEqualTo(Integer.class);
+    }
+
+    @Test
+    void shouldRegisterVersionedPluginNamesInRegistry() {
+        var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithVersionedImpls.class);
+        var names = factory.registeredInstanceNames();
+
+        assertThat(names).contains(
+                "io.kroxylicious.proxy.config.versioned1.Versioned",
+                "io.kroxylicious.proxy.config.versioned2.Versioned",
+                "Versioned/v1",
+                "Versioned/v2");
+    }
 }
