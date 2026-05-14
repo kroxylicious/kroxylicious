@@ -41,16 +41,18 @@ the final coefficient, since at saturation the CPU is capped and the ratio break
 """
 
 import argparse
+import glob
 import json
 import os
 import re
 import statistics
+import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 def parse_cpu_snapshots(metrics_file):
-    """Return list of (datetime, cpu_fraction) pairs, one per SNAPSHOT block."""
+    """Return list of (datetime, cpu_fraction) pairs from proxy-metrics.txt SNAPSHOT blocks."""
     snapshots = []
     current_dt = None
     current_cpu = None
@@ -82,6 +84,46 @@ def parse_cpu_snapshots(metrics_file):
     return snapshots
 
 
+def parse_jfr_cpu_snapshots(jfr_file, node_cpus):
+    """Return list of (datetime, cpu_fraction) from jdk.CPULoad events in a JFR recording.
+
+    jdk.CPULoad reports jvmUser and jvmSystem as a percentage of all machine CPUs.
+    We sum them and divide by node_cpus to normalise to a fraction of one container CPU,
+    matching the scale of process_cpu_usage from proxy-metrics.txt.
+    """
+    try:
+        result = subprocess.run(
+            ["jfr", "print", "--events", "jdk.CPULoad", jfr_file],
+            capture_output=True, text=True, timeout=120,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+
+    snapshots = []
+    current_dt = None
+    u = s = 0.0
+    for line in result.stdout.splitlines():
+        m = re.search(r"startTime = (\d+:\d+:\d+\.\d+) \((\d+-\d+-\d+)\)", line)
+        if m:
+            current_dt = datetime.strptime(
+                f"{m.group(2)} {m.group(1)}", "%Y-%m-%d %H:%M:%S.%f"
+            ).replace(tzinfo=timezone.utc)
+            u = s = 0.0
+        elif "jvmUser" in line:
+            mv = re.search(r"([\d.]+)%", line)
+            if mv:
+                u = float(mv.group(1))
+        elif "jvmSystem" in line:
+            mv = re.search(r"([\d.]+)%", line)
+            if mv:
+                s = float(mv.group(1))
+                if current_dt is not None:
+                    # Convert from % of machine CPUs to fraction of one CPU
+                    cpu_fraction = (u + s) / 100.0 * node_cpus
+                    snapshots.append((current_dt, cpu_fraction))
+    return snapshots
+
+
 def filter_snapshots(snapshots, meta, skip_first):
     """Return CPU values for the measurement phase only."""
     started_at = meta.get("benchmarkStartedAt")
@@ -92,7 +134,6 @@ def filter_snapshots(snapshots, meta, skip_first):
         try:
             t_start = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
             t_end = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
-            from datetime import timedelta
             t_test_start = t_start + timedelta(minutes=warmup_minutes)
             values = [
                 cpu for dt, cpu in snapshots
@@ -109,12 +150,15 @@ def filter_snapshots(snapshots, meta, skip_first):
 
 
 def load_probe(probe_dir, skip_first):
-    """Load result.json, run-metadata.json, and proxy-metrics.txt from a probe directory."""
+    """Load result.json, run-metadata.json, and CPU source from a probe directory.
+
+    CPU source priority: proxy-metrics.txt (process_cpu_usage) → JFR (jdk.CPULoad).
+    """
     result_path = os.path.join(probe_dir, "result.json")
     metrics_path = os.path.join(probe_dir, "proxy-metrics.txt")
     meta_path = os.path.join(probe_dir, "run-metadata.json")
 
-    if not os.path.exists(result_path) or not os.path.exists(metrics_path):
+    if not os.path.exists(result_path):
         return None
 
     with open(result_path) as f:
@@ -129,17 +173,38 @@ def load_probe(probe_dir, skip_first):
         with open(meta_path) as f:
             meta = json.load(f)
 
-    snapshots = parse_cpu_snapshots(metrics_path)
+    # Try proxy-metrics.txt first
+    cpu_source = "none"
+    snapshots = []
+    if os.path.exists(metrics_path):
+        snapshots = parse_cpu_snapshots(metrics_path)
+        if snapshots:
+            cpu_source = "metrics"
+
+    # Fall back to JFR if no process_cpu_usage in metrics
+    if not snapshots:
+        jfr_files = glob.glob(os.path.join(probe_dir, "*.jfr"))
+        if jfr_files:
+            node_cpus = int(meta.get("clusterNodes", {}).get("cpuPerNode", 1))
+            snapshots = parse_jfr_cpu_snapshots(jfr_files[0], node_cpus)
+            if snapshots:
+                cpu_source = f"jfr({node_cpus}cpu)"
+
+    if not snapshots:
+        return None
+
     usable, filter_method = filter_snapshots(snapshots, meta, skip_first)
 
     return {
         "achieved_rate": sum(rates) / len(rates),
         "message_size": meta.get("messageSize") or result.get("messageSize", 1024),
         "producers": meta.get("producersPerTopic") or result.get("producersPerTopic", 1),
+        "topics": meta.get("topics", 1),
         "target": meta.get("targetRate"),
         "all_snapshots": len(snapshots),
         "usable_snapshots": usable,
         "filter_method": filter_method,
+        "cpu_source": cpu_source,
     }
 
 
@@ -175,8 +240,8 @@ def main():
         sys.exit(1)
 
     print(f"{'Producers':>9}  {'Achieved':>10}  {'Target':>10}  {'Sat':>4}  "
-          f"{'CPU avg':>8}  {'Snapshots':>11}  {'Filter':>10}  {'Coeff (mc/MB/s)':>16}")
-    print("-" * 95)
+          f"{'CPU (mc)':>9}  {'Snapshots':>11}  {'Filter':>10}  {'Source':>14}  {'Coeff (mc/MB/s)':>16}")
+    print("-" * 110)
 
     coefficients = []
     last_data = None
@@ -187,7 +252,7 @@ def main():
             print(f"{n:>9}  (no data)")
             continue
 
-        achieved = data["achieved_rate"]
+        achieved = data["achieved_rate"] * data.get("topics", 1)
         msg_size = data["message_size"]
         usable = data["usable_snapshots"]
         target = data["target"]
@@ -203,7 +268,8 @@ def main():
         target_str = f"{target:>10,.0f}" if target else f"{'?':>10}"
         snap_str = f"{len(usable)}/{data['all_snapshots']}"
         print(f"{n:>9}  {achieved:>10,.0f}  {target_str}  {sat_flag:>4}  "
-              f"{cpu_avg:>7.3f}  {snap_str:>11}  {data['filter_method']:>10}  {coeff:>16.1f}")
+              f"{cpu_millicores:>9.0f}  {snap_str:>11}  {data['filter_method']:>10}  "
+              f"{data.get('cpu_source','?'):>14}  {coeff:>16.1f}")
 
         if not saturated:
             coefficients.append(coeff)
