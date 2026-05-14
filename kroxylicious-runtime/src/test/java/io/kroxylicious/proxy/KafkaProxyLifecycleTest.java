@@ -363,6 +363,39 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
+    void futureCompletesExceptionallyWhenShutdownFails() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                   filterDefinitions:
+                   - name: filter1
+                     type: FlakyFactory
+                     config:
+                       closeExceptionMsg: "simulated close failure"
+                   defaultFilters:
+                   - filter1
+                """;
+
+        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        CompletableFuture<Void> future = proxy.startup();
+
+        proxy.shutdown();
+
+        assertThat(future)
+                .isCompletedExceptionally()
+                .failsWithin(java.time.Duration.ZERO)
+                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
+                .withCauseInstanceOf(RuntimeException.class)
+                .withMessageContaining("simulated close failure");
+    }
+
+    @Test
     void shouldTransitionToStoppedOnStartupFailure() throws Exception {
         // given
         var config = """
