@@ -1,0 +1,47 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KroxyliciousSidecarConfig
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+metadata:
+  name: all-fields-config
+  namespace: webhook-validation-test
+spec:
+  virtualClusters:
+    - name: demo
+      targetBootstrapServers: kafka.example.com:9092
+      bootstrapPort: 9092
+      nodeIdRange:
+        startInclusive: 0
+        endInclusive: 2
+      targetClusterTls:
+        trustAnchorSecretRef:
+          name: kafka-ca-cert
+          key: ca.crt
+  proxyImage: quay.io/kroxylicious/kroxylicious:latest
+  managementPort: 9082
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  setBootstrapEnvVar: true
+  filterDefinitions:
+    - name: myFilter
+      type: io.kroxylicious.filter.Example
+      config:
+        key: value
+  secretMounts:
+    - name: my-secret
+      secretName: app-secrets
+  plugins:
+    - name: example-plugin
+      image:
+        reference: quay.io/kroxylicious/example@sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef
+        pullPolicy: IfNotPresent

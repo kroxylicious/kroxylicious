@@ -23,21 +23,20 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.test.RequestFactory;
+import io.kroxylicious.testing.filter.RequestFactory;
 
-import static io.kroxylicious.test.assertj.ResponseAssert.assertThat;
+import static io.kroxylicious.testing.filter.assertj.ResponseAssert.assertThat;
 import static org.junit.jupiter.api.Named.named;
 
 class KafkaProxyExceptionMapperTest {
-
-    private static final SSLHandshakeException HANDSHAKE_EXCEPTION = new SSLHandshakeException("it went wrong");
 
     @ParameterizedTest
     @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request, new BrokerNotAvailableException("handshake failure", HANDSHAKE_EXCEPTION));
+        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponse(request,
+                new BrokerNotAvailableException("handshake failure", new SSLHandshakeException("it went wrong")));
 
         // Then
         assertThat(response)

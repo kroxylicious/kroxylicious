@@ -67,6 +67,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Counter clientToProxyErrorCounter;
     @Nullable
     private final Long unauthenticatedIdleMillis;
+    private final VirtualClusterRegistry virtualClusterRegistry;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -76,7 +77,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointReconciler endpointReconciler,
                                  ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
-                                 Optional<NettySettings> proxyNettySettings) {
+                                 Optional<NettySettings> proxyNettySettings,
+                                 VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.proxyProtocolMode = proxyProtocolMode;
@@ -87,6 +89,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
+        this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry);
     }
 
     @Override
@@ -127,7 +130,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 return null;
                             }
                             try {
-                                KafkaProxyInitializer.this.addHandlers(ch, binding, kafkaSession);
+                                KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
                                 ctx.fireChannelActive();
                             }
                             catch (Throwable t1) {
@@ -168,7 +171,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
                         }
                         else {
-                            KafkaProxyInitializer.this.addHandlers(ch, binding, kafkaSession);
+                            KafkaProxyInitializer.this.initConnection(ch, binding, kafkaSession);
                             promise.setSuccess(sslContext.get());
                         }
                     }
@@ -203,16 +206,28 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     @VisibleForTesting
-    void addHandlers(Channel ch, EndpointBinding binding, KafkaSession kafkaSession) {
+    void initConnection(Channel ch, EndpointBinding binding, KafkaSession kafkaSession) {
+        var virtualCluster = binding.endpointGateway().virtualCluster();
+        var clusterName = virtualCluster.getClusterName();
+
+        TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
+        if (!virtualClusterRegistry.registerConnection(clusterName, proxyChannelStateMachine)) {
+            rejectConnection(ch, clusterName);
+            return;
+        }
+        ch.closeFuture().addListener(f -> virtualClusterRegistry.deregisterConnection(clusterName, proxyChannelStateMachine));
+        addHandlers(ch, binding, subjectBuilder, proxyChannelStateMachine);
+    }
+
+    private void addHandlers(Channel ch, EndpointBinding binding, TransportSubjectBuilder subjectBuilder, ProxyChannelStateMachine proxyChannelStateMachine) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
+
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
-
-        TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(binding, subjectBuilder, kafkaSession);
 
         var dp = new DelegatingDecodePredicate();
         // The decoder, this only cares about the filters
@@ -267,6 +282,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(clusterName, nodeId);
         return new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
+    }
+
+    private void rejectConnection(Channel ch, String clusterName) {
+        LOGGER.atInfo()
+                .addKeyValue("virtualCluster", clusterName)
+                .log("Rejecting new connection - virtual cluster is draining");
+        ch.close();
     }
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {

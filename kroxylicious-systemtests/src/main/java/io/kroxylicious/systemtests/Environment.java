@@ -61,6 +61,7 @@ public class Environment {
     private static final String TEST_CLIENTS_PULL_SECRET_ENV = "TEST_CLIENTS_PULL_SECRET";
     private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV = "KROXYLICIOUS_OPERATOR_INSTALL_DIR";
+    private static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_ENV = "KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR";
     private static final String CURL_IMAGE_ENV = "CURL_IMAGE";
 
     /**
@@ -97,23 +98,25 @@ public class Environment {
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final boolean SKIP_STRIMZI_INSTALL_DEFAULT = false;
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
-    private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("user.dir") + "/target/logs/";
+    private static final String USER_DIR = System.getProperty("user.dir");
+    private static final String CLUSTER_DUMP_DIR_DEFAULT = USER_DIR + "/target/logs/";
     public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
     private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = "test";
     private static final String USE_CLOUD_KMS_DEFAULT = "false";
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
-    private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.13.0-kafka-" + KAFKA_VERSION_DEFAULT;
+    private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:0.14.0-kafka-" + KAFKA_VERSION_DEFAULT;
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
     private static final String CATALOG_NAMESPACE_DEFAULT = "openshift-marketplace";
     private static final boolean SYNC_RESOURCES_DELETION_DEFAULT = false;
     private static final String ARCHITECTURE_DEFAULT = System.getProperty("os.arch");
-    private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT = System.getProperty("user.dir") + "/target/kroxylicious-operator-dist/install/";
+    private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT = USER_DIR + "/target/kroxylicious-operator-dist/install/";
+    private static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_DEFAULT = USER_DIR + "/target/kroxylicious-admission-dist/install/";
     public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR
-            + "/curlimages/curl:8.19.0@sha256:9a6f6a17667960e077f1b153009aaf18ac99a622221084e1938a45a06fff057a";
+            + "/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -175,6 +178,8 @@ public class Environment {
     public static final String ARCHITECTURE = ENVIRONMENT_VARIABLES.getOrDefault(ARCHITECTURE_ENV, ARCHITECTURE_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV,
             KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT);
+    public static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_ENV,
+            KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_DEFAULT);
     public static final String CURL_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(CURL_IMAGE_ENV, CURL_IMAGE_DEFAULT);
 
     private static String readMetadataProperty(String property) {

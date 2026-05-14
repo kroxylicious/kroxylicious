@@ -67,16 +67,22 @@ class ProduceRequestValidatorBuilder {
         var validators = new ArrayList<BytebufValidator>();
         valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
         valueRule.getSchemaValidationConfig().ifPresent(
-                config -> validators.add(BytebufValidators.jsonSchemaValidator(
-                        buildSchemaResolverConfig(config),
-                        config.apicurioId(),
-                        config.wireFormatVersion())));
+                config -> validators.add(buildSchemaValidator(config)));
         valueRule.getJwsSignatureValidationConfig().ifPresent(
                 config -> validators
                         .add(BytebufValidators.jwsSignatureValidator(config.getJsonWebKeySet(), config.getAlgorithms(), config.getHeaderOptions(),
                                 config.getContentOptions())));
 
         return BytebufValidators.chainOf(validators);
+    }
+
+    private static BytebufValidator buildSchemaValidator(SchemaValidationConfig config) {
+        var schemaResolverConfig = buildSchemaResolverConfig(config);
+        return switch (config.schemaType()) {
+            case JSON_SCHEMA -> BytebufValidators.jsonSchemaValidator(schemaResolverConfig, config.apicurioId(), config.wireFormatVersion());
+            case AVRO -> BytebufValidators.avroSchemaValidator(schemaResolverConfig, config.apicurioId(), config.wireFormatVersion());
+            case PROTOBUF -> BytebufValidators.protobufSchemaValidator(schemaResolverConfig, config.apicurioId(), config.wireFormatVersion());
+        };
     }
 
     private static Map<String, Object> buildSchemaResolverConfig(SchemaValidationConfig config) {

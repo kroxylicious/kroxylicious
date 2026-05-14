@@ -10,8 +10,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacade;
 import io.kroxylicious.systemtests.installation.kms.vault.Vault;
+import io.kroxylicious.testing.kms.vault.AbstractVaultTestKmsFacade;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

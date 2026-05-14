@@ -224,17 +224,22 @@ class EntityIsolationFilter implements RequestFilter, ResponseFilter {
             var toRemove = new ArrayList<ApiVersionsResponseData.ApiVersion>();
             ApiVersionsResponseData.ApiVersionCollection apiVersions = response.apiKeys();
             for (var version : apiVersions) {
-                var key = ApiKeys.forId(version.apiKey());
-                var processor = processorMap.get(key);
-                if (processor != null) {
-                    // Produce is special-cased owing to https://github.com/kroxylicious/kroxylicious/pull/2851 / KAFKA-18659
-                    var min = asShort(key == ApiKeys.PRODUCE ? 0 : Math.max(processor.minSupportedVersion(), version.minVersion()));
-                    var max = asShort(Math.min(processor.maxSupportedVersion(), version.maxVersion()));
-                    version.setMinVersion(min);
-                    version.setMaxVersion(max);
+                if (!ApiKeys.hasId(version.apiKey())) {
+                    toRemove.add(version);
                 }
                 else {
-                    toRemove.add(version);
+                    var key = ApiKeys.forId(version.apiKey());
+                    var processor = processorMap.get(key);
+                    if (processor != null) {
+                        // Produce is special-cased owing to https://github.com/kroxylicious/kroxylicious/pull/2851 / KAFKA-18659
+                        var min = asShort(key == ApiKeys.PRODUCE ? 0 : Math.max(processor.minSupportedVersion(), version.minVersion()));
+                        var max = asShort(Math.min(processor.maxSupportedVersion(), version.maxVersion()));
+                        version.setMinVersion(min);
+                        version.setMaxVersion(max);
+                    }
+                    else {
+                        toRemove.add(version);
+                    }
                 }
             }
             apiVersions.removeAll(toRemove);

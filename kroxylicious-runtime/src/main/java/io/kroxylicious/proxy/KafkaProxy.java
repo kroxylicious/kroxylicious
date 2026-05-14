@@ -57,11 +57,12 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
-import io.kroxylicious.proxy.internal.VirtualClusterLifecycleManager;
-import io.kroxylicious.proxy.internal.VirtualClusterManager;
+import io.kroxylicious.proxy.internal.VirtualClusterLifecycle;
+import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -151,19 +152,29 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
-    private final VirtualClusterManager virtualClusterManager;
+    private final VirtualClusterRegistry virtualClusterRegistry;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
+        this(pfr, config, features, defaultRegistry(config, pfr));
+    }
+
+    @VisibleForTesting
+    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.virtualClusterModels = config.virtualClusterModel();
+        this.virtualClusterRegistry = requireNonNull(virtualClusterRegistry);
+        this.virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
-        this.virtualClusterManager = new VirtualClusterManager(virtualClusterModels, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
+    }
+
+    private static VirtualClusterRegistry defaultRegistry(Configuration config, PluginFactoryRegistry pfr) {
+        var models = config.virtualClusterModel(pfr);
+        return new VirtualClusterRegistry(models, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
                 .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
@@ -247,10 +258,10 @@ public final class KafkaProxy implements AutoCloseable {
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings));
+                            proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings));
+                            proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -263,7 +274,7 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            virtualClusterModels.forEach(model -> virtualClusterManager.initializationSucceeded(model.getClusterName()));
+            virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationSucceeded(model.getClusterName()));
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
@@ -277,7 +288,7 @@ public final class KafkaProxy implements AutoCloseable {
             // rather than relying on the caller to call shutdown() separately. Currently the callback only logs.
             // All VCs are failed with the same exception because startup is all-or-nothing:
             // initializationSucceeded is only called after all VCs register successfully (line 263).
-            virtualClusterModels.forEach(model -> virtualClusterManager.initializationFailed(model.getClusterName(), e));
+            virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationFailed(model.getClusterName(), e));
             shutdown();
             throw new LifecycleException("Startup completed exceptionally", e);
         }
@@ -366,7 +377,12 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
-     * Shuts down a running proxy.
+     * Shuts down a running proxy. The sequence is:
+     * <ol>
+     *   <li>Unbind ports — prevents new connections from arriving</li>
+     *   <li>Drain existing connections gracefully via {@code shutdownAllClusters()}</li>
+     *   <li>Shut down Netty event groups — force-closes any connections that did not drain in time</li>
+     * </ol>
      */
     public void shutdown() {
         if (!running.getAndSet(false)) {
@@ -375,20 +391,12 @@ public final class KafkaProxy implements AutoCloseable {
         try {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Shutting down");
-            virtualClusterManager.transitionAllToDraining();
+
+            // Unbind ports first so no new connections can arrive after the drain snapshot
+            // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —
+            // it does NOT disconnect existing client connections.
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
-                var closeFutures = new ArrayList<Future<?>>();
-                if (proxyEventGroup != null) {
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
-                }
-                if (managementEventGroup != null) {
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully());
-                }
-                closeFutures.forEach(Future::syncUninterruptibly);
-                if (filterChainFactory != null) {
-                    filterChainFactory.close();
-                }
                 if (t != null) {
                     STARTUP_SHUTDOWN_LOGGER.atWarn()
                             .setCause(t)
@@ -397,12 +405,36 @@ public final class KafkaProxy implements AutoCloseable {
                 }
                 return null;
             }).toCompletableFuture().join();
-            virtualClusterManager.completeDraining();
+
+            try {
+                virtualClusterRegistry.shutdownAllClusters();
+                STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
+            }
+            catch (Exception e) {
+                STARTUP_SHUTDOWN_LOGGER.atWarn()
+                        .addKeyValue("error", e.getMessage())
+                        .log("Connection drain completed with errors — Netty shutdown will force-close remaining");
+            }
+
+            var closeFutures = new ArrayList<Future<?>>();
+            if (proxyEventGroup != null) {
+                closeFutures.addAll(proxyEventGroup.shutdownGracefully());
+            }
+            if (managementEventGroup != null) {
+                closeFutures.addAll(managementEventGroup.shutdownGracefully());
+            }
+            closeFutures.forEach(Future::syncUninterruptibly);
+
+            if (filterChainFactory != null) {
+                filterChainFactory.close();
+            }
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
         }
         finally {
+            // Close virtual cluster models to release TLS credential supplier resources
+            virtualClusterModels.forEach(VirtualClusterModel::close);
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
@@ -410,7 +442,6 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown.complete(null);
             LOGGER.atInfo()
                     .log("Shut down completed");
-
         }
     }
 
@@ -421,8 +452,22 @@ public final class KafkaProxy implements AutoCloseable {
      */
     @VisibleForTesting
     @Nullable
-    VirtualClusterLifecycleManager lifecycleManagerFor(String clusterName) {
-        return virtualClusterManager.lifecycleManagerFor(clusterName);
+    VirtualClusterLifecycle lifecycleFor(String clusterName) {
+        return virtualClusterRegistry.lifecycleFor(clusterName);
+    }
+
+    /**
+     * Returns the actual local port that the proxy is listening on for the given bind address and configured port.
+     * Useful when the configured port is {@link EndpointRegistry#OS_ASSIGNED_PORT} (meaning the OS assigns an ephemeral port at startup).
+     * Must only be called after a successful {@link #startup()}.
+     *
+     * @param bindAddress the bind address used in the proxy configuration, or {@code null} for any-address bindings
+     * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
+     * @return the actual local port the proxy is listening on
+     */
+    @VisibleForTesting
+    int listeningPort(@Nullable String bindAddress, int port) {
+        return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
     }
 
     @Override

@@ -241,10 +241,4 @@ native memory growth in the coordinator JVM. The polling interval is controlled 
 - On-cluster sweep coordinator ([#3493](https://github.com/kroxylicious/kroxylicious/issues/3493))
   — run `measure-overhead.sh` as a Kubernetes Job so long sweeps don't require a laptop to stay awake
 
-## Contributing
 
-This project follows Kroxylicious contribution guidelines:
-
-- All commits must be signed off with DCO: `git commit -s`
-- Follow the conventional commit format for PR titles
-- Add `Assisted-by: Claude Sonnet 4.6 <noreply@anthropic.com>` to commits assisted by Claude

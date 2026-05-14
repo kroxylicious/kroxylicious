@@ -6,8 +6,6 @@
 
 package io.kroxylicious.filter.validation;
 
-import javax.annotation.Nullable;
-
 import io.kroxylicious.filter.validation.config.ValidationConfig;
 import io.kroxylicious.filter.validation.validators.request.ProduceRequestValidator;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -17,6 +15,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = ValidationConfig.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.validation.RecordValidation", since = "0.19.0")

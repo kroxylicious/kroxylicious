@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,6 +28,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -57,7 +59,7 @@ class KafkaProxyBackendHandlerTest {
     void setUp() {
         outboundChannel = new EmbeddedChannel();
         var virtualClusterModel = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("localhost:9090", Optional.empty()), false, false,
-                List.of());
+                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
         virtualClusterModel.addGateway("default", NODE_IDENTIFICATION_STRATEGY, Optional.empty());
         when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualClusterModel);
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
@@ -198,5 +200,27 @@ class KafkaProxyBackendHandlerTest {
 
         // Then
         verify(proxyChannelStateMachine).onServerWritable();
+    }
+
+    @Test
+    void serverChannelReturnsNullBeforeRegistration() {
+        // Given — a fresh handler not yet attached to any pipeline (serverCtx still null)
+        var freshHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
+
+        // When / Then
+        assertThat(freshHandler.serverChannel()).isNull();
+    }
+
+    @Test
+    void serverChannelReturnsContextChannelAfterRegistration() {
+        // Given — adding the handler to a registered channel does not retroactively fire
+        // channelRegistered, so we need to fire it explicitly to populate serverCtx
+        outboundChannel.pipeline().fireChannelRegistered();
+
+        // When
+        Channel resolved = kafkaProxyBackendHandler.serverChannel();
+
+        // Then
+        assertThat(resolved).isSameAs(outboundChannel);
     }
 }

@@ -1,0 +1,42 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: admission-webhook
+:guide: admission-webhook
+
+[id="using-book-{context}"]
+= Kroxylicious Admission Webhook
+
+[IMPORTANT]
+====
+The Kroxylicious Admission Webhook is an *early access* feature and is not yet ready for general use.
+
+The `KroxyliciousSidecarConfig` custom resource API (`sidecar.kroxylicious.io/v1alpha1`) is subject to change without notice in future releases.
+Do not rely on the stability of this API for production workloads.
+====
+
+[role="_abstract"]
+include::_modules/admission-webhook/con-about-{guide}-guide.adoc[leveloffset=+2]
+
+include::_modules/admission-webhook/con-{guide}-overview.adoc[leveloffset=+1]
+
+include::_modules/admission-webhook/con-api-compatibility-{guide}.adoc[leveloffset=+1]
+
+// installing
+include::_assemblies/assembly-{guide}-install.adoc[leveloffset=+1]
+
+// using
+include::_modules/admission-webhook/proc-using-{guide}.adoc[leveloffset=+1]
+
+// TODO: advanced configuration (filters, TLS, delegated annotations, plugins)
+// TODO: troubleshooting
+// TODO: uninstalling
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]

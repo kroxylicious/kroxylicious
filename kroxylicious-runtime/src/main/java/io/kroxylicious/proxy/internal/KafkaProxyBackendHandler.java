@@ -206,6 +206,14 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
+     * Returns the upstream (proxy→Kafka) channel, or null if not yet registered.
+     */
+    @Nullable
+    Channel serverChannel() {
+        return serverCtx != null ? serverCtx.channel() : null;
+    }
+
+    /**
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ProxyChannelState.Closed} state.
      */
     public void inClosed() {

@@ -3,88 +3,151 @@ package ${package}.util;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.record.AbstractRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
-import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.kafka.transform.RecordTransform;
 import ${package}.config.SampleFilterConfig;
 
 /**
- * Transformer class for the sample filters. Provides static transform functions for find-and-replace
- * transformation of data in ProduceRequests and FetchResponses.
+ * A {@link RecordTransform} implementation used by the sample filters to perform find-and-replace
+ * on the UTF-8 encoded value of each Kafka {@link Record}.
+ *
+ * <p>Instances are stateful and follow the {@link RecordTransform} lifecycle:
+ * <ol>
+ * <li>
+ *     {@link SampleFilterTransformer#init} is called first to pre-compute the transformed value.
+ *     This is where the find-and-replace occurs.
+ * </li>
+ * <li>
+ *     {@code SampleFilterTransformer#transform*()} methods are then called to supply the fields
+ *     of the new record (offset, timestamp, key, value, and headers).
+ * </li>
+ * <li>
+ *     {@link SampleFilterTransformer#resetAfterTransform} is called last to clear internal state
+ *     and ready the instance for the next record.
+ * </li>
+ * </ol>
+ *
+ * In this implementation, only the record value is modified. Offset, timestamp, key, and headers
+ * are passed through unchanged.
  */
-public class SampleFilterTransformer {
+public class SampleFilterTransformer implements RecordTransform<Void> {
+
+    private final String findValue;
+    private final String replacementValue;
+    private ByteBuffer transformedValue;
 
     /**
-     * Transforms the given partition data according to the provided configuration.
-     * @param partitionData the partition data to be transformed
-     * @param context the context
-     * @param config the transform configuration
+     * Creates a transformer that replaces all occurrences of {@code findValue} with
+     * {@code replacementValue} in the UTF-8 encoded value of each Kafka {@link Record}.
+     *
+     * @param findValue the regex pattern to search for in the record value
+     * @param replacementValue the string to substitute for each match
      */
-    public static void transform(ProduceRequestData.PartitionProduceData partitionData, FilterContext context, SampleFilterConfig config) {
-        partitionData.setRecords(transformPartitionRecords((AbstractRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
+    public SampleFilterTransformer(String findValue, String replacementValue) {
+        this.findValue = findValue;
+        this.replacementValue = replacementValue;
     }
 
     /**
-     * Transforms the given partition data according to the provided configuration.
-     * @param partitionData the partition data to be transformed
-     * @param context the context
-     * @param config the transform configuration
+     * Called once per {@link RecordBatch} before records in the batch are processed.
+     * This transformer does not need batch-level state, so this is a no-op.
      */
-    public static void transform(FetchResponseData.PartitionData partitionData, FilterContext context, SampleFilterConfig config) {
-        partitionData.setRecords(transformPartitionRecords((AbstractRecords) partitionData.records(), context, config.getFindValue(), config.getReplacementValue()));
-    }
+    @Override
+    public void initBatch(RecordBatch batch) {}
 
     /**
-     * Performs find-and-replace transformations on the given partition records.
-     * @param records the partition records to be transformed
-     * @param context the context
-     * @param findValue the value to be replaced
-     * @param replacementValue the replacement value
-     * @return the transformed partition records
+     * Called once per record before any {@code transform*()} methods are invoked.
+     * Applies the find-and-replace to the record's value and caches the result so
+     * that {@link #transformValue(Record)} can be called repeatedly without repeating the work.
+     * Records with a {@code null} value are handled gracefully by storing {@code null}.
+     *
+     * @param state unused — this transformer requires no external state
+     * @param record the record about to be transformed
      */
-    private static AbstractRecords transformPartitionRecords(AbstractRecords records, FilterContext context, String findValue, String replacementValue) {
-        if (records.batchIterator().hasNext()) {
-            ByteBufferOutputStream stream = context.createByteBufferOutputStream(records.sizeInBytes());
-            MemoryRecordsBuilder newRecords = createMemoryRecordsBuilder(stream, records.firstBatch());
-
-            for (RecordBatch batch : records.batches()) {
-                for (Record batchRecord : batch) {
-                    newRecords.appendWithOffset(batchRecord.offset(), batchRecord.timestamp(), batchRecord.key(),
-                            transformRecord(batchRecord.value(), findValue, replacementValue),
-                            batchRecord.headers());
-                }
-            }
-            return newRecords.build();
+    @Override
+    public void init(Void state, Record record) {
+        ByteBuffer value = record.value();
+        if (value != null) {
+            String original = StandardCharsets.UTF_8.decode(value.duplicate()).toString();
+            transformedValue = ByteBuffer.wrap(original.replaceAll(findValue, replacementValue).getBytes(StandardCharsets.UTF_8));
         }
-        return records;
+        else {
+            transformedValue = null;
+        }
     }
 
     /**
-     * Performs a find-and-replace transformation of a given record value.
-     * @param in the record value to be transformed
-     * @param findValue the value to be replaced
-     * @param replacementValue the replacement value
-     * @return the transformed record value
+     * Returns the record's offset unchanged. This sample does not modify offsets.
+     *
+     * @param record the record being transformed
+     * @return the original record offset
      */
-    private static ByteBuffer transformRecord(ByteBuffer in, String findValue, String replacementValue) {
-        return ByteBuffer.wrap(new String(StandardCharsets.UTF_8.decode(in).array()).replaceAll(findValue, replacementValue).getBytes(StandardCharsets.UTF_8));
+    @Override
+    public long transformOffset(Record record) {
+        return record.offset();
     }
 
     /**
-     * Instantiates a MemoryRecordsBuilder object using the given stream. This duplicates some of the
-     * functionality in io.kroxylicious.proxy.internal, but we aren't supposed to import from there.
+     * Returns the record's timestamp unchanged. This sample does not modify timestamps.
+     *
+     * @param record the record being transformed
+     * @return the original record timestamp
      */
-    private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream, RecordBatch firstBatch) {
-        return new MemoryRecordsBuilder(stream, firstBatch.magic(), Compression.of(firstBatch.compressionType()).build(), firstBatch.timestampType(),
-                firstBatch.baseOffset(),
-                firstBatch.maxTimestamp(), firstBatch.producerId(), firstBatch.producerEpoch(), firstBatch.baseSequence(), firstBatch.isTransactional(),
-                firstBatch.isControlBatch(), firstBatch.partitionLeaderEpoch(), stream.remaining());
+    @Override
+    public long transformTimestamp(Record record) {
+        return record.timestamp();
+    }
+
+    /**
+     * Returns the record's key unchanged. This sample only transforms record values.
+     *
+     * @param record the record being transformed
+     * @return the original record key
+     */
+    @Override
+    public ByteBuffer transformKey(Record record) {
+        return record.key();
+    }
+
+    /**
+     * Returns the transformed record value computed by {@link SampleFilterTransformer#init}.
+     * A duplicate of the transformed record value buffer is returned leaving the original
+     * for reuse by {@link SampleFilterTransformer}.
+     *
+     * @param record the record being transformed
+     * @return the find-and-replace result, or {@code null} if the original record value was {@code null}
+     */
+    @Override
+    public ByteBuffer transformValue(Record record) {
+        return transformedValue == null ? null : transformedValue.duplicate();
+    }
+
+    /**
+     * Returns the record's headers unchanged. This sample does not modify headers.
+     *
+     * @param record the record being transformed
+     * @return the original record headers
+     */
+    @Override
+    public Header[] transformHeaders(Record record) {
+        return record.headers();
+    }
+
+    /**
+     * Called after all {@code transform*()} methods have been invoked for a record.
+     * Clears the buffer containing the transformed record value in order to prepare the
+     * transformer for the next record.
+     *
+     * @param state unused — this transformer requires no external state
+     * @param record the record that was just transformed
+     */
+    @Override
+    public void resetAfterTransform(Void state, Record record) {
+        if (transformedValue != null) {
+            transformedValue.clear();
+        }
     }
 }

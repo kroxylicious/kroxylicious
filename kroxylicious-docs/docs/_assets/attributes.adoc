@@ -40,6 +40,9 @@
 
 :AppAssetArtifactBase: kroxylicious-app-{KroxyliciousVersion}
 :OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+// TODO: Update when the admission webhook release artifact names are finalized
+:WebhookAssetZipFileName: kroxylicious-webhook-{KroxyliciousVersion}.zip
+:WebhookAssetTgzFileName: kroxylicious-webhook-{KroxyliciousVersion}.tar.gz
 :AppAssetZipFileName: {AppAssetArtifactBase}-bin.zip
 :OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 :AppAssetTgzFileName: {AppAssetArtifactBase}-bin.tar.gz
@@ -153,6 +156,10 @@ ifndef::DocRoot[:DocRoot: ..]
 :OperatorGuideUrl: {DocRoot}/kroxylicious-operator/
 :OperatorGuideText: Kroxylicious Operator for Kubernetes guide
 :OperatorGuide: link:{OperatorGuideUrl}[{OperatorGuideText}]
+
+:AdmissionWebhookGuideUrl: {DocRoot}/admission-webhook-guide/
+:AdmissionWebhookGuideText: Kroxylicious Admission Webhook guide
+:AdmissionWebhookGuide: link:{AdmissionWebhookGuideUrl}[{AdmissionWebhookGuideText}]
 
 //Filter guides
 :AuthorizationGuideUrl: {DocRoot}/authorization-guide/

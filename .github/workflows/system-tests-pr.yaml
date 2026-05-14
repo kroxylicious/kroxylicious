@@ -40,8 +40,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_images:
-    uses: ./.github/workflows/build-kroxylicious-container-images.yaml
+  build_artifacts:
+    uses: ./.github/workflows/build-kroxylicious-artifacts.yaml
 
   set_variables:
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
           echo "$KAFKA_CLIENT"
 
   run_system_tests:
-    needs: [build_images,set_variables]
+    needs: [build_artifacts,set_variables]
     uses: ./.github/workflows/run-system-tests.yaml
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}

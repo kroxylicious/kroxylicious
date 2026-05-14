@@ -37,7 +37,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.doctools.asciidoc.Block;
 import io.kroxylicious.doctools.asciidoc.BlockExtractor;
-import io.kroxylicious.test.ShellUtils;
+import io.kroxylicious.testing.integration.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

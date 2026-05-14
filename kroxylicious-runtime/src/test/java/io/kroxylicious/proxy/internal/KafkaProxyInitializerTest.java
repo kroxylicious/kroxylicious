@@ -31,6 +31,7 @@ import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -48,6 +49,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
@@ -120,6 +122,7 @@ class KafkaProxyInitializerTest {
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.eventLoop()).thenReturn(eventLoop);
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
+        when(channel.closeFuture()).thenReturn(mock(ChannelFuture.class));
 
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
@@ -128,7 +131,7 @@ class KafkaProxyInitializerTest {
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), logNetwork,
-                logFrames, List.of());
+                logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
@@ -225,7 +228,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+        kafkaProxyInitializer.initConnection(channel, endpointBinding,
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
@@ -247,7 +250,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+        kafkaProxyInitializer.initConnection(channel, endpointBinding,
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
@@ -270,7 +273,7 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage);
 
         // When
-        kafkaProxyInitializer.addHandlers(channel, endpointBinding,
+        kafkaProxyInitializer.initConnection(channel, endpointBinding,
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
 
         // Then
@@ -369,6 +372,23 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
+    void shouldCloseNewConnectionWhenVirtualClusterIsDraining() {
+        // given
+        var vcc = mock(VirtualClusterRegistry.class);
+        when(vcc.registerConnection(any(), any())).thenReturn(false);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, ProxyProtocolMode.DISABLED,
+                (endpoint, sniHostname) -> bindingStage, vcc);
+
+        // when
+        kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING));
+
+        // then
+        verify(channel).close();
+        verify(channelPipeline, never()).remove(anyString());
+        verify(channelPipeline, never()).addLast(anyString(), any());
+    }
+
+    @Test
     void testLoggingErrorHandlerPreventsExceptionPropagatingToChannel() {
         EmbeddedChannel embeddedChannel = new EmbeddedChannel();
         embeddedChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
@@ -392,6 +412,16 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver) {
+        var vcc = mock(VirtualClusterRegistry.class);
+        Mockito.lenient().when(vcc.registerConnection(any(), any())).thenReturn(true);
+        return createKafkaProxyInitializer(tls, proxyProtocolMode, bindingResolver, vcc);
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                              ProxyProtocolMode proxyProtocolMode,
+                                                              EndpointBindingResolver bindingResolver,
+                                                              VirtualClusterRegistry vcc) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
@@ -399,7 +429,8 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
-                Optional.ofNullable(proxyNettySettings));
+                Optional.ofNullable(proxyNettySettings),
+                vcc);
     }
 
     private void assertErrorHandlerAdded() {

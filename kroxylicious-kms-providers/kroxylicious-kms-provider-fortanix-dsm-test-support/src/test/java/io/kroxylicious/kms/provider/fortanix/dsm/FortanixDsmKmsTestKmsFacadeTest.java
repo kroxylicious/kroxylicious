@@ -21,10 +21,11 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.testing.kms.TestKekManager;
+import io.kroxylicious.testing.kms.TestKekManager.AlreadyExistsException;
+import io.kroxylicious.testing.kms.fortanix.FortanixDsmKmsTestKmsFacade;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;

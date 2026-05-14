@@ -15,9 +15,9 @@ import java.util.Objects;
  * @param kekRef - kek reference.
  * @param edek - edek bytes
  */
-record AwsKmsEdek(String kekRef,
-                  byte[] edek) {
-    AwsKmsEdek {
+public record AwsKmsEdek(String kekRef,
+                         byte[] edek) {
+    public AwsKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
         if (kekRef.isEmpty()) {

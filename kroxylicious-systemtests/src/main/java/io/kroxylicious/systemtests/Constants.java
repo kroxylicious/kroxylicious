@@ -51,7 +51,7 @@ public final class Constants {
     /**
      * API versions of Strimzi CustomResources
      */
-    public static final String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
+    public static final String KAFKA_API_VERSION_V1 = "kafka.strimzi.io/v1";
 
     /**
      * Listener names for Kafka cluster
@@ -103,6 +103,16 @@ public final class Constants {
     public static final String KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
     public static final String KROXYLICIOUS_KAFKA_SERVICE_KIND = "KafkaService";
     public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
+
+    /**
+     * Admission webhook related constants
+     */
+    public static final String ADMISSION_NAMESPACE = "kroxylicious-webhook";
+    public static final String ADMISSION_DEPLOYMENT_NAME = "kroxylicious-webhook";
+    public static final String ADMISSION_SERVICE_NAME = "kroxylicious-webhook";
+    public static final String ADMISSION_REGISTRATION_NAME = "kroxylicious-sidecar-injector";
+    public static final String ADMISSION_TLS_ISSUER_NAME = "kroxylicious-webhook-selfsigned";
+    public static final String ADMISSION_TLS_CERT_NAME = "kroxylicious-webhook-cert";
 
     /**
      * Service type names.

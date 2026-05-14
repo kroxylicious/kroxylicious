@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-kubernetes-parent</artifactId>
+        <version>0.21.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kroxylicious-admission</artifactId>
+    <name>Kubernetes Admission Webhook</name>
+    <description>A mutating admission webhook that injects Kroxylicious proxy sidecars into Kafka application pods</description>
+
+    <properties>
+        <!-- Error Prone disabled - fabric8 builders not compatible with -XDcompilePolicy=simple -->
+        <errorprone.skip>true</errorprone.skip>
+        <io.kroxylicious.webhook.image.name>quay.io/kroxylicious/webhook:${project.version}</io.kroxylicious.webhook.image.name>
+        <io.kroxylicious.webhook.image.archive>target/kroxylicious-webhook.img.tar.gz</io.kroxylicious.webhook.image.archive>
+        <!-- Used in packaging/install/03.Deployment manifest for the KROXYLICIOUS_IMAGE env var -->
+        <io.kroxylicious.proxy.image.name>quay.io/kroxylicious/proxy:${project.version}</io.kroxylicious.proxy.image.name>
+        <io.kroxylicious.proxy.image.archive>../../kroxylicious-app/target/kroxylicious-proxy.img.tar.gz</io.kroxylicious.proxy.image.archive>
+        <!-- Test plugin OCI image (simple-transform filter packaged as a scratch image) -->
+        <io.kroxylicious.test.plugin.image.name>localhost/kroxylicious/test-plugin:latest</io.kroxylicious.test.plugin.image.name>
+        <io.kroxylicious.test.plugin.image.archive>target/test-plugin.img.tar.gz</io.kroxylicious.test.plugin.image.archive>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- note, we're inheriting the jackson & micrometer BOMs from our parent pom -->
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-bom</artifactId>
+                <version>${kubernetes-client.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+        <!-- project dependencies -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-admission-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <!-- For the type-safe proxy Configuration model used to generate proxy config YAML.
+                 Same pattern as kroxylicious-operator. -->
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-runtime</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <!-- Only for knowing what TLS key material is acceptable -->
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+        </dependency>
+        <!-- fabric8 kubernetes client -->
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-client-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-client</artifactId>
+            <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-httpclient-jdk</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-admissionregistration</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-apiextensions</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Jackson -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-layout-template-json</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Annotations -->
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit-pioneer</groupId>
+            <artifactId>junit-pioneer</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-certificate-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-apps</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-server-mock</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-integration-test-support</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Used only by maven-dependency-plugin to copy JARs for the test plugin OCI image -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-simple-transform</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <testResources>
+            <testResource>
+                <directory>src/test/resources</directory>
+            </testResource>
+            <testResource>
+                <directory>src/test/resources-filtered</directory>
+                <filtering>true</filtering>
+            </testResource>
+        </testResources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>analyze</id>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                        <configuration>
+                            <ignoredUnusedDeclaredDependencies>
+                                <ignoredUnusedDeclaredDependency>io.fabric8:kubernetes-server-mock
+                                </ignoredUnusedDeclaredDependency>
+                                <!-- dependency analyzer seems not to grok that a dependency on a
+                                @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
+                                </ignoredUnusedDeclaredDependency>
+                                <!-- Used in KT integration tests, only compiled with dist profile -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-integration-test-support
+                                </ignoredUnusedDeclaredDependency>
+                                <!-- JARs copied for test plugin OCI image, not a compile dependency -->
+                                <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-simple-transform
+                                </ignoredUnusedDeclaredDependency>
+                            </ignoredUnusedDeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- Override parent's Error Prone compiler args (breaks fabric8 builders) -->
+                    <compilerArgs combine.self="override"/>
+                    <annotationProcessorPaths combine.self="override"/>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>
+                        @{jacoco.argline}
+                        -javaagent:${org.mockito:mockito-core:jar}
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>dist</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-test-plugin-jars</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>kroxylicious-simple-transform,kroxylicious-api,kroxylicious-kafka-message-tools</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/test-plugin-jars</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>app</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <descriptor>src/assembly/app.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipContainerImageBuild}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.webhook.image.name}</name>
+                                            <alias>webhook</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/webhook.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.webhook.image.archive}</saveFile>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>test-plugin-image</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipContainerImageBuild}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.test.plugin.image.name}</name>
+                                            <alias>test-plugin</alias>
+                                            <build>
+                                                <dockerFile>src/test/docker/test-plugin.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.test.plugin.image.archive}</saveFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-webhook-install</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <delimiters>
+                                        <delimiter>$[*]</delimiter>
+                                    </delimiters>
+                                    <resources>
+                                        <resource>
+                                            <directory>packaging</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                    <outputDirectory>target/packaged</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>dev.jbang</groupId>
+                        <artifactId>jbang-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
+                            <execution>
+                                <id>rename-crds</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <script>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/package_crds.java</script>
+                                    <args>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/packaged/install</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>kube-integration-test</id>
+                                <phase>integration-test</phase>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                </goals>
+                                <configuration>
+                                    <includes>
+                                        <include>**/KT*.java</include>
+                                        <include>**/*KT.java</include>
+                                        <include>**/*KTCase.java</include>
+                                    </includes>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipKTs}</skip>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>kube-verify</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <!--suppress MavenModelInspection -->
+                                    <skip>${skipKTs}</skip>
+                                    <!--suppress MavenModelInspection -->
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

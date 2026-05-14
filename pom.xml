@@ -49,7 +49,7 @@
         <freemarker.version>2.3.34</freemarker.version>
         <guava.version>33.6.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.21.1</jackson.version>
+        <jackson.version>2.21.3</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.3</junit.version>
         <kafka.version>4.2.0</kafka.version>
@@ -57,7 +57,7 @@
         <log4j.version>2.25.4</log4j.version>
         <caffeine.version>3.2.3</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.2.12.Final</netty.version>
+        <netty.version>4.2.13.Final</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
@@ -65,24 +65,26 @@
         <mockito.version>5.23.0</mockito.version>
         <micrometer.version>1.16.4</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <sundr-builder-annotations.version>0.230.2</sundr-builder-annotations.version>
+        <sundr-builder-annotations.version>0.300.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-        <apicurio-schema-validation.version>0.1.3</apicurio-schema-validation.version>
-        <apicurio-registry.version>3.2.1</apicurio-registry.version>
-        <kiota.version>0.0.34</kiota.version>
+        <apicurio-schema-validation.version>0.1.4</apicurio-schema-validation.version>
+        <apicurio-registry.version>3.2.4</apicurio-registry.version>
+        <kiota.version>0.0.35</kiota.version>
+        <avro.version>1.12.1</avro.version>
+        <protobuf-java.version>4.34.1</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.51.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>1.0.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>7.6.1</kubernetes-client.version>
-        <maven.core.version>3.9.14</maven.core.version>
+        <maven.core.version>3.9.15</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <testcontainers.version>2.0.4</testcontainers.version>
+        <testcontainers.version>2.0.5</testcontainers.version>
         <azure.security.keyvault.keys.version>4.10.6</azure.security.keyvault.keys.version>
-        <lowkey.version>7.1.61</lowkey.version>
+        <lowkey.version>7.2.18</lowkey.version>
         <bouncycastle.version>1.84</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
@@ -91,7 +93,7 @@
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
         <opentest4j.version>1.3.0</opentest4j.version>
-        <azure.core.version>1.57.1</azure.core.version>
+        <azure.core.version>1.58.0</azure.core.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logcaptor.version>2.12.5</logcaptor.version>
@@ -308,7 +310,42 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-validation-avro</artifactId>
+                <version>${apicurio-schema-validation.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-validation-protobuf</artifactId>
+                <version>${apicurio-schema-validation.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-protobuf-schema-utilities</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro</artifactId>
+                <version>${avro.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>${protobuf-java.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-jsonschema-serde-kafka</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-avro-serde-kafka</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-protobuf-serde-kafka</artifactId>
                 <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
@@ -320,6 +357,11 @@
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-resolver</artifactId>
                 <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.kiota</groupId>
+                <artifactId>kiota-http-jdk</artifactId>
+                <version>${kiota.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
@@ -335,11 +377,6 @@
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-java-sdk-common</artifactId>
                 <version>${apicurio-registry.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.kiota</groupId>
-                <artifactId>kiota-http-jdk</artifactId>
-                <version>${kiota.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bitbucket.b_c</groupId>
@@ -562,6 +599,7 @@
         <module>kroxylicious-annotations</module>
         <module>kroxylicious-kafka-message-tools</module>
         <module>kroxylicious-kms</module>
+        <module>kroxylicious-certificate-test-support</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-tls-support</module>
         <module>kroxylicious-kms-providers</module>
@@ -574,10 +612,7 @@
         <module>kroxylicious-filter-archetype</module>
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
-        <module>kroxylicious-kubernetes-api</module>
-        <module>kroxylicious-operator-test-support</module>
-        <module>kroxylicious-operator</module>
-        <module>kroxylicious-operator-dist</module>
+        <module>kroxylicious-kubernetes</module>
         <module>kroxylicious-docs</module>
         <module>kroxylicious-authorizer-api</module>
         <module>kroxylicious-authorizer-providers</module>
@@ -620,7 +655,7 @@
                 <plugin>
                     <groupId>io.github.git-commit-id</groupId>
                     <artifactId>git-commit-id-maven-plugin</artifactId>
-                    <version>9.0.2</version>
+                    <version>10.0.0</version>
                 </plugin>
                 <plugin>
                     <groupId>com.mycila</groupId>
@@ -805,6 +840,9 @@
                     <groupId>dev.jbang</groupId>
                     <artifactId>jbang-maven-plugin</artifactId>
                     <version>0.0.8</version>
+                    <configuration>
+                        <jbangVersion>0.138.0</jbangVersion>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -1351,7 +1389,7 @@
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>--should-stop=ifError=FLOW</arg>
                                 <!-- The following <arg> cannot be split over multiple lines :-( -->
-                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -XepExcludedPaths:.*/target/generated-sources/.* -Xep:MissingOverride:ERROR -Xep:MutablePublicArray:ERROR -Xep:MathAbsoluteNegative:ERROR -Xep:EffectivelyPrivate:ERROR -Xep:ByteBufferBackingArray:ERROR -Xep:UnnecessaryMethodReference:ERROR -Xep:OperatorPrecedence:ERROR -Xep:ImmutableEnumChecker:ERROR -Xep:StatementSwitchToExpressionSwitch:ERROR -Xep:StaticAssignmentOfThrowable:ERROR</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

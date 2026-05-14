@@ -50,7 +50,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
-import io.kroxylicious.proxy.internal.filter.TopicNameCacheFilter;
+import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
@@ -58,7 +58,7 @@ import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.test.RequestFactory;
+import io.kroxylicious.testing.filter.RequestFactory;
 
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -591,6 +591,30 @@ class KafkaProxyFrontendHandlerTest {
         doReturn(mockPipeline).when(mockChannelCtx).pipeline();
         doReturn(inboundChannel.eventLoop()).when(mockChannelCtx).executor();
         return mockChannelCtx;
+    }
+
+    @Test
+    void clientChannelReturnsNullBeforeChannelActive() {
+        // Given — fresh handler whose channelActive has not yet fired (clientCtx still null)
+        var psm = mock(ProxyChannelStateMachine.class);
+        var handler = handler(new DelegatingDecodePredicate(), psm);
+
+        // When / Then
+        assertThat(handler.clientChannel()).isNull();
+    }
+
+    @Test
+    void clientChannelReturnsContextChannelAfterChannelActive() throws Exception {
+        // Given
+        var psm = mock(ProxyChannelStateMachine.class);
+        var handler = handler(new DelegatingDecodePredicate(), psm);
+        var ctx = mockChannelContext();
+
+        // When — channelActive populates clientCtx with the supplied ctx
+        handler.channelActive(ctx);
+
+        // Then
+        assertThat(handler.clientChannel()).isSameAs(inboundChannel);
     }
 
 }
