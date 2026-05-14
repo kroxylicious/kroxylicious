@@ -1,0 +1,64 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+{{- if .Values.kafka.metrics.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-jmx-metrics-config
+  labels:
+    app: kafka
+data:
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    rules:
+      # Request handler pool idle % — near 0 means Kafka I/O thread pool is saturated
+      - pattern: "kafka.server<type=KafkaRequestHandlerPool><>RequestHandlerAvgIdlePercent"
+        name: kafka_server_requesthandlerpool_requesthandleravagidle
+        type: GAUGE
+
+      # Network processor idle % — near 0 means network threads saturated
+      - pattern: "kafka.network<type=SocketServer><>NetworkProcessorAvgIdlePercent"
+        name: kafka_network_socketserver_networkprocessoravagidle
+        type: GAUGE
+
+      # Broker-wide byte rates — aggregate inbound/outbound throughput
+      - pattern: "kafka.server<type=BrokerTopicMetrics, name=BytesInPerSec><>OneMinuteRate"
+        name: kafka_server_brokertopicmetrics_bytesinpersec_rate
+        type: GAUGE
+      - pattern: "kafka.server<type=BrokerTopicMetrics, name=BytesOutPerSec><>OneMinuteRate"
+        name: kafka_server_brokertopicmetrics_bytesoutpersec_rate
+        type: GAUGE
+
+      # Messages in per second (broker total)
+      - pattern: "kafka.server<type=BrokerTopicMetrics, name=MessagesInPerSec><>OneMinuteRate"
+        name: kafka_server_brokertopicmetrics_messagesinpersec_rate
+        type: GAUGE
+
+      # Per-topic byte rates — identify which topic is hitting the ceiling
+      - pattern: "kafka.server<type=BrokerTopicMetrics, name=BytesInPerSec, topic=(.+)><>OneMinuteRate"
+        name: kafka_server_brokertopicmetrics_bytesinpersec_rate
+        labels:
+          topic: "$1"
+        type: GAUGE
+      - pattern: "kafka.server<type=BrokerTopicMetrics, name=BytesOutPerSec, topic=(.+)><>OneMinuteRate"
+        name: kafka_server_brokertopicmetrics_bytesoutpersec_rate
+        labels:
+          topic: "$1"
+        type: GAUGE
+
+      # ISR shrinks — indicates replica lag / replication bottleneck
+      - pattern: "kafka.server<type=ReplicaManager, name=IsrShrinksPerSec><>OneMinuteRate"
+        name: kafka_server_replicamanager_isrshrinks_rate
+        type: GAUGE
+
+      # Produce request latency — how long Kafka spends processing produce requests
+      - pattern: "kafka.network<type=RequestMetrics, name=TotalTimeMs, request=Produce><>(\w+)"
+        name: kafka_network_requestmetrics_totaltimems_produce
+        labels:
+          quantile: "$1"
+        type: GAUGE
+{{- end }}

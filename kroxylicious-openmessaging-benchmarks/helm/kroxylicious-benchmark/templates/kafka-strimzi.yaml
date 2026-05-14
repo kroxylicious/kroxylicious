@@ -15,6 +15,14 @@ spec:
     {{- if .Values.kafka.version }}
     version: {{ .Values.kafka.version }}
     {{- end }}
+    {{- if .Values.kafka.metrics.enabled }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-jmx-metrics-config
+          key: kafka-metrics-config.yml
+    {{- end }}
     listeners:
       - name: plain
         port: 9092
