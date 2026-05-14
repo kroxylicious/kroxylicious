@@ -55,7 +55,7 @@ class SharedInformerManagerTest {
         SharedInformerManager manager = new SharedInformerManager(client, Set.of());
 
         // when
-        Set<String> effectiveNamespaces = manager.getEffectiveNamespaces();
+        Set<String> effectiveNamespaces = manager.effectiveNamespaces();
 
         // then
         assertThat(effectiveNamespaces).isEmpty();
@@ -68,7 +68,7 @@ class SharedInformerManagerTest {
         SharedInformerManager manager = new SharedInformerManager(client, namespaces);
 
         // when
-        Set<String> effectiveNamespaces = manager.getEffectiveNamespaces();
+        Set<String> effectiveNamespaces = manager.effectiveNamespaces();
 
         // then
         assertThat(effectiveNamespaces).containsExactlyInAnyOrderElementsOf(namespaces);

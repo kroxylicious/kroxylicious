@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.informer;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -44,8 +45,8 @@ public class SharedInformerManager {
      * @param effectiveNamespaces the namespaces to watch (empty for all namespaces)
      */
     public SharedInformerManager(KubernetesClient client, Set<String> effectiveNamespaces) {
-        this.client = client;
-        this.effectiveNamespaces = effectiveNamespaces;
+        this.client = Objects.requireNonNull(client);
+        this.effectiveNamespaces = Set.copyOf(Objects.requireNonNull(effectiveNamespaces));
     }
 
     /**
@@ -104,7 +105,7 @@ public class SharedInformerManager {
      *
      * @return the effective namespaces
      */
-    public Set<String> getEffectiveNamespaces() {
+    public Set<String> effectiveNamespaces() {
         return effectiveNamespaces;
     }
 

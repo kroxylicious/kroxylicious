@@ -77,7 +77,7 @@ public class KafkaProtocolFilterReconciler implements
         // Get shared informers - all event sources of the same type share the same underlying cache
         var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
         var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
-        var allowedNamespaces = sharedInformerManager.getEffectiveNamespaces();
+        var allowedNamespaces = sharedInformerManager.effectiveNamespaces();
 
         var secretEventSource = createSharedInformerEventSource(
                 context,

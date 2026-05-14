@@ -6,14 +6,17 @@
 
 package io.kroxylicious.kubernetes.operator.informer;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.informers.ResourceEventHandler;
 import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
+import io.javaoperatorsdk.operator.processing.event.Event;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.AbstractEventSource;
 import io.javaoperatorsdk.operator.processing.event.source.Cache;
@@ -56,10 +59,10 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
                                      SecondaryToPrimaryMapper<R> secondaryToPrimaryMapper,
                                      Set<String> allowedNamespaces) {
         super(resourceClass, name);
-        this.sharedInformer = sharedInformer;
-        this.secondaryToPrimaryMapper = secondaryToPrimaryMapper;
-        this.primaryToSecondaryMapper = primaryToSecondaryMapper;
-        this.allowedNamespaces = allowedNamespaces;
+        this.sharedInformer = Objects.requireNonNull(sharedInformer);
+        this.secondaryToPrimaryMapper = Objects.requireNonNull(secondaryToPrimaryMapper);
+        this.primaryToSecondaryMapper = Objects.requireNonNull(primaryToSecondaryMapper);
+        this.allowedNamespaces = Objects.requireNonNull(allowedNamespaces);
     }
 
     /**
@@ -103,7 +106,7 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
         Set<ResourceID> primaryResourceIDs = secondaryToPrimaryMapper.toPrimaryResourceIDs(resource);
 
         // Trigger reconciliation for each affected primary resource
-        primaryResourceIDs.forEach(primaryID -> getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID)));
+        primaryResourceIDs.forEach(primaryID -> getEventHandler().handleEvent(new Event(primaryID)));
     }
 
     @Override
@@ -120,7 +123,7 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
         // Trigger reconciliation for all affected primary resources
         Stream.concat(oldPrimaryIDs.stream(), newPrimaryIDs.stream())
                 .distinct()
-                .forEach(primaryID -> getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID)));
+                .forEach(primaryID -> getEventHandler().handleEvent(new Event(primaryID)));
     }
 
     @Override
@@ -132,10 +135,8 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
 
         Set<ResourceID> primaryResourceIDs = secondaryToPrimaryMapper.toPrimaryResourceIDs(resource);
 
-        primaryResourceIDs.forEach(primaryID -> getEventHandler().handleEvent(new io.javaoperatorsdk.operator.processing.event.Event(primaryID)));
+        primaryResourceIDs.forEach(primaryID -> getEventHandler().handleEvent(new Event(primaryID)));
     }
-
-    // Cache implementation - delegates to the shared informer's cache
 
     @Override
     public Optional<R> get(ResourceID resourceID) {
@@ -164,6 +165,6 @@ public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetad
         return secondaryResourceIDs.stream()
                 .map(this::get)
                 .flatMap(Optional::stream)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
     }
 }
