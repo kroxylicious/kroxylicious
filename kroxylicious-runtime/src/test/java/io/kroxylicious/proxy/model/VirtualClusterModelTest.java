@@ -172,11 +172,13 @@ class VirtualClusterModelTest {
                     public Class<?> configType(String instanceName) {
                         return TestSupplierConfig.class;
                     }
+
                     @Nullable
                     @Override
                     public String pluginVersion(String instanceName) {
                         return null;
                     }
+
                     @Override
                     public Set<String> registeredInstanceNames() {
                         return Set.of("TestSupplierFactory");

@@ -33,11 +33,9 @@ class TlsCredentialSupplierManagerTest {
     private PluginFactoryRegistry pfr;
 
     // Test configuration classes
-    public record TestConfig(String value) {
-    }
+    public record TestConfig(String value) {}
 
-    public record InvalidConfig(String value) {
-    }
+    public record InvalidConfig(String value) {}
 
     // Test factory implementations
     @Plugin(configType = TestConfig.class)
@@ -517,8 +515,7 @@ class TlsCredentialSupplierManagerTest {
 
     @Test
     void testFactoryWithSharedResources() {
-        record SharedContext(TestConfig config, String sharedResource) {
-        }
+        record SharedContext(TestConfig config, String sharedResource) {}
 
         @Plugin(configType = TestConfig.class)
         class SharedResourceFactory implements ServerTlsCredentialSupplierFactory<TestConfig, SharedContext> {

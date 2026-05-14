@@ -332,7 +332,7 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("strimziKafkaRef missing listener name",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewStrimziKafkaRef()
@@ -360,7 +360,7 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             result.add(Arguments.argumentSet("unsupported strimziKafkaRef kind",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewStrimziKafkaRef()
@@ -386,7 +386,7 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
             result.add(Arguments.argumentSet("listeners not present",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewStrimziKafkaRef()
@@ -482,7 +482,7 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
             result.add(Arguments.argumentSet("crt trust bundle of pem store type",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewTls()

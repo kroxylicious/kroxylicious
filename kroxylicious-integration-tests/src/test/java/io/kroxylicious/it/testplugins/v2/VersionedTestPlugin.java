@@ -35,6 +35,5 @@ public class VersionedTestPlugin implements FilterFactory<VersionedTestPlugin.Co
         return new VersionedTestPluginFilter(configuration.tagValue(), configuration.tag);
     }
 
-    public record ConfigV2(@JsonProperty(required = true) int tagValue, @JsonProperty(required = true) int tag) {
-    }
+    public record ConfigV2(@JsonProperty(required = true) int tagValue, @JsonProperty(required = true) int tag) {}
 }
