@@ -13,10 +13,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+@Version("v1beta1")
 @Plugin(configType = PrincipalEntityNameMapperService.Config.class)
 public class PrincipalEntityNameMapperService implements EntityNameMapperService<PrincipalEntityNameMapperService.Config> {
     private static final Config DEFAULT_CONFIG = new Config(User.class, "-");

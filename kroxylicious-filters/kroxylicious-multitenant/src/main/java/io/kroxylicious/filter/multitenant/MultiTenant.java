@@ -14,12 +14,14 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link FilterFactory} for {@link MultiTenantFilter}.
  */
+@Version("v1beta1")
 @Plugin(configType = MultiTenantConfig.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.multitenant.MultiTenant", since = "0.19.0")
 public class MultiTenant implements FilterFactory<MultiTenantConfig, MultiTenantConfig> {

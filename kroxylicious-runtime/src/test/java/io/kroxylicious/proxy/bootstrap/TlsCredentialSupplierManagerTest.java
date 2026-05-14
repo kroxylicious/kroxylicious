@@ -21,6 +21,8 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,9 +33,11 @@ class TlsCredentialSupplierManagerTest {
     private PluginFactoryRegistry pfr;
 
     // Test configuration classes
-    public record TestConfig(String value) {}
+    public record TestConfig(String value) {
+    }
 
-    public record InvalidConfig(String value) {}
+    public record InvalidConfig(String value) {
+    }
 
     // Test factory implementations
     @Plugin(configType = TestConfig.class)
@@ -142,6 +146,12 @@ class TlsCredentialSupplierManagerTest {
                             case "TestSupplierFactory", "FailingInitializeFactory", "FailingCreateFactory" -> TestConfig.class;
                             default -> throw new RuntimeException("Unknown factory: " + instanceName);
                         };
+                    }
+
+                    @Nullable
+                    @Override
+                    public String pluginVersion(String instanceName) {
+                        return null;
                     }
 
                     @Override
@@ -314,6 +324,12 @@ class TlsCredentialSupplierManagerTest {
                         return TestConfig.class;
                     }
 
+                    @Nullable
+                    @Override
+                    public String pluginVersion(String instanceName) {
+                        return null;
+                    }
+
                     @Override
                     public Set<String> registeredInstanceNames() {
                         return Set.of("TestSupplierFactory");
@@ -359,6 +375,12 @@ class TlsCredentialSupplierManagerTest {
                     @Override
                     public Object pluginInstance(String instanceName) {
                         return testFactory;
+                    }
+
+                    @Nullable
+                    @Override
+                    public String pluginVersion(String instanceName) {
+                        return null;
                     }
 
                     @Override
@@ -463,6 +485,12 @@ class TlsCredentialSupplierManagerTest {
                         return TestConfig.class;
                     }
 
+                    @Nullable
+                    @Override
+                    public String pluginVersion(String instanceName) {
+                        return null;
+                    }
+
                     @Override
                     public Set<String> registeredInstanceNames() {
                         return Set.of("ValidatingFactory");
@@ -489,7 +517,8 @@ class TlsCredentialSupplierManagerTest {
 
     @Test
     void testFactoryWithSharedResources() {
-        record SharedContext(TestConfig config, String sharedResource) {}
+        record SharedContext(TestConfig config, String sharedResource) {
+        }
 
         @Plugin(configType = TestConfig.class)
         class SharedResourceFactory implements ServerTlsCredentialSupplierFactory<TestConfig, SharedContext> {
@@ -534,6 +563,12 @@ class TlsCredentialSupplierManagerTest {
                     @Override
                     public Class<?> configType(String instanceName) {
                         return TestConfig.class;
+                    }
+
+                    @Nullable
+                    @Override
+                    public String pluginVersion(String instanceName) {
+                        return null;
                     }
 
                     @Override

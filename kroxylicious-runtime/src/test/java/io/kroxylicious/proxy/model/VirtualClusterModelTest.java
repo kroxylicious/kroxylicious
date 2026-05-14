@@ -37,6 +37,8 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -170,7 +172,11 @@ class VirtualClusterModelTest {
                     public Class<?> configType(String instanceName) {
                         return TestSupplierConfig.class;
                     }
-
+                    @Nullable
+                    @Override
+                    public String pluginVersion(String instanceName) {
+                        return null;
+                    }
                     @Override
                     public Set<String> registeredInstanceNames() {
                         return Set.of("TestSupplierFactory");

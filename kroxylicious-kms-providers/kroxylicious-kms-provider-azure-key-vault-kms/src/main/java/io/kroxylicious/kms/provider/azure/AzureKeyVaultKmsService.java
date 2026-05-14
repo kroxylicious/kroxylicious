@@ -18,10 +18,12 @@ import io.kroxylicious.kms.provider.azure.keyvault.KeyVaultClient;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+@Version("v1beta1")
 @Plugin(configType = AzureKeyVaultConfig.class)
 public class AzureKeyVaultKmsService implements KmsService<AzureKeyVaultConfig, WrappingKey, AzureKeyVaultEdek> {
 

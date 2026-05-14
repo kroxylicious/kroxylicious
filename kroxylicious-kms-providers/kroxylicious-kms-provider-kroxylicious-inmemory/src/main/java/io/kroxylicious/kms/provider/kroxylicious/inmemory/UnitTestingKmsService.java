@@ -19,6 +19,7 @@ import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -36,6 +37,7 @@ import static java.util.stream.Collectors.toMap;
  *
  * @see IntegrationTestingKmsService
  */
+@Version("v1")
 @Plugin(configType = UnitTestingKmsService.Config.class)
 public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UUID, InMemoryEdek> {
     private final Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();

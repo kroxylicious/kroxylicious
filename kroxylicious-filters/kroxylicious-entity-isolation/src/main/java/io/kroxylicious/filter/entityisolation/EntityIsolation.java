@@ -20,6 +20,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -33,6 +34,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br/>
  * A {@link FilterFactory} for {@link EntityIsolationFilter}.
  */
+@Version("v1beta1")
 @Plugin(configType = EntityIsolation.Config.class)
 public class EntityIsolation implements FilterFactory<EntityIsolation.Config, EntityIsolation.Config> {
 

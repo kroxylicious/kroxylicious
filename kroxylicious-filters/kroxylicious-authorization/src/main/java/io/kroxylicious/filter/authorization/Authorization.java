@@ -21,6 +21,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -28,6 +29,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * The FilterFactory (service) for the {@link AuthorizationFilter}.
  */
+@Version("v1beta1")
 @Plugin(configType = AuthorizationConfig.class)
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorizer> {
 

@@ -12,6 +12,7 @@ import java.util.Objects;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -19,6 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * An implementation of the {@link KmsService} interface backed by a remote instance of HashiCorp Vault.
  */
+@Version("v1beta1")
 @Plugin(configType = Config.class)
 public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
 

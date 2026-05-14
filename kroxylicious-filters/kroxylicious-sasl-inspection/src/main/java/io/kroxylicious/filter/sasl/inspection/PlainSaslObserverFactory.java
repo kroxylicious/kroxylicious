@@ -8,6 +8,7 @@ package io.kroxylicious.filter.sasl.inspection;
 
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 
 /**
  * Factory for the {@link PlainSaslObserver} instances.
@@ -16,6 +17,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * and server. THis means the cleartext password will exist in the memory of the
  * Proxy.
  */
+@Version("v1")
 @Plugin(configType = Void.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.PlainSaslObserverFactory", since = "0.19.0")
 public class PlainSaslObserverFactory implements SaslObserverFactory {

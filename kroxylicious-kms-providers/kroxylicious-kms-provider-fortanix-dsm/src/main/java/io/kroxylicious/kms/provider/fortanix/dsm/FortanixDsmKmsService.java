@@ -17,6 +17,7 @@ import io.kroxylicious.kms.provider.fortanix.dsm.session.SessionProviderFactory;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
@@ -25,6 +26,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * An implementation of the {@link KmsService} backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a>.
  */
+@Version("v1beta1")
 @Plugin(configType = Config.class)
 public class FortanixDsmKmsService implements KmsService<Config, String, FortanixDsmKmsEdek> {
 
