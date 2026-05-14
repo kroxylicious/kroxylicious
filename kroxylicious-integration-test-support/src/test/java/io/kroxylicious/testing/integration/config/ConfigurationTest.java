@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
@@ -580,15 +579,6 @@ class ConfigurationTest {
         var yaml = configParser.toYaml(config);
         var actualJson = MAPPER.reader().readValue(yaml, JsonNode.class);
         var expectedJson = MAPPER.reader().readValue(expected, JsonNode.class);
-
-        // Configuration normalises `proxy` to ProxyConfig.DEFAULT in its compact constructor, so
-        // serialization always emits a `proxy` block. If the expected YAML omits it, inject the
-        // default on the expected side so the comparison stays "actual == expected, modulo known
-        // normalisation".
-        if (expectedJson instanceof ObjectNode obj && !obj.has("proxy")) {
-            obj.set("proxy", ConfigParser.createObjectMapper().valueToTree(ProxyConfig.DEFAULT));
-        }
-
         var diff = JsonDiff.asJson(actualJson, expectedJson);
         assertThat(diff).isEmpty();
     }
@@ -608,7 +598,6 @@ class ConfigurationTest {
                 false,
                 development,
                 null,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
@@ -626,7 +615,6 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                null,
                 null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
@@ -648,7 +636,6 @@ class ConfigurationTest {
                 virtualClusters,
                 null, false,
                 development,
-                null,
                 null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
@@ -677,7 +664,6 @@ class ConfigurationTest {
                 false,
                 development,
                 null,
-                null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
@@ -702,7 +688,6 @@ class ConfigurationTest {
                 false,
                 Optional.empty(),
                 null,
-                null,
                 null);
 
         // When
@@ -722,8 +707,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
-                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED),
-                null);
+                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.REQUIRED);
     }
 
@@ -732,8 +716,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
-                new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED),
-                null);
+                new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.ALLOWED);
     }
 
@@ -742,8 +725,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
-                new ProxyProtocolConfig(ProxyProtocolMode.DISABLED),
-                null);
+                new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
     }
 
@@ -752,7 +734,6 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
-                null,
                 null);
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
     }
