@@ -72,7 +72,7 @@ public class VirtualClusterChangeDetector implements ChangeDetector {
                 || !Objects.equals(old.subjectBuilder(), newer.subjectBuilder())
                 || !Objects.equals(old.topicNameCache(), newer.topicNameCache())
                 // Gateways are a name-keyed semantic set; compare via KeyedListEquality.
-                || !KeyedListEquality.equal(old.gateways(), newer.gateways(), VirtualClusterGateway::name);
+                || !KeyedListEquality.areEqual(old.gateways(), newer.gateways(), VirtualClusterGateway::name);
     }
 
     private static Map<String, VirtualCluster> indexByName(List<VirtualCluster> clusters) {

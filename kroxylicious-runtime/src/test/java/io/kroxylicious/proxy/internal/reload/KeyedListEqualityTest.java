@@ -23,45 +23,45 @@ class KeyedListEqualityTest {
     void equalReturnsTrueForSameListsInDifferentOrder() {
         var a = List.of(new Named("a", "1"), new Named("b", "2"));
         var b = List.of(new Named("b", "2"), new Named("a", "1"));
-        assertThat(KeyedListEquality.equal(a, b, BY_KEY)).isTrue();
+        assertThat(KeyedListEquality.areEqual(a, b, BY_KEY)).isTrue();
     }
 
     @Test
     void equalReturnsFalseWhenPayloadDiffers() {
         var a = List.of(new Named("a", "1"));
         var b = List.of(new Named("a", "2"));
-        assertThat(KeyedListEquality.equal(a, b, BY_KEY)).isFalse();
+        assertThat(KeyedListEquality.areEqual(a, b, BY_KEY)).isFalse();
     }
 
     @Test
     void equalReturnsFalseWhenKeysetDiffers() {
         var a = List.of(new Named("a", "1"));
         var b = List.of(new Named("z", "1"));
-        assertThat(KeyedListEquality.equal(a, b, BY_KEY)).isFalse();
+        assertThat(KeyedListEquality.areEqual(a, b, BY_KEY)).isFalse();
     }
 
     @Test
     void equalReturnsFalseWhenSizesDiffer() {
         var a = List.of(new Named("a", "1"));
         var b = List.of(new Named("a", "1"), new Named("b", "2"));
-        assertThat(KeyedListEquality.equal(a, b, BY_KEY)).isFalse();
+        assertThat(KeyedListEquality.areEqual(a, b, BY_KEY)).isFalse();
     }
 
     @Test
     void equalBothNullReturnsTrue() {
-        assertThat(KeyedListEquality.equal(null, null, BY_KEY)).isTrue();
+        assertThat(KeyedListEquality.areEqual(null, null, BY_KEY)).isTrue();
     }
 
     @Test
     void equalOneNullReturnsFalse() {
         var list = List.of(new Named("a", "1"));
-        assertThat(KeyedListEquality.equal(list, null, BY_KEY)).isFalse();
-        assertThat(KeyedListEquality.equal(null, list, BY_KEY)).isFalse();
+        assertThat(KeyedListEquality.areEqual(list, null, BY_KEY)).isFalse();
+        assertThat(KeyedListEquality.areEqual(null, list, BY_KEY)).isFalse();
     }
 
     @Test
     void equalBothEmptyReturnsTrue() {
-        assertThat(KeyedListEquality.equal(List.<Named> of(), List.<Named> of(), BY_KEY)).isTrue();
+        assertThat(KeyedListEquality.areEqual(List.<Named> of(), List.<Named> of(), BY_KEY)).isTrue();
     }
 
     @Test
@@ -69,7 +69,7 @@ class KeyedListEqualityTest {
         // Same-size lists so the size-mismatch shortcut doesn't bypass the duplicate-key check.
         var a = List.of(new Named("a", "1"), new Named("a", "2"));
         var b = List.of(new Named("a", "1"), new Named("b", "2"));
-        assertThatThrownBy(() -> KeyedListEquality.equal(a, b, BY_KEY))
+        assertThatThrownBy(() -> KeyedListEquality.areEqual(a, b, BY_KEY))
                 .isInstanceOf(IllegalStateException.class);
     }
 

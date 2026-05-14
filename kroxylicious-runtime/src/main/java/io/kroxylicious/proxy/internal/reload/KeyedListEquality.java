@@ -46,7 +46,7 @@ public final class KeyedListEquality {
      * Duplicate keys on either side throw {@link IllegalStateException} (the caller's model
      * should have enforced uniqueness already).
      */
-    public static <T, K> boolean equal(@Nullable List<T> a, @Nullable List<T> b, Function<T, K> key) {
+    public static <T, K> boolean areEqual(@Nullable List<T> a, @Nullable List<T> b, Function<T, K> key) {
         if (a == b) {
             return true;
         }
