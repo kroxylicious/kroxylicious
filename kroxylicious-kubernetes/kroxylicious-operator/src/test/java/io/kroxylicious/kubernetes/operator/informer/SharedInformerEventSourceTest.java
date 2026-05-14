@@ -47,7 +47,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldAllowAllNamespacesWhenEmptySet() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -71,7 +71,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldAllowResourceInConfiguredNamespace() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -95,7 +95,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldRejectResourceInNonConfiguredNamespace() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -117,7 +117,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldPropagateEventWhenNamespaceAllowed() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -141,7 +141,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldNotPropagateEventWhenNamespaceNotAllowed() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -170,7 +170,7 @@ class SharedInformerEventSourceTest {
         when(sharedInformer.getStore()).thenReturn(mock(io.fabric8.kubernetes.client.informers.cache.Store.class));
         when(sharedInformer.getStore().list()).thenReturn(List.of(secret1, secret2, secret3));
 
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -197,7 +197,7 @@ class SharedInformerEventSourceTest {
         when(sharedInformer.getStore()).thenReturn(mock(io.fabric8.kubernetes.client.informers.cache.Store.class));
         when(sharedInformer.getStore().list()).thenReturn(List.of(secret1, secret2, secret3));
 
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -221,7 +221,7 @@ class SharedInformerEventSourceTest {
         when(sharedInformer.getStore()).thenReturn(mock(io.fabric8.kubernetes.client.informers.cache.Store.class));
         when(sharedInformer.getStore().list()).thenReturn(List.of(secret1, secret2));
 
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -247,7 +247,7 @@ class SharedInformerEventSourceTest {
         when(sharedInformer.getStore()).thenReturn(mock(io.fabric8.kubernetes.client.informers.cache.Store.class));
         when(sharedInformer.getStore().getByKey(key)).thenReturn(secret);
 
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -265,7 +265,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldHandleUpdateEvent() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -294,7 +294,7 @@ class SharedInformerEventSourceTest {
     @Test
     void shouldHandleDeleteEvent() {
         // given
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
@@ -330,7 +330,7 @@ class SharedInformerEventSourceTest {
         when(sharedInformer.getStore().getByKey("test-ns/secret2")).thenReturn(secret2);
         when(sharedInformer.getStore().getByKey("test-ns/secret3")).thenReturn(null);
 
-        eventSource = SharedInformerEventSourceFactory.createSharedInformerEventSource(
+        eventSource = new SharedInformerEventSource<>(
                 Secret.class,
                 "test-source",
                 sharedInformer,
