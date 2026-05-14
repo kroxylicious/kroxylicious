@@ -8,12 +8,24 @@ package io.kroxylicious.proxy.internal.filter;
 
 import java.util.function.Consumer;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public final class FlakyConfig {
     private final String initializeExceptionMsg;
     private final String createExceptionMsg;
     private final String closeExceptionMsg;
     private final Consumer<FlakyConfig> onClose;
     private final Consumer<FlakyConfig> onInitialize;
+
+    @JsonCreator
+    public FlakyConfig(@JsonProperty("initializeExceptionMsg") String initializeExceptionMsg,
+                       @JsonProperty("createExceptionMsg") String createExceptionMsg,
+                       @JsonProperty("closeExceptionMsg") String closeExceptionMsg) {
+        this(initializeExceptionMsg, createExceptionMsg, closeExceptionMsg, c -> {
+        }, c -> {
+        });
+    }
 
     public FlakyConfig(String initializeExceptionMsg,
                        String createExceptionMsg,
