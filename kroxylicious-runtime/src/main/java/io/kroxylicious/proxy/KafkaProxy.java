@@ -242,6 +242,11 @@ public final class KafkaProxy implements AutoCloseable {
         return proxyEventGroup;
     }
 
+    @VisibleForTesting
+    CompletableFuture<Void> shutdownFuture() {
+        return shutdown;
+    }
+
     /**
      * Starts this proxy.
      * @return a future that completes when the proxy stops (normally or exceptionally).
