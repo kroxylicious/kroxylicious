@@ -116,7 +116,7 @@ public class KafkaProtocolFilterReconciler implements
      * @param <R> The type of referenced resource
      * @return A configured SharedInformerEventSource
      */
-    private <R extends HasMetadata> SharedInformerEventSource<KafkaProtocolFilter, R> createSharedInformerEventSource(
+    private <R extends HasMetadata> SharedInformerEventSource<R, KafkaProtocolFilter> createSharedInformerEventSource(
                                                                                                                       EventSourceContext<KafkaProtocolFilter> context,
                                                                                                                       Class<R> resourceClass,
                                                                                                                       String eventSourceName,

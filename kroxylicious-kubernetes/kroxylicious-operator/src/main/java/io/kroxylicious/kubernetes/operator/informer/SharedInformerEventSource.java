@@ -29,10 +29,10 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
  * This allows multiple reconcilers to share the same underlying informer cache
  * while each having their own event handling and mapping logic.
  *
- * @param <P> the primary resource type (e.g., KafkaService)
  * @param <R> the secondary resource type (e.g., Secret)
+ * @param <P> the primary resource type (e.g., KafkaService)
  */
-public class SharedInformerEventSource<P extends HasMetadata, R extends HasMetadata>
+public class SharedInformerEventSource<R extends HasMetadata, P extends HasMetadata>
         extends AbstractEventSource<R, P>
         implements Cache<R>, ResourceEventHandler<R> {
 

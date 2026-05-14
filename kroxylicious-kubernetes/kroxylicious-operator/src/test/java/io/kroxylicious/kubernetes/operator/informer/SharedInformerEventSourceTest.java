@@ -42,7 +42,7 @@ class SharedInformerEventSourceTest {
     private SecondaryToPrimaryMapper<Secret> secondaryToPrimaryMapper;
     @Mock
     private PrimaryToSecondaryMapper<TestPrimary> primaryToSecondaryMapper;
-    private SharedInformerEventSource<TestPrimary, Secret> eventSource;
+    private SharedInformerEventSource<Secret, TestPrimary> eventSource;
 
     @Test
     void shouldAllowAllNamespacesWhenEmptySet() {

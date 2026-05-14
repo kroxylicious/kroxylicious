@@ -406,7 +406,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .build();
 
         // Proxy config state ConfigMaps - uses shared informer
-        SharedInformerEventSource<VirtualKafkaCluster, ConfigMap> clusterToProxyConfigState = new SharedInformerEventSource<>(
+        SharedInformerEventSource<ConfigMap, VirtualKafkaCluster> clusterToProxyConfigState = new SharedInformerEventSource<>(
                 ConfigMap.class,
                 PROXY_CONFIG_STATE_SOURCE_NAME,
                 sharedConfigMapInformer,
