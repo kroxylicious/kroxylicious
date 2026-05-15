@@ -15,11 +15,11 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kubernetes-parent</artifactId>
-        <version>0.21.0-SNAPSHOT</version>
+        <version>0.21.0</version>
     </parent>
 
     <artifactId>kroxylicious-admission-api</artifactId>
-    <version>0.21.0-SNAPSHOT</version>
+    <version>0.21.0</version>
     <name>Kubernetes Admission Webhook CRD API</name>
     <description>The Kubernetes Custom Resource Definitions for the Kroxylicious Admission webhook..
 

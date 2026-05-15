@@ -52,7 +52,7 @@ services:
       retries: 5
       timeout: 10s
   kroxylicious:
-    image: ${KROXYLICIOUS_IMAGE:-quay.io/kroxylicious/proxy:0.21.0-SNAPSHOT}
+    image: ${KROXYLICIOUS_IMAGE:-quay.io/kroxylicious/proxy:0.21.0}
     hostname: kroxylicious
     container_name: kroxylicious
     # this is to enable async_profiler

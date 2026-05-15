@@ -5,7 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
-## SNAPSHOT
+## 0.21.0
 
 * [#3860](https://github.com/kroxylicious/kroxylicious/pull/3860): perf(operator): reduce memory usage by sharing Secret and ConfigMap informer caches across reconcilers (78% reduction in informer caches)
 * [#3918](https://github.com/kroxylicious/kroxylicious/pull/3918): feat(admission): alpha release of Kubernetes admission webhook for automatic sidecar injection. Enables transparent Kafka protocol proxying without application code changes via the `KroxySidecarConfig` CRD

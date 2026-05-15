@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Operator versions (override via environment variables)
 STRIMZI_VERSION="${STRIMZI_VERSION:-latest}"
-KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.18.0}"
+KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.21.0}"
 
 NAMESPACE="${NAMESPACE:-kafka}"
 KROXYLICIOUS_OPERATOR_NAMESPACE="kroxylicious-operator"
