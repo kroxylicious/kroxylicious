@@ -15,7 +15,6 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 
-
 /**
  * Builder for request filter results.
  * <br/>

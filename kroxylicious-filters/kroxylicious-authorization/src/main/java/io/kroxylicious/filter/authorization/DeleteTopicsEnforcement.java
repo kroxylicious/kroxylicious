@@ -29,8 +29,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 
-
-
 class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, DeleteTopicsResponseData> {
 
     @Override

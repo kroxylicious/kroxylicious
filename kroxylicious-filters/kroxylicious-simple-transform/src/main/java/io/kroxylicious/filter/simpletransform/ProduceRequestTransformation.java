@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-
 /**
  * A {@link FilterFactory} for {@link ProduceRequestTransformationFilter}.
  *

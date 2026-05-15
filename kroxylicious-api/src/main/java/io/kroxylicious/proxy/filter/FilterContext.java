@@ -22,7 +22,6 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-
 /**
  * A context to allow filters to interact with other filters and the pipeline.
  */
