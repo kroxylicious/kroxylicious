@@ -182,7 +182,7 @@ public final class KafkaProxy implements AutoCloseable {
                         .log("Virtual cluster reached terminal stopped state due to failure, proxy shutdown required");
             }
             else {
-                STARTUP_SHUTDOWN_LOGGER.atDebug()
+                STARTUP_SHUTDOWN_LOGGER.atInfo()
                         .addKeyValue("virtualCluster", clusterName)
                         .log("Virtual cluster stopped");
             }
