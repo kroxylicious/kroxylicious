@@ -13,8 +13,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import javax.annotation.concurrent.ThreadSafe;
-
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -38,6 +36,7 @@ import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.VIRTUAL_CLUSTER_LABEL;

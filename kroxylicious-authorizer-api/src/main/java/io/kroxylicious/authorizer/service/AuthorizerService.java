@@ -6,7 +6,7 @@
 
 package io.kroxylicious.authorizer.service;
 
-import javax.annotation.concurrent.ThreadSafe;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.UnknownNullness;

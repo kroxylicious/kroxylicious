@@ -6,7 +6,7 @@
 
 package io.kroxylicious.filter.simpletransform;
 
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

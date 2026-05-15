@@ -13,7 +13,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
