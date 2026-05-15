@@ -12,6 +12,7 @@ Format `<github issue/pr number>: <short description>`.
 ### Changes, deprecations and removals
 
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): The operator now sets a `DeprecationWarning` status condition on `KafkaProxy` resources that have no `spec` field, complementing the existing log warning. Users should add an empty `spec: {}` to any `KafkaProxy` resource that lacks one. Support for spec-less `KafkaProxy` resources will be removed in a future release.
+* [#3828](https://github.com/kroxylicious/kroxylicious/pull/3828): remove `KafkaProxy.block()` — use `startup().join()` instead. KafkaProxy is considered internal API hence we are skipping the deprecation cycle
 
 ## 0.21.0
 
