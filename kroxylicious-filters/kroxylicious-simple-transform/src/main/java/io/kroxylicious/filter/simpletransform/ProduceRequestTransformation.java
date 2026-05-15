@@ -6,9 +6,6 @@
 
 package io.kroxylicious.filter.simpletransform;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.filter.simpletransform.ProduceRequestTransformation.Config;
@@ -20,6 +17,9 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link FilterFactory} for {@link ProduceRequestTransformationFilter}.
