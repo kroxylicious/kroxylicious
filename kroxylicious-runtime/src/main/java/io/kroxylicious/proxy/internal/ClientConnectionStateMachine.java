@@ -7,6 +7,8 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -146,6 +148,12 @@ public class ClientConnectionStateMachine {
 
     private final ActivationToken clientToProxyConnectionToken;
 
+    // Server-side metrics (passed to SCSM at construction)
+    private final Counter proxyToServerConnectionCounter;
+    private final Counter proxyToServerErrorCounter;
+    private final Timer serverToProxyBackpressureMeter;
+    private final ActivationToken proxyToServerConnectionToken;
+
     @VisibleForTesting
     @Nullable
     Timer.Sample clientToProxyBackpressureTimer;
@@ -180,12 +188,12 @@ public class ClientConnectionStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The server connection state machine. Non-null once the first client request triggers
-     * backend connection setup (transition to {@link Forwarding}).
+     * Server connection state machines, keyed by remote address. Populated when the first client
+     * request triggers backend connection setup (transition to {@link Forwarding}). Currently
+     * contains at most one entry; routing will add more.
      */
     @VisibleForTesting
-    @Nullable
-    private ServerConnectionStateMachine serverConnectionStateMachine;
+    final Map<HostPort, ServerConnectionStateMachine> serverConnections = new HashMap<>();
 
     @Nullable
     private String clientSoftwareName;
@@ -223,8 +231,12 @@ public class ClientConnectionStateMachine {
         clientToProxyDisconnectsDrainCompletedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_COMPLETED.label()).withTags();
         clientToProxyDisconnectsDrainTimeoutCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_TIMEOUT.label()).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
+        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
+        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
+        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
+        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
     }
 
     ClientConnectionState state() {
@@ -238,7 +250,7 @@ public class ClientConnectionStateMachine {
     @VisibleForTesting
     void forceState(ClientConnectionState state,
                     KafkaProxyFrontendHandler frontendHandler,
-                    @Nullable ServerConnectionStateMachine serverConnectionStateMachine,
+                    Map<HostPort, ServerConnectionStateMachine> serverConnections,
                     KafkaSession kafkaSession,
                     boolean transportSubjectReady) {
         LOGGER.atInfo()
@@ -246,12 +258,13 @@ public class ClientConnectionStateMachine {
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
-                .addKeyValue("serverConnectionStateMachine", serverConnectionStateMachine)
+                .addKeyValue("serverConnections", serverConnections)
                 .log("Forcing state");
         this.state = state;
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
-        this.serverConnectionStateMachine = serverConnectionStateMachine;
+        this.serverConnections.clear();
+        this.serverConnections.putAll(serverConnections);
         this.transportSubjectReady = transportSubjectReady;
     }
 
@@ -261,7 +274,7 @@ public class ClientConnectionStateMachine {
                 "state=" + state +
                 ", clientReadsBlocked=" + clientReadsBlocked +
                 ", frontendHandler=" + frontendHandler +
-                ", serverConnectionStateMachine=" + serverConnectionStateMachine +
+                ", serverConnections=" + serverConnections +
                 '}';
     }
 
@@ -309,8 +322,8 @@ public class ClientConnectionStateMachine {
      * Notify the state machine when the client applies back pressure.
      */
     public void onClientUnwritable() {
-        if (serverConnectionStateMachine != null) {
-            serverConnectionStateMachine.applyBackpressure();
+        for (ServerConnectionStateMachine scsm : serverConnections.values()) {
+            scsm.applyBackpressure();
         }
     }
 
@@ -318,15 +331,15 @@ public class ClientConnectionStateMachine {
      * Notify the state machine when the client stops applying back pressure
      */
     public void onClientWritable() {
-        if (serverConnectionStateMachine != null) {
-            serverConnectionStateMachine.relieveBackpressure();
+        for (ServerConnectionStateMachine scsm : serverConnections.values()) {
+            scsm.relieveBackpressure();
         }
     }
 
     /**
      * Notify the state machine when the server applies back pressure
      */
-    public void onServerUnwritable() {
+    void onServerUnwritable(ServerConnectionStateMachine scsm) {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
             clientToProxyBackpressureTimer = Timer.start();
@@ -337,7 +350,7 @@ public class ClientConnectionStateMachine {
     /**
      * Notify the state machine when the server stops applying back pressure
      */
-    public void onServerWritable() {
+    void onServerWritable(ServerConnectionStateMachine scsm) {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
             if (clientToProxyBackpressureTimer != null) {
@@ -374,7 +387,7 @@ public class ClientConnectionStateMachine {
     /**
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection is ready for RPC calls.
      */
-    void onServerConnectionActive() {
+    void onServerConnectionActive(ServerConnectionStateMachine scsm) {
         if (state() instanceof Forwarding) {
             kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         }
@@ -407,7 +420,8 @@ public class ClientConnectionStateMachine {
      * upstream node and should be passed to the downstream client.
      * @param msg the object received from the upstream
      */
-    void onResponseFromServer(Object msg) {
+    void onResponseFromServer(ServerConnectionStateMachine scsm,
+                              Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
 
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
@@ -433,7 +447,7 @@ public class ClientConnectionStateMachine {
     /**
      * Callback from {@link ServerConnectionStateMachine} when reading the upstream batch is complete.
      */
-    void onServerReadComplete() {
+    void onServerReadComplete(ServerConnectionStateMachine scsm) {
         Objects.requireNonNull(frontendHandler).flushToClient();
     }
 
@@ -451,7 +465,7 @@ public class ClientConnectionStateMachine {
      */
     void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
-            Objects.requireNonNull(serverConnectionStateMachine).sendRequest(msg);
+            serverConnections.values().iterator().next().sendRequest(msg);
         }
         else {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -503,7 +517,8 @@ public class ClientConnectionStateMachine {
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection has been disconnected.
      * @param disconnectCause the cause of the disconnection
      */
-    void onServerConnectionClosed(DisconnectCause disconnectCause) {
+    void onServerConnectionClosed(ServerConnectionStateMachine scsm,
+                                  DisconnectCause disconnectCause) {
         toClosed(null, disconnectCause);
     }
 
@@ -611,7 +626,7 @@ public class ClientConnectionStateMachine {
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                 .addKeyValue("serverMessagesInFlightCount",
-                        serverConnectionStateMachine != null ? serverConnectionStateMachine.serverMessagesInFlightCount : 0)
+                        serverConnections.values().stream().mapToInt(s -> s.serverMessagesInFlightCount).sum())
                 .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
 
         if (clientMessagesInFlightCount <= 0) {
@@ -661,7 +676,8 @@ public class ClientConnectionStateMachine {
      * un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
      */
-    void onServerConnectionException(@Nullable Throwable cause) {
+    void onServerConnectionException(ServerConnectionStateMachine scsm,
+                                     @Nullable Throwable cause) {
         toClosed(cause);
     }
 
@@ -785,9 +801,11 @@ public class ClientConnectionStateMachine {
     private void toForwarding(Forwarding forwarding,
                               HostPort remote) {
         setState(forwarding);
-        serverConnectionStateMachine = createServerConnection(remote);
+        proxyToServerConnectionCounter.increment();
+        var scsm = createServerConnection(remote);
+        serverConnections.put(remote, scsm);
         var frontend = Objects.requireNonNull(frontendHandler);
-        serverConnectionStateMachine.connect(Objects.requireNonNull(frontend.clientChannel()));
+        scsm.connect(Objects.requireNonNull(frontend.clientChannel()));
         log(Level.DEBUG)
                 .addKeyValue("remote", remote)
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
@@ -800,11 +818,15 @@ public class ClientConnectionStateMachine {
                                             ClientConnectionStateMachine ccsm,
                                             VirtualClusterModel virtualCluster,
                                             String clusterName,
-                                            @Nullable Integer nodeId);
+                                            @Nullable Integer nodeId,
+                                            Counter proxyToServerErrorCounter,
+                                            Timer serverToProxyBackpressureMeter,
+                                            ActivationToken proxyToServerConnectionToken);
     }
 
     ServerConnectionStateMachine createServerConnection(HostPort remote) {
-        return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId());
+        return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId(),
+                proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
     }
 
     /**
@@ -870,10 +892,11 @@ public class ClientConnectionStateMachine {
         incrementAppropriateDisconnectsMetric(disconnectCause);
 
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
-        // Close the server connection
-        if (serverConnectionStateMachine != null) {
-            serverConnectionStateMachine.close();
+        // Close all server connections
+        for (ServerConnectionStateMachine scsm : serverConnections.values()) {
+            scsm.close();
         }
+        serverConnections.clear();
 
         // Close the client connection
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
@@ -892,7 +915,7 @@ public class ClientConnectionStateMachine {
                     .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
                     .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                     .addKeyValue("serverMessagesInFlightCount",
-                            serverConnectionStateMachine != null ? serverConnectionStateMachine.serverMessagesInFlightCount : 0)
+                            serverConnections.values().stream().mapToInt(s -> s.serverMessagesInFlightCount).sum())
                     .log("Drain interrupted by connection close — signalling drain policy from toClosed path");
             pendingDrainCallback.run();
         }
