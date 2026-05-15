@@ -110,7 +110,8 @@ class FilterChangeDetectorTest {
     @Test
     void reorderingFilterDefinitionsAtTopLevelDoesNotTriggerChange() {
         // Top-level filterDefinitions is semantically a set keyed by name — reordering the YAML
-        // list is a no-op. KeyedListEquality.changedKeys treats the list order-insensitively.
+        // list is a no-op. The detector indexes definitions by name before diffing, so the
+        // comparison is order-insensitive.
         var filterA = filterDef("filter-a", "config-a");
         var filterB = filterDef("filter-b", "config-b");
         var oldConfig = configWith(List.of(filterA, filterB), null,

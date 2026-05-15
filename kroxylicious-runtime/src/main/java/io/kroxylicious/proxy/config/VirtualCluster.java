@@ -124,4 +124,47 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return drainTimeout == null ? DEFAULT_DRAIN_TIMEOUT : drainTimeout;
     }
 
+    /**
+     * Returns {@code true} if this cluster's deployment-time configuration is semantically
+     * identical to {@code other}'s. Used by the configuration change-detection pipeline
+     * (see {@code VirtualClusterChangeDetector}) to decide whether a virtual cluster needs
+     * to be restarted across a {@code reconfigure()}.
+     *
+     * <p>Implementation uses the record's auto-generated {@link #equals(Object)} after
+     * canonicalising gateway order &mdash; {@code gateways} is a name-keyed semantic set,
+     * so reordering YAML entries is a no-op and must not produce a false positive. All
+     * other components (including any added in the future) are compared by the record's
+     * auto-equals, so this method extends automatically.
+     */
+    public boolean sameAs(@Nullable VirtualCluster other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null) {
+            return false;
+        }
+        return this.canonical().equals(other.canonical());
+    }
+
+    /**
+     * Returns an equivalent {@link VirtualCluster} with gateways sorted by name. Used only
+     * as an internal helper of {@link #sameAs(VirtualCluster)} to normalise the one
+     * order-insensitive component before the record's auto-equals does the rest.
+     */
+    private VirtualCluster canonical() {
+        List<VirtualClusterGateway> sortedGateways = gateways.stream()
+                .sorted(java.util.Comparator.comparing(VirtualClusterGateway::name))
+                .toList();
+        return new VirtualCluster(
+                name,
+                targetCluster,
+                sortedGateways,
+                logNetwork,
+                logFrames,
+                filters,
+                subjectBuilder,
+                topicNameCache,
+                drainTimeout);
+    }
+
 }

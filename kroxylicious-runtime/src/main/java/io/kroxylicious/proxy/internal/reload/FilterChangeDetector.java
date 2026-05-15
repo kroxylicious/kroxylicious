@@ -12,10 +12,13 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Identifies virtual clusters that need to be restarted because a filter configuration they
@@ -74,13 +77,39 @@ public class FilterChangeDetector implements ChangeDetector {
      * <p>
      * Includes additions (missing in old, present in new) and removals (present in old, missing
      * in new) as well as true modifications. For change-impact purposes, all three are equivalent
-     * — any cluster referencing such a name needs to be restarted to pick up the new chain.
+     * &mdash; any cluster referencing such a name needs to be restarted to pick up the new chain.
+     * <p>
+     * Per-definition equality is delegated to {@link NamedFilterDefinition#sameAs(NamedFilterDefinition)}
+     * so the canonical comparison lives on the domain type.
      */
     private static Set<String> changedFilterNames(Configuration oldConfig, Configuration newConfig) {
-        return KeyedListEquality.changedKeys(
-                oldConfig.filterDefinitions(),
-                newConfig.filterDefinitions(),
-                NamedFilterDefinition::name);
+        Map<String, NamedFilterDefinition> oldByName = indexFilterDefinitionsByName(oldConfig.filterDefinitions());
+        Map<String, NamedFilterDefinition> newByName = indexFilterDefinitionsByName(newConfig.filterDefinitions());
+
+        // Union of names from both sides. A null/non-null pair correctly flags add/remove as
+        // "changed" before the per-definition predicate is consulted, matching Objects.equals's
+        // null semantics.
+        Set<String> changed = new HashSet<>();
+        Stream.concat(oldByName.keySet().stream(), newByName.keySet().stream())
+                .distinct()
+                .forEach(name -> {
+                    NamedFilterDefinition oldDef = oldByName.get(name);
+                    NamedFilterDefinition newDef = newByName.get(name);
+                    if (oldDef == null || newDef == null) {
+                        if (oldDef != newDef) {
+                            changed.add(name);
+                        }
+                    }
+                    else if (!oldDef.sameAs(newDef)) {
+                        changed.add(name);
+                    }
+                });
+        return changed;
+    }
+
+    private static Map<String, NamedFilterDefinition> indexFilterDefinitionsByName(@Nullable List<NamedFilterDefinition> defs) {
+        return defs == null ? Map.of()
+                : defs.stream().collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
     }
 
     private static boolean defaultFiltersChanged(Configuration oldConfig, Configuration newConfig) {
