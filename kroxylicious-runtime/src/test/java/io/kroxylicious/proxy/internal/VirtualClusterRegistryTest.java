@@ -637,11 +637,7 @@ class VirtualClusterRegistryTest {
     }
 
     // -----------------------------------------------------------------------------------------
-    // Reconfigure operations. removeVirtualCluster is the first to be made real (step 1 of
-    // the hot-reload staircase); replaceVirtualCluster and addVirtualCluster remain no-op
-    // stubs until later steps land them. The stub tests below pin the contract: each stub
-    // completes its future immediately without mutating registry state, so the orchestrator
-    // can drive the full pipeline against this class while only some operations are real.
+    // Reconfigure operations
     // -----------------------------------------------------------------------------------------
 
     @Test
@@ -684,29 +680,27 @@ class VirtualClusterRegistryTest {
         // when
         vcc.removeVirtualCluster(CLUSTER_A).join();
 
-        // then — callback invoked with (clusterName, Optional.empty()) per the no-failure case
+        // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
 
     @Test
     void removeVirtualClusterIsNoOpWhenAlreadyStopped() {
-        // given — drive the cluster to Stopped via the normal remove path
+        // given
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.removeVirtualCluster(CLUSTER_A).join();
         assertThat(requireLifecycle(CLUSTER_A).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
 
-        // when — call remove again on an already-Stopped cluster
+        // when
         var future = vcc.removeVirtualCluster(CLUSTER_A);
 
-        // then — completes immediately, no exception
+        // then
         assertThat(future).succeedsWithin(1, TimeUnit.SECONDS);
         assertThat(requireLifecycle(CLUSTER_A).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
     void removeVirtualClusterThrowsForUnknownClusterName() {
-        // The real removeVirtualCluster validates via requireKnownCluster, unlike the previous
-        // stub which silently accepted unknown names.
         assertThatThrownBy(() -> vcc.removeVirtualCluster("never-existed"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown cluster");
@@ -736,8 +730,7 @@ class VirtualClusterRegistryTest {
         // when
         var future = vcc.addVirtualCluster(newModel);
 
-        // then — future already completed; lifecycle exists in INITIALIZING (orchestrator will
-        // call initializationSucceeded once gateways are bound).
+        // then
         assertThat(future).isCompleted();
         assertThat(vcc.lifecycleFor(CLUSTER_B)).isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
@@ -746,7 +739,6 @@ class VirtualClusterRegistryTest {
 
     @Test
     void addVirtualClusterRejectsDuplicateName() {
-        // CLUSTER_A is already present from setUp
         var duplicate = mockModel(CLUSTER_A);
         assertThatThrownBy(() -> vcc.addVirtualCluster(duplicate))
                 .isInstanceOf(IllegalArgumentException.class)

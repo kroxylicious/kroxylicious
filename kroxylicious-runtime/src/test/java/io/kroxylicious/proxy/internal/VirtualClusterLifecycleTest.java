@@ -40,12 +40,10 @@ class VirtualClusterLifecycleTest {
     private static final String CLUSTER_NAME = "test-cluster";
     private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(5);
     private VirtualClusterLifecycle manager;
-    private ClientConnectionStateMachine ccsm;
 
     @BeforeEach
     void setUp() {
         manager = new VirtualClusterLifecycle(CLUSTER_NAME, DRAIN_TIMEOUT);
-        ccsm = mock(ClientConnectionStateMachine.class);
     }
 
     @Test
@@ -196,6 +194,7 @@ class VirtualClusterLifecycleTest {
     @Test
     void shouldRejectConnectionRegistrationWhenInitializing() {
         // given - lifecycle starts in Initializing
+        var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when
         var registered = manager.registerConnection(ccsm);
@@ -209,6 +208,7 @@ class VirtualClusterLifecycleTest {
     void shouldAcceptConnectionRegistrationWhenServing() {
         // given
         manager.initializationSucceeded();
+        var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when
         var registered = manager.registerConnection(ccsm);
@@ -223,6 +223,7 @@ class VirtualClusterLifecycleTest {
         // given
         manager.initializationSucceeded();
         manager.startDraining();
+        var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when
         var registered = manager.registerConnection(ccsm);
@@ -235,6 +236,7 @@ class VirtualClusterLifecycleTest {
     void shouldRejectConnectionRegistrationWhenFailed() {
         // given
         manager.initializationFailed(new RuntimeException("oops"));
+        var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when
         var registered = manager.registerConnection(ccsm);
@@ -249,6 +251,7 @@ class VirtualClusterLifecycleTest {
         // given
         manager.initializationFailed(new RuntimeException("oops"));
         manager.stop();
+        var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when
         var registered = manager.registerConnection(ccsm);
@@ -256,6 +259,8 @@ class VirtualClusterLifecycleTest {
         // then
         assertThat(registered).isFalse();
     }
+
+    // --- Concurrency ---
 
     @Test
     void concurrentRegisterAndDeregisterDoesNotLoseConnection() throws Exception {
