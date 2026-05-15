@@ -103,7 +103,7 @@ public abstract class FilterHarness {
         proxyChannelStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
-                mock(KafkaProxyBackendHandler.class),
+                mock(ServerConnectionStateMachine.class),
                 kafkaSession,
                 -1);
         var filterHandlers = Arrays.stream(filters)

@@ -193,7 +193,7 @@ class ProxyChannelStateMachineEndToEndTest {
             proxyChannelStateMachine.forceState(
                     new ProxyChannelState.HaProxy(),
                     handler,
-                    backendHandler,
+                    null,
                     TEST_SESSION, -1);
         }
 
@@ -709,7 +709,7 @@ class ProxyChannelStateMachineEndToEndTest {
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
                 handler,
-                backendHandler,
+                null,
                 TEST_SESSION, waitingForOneEvent);
 
         inboundChannel.config().setAutoRead(false);

@@ -99,19 +99,9 @@ import static org.slf4j.LoggerFactory.getLogger;
  * arrives while in {@code Draining} routes through {@link #toClosed} the same way it would from
  * {@code Forwarding}; the merged-edge label applies to both paths.</p>
  *
- * <p>In addition to the "session state" this class also manages a second state machine for
- * handling TCP backpressure via the {@link #clientReadsBlocked} and {@link #serverReadsBlocked} field:</p>
- *
- * <pre>
- *     bothBlocked ←────────────────→ serverBlocked
- *         ↑                                ↑
- *         │                                │
- *         ↓                                ↓
- *    clientBlocked ←───────────────→ neitherBlocked
- * </pre>
- * <p>Note that this backpressure state machine is not tied to the
- * session state machine: in general backpressure could happen in
- * several of the session states and is independent of them.</p>
+ * <p>In addition to the "session state" this class manages the client-side of TCP backpressure
+ * via the {@link #clientReadsBlocked} field. Server-side backpressure is managed by the
+ * {@link ServerConnectionStateMachine}.</p>
  *
  * <p>
  *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer.
@@ -149,7 +139,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    // Connection metrics
+    // Client-side connection metrics
     private final Counter clientToProxyErrorCounter;
     private final Counter clientToProxyDisconnectsIdleCounter;
     private final Counter clientToProxyDisconnectsClientClosedCounter;
@@ -157,21 +147,19 @@ public class ProxyChannelStateMachine {
     private final Counter clientToProxyDisconnectsDrainCompletedCounter;
     private final Counter clientToProxyDisconnectsDrainTimeoutCounter;
     private final Counter clientToProxyConnectionCounter;
-    private final Counter proxyToServerConnectionCounter;
-    private final Counter proxyToServerErrorCounter;
-    private final Timer serverToProxyBackpressureMeter;
     private final Timer clientToProxyBackPressureMeter;
 
     private final ActivationToken clientToProxyConnectionToken;
+
+    // Server-side metrics (passed to SCSM at construction)
+    private final Counter proxyToServerConnectionCounter;
+    private final Counter proxyToServerErrorCounter;
+    private final Timer serverToProxyBackpressureMeter;
     private final ActivationToken proxyToServerConnectionToken;
 
     @VisibleForTesting
     @Nullable
     Timer.Sample clientToProxyBackpressureTimer;
-
-    @VisibleForTesting
-    @Nullable
-    Timer.Sample serverBackpressureTimer;
 
     private final EndpointBinding endpointBinding;
 
@@ -191,8 +179,6 @@ public class ProxyChannelStateMachine {
      * allowing us to only touch the volatile when it needs to be changed
      */
     @VisibleForTesting
-    boolean serverReadsBlocked;
-    @VisibleForTesting
     boolean clientReadsBlocked;
     private final TransportSubjectBuilder transportSubjectBuilder;
     private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
@@ -204,15 +190,13 @@ public class ProxyChannelStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onInitiateConnect(HostPort)}
-     * has been called
+     * The server connection state machine. Non-null if {@link #onInitiateConnect(HostPort)}
+     * has been called.
      */
     @VisibleForTesting
     @Nullable
-    private KafkaProxyBackendHandler backendHandler;
+    private ServerConnectionStateMachine serverConnectionStateMachine;
 
-    /** Tracks requests sent to the server that haven't received a response yet (proxy↔server). */
-    private int serverMessagesInFlightCount;
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
     private int clientMessagesInFlightCount;
 
@@ -254,7 +238,7 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     void forceState(ProxyChannelState state,
                     KafkaProxyFrontendHandler frontendHandler,
-                    @Nullable KafkaProxyBackendHandler backendHandler,
+                    @Nullable ServerConnectionStateMachine serverConnectionStateMachine,
                     KafkaSession kafkaSession,
                     int transportAndBackendLatch) {
         LOGGER.atInfo()
@@ -262,12 +246,12 @@ public class ProxyChannelStateMachine {
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
-                .addKeyValue("backendHandler", backendHandler)
+                .addKeyValue("serverConnectionStateMachine", serverConnectionStateMachine)
                 .log("Forcing state");
         this.state = state;
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
-        this.backendHandler = backendHandler;
+        this.serverConnectionStateMachine = serverConnectionStateMachine;
         this.progressionLatch = transportAndBackendLatch;
     }
 
@@ -275,10 +259,9 @@ public class ProxyChannelStateMachine {
     public String toString() {
         return "StateHolder{" +
                 "state=" + state +
-                ", serverReadsBlocked=" + serverReadsBlocked +
                 ", clientReadsBlocked=" + clientReadsBlocked +
                 ", frontendHandler=" + frontendHandler +
-                ", backendHandler=" + backendHandler +
+                ", serverConnectionStateMachine=" + serverConnectionStateMachine +
                 '}';
     }
 
@@ -316,10 +299,8 @@ public class ProxyChannelStateMachine {
      * Notify the state machine when the client applies back pressure.
      */
     public void onClientUnwritable() {
-        if (!serverReadsBlocked) {
-            serverReadsBlocked = true;
-            serverBackpressureTimer = Timer.start();
-            Objects.requireNonNull(backendHandler).applyBackpressure();
+        if (serverConnectionStateMachine != null) {
+            serverConnectionStateMachine.applyBackpressure();
         }
     }
 
@@ -327,13 +308,8 @@ public class ProxyChannelStateMachine {
      * Notify the state machine when the client stops applying back pressure
      */
     public void onClientWritable() {
-        if (serverReadsBlocked) {
-            serverReadsBlocked = false;
-            if (serverBackpressureTimer != null) {
-                serverBackpressureTimer.stop(serverToProxyBackpressureMeter);
-                serverBackpressureTimer = null;
-            }
-            Objects.requireNonNull(backendHandler).relieveBackpressure();
+        if (serverConnectionStateMachine != null) {
+            serverConnectionStateMachine.relieveBackpressure();
         }
     }
 
@@ -400,9 +376,9 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Notify the statemachine that the upstream connection is ready for RPC calls.
+     * Callback from {@link ServerConnectionStateMachine} when the upstream connection is ready for RPC calls.
      */
-    void onServerActive() {
+    void onServerConnectionActive() {
         if (state() instanceof ProxyChannelState.Connecting connectedState) {
             toForwarding(connectedState.toForwarding());
         }
@@ -431,17 +407,13 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * A message has been received from the upstream node which should be passed to the downstream client
+     * Callback from {@link ServerConnectionStateMachine} when a response has been received from the
+     * upstream node and should be passed to the downstream client.
      * @param msg the object received from the upstream
      */
-    void messageFromServer(Object msg) {
-        // Decrement server-side counter: response received from Kafka
-        serverMessagesInFlightCount = Math.max(0, serverMessagesInFlightCount - 1);
-
-        // Forward response to client (goes through filter pipeline)
+    void onResponseFromServer(Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
 
-        // Decrement client-side counter: response delivered to client
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
         if (state instanceof ProxyChannelState.Draining draining) {
@@ -463,9 +435,9 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Called to notify the state machine that reading the upstream batch is complete.
+     * Callback from {@link ServerConnectionStateMachine} when reading the upstream batch is complete.
      */
-    void serverReadComplete() {
+    void onServerReadComplete() {
         Objects.requireNonNull(frontendHandler).flushToClient();
     }
 
@@ -483,10 +455,7 @@ public class ProxyChannelStateMachine {
      */
     void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ProxyChannelState.Draining) {
-            // Increment server-side counter: request being forwarded to Kafka.
-            serverMessagesInFlightCount++;
-            Objects.requireNonNull(backendHandler).forwardToServer(msg);
-            backendHandler.flushToServer();
+            Objects.requireNonNull(serverConnectionStateMachine).sendRequest(msg);
         }
         else {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -547,13 +516,11 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Notify the statemachine that the connection to the upstream node has been disconnected.
-     * <p>
-     * This will result in the proxy session being torn down.
-     * </p>
+     * Callback from {@link ServerConnectionStateMachine} when the upstream connection has been disconnected.
+     * @param disconnectCause the cause of the disconnection
      */
-    void onServerInactive() {
-        toClosed(null, DisconnectCause.SERVER_CLOSED);
+    void onServerConnectionClosed(DisconnectCause disconnectCause) {
+        toClosed(null, disconnectCause);
     }
 
     /**
@@ -659,7 +626,8 @@ public class ProxyChannelStateMachine {
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
-                .addKeyValue("serverMessagesInFlightCount", serverMessagesInFlightCount)
+                .addKeyValue("serverMessagesInFlightCount",
+                        serverConnectionStateMachine != null ? serverConnectionStateMachine.serverMessagesInFlightCount : 0)
                 .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
 
         if (clientMessagesInFlightCount <= 0) {
@@ -705,18 +673,11 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Notify the state machine that something exceptional and un-recoverable has happened on the upstream side.
+     * Callback from {@link ServerConnectionStateMachine} when something exceptional and
+     * un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
      */
-    @SuppressWarnings("java:S5738")
-    void onServerException(@Nullable Throwable cause) {
-        log(Level.WARN)
-                .addKeyValue("error", cause != null ? cause.getMessage() : "")
-                .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .log(LOGGER.isDebugEnabled()
-                        ? "exception from server channel"
-                        : "exception from server channel, increase log level to DEBUG for stacktrace");
-        proxyToServerErrorCounter.increment();
+    void onServerConnectionException(@Nullable Throwable cause) {
         toClosed(cause);
     }
 
@@ -844,9 +805,17 @@ public class ProxyChannelStateMachine {
     private void toConnecting(
                               ProxyChannelState.Connecting connecting) {
         setState(connecting);
-        backendHandler = new KafkaProxyBackendHandler(this);
-        Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), backendHandler);
-        proxyToServerConnectionCounter.increment();
+        boolean upstreamRequiresTls = virtualCluster().getUpstreamSslContext().isPresent();
+        serverConnectionStateMachine = new ServerConnectionStateMachine(
+                connecting.remote(),
+                upstreamRequiresTls,
+                this,
+                proxyToServerConnectionCounter,
+                proxyToServerErrorCounter,
+                serverToProxyBackpressureMeter,
+                proxyToServerConnectionToken);
+        Objects.requireNonNull(frontendHandler).inConnecting(
+                connecting.remote(), serverConnectionStateMachine.backendHandler());
         var frontend = Objects.requireNonNull(this.frontendHandler);
         log(Level.DEBUG)
                 .addKeyValue("remote", connecting.remote())
@@ -860,7 +829,6 @@ public class ProxyChannelStateMachine {
         kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         // we must wait for the transport subject to be built before forwarding the buffered messages and then enabling autoread on the client
         maybeUnblock();
-        proxyToServerConnectionToken.acquire();
     }
 
     /**
@@ -942,9 +910,8 @@ public class ProxyChannelStateMachine {
 
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
         // Close the server connection
-        if (backendHandler != null) {
-            backendHandler.inClosed();
-            proxyToServerConnectionToken.release();
+        if (serverConnectionStateMachine != null) {
+            serverConnectionStateMachine.close();
         }
 
         // Close the client connection
@@ -963,7 +930,8 @@ public class ProxyChannelStateMachine {
                     .addKeyValue("disconnectCause", disconnectCause)
                     .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
                     .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
-                    .addKeyValue("serverMessagesInFlightCount", serverMessagesInFlightCount)
+                    .addKeyValue("serverMessagesInFlightCount",
+                            serverConnectionStateMachine != null ? serverConnectionStateMachine.serverMessagesInFlightCount : 0)
                     .log("Drain interrupted by connection close — signalling drain policy from toClosed path");
             pendingDrainCallback.run();
         }

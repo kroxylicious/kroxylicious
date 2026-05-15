@@ -109,7 +109,7 @@ class ProxyChannelStateMachineTest {
     private EndpointGateway endpointGateway;
 
     @Mock
-    private KafkaProxyBackendHandler backendHandler;
+    private ServerConnectionStateMachine serverConnectionStateMachine;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     private KafkaProxyFrontendHandler frontendHandler;
@@ -172,19 +172,15 @@ class ProxyChannelStateMachineTest {
 
     @ParameterizedTest
     @MethodSource("givenStates")
-    void shouldCountProxyToServerExceptions(Runnable givenState) {
+    void shouldTransitionToClosedOnServerException(Runnable givenState) {
         // Given
         givenState.run();
 
         // When
-        proxyChannelStateMachine.onServerException(failure);
+        proxyChannelStateMachine.onServerConnectionException(failure);
 
-        // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_errors").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, CLOSE_ENOUGH));
+        // Then — server error counting is now the SCSM's concern; PCSM just transitions to Closed
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
     @Test
@@ -204,19 +200,15 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldCountProxyToServerConnectionsFailures() {
+    void shouldTransitionToClosedOnServerExceptionInConnecting() {
         // Given
         stateMachineInConnecting();
 
         // When
-        proxyChannelStateMachine.onServerException(failure);
+        proxyChannelStateMachine.onServerConnectionException(failure);
 
-        // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_errors").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, CLOSE_ENOUGH));
+        // Then — server error counting is now the SCSM's concern; PCSM just transitions to Closed
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
     @Test
@@ -255,8 +247,8 @@ class ProxyChannelStateMachineTest {
         // When
         proxyChannelStateMachine.onClientUnwritable();
 
-        // Then
-        verify(backendHandler, times(1)).applyBackpressure();
+        // Then — PCSM delegates every call; idempotency is the SCSM's concern
+        verify(serverConnectionStateMachine, times(2)).applyBackpressure();
     }
 
     @Test
@@ -272,7 +264,7 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
         verify(frontendHandler).inClosed(ArgumentMatchers.notNull(UnknownServerException.class));
     }
 
@@ -293,7 +285,7 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
         verify(frontendHandler).inClosed(ArgumentMatchers.notNull(InvalidRequestException.class));
     }
 
@@ -304,11 +296,11 @@ class ProxyChannelStateMachineTest {
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
-        proxyChannelStateMachine.onServerException(cause);
+        proxyChannelStateMachine.onServerConnectionException(cause);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
         verify(frontendHandler).inClosed(cause);
     }
 
@@ -316,14 +308,12 @@ class ProxyChannelStateMachineTest {
     void shouldUnblockServerReads() {
         // Given
         stateMachineInForwarding();
-        proxyChannelStateMachine.serverReadsBlocked = true;
 
         // When
         proxyChannelStateMachine.onClientWritable();
-        proxyChannelStateMachine.onClientWritable();
 
         // Then
-        verify(backendHandler, times(1)).relieveBackpressure();
+        verify(serverConnectionStateMachine).relieveBackpressure();
     }
 
     @Test
@@ -454,7 +444,7 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Connecting.class);
         verify(frontendHandler).inConnecting(eq(brokerAddress), notNull(KafkaProxyBackendHandler.class));
-        assertThat(proxyChannelStateMachine).extracting("backendHandler").isNotNull();
+        assertThat(proxyChannelStateMachine).extracting("serverConnectionStateMachine").isNotNull();
     }
 
     @Test
@@ -470,7 +460,7 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(null);
-        assertThat(proxyChannelStateMachine).extracting("backendHandler").isNull();
+        assertThat(proxyChannelStateMachine).extracting("serverConnectionStateMachine").isNull();
     }
 
     @Test
@@ -485,7 +475,7 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(null);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -495,18 +485,18 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
-                backendHandler,
+                serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
                 waitingForOneEvent);
 
         // When
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
 
         verify(frontendHandler).unblockClient();
-        verifyNoInteractions(backendHandler);
+        verifyNoInteractions(serverConnectionStateMachine);
     }
 
     @Test
@@ -516,18 +506,18 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
-                backendHandler,
+                serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
                 waitingForTwoEvents);
 
         // When
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
 
         verifyNoInteractions(frontendHandler);
-        verifyNoInteractions(backendHandler);
+        verifyNoInteractions(serverConnectionStateMachine);
     }
 
     @Test
@@ -550,7 +540,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInClientActive();
 
         // When
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         // Then
         assertThat(proxyChannelStateMachine.state())
@@ -582,13 +572,13 @@ class ProxyChannelStateMachineTest {
         var msg = metadataResponse();
 
         // When
-        proxyChannelStateMachine.messageFromServer(msg);
+        proxyChannelStateMachine.onResponseFromServer(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);
         verify(frontendHandler).forwardToClient(msg);
         verifyNoInteractions(serverCtx);
-        verifyNoInteractions(backendHandler);
+        verifyNoInteractions(serverConnectionStateMachine);
     }
 
     @Test
@@ -596,15 +586,15 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInForwarding();
         doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
-        doNothing().when(backendHandler).inClosed();
+        doNothing().when(serverConnectionStateMachine).close();
 
         // When
-        proxyChannelStateMachine.onServerInactive();
+        proxyChannelStateMachine.onServerConnectionClosed(ProxyChannelStateMachine.DisconnectCause.SERVER_CLOSED);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(null);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -619,7 +609,7 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(null);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -635,7 +625,7 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         assertThat(proxyChannelStateMachine.kafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
         verify(frontendHandler).inClosed(null);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -644,10 +634,10 @@ class ProxyChannelStateMachineTest {
         stateMachineInClosed();
 
         // When
-        proxyChannelStateMachine.onServerInactive();
+        proxyChannelStateMachine.onServerConnectionClosed(ProxyChannelStateMachine.DisconnectCause.SERVER_CLOSED);
 
         // Then
-        verifyNoInteractions(frontendHandler, backendHandler);
+        verifyNoInteractions(frontendHandler, serverConnectionStateMachine);
     }
 
     @Test
@@ -655,15 +645,15 @@ class ProxyChannelStateMachineTest {
         // Given
         stateMachineInForwarding();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
-        doNothing().when(backendHandler).inClosed();
+        doNothing().when(serverConnectionStateMachine).close();
 
         // When
-        proxyChannelStateMachine.onServerException(illegalStateException);
+        proxyChannelStateMachine.onServerConnectionException(illegalStateException);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(illegalStateException);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
     }
 
     @ParameterizedTest
@@ -675,7 +665,7 @@ class ProxyChannelStateMachineTest {
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
         doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler)
                 .inClosed(expectedException);
-        doNothing().when(backendHandler).inClosed();
+        doNothing().when(serverConnectionStateMachine).close();
         if (tlsEnabled) {
             useDownstreamSsl();
         }
@@ -686,7 +676,7 @@ class ProxyChannelStateMachineTest {
         // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(expectedException);
-        verify(backendHandler).inClosed();
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -717,7 +707,7 @@ class ProxyChannelStateMachineTest {
 
     @ParameterizedTest
     @MethodSource("connectedStates")
-    void shouldStartServerTimerWhenClientIsUnwritable(Runnable givenState) {
+    void shouldDelegateServerBackpressureToScsmOnClientUnwritable(Runnable givenState) {
         // Given
         givenState.run();
 
@@ -725,27 +715,20 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientUnwritable();
 
         // Then
-        assertThat(proxyChannelStateMachine.serverBackpressureTimer)
-                .isInstanceOf(Timer.Sample.class);
+        verify(serverConnectionStateMachine).applyBackpressure();
     }
 
     @ParameterizedTest
     @MethodSource("connectedStates")
-    void shouldStopServerTimerWhenClientIsWritable(Runnable givenState) {
+    void shouldDelegateServerBackpressureReliefToScsmOnClientWritable(Runnable givenState) {
         // Given
         givenState.run();
-        proxyChannelStateMachine.onClientUnwritable();
 
         // When
         proxyChannelStateMachine.onClientWritable();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_server_to_proxy_reads_paused").timer())
-                .isInstanceOf(Timer.class)
-                .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
-                // Count is incremented when the timer is stopped
-                );
-        assertThat(proxyChannelStateMachine.serverBackpressureTimer).isNull();
+        verify(serverConnectionStateMachine).relieveBackpressure();
     }
 
     @ParameterizedTest
@@ -862,7 +845,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
-                backendHandler,
+                serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
                 -1);
     }
@@ -872,7 +855,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 forwarding,
                 frontendHandler,
-                backendHandler,
+                serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
                 -1);
         return forwarding;
@@ -882,7 +865,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Closed(),
                 frontendHandler,
-                backendHandler,
+                serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
                 -1);
     }
@@ -929,17 +912,15 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldIncrementProxyToServerActiveConnectionsOnForwarding() {
+    void shouldTransitionToForwardingOnServerConnectionActive() {
         // Given
         stateMachineInConnecting();
-        int initialCount = getVirtualNodeProxyToServerActiveConnections();
 
         // When
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         // Then
-        assertThat(getVirtualNodeProxyToServerActiveConnections())
-                .isEqualTo(initialCount + 1);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
     }
 
     @Test
@@ -947,19 +928,17 @@ class ProxyChannelStateMachineTest {
         // Given - establish both client and server connections
         proxyChannelStateMachine.onClientActive(frontendHandler);
         stateMachineInConnecting();
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
-        int initialServerCount = getVirtualNodeProxyToServerActiveConnections();
 
         // When
         proxyChannelStateMachine.onClientInactive();
 
-        // Then
+        // Then — server connection metric is now the SCSM's concern
         assertThat(getVirtualNodeClientToProxyActiveConnections())
                 .isEqualTo(initialClientCount - 1);
-        assertThat(getVirtualNodeProxyToServerActiveConnections())
-                .isEqualTo(initialServerCount - 1);
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -967,19 +946,16 @@ class ProxyChannelStateMachineTest {
         // Given - establish both client and server connections
         proxyChannelStateMachine.onClientActive(frontendHandler);
         stateMachineInConnecting();
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
-        int initialServerCount = getVirtualNodeProxyToServerActiveConnections();
 
         // When
-        proxyChannelStateMachine.onServerInactive();
+        proxyChannelStateMachine.onServerConnectionClosed(ProxyChannelStateMachine.DisconnectCause.SERVER_CLOSED);
 
-        // Then
+        // Then — server connection metric is now the SCSM's concern
         assertThat(getVirtualNodeClientToProxyActiveConnections())
                 .isEqualTo(initialClientCount - 1);
-        assertThat(getVirtualNodeProxyToServerActiveConnections())
-                .isEqualTo(initialServerCount - 1);
     }
 
     @Test
@@ -1001,19 +977,17 @@ class ProxyChannelStateMachineTest {
         // Given - establish both client and server connections
         proxyChannelStateMachine.onClientActive(frontendHandler);
         stateMachineInConnecting();
-        proxyChannelStateMachine.onServerActive();
+        proxyChannelStateMachine.onServerConnectionActive();
 
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
-        int initialServerCount = getVirtualNodeProxyToServerActiveConnections();
 
         // When
-        proxyChannelStateMachine.onServerException(new RuntimeException("test exception"));
+        proxyChannelStateMachine.onServerConnectionException(new RuntimeException("test exception"));
 
-        // Then
+        // Then — server connection metric is now the SCSM's concern
         assertThat(getVirtualNodeClientToProxyActiveConnections())
                 .isEqualTo(initialClientCount - 1);
-        assertThat(getVirtualNodeProxyToServerActiveConnections())
-                .isEqualTo(initialServerCount - 1);
+        verify(serverConnectionStateMachine).close();
     }
 
     @Test
@@ -1043,8 +1017,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientFilterChainComplete(msg);
 
         // Then
-        verify(backendHandler).forwardToServer(msg);
-        verify(backendHandler).flushToServer();
+        verify(serverConnectionStateMachine).sendRequest(msg);
     }
 
     @Test
@@ -1067,7 +1040,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInForwarding();
 
         // When
-        proxyChannelStateMachine.serverReadComplete();
+        proxyChannelStateMachine.onServerReadComplete();
 
         // Then
         verify(frontendHandler).flushToClient();
@@ -1144,7 +1117,7 @@ class ProxyChannelStateMachineTest {
             stateMachineInForwarding();
 
             // When
-            proxyChannelStateMachine.onServerInactive();
+            proxyChannelStateMachine.onServerConnectionClosed(ProxyChannelStateMachine.DisconnectCause.SERVER_CLOSED);
 
             // Then
             assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
@@ -1203,7 +1176,7 @@ class ProxyChannelStateMachineTest {
      * {@code onClientRequest}, and {@code toClosed} that are reached only when the PCSM is
      * in {@link ProxyChannelState.Draining} state.
      * <p>
-     * Inherits the outer class's mocks (frontendHandler, backendHandler, etc.) and adds
+     * Inherits the outer class's mocks (frontendHandler, serverConnectionStateMachine, etc.) and adds
      * channel/event-loop/scheduled-future stubs needed to drive the drain machinery's
      * dispatching synchronously.
      */
@@ -1302,7 +1275,7 @@ class ProxyChannelStateMachineTest {
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
 
             // When — server delivers a response, decrementing client-in-flight to 0
-            proxyChannelStateMachine.messageFromServer(new Object());
+            proxyChannelStateMachine.onResponseFromServer(new Object());
 
             // Then — drain policy fired, state advanced to Closed (via onDrainCompleted → toClosed)
             assertThat(closedFuture).isCompleted();
@@ -1320,7 +1293,7 @@ class ProxyChannelStateMachineTest {
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Draining.class);
 
             // When — server delivers ONE response (client-in-flight goes 2 → 1, still > 0)
-            proxyChannelStateMachine.messageFromServer(new Object());
+            proxyChannelStateMachine.onResponseFromServer(new Object());
 
             // Then — still draining, future not yet completed (the "still waiting" branch ran)
             assertThat(closedFuture).isNotCompleted();
@@ -1348,7 +1321,7 @@ class ProxyChannelStateMachineTest {
             assertThat(closedFuture).isNotCompleted();
 
             // Now deliver the response for the original in-flight; counter goes 1 → 0 → policy fires
-            proxyChannelStateMachine.messageFromServer(new Object());
+            proxyChannelStateMachine.onResponseFromServer(new Object());
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
             assertThat(closedFuture).isCompleted();
         }
@@ -1426,7 +1399,7 @@ class ProxyChannelStateMachineTest {
             ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
             CompletableFuture<Void> closedFuture = proxyChannelStateMachine.drain(DRAIN_TIMEOUT);
             verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
-            proxyChannelStateMachine.messageFromServer(new Object());
+            proxyChannelStateMachine.onResponseFromServer(new Object());
             assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
             assertThat(closedFuture).isCompleted();
             double drainCompletedBefore = Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
@@ -1468,7 +1441,7 @@ class ProxyChannelStateMachineTest {
             assertThat(secondFuture).isNotCompleted();
 
             // When — the in-flight response arrives, completing the drain naturally
-            proxyChannelStateMachine.messageFromServer(new Object());
+            proxyChannelStateMachine.onResponseFromServer(new Object());
 
             // Then — the second future completes along with the connection closing
             assertThat(secondFuture).isCompleted();

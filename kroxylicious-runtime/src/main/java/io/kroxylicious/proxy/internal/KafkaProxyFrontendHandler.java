@@ -412,7 +412,7 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                proxyChannelStateMachine.onServerException(future.cause());
+                proxyChannelStateMachine.onServerConnectionException(future.cause());
             }
         });
     }
@@ -437,7 +437,7 @@ public class KafkaProxyFrontendHandler
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .log("Error invoking TLS credential supplier{}",
                             LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-            proxyChannelStateMachine.onServerException(e);
+            proxyChannelStateMachine.onServerConnectionException(e);
         }
     }
 
@@ -456,7 +456,7 @@ public class KafkaProxyFrontendHandler
             return;
         }
         if (credentials == null) {
-            proxyChannelStateMachine.onServerException(new IllegalStateException("TLS credential supplier returned null"));
+            proxyChannelStateMachine.onServerConnectionException(new IllegalStateException("TLS credential supplier returned null"));
             return;
         }
         applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
@@ -469,7 +469,7 @@ public class KafkaProxyFrontendHandler
                 .setCause(LOGGER.isDebugEnabled() ? throwable : null)
                 .log("TLS credential supplier failed{}",
                         LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-        proxyChannelStateMachine.onServerException(new IllegalStateException("Failed to obtain TLS credentials", throwable));
+        proxyChannelStateMachine.onServerConnectionException(new IllegalStateException("Failed to obtain TLS credentials", throwable));
     }
 
     /**
@@ -515,7 +515,7 @@ public class KafkaProxyFrontendHandler
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .log("Error applying TLS credentials to channel{}",
                             LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-            proxyChannelStateMachine.onServerException(e);
+            proxyChannelStateMachine.onServerConnectionException(e);
         }
     }
 
