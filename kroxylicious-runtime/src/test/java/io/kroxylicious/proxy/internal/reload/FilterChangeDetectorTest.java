@@ -193,4 +193,85 @@ class FilterChangeDetectorTest {
                 false,
                 filters);
     }
+
+    @Test
+    void detectsAddedFilterDefinitionReferencedByCluster() {
+        // Cluster's filters list grows to include a newly-added filter definition. The
+        // cluster's own filter-list change is also picked up by VirtualClusterChangeDetector;
+        // here we assert that FilterChangeDetector flags it via the "filter-b is in
+        // changedFilterNames because it's newly defined" path.
+        var filterA = filterDef("filter-a", "config");
+        var filterB = filterDef("filter-b", "config");
+        var oldConfig = configWith(List.of(filterA), null, vc("cluster", List.of("filter-a")));
+        var newConfig = configWith(List.of(filterA, filterB), null,
+                vc("cluster", List.of("filter-a", "filter-b")));
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsRemovedFilterDefinitionReferencedViaDefaults() {
+        // Cluster uses defaultFilters; defaults removes filter-b along with its definition.
+        // The cluster is flagged because defaultFiltersChanged is true (which covers the
+        // "removed filter definition that was in defaults" path).
+        var filterA = filterDef("filter-a", "config");
+        var filterB = filterDef("filter-b", "config");
+        var oldConfig = configWith(List.of(filterA, filterB), List.of("filter-a", "filter-b"),
+                vc("cluster", null));
+        var newConfig = configWith(List.of(filterA), List.of("filter-a"),
+                vc("cluster", null));
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsFilterTypeChange() {
+        // Same filter name, different class name (`type` field). Every cluster referencing
+        // the filter must restart.
+        var oldFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.OldFilter", "config");
+        var newFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.NewFilter", "config");
+        var oldConfig = configWith(List.of(oldFilter), null, vc("cluster", List.of("filter-a")));
+        var newConfig = configWith(List.of(newFilter), null, vc("cluster", List.of("filter-a")));
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void ignoresClusterWithBothFiltersAndDefaultFiltersNull() {
+        // A cluster with no filter chain at all (filters=null AND no defaultFilters in
+        // either config) should never be flagged, even if other filter definitions change.
+        // Configuration validation forbids unused filter definitions, so the only-used
+        // filter is on a different cluster.
+        var oldFilter = filterDef("filter-a", "v1");
+        var newFilter = filterDef("filter-a", "v2");
+        var oldConfig = configWith(List.of(oldFilter), null,
+                vc("isolated", null),
+                vc("uses-a", List.of("filter-a")));
+        var newConfig = configWith(List.of(newFilter), null,
+                vc("isolated", null),
+                vc("uses-a", List.of("filter-a")));
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        // "uses-a" is flagged because filter-a's content changed; "isolated" is not — it
+        // has no filter chain so a filter-definition change can't affect it.
+        assertThat(result.clustersToModify()).containsExactly("uses-a");
+    }
+
+    @Test
+    void newlyAddedClustersAreNotIncludedInModify() {
+        // FilterChangeDetector iterates oldConfig clusters; pure additions are
+        // VirtualClusterChangeDetector's concern. Even when an added cluster references a
+        // filter whose definition changed, FilterChangeDetector must not flag it.
+        var oldFilter = filterDef("filter-a", "v1");
+        var newFilter = filterDef("filter-a", "v2");
+        var oldConfig = configWith(List.of(oldFilter), null, vc("existing", List.of("filter-a")));
+        var newConfig = configWith(List.of(newFilter), null,
+                vc("existing", List.of("filter-a")),
+                vc("newly-added", List.of("filter-a")));
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        // "existing" is flagged because filter-a changed and existing references it.
+        // "newly-added" is NOT in clustersToModify even though it also references filter-a —
+        // pure additions are out of FilterChangeDetector's scope.
+        assertThat(result.clustersToModify()).containsExactly("existing");
+        assertThat(result.clustersToAdd()).isEmpty();
+    }
 }

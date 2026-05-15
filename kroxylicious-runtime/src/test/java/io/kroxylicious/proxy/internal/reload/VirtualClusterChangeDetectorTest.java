@@ -5,18 +5,24 @@
  */
 package io.kroxylicious.proxy.internal.reload;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -170,5 +176,136 @@ class VirtualClusterChangeDetectorTest {
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", port), null, null, null),
                 null,
                 Optional.empty());
+    }
+
+    @Test
+    void detectsDrainTimeoutChange() {
+        // drainTimeout was historically missed by an explicit field-by-field comparator;
+        // this test pins that sameAs()/canonical() covers it via the record's auto-equals.
+        var oldVc = vcWithExtras("cluster", null, null, Duration.ofSeconds(10));
+        var newVc = vcWithExtras("cluster", null, null, Duration.ofSeconds(30));
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsSubjectBuilderChange() {
+        var oldVc = vcWithExtras("cluster", null, null, null);
+        var newVc = vcWithExtras("cluster", new TransportSubjectBuilderConfig("test-type", null), null, null);
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsTopicNameCacheChange() {
+        var oldVc = vcWithExtras("cluster", null, null, null);
+        var newVc = vcWithExtras("cluster", null, CacheConfiguration.DEFAULT, null);
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsLogNetworkToggle() {
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                true, false, List.of());
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsLogFramesToggle() {
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, true, List.of());
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsTlsChangeOnTargetCluster() {
+        // Adding TLS to the upstream connection is a semantic config change that needs a restart.
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.of(new Tls(null, null, null, null, null))),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsGatewayAddition() {
+        var oldVc = vcWithGateways("cluster", List.of(gateway("gw-a", 9192)));
+        var newVc = vcWithGateways("cluster", List.of(gateway("gw-a", 9192), gateway("gw-b", 9193)));
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsGatewayRemoval() {
+        var oldVc = vcWithGateways("cluster", List.of(gateway("gw-a", 9192), gateway("gw-b", 9193)));
+        var newVc = vcWithGateways("cluster", List.of(gateway("gw-a", 9192)));
+        var result = detector.detect(new ConfigurationChangeContext(configWith(oldVc), configWith(newVc)));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsClusterAddingItsFilterChain() {
+        // Empty filter list → non-empty filter list. Cluster opts into a chain it didn't have.
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of("filter-a"));
+        // newConfig needs filter-a in filterDefinitions; old has no filter defs because filters list was empty.
+        var oldConfig = new Configuration(null, null, null, List.of(oldVc), null, false, Optional.empty(), null, null);
+        var newConfig = new Configuration(null, List.of(filterDef("filter-a")), null, List.of(newVc), null, false, Optional.empty(), null, null);
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    @Test
+    void detectsClusterRemovingItsFilterChain() {
+        // Non-empty filter list → empty filter list. Cluster opts out of a chain it had.
+        var oldVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of("filter-a"));
+        var newVc = new VirtualCluster("cluster",
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of());
+        var oldConfig = new Configuration(null, List.of(filterDef("filter-a")), null, List.of(oldVc), null, false, Optional.empty(), null, null);
+        var newConfig = new Configuration(null, null, null, List.of(newVc), null, false, Optional.empty(), null, null);
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+        assertThat(result.clustersToModify()).containsExactly("cluster");
+    }
+
+    private static VirtualCluster vcWithExtras(String name,
+                                               @Nullable TransportSubjectBuilderConfig subjectBuilder,
+                                               @Nullable CacheConfiguration topicNameCache,
+                                               @Nullable Duration drainTimeout) {
+        return new VirtualCluster(name,
+                new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway("default", 9192)),
+                false, false, List.of(),
+                subjectBuilder, topicNameCache, drainTimeout);
     }
 }

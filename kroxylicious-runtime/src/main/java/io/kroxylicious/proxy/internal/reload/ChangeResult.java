@@ -12,10 +12,6 @@ import java.util.Set;
  * Aggregated output of a {@link ChangeDetector}: which virtual clusters should be added,
  * removed, or modified to bring the running proxy from the old configuration to the new one.
  * <p>
- * The three sets are expected to be disjoint for a single detector's output — a cluster
- * cannot simultaneously be added and removed. When aggregating results from multiple detectors
- * via {@link #merge(ChangeResult)} the union is taken for each bucket; overlap across buckets
- * is not expected in practice (detectors operate on the same old/new pair).
  *
  * @param clustersToAdd    names of virtual clusters present in new but not in old
  * @param clustersToRemove names of virtual clusters present in old but not in new
@@ -31,6 +27,11 @@ public record ChangeResult(Set<String> clustersToAdd,
         clustersToAdd = Set.copyOf(clustersToAdd);
         clustersToRemove = Set.copyOf(clustersToRemove);
         clustersToModify = Set.copyOf(clustersToModify);
+
+        // TODO (follow-up PR): enforce pairwise disjointness of the three buckets at the
+        // orchestrator-consumer site (where merge() results are handled), once that code
+        // lands. Validating at the consumer gives better error-reporting context (which
+        // detector chain produced the bad result) than validating here would.
     }
 
     /**
