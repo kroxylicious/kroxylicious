@@ -100,10 +100,11 @@ public abstract class FilterHarness {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
         var forwarding = new ClientConnectionState.Forwarding();
+        var mockScsm = mock(ServerConnectionStateMachine.class);
         clientConnectionStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
-                mock(ServerConnectionStateMachine.class),
+                java.util.Map.of(new io.kroxylicious.proxy.service.HostPort("broker", 9092), mockScsm),
                 kafkaSession,
                 true);
         var filterHandlers = Arrays.stream(filters)
