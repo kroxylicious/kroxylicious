@@ -20,6 +20,7 @@ Format `<github issue/pr number>: <short description>`.
 
 * [#4073](https://github.com/kroxylicious/kroxylicious/pull/4073): **Behaviour change for plugin authors** — `FilterChainFactory` is now scoped per virtual cluster rather than shared across the whole proxy. A filter type used by N virtual clusters now sees N independent `FilterFactory.initialize()`/`close()` lifecycles — one per virtual cluster, each with its own initialization data. The threading model is also tightened: `close()` is now invoked on a non-Netty-event-loop thread (previously on the proxy shutdown caller's thread) after all connections to the virtual cluster have drained, so blocking work (e.g. closing KMS/HTTP clients) is safe in `close()`. Plugins that maintained cross-virtual-cluster state in a single `FilterFactory` instance, or relied on `close()` running on a specific thread, should be reviewed.
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): The operator now sets a `DeprecationWarning` status condition on `KafkaProxy` resources that have no `spec` field, complementing the existing log warning. Users should add an empty `spec: {}` to any `KafkaProxy` resource that lacks one. Support for spec-less `KafkaProxy` resources will be removed in a future release.
+* [#3828](https://github.com/kroxylicious/kroxylicious/pull/3828): remove `KafkaProxy.block()` — use `startup().join()` instead. KafkaProxy is considered internal API hence we are skipping the deprecation cycle
 
 ## 0.21.0
 
