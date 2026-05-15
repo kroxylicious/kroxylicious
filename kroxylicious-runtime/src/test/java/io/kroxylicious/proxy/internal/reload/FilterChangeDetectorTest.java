@@ -181,6 +181,20 @@ class FilterChangeDetectorTest {
         return new NamedFilterDefinition(name, "io.kroxylicious.test.FakeFilter", opaqueConfig);
     }
 
+    /**
+     * Build a virtual cluster fixture.
+     *
+     * <p>The {@code filters} parameter follows {@link VirtualCluster#filters()}'s
+     * three-valued semantics, which {@link FilterChangeDetector} treats distinctly:
+     * <ul>
+     *   <li>{@code null} &mdash; cluster relies on the top-level {@code defaultFilters};
+     *       FCD's defaultFilters-changed path applies.</li>
+     *   <li>{@code List.of()} &mdash; cluster has no filter chain at all; FCD will not
+     *       flag the cluster regardless of filter-definition changes.</li>
+     *   <li>non-empty list &mdash; cluster has an explicit chain; FCD flags the cluster
+     *       if any of the named filters' definitions change.</li>
+     * </ul>
+     */
     private static VirtualCluster vc(String name, @Nullable List<String> filters) {
         var gateway = new VirtualClusterGateway("default",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),

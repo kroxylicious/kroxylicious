@@ -153,6 +153,18 @@ class VirtualClusterChangeDetectorTest {
                 Optional.empty(), null, null);
     }
 
+    /**
+     * Build a basic virtual cluster fixture with an empty filter chain ({@code List.of()}).
+     *
+     * <p>VCC tests don't need to distinguish {@code null} filters ("cluster uses
+     * top-level defaultFilters") from {@code List.of()} ("cluster has no filter chain")
+     * &mdash; the change detector compares {@code filters} via record auto-equals,
+     * which treats each value as equal-to-itself regardless of which sentinel it is.
+     * Filter-chain composition matters for {@code FilterChangeDetector} (which
+     * implements the null-vs-empty distinction); for VCC tests we hardcode
+     * {@code List.of()} for simplicity. See {@code FilterChangeDetectorTest.vc(...)}
+     * for the FCD-side helper that exposes the {@code @Nullable} parameter.
+     */
     private static VirtualCluster vc(String name, String bootstrap, int gatewayPort) {
         return new VirtualCluster(name,
                 new TargetCluster(bootstrap, Optional.empty()),
