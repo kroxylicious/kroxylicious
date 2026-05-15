@@ -26,17 +26,17 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
     @VisibleForTesting
-    final ProxyChannelStateMachine proxyChannelStateMachine;
+    final ServerConnectionStateMachine serverConnectionStateMachine;
     @Nullable
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
-    public KafkaProxyBackendHandler(ProxyChannelStateMachine proxyChannelStateMachine) {
-        this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine);
+    KafkaProxyBackendHandler(ServerConnectionStateMachine serverConnectionStateMachine) {
+        this.serverConnectionStateMachine = Objects.requireNonNull(serverConnectionStateMachine);
     }
 
     /**
-     * Propagates backpressure to the <em>downstream/client</em> connection by notifying the {@link ProxyChannelStateMachine} when the <em>upstream/server</em> connection
+     * Propagates backpressure to the <em>downstream/client</em> connection by notifying the {@link ServerConnectionStateMachine} when the <em>upstream/server</em> connection
      * blocks or unblocks.
      * @param ctx the handler context for upstream/server channel
      * @throws Exception If something went wrong
@@ -45,10 +45,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
         if (ctx.channel().isWritable()) {
-            proxyChannelStateMachine.onServerWritable();
+            serverConnectionStateMachine.onServerWritable();
         }
         else {
-            proxyChannelStateMachine.onServerUnwritable();
+            serverConnectionStateMachine.onServerUnwritable();
         }
     }
 
@@ -75,8 +75,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         LOGGER.atTrace()
                 .addKeyValue("context", ctx)
                 .log("Channel active");
-        if (proxyChannelStateMachine.virtualCluster().getUpstreamSslContext().isEmpty()) {
-            proxyChannelStateMachine.onServerActive();
+        if (!serverConnectionStateMachine.isUpstreamTls()) {
+            serverConnectionStateMachine.onServerActive();
         }
         super.channelActive(ctx);
     }
@@ -95,10 +95,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
         if (event instanceof SslHandshakeCompletionEvent sslEvt) {
             if (sslEvt.isSuccess()) {
-                proxyChannelStateMachine.onServerActive();
+                serverConnectionStateMachine.onServerActive();
             }
             else {
-                proxyChannelStateMachine.onServerException(sslEvt.cause());
+                serverConnectionStateMachine.onServerException(sslEvt.cause());
             }
         }
         super.userEventTriggered(ctx, event);
@@ -110,7 +110,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        proxyChannelStateMachine.onServerInactive();
+        serverConnectionStateMachine.onServerInactive();
     }
 
     /**
@@ -121,7 +121,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        proxyChannelStateMachine.onServerException(cause);
+        serverConnectionStateMachine.onServerException(cause);
     }
 
     /**
@@ -133,7 +133,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-        proxyChannelStateMachine.messageFromServer(msg);
+        serverConnectionStateMachine.onMessageFromServer(msg);
     }
 
     /**
@@ -145,17 +145,17 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
         super.channelReadComplete(ctx);
-        proxyChannelStateMachine.serverReadComplete();
+        serverConnectionStateMachine.serverReadComplete();
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} to propagate an RPC to the upstream node.
+     * Called by the {@link ServerConnectionStateMachine} to propagate an RPC to the upstream node.
      * @param msg the RPC to forward.
      */
-    public void forwardToServer(Object msg) {
+    void forwardToServer(Object msg) {
         if (serverCtx == null) {
-            // TODO this shouldn't really be possible to reach. Delete in a releases time once we have more confidence in the StateMachine
-            proxyChannelStateMachine.illegalState("write without outbound active outbound channel");
+            serverConnectionStateMachine.onServerException(
+                    new IllegalStateException("write without active outbound channel"));
         }
         else {
             final Channel outboundChannel = serverCtx.channel();
@@ -172,9 +172,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} when the batch from the downstream/client side is complete.
+     * Called by the {@link ServerConnectionStateMachine} when the batch from the downstream/client side is complete.
      */
-    public void flushToServer() {
+    void flushToServer() {
         if (serverCtx != null) {
             final Channel serverChannel = serverCtx.channel();
             if (pendingServerFlushes) {
@@ -182,24 +182,24 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
                 serverChannel.flush();
             }
             if (!serverChannel.isWritable()) {
-                proxyChannelStateMachine.onServerUnwritable();
+                serverConnectionStateMachine.onServerUnwritable();
             }
         }
     }
 
     /**
-     * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to apply backpressure to the <em>upstream/server</em> connection
+     * Callback from the {@link ServerConnectionStateMachine} triggered when it wants to apply backpressure to the <em>upstream/server</em> connection
      */
-    public void applyBackpressure() {
+    void applyBackpressure() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(false);
         }
     }
 
     /**
-     * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to remove backpressure from the <em>upstream/server</em> connection
+     * Callback from the {@link ServerConnectionStateMachine} triggered when it wants to remove backpressure from the <em>upstream/server</em> connection
      */
-    public void relieveBackpressure() {
+    void relieveBackpressure() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(true);
         }
@@ -214,9 +214,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ProxyChannelState.Closed} state.
+     * Called by the {@link ServerConnectionStateMachine} on entry to the {@link ServerConnectionState.Closed} state.
      */
-    public void inClosed() {
+    void inClosed() {
         if (serverCtx != null) {
             Channel outboundChannel = serverCtx.channel();
             if (outboundChannel.isActive()) {
@@ -227,10 +227,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public String toString() {
-        // Don't include proxyChannelStateMachine's toString here
-        // because proxyChannelStateMachine's toString will include the backend's toString
-        // and we don't want a SOE.
-        return "KafkaProxyBackendHandler{" + ", serverCtx=" + serverCtx + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
+        return "KafkaProxyBackendHandler{serverCtx=" + serverCtx
+                + ", serverConnectionState=" + serverConnectionStateMachine.state()
                 + ", pendingServerFlushes=" + pendingServerFlushes + '}';
     }
 }

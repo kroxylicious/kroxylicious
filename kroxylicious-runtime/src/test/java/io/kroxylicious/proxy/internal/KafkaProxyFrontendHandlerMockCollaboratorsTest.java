@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -24,7 +23,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoop;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
@@ -44,10 +42,7 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
-import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -92,7 +87,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     ChannelHandlerContext clientCtx;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
-    ProxyChannelStateMachine proxyChannelStateMachine;
+    ClientConnectionStateMachine clientConnectionStateMachine;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     TransportSubjectBuilder subjectBuilder;
@@ -107,8 +102,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
-        when(proxyChannelStateMachine.endpointBinding()).thenReturn(endpointBinding);
-        when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualCluster);
+        when(clientConnectionStateMachine.endpointBinding()).thenReturn(endpointBinding);
+        when(clientConnectionStateMachine.virtualCluster()).thenReturn(virtualCluster);
         // Make the executor run tasks synchronously
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(0);
@@ -125,7 +120,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                proxyChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.empty());
 
         TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, CLUSTER_NAME);
@@ -141,7 +136,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
 
         // Then
-        verify(proxyChannelStateMachine).onClientActive(handler);
+        verify(clientConnectionStateMachine).onClientActive(handler);
     }
 
     @Test
@@ -160,7 +155,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelRead(clientCtx, msg);
 
         // Then
-        verify(proxyChannelStateMachine).onClientRequest(msg);
+        verify(clientConnectionStateMachine).onClientRequest(msg);
     }
 
     @Test
@@ -175,7 +170,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelWritabilityChanged(clientCtx);
 
         // Then
-        verify(proxyChannelStateMachine).onClientUnwritable();
+        verify(clientConnectionStateMachine).onClientUnwritable();
     }
 
     @Test
@@ -190,7 +185,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelWritabilityChanged(clientCtx);
 
         // Then
-        verify(proxyChannelStateMachine).onClientWritable();
+        verify(clientConnectionStateMachine).onClientWritable();
     }
 
     @Test
@@ -260,7 +255,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                proxyChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -290,7 +285,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                proxyChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -313,7 +308,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         Subject subject = new Subject(new User("bob"));
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(subject));
         var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session);
+        var ccsm = new ClientConnectionStateMachine(endpointBinding, subjectBuilder, session);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -322,14 +317,14 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                pcsm,
+                ccsm,
                 Optional.empty());
 
         // When
         handler.channelActive(clientCtx);
 
         // Then
-        assertThat(pcsm.kafkaSession().currentState())
+        assertThat(ccsm.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.TRANSPORT_AUTHENTICATED);
     }
 
@@ -338,7 +333,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         when(subjectBuilder.buildTransportSubject(any())).thenReturn(CompletableFuture.completedStage(Subject.anonymous()));
         var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        var pcsm = new ProxyChannelStateMachine(endpointBinding, subjectBuilder, session);
+        var ccsm = new ClientConnectionStateMachine(endpointBinding, subjectBuilder, session);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
                 filterChainFactory,
@@ -347,14 +342,14 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                proxyChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.empty());
 
         // When
         handler.channelActive(clientCtx);
 
         // Then
-        assertThat(pcsm.kafkaSession().currentState())
+        assertThat(ccsm.kafkaSession().currentState())
                 .isEqualTo(KafkaSessionState.ESTABLISHING);
     }
 
@@ -368,158 +363,5 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         assertThat(result).isSameAs(executor);
-    }
-
-    // --- TLS credential supplier tests ---
-
-    @Test
-    void invokeTlsCredentialSupplierReportsSynchronousFailure() throws Exception {
-        // Given
-        RuntimeException failure = new RuntimeException("manager failed");
-        when(virtualCluster.getTlsCredentialSupplierManager()).thenThrow(failure);
-        Channel channel = mock(Channel.class);
-        ChannelPipeline pipeline = mock(ChannelPipeline.class);
-        HostPort remote = new HostPort("localhost", 9092);
-        Method method = KafkaProxyFrontendHandler.class.getDeclaredMethod("invokeTlsCredentialSupplier", HostPort.class, Channel.class, ChannelPipeline.class);
-        method.setAccessible(true);
-
-        // When
-        method.invoke(handler, remote, channel, pipeline);
-
-        // Then
-        verify(proxyChannelStateMachine).onServerException(failure);
-    }
-
-    @Test
-    void requestTlsCredentialsAppliesCredentialsOnEventLoop() {
-        // Given
-        io.kroxylicious.proxy.tls.TlsCredentials badCreds = mock(io.kroxylicious.proxy.tls.TlsCredentials.class);
-        ServerTlsCredentialSupplier supplier = context -> CompletableFuture.completedFuture(badCreds);
-        ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
-        Channel channel = mock(Channel.class);
-        EventLoop eventLoop = mock(EventLoop.class);
-        when(channel.eventLoop()).thenReturn(eventLoop);
-        doAnswer(invocation -> {
-            invocation.getArgument(0, Runnable.class).run();
-            return null;
-        }).when(eventLoop).execute(any(Runnable.class));
-        HostPort remote = new HostPort("localhost", 9092);
-
-        // When
-        handler.requestTlsCredentials(supplier, supplierContext, remote, channel, mock(ChannelPipeline.class));
-
-        // Then
-        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(proxyChannelStateMachine).onServerException(captor.capture());
-        assertThat(captor.getValue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Unexpected TlsCredentials implementation");
-    }
-
-    @Test
-    void requestTlsCredentialsReportsSupplierFailureOnEventLoop() {
-        // Given
-        RuntimeException failure = new RuntimeException("boom");
-        ServerTlsCredentialSupplier supplier = context -> CompletableFuture.failedFuture(failure);
-        ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
-        Channel channel = mock(Channel.class);
-        EventLoop eventLoop = mock(EventLoop.class);
-        when(channel.eventLoop()).thenReturn(eventLoop);
-        doAnswer(invocation -> {
-            invocation.getArgument(0, Runnable.class).run();
-            return null;
-        }).when(eventLoop).execute(any(Runnable.class));
-        HostPort remote = new HostPort("localhost", 9092);
-
-        // When
-        handler.requestTlsCredentials(supplier, supplierContext, remote, channel, mock(ChannelPipeline.class));
-
-        // Then
-        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(proxyChannelStateMachine).onServerException(captor.capture());
-        assertThat(captor.getValue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Failed to obtain TLS credentials")
-                .hasCause(failure);
-    }
-
-    @Test
-    void handleTlsCredentialSupplierResultReportsNullCredentials() {
-        // Given
-        Channel channel = mock(Channel.class);
-        ChannelPipeline pipeline = mock(ChannelPipeline.class);
-        HostPort remote = new HostPort("localhost", 9092);
-
-        // When
-        handler.handleTlsCredentialSupplierResult(null, null, remote, channel, pipeline);
-
-        // Then
-        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(proxyChannelStateMachine).onServerException(captor.capture());
-        assertThat(captor.getValue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("TLS credential supplier returned null");
-    }
-
-    @Test
-    void handleTlsCredentialSupplierResultAppliesCredentials() {
-        // Given
-        io.kroxylicious.proxy.tls.TlsCredentials badCreds = mock(io.kroxylicious.proxy.tls.TlsCredentials.class);
-        Channel channel = mock(Channel.class);
-        ChannelPipeline pipeline = mock(ChannelPipeline.class);
-        HostPort remote = new HostPort("localhost", 9092);
-
-        // When
-        handler.handleTlsCredentialSupplierResult(badCreds, null, remote, channel, pipeline);
-
-        // Then
-        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(proxyChannelStateMachine).onServerException(captor.capture());
-        assertThat(captor.getValue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Unexpected TlsCredentials implementation");
-    }
-
-    @Test
-    void applySslContextToChannelRejectsNonTlsCredentialsImpl() {
-        // Given
-        io.kroxylicious.proxy.tls.TlsCredentials badCreds = mock(io.kroxylicious.proxy.tls.TlsCredentials.class);
-        Channel channel = mock(Channel.class);
-        ChannelPipeline pipeline = mock(ChannelPipeline.class);
-        HostPort remote = new HostPort("localhost", 9092);
-
-        // When
-        handler.applySslContextToChannel(badCreds, remote, channel, pipeline);
-
-        // Then - should report error to state machine
-        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(proxyChannelStateMachine).onServerException(captor.capture());
-        assertThat(captor.getValue())
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Unexpected TlsCredentials implementation");
-    }
-
-    @Test
-    void applySslContextToChannelAddsSslHandlerWithValidCredentials() throws Exception {
-        // Given
-        var keyAndCert = io.kroxylicious.proxy.internal.tls.TestCertificateUtil.generateKeyStoreAndCert();
-        var creds = new io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl(
-                keyAndCert.privateKey(), new java.security.cert.X509Certificate[]{ keyAndCert.cert() });
-
-        io.netty.channel.embedded.EmbeddedChannel channel = new io.netty.channel.embedded.EmbeddedChannel();
-        HostPort remote = new HostPort("localhost", 9092);
-
-        // Configure virtualCluster to have no TLS config (no cipher/protocol/trust overrides)
-        when(virtualCluster.targetCluster()).thenReturn(mock(io.kroxylicious.proxy.config.TargetCluster.class));
-        when(virtualCluster.targetCluster().tls()).thenReturn(Optional.empty());
-
-        // When
-        handler.applySslContextToChannel(creds, remote, channel, channel.pipeline());
-
-        // Then - SSL handler should be added to pipeline
-        assertThat(channel.pipeline().get("ssl")).isNotNull();
-        verify(proxyChannelStateMachine, never()).onServerException(any());
-
-        channel.close();
     }
 }

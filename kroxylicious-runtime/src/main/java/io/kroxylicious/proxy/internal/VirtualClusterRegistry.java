@@ -160,16 +160,16 @@ public class VirtualClusterRegistry {
         return lifecyclesByCluster.get(clusterName);
     }
 
-    public boolean registerConnection(String clusterName, ProxyChannelStateMachine pcsm) {
-        return requireKnownCluster(clusterName).registerConnection(pcsm);
+    public boolean registerConnection(String clusterName, ClientConnectionStateMachine ccsm) {
+        return requireKnownCluster(clusterName).registerConnection(ccsm);
     }
 
-    public void deregisterConnection(String clusterName, ProxyChannelStateMachine pcsm) {
-        requireKnownCluster(clusterName).deregisterConnection(pcsm);
+    public void deregisterConnection(String clusterName, ClientConnectionStateMachine ccsm) {
+        requireKnownCluster(clusterName).deregisterConnection(ccsm);
     }
 
     @VisibleForTesting
-    Set<ProxyChannelStateMachine> activeConnectionsFor(String clusterName) {
+    Set<ClientConnectionStateMachine> activeConnectionsFor(String clusterName) {
         return requireKnownCluster(clusterName).activeConnections();
     }
 

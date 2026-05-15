@@ -197,8 +197,8 @@ class VirtualClusterLifecycleTest {
     void concurrentRegisterAndDeregisterDoesNotLoseConnection() throws Exception {
         for (int iter = 0; iter < 200; iter++) {
             var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
-            var pcsm1 = mock(ProxyChannelStateMachine.class);
-            var pcsm2 = mock(ProxyChannelStateMachine.class);
+            var pcsm1 = mock(ClientConnectionStateMachine.class);
+            var pcsm2 = mock(ClientConnectionStateMachine.class);
             lifecycle.registerConnection(pcsm1);
 
             var startGate = new CountDownLatch(1);
@@ -232,9 +232,9 @@ class VirtualClusterLifecycleTest {
         int threads = 8;
         int operationsPerThread = 500;
         var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
-        var pcsms = new ProxyChannelStateMachine[threads * operationsPerThread];
+        var pcsms = new ClientConnectionStateMachine[threads * operationsPerThread];
         for (int i = 0; i < pcsms.length; i++) {
-            pcsms[i] = mock(ProxyChannelStateMachine.class);
+            pcsms[i] = mock(ClientConnectionStateMachine.class);
         }
 
         var executor = Executors.newFixedThreadPool(threads);
@@ -270,7 +270,7 @@ class VirtualClusterLifecycleTest {
             executor.shutdownNow();
         }
 
-        Set<ProxyChannelStateMachine> expected = new HashSet<>();
+        Set<ClientConnectionStateMachine> expected = new HashSet<>();
         for (int t = 0; t < threads; t++) {
             int base = t * operationsPerThread;
             for (int i = 1; i < operationsPerThread; i += 2) {

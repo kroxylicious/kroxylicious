@@ -6,9 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.time.Duration;
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -28,14 +25,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
-import io.kroxylicious.proxy.config.CacheConfiguration;
-import io.kroxylicious.proxy.config.NamedRange;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
@@ -45,11 +34,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-    private static final NodeIdentificationStrategy NODE_IDENTIFICATION_STRATEGY = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090),
-            "broker-", 9190, List.of(new NamedRange("default", 0, 9))).buildStrategy("cluster");
-    public static final String CLUSTER_NAME = "wibble";
     @Mock(strictness = Mock.Strictness.LENIENT)
-    ProxyChannelStateMachine proxyChannelStateMachine;
+    ServerConnectionStateMachine serverConnectionStateMachine;
 
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
     private ChannelHandlerContext outboundContext;
@@ -58,11 +44,7 @@ class KafkaProxyBackendHandlerTest {
     @BeforeEach
     void setUp() {
         outboundChannel = new EmbeddedChannel();
-        var virtualClusterModel = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("localhost:9090", Optional.empty()), false, false,
-                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
-        virtualClusterModel.addGateway("default", NODE_IDENTIFICATION_STRATEGY, Optional.empty());
-        when(proxyChannelStateMachine.virtualCluster()).thenReturn(virtualClusterModel);
-        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
+        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(serverConnectionStateMachine);
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();
     }
@@ -75,7 +57,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.channelActive(outboundContext);
 
         // Then
-        verify(proxyChannelStateMachine).onServerActive();
+        verify(serverConnectionStateMachine).onServerActive();
     }
 
     @Test
@@ -87,7 +69,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.exceptionCaught(outboundContext, kaboom);
 
         // Then
-        verify(proxyChannelStateMachine).onServerException(kaboom);
+        verify(serverConnectionStateMachine).onServerException(kaboom);
     }
 
     @Test
@@ -99,7 +81,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.userEventTriggered(serverCtx, SslHandshakeCompletionEvent.SUCCESS);
 
         // Then
-        verify(proxyChannelStateMachine).onServerActive();
+        verify(serverConnectionStateMachine).onServerActive();
     }
 
     @Test
@@ -112,7 +94,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.userEventTriggered(serverCtx, new SslHandshakeCompletionEvent(cause));
 
         // Then
-        verify(proxyChannelStateMachine).onServerException(cause);
+        verify(serverConnectionStateMachine).onServerException(cause);
     }
 
     @Test
@@ -184,7 +166,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.channelWritabilityChanged(handlerContext);
 
         // Then
-        verify(proxyChannelStateMachine).onServerUnwritable();
+        verify(serverConnectionStateMachine).onServerUnwritable();
     }
 
     @Test
@@ -199,13 +181,13 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.channelWritabilityChanged(handlerContext);
 
         // Then
-        verify(proxyChannelStateMachine).onServerWritable();
+        verify(serverConnectionStateMachine).onServerWritable();
     }
 
     @Test
     void serverChannelReturnsNullBeforeRegistration() {
         // Given — a fresh handler not yet attached to any pipeline (serverCtx still null)
-        var freshHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine);
+        var freshHandler = new KafkaProxyBackendHandler(serverConnectionStateMachine);
 
         // When / Then
         assertThat(freshHandler.serverChannel()).isNull();
