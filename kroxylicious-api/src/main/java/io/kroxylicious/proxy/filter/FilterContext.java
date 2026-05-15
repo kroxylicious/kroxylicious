@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -21,7 +22,6 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.
