@@ -411,15 +411,6 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
-     * Blocks while this proxy is running.
-     * @deprecated Use {@code startup().join()} instead.
-     */
-    @Deprecated(since = "0.21.0")
-    public void block() {
-        shutdown.join();
-    }
-
-    /**
      * Apply the given configuration to this running proxy, restarting only the virtual clusters
      * whose effective configuration differs from the current running state. Unaffected clusters
      * continue serving traffic throughout the reconfigure.
