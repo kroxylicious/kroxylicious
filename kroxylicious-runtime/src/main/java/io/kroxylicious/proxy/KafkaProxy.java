@@ -243,6 +243,8 @@ public final class KafkaProxy implements AutoCloseable {
      * @return a future that completes when the proxy stops (normally or exceptionally).
      */
     public CompletableFuture<Void> startup() {
+        // The CAS is the primary guard against concurrent startup; the STOPPING/STOPPED
+        // check is belt-and-braces since the real concurrency guard is in shutdown().
         if (!state.compareAndSet(LifecycleState.NEW, LifecycleState.STARTING)) {
             LifecycleState current = state.get();
             if (current == LifecycleState.STOPPING || current == LifecycleState.STOPPED) {
@@ -412,7 +414,7 @@ public final class KafkaProxy implements AutoCloseable {
      * Blocks while this proxy is running.
      * @deprecated Use {@code startup().join()} instead.
      */
-    @Deprecated(since = "0.11.0")
+    @Deprecated(since = "0.21.0")
     public void block() {
         shutdown.join();
     }
