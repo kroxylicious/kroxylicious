@@ -27,11 +27,6 @@ public record ChangeResult(Set<String> clustersToAdd,
         clustersToAdd = Set.copyOf(clustersToAdd);
         clustersToRemove = Set.copyOf(clustersToRemove);
         clustersToModify = Set.copyOf(clustersToModify);
-
-        // TODO (follow-up PR): enforce pairwise disjointness of the three buckets at the
-        // orchestrator-consumer site (where merge() results are handled), once that code
-        // lands. Validating at the consumer gives better error-reporting context (which
-        // detector chain produced the bad result) than validating here would.
     }
 
     /**
@@ -44,12 +39,28 @@ public record ChangeResult(Set<String> clustersToAdd,
     /**
      * Union-merges another result into this one. Used by the orchestrator to aggregate
      * results from multiple detectors.
+     *
+     * <p>Each individual detector's output is disjoint by construction (names are partitioned
+     * by set membership in old/new configurations), but the union of two disjoint results can
+     * produce cross-bucket overlap &mdash; e.g. detector A flags {@code vc-1} as
+     * {@code modify} while detector B independently flags {@code vc-1} as {@code add}.
+     * {@code merge} is the place where such overlap can arise in this code's flow, so the
+     * disjointness invariant is enforced here.
+     *
+     * @throws IllegalArgumentException if the union of the two results would place the same
+     *         cluster name in more than one bucket; the message names the offending pair and
+     *         the overlapping cluster names
      */
     public ChangeResult merge(ChangeResult other) {
-        return new ChangeResult(
-                union(clustersToAdd, other.clustersToAdd),
-                union(clustersToRemove, other.clustersToRemove),
-                union(clustersToModify, other.clustersToModify));
+        Set<String> mergedAdd = union(clustersToAdd, other.clustersToAdd);
+        Set<String> mergedRemove = union(clustersToRemove, other.clustersToRemove);
+        Set<String> mergedModify = union(clustersToModify, other.clustersToModify);
+
+        validateDisjoint("clustersToAdd", mergedAdd, "clustersToRemove", mergedRemove);
+        validateDisjoint("clustersToAdd", mergedAdd, "clustersToModify", mergedModify);
+        validateDisjoint("clustersToRemove", mergedRemove, "clustersToModify", mergedModify);
+
+        return new ChangeResult(mergedAdd, mergedRemove, mergedModify);
     }
 
     private static Set<String> union(Set<String> a, Set<String> b) {
@@ -62,5 +73,18 @@ public record ChangeResult(Set<String> clustersToAdd,
         var merged = new HashSet<>(a);
         merged.addAll(b);
         return Set.copyOf(merged);
+    }
+
+    private static void validateDisjoint(String nameA, Set<String> a, String nameB, Set<String> b) {
+        if (a.isEmpty() || b.isEmpty()) {
+            return;
+        }
+        Set<String> overlap = new HashSet<>(a);
+        overlap.retainAll(b);
+        if (!overlap.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "merge produced overlapping buckets: " + nameA + " and " + nameB
+                            + " must be disjoint; overlapping clusters: " + overlap);
+        }
     }
 }

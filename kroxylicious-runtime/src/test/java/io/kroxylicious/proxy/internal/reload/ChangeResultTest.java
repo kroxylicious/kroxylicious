@@ -10,6 +10,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ChangeResultTest {
 
@@ -53,5 +54,40 @@ class ChangeResultTest {
         mutable.add("b");
         // internal set should be independent of the caller's set
         assertThat(result.clustersToAdd()).containsExactly("a");
+    }
+
+    @Test
+    void mergeRejectsWhenSameClusterAppearsInAddAndModifyAcrossInputs() {
+        // Each input is individually disjoint; merging would place vc-1 in both add and
+        // modify, violating the pairwise-disjoint invariant. merge() must reject this.
+        var fromDetectorA = new ChangeResult(Set.of(), Set.of(), Set.of("vc-1"));
+        var fromDetectorB = new ChangeResult(Set.of("vc-1"), Set.of(), Set.of());
+        assertThatThrownBy(() -> fromDetectorA.merge(fromDetectorB))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("clustersToAdd")
+                .hasMessageContaining("clustersToModify")
+                .hasMessageContaining("vc-1");
+    }
+
+    @Test
+    void mergeRejectsWhenSameClusterAppearsInAddAndRemoveAcrossInputs() {
+        var fromDetectorA = new ChangeResult(Set.of("vc-1"), Set.of(), Set.of());
+        var fromDetectorB = new ChangeResult(Set.of(), Set.of("vc-1"), Set.of());
+        assertThatThrownBy(() -> fromDetectorA.merge(fromDetectorB))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("clustersToAdd")
+                .hasMessageContaining("clustersToRemove")
+                .hasMessageContaining("vc-1");
+    }
+
+    @Test
+    void mergeRejectsWhenSameClusterAppearsInRemoveAndModifyAcrossInputs() {
+        var fromDetectorA = new ChangeResult(Set.of(), Set.of("vc-1"), Set.of());
+        var fromDetectorB = new ChangeResult(Set.of(), Set.of(), Set.of("vc-1"));
+        assertThatThrownBy(() -> fromDetectorA.merge(fromDetectorB))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("clustersToRemove")
+                .hasMessageContaining("clustersToModify")
+                .hasMessageContaining("vc-1");
     }
 }
