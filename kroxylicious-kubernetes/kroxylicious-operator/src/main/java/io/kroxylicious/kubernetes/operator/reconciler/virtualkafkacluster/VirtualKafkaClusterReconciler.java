@@ -62,6 +62,8 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -105,10 +107,12 @@ public final class VirtualKafkaClusterReconciler implements
     private static final String KAFKA_PROTOCOL_FILTER_KIND = getKind(KafkaProtocolFilter.class);
     private final VirtualKafkaClusterStatusFactory statusFactory;
     private final DependencyResolver resolver;
+    private final SharedInformerManager sharedInformerManager;
 
-    public VirtualKafkaClusterReconciler(Clock clock, DependencyResolver resolver) {
+    public VirtualKafkaClusterReconciler(Clock clock, DependencyResolver resolver, SharedInformerManager sharedInformerManager) {
         this.statusFactory = new VirtualKafkaClusterStatusFactory(clock);
         this.resolver = resolver;
+        this.sharedInformerManager = sharedInformerManager;
     }
 
     public static StatusFactory<VirtualKafkaCluster> newStatusFactory(Clock clock) {
@@ -385,6 +389,11 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Override
     public List<EventSource<?, VirtualKafkaCluster>> prepareEventSources(EventSourceContext<VirtualKafkaCluster> context) {
+        // Get shared informers - all event sources of the same type share the same underlying cache
+        var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
+        var allowedNamespaces = sharedInformerManager.effectiveNamespaces();
+
         InformerEventSourceConfiguration<KafkaProxy> clusterToProxy = InformerEventSourceConfiguration.from(
                 KafkaProxy.class,
                 VirtualKafkaCluster.class)
@@ -396,18 +405,19 @@ public final class VirtualKafkaClusterReconciler implements
                         cluster -> Optional.of(cluster.getSpec().getProxyRef())))
                 .build();
 
-        InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigState = InformerEventSourceConfiguration.from(
+        // Proxy config state ConfigMaps - uses shared informer
+        SharedInformerEventSource<ConfigMap, VirtualKafkaCluster> clusterToProxyConfigState = new SharedInformerEventSource<>(
                 ConfigMap.class,
-                VirtualKafkaCluster.class)
-                .withName(PROXY_CONFIG_STATE_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(VirtualKafkaClusterReconciler::toConfigStateResourceName)
-                .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
+                PROXY_CONFIG_STATE_SOURCE_NAME,
+                sharedConfigMapInformer,
+                VirtualKafkaClusterReconciler::toConfigStateResourceName,
+                configMap -> ResourcesUtil.findReferrers(context,
                         configMap,
                         VirtualKafkaCluster.class,
                         cluster -> Optional.of(new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap")
                                 .withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX)
-                                .build())))
-                .build();
+                                .build())),
+                allowedNamespaces);
 
         InformerEventSourceConfiguration<KafkaService> clusterToService = InformerEventSourceConfiguration.from(
                 KafkaService.class,
@@ -447,40 +457,43 @@ public final class VirtualKafkaClusterReconciler implements
                 .withSecondaryToPrimaryMapper(new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(context))
                 .build();
 
-        InformerEventSourceConfiguration<Secret> clusterToSecret = InformerEventSourceConfiguration.from(
+        // Certificate Secrets - uses shared informer
+        var clusterToSecret = new SharedInformerEventSource<>(
                 Secret.class,
-                VirtualKafkaCluster.class)
-                .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToSecretSecondaryJoinedOnIngressCertificateRefMapper())
-                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnIngressCertificateRefToVirtualKafkaClusterPrimaryMapper(context))
-                .build();
+                SECRETS_EVENT_SOURCE_NAME,
+                sharedSecretInformer,
+                new VirtualKafkaClusterPrimaryToSecretSecondaryJoinedOnIngressCertificateRefMapper(),
+                new SecretSecondaryJoinedOnIngressCertificateRefToVirtualKafkaClusterPrimaryMapper(context),
+                allowedNamespaces);
 
-        InformerEventSourceConfiguration<ConfigMap> clusterToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
+        // Trust anchor ConfigMaps - uses shared informer
+        var clusterToConfigMapTrustAnchorRef = new SharedInformerEventSource<>(
                 ConfigMap.class,
-                VirtualKafkaCluster.class)
-                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context))
-                .build();
+                CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedConfigMapInformer,
+                new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper(),
+                new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context),
+                allowedNamespaces);
 
-        InformerEventSourceConfiguration<Secret> clusterToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
+        // Trust anchor Secrets - uses shared informer
+        var clusterToSecretTrustAnchorRef = new SharedInformerEventSource<>(
                 Secret.class,
-                VirtualKafkaCluster.class)
-                .withName(SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context))
-                .build();
+                SECRET_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedSecretInformer,
+                new VirtualKafkaClusterPrimaryToResourceSecondaryJoinedOnIngressTrustAnchorRefMapper(),
+                new ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimaryMapper<>(context),
+                allowedNamespaces);
 
         return List.of(
                 new InformerEventSource<>(clusterToProxy, context),
-                new InformerEventSource<>(clusterToProxyConfigState, context),
+                clusterToProxyConfigState,
                 new InformerEventSource<>(clusterToIngresses, context),
                 new InformerEventSource<>(clusterToService, context),
                 new InformerEventSource<>(clusterToFilters, context),
                 new InformerEventSource<>(clusterToKubeService, context),
-                new InformerEventSource<>(clusterToSecret, context),
-                new InformerEventSource<>(clusterToConfigMapTrustAnchorRef, context),
-                new InformerEventSource<>(clusterToSecretTrustAnchorRef, context));
+                clusterToSecret,
+                clusterToConfigMapTrustAnchorRef,
+                clusterToSecretTrustAnchorRef);
     }
 
     static void logIgnoredEvent(HasMetadata hasMetadata) {

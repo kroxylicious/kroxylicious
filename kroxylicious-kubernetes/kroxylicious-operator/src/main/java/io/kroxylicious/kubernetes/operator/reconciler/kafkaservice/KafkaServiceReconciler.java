@@ -42,6 +42,8 @@ import io.kroxylicious.kubernetes.operator.ResourceCheckResult;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -75,9 +77,11 @@ public final class KafkaServiceReconciler implements
     private static final String SPEC_TLS_CERTIFICATE_REF = "spec.tls.certificateRef";
 
     private final KafkaServiceStatusFactory statusFactory;
+    private final SharedInformerManager sharedInformerManager;
 
-    public KafkaServiceReconciler(Clock clock) {
+    public KafkaServiceReconciler(Clock clock, SharedInformerManager sharedInformerManager) {
         this.statusFactory = new KafkaServiceStatusFactory(clock);
+        this.sharedInformerManager = sharedInformerManager;
     }
 
     public static StatusFactory<KafkaService> newStatusFactory(Clock clock) {
@@ -86,43 +90,52 @@ public final class KafkaServiceReconciler implements
 
     @Override
     public List<EventSource<?, KafkaService>> prepareEventSources(EventSourceContext<KafkaService> context) {
-        InformerEventSourceConfiguration<Secret> serviceToSecret = InformerEventSourceConfiguration.from(
-                Secret.class,
-                KafkaService.class)
-                .withName(SECRETS_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper())
-                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context))
-                .build();
+        // Get shared informers - all event sources of the same type share the same underlying cache
+        var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
+        var allowedNamespaces = sharedInformerManager.effectiveNamespaces();
 
-        InformerEventSourceConfiguration<ConfigMap> serviceToConfigMapTrustAnchorRef = InformerEventSourceConfiguration.from(
+        // TLS certificate Secrets - uses shared informer
+        var serviceToSecret = new SharedInformerEventSource<>(
+                Secret.class,
+                SECRETS_EVENT_SOURCE_NAME,
+                sharedSecretInformer,
+                new KafkaServicePrimaryToSecretSecondaryJoinedOnTlsCertificateRefMapper(),
+                new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context),
+                allowedNamespaces);
+
+        // ConfigMap trust anchors - uses shared informer
+        var serviceToConfigMapTrustAnchorRef = new SharedInformerEventSource<>(
                 ConfigMap.class,
-                KafkaService.class)
-                .withName(CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
-                .build();
+                CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedConfigMapInformer,
+                new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper(),
+                new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context),
+                allowedNamespaces);
 
-        InformerEventSourceConfiguration<Secret> serviceToSecretTrustAnchorRef = InformerEventSourceConfiguration.from(
+        // Secret trust anchors - uses shared informer
+        var serviceToSecretTrustAnchorRef = new SharedInformerEventSource<>(
                 Secret.class,
-                KafkaService.class)
-                .withName(SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper())
-                .withSecondaryToPrimaryMapper(new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context))
-                .build();
+                SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedSecretInformer,
+                new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper(),
+                new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context),
+                allowedNamespaces);
 
-        InformerEventSourceConfiguration<Secret> serviceToStrimziCaCertificate = InformerEventSourceConfiguration.from(
+        // Strimzi CA certificate Secrets - uses shared informer
+        var serviceToStrimziCaCertificate = new SharedInformerEventSource<>(
                 Secret.class,
-                KafkaService.class)
-                .withName(SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper())
-                .withSecondaryToPrimaryMapper(new StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper(context))
-                .build();
+                SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                sharedSecretInformer,
+                new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper(),
+                new StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper(context),
+                allowedNamespaces);
 
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
-        informersList.add(new InformerEventSource<>(serviceToSecret, context));
-        informersList.add(new InformerEventSource<>(serviceToConfigMapTrustAnchorRef, context));
-        informersList.add(new InformerEventSource<>(serviceToSecretTrustAnchorRef, context));
+        informersList.add(serviceToSecret);
+        informersList.add(serviceToConfigMapTrustAnchorRef);
+        informersList.add(serviceToSecretTrustAnchorRef);
 
         if (context.getClient().supports(Kafka.class)) {
             LOGGER.atDebug()
@@ -136,7 +149,7 @@ public final class KafkaServiceReconciler implements
                     .withSecondaryToPrimaryMapper(new StrimziKafkaSecondaryToKafkaServicePrimaryMapper(context))
                     .build();
             informersList.add(new InformerEventSource<>(serviceToStrimziKafka, context));
-            informersList.add(new InformerEventSource<>(serviceToStrimziCaCertificate, context));
+            informersList.add(serviceToStrimziCaCertificate);
         }
 
         return informersList;
