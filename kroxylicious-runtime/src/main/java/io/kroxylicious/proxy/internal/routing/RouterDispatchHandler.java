@@ -21,6 +21,7 @@ import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
@@ -40,27 +41,43 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
 
     private final Router router;
     private final Map<String, RouteDescriptor> routes;
+    private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
 
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
+                                 Map<ApiKeys, String> staticRoutes,
                                  ClientConnectionStateMachine ccsm) {
         this.router = router;
         this.routes = routes;
+        this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (!(msg instanceof DecodedRequestFrame<?> frame)) {
+        if (msg instanceof RequestFrame frame) {
+            ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
+            String staticRoute = staticRoutes.get(apiKey);
+            if (staticRoute != null) {
+                ccsm.onClientFilterChainComplete(msg);
+                return;
+            }
+            if (msg instanceof DecodedRequestFrame<?> decoded) {
+                dispatchDynamically(ctx, decoded);
+                return;
+            }
             LOGGER.atWarn()
                     .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("messageClass", msg.getClass().getName())
-                    .log("RouterDispatchHandler received non-DecodedRequestFrame");
+                    .addKeyValue("apiKey", apiKey)
+                    .log("Dynamically-routed API key arrived as opaque frame, forwarding to CCSM");
             ccsm.onClientFilterChainComplete(msg);
             return;
         }
+        ccsm.onClientFilterChainComplete(msg);
+    }
 
+    private void dispatchDynamically(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {
         ApiKeys apiKey = frame.apiKey();
         short apiVersion = frame.apiVersion();
         int correlationId = frame.correlationId();
@@ -106,7 +123,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     }
 
     @Override
-    public void onResponse(Object msg) {
+    public boolean onResponse(Object msg) {
         if (msg instanceof DecodedResponseFrame<?> frame) {
             int correlationId = frame.correlationId();
             Map<Integer, CompletableFuture<Response>> pending = getPendingResponses(ccsm.clientChannel());
@@ -116,14 +133,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         (ResponseHeaderData) frame.header(),
                         frame.body());
                 future.complete(response);
-            }
-            else {
-                LOGGER.atWarn()
-                        .addKeyValue("sessionId", ccsm.sessionId())
-                        .addKeyValue("correlationId", correlationId)
-                        .log("Received response with no pending future");
+                return true;
             }
         }
+        return false;
     }
 
     static void registerPendingResponse(Channel channel,
