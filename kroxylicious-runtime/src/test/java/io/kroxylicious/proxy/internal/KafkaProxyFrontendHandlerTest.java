@@ -489,7 +489,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void handleConnect(ClientConnectionStateMachine clientConnectionStateMachine) {
-        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Connecting.class);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
 
@@ -545,7 +545,7 @@ class KafkaProxyFrontendHandlerTest {
                                           String initialClientSoftwareName) {
         initialiseInboundChannel(clientConnectionStateMachine, handler);
         writeInboundApiVersionsRequest(initialClientSoftwareName);
-        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Connecting.class);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
     }
 
     private static ChannelInboundHandlerAdapter throwOnReadHandler(Exception cause) {

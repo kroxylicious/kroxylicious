@@ -215,7 +215,7 @@ class ClientConnectionStateMachineEndToEndTest {
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertHandlerInConnectingState(clientConnectionStateMachine, List.of(firstMessage));
+        assertHandlerInForwardingState(clientConnectionStateMachine, List.of(firstMessage));
     }
 
     private ClientConnectionStateMachine buildHandlerInClientActiveState(boolean sni) {
@@ -237,9 +237,7 @@ class ClientConnectionStateMachineEndToEndTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
-        activateOutboundChannelAutomatically = false;
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
-        firstRequest(firstMessage);
 
         // When
         outboundChannel.pipeline().fireChannelActive();
@@ -263,9 +261,8 @@ class ClientConnectionStateMachineEndToEndTest {
                                                    ApiKeys firstMessage,
                                                    Throwable serverException) {
         // Given
-        activateOutboundChannelAutomatically = false;
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
-        final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
+        final DecodedRequestFrame<ApiMessage> requestFrame = firstBufferedRequest();
 
         // When
         outboundChannel.pipeline().fireExceptionCaught(serverException);
@@ -291,7 +288,6 @@ class ClientConnectionStateMachineEndToEndTest {
                                                   ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
-        firstRequest(firstMessage);
 
         // When
         outboundChannel.pipeline().fireChannelInactive();
@@ -310,7 +306,7 @@ class ClientConnectionStateMachineEndToEndTest {
                                                 ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
-        var firstRequest = firstRequest(firstMessage);
+        var firstRequest = firstBufferedRequest();
 
         // When
         outboundChannel.pipeline().fireChannelActive();
@@ -318,7 +314,7 @@ class ClientConnectionStateMachineEndToEndTest {
         // Then
         inboundChannel.checkException();
 
-        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Connecting.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
 
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
@@ -338,7 +334,7 @@ class ClientConnectionStateMachineEndToEndTest {
                           ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
-        final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
+        final DecodedRequestFrame<ApiMessage> requestFrame = firstBufferedRequest();
         outboundChannel.pipeline().fireChannelActive();
 
         // When
@@ -365,7 +361,6 @@ class ClientConnectionStateMachineEndToEndTest {
                              ApiKeys firstMessage) {
         // Given
         var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
-        firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
         // When
@@ -610,14 +605,13 @@ class ClientConnectionStateMachineEndToEndTest {
                 null);
     }
 
-    private void assertHandlerInConnectingState(
+    private void assertHandlerInForwardingState(
                                                 ClientConnectionStateMachine clientConnectionStateMachine,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
-        var stateAssert = assertThat(clientConnectionStateMachine.state())
-                .asInstanceOf(InstanceOfAssertFactories.type(ClientConnectionState.Connecting.class));
-        stateAssert.extracting(ClientConnectionState.Connecting::clientSoftwareName)
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        assertThat(clientConnectionStateMachine.clientSoftwareName())
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_NAME : null);
-        stateAssert.extracting(ClientConnectionState.Connecting::clientSoftwareVersion)
+        assertThat(clientConnectionStateMachine.clientSoftwareVersion())
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_VERSION : null);
         assertThat(handler.bufferedMsgs).asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
                 .map(DecodedRequestFrame::apiKey).isEqualTo(expectedBufferedRequestTypes);
@@ -695,53 +689,36 @@ class ClientConnectionStateMachineEndToEndTest {
                                                                        boolean sni,
                                                                        boolean tlsConfigured,
                                                                        ApiKeys firstMessage) {
+        activateOutboundChannelAutomatically = false;
         var clientConnectionStateMachine = buildFrontendHandler(tlsConfigured);
 
         hClientConnect(clientConnectionStateMachine, handler);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
-        // the CCSM unblocks the client after the backend is active and transport subject is asynchronously created
-        // here we force it to wait for a single event before unblocking.
-        int waitingForOneEvent = 1;
-        clientConnectionStateMachine.forceState(
-                new ClientConnectionState.SelectingServer(
-                        firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
-                        firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
-                handler,
-                null,
-                TEST_SESSION, waitingForOneEvent);
+        // Complete the transport subject building (decrements progressionLatch from 2 to 1)
+        inboundChannel.runPendingTasks();
 
-        inboundChannel.config().setAutoRead(false);
+        // Write the first client request to trigger the ClientActive → Forwarding transition.
+        // This creates a real SCSM and initiates the backend connection (without activating it).
+        switch (firstMessage) {
+            case API_VERSIONS -> writeInboundApiVersionsRequest();
+            case SASL_HANDSHAKE -> writeSaslPlainHandshake();
+            case SASL_AUTHENTICATE -> writeSaslAuthenticate("pa55word".getBytes(StandardCharsets.UTF_8));
+            case METADATA -> writeInboundMetadataRequest();
+            default -> throw new IllegalArgumentException();
+        }
 
         return clientConnectionStateMachine;
     }
 
+    @SuppressWarnings("unchecked")
     @NonNull
-    private DecodedRequestFrame<ApiMessage> firstRequest(ApiKeys firstMessage) {
-        final DecodedRequestFrame<ApiMessage> firstRequest = apiKeyToMessage(firstMessage);
-        handler.bufferMsg(firstRequest);
-
-        handler.inSelectingServer();
-
-        return firstRequest;
+    private DecodedRequestFrame<ApiMessage> firstBufferedRequest() {
+        return (DecodedRequestFrame<ApiMessage>) handler.bufferedMsgs.get(0);
     }
 
     // TODO backpressure
-
-    private DecodedRequestFrame<ApiMessage> apiKeyToMessage(ApiKeys firstMessage) {
-        return switch (firstMessage) {
-            case API_VERSIONS -> decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
-                    .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
-                    .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlationId++);
-            case SASL_HANDSHAKE -> decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
-                    .setMechanism(PLAIN_MECHANISM), correlationId++);
-            case SASL_AUTHENTICATE -> decodedRequestFrame(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
-                    .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlationId++);
-            case METADATA -> decodedRequestFrame(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData(), correlationId++);
-            default -> throw new IllegalArgumentException();
-        };
-    }
 
     private void assertNextClientResponseIsErrorFor(DecodedRequestFrame<ApiMessage> requestFrame) {
         switch (requestFrame.apiKey()) {
