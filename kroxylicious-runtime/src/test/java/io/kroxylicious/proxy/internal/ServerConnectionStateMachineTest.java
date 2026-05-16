@@ -20,6 +20,9 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.service.HostPort;
@@ -29,6 +32,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class ServerConnectionStateMachineTest {
@@ -76,6 +80,116 @@ class ServerConnectionStateMachineTest {
             meterRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
             Metrics.globalRegistry.remove(meterRegistry);
         }
+    }
+
+    @Test
+    void sendRequestWhileConnectingShouldBuffer() {
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Connecting.class);
+
+        Object msg = new Object();
+        serverStateMachine.sendRequest(msg);
+
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isZero();
+    }
+
+    @Test
+    void sendRequestWhileActiveShouldForwardImmediately() {
+        var channel = new EmbeddedChannel(serverStateMachine.backendHandler());
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Active.class);
+
+        Object msg = "test-request";
+        serverStateMachine.sendRequest(msg);
+
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isEqualTo(1);
+        assertThat(channel.<Object> readOutbound()).isEqualTo(msg);
+    }
+
+    @Test
+    void onServerActiveShouldFlushPendingRequests() {
+
+        serverStateMachine.sendRequest("req-1");
+        serverStateMachine.sendRequest("req-2");
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isZero();
+
+        // Registering the handler triggers channelActive → onServerActive → flush
+        var channel = new EmbeddedChannel(serverStateMachine.backendHandler());
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Active.class);
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isEqualTo(2);
+
+        assertThat(channel.<Object> readOutbound()).isEqualTo("req-1");
+        assertThat(channel.<Object> readOutbound()).isEqualTo("req-2");
+        assertThat(channel.<Object> readOutbound()).isNull();
+    }
+
+    @Test
+    void onServerActiveShouldFlushBeforePcsmCallback() {
+        serverStateMachine.sendRequest("req-1");
+        verifyNoInteractions(ccsm);
+
+        // channelActive → onServerActive → flush pending → pcsm callback
+        new EmbeddedChannel(serverStateMachine.backendHandler());
+
+        // At the point pcsm.onServerConnectionActive() was called,
+        // the pending requests had already been flushed
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isEqualTo(1);
+        verify(ccsm).onServerConnectionActive();
+    }
+
+    @Test
+    void closedShouldReleasePendingRequests() {
+        ByteBuf buf = Unpooled.buffer(4).writeInt(42);
+        assertThat(buf.refCnt()).isEqualTo(1);
+        serverStateMachine.sendRequest(buf);
+
+        serverStateMachine.close();
+
+        assertThat(buf.refCnt()).isZero();
+    }
+
+    @Test
+    void closedWithNoPendingRequestsShouldNotFail() {
+        serverStateMachine.close();
+
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
+    }
+
+    @Test
+    void exceptionWhileConnectingShouldReleasePendingRequests() {
+        ByteBuf buf = Unpooled.buffer(4).writeInt(99);
+        serverStateMachine.sendRequest(buf);
+        assertThat(buf.refCnt()).isEqualTo(1);
+
+        serverStateMachine.onServerException(new RuntimeException("connection failed"));
+
+        assertThat(buf.refCnt()).isZero();
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
+    }
+
+    @Test
+    void onServerActiveWithNoPendingRequestsShouldNotFail() {
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Connecting.class);
+
+        // channelActive triggers onServerActive — no pending requests to flush
+        new EmbeddedChannel(serverStateMachine.backendHandler());
+
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Active.class);
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isZero();
+    }
+
+    @Test
+    void pendingRequestsPreserveOrder() {
+
+        for (int i = 0; i < 5; i++) {
+            serverStateMachine.sendRequest("req-" + i);
+        }
+
+        var channel = new EmbeddedChannel(serverStateMachine.backendHandler());
+
+        for (int i = 0; i < 5; i++) {
+            assertThat(channel.<Object> readOutbound()).isEqualTo("req-" + i);
+        }
+        assertThat(channel.<Object> readOutbound()).isNull();
+        assertThat(serverStateMachine.serverMessagesInFlightCount).isEqualTo(5);
     }
 
     @Test
