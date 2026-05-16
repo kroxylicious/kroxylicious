@@ -435,10 +435,7 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(ServerConnectionStateMachine scsm,
                               Object msg) {
-        if (routingResponseCallback != null) {
-            routingResponseCallback.onResponse(msg);
-        }
-        else {
+        if (routingResponseCallback == null || !routingResponseCallback.onResponse(msg)) {
             Objects.requireNonNull(frontendHandler).forwardToClient(msg);
         }
 
