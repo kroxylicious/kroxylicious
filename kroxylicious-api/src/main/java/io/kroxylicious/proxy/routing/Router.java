@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.routing;
 
+import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -44,4 +45,19 @@ public interface Router {
                                                    RequestHeaderData header,
                                                    ApiMessage request,
                                                    RoutingContext context);
+
+    /**
+     * Declares API keys that are always forwarded to a fixed named route
+     * without deserialisation. For these API keys the runtime forwards
+     * frames directly (opaque or decoded) without calling
+     * {@link #onClientRequest}. API keys absent from this map are
+     * considered dynamically routed and will be decoded so that
+     * {@code onClientRequest} can inspect them.
+     *
+     * @return a map from API key to route name; empty means all API keys
+     *         are dynamically routed (the default)
+     */
+    default Map<ApiKeys, String> staticRoutes() {
+        return Map.of();
+    }
 }
