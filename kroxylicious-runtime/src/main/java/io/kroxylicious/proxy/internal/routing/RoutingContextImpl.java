@@ -9,14 +9,22 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter.MeterProvider;
+import io.micrometer.core.instrument.Timer;
 import io.netty.channel.Channel;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.RouterContext;
 
@@ -26,6 +34,8 @@ import io.kroxylicious.proxy.router.RouterContext;
  */
 class RoutingContextImpl implements RouterContext {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RoutingContextImpl.class);
+
     private final int clientCorrelationId;
     private final short apiVersion;
     private final Channel clientChannel;
@@ -33,6 +43,10 @@ class RoutingContextImpl implements RouterContext {
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
     private final RequestForwarder requestForwarder;
+    private final MeterProvider<Counter> routingRequestsCounter;
+    private final MeterProvider<Counter> routingErrorsCounter;
+    private final MeterProvider<Timer> routingRequestDurationTimer;
+    private final AtomicInteger pendingResponseCount;
 
     /**
      * Callback interface for forwarding requests to the backend. The
@@ -50,7 +64,11 @@ class RoutingContextImpl implements RouterContext {
                        String sessionId,
                        Subject subject,
                        Map<String, RouteDescriptor> routes,
-                       RequestForwarder requestForwarder) {
+                       RequestForwarder requestForwarder,
+                       MeterProvider<Counter> routingRequestsCounter,
+                       MeterProvider<Counter> routingErrorsCounter,
+                       MeterProvider<Timer> routingRequestDurationTimer,
+                       AtomicInteger pendingResponseCount) {
         this.clientCorrelationId = clientCorrelationId;
         this.apiVersion = apiVersion;
         this.clientChannel = Objects.requireNonNull(clientChannel);
@@ -58,6 +76,10 @@ class RoutingContextImpl implements RouterContext {
         this.subject = Objects.requireNonNull(subject);
         this.routes = Objects.requireNonNull(routes);
         this.requestForwarder = Objects.requireNonNull(requestForwarder);
+        this.routingRequestsCounter = Objects.requireNonNull(routingRequestsCounter);
+        this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
+        this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
+        this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
     }
 
     @Override
@@ -77,15 +99,30 @@ class RoutingContextImpl implements RouterContext {
                                                        ApiMessage request) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
+            routingErrorsCounter.withTags(
+                    Metrics.ERROR_TYPE_LABEL, "unknown_route").increment();
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .log("Router attempted to send to unknown route");
             return CompletableFuture.failedFuture(
                     new IllegalArgumentException("Unknown route: " + route));
         }
         if (!rd.targetsCluster()) {
+            routingErrorsCounter.withTags(
+                    Metrics.ERROR_TYPE_LABEL, "unsupported_nested_router").increment();
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .log("Router attempted unsupported nested router route");
             return CompletableFuture.failedFuture(
                     new UnsupportedOperationException(
                             "Routing to nested routers is not yet supported (route: " + route + ")"));
         }
 
+        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         var frame = new DecodedRequestFrame<>(
                 apiVersion,
                 clientCorrelationId,
@@ -94,9 +131,24 @@ class RoutingContextImpl implements RouterContext {
                 request);
 
         CompletableFuture<Response> future = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(clientChannel, clientCorrelationId, future);
+        Timer.Sample timerSample = Timer.start();
+        var pendingResponse = new RouterDispatchHandler.PendingResponse(
+                future, timerSample, route, apiKey);
+        RouterDispatchHandler.registerPendingResponse(
+                clientChannel, clientCorrelationId, pendingResponse);
+        pendingResponseCount.incrementAndGet();
 
         requestForwarder.forward(route, frame);
+        routingRequestsCounter.withTags(
+                Metrics.ROUTE_LABEL, route,
+                Metrics.ROUTING_MODE_LABEL, "dynamic",
+                Metrics.API_KEY_LABEL, apiKey.name()).increment();
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("route", route)
+                .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("apiVersion", apiVersion)
+                .log("Request sent to route");
         return future;
     }
 
