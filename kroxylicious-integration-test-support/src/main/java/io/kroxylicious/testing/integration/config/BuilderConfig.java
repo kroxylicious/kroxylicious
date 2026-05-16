@@ -14,6 +14,9 @@ import io.sundr.builder.annotations.ExternalBuildables;
 @ExternalBuildables(editableEnabled = false, generateBuilderPackage = true, builderPackage = BuilderConfig.TARGET_CONFIG_PACKAGE, value = {
         "io.kroxylicious.proxy.config.Configuration",
         "io.kroxylicious.proxy.config.TargetCluster",
+        "io.kroxylicious.proxy.config.TargetClusterDefinition",
+        "io.kroxylicious.proxy.config.RouterDefinition",
+        "io.kroxylicious.proxy.config.RouteDefinition",
         "io.kroxylicious.proxy.config.VirtualCluster",
         "io.kroxylicious.proxy.config.VirtualClusterGateway",
         "io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy",
