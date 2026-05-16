@@ -70,7 +70,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
@@ -116,10 +115,16 @@ class ClientConnectionStateMachineTest {
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
-                new KafkaSession(KafkaSessionState.ESTABLISHING));
+                new KafkaSession(KafkaSessionState.ESTABLISHING)) {
+            @Override
+            ServerConnectionStateMachine createServerConnection(HostPort remote) {
+                return serverConnectionStateMachine;
+            }
+        };
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
         when(frontendHandler.remotePort()).thenReturn(9476);
+        when(frontendHandler.clientChannel()).thenReturn(mock(Channel.class));
         // Make the executor run tasks synchronously for tests
         when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
     }
@@ -351,7 +356,7 @@ class ClientConnectionStateMachineTest {
         assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Forwarding.class);
         verify(frontendHandler).bufferMsg(msg);
-        verify(frontendHandler).initiateBackendConnect(eq(BROKER_ADDRESS), notNull(KafkaProxyBackendHandler.class));
+        verify(serverConnectionStateMachine).connect(notNull(Channel.class));
     }
 
     @Test
@@ -368,7 +373,7 @@ class ClientConnectionStateMachineTest {
         assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Forwarding.class);
         verify(frontendHandler).bufferMsg(msg);
-        verify(frontendHandler).initiateBackendConnect(eq(BROKER_ADDRESS), notNull(KafkaProxyBackendHandler.class));
+        verify(serverConnectionStateMachine).connect(notNull(Channel.class));
     }
 
     @Test
@@ -399,7 +404,7 @@ class ClientConnectionStateMachineTest {
         assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Forwarding.class);
         verify(frontendHandler).bufferMsg(msg);
-        verify(frontendHandler).initiateBackendConnect(eq(BROKER_ADDRESS), notNull(KafkaProxyBackendHandler.class));
+        verify(serverConnectionStateMachine).connect(notNull(Channel.class));
     }
 
     @Test

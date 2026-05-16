@@ -26,6 +26,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -55,6 +57,7 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
+import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -83,7 +86,45 @@ class KafkaProxyFrontendHandlerTest {
 
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession);
+        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession) {
+            @Override
+            ServerConnectionStateMachine createServerConnection(HostPort remote) {
+                return new ServerConnectionStateMachine(
+                        remote,
+                        this,
+                        virtualCluster(),
+                        clusterName(),
+                        nodeId(),
+                        mock(Counter.class),
+                        mock(Timer.class),
+                        mock(ActivationToken.class)) {
+                    @Override
+                    Bootstrap configureBootstrap(
+                                                 KafkaProxyBackendHandler capturedBackendHandler,
+                                                 Channel inboundChannel) {
+                        backendHandler = capturedBackendHandler;
+                        outboundChannel = new EmbeddedChannel();
+                        Bootstrap bootstrap = new Bootstrap();
+                        bootstrap.group(outboundChannel.eventLoop())
+                                .channel(outboundChannel.getClass())
+                                .handler(capturedBackendHandler)
+                                .option(ChannelOption.AUTO_READ, true)
+                                .option(ChannelOption.TCP_NODELAY, true);
+                        return bootstrap;
+                    }
+
+                    @Override
+                    ChannelFuture initConnection(
+                                                 String remoteHost,
+                                                 int remotePort,
+                                                 Bootstrap bootstrap) {
+                        outboundChannel.pipeline().addFirst(backendHandler);
+                        outboundChannel.pipeline().fireChannelRegistered();
+                        return outboundChannel.newPromise();
+                    }
+                };
+            }
+        };
     }
 
     private PluginFactoryRegistry pfr;
@@ -312,32 +353,7 @@ class KafkaProxyFrontendHandlerTest {
                 dp,
                 new DefaultSubjectBuilder(List.of()),
                 clientConnectionStateMachine,
-                Optional.empty()) {
-
-            @Override
-            Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
-                backendHandler = capturedBackendHandler;
-                outboundChannel = new EmbeddedChannel();
-                Bootstrap bootstrap = new Bootstrap();
-                bootstrap.group(outboundChannel.eventLoop())
-                        .channel(outboundChannel.getClass())
-                        .handler(capturedBackendHandler)
-                        .option(ChannelOption.AUTO_READ, true)
-                        .option(ChannelOption.TCP_NODELAY, true);
-                return bootstrap;
-            }
-
-            @Override
-            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
-                // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
-                // of a handler creating an outgoing connection and ends up
-                // trying to re-register the outbound channel => IllegalStateException
-                // So we override this method to short-circuit that
-                outboundChannel.pipeline().addFirst(backendHandler);
-                outboundChannel.pipeline().fireChannelRegistered();
-                return outboundChannel.newPromise();
-            }
-        };
+                Optional.empty());
     }
 
     /**

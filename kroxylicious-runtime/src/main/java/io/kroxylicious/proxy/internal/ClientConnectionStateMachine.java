@@ -793,21 +793,27 @@ public class ClientConnectionStateMachine {
     private void toForwarding(Forwarding forwarding,
                               HostPort remote) {
         setState(forwarding);
-        boolean upstreamRequiresTls = virtualCluster().getUpstreamSslContext().isPresent();
-        serverConnectionStateMachine = new ServerConnectionStateMachine(
-                remote,
-                upstreamRequiresTls,
-                this,
-                proxyToServerConnectionCounter,
-                proxyToServerErrorCounter,
-                serverToProxyBackpressureMeter,
-                proxyToServerConnectionToken);
+        proxyToServerConnectionCounter.increment();
+        serverConnectionStateMachine = createServerConnection(remote);
         var frontend = Objects.requireNonNull(frontendHandler);
-        frontend.initiateBackendConnect(remote, serverConnectionStateMachine.backendHandler());
+        serverConnectionStateMachine.connect(Objects.requireNonNull(frontend.clientChannel()));
         log(Level.DEBUG)
                 .addKeyValue("remote", remote)
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
                 .log("Upstream connection initiated for client");
+    }
+
+    @VisibleForTesting
+    ServerConnectionStateMachine createServerConnection(HostPort remote) {
+        return new ServerConnectionStateMachine(
+                remote,
+                this,
+                virtualCluster(),
+                clusterName(),
+                nodeId(),
+                proxyToServerErrorCounter,
+                serverToProxyBackpressureMeter,
+                proxyToServerConnectionToken);
     }
 
     /**
