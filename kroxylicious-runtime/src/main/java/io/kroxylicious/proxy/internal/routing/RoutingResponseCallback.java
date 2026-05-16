@@ -10,5 +10,12 @@ package io.kroxylicious.proxy.internal.routing;
  */
 @FunctionalInterface
 public interface RoutingResponseCallback {
-    void onResponse(Object msg);
+    /**
+     * Handle a response from a backend server.
+     *
+     * @param msg the response message
+     * @return {@code true} if this callback handled the response (dynamically routed),
+     *         {@code false} if the caller should forward it to the client via the normal path
+     */
+    boolean onResponse(Object msg);
 }

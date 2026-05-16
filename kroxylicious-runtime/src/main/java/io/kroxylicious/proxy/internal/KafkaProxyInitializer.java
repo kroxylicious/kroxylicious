@@ -6,11 +6,14 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -269,7 +272,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             var routerFactoryContext = createRouterFactoryContext();
             Router router = routerChainFactory.createRouter(virtualCluster.routerName(), routerFactoryContext);
             var routeDescriptors = virtualCluster.routeDescriptors();
-            var dispatchHandler = new RouterDispatchHandler(router, routeDescriptors, clientConnectionStateMachine);
+            Map<ApiKeys, String> staticRoutes = router.staticRoutes();
+            if (!staticRoutes.isEmpty()) {
+                Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
+                dynamicallyRoutedKeys.removeAll(staticRoutes.keySet());
+                dp.setRouterDecodingRequirements(dynamicallyRoutedKeys);
+            }
+            else {
+                dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
+            }
+            var dispatchHandler = new RouterDispatchHandler(router, routeDescriptors, staticRoutes, clientConnectionStateMachine);
             clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }
