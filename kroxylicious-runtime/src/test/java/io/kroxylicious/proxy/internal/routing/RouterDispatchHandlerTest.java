@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.message.FetchRequestData;
@@ -21,6 +22,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
@@ -56,10 +60,23 @@ class RouterDispatchHandlerTest {
 
     private EmbeddedChannel channel;
     private Map<String, RouteDescriptor> routes;
+    private SimpleMeterRegistry meterRegistry;
+    private AtomicInteger pendingResponseCount;
 
     @BeforeEach
     void setUp() {
         routes = Map.of("default", new RouteDescriptor("default", TARGET, null, java.util.List.of()));
+        meterRegistry = new SimpleMeterRegistry();
+        pendingResponseCount = new AtomicInteger();
+    }
+
+    private RouterDispatchHandler createHandler(Map<ApiKeys, String> staticRoutes) {
+        return new RouterDispatchHandler(
+                router, routes, staticRoutes, ccsm,
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount);
     }
 
     private void stubCcsmForRouting() {
@@ -73,7 +90,7 @@ class RouterDispatchHandlerTest {
         when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
 
         var header = new RequestHeaderData();
@@ -92,7 +109,7 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldDelegateNonFrameMessagesToCcsm() {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
 
         var nonFrame = "not-a-frame";
@@ -107,7 +124,7 @@ class RouterDispatchHandlerTest {
         when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("router error")));
 
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
 
         var header = new RequestHeaderData();
@@ -122,13 +139,17 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCompletePendingFutureOnResponse() {
         when(ccsm.clientChannel()).thenReturn(null);
+        when(ccsm.sessionId()).thenReturn("test-session");
 
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
         CompletableFuture<Response> future = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, future);
+        var pending = new RouterDispatchHandler.PendingResponse(
+                future, Timer.start(), "default", ApiKeys.FETCH);
+        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, pending);
+        pendingResponseCount.incrementAndGet();
 
         var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
         var responseBody = new FetchResponseData();
@@ -140,11 +161,12 @@ class RouterDispatchHandlerTest {
         Response response = future.join();
         assertThat(response.header()).isEqualTo(responseHeader);
         assertThat(response.body()).isEqualTo(responseBody);
+        assertThat(pendingResponseCount.get()).isZero();
     }
 
     @Test
     void shouldNotFailWhenResponseHasNoPendingFuture() {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
@@ -153,7 +175,7 @@ class RouterDispatchHandlerTest {
         var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, responseBody);
 
         handler.onResponse(responseFrame);
-        // should not throw — just logs a warning
+        // should not throw — no pending futures so warning is suppressed
     }
 
     @Test
@@ -176,7 +198,7 @@ class RouterDispatchHandlerTest {
             return null;
         }).when(ccsm).forwardToRoute(any(), any());
 
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
 
         var header = new RequestHeaderData();
@@ -191,14 +213,17 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldRegisterAndRetrievePendingResponses() {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
 
         CompletableFuture<Response> future1 = new CompletableFuture<>();
         CompletableFuture<Response> future2 = new CompletableFuture<>();
 
-        RouterDispatchHandler.registerPendingResponse(channel, 1, future1);
-        RouterDispatchHandler.registerPendingResponse(channel, 2, future2);
+        RouterDispatchHandler.registerPendingResponse(channel, 1,
+                new RouterDispatchHandler.PendingResponse(future1, Timer.start(), "default", ApiKeys.FETCH));
+        RouterDispatchHandler.registerPendingResponse(channel, 2,
+                new RouterDispatchHandler.PendingResponse(future2, Timer.start(), "default", ApiKeys.FETCH));
 
         when(ccsm.clientChannel()).thenReturn(channel);
 
@@ -211,8 +236,9 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldForwardStaticallyRoutedDecodedFrameViaForwardToRoute() {
+        when(ccsm.sessionId()).thenReturn("test-session");
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
-        var handler = new RouterDispatchHandler(router, routes, staticRoutes, ccsm);
+        var handler = createHandler(staticRoutes);
         channel = new EmbeddedChannel(handler);
 
         var header = new RequestHeaderData();
@@ -227,8 +253,9 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldForwardStaticallyRoutedOpaqueFrameViaForwardToRoute() {
+        when(ccsm.sessionId()).thenReturn("test-session");
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
-        var handler = new RouterDispatchHandler(router, routes, staticRoutes, ccsm);
+        var handler = createHandler(staticRoutes);
         channel = new EmbeddedChannel(handler);
 
         var buf = Unpooled.buffer();
@@ -245,12 +272,15 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldReturnTrueFromOnResponseWhenPendingFutureExists() {
         when(ccsm.clientChannel()).thenReturn(null);
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
         CompletableFuture<Response> future = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, future);
+        var pending = new RouterDispatchHandler.PendingResponse(
+                future, Timer.start(), "default", ApiKeys.FETCH);
+        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, pending);
 
         var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
         var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, responseHeader, new FetchResponseData());
@@ -263,7 +293,7 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldReturnFalseFromOnResponseWhenNoPendingFuture() {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm);
+        var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
@@ -273,5 +303,43 @@ class RouterDispatchHandlerTest {
         boolean handled = handler.onResponse(responseFrame);
 
         assertThat(handled).isFalse();
+    }
+
+    @Test
+    void shouldIncrementStaticRouteRequestCounter() {
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var staticRoutes = Map.of(ApiKeys.FETCH, "default");
+        var handler = createHandler(staticRoutes);
+        channel = new EmbeddedChannel(handler);
+
+        var header = new RequestHeaderData();
+        var body = new FetchRequestData();
+        var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true, header, body);
+
+        channel.writeInbound(frame);
+
+        var counter = meterRegistry.find("test_routing_requests").counter();
+        assertThat(counter).isNotNull();
+        assertThat(counter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldIncrementErrorCounterWhenRouterFails() {
+        stubCcsmForRouting();
+        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class)))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
+
+        var handler = createHandler(Map.of());
+        channel = new EmbeddedChannel(handler);
+
+        var header = new RequestHeaderData();
+        var body = new FetchRequestData();
+        var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true, header, body);
+
+        channel.writeInbound(frame);
+
+        var counter = meterRegistry.find("test_routing_errors").counter();
+        assertThat(counter).isNotNull();
+        assertThat(counter.count()).isEqualTo(1.0);
     }
 }

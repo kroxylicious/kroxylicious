@@ -855,6 +855,7 @@ public class ClientConnectionStateMachine {
         log(Level.DEBUG)
                 .addKeyValue("routeCount", routeTargets.size())
                 .addKeyValue("backendCount", serverConnections.size())
+                .addKeyValue("routeTargets", () -> routeTargets.toString())
                 .log("Upstream connections initiated for routing VC");
     }
 
@@ -872,6 +873,10 @@ public class ClientConnectionStateMachine {
             }
             ServerConnectionStateMachine scsm = serverConnections.get(target);
             scsm.sendRequest(msg);
+            log(Level.TRACE)
+                    .addKeyValue("route", routeName)
+                    .addKeyValue("routeTarget", target)
+                    .log("Request forwarded to backend for route");
         }
         else {
             illegalState("forwardToRoute in unexpected state");

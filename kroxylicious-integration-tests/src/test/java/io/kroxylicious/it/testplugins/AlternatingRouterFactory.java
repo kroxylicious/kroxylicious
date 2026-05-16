@@ -16,6 +16,8 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.routing.Router;
@@ -33,6 +35,8 @@ import io.kroxylicious.proxy.routing.RoutingResult;
  */
 @Plugin(configType = AlternatingRouterFactory.Config.class)
 public class AlternatingRouterFactory implements RouterFactory<AlternatingRouterFactory.Config, AlternatingRouterFactory.Config> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AlternatingRouterFactory.class);
 
     // PRODUCE v13 replaces topic names with topic IDs (KIP-516).
     // When routing between independent clusters the IDs differ, so
@@ -57,6 +61,12 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
         int batchSize = config.batchSize();
         AtomicInteger counter = new AtomicInteger();
 
+        LOGGER.atInfo()
+                .addKeyValue("routeA", routeA)
+                .addKeyValue("routeB", routeB)
+                .addKeyValue("batchSize", batchSize)
+                .log("AlternatingRouter created");
+
         Map<ApiKeys, String> staticMap = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> routeA));
@@ -73,6 +83,10 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                     return routingContext.sendRequest(routeA, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response.body());
+                                LOGGER.atDebug()
+                                        .addKeyValue("sessionId", routingContext.sessionId())
+                                        .addKeyValue("cappedMaxVersion", MAX_PRODUCE_VERSION)
+                                        .log("Capped PRODUCE version in API_VERSIONS response");
                                 routingContext.sendResponse(response);
                                 return RoutingResult.completed();
                             });
@@ -80,6 +94,12 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
 
                 int index = counter.getAndIncrement();
                 String route = ((index / batchSize) % 2 == 0) ? routeA : routeB;
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", routingContext.sessionId())
+                        .addKeyValue("route", route)
+                        .addKeyValue("batchIndex", index)
+                        .addKeyValue("batchSize", batchSize)
+                        .log("Alternating router chose route based on batch index");
                 return routingContext.sendRequest(route, header, request)
                         .thenApply(response -> {
                             routingContext.sendResponse(response);

@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
@@ -281,7 +282,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             else {
                 dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
             }
-            var dispatchHandler = new RouterDispatchHandler(router, routeDescriptors, staticRoutes, clientConnectionStateMachine);
+            var clusterName = virtualCluster.getClusterName();
+            var nodeId = binding.nodeId();
+            var routingRequestsCounter = Metrics.routingRequestsCounter(clusterName, nodeId);
+            var routingErrorsCounter = Metrics.routingErrorsCounter(clusterName, nodeId);
+            var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
+            var pendingResponseCount = new AtomicInteger();
+            Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
+            var dispatchHandler = new RouterDispatchHandler(
+                    router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
+                    routingRequestsCounter, routingErrorsCounter,
+                    routingRequestDurationTimer, pendingResponseCount);
             clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }

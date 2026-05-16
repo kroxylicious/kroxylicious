@@ -8,12 +8,16 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter.MeterProvider;
+import io.micrometer.core.instrument.Timer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -23,6 +27,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.routing.Response;
 import io.kroxylicious.proxy.routing.Router;
 
@@ -35,22 +40,39 @@ import io.kroxylicious.proxy.routing.Router;
 public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implements RoutingResponseCallback {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
-    private static final AttributeKey<Map<Integer, CompletableFuture<Response>>> PENDING_RESPONSES = AttributeKey.valueOf(RouterDispatchHandler.class,
+    private static final AttributeKey<Map<Integer, PendingResponse>> PENDING_RESPONSES = AttributeKey.valueOf(RouterDispatchHandler.class,
             "pendingResponses");
 
     private final Router router;
     private final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
+    private final MeterProvider<Counter> routingRequestsCounter;
+    private final MeterProvider<Counter> routingErrorsCounter;
+    private final MeterProvider<Timer> routingRequestDurationTimer;
+    private final AtomicInteger pendingResponseCount;
+
+    record PendingResponse(CompletableFuture<Response> future,
+                           Timer.Sample timerSample,
+                           String route,
+                           ApiKeys apiKey) {}
 
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
-                                 ClientConnectionStateMachine ccsm) {
+                                 ClientConnectionStateMachine ccsm,
+                                 MeterProvider<Counter> routingRequestsCounter,
+                                 MeterProvider<Counter> routingErrorsCounter,
+                                 MeterProvider<Timer> routingRequestDurationTimer,
+                                 AtomicInteger pendingResponseCount) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
+        this.routingRequestsCounter = routingRequestsCounter;
+        this.routingErrorsCounter = routingErrorsCounter;
+        this.routingRequestDurationTimer = routingRequestDurationTimer;
+        this.pendingResponseCount = pendingResponseCount;
     }
 
     @Override
@@ -60,6 +82,16 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
                 ccsm.forwardToRoute(staticRoute, msg);
+                routingRequestsCounter.withTags(
+                        Metrics.ROUTE_LABEL, staticRoute,
+                        Metrics.ROUTING_MODE_LABEL, "static",
+                        Metrics.API_KEY_LABEL, apiKey.name()).increment();
+                LOGGER.atTrace()
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("route", staticRoute)
+                        .addKeyValue("routingMode", "static")
+                        .log("Request forwarded via static route");
                 return;
             }
             if (msg instanceof DecodedRequestFrame<?> decoded) {
@@ -81,6 +113,14 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         short apiVersion = frame.apiVersion();
         int correlationId = frame.correlationId();
 
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", ccsm.sessionId())
+                .addKeyValue("apiKey", apiKey)
+                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("clientCorrelationId", correlationId)
+                .addKeyValue("routingMode", "dynamic")
+                .log("Dispatching request to router");
+
         var routingContext = new RoutingContextImpl(
                 correlationId,
                 apiVersion,
@@ -88,7 +128,11 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
                 routes,
-                (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded));
+                (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded),
+                routingRequestsCounter,
+                routingErrorsCounter,
+                routingRequestDurationTimer,
+                pendingResponseCount);
 
         router.onClientRequest(
                 apiVersion,
@@ -97,12 +141,22 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 frame.body(),
                 routingContext).whenComplete((result, error) -> {
                     if (error != null) {
+                        routingErrorsCounter.withTags(
+                                Metrics.ERROR_TYPE_LABEL, "router_failed").increment();
                         LOGGER.atError()
                                 .addKeyValue("sessionId", ccsm.sessionId())
                                 .addKeyValue("apiKey", apiKey)
+                                .addKeyValue("clientCorrelationId", correlationId)
                                 .setCause(error)
                                 .log("Router returned failed future");
                         ctx.channel().close();
+                    }
+                    else {
+                        LOGGER.atTrace()
+                                .addKeyValue("sessionId", ccsm.sessionId())
+                                .addKeyValue("apiKey", apiKey)
+                                .addKeyValue("clientCorrelationId", correlationId)
+                                .log("Router completed request handling");
                     }
                 });
     }
@@ -111,14 +165,30 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     public boolean onResponse(Object msg) {
         if (msg instanceof DecodedResponseFrame<?> frame) {
             int correlationId = frame.correlationId();
-            Map<Integer, CompletableFuture<Response>> pending = getPendingResponses(ccsm.clientChannel());
-            CompletableFuture<Response> future = pending.remove(correlationId);
-            if (future != null) {
+            Map<Integer, PendingResponse> pending = getPendingResponses(ccsm.clientChannel());
+            PendingResponse pendingResponse = pending.remove(correlationId);
+            if (pendingResponse != null) {
+                pendingResponseCount.decrementAndGet();
+                pendingResponse.timerSample().stop(routingRequestDurationTimer.withTags(
+                        Metrics.ROUTE_LABEL, pendingResponse.route(),
+                        Metrics.API_KEY_LABEL, pendingResponse.apiKey().name()));
                 Response response = new ResponseImpl(
                         (ResponseHeaderData) frame.header(),
                         frame.body());
-                future.complete(response);
+                pendingResponse.future().complete(response);
+                LOGGER.atTrace()
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("clientCorrelationId", correlationId)
+                        .log("Routed response matched to pending request");
                 return true;
+            }
+            else if (!pending.isEmpty()) {
+                routingErrorsCounter.withTags(
+                        Metrics.ERROR_TYPE_LABEL, "unmatched_response").increment();
+                LOGGER.atWarn()
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("clientCorrelationId", correlationId)
+                        .log("Received response with no pending routing future");
             }
         }
         return false;
@@ -126,13 +196,13 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
 
     static void registerPendingResponse(Channel channel,
                                         int correlationId,
-                                        CompletableFuture<Response> future) {
-        getPendingResponses(channel).put(correlationId, future);
+                                        PendingResponse pendingResponse) {
+        getPendingResponses(channel).put(correlationId, pendingResponse);
     }
 
-    private static Map<Integer, CompletableFuture<Response>> getPendingResponses(Channel channel) {
+    private static Map<Integer, PendingResponse> getPendingResponses(Channel channel) {
         var attr = channel.attr(PENDING_RESPONSES);
-        Map<Integer, CompletableFuture<Response>> map = attr.get();
+        Map<Integer, PendingResponse> map = attr.get();
         if (map == null) {
             map = new ConcurrentHashMap<>();
             attr.set(map);

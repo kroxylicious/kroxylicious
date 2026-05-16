@@ -13,6 +13,8 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.routing.Router;
@@ -28,6 +30,8 @@ import io.kroxylicious.proxy.routing.RoutingResult;
 @Plugin(configType = PassThroughRouterFactory.Config.class)
 public class PassThroughRouterFactory implements RouterFactory<PassThroughRouterFactory.Config, PassThroughRouterFactory.Config> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PassThroughRouterFactory.class);
+
     public record Config(String route) {}
 
     @Override
@@ -38,6 +42,9 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
         String route = config.route();
+        LOGGER.atInfo()
+                .addKeyValue("route", route)
+                .log("PassThroughRouter created");
         Map<ApiKeys, String> allStatic = Arrays.stream(ApiKeys.values())
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
         return new Router() {
