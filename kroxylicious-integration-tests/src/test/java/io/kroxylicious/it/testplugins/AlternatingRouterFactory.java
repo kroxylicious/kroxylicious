@@ -16,13 +16,15 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.routing.Router;
-import io.kroxylicious.proxy.routing.RouterFactory;
-import io.kroxylicious.proxy.routing.RouterFactoryContext;
-import io.kroxylicious.proxy.routing.RoutingContext;
-import io.kroxylicious.proxy.routing.RoutingResult;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.router.RouterFactory;
+import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.router.RouterResult;
 
 /**
  * A router that alternates PRODUCE requests between two routes in
@@ -33,6 +35,8 @@ import io.kroxylicious.proxy.routing.RoutingResult;
  */
 @Plugin(configType = AlternatingRouterFactory.Config.class)
 public class AlternatingRouterFactory implements RouterFactory<AlternatingRouterFactory.Config, AlternatingRouterFactory.Config> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AlternatingRouterFactory.class);
 
     // PRODUCE v13 replaces topic names with topic IDs (KIP-516).
     // When routing between independent clusters the IDs differ, so
@@ -57,34 +61,48 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
         int batchSize = config.batchSize();
         AtomicInteger counter = new AtomicInteger();
 
+        LOGGER.atInfo()
+                .addKeyValue("routeA", routeA)
+                .addKeyValue("routeB", routeB)
+                .addKeyValue("batchSize", batchSize)
+                .log("AlternatingRouter created");
+
         Map<ApiKeys, String> staticMap = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> routeA));
 
         return new Router() {
             @Override
-            public CompletionStage<RoutingResult> onClientRequest(
-                                                                  short apiVersion,
-                                                                  ApiKeys apiKey,
-                                                                  RequestHeaderData header,
-                                                                  ApiMessage request,
-                                                                  RoutingContext routingContext) {
+            public CompletionStage<RouterResult> onRequest(
+                                                           short apiVersion,
+                                                           ApiKeys apiKey,
+                                                           RequestHeaderData header,
+                                                           ApiMessage request,
+                                                           RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    return routingContext.sendRequest(routeA, header, request)
+                    int nodeId = routerContext.bootstrapNodeId(routeA);
+                    return routerContext.sendRequestToNode(routeA, nodeId, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response.body());
-                                routingContext.sendResponse(response);
-                                return RoutingResult.completed();
+                                LOGGER.atDebug()
+                                        .addKeyValue("sessionId", routerContext.sessionId())
+                                        .addKeyValue("cappedMaxVersion", MAX_PRODUCE_VERSION)
+                                        .log("Capped PRODUCE version in API_VERSIONS response");
+                                return new RouterResult.Completed(response);
                             });
                 }
 
                 int index = counter.getAndIncrement();
                 String route = ((index / batchSize) % 2 == 0) ? routeA : routeB;
-                return routingContext.sendRequest(route, header, request)
-                        .thenApply(response -> {
-                            routingContext.sendResponse(response);
-                            return RoutingResult.completed();
-                        });
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", routerContext.sessionId())
+                        .addKeyValue("route", route)
+                        .addKeyValue("batchIndex", index)
+                        .addKeyValue("batchSize", batchSize)
+                        .log("Alternating router chose route based on batch index");
+                int nodeId = routerContext.bootstrapNodeId(route);
+                return routerContext.sendRequestToNode(route, nodeId, header, request)
+                        .thenApply(RouterResult.Completed::new);
             }
 
             @Override
