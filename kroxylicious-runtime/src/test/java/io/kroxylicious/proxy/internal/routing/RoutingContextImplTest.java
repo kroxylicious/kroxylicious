@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.message.FetchRequestData;
@@ -18,6 +19,9 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.authentication.Subject;
@@ -39,6 +43,8 @@ class RoutingContextImplTest {
     private Map<String, RouteDescriptor> routes;
     private AtomicReference<String> forwardedRoute;
     private AtomicReference<Object> forwardedMsg;
+    private SimpleMeterRegistry meterRegistry;
+    private AtomicInteger pendingResponseCount;
 
     @BeforeEach
     void setUp() {
@@ -48,6 +54,8 @@ class RoutingContextImplTest {
                 "router-route", new RouteDescriptor("router-route", null, "nested", List.of()));
         forwardedRoute = new AtomicReference<>();
         forwardedMsg = new AtomicReference<>();
+        meterRegistry = new SimpleMeterRegistry();
+        pendingResponseCount = new AtomicInteger();
     }
 
     private RoutingContextImpl createContext() {
@@ -61,7 +69,11 @@ class RoutingContextImplTest {
                 (routeName, msg) -> {
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
-                });
+                },
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount);
     }
 
     @Test
@@ -154,8 +166,26 @@ class RoutingContextImplTest {
 
         ctx.sendRequest("cluster-route", new RequestHeaderData(), new FetchRequestData());
 
-        CompletableFuture<Response> pendingFuture = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(channel, 999, pendingFuture);
-        assertThat(pendingFuture).isNotCompleted();
+        assertThat(pendingResponseCount.get()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldIncrementRequestCounterOnSend() {
+        var ctx = createContext();
+        ctx.sendRequest("cluster-route", new RequestHeaderData(), new FetchRequestData());
+
+        var counter = meterRegistry.find("test_routing_requests").counter();
+        assertThat(counter).isNotNull();
+        assertThat(counter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldIncrementErrorCounterForUnknownRoute() {
+        var ctx = createContext();
+        ctx.sendRequest("nonexistent", new RequestHeaderData(), new FetchRequestData());
+
+        var counter = meterRegistry.find("test_routing_errors").counter();
+        assertThat(counter).isNotNull();
+        assertThat(counter.count()).isEqualTo(1.0);
     }
 }

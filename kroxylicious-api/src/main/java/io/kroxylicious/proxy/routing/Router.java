@@ -20,6 +20,44 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * down named routes and to deliver a response back to the client. A single
  * incoming request may result in multiple outgoing requests to different
  * routes (e.g. fan-out), with the router composing the final response.</p>
+ *
+ * <h2>Observability guidelines for router implementations</h2>
+ *
+ * <p>The runtime automatically logs and measures the following on behalf of
+ * all router implementations:</p>
+ * <ul>
+ *   <li>Which route each request was sent to (at TRACE level, with {@code route} key)</li>
+ *   <li>Request/response correlation</li>
+ *   <li>Per-route request counts, error counts, and latency (as Micrometer metrics)</li>
+ *   <li>Error conditions such as unknown routes and router failures</li>
+ * </ul>
+ *
+ * <p>Router implementations should <strong>not</strong> duplicate the above.
+ * Instead, implementations should log:</p>
+ * <ul>
+ *   <li><strong>Routing rationale at DEBUG:</strong> explain <em>why</em> a
+ *       particular route was chosen when the logic is non-trivial. Always
+ *       include {@link RoutingContext#sessionId()} for correlation with
+ *       runtime logs.</li>
+ *   <li><strong>Configuration at INFO during initialisation:</strong> log once
+ *       from {@link RouterFactory#createRouter} to describe the router's
+ *       configuration.</li>
+ *   <li><strong>Response mutation at DEBUG:</strong> if the router modifies
+ *       responses (e.g. version capping in {@code API_VERSIONS}), log the
+ *       modification since it changes protocol behaviour visible to
+ *       clients.</li>
+ *   <li><strong>Recovered errors at WARN:</strong> if the router catches
+ *       exceptions internally and recovers, log them with conditional stack
+ *       traces (include the full stack trace only when DEBUG is enabled).</li>
+ * </ul>
+ *
+ * <p>Router implementations <strong>must not</strong>:</p>
+ * <ul>
+ *   <li>Log Kafka message content (may contain sensitive data).</li>
+ *   <li>Log at INFO or above on every request (reserve INFO+ for lifecycle
+ *       events; per-request logging at that level causes excessive volume
+ *       in production).</li>
+ * </ul>
  */
 public interface Router {
 
