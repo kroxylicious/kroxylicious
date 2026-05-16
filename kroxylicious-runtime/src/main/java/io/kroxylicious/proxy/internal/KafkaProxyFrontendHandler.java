@@ -111,6 +111,9 @@ public class KafkaProxyFrontendHandler
     @VisibleForTesting
     @Nullable
     List<Object> bufferedMsgs;
+    @VisibleForTesting
+    @Nullable
+    DecodedRequestFrame<?> initialRequestForError;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
 
@@ -591,6 +594,9 @@ public class KafkaProxyFrontendHandler
     void bufferMsg(Object msg) {
         if (bufferedMsgs == null) {
             bufferedMsgs = new ArrayList<>();
+            if (msg instanceof DecodedRequestFrame<?> frame) {
+                initialRequestForError = frame;
+            }
         }
         bufferedMsgs.add(msg);
     }
@@ -667,15 +673,17 @@ public class KafkaProxyFrontendHandler
      */
     private @Nullable ResponseFrame errorResponse(
                                                   @Nullable Throwable errorCodeEx) {
-        ResponseFrame errorResponse;
-        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
-        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        final Object triggerMsg;
+        if (bufferedMsgs != null && !bufferedMsgs.isEmpty()) {
+            triggerMsg = bufferedMsgs.get(0);
         }
         else {
-            errorResponse = null;
+            triggerMsg = initialRequestForError;
         }
-        return errorResponse;
+        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            return buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        }
+        return null;
     }
 
     /**

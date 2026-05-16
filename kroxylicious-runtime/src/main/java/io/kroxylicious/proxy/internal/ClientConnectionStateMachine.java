@@ -377,7 +377,6 @@ public class ClientConnectionStateMachine {
     void onServerConnectionActive() {
         if (state() instanceof Forwarding) {
             kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
-            maybeUnblock();
         }
         else {
             illegalState("Server became active while not in the Forwarding state");
@@ -762,8 +761,7 @@ public class ClientConnectionStateMachine {
         setState(clientActive);
         // we require two events before unblocking (making reads from) the client:
         // 1. the completion of the building of the transport subject
-        // 2. the progression of the state machine to forwarding state
-        // (completion of the connection to the backend)
+        // 2. the transition to Forwarding state (triggered by the first client request)
         // these can happen in either order
         this.progressionLatch = 2;
         if (!this.isTlsListener()) {
@@ -845,6 +843,7 @@ public class ClientConnectionStateMachine {
         if (msg instanceof RequestFrame) {
             var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
             toForwarding(forwardingFactory.get(), target);
+            maybeUnblock();
             return true;
         }
         return false;
