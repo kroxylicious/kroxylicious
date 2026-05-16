@@ -104,7 +104,7 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void shouldForwardStaticallyRoutedDecodedFrameDirectlyToCcsm() {
+    void shouldForwardStaticallyRoutedDecodedFrameViaForwardToRoute() {
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
         var handler = new RouterDispatchHandler(staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
@@ -115,11 +115,11 @@ class RouterDispatchHandlerTest {
 
         channel.writeInbound(frame);
 
-        verify(ccsm).onClientFilterChainComplete(frame);
+        verify(ccsm).forwardToRoute("default", frame);
     }
 
     @Test
-    void shouldForwardStaticallyRoutedOpaqueFrameDirectlyToCcsm() {
+    void shouldForwardStaticallyRoutedOpaqueFrameViaForwardToRoute() {
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
         var handler = new RouterDispatchHandler(staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
@@ -130,7 +130,7 @@ class RouterDispatchHandlerTest {
 
         channel.writeInbound(opaqueFrame);
 
-        verify(ccsm).onClientFilterChainComplete(opaqueFrame);
+        verify(ccsm).forwardToRoute("default", opaqueFrame);
         buf.release();
     }
 

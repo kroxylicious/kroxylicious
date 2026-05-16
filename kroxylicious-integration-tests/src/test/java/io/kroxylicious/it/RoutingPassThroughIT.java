@@ -9,12 +9,16 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
@@ -26,6 +30,7 @@ import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -99,6 +104,67 @@ class RoutingPassThroughIT {
 
             var topics = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(topics).contains(topic.name());
+        }
+    }
+
+    @ParameterizedTest(name = "route to {0}")
+    @CsvSource({ "route-a", "route-b" })
+    void shouldRouteToSelectedClusterWhenMultipleRoutesDefined(String selectedRoute, KafkaCluster clusterA, KafkaCluster clusterB) throws Exception {
+        // Given: two clusters, two routes, router statically maps all keys to the selected route
+        var clusterDefA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+
+        var routerConfig = new PassThroughRouterFactory.Config(selectedRoute);
+        var routerDef = new RouterDefinition("multi-route-router",
+                PassThroughRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
+
+        var vc = new VirtualClusterBuilder()
+                .withName("multi-route")
+                .withTarget(new RouteTarget(null, "multi-route-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefA)
+                .addToClusterDefinitions(clusterDefB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        KafkaCluster expectedCluster = selectedRoute.equals("route-a") ? clusterA : clusterB;
+        KafkaCluster unexpectedCluster = selectedRoute.equals("route-a") ? clusterB : clusterA;
+        var topicName = "route-selection-test-" + UUID.randomUUID();
+
+        // When: produce and consume through the proxy
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin();
+                var producer = tester.producer();
+                var consumer = tester.consumer(
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "route-select-test",
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+
+            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
+                    .all().get(10, TimeUnit.SECONDS);
+
+            producer.send(new ProducerRecord<>(topicName, "key", "routed-value"))
+                    .get(10, TimeUnit.SECONDS);
+
+            consumer.subscribe(Set.of(topicName));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            assertThat(records).hasSize(1);
+            assertThat(records.iterator().next().value()).isEqualTo("routed-value");
+        }
+
+        // Then: data should exist on the selected cluster, not on the other
+        try (var expectedAdmin = CloseableAdmin.create(expectedCluster.getKafkaClientConfiguration());
+                var unexpectedAdmin = CloseableAdmin.create(unexpectedCluster.getKafkaClientConfiguration())) {
+            var expectedTopics = expectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS);
+            assertThat(expectedTopics).contains(topicName);
+
+            var unexpectedTopics = unexpectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS);
+            assertThat(unexpectedTopics).isEmpty();
         }
     }
 }

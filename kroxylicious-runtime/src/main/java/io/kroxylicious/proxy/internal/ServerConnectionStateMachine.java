@@ -81,6 +81,10 @@ class ServerConnectionStateMachine {
     @VisibleForTesting
     int serverMessagesInFlightCount;
 
+    int serverMessagesInFlightCount() {
+        return serverMessagesInFlightCount;
+    }
+
     @VisibleForTesting
     boolean serverReadsBlocked;
 
