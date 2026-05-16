@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -38,8 +40,11 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -59,6 +64,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
+    @Nullable
+    private final RouterChainFactory routerChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
@@ -67,8 +74,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
 
-    @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S107" })
-    public KafkaProxyInitializer(PluginFactoryRegistry pfr,
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public KafkaProxyInitializer(@Nullable RouterChainFactory routerChainFactory,
+                                 PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
@@ -81,6 +89,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
+        this.routerChainFactory = routerChainFactory;
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
@@ -250,14 +259,49 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
-        // Filter Handlers will be installed at this point in the pipeline by KafkaProxyFrontendHandler when the client channel fires channelActive()
-        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(clientConnectionStateMachine));
+        if (virtualCluster.usesRouter() && routerChainFactory != null) {
+            var routerFactoryContext = createRouterFactoryContext(virtualCluster.getClusterName(), virtualCluster.routerName());
+            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), routerFactoryContext);
+            var routeDescriptors = virtualCluster.routeDescriptors();
+            var dispatchHandler = new RouterDispatchHandler(router, routeDescriptors, clientConnectionStateMachine);
+            clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
+            pipeline.addLast("routerDispatchHandler", dispatchHandler);
+        }
+        else {
+            pipeline.addLast("filterChainCompletionHandler",
+                    new FilterChainCompletionHandler(clientConnectionStateMachine));
+        }
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()
                 .addKeyValue("channelId", ch::toString)
                 .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
+    }
+
+    private RouterFactoryContext createRouterFactoryContext(String virtualClusterName, String routerName) {
+        return new RouterFactoryContext() {
+            @Override
+            public String virtualClusterName() {
+                return virtualClusterName;
+            }
+
+            @Override
+            public String routerName() {
+                return routerName;
+            }
+
+            @Override
+            public <P> P pluginInstance(Class<P> pluginClass,
+                                        String implementationName) {
+                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
+            }
+
+            @Override
+            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
+            }
+        };
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {

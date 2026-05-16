@@ -127,7 +127,18 @@ class ProxyConfigGenerator {
                 ? filterDefs.stream().map(NamedFilterDefinition::name).toList()
                 : null;
 
-        var configuration = new Configuration(management, null, filterDefs, defaultFilters, null, List.of(virtualCluster), null, false, Optional.empty(), null, null);
+        var configuration = new Configuration(
+                management,
+                null,
+                filterDefs,
+                defaultFilters,
+                null,
+                List.of(virtualCluster),
+                null,
+                false,
+                Optional.empty(),
+                null,
+                null);
 
         return toYaml(configuration);
     }
