@@ -421,13 +421,13 @@ class ClientConnectionStateMachineTest {
 
     @Test
     void onServerActiveShouldNotUnblockClient() {
-        // Given — Forwarding state, latch at 1
+        // Given — Forwarding state, transport subject not yet ready
         clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Forwarding(),
                 frontendHandler,
                 serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
-                1);
+                false);
 
         // When
         clientConnectionStateMachine.onServerConnectionActive();
@@ -438,7 +438,7 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void inForwardingShouldBufferRequestsWhenLatchNotZero() {
+    void inForwardingShouldBufferRequestsWhenTransportSubjectNotReady() {
         // Given — Forwarding state with latch > 0 (backend not yet connected)
         stateMachineInForwardingAwaitingTransportSubject();
 
@@ -709,7 +709,7 @@ class ClientConnectionStateMachineTest {
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION,
-                -1);
+                true);
     }
 
     private void stateMachineInHaProxy() {
@@ -718,7 +718,7 @@ class ClientConnectionStateMachineTest {
                 frontendHandler,
                 null,
                 TEST_KAFKA_SESSION,
-                -1);
+                true);
     }
 
     private ClientConnectionState.Forwarding stateMachineInForwarding() {
@@ -728,7 +728,7 @@ class ClientConnectionStateMachineTest {
                 frontendHandler,
                 serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
-                -1);
+                true);
         return forwarding;
     }
 
@@ -738,7 +738,7 @@ class ClientConnectionStateMachineTest {
                 frontendHandler,
                 serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
-                1);
+                false);
     }
 
     private void stateMachineInClosed() {
@@ -747,7 +747,7 @@ class ClientConnectionStateMachineTest {
                 frontendHandler,
                 serverConnectionStateMachine,
                 TEST_KAFKA_SESSION,
-                -1);
+                true);
     }
 
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
@@ -1131,7 +1131,7 @@ class ClientConnectionStateMachineTest {
         @Test
         void drainWhenStateIsNotForwardingStillCompletesFuture() {
             // Given — CCSM stuck in HaProxy state (not Forwarding)
-            clientConnectionStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, null, TEST_KAFKA_SESSION, -1);
+            clientConnectionStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, null, TEST_KAFKA_SESSION, true);
 
             // When
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);

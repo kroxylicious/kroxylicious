@@ -195,7 +195,7 @@ class ClientConnectionStateMachineEndToEndTest {
                     new ClientConnectionState.HaProxy(),
                     handler,
                     null,
-                    TEST_SESSION, -1);
+                    TEST_SESSION, false);
         }
 
         // When
@@ -220,7 +220,7 @@ class ClientConnectionStateMachineEndToEndTest {
                 .isEqualTo(firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null);
 
         if (haProxy) {
-            // forceState with latch=-1 means unblock never fires
+            // forceState with transportSubjectReady=false prevents unblockClient from firing
             assertThat(inboundChannel.config().isAutoRead()).isFalse();
             assertThat(handler.bufferedMsgs)
                     .asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
@@ -690,13 +690,14 @@ class ClientConnectionStateMachineEndToEndTest {
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
-        // Complete the transport subject building (decrements progressionLatch from 2 to 1)
+        // Complete the transport subject building (sets transportSubjectReady = true)
         inboundChannel.runPendingTasks();
 
         // Write the first client request to trigger the ClientActive → Forwarding transition.
-        // This creates a real SCSM, initiates the backend connection, and decrements the
-        // progressionLatch from 1 to 0 — triggering unblockClient(). The first request is
-        // forwarded through the filter chain to the SCSM, which buffers it (Connecting state).
+        // This creates a real SCSM and initiates the backend connection. Since
+        // transportSubjectReady is already true, tryUnblockClient() fires, enabling autoRead
+        // and forwarding the buffered request through the filter chain to the SCSM (which
+        // buffers it in Connecting state).
         switch (firstMessage) {
             case API_VERSIONS -> writeInboundApiVersionsRequest();
             case SASL_HANDSHAKE -> writeSaslPlainHandshake();
