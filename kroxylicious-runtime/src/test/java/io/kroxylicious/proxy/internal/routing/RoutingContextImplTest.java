@@ -34,7 +34,8 @@ class RoutingContextImplTest {
 
     private EmbeddedChannel channel;
     private Map<String, RouteDescriptor> routes;
-    private AtomicReference<Object> forwarded;
+    private AtomicReference<String> forwardedRoute;
+    private AtomicReference<Object> forwardedMsg;
 
     @BeforeEach
     void setUp() {
@@ -42,7 +43,8 @@ class RoutingContextImplTest {
         routes = Map.of(
                 "cluster-route", new RouteDescriptor("cluster-route", TARGET, null, List.of()),
                 "router-route", new RouteDescriptor("router-route", null, "nested", List.of()));
-        forwarded = new AtomicReference<>();
+        forwardedRoute = new AtomicReference<>();
+        forwardedMsg = new AtomicReference<>();
     }
 
     private RoutingContextImpl createContext() {
@@ -53,7 +55,10 @@ class RoutingContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
-                forwarded::set);
+                (routeName, msg) -> {
+                    forwardedRoute.set(routeName);
+                    forwardedMsg.set(msg);
+                });
     }
 
     @Test
@@ -76,7 +81,8 @@ class RoutingContextImplTest {
 
         CompletableFuture<Response> future = (CompletableFuture<Response>) ctx.sendRequestToNode("cluster-route", 0, header, body);
 
-        assertThat(forwarded.get())
+        assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
+        assertThat(forwardedMsg.get())
                 .isInstanceOfSatisfying(DecodedRequestFrame.class, frame -> {
                     assertThat(frame.correlationId()).isEqualTo(CORRELATION_ID);
                     assertThat(frame.apiVersion()).isEqualTo(API_VERSION);
