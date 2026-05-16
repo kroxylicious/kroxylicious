@@ -41,7 +41,7 @@ class RoutingContextImpl implements RouterContext {
      */
     @FunctionalInterface
     interface RequestForwarder {
-        void forward(Object msg);
+        void forward(String routeName, Object msg);
     }
 
     RoutingContextImpl(int clientCorrelationId,
@@ -96,7 +96,7 @@ class RoutingContextImpl implements RouterContext {
         CompletableFuture<Response> future = new CompletableFuture<>();
         RouterDispatchHandler.registerPendingResponse(clientChannel, clientCorrelationId, future);
 
-        requestForwarder.forward(frame);
+        requestForwarder.forward(route, frame);
         return future;
     }
 

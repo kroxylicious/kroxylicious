@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -207,6 +208,9 @@ public class ClientConnectionStateMachine {
     @Nullable
     private RoutingResponseCallback routingResponseCallback;
 
+    @Nullable
+    private Map<String, HostPort> routeTargets;
+
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
@@ -257,6 +261,16 @@ public class ClientConnectionStateMachine {
                     Map<HostPort, ServerConnectionStateMachine> serverConnections,
                     KafkaSession kafkaSession,
                     boolean transportSubjectReady) {
+        forceState(state, frontendHandler, serverConnections, kafkaSession, transportSubjectReady, null);
+    }
+
+    @VisibleForTesting
+    void forceState(ClientConnectionState state,
+                    KafkaProxyFrontendHandler frontendHandler,
+                    Map<HostPort, ServerConnectionStateMachine> serverConnections,
+                    KafkaSession kafkaSession,
+                    boolean transportSubjectReady,
+                    @Nullable Map<String, HostPort> routeTargets) {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
@@ -270,6 +284,7 @@ public class ClientConnectionStateMachine {
         this.serverConnections.clear();
         this.serverConnections.putAll(serverConnections);
         this.transportSubjectReady = transportSubjectReady;
+        this.routeTargets = routeTargets;
     }
 
     @Override
@@ -839,6 +854,53 @@ public class ClientConnectionStateMachine {
                                             ActivationToken proxyToServerConnectionToken);
     }
 
+    @SuppressWarnings("java:S5738")
+    private void toForwardingWithRoutes(Forwarding forwarding) {
+        setState(forwarding);
+        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
+        routeTargets = new HashMap<>();
+        var frontend = Objects.requireNonNull(frontendHandler);
+        Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
+        for (var entry : descriptors.entrySet()) {
+            RouteDescriptor rd = entry.getValue();
+            if (rd.targetsCluster()) {
+                HostPort target = rd.targetCluster().bootstrapServer();
+                routeTargets.put(entry.getKey(), target);
+                if (!serverConnections.containsKey(target)) {
+                    proxyToServerConnectionCounter.increment();
+                    var scsm = createServerConnection(target);
+                    serverConnections.put(target, scsm);
+                    scsm.connect(clientChannel);
+                }
+            }
+        }
+        log(Level.DEBUG)
+                .addKeyValue("routeCount", routeTargets.size())
+                .addKeyValue("backendCount", serverConnections.size())
+                .log("Upstream connections initiated for routing VC");
+    }
+
+    /**
+     * Forward a message to the backend connection for the named route.
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * for both static and dynamic routing paths.
+     */
+    public void forwardToRoute(String routeName, Object msg) {
+        if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
+            HostPort target = routeTargets.get(routeName);
+            if (target == null) {
+                illegalState("Unknown route: " + routeName);
+                return;
+            }
+            ServerConnectionStateMachine scsm = serverConnections.get(target);
+            scsm.sendRequest(msg);
+        }
+        else {
+            illegalState("forwardToRoute in unexpected state");
+        }
+    }
+
+    @VisibleForTesting
     ServerConnectionStateMachine createServerConnection(HostPort remote) {
         return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId(),
                 proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
@@ -872,8 +934,13 @@ public class ClientConnectionStateMachine {
             this.clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
         }
         if (msg instanceof RequestFrame) {
-            var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-            toForwarding(forwardingFactory.get(), target);
+            if (virtualCluster().usesRouter()) {
+                toForwardingWithRoutes(forwardingFactory.get());
+            }
+            else {
+                var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+                toForwarding(forwardingFactory.get(), target);
+            }
             tryUnblockClient();
             return true;
         }

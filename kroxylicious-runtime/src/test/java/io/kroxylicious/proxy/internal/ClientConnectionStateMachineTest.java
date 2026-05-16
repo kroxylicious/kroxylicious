@@ -917,6 +917,87 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
+    void forwardToRouteShouldDispatchToCorrectScsm() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("route-a", addr1, "route-b", addr2));
+        Object msg = new Object();
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("route-b", msg);
+
+        // Then
+        verify(scsm2).sendRequest(msg);
+        verifyNoInteractions(scsm1);
+    }
+
+    @Test
+    void forwardToRouteShouldShareScsmForRoutesWithSameTarget() {
+        // Given
+        var scsm = mock(ServerConnectionStateMachine.class);
+        var addr = new HostPort("host1", 9092);
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(addr, scsm),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("route-a", addr, "route-b", addr));
+        Object msg1 = new Object();
+        Object msg2 = new Object();
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("route-a", msg1);
+        clientConnectionStateMachine.forwardToRoute("route-b", msg2);
+
+        // Then
+        verify(scsm).sendRequest(msg1);
+        verify(scsm).sendRequest(msg2);
+    }
+
+    @Test
+    void forwardToRouteWithUnknownRouteShouldTransitionToClosed() {
+        // Given
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(BROKER_ADDRESS, serverConnectionStateMachine),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("known-route", BROKER_ADDRESS));
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("unknown-route", new Object());
+
+        // Then
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    @Test
+    void forwardToRouteNotInForwardingShouldTransitionToClosed() {
+        // Given
+        stateMachineInClientActive();
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("any-route", new Object());
+
+        // Then
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    @Test
     void shouldFlushToClientWhenServerReadCompletes() {
         // Given
         stateMachineInForwarding();
