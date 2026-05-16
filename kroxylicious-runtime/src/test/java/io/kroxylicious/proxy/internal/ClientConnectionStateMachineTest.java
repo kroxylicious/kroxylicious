@@ -917,6 +917,87 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
+    void forwardToRouteShouldDispatchToCorrectScsm() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("route-a", addr1, "route-b", addr2));
+        Object msg = new Object();
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("route-b", msg);
+
+        // Then
+        verify(scsm2).sendRequest(msg);
+        verifyNoInteractions(scsm1);
+    }
+
+    @Test
+    void forwardToRouteShouldShareScsmForRoutesWithSameTarget() {
+        // Given
+        var scsm = mock(ServerConnectionStateMachine.class);
+        var addr = new HostPort("host1", 9092);
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(addr, scsm),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("route-a", addr, "route-b", addr));
+        Object msg1 = new Object();
+        Object msg2 = new Object();
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("route-a", msg1);
+        clientConnectionStateMachine.forwardToRoute("route-b", msg2);
+
+        // Then
+        verify(scsm).sendRequest(msg1);
+        verify(scsm).sendRequest(msg2);
+    }
+
+    @Test
+    void forwardToRouteWithUnknownRouteShouldTransitionToClosed() {
+        // Given
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(BROKER_ADDRESS, serverConnectionStateMachine),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("known-route", BROKER_ADDRESS));
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("unknown-route", new Object());
+
+        // Then
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    @Test
+    void forwardToRouteNotInForwardingShouldTransitionToClosed() {
+        // Given
+        stateMachineInClientActive();
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("any-route", new Object());
+
+        // Then
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    @Test
     void shouldFlushToClientWhenServerReadCompletes() {
         // Given
         stateMachineInForwarding();
@@ -926,6 +1007,95 @@ class ClientConnectionStateMachineTest {
 
         // Then
         verify(frontendHandler).flushToClient();
+    }
+
+    @Test
+    void onResponseFromServerShouldNotForwardToClientWhenRoutingCallbackHandles() {
+        // Given
+        stateMachineInForwarding();
+        clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+        var msg = metadataResponse();
+
+        // When
+        clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, msg);
+
+        // Then
+        verify(frontendHandler, never()).forwardToClient(any());
+    }
+
+    @Test
+    void onResponseFromServerShouldForwardToClientWhenRoutingCallbackDeclines() {
+        // Given
+        stateMachineInForwarding();
+        clientConnectionStateMachine.setRoutingResponseCallback(msg -> false);
+        var msg = metadataResponse();
+
+        // When
+        clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, msg);
+
+        // Then
+        verify(frontendHandler).forwardToClient(msg);
+    }
+
+    @Test
+    void clientChannelShouldReturnNullBeforeClientActive() {
+        // When / Then
+        assertThat(clientConnectionStateMachine.clientChannel()).isNull();
+    }
+
+    @Test
+    void clientChannelShouldReturnChannelAfterClientActive() {
+        // Given
+        var channel = mock(Channel.class);
+        when(frontendHandler.clientChannel()).thenReturn(channel);
+        stateMachineInForwarding();
+
+        // When / Then
+        assertThat(clientConnectionStateMachine.clientChannel()).isSameAs(channel);
+    }
+
+    @Test
+    void onClientUnwritableShouldApplyBackpressureToAllServerConnections() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true);
+
+        // When
+        clientConnectionStateMachine.onClientUnwritable();
+
+        // Then
+        verify(scsm1).applyBackpressure();
+        verify(scsm2).applyBackpressure();
+    }
+
+    @Test
+    void onClientWritableShouldRelieveBackpressureOnAllServerConnections() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true);
+
+        // When
+        clientConnectionStateMachine.onClientWritable();
+
+        // Then
+        verify(scsm1).relieveBackpressure();
+        verify(scsm2).relieveBackpressure();
     }
 
     private int getVirtualNodeClientToProxyActiveConnections() {

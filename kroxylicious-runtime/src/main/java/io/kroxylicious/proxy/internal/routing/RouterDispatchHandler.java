@@ -52,7 +52,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
-                ccsm.onClientFilterChainComplete(msg);
+                ccsm.forwardToRoute(staticRoute, msg);
                 return;
             }
             if (msg instanceof DecodedRequestFrame<?> decoded) {

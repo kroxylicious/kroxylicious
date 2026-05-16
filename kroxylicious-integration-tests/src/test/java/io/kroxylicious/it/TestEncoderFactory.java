@@ -30,7 +30,7 @@ public class TestEncoderFactory implements ByteBufferTransformationFactory<Void>
 
         @Override
         public ByteBuffer transform(String topicName, ByteBuffer in) {
-            return FilterIT.encode(topicName, in);
+            return AbstractFilterIT.encode(topicName, in);
         }
     }
 
