@@ -6,92 +6,44 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
-import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Response;
-import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.router.RouterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyShort;
-import static org.mockito.Mockito.doAnswer;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RouterDispatchHandlerTest {
 
-    private static final TargetCluster TARGET = new TargetCluster("localhost:9092", Optional.empty());
     private static final int CORRELATION_ID = 42;
 
     @Mock
     private ClientConnectionStateMachine ccsm;
 
-    @Mock
-    private Router router;
-
     private EmbeddedChannel channel;
-    private Map<String, RouteDescriptor> routes;
-
-    @BeforeEach
-    void setUp() {
-        routes = Map.of("default", new RouteDescriptor("default", 0, TARGET, null, java.util.List.of()));
-    }
-
-    private void stubCcsmForRouting() {
-        when(ccsm.sessionId()).thenReturn("test-session");
-        when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
-    }
-
-    @Test
-    void shouldInvokeRouterOnDecodedRequestFrame() {
-        stubCcsmForRouting();
-        when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
-                .thenReturn(CompletableFuture.completedFuture(new RouterResult.CompletedNoResponse()));
-
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
-        channel = new EmbeddedChannel(handler);
-
-        var header = new RequestHeaderData();
-        var body = new FetchRequestData();
-        var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true, header, body);
-
-        channel.writeInbound(frame);
-
-        verify(router).onRequest(
-                anyShort(),
-                any(ApiKeys.class),
-                any(),
-                any(),
-                any(RouterContext.class));
-    }
 
     @Test
     void shouldDelegateNonFrameMessagesToCcsm() {
-        when(ccsm.sessionId()).thenReturn("test-session");
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
 
         var nonFrame = "not-a-frame";
@@ -101,28 +53,24 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void shouldCloseChannelWhenRouterReturnsFailed() {
-        stubCcsmForRouting();
-        when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
-                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("router error")));
-
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
+    void shouldThrowForDynamicallyRoutedDecodedFrame() {
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
 
-        var header = new RequestHeaderData();
+        var header = new org.apache.kafka.common.message.RequestHeaderData();
         var body = new FetchRequestData();
         var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true, header, body);
 
-        channel.writeInbound(frame);
-
-        assertThat(channel.isOpen()).isFalse();
+        assertThatThrownBy(() -> channel.writeInbound(frame))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Dynamic routing is not supported");
     }
 
     @Test
     void shouldCompletePendingFutureOnResponse() {
         when(ccsm.clientChannel()).thenReturn(null);
 
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
@@ -143,7 +91,7 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldNotFailWhenResponseHasNoPendingFuture() {
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
@@ -151,43 +99,78 @@ class RouterDispatchHandlerTest {
         var responseBody = new FetchResponseData();
         var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, responseBody);
 
-        handler.onResponse(responseFrame);
-        // should not throw — just logs a warning
+        boolean handled = handler.onResponse(responseFrame);
+
+        assertThat(handled).isFalse();
     }
 
     @Test
-    void shouldForwardRequestViaCcsmWhenRouterSendsRequest() {
-        stubCcsmForRouting();
-        AtomicReference<Object> forwarded = new AtomicReference<>();
-
-        doAnswer(invocation -> {
-            RouterContext ctx = invocation.getArgument(4);
-            var reqHeader = new RequestHeaderData();
-            var reqBody = new FetchRequestData();
-            ctx.sendRequestToNode("default", 0, reqHeader, reqBody);
-            return CompletableFuture.completedFuture(new RouterResult.CompletedNoResponse());
-        }).when(router).onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
-
-        doAnswer(invocation -> {
-            forwarded.set(invocation.getArgument(0));
-            return null;
-        }).when(ccsm).onClientFilterChainComplete(any());
-
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
+    void shouldForwardStaticallyRoutedDecodedFrameDirectlyToCcsm() {
+        var staticRoutes = Map.of(ApiKeys.FETCH, "default");
+        var handler = new RouterDispatchHandler(staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
 
-        var header = new RequestHeaderData();
+        var header = new org.apache.kafka.common.message.RequestHeaderData();
         var body = new FetchRequestData();
         var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true, header, body);
 
         channel.writeInbound(frame);
 
-        assertThat(forwarded.get()).isInstanceOf(DecodedRequestFrame.class);
+        verify(ccsm).onClientFilterChainComplete(frame);
+    }
+
+    @Test
+    void shouldForwardStaticallyRoutedOpaqueFrameDirectlyToCcsm() {
+        var staticRoutes = Map.of(ApiKeys.FETCH, "default");
+        var handler = new RouterDispatchHandler(staticRoutes, ccsm);
+        channel = new EmbeddedChannel(handler);
+
+        var buf = Unpooled.buffer();
+        var opaqueFrame = new OpaqueRequestFrame(
+                buf, (short) ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
+
+        channel.writeInbound(opaqueFrame);
+
+        verify(ccsm).onClientFilterChainComplete(opaqueFrame);
+        buf.release();
+    }
+
+    @Test
+    void shouldReturnTrueFromOnResponseWhenPendingFutureExists() {
+        when(ccsm.clientChannel()).thenReturn(null);
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
+        channel = new EmbeddedChannel(handler);
+        when(ccsm.clientChannel()).thenReturn(channel);
+
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, future);
+
+        var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, responseHeader, new FetchResponseData());
+
+        boolean handled = handler.onResponse(responseFrame);
+
+        assertThat(handled).isTrue();
+        assertThat(future).isCompleted();
+    }
+
+    @Test
+    void shouldReturnFalseFromOnResponseWhenNoPendingFuture() {
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
+        channel = new EmbeddedChannel(handler);
+        when(ccsm.clientChannel()).thenReturn(channel);
+
+        var responseHeader = new ResponseHeaderData().setCorrelationId(999);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, new FetchResponseData());
+
+        boolean handled = handler.onResponse(responseFrame);
+
+        assertThat(handled).isFalse();
     }
 
     @Test
     void shouldRegisterAndRetrievePendingResponses() {
-        var handler = new RouterDispatchHandler(router, routes, ccsm);
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
 
         CompletableFuture<Response> future1 = new CompletableFuture<>();
@@ -205,4 +188,30 @@ class RouterDispatchHandlerTest {
         assertThat(future2).isNotCompleted();
     }
 
+    @Test
+    void shouldFallThroughToCcsmForOpaqueFrameNotInStaticRoutes() {
+        var staticRoutes = Map.of(ApiKeys.PRODUCE, "default");
+        var handler = new RouterDispatchHandler(staticRoutes, ccsm);
+        channel = new EmbeddedChannel(handler);
+        when(ccsm.sessionId()).thenReturn("test-session");
+
+        var buf = Unpooled.buffer();
+        var opaqueFrame = new OpaqueRequestFrame(
+                buf, (short) ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
+
+        channel.writeInbound(opaqueFrame);
+
+        verify(ccsm).onClientFilterChainComplete(opaqueFrame);
+        buf.release();
+    }
+
+    @Test
+    void shouldReturnFalseFromOnResponseForNonDecodedFrame() {
+        var handler = new RouterDispatchHandler(Map.of(), ccsm);
+        channel = new EmbeddedChannel(handler);
+
+        boolean handled = handler.onResponse("not-a-decoded-response-frame");
+
+        assertThat(handled).isFalse();
+    }
 }
