@@ -90,6 +90,25 @@ See module README.md files for detailed context:
 
 There is a Kubernetes operator for the proxy in `kroxylicious-operator`. The end user defines a number of custom resources, such as `KafkaProxy`, `KafkaProxyIngress`, and `KafkaProtocolFilter`, and the operator observes ("reconciles") these and creates/updates a Kubernetes `Deployment` to run a number of proxy instances as containers within `Pods`.
 
+## Kafka Protocol and Version Negotiation
+
+The Kafka wire protocol is versioned per API key. Each request type (PRODUCE, FETCH, METADATA, etc.) has an independent version range. The authoritative schema for each request/response lives in the Apache Kafka source tree at `clients/src/main/resources/common/message/<ApiKey>Request.json`. These JSON IDL files define which fields exist at which versions — a field with `"versions": "0-12"` is absent from the wire format at v13+.
+
+**Version negotiation** works as follows:
+1. The client sends `API_VERSIONS` to discover the server's supported version ranges.
+2. The proxy's `ApiVersionsIntersectFilter` intersects the backend's ranges with the proxy's own maximums, and returns this intersection to the client.
+3. The client then uses the highest mutually-supported version for each API key.
+4. `ApiVersionsServiceImpl` accepts an override map (`Map<ApiKeys, Short>`) to cap specific API keys below their natural maximum.
+
+**Key protocol evolution to be aware of:**
+- **PRODUCE v13** (KIP-516): Replaces `Name` (topic name string) with `TopicId` (UUID). Topic IDs are cluster-specific — the same topic on two independent clusters has different UUIDs. This means any feature that routes PRODUCE requests between independent clusters must cap the advertised PRODUCE version at v12 to force name-based addressing.
+- The pattern for capping versions is demonstrated by `MultiTenantFilter`, which uses `ApiVersionsResponseTransformers.limitMaxVersionForApiKeys(Map.of(ApiKeys.PRODUCE, (short) 12))` on the `API_VERSIONS` response.
+
+**Implications for routers:**
+- A `Router` that sends requests to multiple independent backend clusters must intercept `API_VERSIONS` (make it dynamically routed rather than static) and cap any API key whose wire format uses cluster-specific identifiers (e.g. topic IDs).
+- The proxy preserves the client's original `apiVersion` when creating `DecodedRequestFrame` for the backend (`RoutingContextImpl` line 81). The backend encoder serialises at that version. There is no automatic version translation between client and backend.
+- The Kafka producer's default configuration (`enable.idempotence=true` in Kafka 3.0+) can cause retries that appear as additional requests to the proxy. Tests that count requests per API key should disable idempotence and retries, and set `batch.size=0` to ensure one PRODUCE request per record.
+
 ## End User Documentation
 
 End user documentation lives in `kroxylicious-docs`.
