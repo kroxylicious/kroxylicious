@@ -51,9 +51,9 @@ class ChangeDetectorPipelineTest {
                 new TargetCluster("kafka:9092", Optional.empty()),
                 List.of(gateway("default", 9999)), // port changed
                 false, false, List.of("filter-a"));
-        var oldConfig = new Configuration(null, List.of(oldFilter), null,
+        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
                 List.of(oldVc), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, List.of(newFilter), null,
+        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
                 List.of(newVc), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -82,9 +82,9 @@ class ChangeDetectorPipelineTest {
         var newFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "v2");
         var existing = vc("existing", List.of("filter-a"));
         var newlyAdded = vc("newly-added", List.of("filter-a"));
-        var oldConfig = new Configuration(null, List.of(oldFilter), null,
+        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
                 List.of(existing), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, List.of(newFilter), null,
+        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
                 List.of(existing, newlyAdded), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -112,9 +112,9 @@ class ChangeDetectorPipelineTest {
         var oldFilter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "v1");
         var goingAway = vc("going-away", List.of("filter-a"));
         var staying = vcWithoutFilters("staying");
-        var oldConfig = new Configuration(null, List.of(oldFilter), null,
+        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
                 List.of(goingAway, staying), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, null, null,
+        var newConfig = new Configuration(null, null, null, null, null,
                 List.of(staying), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 
@@ -152,10 +152,10 @@ class ChangeDetectorPipelineTest {
         var filterChangedCluster = vc("filter-changed", List.of("filter-x"));
         var addedCluster = vcWithoutFilters("added");
 
-        var oldConfig = new Configuration(null, List.of(oldFilter), null,
+        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
                 List.of(keepUnchanged, removedCluster, oldGatewayChanged, filterChangedCluster),
                 null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, List.of(newFilter), null,
+        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
                 List.of(keepUnchanged, newGatewayChanged, filterChangedCluster, addedCluster),
                 null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
@@ -174,7 +174,7 @@ class ChangeDetectorPipelineTest {
         // accidentally introduce non-empty defaults in a detector's output.
         var filter = new NamedFilterDefinition("filter-a", "io.kroxylicious.test.FakeFilter", "v1");
         var cluster = vc("cluster", List.of("filter-a"));
-        var config = new Configuration(null, List.of(filter), null,
+        var config = new Configuration(null, null, List.of(filter), null, null,
                 List.of(cluster), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(config, config);
 
@@ -203,9 +203,9 @@ class ChangeDetectorPipelineTest {
                 false, false, List.of());
         var filterChangedCluster = vc("filter-changed", List.of("filter-x"));
 
-        var oldConfig = new Configuration(null, List.of(oldFilter), null,
+        var oldConfig = new Configuration(null, null, List.of(oldFilter), null, null,
                 List.of(oldGatewayChanged, filterChangedCluster), null, false, Optional.empty(), null, null);
-        var newConfig = new Configuration(null, List.of(newFilter), null,
+        var newConfig = new Configuration(null, null, List.of(newFilter), null, null,
                 List.of(newGatewayChanged, filterChangedCluster), null, false, Optional.empty(), null, null);
         var context = new ConfigurationChangeContext(oldConfig, newConfig);
 

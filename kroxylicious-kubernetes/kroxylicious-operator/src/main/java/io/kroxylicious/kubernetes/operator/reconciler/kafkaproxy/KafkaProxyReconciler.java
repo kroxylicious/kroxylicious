@@ -219,8 +219,10 @@ public class KafkaProxyReconciler implements
         return new ConfigurationFragment<>(
                 new Configuration(
                         new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
+                        null, // no named target clusters
                         referencedFilters,
                         null, // no defaultFilters <= each of the virtualClusters specifies its own
+                        null, // no router definitions
                         virtualClusters.stream().map(ConfigurationFragment::fragment).toList(),
                         List.of(),
                         false,

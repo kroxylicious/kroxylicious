@@ -129,8 +129,10 @@ class ProxyConfigGenerator {
 
         var configuration = new Configuration(
                 management,
+                null,
                 filterDefs,
                 defaultFilters,
+                null,
                 List.of(virtualCluster),
                 null,
                 false,

@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -202,6 +203,9 @@ public class ClientConnectionStateMachine {
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
     private int clientMessagesInFlightCount;
 
+    @Nullable
+    private RoutingResponseCallback routingResponseCallback;
+
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
@@ -308,6 +312,15 @@ public class ClientConnectionStateMachine {
         return clientSoftwareVersion;
     }
 
+    void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
+        this.routingResponseCallback = callback;
+    }
+
+    @Nullable
+    public Channel clientChannel() {
+        return frontendHandler != null ? frontendHandler.clientChannel() : null;
+    }
+
     /**
      * Notify the state machine when the client applies back pressure.
      */
@@ -412,7 +425,12 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(ServerConnectionStateMachine scsm,
                               Object msg) {
-        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+        if (routingResponseCallback != null) {
+            routingResponseCallback.onResponse(msg);
+        }
+        else {
+            Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+        }
 
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
@@ -453,7 +471,7 @@ public class ClientConnectionStateMachine {
      *
      * @param msg the RPC received from the upstream
      */
-    void onClientFilterChainComplete(Object msg) {
+    public void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
             serverConnections.values().iterator().next().sendRequest(msg);
         }
@@ -777,7 +795,7 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
-    Subject authenticatedSubject() {
+    public Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
