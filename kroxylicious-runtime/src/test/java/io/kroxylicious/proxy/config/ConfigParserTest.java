@@ -610,7 +610,7 @@ class ConfigParserTest {
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
-                .hasMessageContaining("Missing required creator property 'targetCluster'");
+                .hasMessageContaining("must specify exactly one of 'targetCluster', 'namedTargetCluster', or 'router'");
     }
 
     @Test
@@ -834,8 +834,10 @@ class ConfigParserTest {
         var gateway = new VirtualClusterGateway("gw", new PortIdentifiesNodeIdentificationStrategy(HostPort.parse("localhost:9082"), null, null, null), null,
                 Optional.empty());
         var config = new Configuration(null,
+                null,
                 List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
                 List.of("foo"),
+                null,
                 List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())),
                 null,
                 false,

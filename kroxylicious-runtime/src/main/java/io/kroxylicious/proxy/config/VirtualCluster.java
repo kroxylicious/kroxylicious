@@ -20,11 +20,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A virtual cluster.
  *
  * @param name virtual cluster name
- * @param targetCluster the cluster being proxied
+ * @param targetCluster inline target cluster (mutually exclusive with {@code namedTargetCluster} and {@code router})
+ * @param namedTargetCluster reference to a named target cluster (mutually exclusive with {@code targetCluster} and {@code router})
+ * @param router reference to a named router (mutually exclusive with {@code targetCluster} and {@code namedTargetCluster})
  * @param gateways virtual cluster gateways
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
- * @param filters filers.
+ * @param filters filters applied to requests; when used with a router, these run before router dispatch
  * @param subjectBuilder subject builder configuration (optional)
  * @param topicNameCache topic-name cache configuration (optional)
  * @param drainTimeout maximum time to wait for in-flight requests to complete during
@@ -39,7 +41,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
-                             @JsonProperty(required = true) TargetCluster targetCluster,
+                             @Nullable TargetCluster targetCluster,
+                             @Nullable String namedTargetCluster,
+                             @Nullable String router,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,
@@ -54,12 +58,12 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
     public VirtualCluster {
         Objects.requireNonNull(name);
-        Objects.requireNonNull(targetCluster);
         if (!isDnsLabel(name)) {
             throw new IllegalConfigurationException(
                     "Virtual cluster name '" + name + "' is invalid. It must be less than 64 characters long and match pattern " + DNS_LABEL_PATTERN.pattern()
                             + " (case insensitive)");
         }
+        validateReceiverExclusivity(name, targetCluster, namedTargetCluster, router);
         if (gateways == null || gateways.isEmpty()) {
             throw new IllegalConfigurationException("no gateways configured for virtual cluster '" + name + "'");
         }
@@ -67,23 +71,39 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
             throw new IllegalConfigurationException("one or more gateways were null for virtual cluster '" + name + "'");
         }
         validateNoDuplicatedGatewayNames(gateways);
-        // Validate explicitly-supplied drainTimeout. A null drainTimeout is allowed and
-        // means "use the proxy's default"; the resolved value is supplied by
-        // effectiveDrainTimeout() at the use site so that round-trip serialization
-        // preserves null and the operator-generated configs don't bake in today's default.
         if (drainTimeout != null && (drainTimeout.isZero() || drainTimeout.isNegative())) {
             throw new IllegalConfigurationException(
                     "drainTimeout for virtual cluster '" + name + "' must be positive, got: " + drainTimeout);
         }
     }
 
-    public VirtualCluster(@JsonProperty(required = true) String name,
-                          @JsonProperty(required = true) TargetCluster targetCluster,
-                          @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
+    public VirtualCluster(String name,
+                          TargetCluster targetCluster,
+                          List<VirtualClusterGateway> gateways,
                           boolean logNetwork,
                           boolean logFrames,
                           @Nullable List<String> filters) {
-        this(name, targetCluster, gateways, logNetwork, logFrames, filters, null, null, null);
+        this(name, targetCluster, null, null, gateways, logNetwork, logFrames, filters, null, null, null);
+    }
+
+    private static void validateReceiverExclusivity(String name,
+                                                    @Nullable TargetCluster targetCluster,
+                                                    @Nullable String namedTargetCluster,
+                                                    @Nullable String router) {
+        int count = 0;
+        if (targetCluster != null) {
+            count++;
+        }
+        if (namedTargetCluster != null) {
+            count++;
+        }
+        if (router != null) {
+            count++;
+        }
+        if (count != 1) {
+            throw new IllegalConfigurationException(
+                    "Virtual cluster '" + name + "' must specify exactly one of 'targetCluster', 'namedTargetCluster', or 'router'");
+        }
     }
 
     boolean isDnsLabel(String name) {
@@ -158,6 +178,8 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return new VirtualCluster(
                 name,
                 targetCluster,
+                namedTargetCluster,
+                router,
                 sortedGateways,
                 logNetwork,
                 logFrames,

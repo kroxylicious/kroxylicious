@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -33,8 +34,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br>
  *
  * @param management management configuration
+ * @param targetClusters Named target cluster definitions, referenced by routes and virtual clusters.
  * @param filterDefinitions A list of named filter definitions (names must be unique)
  * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
+ * @param routerDefinitions Named router definitions.
  * @param virtualClusters The virtual clusters
  * @param micrometer The micrometer config
  * @param useIoUring true to use iouring
@@ -42,11 +45,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param network Controls aspects of network configuration for the proxy.
  * @param proxyProtocol PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxyProtocol" })
+@JsonPropertyOrder({ "management", "targetClusters", "filterDefinitions", "defaultFilters", "routerDefinitions", "virtualClusters", "micrometer", "useIoUring",
+        "development", "network", "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
+                            @Nullable List<TargetClusterDefinition> targetClusters,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
+                            @Nullable List<RouterDefinition> routerDefinitions,
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
@@ -67,8 +73,10 @@ public record Configuration(
         }
 
         validateNoDuplicatedClusterNames(virtualClusters);
+        Set<String> targetClusterNames = validateTargetClusterDefinitions(targetClusters);
 
         // Enforce post condition: filterDefinitions have a unique name
+        Set<String> filterDefsByName = Set.of();
         if (filterDefinitions != null) {
             Map<String, List<NamedFilterDefinition>> groupdByName = filterDefinitions.stream().collect(Collectors.groupingBy(NamedFilterDefinition::name));
             var duplicatedNames = groupdByName.entrySet().stream().filter(entry -> entry.getValue().size() > 1).map(Map.Entry::getKey).toList();
@@ -76,15 +84,18 @@ public record Configuration(
                 throw new IllegalConfigurationException("'filterDefinitions' contains multiple items with the same names: " + duplicatedNames);
             }
 
-            // Enforce post condition: Every filter referenced by a name is defined in the filterDefinitions
-            Set<String> filterDefsByName = Optional.ofNullable(filterDefinitions).orElse(List.of()).stream().map(NamedFilterDefinition::name).collect(
-                    Collectors.toSet());
+            filterDefsByName = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toSet());
             checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
             for (var virtualCluster : virtualClusters) {
                 checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
             }
+        }
 
-            checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters);
+        validateRouterDefinitions(routerDefinitions, targetClusterNames, filterDefsByName);
+        validateVirtualClusterReceivers(virtualClusters, targetClusterNames, routerDefinitions);
+
+        if (filterDefinitions != null) {
+            checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters, routerDefinitions);
         }
     }
 
@@ -116,7 +127,71 @@ public record Configuration(
         }
     }
 
-    private void checkAllNamedFilterAreUsed(List<NamedFilterDefinition> filterDefinitions, List<VirtualCluster> clusters, List<String> defaultFilters) {
+    private static Set<String> validateTargetClusterDefinitions(@Nullable List<TargetClusterDefinition> targetClusters) {
+        if (targetClusters == null || targetClusters.isEmpty()) {
+            return Set.of();
+        }
+        var names = targetClusters.stream().map(TargetClusterDefinition::name).toList();
+        var duplicates = names.stream()
+                .filter(n -> Collections.frequency(names, n) > 1)
+                .collect(Collectors.toSet());
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "'targetClusters' contains duplicate names: " + duplicates);
+        }
+        return new HashSet<>(names);
+    }
+
+    private static void validateRouterDefinitions(@Nullable List<RouterDefinition> routerDefinitions,
+                                                  Set<String> targetClusterNames,
+                                                  Set<String> filterDefsByName) {
+        if (routerDefinitions == null || routerDefinitions.isEmpty()) {
+            return;
+        }
+        var routerNames = routerDefinitions.stream().map(RouterDefinition::name).toList();
+        var duplicates = routerNames.stream()
+                .filter(n -> Collections.frequency(routerNames, n) > 1)
+                .collect(Collectors.toSet());
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "'routerDefinitions' contains duplicate names: " + duplicates);
+        }
+
+        for (var router : routerDefinitions) {
+            for (var route : router.routes()) {
+                if (route.filters() != null) {
+                    checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
+                            "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
+                }
+            }
+        }
+
+        RouterGraphValidator.validate(routerDefinitions, targetClusterNames);
+    }
+
+    private static void validateVirtualClusterReceivers(List<VirtualCluster> virtualClusters,
+                                                        Set<String> targetClusterNames,
+                                                        @Nullable List<RouterDefinition> routerDefinitions) {
+        Set<String> routerNames = Optional.ofNullable(routerDefinitions).orElse(List.of()).stream()
+                .map(RouterDefinition::name)
+                .collect(Collectors.toSet());
+
+        for (var vc : virtualClusters) {
+            if (vc.namedTargetCluster() != null && !targetClusterNames.contains(vc.namedTargetCluster())) {
+                throw new IllegalConfigurationException(
+                        "Virtual cluster '" + vc.name() + "' references unknown target cluster '" + vc.namedTargetCluster() + "'");
+            }
+            if (vc.router() != null && !routerNames.contains(vc.router())) {
+                throw new IllegalConfigurationException(
+                        "Virtual cluster '" + vc.name() + "' references unknown router '" + vc.router() + "'");
+            }
+        }
+    }
+
+    private static void checkAllNamedFilterAreUsed(List<NamedFilterDefinition> filterDefinitions,
+                                                   List<VirtualCluster> clusters,
+                                                   @Nullable List<String> defaultFilters,
+                                                   @Nullable List<RouterDefinition> routerDefinitions) {
         var defined = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toCollection(HashSet::new));
         if (defaultFilters != null) {
             defaultFilters.forEach(defined::remove);
@@ -126,30 +201,117 @@ public record Configuration(
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
                 .forEach(defined::remove);
+        if (routerDefinitions != null) {
+            routerDefinitions.stream()
+                    .flatMap(r -> r.routes().stream())
+                    .map(RouteDefinition::filters)
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .forEach(defined::remove);
+        }
         if (!defined.isEmpty()) {
             throw new IllegalConfigurationException(
-                    "'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
+                    "'filterDefinitions' defines filters which are not used in 'defaultFilters', "
+                            + "in any virtual cluster's 'filters', or in any route's 'filters': " + defined);
         }
     }
 
-    private static VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
-                                                             List<NamedFilterDefinition> filterDefinitions,
-                                                             PluginFactoryRegistry pfr) {
+    private VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
+                                                      List<NamedFilterDefinition> filterDefinitions,
+                                                      Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                      PluginFactoryRegistry pfr) {
+        TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster);
+        Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
+                virtualCluster, filterDefinitionsByName);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
-                virtualCluster.targetCluster(),
+                resolvedTargetCluster,
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
                 filterDefinitions,
                 virtualCluster.topicNameCacheConfig(),
                 virtualCluster.subjectBuilder(),
                 virtualCluster.effectiveDrainTimeout(),
-                pfr);
+                pfr,
+                virtualCluster.router(),
+                routeDescriptors);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
+    }
+
+    @Nullable
+    private Map<String, RouteDescriptor> resolveRouteDescriptors(
+                                                                 VirtualCluster virtualCluster,
+                                                                 Map<String, NamedFilterDefinition> filterDefinitionsByName) {
+        if (virtualCluster.router() == null || routerDefinitions == null) {
+            return null;
+        }
+        RouterDefinition rd = routerDefinitions.stream()
+                .filter(r -> r.name().equals(virtualCluster.router()))
+                .findFirst()
+                .orElse(null);
+        if (rd == null) {
+            return null;
+        }
+        return rd.routes().stream()
+                .collect(Collectors.toMap(
+                        RouteDefinition::name,
+                        route -> {
+                            TargetCluster tc = route.targetCluster() != null
+                                    ? resolveNamedTargetCluster(route.targetCluster())
+                                    : null;
+                            List<NamedFilterDefinition> routeFilters = route.filters() != null
+                                    ? resolveFilterNames(filterDefinitionsByName, route.filters())
+                                    : List.of();
+                            return new RouteDescriptor(route.name(), tc, route.router(), routeFilters);
+                        }));
+    }
+
+    @Nullable
+    private TargetCluster resolveTargetCluster(VirtualCluster virtualCluster) {
+        if (virtualCluster.targetCluster() != null) {
+            return virtualCluster.targetCluster();
+        }
+        if (virtualCluster.namedTargetCluster() != null) {
+            return Optional.ofNullable(targetClusters).orElse(List.of()).stream()
+                    .filter(tc -> tc.name().equals(virtualCluster.namedTargetCluster()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalConfigurationException(
+                            "Virtual cluster '" + virtualCluster.name() + "' references unknown target cluster '"
+                                    + virtualCluster.namedTargetCluster() + "'"))
+                    .toTargetCluster();
+        }
+        if (virtualCluster.router() != null) {
+            return resolveRouterPrimaryTargetCluster(virtualCluster);
+        }
+        return null;
+    }
+
+    @Nullable
+    private TargetCluster resolveRouterPrimaryTargetCluster(VirtualCluster virtualCluster) {
+        if (routerDefinitions == null) {
+            return null;
+        }
+        return routerDefinitions.stream()
+                .filter(rd -> rd.name().equals(virtualCluster.router()))
+                .findFirst()
+                .flatMap(rd -> rd.routes().stream()
+                        .filter(route -> route.targetCluster() != null)
+                        .findFirst()
+                        .map(route -> resolveNamedTargetCluster(route.targetCluster())))
+                .orElse(null);
+    }
+
+    @Nullable
+    private TargetCluster resolveNamedTargetCluster(String name) {
+        return Optional.ofNullable(targetClusters).orElse(List.of()).stream()
+                .filter(tc -> tc.name().equals(name))
+                .findFirst()
+                .map(TargetClusterDefinition::toTargetCluster)
+                .orElse(null);
     }
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
@@ -186,8 +348,10 @@ public record Configuration(
 
         return virtualClusters.stream()
                 .map(virtualCluster -> {
-                    List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
+                    List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(
+                            filterDefinitionsByName, virtualCluster);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions,
+                            filterDefinitionsByName, pfr);
                 })
                 .toList();
     }
