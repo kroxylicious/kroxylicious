@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Set;
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -109,6 +111,30 @@ class DelegatingDecodePredicateTest {
 
     private void assertPredicateDoesNotTargetRequestKey(ApiKeys key) {
         assertFalse(predicate.shouldDecodeRequest(key, key.latestVersion()), "predicate unexpectedly targeted key " + key);
+    }
+
+    @Test
+    void testRouterRequiresDecodingForcesDecodeForDynamicKeys() {
+        givenPredicate();
+        givenDelegateTargetsNothing();
+        predicate.setRouterDecodingRequirements(Set.of(ApiKeys.FETCH));
+        assertPredicateTargetsRequestKey(ApiKeys.FETCH);
+    }
+
+    @Test
+    void testRouterRequiresDecodingDoesNotForceDecodeForStaticKeys() {
+        givenPredicate();
+        givenDelegateTargetsNothing();
+        predicate.setRouterDecodingRequirements(Set.of(ApiKeys.FETCH));
+        assertPredicateDoesNotTargetRequestKey(ApiKeys.PRODUCE);
+    }
+
+    @Test
+    void testEmptyRouterRequirementsDoesNotForceDecoding() {
+        givenPredicate();
+        givenDelegateTargetsNothing();
+        predicate.setRouterDecodingRequirements(Set.of());
+        assertPredicateDoesNotTargetRequestKey(ApiKeys.FETCH);
     }
 
     private void assertPredicateTargetsResponseKey(ApiKeys key) {
