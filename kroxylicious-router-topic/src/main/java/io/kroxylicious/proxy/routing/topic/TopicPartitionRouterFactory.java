@@ -33,7 +33,8 @@ public class TopicPartitionRouterFactory
 
     record InitData(PrefixTopicRoutingTable routingTable,
                     @Nullable String defaultRoute,
-                    ProducerIdManager producerIdManager) {}
+                    ProducerIdManager producerIdManager,
+                    FetchSessionCache fetchSessionCache) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
@@ -67,14 +68,24 @@ public class TopicPartitionRouterFactory
                 ? config.producerIdTtl()
                 : ProducerIdManager.DEFAULT_TTL;
 
+        int maxSlots = config.maxFetchSessionCacheSlots() != null
+                ? config.maxFetchSessionCacheSlots()
+                : FetchSessionCache.DEFAULT_MAX_SLOTS;
+        long evictionMs = config.minFetchSessionEviction() != null
+                ? config.minFetchSessionEviction().toMillis()
+                : FetchSessionCache.DEFAULT_MIN_EVICTION_MS;
+
         LOGGER.atInfo()
                 .addKeyValue("defaultRoute", config.defaultRoute())
                 .addKeyValue("prefixCount", prefixToRoute.size())
                 .addKeyValue("routeCount", routingTable.allRoutes().size())
                 .addKeyValue("producerIdTtl", ttl)
+                .addKeyValue("maxFetchSessionCacheSlots", maxSlots)
+                .addKeyValue("minFetchSessionEvictionMs", evictionMs)
                 .log("Topic routing table initialised");
 
-        return new InitData(routingTable, config.defaultRoute(), new ProducerIdManager(ttl));
+        return new InitData(routingTable, config.defaultRoute(),
+                new ProducerIdManager(ttl), new FetchSessionCache(maxSlots, evictionMs));
     }
 
     @Override
@@ -83,7 +94,8 @@ public class TopicPartitionRouterFactory
         return new TopicPartitionRouter(
                 initData.routingTable(),
                 initData.defaultRoute(),
-                initData.producerIdManager());
+                initData.producerIdManager(),
+                initData.fetchSessionCache());
     }
 
     @Override

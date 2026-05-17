@@ -107,7 +107,22 @@ abstract class TopicPartitionRoutingBaseIT {
 
     ConfigurationBuilder topicRouterConfig(KafkaCluster a,
                                            KafkaCluster b,
+                                           int maxFetchSessionCacheSlots,
+                                           Duration minFetchSessionEviction) {
+        return topicRouterConfig(a, b, null, maxFetchSessionCacheSlots, minFetchSessionEviction);
+    }
+
+    ConfigurationBuilder topicRouterConfig(KafkaCluster a,
+                                           KafkaCluster b,
                                            Duration producerIdTtl) {
+        return topicRouterConfig(a, b, producerIdTtl, null, null);
+    }
+
+    ConfigurationBuilder topicRouterConfig(KafkaCluster a,
+                                           KafkaCluster b,
+                                           Duration producerIdTtl,
+                                           Integer maxFetchSessionCacheSlots,
+                                           Duration minFetchSessionEviction) {
         var targetA = new TargetClusterDefinition("cluster-a", a.getBootstrapServers(), null);
         var targetB = new TargetClusterDefinition("cluster-b", b.getBootstrapServers(), null);
 
@@ -119,7 +134,9 @@ abstract class TopicPartitionRoutingBaseIT {
                 List.of(
                         new TopicRoute("route-a", List.of("a.")),
                         new TopicRoute("route-b", List.of("b."))),
-                producerIdTtl);
+                producerIdTtl,
+                maxFetchSessionCacheSlots,
+                minFetchSessionEviction);
 
         var routerDef = new RouterDefinition("topic-router",
                 TopicPartitionRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
