@@ -267,7 +267,7 @@ class FetchSessionManagerTest {
     }
 
     @Nested
-    class BackendSession {
+    class ServerSession {
 
         @Test
         void shouldForceNoSessionForPreV7() {
@@ -300,7 +300,7 @@ class FetchSessionManagerTest {
 
             var sub1 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub1);
-            processBackendResponse("route-a", 42);
+            processServerResponse("route-a", 42);
 
             var sub2 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub2);
@@ -317,7 +317,7 @@ class FetchSessionManagerTest {
             createSession("topic-a");
             var sub1 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub1);
-            processBackendResponse("route-a", 42);
+            processServerResponse("route-a", 42);
 
             var sub2 = decomposedRequestsWithOffset("route-a", "topic-a", 0, 999);
             manager.wrapForBackends(sub2);
@@ -339,8 +339,8 @@ class FetchSessionManagerTest {
             var sub1 = decomposedRequests(
                     Map.of("route-a", List.of("topic-a"), "route-b", List.of("topic-b")));
             manager.wrapForBackends(sub1);
-            processBackendResponse("route-a", 10);
-            processBackendResponse("route-b", 20);
+            processServerResponse("route-a", 10);
+            processServerResponse("route-b", 20);
 
             // Now remove topic-b from the client session
             int sessionId = manager.clientSessionId();
@@ -367,12 +367,12 @@ class FetchSessionManagerTest {
             createSession("topic-a");
             var sub1 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub1);
-            processBackendResponse("route-a", 42);
+            processServerResponse("route-a", 42);
 
             // Backend evicts session
             var evictionResponse = new FetchResponseData();
             evictionResponse.setErrorCode(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
-            manager.processBackendResponses(Map.of("route-a", evictionResponse));
+            manager.processServerResponses(Map.of("route-a", evictionResponse));
 
             // Next request should create a new session
             var sub2 = decomposedRequests("route-a", "topic-a");
@@ -388,7 +388,7 @@ class FetchSessionManagerTest {
             createSession("topic-a");
             var sub1 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub1);
-            processBackendResponse("route-a", 0);
+            processServerResponse("route-a", 0);
 
             var sub2 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub2);
@@ -403,7 +403,7 @@ class FetchSessionManagerTest {
             createSession("topic-a");
             var sub1 = decomposedRequests("route-a", "topic-a");
             manager.wrapForBackends(sub1);
-            processBackendResponse("route-a", 42);
+            processServerResponse("route-a", 42);
 
             for (int expectedEpoch = 1; expectedEpoch <= 3; expectedEpoch++) {
                 var sub = decomposedRequests("route-a", "topic-a");
@@ -413,6 +413,111 @@ class FetchSessionManagerTest {
                         .as("epoch at iteration %d", expectedEpoch)
                         .isEqualTo(expectedEpoch);
             }
+        }
+
+        @Test
+        void shouldReconstructFullResponseFromIncremental() {
+            createSession("topic-a");
+            var sub1 = decomposedRequests("route-a", "topic-a");
+            addTopic(sub1.get("route-a"), "topic-a", 1, 0);
+            manager.wrapForBackends(sub1);
+
+            // First response: full (both partitions)
+            var fullResp = new FetchResponseData();
+            fullResp.setSessionId(42);
+            addResponsePartition(fullResp, "topic-a", 0, 10L);
+            addResponsePartition(fullResp, "topic-a", 1, 20L);
+            manager.processServerResponses(Map.of("route-a", fullResp));
+
+            // Second request (incremental, no changes)
+            var sub2 = decomposedRequests("route-a", "topic-a");
+            addTopic(sub2.get("route-a"), "topic-a", 1, 0);
+            manager.wrapForBackends(sub2);
+
+            // Second response: incremental (only partition 0 changed)
+            var incrResp = new FetchResponseData();
+            incrResp.setSessionId(42);
+            addResponsePartition(incrResp, "topic-a", 0, 15L);
+            manager.processServerResponses(Map.of("route-a", incrResp));
+
+            assertThat(incrResp.responses()).hasSize(1);
+            assertThat(incrResp.responses().get(0).partitions())
+                    .extracting("partitionIndex")
+                    .as("reconstructed response should contain both partitions")
+                    .containsExactlyInAnyOrder(0, 1);
+
+            var p0 = incrResp.responses().get(0).partitions().stream()
+                    .filter(p -> p.partitionIndex() == 0).findFirst().orElseThrow();
+            assertThat(p0.highWatermark()).as("partition 0 should have updated HWM").isEqualTo(15L);
+
+            var p1 = incrResp.responses().get(0).partitions().stream()
+                    .filter(p -> p.partitionIndex() == 1).findFirst().orElseThrow();
+            assertThat(p1.highWatermark()).as("partition 1 should have cached HWM").isEqualTo(20L);
+        }
+
+        @Test
+        void shouldUpdateCacheWithNewPartitionData() {
+            createSession("topic-a");
+            var sub1 = decomposedRequests("route-a", "topic-a");
+            manager.wrapForBackends(sub1);
+
+            var resp1 = new FetchResponseData();
+            resp1.setSessionId(42);
+            addResponsePartition(resp1, "topic-a", 0, 10L);
+            manager.processServerResponses(Map.of("route-a", resp1));
+
+            var sub2 = decomposedRequests("route-a", "topic-a");
+            manager.wrapForBackends(sub2);
+
+            var resp2 = new FetchResponseData();
+            resp2.setSessionId(42);
+            addResponsePartition(resp2, "topic-a", 0, 25L);
+            manager.processServerResponses(Map.of("route-a", resp2));
+
+            // Third request — the cache should have the updated value
+            var sub3 = decomposedRequests("route-a", "topic-a");
+            manager.wrapForBackends(sub3);
+
+            var resp3 = new FetchResponseData();
+            resp3.setSessionId(42);
+            // Empty incremental — nothing changed
+            manager.processServerResponses(Map.of("route-a", resp3));
+
+            assertThat(resp3.responses()).hasSize(1);
+            assertThat(resp3.responses().get(0).partitions().get(0).highWatermark())
+                    .as("cache should reflect the most recent HWM")
+                    .isEqualTo(25L);
+        }
+
+        @Test
+        void shouldClearCacheOnEviction() {
+            createSession("topic-a");
+            var sub1 = decomposedRequests("route-a", "topic-a");
+            manager.wrapForBackends(sub1);
+
+            var resp1 = new FetchResponseData();
+            resp1.setSessionId(42);
+            addResponsePartition(resp1, "topic-a", 0, 10L);
+            manager.processServerResponses(Map.of("route-a", resp1));
+
+            // Eviction
+            var eviction = new FetchResponseData();
+            eviction.setErrorCode(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
+            manager.processServerResponses(Map.of("route-a", eviction));
+
+            // Re-establish session
+            var sub2 = decomposedRequests("route-a", "topic-a");
+            manager.wrapForBackends(sub2);
+            assertThat(sub2.get("route-a").sessionId()).isEqualTo(0);
+
+            var resp2 = new FetchResponseData();
+            resp2.setSessionId(99);
+            addResponsePartition(resp2, "topic-a", 0, 50L);
+            manager.processServerResponses(Map.of("route-a", resp2));
+
+            assertThat(resp2.responses().get(0).partitions().get(0).highWatermark())
+                    .as("fresh session should not contain stale cached data")
+                    .isEqualTo(50L);
         }
     }
 
@@ -568,11 +673,11 @@ class FetchSessionManagerTest {
         manager.processClientRequest(inc, (short) 12);
     }
 
-    private void processBackendResponse(String route,
-                                        int backendSessionId) {
+    private void processServerResponse(String route,
+                                       int backendSessionId) {
         var resp = new FetchResponseData();
         resp.setSessionId(backendSessionId);
-        manager.processBackendResponses(Map.of(route, resp));
+        manager.processServerResponses(Map.of(route, resp));
     }
 
     private static FetchRequestData fetchRequest(String... topicNames) {

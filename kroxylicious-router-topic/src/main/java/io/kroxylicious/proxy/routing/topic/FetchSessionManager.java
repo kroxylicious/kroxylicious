@@ -38,7 +38,7 @@ class FetchSessionManager {
     private final Map<TopicPartition, PartitionState> clientPartitions = new LinkedHashMap<>();
     private final Map<TopicPartition, CachedPartitionResponse> lastSentToClient = new HashMap<>();
 
-    private final Map<String, BackendSession> backendSessions = new HashMap<>();
+    private final Map<String, ServerSession> serverSessions = new HashMap<>();
     private short lastApiVersion = -1;
 
     // --- Client-side session management ---
@@ -180,7 +180,7 @@ class FetchSessionManager {
 
     private void wrapForBackend(String route,
                                 FetchRequestData subRequest) {
-        BackendSession session = backendSessions.computeIfAbsent(route, k -> new BackendSession());
+        ServerSession session = serverSessions.computeIfAbsent(route, k -> new ServerSession());
 
         if (session.sessionId == 0) {
             session.recordPartitions(subRequest);
@@ -229,11 +229,11 @@ class FetchSessionManager {
         session.lastSentPartitions.putAll(currentPartitions);
     }
 
-    void processBackendResponses(Map<String, FetchResponseData> responses) {
+    void processServerResponses(Map<String, FetchResponseData> responses) {
         for (var entry : responses.entrySet()) {
             String route = entry.getKey();
             FetchResponseData response = entry.getValue();
-            BackendSession session = backendSessions.get(route);
+            ServerSession session = serverSessions.get(route);
             if (session == null) {
                 continue;
             }
@@ -246,6 +246,45 @@ class FetchSessionManager {
             if (response.sessionId() != 0 && session.sessionId == 0) {
                 session.sessionId = response.sessionId();
                 session.nextEpoch = 1;
+            }
+
+            if (session.sessionId != 0) {
+                reconstructFullResponse(response, session);
+            }
+        }
+    }
+
+    private static void reconstructFullResponse(FetchResponseData response,
+                                                ServerSession session) {
+        Map<TopicPartition, PartitionData> present = new HashMap<>();
+        for (var topicResp : response.responses()) {
+            for (var partition : topicResp.partitions()) {
+                var tp = new TopicPartition(topicResp.topic(), partition.partitionIndex());
+                present.put(tp, partition);
+                session.cachedResponses.put(tp, CachedPartitionResponse.from(partition));
+            }
+        }
+
+        Map<String, FetchableTopicResponse> synthesised = new LinkedHashMap<>();
+        for (var cached : session.cachedResponses.entrySet()) {
+            if (!present.containsKey(cached.getKey())) {
+                var tp = cached.getKey();
+                synthesised.computeIfAbsent(
+                        tp.topic(),
+                        t -> new FetchableTopicResponse().setTopic(t))
+                        .partitions().add(cached.getValue().toPartitionData(tp.partition()));
+            }
+        }
+
+        for (var topicResp : synthesised.values()) {
+            var existing = response.responses().stream()
+                    .filter(t -> t.topic().equals(topicResp.topic()))
+                    .findFirst();
+            if (existing.isPresent()) {
+                existing.get().partitions().addAll(topicResp.partitions());
+            }
+            else {
+                response.responses().add(topicResp);
             }
         }
     }
@@ -366,6 +405,15 @@ class FetchSessionManager {
                     partition.logStartOffset());
         }
 
+        PartitionData toPartitionData(int partitionIndex) {
+            return new PartitionData()
+                    .setPartitionIndex(partitionIndex)
+                    .setErrorCode(errorCode)
+                    .setHighWatermark(highWatermark)
+                    .setLastStableOffset(lastStableOffset)
+                    .setLogStartOffset(logStartOffset);
+        }
+
         boolean changed(PartitionData partition) {
             return errorCode != partition.errorCode()
                     || highWatermark != partition.highWatermark()
@@ -385,10 +433,11 @@ class FetchSessionManager {
         }
     }
 
-    static class BackendSession {
+    static class ServerSession {
         int sessionId;
         int nextEpoch;
         final Map<TopicPartition, PartitionState> lastSentPartitions = new LinkedHashMap<>();
+        final Map<TopicPartition, CachedPartitionResponse> cachedResponses = new HashMap<>();
 
         void recordPartitions(FetchRequestData request) {
             lastSentPartitions.clear();
@@ -405,6 +454,7 @@ class FetchSessionManager {
             sessionId = 0;
             nextEpoch = 0;
             lastSentPartitions.clear();
+            cachedResponses.clear();
         }
     }
 }
