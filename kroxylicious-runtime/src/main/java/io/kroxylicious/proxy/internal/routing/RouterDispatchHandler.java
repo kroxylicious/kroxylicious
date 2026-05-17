@@ -32,6 +32,8 @@ import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResult;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Sits at the end of the VC-level filter chain (replacing
  * {@link io.kroxylicious.proxy.internal.FilterChainCompletionHandler}) when a
@@ -52,6 +54,9 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
+    private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
+    @Nullable
+    private ResponseSequencer responseSequencer;
 
     record PendingResponse(CompletableFuture<Response> future,
                            Timer.Sample timerSample,
@@ -122,6 +127,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 .addKeyValue("routingMode", "dynamic")
                 .log("Dispatching request to router");
 
+        if (responseSequencer == null) {
+            responseSequencer = new ResponseSequencer(ctx.channel());
+        }
+
         var routingContext = new RoutingContextImpl(
                 correlationId,
                 apiVersion,
@@ -130,10 +139,12 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ccsm.authenticatedSubject(),
                 routes,
                 (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded),
+                () -> nextRoutingCorrelationId++,
                 routingRequestsCounter,
                 routingErrorsCounter,
                 routingRequestDurationTimer,
-                pendingResponseCount);
+                pendingResponseCount,
+                responseSequencer);
 
         router.onRequest(
                 apiVersion,
@@ -173,6 +184,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                 .addKeyValue("clientCorrelationId", correlationId)
                                 .log("Router completed request handling");
                     }
+                    ccsm.onRoutedRequestComplete();
                 });
     }
 

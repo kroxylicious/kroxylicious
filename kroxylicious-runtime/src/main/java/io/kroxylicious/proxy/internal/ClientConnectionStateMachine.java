@@ -450,10 +450,25 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(ServerConnectionStateMachine scsm,
                               Object msg) {
-        if (routingResponseCallback == null || !routingResponseCallback.onResponse(msg)) {
+        boolean claimedByRouter = routingResponseCallback != null && routingResponseCallback.onResponse(msg);
+        if (!claimedByRouter) {
             Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+            decrementInFlightCount();
         }
+    }
 
+    /**
+     * Signals that a dynamically-routed client request has been fully handled.
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * when the router's {@code onClientRequest} future completes and the composed
+     * response has been sent to the client. This maintains the 1:1 invariant between
+     * {@link #onClientRequest} increments and decrements during fan-out.
+     */
+    public void onRoutedRequestComplete() {
+        decrementInFlightCount();
+    }
+
+    private void decrementInFlightCount() {
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
         if (state instanceof ClientConnectionState.Draining draining) {
