@@ -41,6 +41,10 @@ public interface RoutingContext {
     /**
      * Delivers a response to the client.
      *
+     * <p>The runtime automatically rewrites the response header's
+     * correlation ID to match the original client request. Router
+     * implementations do not need to set the correlation ID themselves.</p>
+     *
      * @param response the response to send to the client
      */
     void sendResponse(Response response);
