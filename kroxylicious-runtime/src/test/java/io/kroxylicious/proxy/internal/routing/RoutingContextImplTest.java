@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntSupplier;
 
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -42,6 +43,8 @@ class RoutingContextImplTest {
     private AtomicReference<Object> forwardedMsg;
     private SimpleMeterRegistry meterRegistry;
     private AtomicInteger pendingResponseCount;
+    private ResponseSequencer responseSequencer;
+    private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
 
     @BeforeEach
     void setUp() {
@@ -53,6 +56,11 @@ class RoutingContextImplTest {
         forwardedMsg = new AtomicReference<>();
         meterRegistry = new SimpleMeterRegistry();
         pendingResponseCount = new AtomicInteger();
+        responseSequencer = new ResponseSequencer(channel);
+    }
+
+    private IntSupplier routingIdAllocator() {
+        return () -> nextRoutingCorrelationId++;
     }
 
     private RoutingContextImpl createContext() {
@@ -67,10 +75,12 @@ class RoutingContextImplTest {
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
                 },
+                routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount);
+                pendingResponseCount,
+                responseSequencer);
     }
 
     @Test
@@ -96,7 +106,7 @@ class RoutingContextImplTest {
         assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
         assertThat(forwardedMsg.get())
                 .isInstanceOfSatisfying(DecodedRequestFrame.class, frame -> {
-                    assertThat(frame.correlationId()).isEqualTo(CORRELATION_ID);
+                    assertThat(frame.correlationId()).isNotEqualTo(CORRELATION_ID);
                     assertThat(frame.apiVersion()).isEqualTo(API_VERSION);
                     assertThat(frame.header()).isSameAs(header);
                     assertThat(frame.body()).isSameAs(body);
@@ -169,5 +179,41 @@ class RoutingContextImplTest {
         var counter = meterRegistry.find("test_routing_errors").counter();
         assertThat(counter).isNotNull();
         assertThat(counter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldAllocateDistinctRoutingCorrelationIdsForFanOut() {
+        var ctx = createContext();
+
+        List<Object> forwardedFrames = new java.util.ArrayList<>();
+        var fanOutCtx = new RoutingContextImpl(
+                CORRELATION_ID,
+                API_VERSION,
+                channel,
+                SESSION_ID,
+                Subject.anonymous(),
+                routes,
+                (routeName, msg) -> forwardedFrames.add(msg),
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount,
+                responseSequencer);
+
+        var futureA = fanOutCtx.sendRequestToNode("cluster-route", 0, new RequestHeaderData(), new FetchRequestData());
+        var futureB = fanOutCtx.sendRequestToNode("cluster-route", 0, new RequestHeaderData(), new FetchRequestData());
+
+        assertThat(forwardedFrames).hasSize(2);
+
+        int idA = ((DecodedRequestFrame<?>) forwardedFrames.get(0)).correlationId();
+        int idB = ((DecodedRequestFrame<?>) forwardedFrames.get(1)).correlationId();
+        assertThat(idA).isNotEqualTo(idB);
+        assertThat(idA).isNotEqualTo(CORRELATION_ID);
+        assertThat(idB).isNotEqualTo(CORRELATION_ID);
+
+        assertThat(pendingResponseCount.get()).isEqualTo(2);
+        assertThat(futureA.toCompletableFuture()).isNotCompleted();
+        assertThat(futureB.toCompletableFuture()).isNotCompleted();
     }
 }
