@@ -7,11 +7,13 @@ package io.kroxylicious.proxy.routing.topic.config;
 
 import java.util.List;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for the topic-based router.
  *
  * @param defaultRoute route for topics matching no prefix, or null if unmatched topics should be rejected
  * @param topicRoutes per-route topic prefix assignments
  */
-public record TopicPartitionRouterConfig(String defaultRoute,
+public record TopicPartitionRouterConfig(@Nullable String defaultRoute,
                                          List<TopicRoute> topicRoutes) {}

@@ -18,6 +18,9 @@ import io.kroxylicious.proxy.routing.RouterFactory;
 import io.kroxylicious.proxy.routing.RouterFactoryContext;
 import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Creates {@link TopicPartitionRouter} instances that route Kafka requests
  * to backend clusters based on topic name prefix matching.
@@ -29,11 +32,11 @@ public class TopicPartitionRouterFactory
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRouterFactory.class);
 
     record InitData(PrefixTopicRoutingTable routingTable,
-                    String defaultRoute) {}
+                    @Nullable String defaultRoute) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
-                               TopicPartitionRouterConfig config)
+                               @NonNull TopicPartitionRouterConfig config)
             throws PluginConfigurationException {
         if (config.topicRoutes() == null || config.topicRoutes().isEmpty()) {
             if (config.defaultRoute() == null) {
@@ -70,7 +73,7 @@ public class TopicPartitionRouterFactory
 
     @Override
     public Router createRouter(RouterFactoryContext context,
-                               InitData initData) {
+                               @NonNull InitData initData) {
         return new TopicPartitionRouter(initData.routingTable(), initData.defaultRoute());
     }
 }
