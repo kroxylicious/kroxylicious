@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntSupplier;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -39,15 +40,18 @@ class RoutingContextImpl implements RoutingContext {
 
     private final int clientCorrelationId;
     private final short apiVersion;
-    private final Channel clientChannel;
     private final String sessionId;
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
     private final RequestForwarder requestForwarder;
+    private final IntSupplier routingCorrelationIdAllocator;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
+    private final Channel clientChannel;
+    private final ResponseSequencer responseSequencer;
+    private final long sequenceNumber;
 
     /**
      * Callback interface for forwarding requests to the backend. The
@@ -66,10 +70,12 @@ class RoutingContextImpl implements RoutingContext {
                        Subject subject,
                        Map<String, RouteDescriptor> routes,
                        RequestForwarder requestForwarder,
+                       IntSupplier routingCorrelationIdAllocator,
                        MeterProvider<Counter> routingRequestsCounter,
                        MeterProvider<Counter> routingErrorsCounter,
                        MeterProvider<Timer> routingRequestDurationTimer,
-                       AtomicInteger pendingResponseCount) {
+                       AtomicInteger pendingResponseCount,
+                       ResponseSequencer responseSequencer) {
         this.clientCorrelationId = clientCorrelationId;
         this.apiVersion = apiVersion;
         this.clientChannel = Objects.requireNonNull(clientChannel);
@@ -77,10 +83,13 @@ class RoutingContextImpl implements RoutingContext {
         this.subject = Objects.requireNonNull(subject);
         this.routes = Objects.requireNonNull(routes);
         this.requestForwarder = Objects.requireNonNull(requestForwarder);
+        this.routingCorrelationIdAllocator = Objects.requireNonNull(routingCorrelationIdAllocator);
         this.routingRequestsCounter = Objects.requireNonNull(routingRequestsCounter);
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
         this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
+        this.responseSequencer = Objects.requireNonNull(responseSequencer);
+        this.sequenceNumber = responseSequencer.allocateSequence();
     }
 
     @Override
@@ -114,9 +123,10 @@ class RoutingContextImpl implements RoutingContext {
         }
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
         var frame = new DecodedRequestFrame<>(
                 apiVersion,
-                clientCorrelationId,
+                routingCorrelationId,
                 true,
                 header,
                 request);
@@ -126,7 +136,7 @@ class RoutingContextImpl implements RoutingContext {
         var pendingResponse = new RouterDispatchHandler.PendingResponse(
                 future, timerSample, route, apiKey);
         RouterDispatchHandler.registerPendingResponse(
-                clientChannel, clientCorrelationId, pendingResponse);
+                clientChannel, routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();
 
         requestForwarder.forward(route, frame);
@@ -138,6 +148,7 @@ class RoutingContextImpl implements RoutingContext {
                 .addKeyValue("sessionId", sessionId)
                 .addKeyValue("route", route)
                 .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Request sent to route");
         return future;
@@ -150,12 +161,12 @@ class RoutingContextImpl implements RoutingContext {
                 clientCorrelationId,
                 response.header(),
                 response.body());
-        clientChannel.write(responseFrame);
-        clientChannel.flush();
+        responseSequencer.submit(sequenceNumber, responseFrame);
         LOGGER.atTrace()
                 .addKeyValue("sessionId", sessionId)
                 .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .log("Response sent to client");
+                .addKeyValue("sequenceNumber", sequenceNumber)
+                .log("Response submitted to sequencer");
     }
 
     @Override

@@ -70,6 +70,15 @@ public interface Router {
      * response to the client. The returned {@link CompletionStage} must
      * complete after the router has finished all its work for this request.</p>
      *
+     * <h3>Threading model</h3>
+     *
+     * <p>All invocations of this method, all calls to
+     * {@link RoutingContext#sendRequest} and {@link RoutingContext#sendResponse},
+     * and all {@link CompletionStage} callbacks chained on the futures returned
+     * by {@code sendRequest}, execute on the same Netty event loop thread.
+     * Router implementations do not need to synchronise access to their own
+     * state.</p>
+     *
      * @param apiVersion the API version of the request
      * @param apiKey the API key identifying the request type
      * @param header the request header
