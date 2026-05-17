@@ -14,6 +14,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Class to keep track of allow and deny lists meant for use when building context for SSLEngine.
  *
+ * @param <T> the type of elements in the allow and deny lists.
  * @param allowed specifies a list of allowed objects ordered by preference.
  * @param denied specifies a set of denied objects.
  */

@@ -131,6 +131,21 @@ class RoutingContextImpl implements RoutingContext {
                 header,
                 request);
 
+        if (!frame.hasResponse()) {
+            requestForwarder.forward(route, frame);
+            routingRequestsCounter.withTags(
+                    Metrics.ROUTE_LABEL, route,
+                    Metrics.ROUTING_MODE_LABEL, "dynamic",
+                    Metrics.API_KEY_LABEL, apiKey.name()).increment();
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .log("Fire-and-forget request sent to route (no response expected)");
+            return CompletableFuture.completedFuture(null);
+        }
+
         CompletableFuture<Response> future = new CompletableFuture<>();
         Timer.Sample timerSample = Timer.start();
         var pendingResponse = new RouterDispatchHandler.PendingResponse(
@@ -156,6 +171,7 @@ class RoutingContextImpl implements RoutingContext {
 
     @Override
     public void sendResponse(Response response) {
+        response.header().setCorrelationId(clientCorrelationId);
         var responseFrame = new DecodedResponseFrame<>(
                 apiVersion,
                 clientCorrelationId,

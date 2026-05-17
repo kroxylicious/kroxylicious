@@ -168,13 +168,14 @@ public interface FilterContext {
     String getVirtualClusterName();
 
     /**
-     * @return The TLS context for the client connection, or empty if the client connection is not TLS.
+     * Returns the TLS context for the client connection.
+     * @return the TLS context, or empty if the client connection is not TLS.
      */
     Optional<ClientTlsContext> clientTlsContext();
 
     /**
      *
-     * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
+     * Allows a filter (typically one which implements {@code SaslAuthenticateRequestFilter})
      * to announce a successful authentication outcome with the Kafka client to other plugins.
      * After calling this method the results of {@link #clientSaslContext()}
      * and {@link #authenticatedSubject()} will both be non-empty for this and other filters.
@@ -190,7 +191,7 @@ public interface FilterContext {
                                          Subject subject);
 
     /**
-     * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
+     * Allows a filter (typically one which implements {@code SaslAuthenticateRequestFilter})
      * to announce a failed authentication outcome with the Kafka client.
      * After calling this method the result of {@link #clientSaslContext()} will
      * be empty for this and other filters.
@@ -208,8 +209,8 @@ public interface FilterContext {
                                          Exception exception);
 
     /**
-     * @return The SASL context for the client connection, or empty if the client
-     * has not successfully authenticated using SASL.
+     * Returns the SASL context for the client connection.
+     * @return the SASL context, or empty if the client has not successfully authenticated using SASL.
      */
     Optional<ClientSaslContext> clientSaslContext();
 

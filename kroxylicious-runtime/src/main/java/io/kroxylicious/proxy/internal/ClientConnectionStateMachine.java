@@ -643,11 +643,11 @@ public class ClientConnectionStateMachine {
      */
     private void onDraining(Runnable onDrained, CompletableFuture<Void> closedFuture) {
         if (!(state instanceof Forwarding)) {
-            LOGGER.atWarn()
+            LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
-                    .log("Cannot start draining — not in Forwarding state");
+                    .log("Drain requested for connection not yet in Forwarding state — completing immediately");
             onDrained.run();
             return;
         }

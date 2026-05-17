@@ -10,6 +10,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Options that control TLS negotiation when in server mode.
+ *
+ * @param clientAuth whether clients are required to authenticate via TLS.
  */
 public record ServerOptions(@Nullable TlsClientAuth clientAuth) implements TrustOptions {
     @Override

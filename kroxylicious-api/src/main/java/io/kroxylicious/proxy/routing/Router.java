@@ -70,7 +70,7 @@ public interface Router {
      * response to the client. The returned {@link CompletionStage} must
      * complete after the router has finished all its work for this request.</p>
      *
-     * <h3>Threading model</h3>
+     * <p><strong>Threading model</strong></p>
      *
      * <p>All invocations of this method, all calls to
      * {@link RoutingContext#sendRequest} and {@link RoutingContext#sendResponse},
