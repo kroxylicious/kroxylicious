@@ -37,9 +37,13 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +62,7 @@ import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
@@ -86,6 +91,27 @@ class TopicPartitionRouterIT {
     static KafkaCluster clusterA;
     static KafkaCluster clusterB;
 
+    /** Request shapes for the parameterised metadata test. */
+    enum MetadataShape {
+        /** All topics (topics = null, v1+). */
+        ALL_TOPICS,
+        /** Broker info only (topics = empty list, v4+). */
+        BROKER_INFO_ONLY,
+        /** Single route — topic on default route only. */
+        SINGLE_ROUTE,
+        /** Cross route — topics on both routes, requires fan-out. */
+        CROSS_ROUTE
+    }
+
+    private static final String PARAM_TOPIC_A = "a.param";
+    private static final String PARAM_TOPIC_B = "b.param";
+
+    @BeforeAll
+    static void createParameterisedTestTopics() throws Exception {
+        createTopicOnCluster(PARAM_TOPIC_A, 1, clusterA);
+        createTopicOnCluster(PARAM_TOPIC_B, 1, clusterB);
+    }
+
     private RoutingEventCaptor routingCaptor;
 
     @BeforeEach
@@ -105,12 +131,19 @@ class TopicPartitionRouterIT {
         }
     }
 
+    private static void createTopicOnCluster(String topicName,
+                                             int partitions,
+                                             KafkaCluster cluster)
+            throws Exception {
+        var newTopic = new NewTopic(topicName, Optional.of(partitions), Optional.empty());
+        try (var admin = AdminClient.create(cluster.getKafkaClientConfiguration())) {
+            admin.createTopics(List.of(newTopic)).all().get(10, TimeUnit.SECONDS);
+        }
+    }
+
     private void createTopic(String topicName, KafkaCluster... clusters) throws Exception {
-        var newTopic = new NewTopic(topicName, Optional.of(1), Optional.empty());
         for (var cluster : clusters) {
-            try (var admin = AdminClient.create(cluster.getKafkaClientConfiguration())) {
-                admin.createTopics(List.of(newTopic)).all().get(10, TimeUnit.SECONDS);
-            }
+            createTopicOnCluster(topicName, 1, cluster);
         }
     }
 
@@ -722,6 +755,159 @@ class TopicPartitionRouterIT {
         assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.METADATA))
                 .as("all-topics METADATA should fan out to route-b")
                 .isNotEmpty();
+    }
+
+    @Test
+    void shouldMergeBrokersFromMultiBrokerClusters(
+                                                   @BrokerCluster(numBrokers = 3) KafkaCluster multiBrokerB)
+            throws Exception {
+        String topicA = "a.multi";
+        String topicB = "b.multi";
+        createTopicOnCluster(topicA, 1, clusterA);
+        createTopicOnCluster(topicB, 3, multiBrokerB);
+        var config = topicRouterConfig(clusterA, multiBrokerB);
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            negotiateApiVersions(client);
+            var request = new MetadataRequestData();
+            request.topics().add(new MetadataRequestTopic().setName(topicA));
+            request.topics().add(new MetadataRequestTopic().setName(topicB));
+
+            var response = client.getSync(
+                    new Request(ApiKeys.METADATA, METADATA_VERSION, "test-client", request));
+            var body = (MetadataResponseData) response.payload().message();
+
+            // clusterA has nodeId 0; multiBrokerB has nodeIds 0, 1, 2.
+            // After proxy address remapping the union deduplicates by nodeId,
+            // giving 3 distinct broker entries.
+            assertThat(body.brokers())
+                    .as("merged broker list should contain brokers from both clusters")
+                    .hasSizeGreaterThanOrEqualTo(3);
+
+            assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                    .containsExactlyInAnyOrder(topicA, topicB);
+
+            var topicBMeta = body.topics().stream()
+                    .filter(t -> t.name().equals(topicB))
+                    .findFirst()
+                    .orElseThrow();
+            assertThat(topicBMeta.partitions())
+                    .as("b.multi should have 3 partitions spread across the multi-broker cluster")
+                    .hasSize(3);
+        }
+    }
+
+    // --- Phase 4: parameterised metadata version × shape ---
+
+    static List<Arguments> metadataVersionsAndShapes() {
+        List<Arguments> result = new ArrayList<>();
+        for (short version : ApiKeys.METADATA.allVersions()) {
+            for (MetadataShape shape : MetadataShape.values()) {
+                if (shape == MetadataShape.ALL_TOPICS && version < 1) {
+                    continue;
+                }
+                if (shape == MetadataShape.BROKER_INFO_ONLY && version < 4) {
+                    continue;
+                }
+                result.add(Arguments.of(version, shape));
+            }
+        }
+        return result;
+    }
+
+    @ParameterizedTest
+    @MethodSource("metadataVersionsAndShapes")
+    void metadataAcrossVersionsAndShapes(short apiVersion,
+                                         MetadataShape shape)
+            throws Exception {
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            negotiateApiVersions(client);
+
+            var request = new MetadataRequestData();
+            switch (shape) {
+                case ALL_TOPICS -> request.setTopics(null);
+                case BROKER_INFO_ONLY -> {
+                    /* empty topics list is the default */ }
+                case SINGLE_ROUTE -> request.topics().add(new MetadataRequestTopic().setName(PARAM_TOPIC_A));
+                case CROSS_ROUTE -> {
+                    request.topics().add(new MetadataRequestTopic().setName(PARAM_TOPIC_A));
+                    request.topics().add(new MetadataRequestTopic().setName(PARAM_TOPIC_B));
+                }
+            }
+
+            var response = client.getSync(
+                    new Request(ApiKeys.METADATA, apiVersion, "test-client", request));
+            var body = (MetadataResponseData) response.payload().message();
+
+            assertThat(body.brokers())
+                    .as("brokers should be present for v%d %s", apiVersion, shape)
+                    .isNotEmpty();
+
+            switch (shape) {
+                case ALL_TOPICS -> {
+                    assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                            .as("all-topics at v%d should include both test topics", apiVersion)
+                            .contains(PARAM_TOPIC_A, PARAM_TOPIC_B);
+                    for (var topic : body.topics()) {
+                        if (topic.name() != null && topic.name().startsWith("b.")) {
+                            assertThat(topic.partitions())
+                                    .as("b.* topic %s should have partition metadata (not a phantom)", topic.name())
+                                    .isNotEmpty();
+                        }
+                    }
+                }
+                case BROKER_INFO_ONLY -> {
+                    assertThat(body.topics())
+                            .as("broker-info-only at v%d should return no topics", apiVersion)
+                            .isEmpty();
+                }
+                case SINGLE_ROUTE -> {
+                    assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                            .as("single-route at v%d should return only a.param", apiVersion)
+                            .containsExactly(PARAM_TOPIC_A);
+                    var singleTopic = body.topics().iterator().next();
+                    assertThat(singleTopic.errorCode())
+                            .as("a.param should have no error at v%d", apiVersion)
+                            .isEqualTo(Errors.NONE.code());
+                    assertThat(singleTopic.partitions())
+                            .as("a.param should have partitions at v%d", apiVersion)
+                            .isNotEmpty();
+                }
+                case CROSS_ROUTE -> {
+                    assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                            .as("cross-route at v%d should return both topics", apiVersion)
+                            .containsExactlyInAnyOrder(PARAM_TOPIC_A, PARAM_TOPIC_B);
+                    for (var t : body.topics()) {
+                        assertThat(t.errorCode())
+                                .as("topic %s should have no error at v%d", t.name(), apiVersion)
+                                .isEqualTo(Errors.NONE.code());
+                        assertThat(t.partitions())
+                                .as("topic %s should have partitions at v%d", t.name(), apiVersion)
+                                .isNotEmpty();
+                    }
+                }
+            }
+        }
+
+        switch (shape) {
+            case ALL_TOPICS, CROSS_ROUTE -> {
+                assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.METADATA))
+                        .as("%s at v%d should route to route-a", shape, apiVersion)
+                        .isNotEmpty();
+                assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.METADATA))
+                        .as("%s at v%d should route to route-b", shape, apiVersion)
+                        .isNotEmpty();
+            }
+            case BROKER_INFO_ONLY, SINGLE_ROUTE -> {
+                assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.METADATA))
+                        .as("%s at v%d should route to default route-a", shape, apiVersion)
+                        .isNotEmpty();
+            }
+        }
     }
 
     private static void negotiateApiVersions(KafkaClient client) {
