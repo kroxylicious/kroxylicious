@@ -549,8 +549,8 @@ class TopicPartitionRouterTest {
     @Test
     void shouldRouteFetchToSingleCluster() {
         var request = fetchRequest("orders.uk");
-        request.setSessionId(42);
-        request.setSessionEpoch(3);
+        request.setSessionId(0);
+        request.setSessionEpoch(-1);
         var backendResp = fetchResponse("orders.uk", 0, Errors.NONE);
 
         var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
@@ -560,17 +560,15 @@ class TopicPartitionRouterTest {
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
 
         var sentReq = (FetchRequestData) ctx.sentRequests().get(0).body();
-        assertThat(sentReq.sessionId()).as("sessions forced off").isEqualTo(0);
-        assertThat(sentReq.sessionEpoch()).as("sessions forced off").isEqualTo(-1);
-        assertThat(sentReq.forgottenTopicsData()).as("no forgotten topics without sessions").isEmpty();
+        assertThat(sentReq.sessionId()).as("no client session → backend gets session creation").isEqualTo(0);
         assertThat(sentReq.topics()).extracting("topic").containsExactly("orders.uk");
     }
 
     @Test
     void shouldFanOutFetchAcrossRoutes() {
         var request = fetchRequest("orders.uk", "logs.app");
-        request.setSessionId(42);
-        request.setSessionEpoch(3);
+        request.setSessionId(0);
+        request.setSessionEpoch(-1);
         var respA = fetchResponse("orders.uk", 0, Errors.NONE);
         var respB = fetchResponse("logs.app", 0, Errors.NONE);
 
@@ -583,9 +581,6 @@ class TopicPartitionRouterTest {
 
         for (var sent : ctx.sentRequests()) {
             var sentReq = (FetchRequestData) sent.body();
-            assertThat(sentReq.sessionId()).as("sessions forced off on %s", sent.route()).isEqualTo(0);
-            assertThat(sentReq.sessionEpoch()).as("sessions forced off on %s", sent.route()).isEqualTo(-1);
-            assertThat(sentReq.forgottenTopicsData()).as("no forgotten topics on %s", sent.route()).isEmpty();
             if (sent.route().equals("cluster-a")) {
                 assertThat(sentReq.topics()).extracting("topic").containsExactly("orders.uk");
             }
@@ -606,6 +601,8 @@ class TopicPartitionRouterTest {
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
 
         var request = fetchRequest("orders.uk", "unknown.topic");
+        request.setSessionId(0);
+        request.setSessionEpoch(-1);
         var respA = fetchResponse("orders.uk", 0, Errors.NONE);
 
         var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA));
