@@ -498,7 +498,7 @@ class TopicPartitionRouter implements Router {
             for (var entry : responses.entrySet()) {
                 bodies.put(entry.getKey(), (FetchResponseData) entry.getValue().body());
             }
-            fetchSessionManager.processBackendResponses(bodies);
+            fetchSessionManager.processServerResponses(bodies);
             FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest);
             for (var tr : capturedErrors.responses()) {
                 merged.responses().add(tr.duplicate());
