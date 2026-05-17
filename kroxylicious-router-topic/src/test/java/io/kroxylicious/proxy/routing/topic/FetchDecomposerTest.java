@@ -91,7 +91,7 @@ class FetchDecomposerTest {
     }
 
     @Test
-    void shouldForceNonSessionFetch() {
+    void shouldNotCopySessionFields() {
         var request = fetchRequest("a.orders", "b.logs");
         request.setSessionId(42);
         request.setSessionEpoch(3);
@@ -100,16 +100,16 @@ class FetchDecomposerTest {
 
         for (var sub : parts.values()) {
             assertThat(sub.sessionId())
-                    .as("sub-requests should have sessionId=0 (no session)")
-                    .isEqualTo(0);
+                    .as("sub-requests should not inherit original session ID")
+                    .isNotEqualTo(42);
             assertThat(sub.sessionEpoch())
-                    .as("sub-requests should have sessionEpoch=-1")
-                    .isEqualTo(-1);
+                    .as("sub-requests should not inherit original session epoch")
+                    .isNotEqualTo(3);
         }
     }
 
     @Test
-    void shouldClearForgottenTopicsData() {
+    void shouldNotCopyForgottenTopicsData() {
         var request = fetchRequest("a.orders");
         request.forgottenTopicsData().add(
                 new ForgottenTopic().setTopic("old.topic").setPartitions(java.util.List.of(0)));
@@ -118,7 +118,7 @@ class FetchDecomposerTest {
 
         for (var sub : parts.values()) {
             assertThat(sub.forgottenTopicsData())
-                    .as("sub-requests should have no forgotten topics (sessions disabled)")
+                    .as("sub-requests should not include forgotten topics from original request")
                     .isEmpty();
         }
     }
@@ -196,7 +196,7 @@ class FetchDecomposerTest {
     }
 
     @Test
-    void shouldSetSessionIdZeroInResponse() {
+    void shouldNotSetSessionFieldsInResponse() {
         var request = fetchRequest("a.orders");
 
         var resp = new FetchResponseData().setSessionId(42);
@@ -204,7 +204,9 @@ class FetchDecomposerTest {
 
         var merged = decomposer.recompose(Map.of("route-a", resp), request);
 
-        assertThat(merged.sessionId()).isEqualTo(0);
+        assertThat(merged.sessionId())
+                .as("recompose should not override session ID — FetchSessionManager handles that")
+                .isEqualTo(0);
     }
 
     @Test
