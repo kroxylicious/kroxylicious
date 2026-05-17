@@ -28,6 +28,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsPartition;
@@ -967,12 +968,30 @@ class TopicPartitionRouterIT {
             }
         }
 
-        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH))
-                .as("FETCH should be routed to route-a")
-                .isNotEmpty();
-        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH))
-                .as("FETCH should be routed to route-b")
-                .isNotEmpty();
+        var fetchesToA = routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH);
+        var fetchesToB = routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH);
+        assertThat(fetchesToA).as("FETCH should be routed to route-a").isNotEmpty();
+        assertThat(fetchesToB).as("FETCH should be routed to route-b").isNotEmpty();
+
+        // Sessions must be forced off on every sub-request
+        for (var event : fetchesToA) {
+            var body = (FetchRequestData) event.body();
+            assertThat(body.sessionId()).as("sessionId forced to 0 on route-a").isEqualTo(0);
+            assertThat(body.sessionEpoch()).as("sessionEpoch forced to -1 on route-a").isEqualTo(-1);
+            assertThat(body.forgottenTopicsData()).as("no forgotten topics on route-a").isEmpty();
+            assertThat(body.topics()).extracting("topic")
+                    .as("route-a should only receive a.* topics")
+                    .allSatisfy(name -> assertThat((String) name).startsWith("a."));
+        }
+        for (var event : fetchesToB) {
+            var body = (FetchRequestData) event.body();
+            assertThat(body.sessionId()).as("sessionId forced to 0 on route-b").isEqualTo(0);
+            assertThat(body.sessionEpoch()).as("sessionEpoch forced to -1 on route-b").isEqualTo(-1);
+            assertThat(body.forgottenTopicsData()).as("no forgotten topics on route-b").isEmpty();
+            assertThat(body.topics()).extracting("topic")
+                    .as("route-b should only receive b.* topics")
+                    .allSatisfy(name -> assertThat((String) name).startsWith("b."));
+        }
     }
 
     @Test
@@ -1030,12 +1049,23 @@ class TopicPartitionRouterIT {
             }
         }
 
-        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.LIST_OFFSETS))
-                .as("LIST_OFFSETS for a.* should be routed to route-a")
-                .isNotEmpty();
-        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.LIST_OFFSETS))
-                .as("LIST_OFFSETS for b.* should be routed to route-b")
-                .isNotEmpty();
+        var listOffsetsToA = routingCaptor.requestsToRoute("route-a", ApiKeys.LIST_OFFSETS);
+        var listOffsetsToB = routingCaptor.requestsToRoute("route-b", ApiKeys.LIST_OFFSETS);
+        assertThat(listOffsetsToA).as("LIST_OFFSETS should be routed to route-a").isNotEmpty();
+        assertThat(listOffsetsToB).as("LIST_OFFSETS should be routed to route-b").isNotEmpty();
+
+        for (var event : listOffsetsToA) {
+            var body = (ListOffsetsRequestData) event.body();
+            assertThat(body.topics()).extracting("name")
+                    .as("route-a should only receive a.* topics")
+                    .allSatisfy(name -> assertThat((String) name).startsWith("a."));
+        }
+        for (var event : listOffsetsToB) {
+            var body = (ListOffsetsRequestData) event.body();
+            assertThat(body.topics()).extracting("name")
+                    .as("route-b should only receive b.* topics")
+                    .allSatisfy(name -> assertThat((String) name).startsWith("b."));
+        }
     }
 
     @Test
@@ -1089,12 +1119,25 @@ class TopicPartitionRouterIT {
             }
         }
 
-        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.OFFSET_COMMIT))
-                .as("OFFSET_COMMIT for a.* should be routed to route-a")
-                .isNotEmpty();
-        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.OFFSET_COMMIT))
-                .as("OFFSET_COMMIT for b.* should be routed to route-b")
-                .isNotEmpty();
+        var commitsToA = routingCaptor.requestsToRoute("route-a", ApiKeys.OFFSET_COMMIT);
+        var commitsToB = routingCaptor.requestsToRoute("route-b", ApiKeys.OFFSET_COMMIT);
+        assertThat(commitsToA).as("OFFSET_COMMIT should be routed to route-a").isNotEmpty();
+        assertThat(commitsToB).as("OFFSET_COMMIT should be routed to route-b").isNotEmpty();
+
+        for (var event : commitsToA) {
+            var body = (OffsetCommitRequestData) event.body();
+            assertThat(body.groupId()).as("groupId preserved on route-a").isEqualTo(groupId);
+            assertThat(body.topics()).extracting("name")
+                    .as("route-a should only receive a.* topics")
+                    .allSatisfy(name -> assertThat((String) name).startsWith("a."));
+        }
+        for (var event : commitsToB) {
+            var body = (OffsetCommitRequestData) event.body();
+            assertThat(body.groupId()).as("groupId preserved on route-b").isEqualTo(groupId);
+            assertThat(body.topics()).extracting("name")
+                    .as("route-b should only receive b.* topics")
+                    .allSatisfy(name -> assertThat((String) name).startsWith("b."));
+        }
     }
 
     private static void warmUpGroupCoordinator(KafkaCluster cluster,
