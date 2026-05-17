@@ -85,6 +85,7 @@ class TopicPartitionRouter implements Router {
     private final ListOffsetsDecomposer listOffsetsDecomposer = ListOffsetsDecomposer.INSTANCE;
     private final OffsetCommitDecomposer offsetCommitDecomposer = OffsetCommitDecomposer.INSTANCE;
     private final ProducerIdManager producerIdManager;
+    private final FetchSessionManager fetchSessionManager;
 
     /**
      * @param routingTable determines which route owns each topic
@@ -99,6 +100,7 @@ class TopicPartitionRouter implements Router {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
         this.producerIdManager = producerIdManager;
+        this.fetchSessionManager = new FetchSessionManager();
         this.staticRoutes = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> defaultRoute));
@@ -130,7 +132,7 @@ class TopicPartitionRouter implements Router {
             return handleMetadata(header, (MetadataRequestData) request, context);
         }
         if (apiKey == ApiKeys.FETCH) {
-            return handleFetch(header, (FetchRequestData) request, context);
+            return handleFetch(apiVersion, header, (FetchRequestData) request, context);
         }
         if (apiKey == ApiKeys.LIST_OFFSETS) {
             return handleListOffsets(header, (ListOffsetsRequestData) request, context);
@@ -455,31 +457,29 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RoutingResult> handleFetch(
+                                                       short apiVersion,
                                                        RequestHeaderData header,
                                                        FetchRequestData request,
                                                        RoutingContext context) {
+        var clientResult = fetchSessionManager.processClientRequest(request, apiVersion);
+        if (clientResult instanceof FetchSessionManager.ClientRequestResult.SessionError error) {
+            sendSyntheticResponse(context, error.response());
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+        var fullRequest = ((FetchSessionManager.ClientRequestResult.FullFetch) clientResult).request();
+
         FetchResponseData errorResponse = FetchDecomposer.errorResponseForUnroutableTopics(
-                request, routingTable);
+                fullRequest, routingTable);
         Map<String, FetchRequestData> subRequests = fetchDecomposer.decompose(
-                request, routingTable);
+                fullRequest, routingTable);
 
         if (subRequests.isEmpty()) {
-            sendSyntheticResponse(context, errorResponse);
+            var clientResponse = fetchSessionManager.computeClientResponse(errorResponse);
+            sendSyntheticResponse(context, clientResponse);
             return CompletableFuture.completedFuture(RoutingResult.completed());
         }
 
-        if (subRequests.size() == 1 && errorResponse.responses().isEmpty()) {
-            var entry = subRequests.entrySet().iterator().next();
-            LOGGER.atDebug()
-                    .addKeyValue("sessionId", context.sessionId())
-                    .addKeyValue("route", entry.getKey())
-                    .log("Fetch routed to single cluster");
-            return context.sendRequest(entry.getKey(), header, entry.getValue())
-                    .thenApply(response -> {
-                        context.sendResponse(response);
-                        return RoutingResult.completed();
-                    });
-        }
+        fetchSessionManager.wrapForBackends(subRequests);
 
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
@@ -498,11 +498,13 @@ class TopicPartitionRouter implements Router {
             for (var entry : responses.entrySet()) {
                 bodies.put(entry.getKey(), (FetchResponseData) entry.getValue().body());
             }
-            FetchResponseData merged = fetchDecomposer.recompose(bodies, request);
+            fetchSessionManager.processBackendResponses(bodies);
+            FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest);
             for (var tr : capturedErrors.responses()) {
                 merged.responses().add(tr.duplicate());
             }
-            sendSyntheticResponse(context, merged);
+            var clientResponse = fetchSessionManager.computeClientResponse(merged);
+            sendSyntheticResponse(context, clientResponse);
             return RoutingResult.completed();
         });
     }
