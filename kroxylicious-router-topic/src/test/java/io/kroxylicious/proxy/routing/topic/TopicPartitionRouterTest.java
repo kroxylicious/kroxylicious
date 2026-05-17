@@ -17,8 +17,20 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchRequestData.FetchPartition;
+import org.apache.kafka.common.message.FetchRequestData.FetchTopic;
+import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
+import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
+import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsPartition;
+import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
+import org.apache.kafka.common.message.ListOffsetsResponseData;
+import org.apache.kafka.common.message.ListOffsetsResponseData.ListOffsetsPartitionResponse;
+import org.apache.kafka.common.message.ListOffsetsResponseData.ListOffsetsTopicResponse;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -27,6 +39,12 @@ import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrok
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponsePartition;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopicCollection;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestPartition;
+import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
+import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponsePartition;
+import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponseTopic;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
@@ -79,8 +97,12 @@ class TopicPartitionRouterTest {
     void staticRoutesShouldMapOtherKeysToDefault() {
         Map<ApiKeys, String> routes = router.staticRoutes();
 
-        assertThat(routes).containsEntry(ApiKeys.FETCH, "default-route");
-        assertThat(routes).doesNotContainKey(ApiKeys.METADATA);
+        assertThat(routes).containsEntry(ApiKeys.HEARTBEAT, "default-route");
+        assertThat(routes)
+                .doesNotContainKey(ApiKeys.METADATA)
+                .doesNotContainKey(ApiKeys.FETCH)
+                .doesNotContainKey(ApiKeys.LIST_OFFSETS)
+                .doesNotContainKey(ApiKeys.OFFSET_COMMIT);
     }
 
     // --- API_VERSIONS capping ---
@@ -522,6 +544,168 @@ class TopicPartitionRouterTest {
                 .containsExactlyInAnyOrder(0, 1, 2);
     }
 
+    // --- FETCH ---
+
+    @Test
+    void shouldRouteFetchToSingleCluster() {
+        var request = fetchRequest("orders.uk");
+        var backendResp = fetchResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
+        router.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
+        assertThat(ctx.sentResponseBody()).isInstanceOf(FetchResponseData.class);
+    }
+
+    @Test
+    void shouldFanOutFetchAcrossRoutes() {
+        var request = fetchRequest("orders.uk", "logs.app");
+        var respA = fetchResponse("orders.uk", 0, Errors.NONE);
+        var respB = fetchResponse("logs.app", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        router.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(2);
+        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
+                .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        var merged = (FetchResponseData) ctx.sentResponseBody();
+        assertThat(merged.responses()).extracting("topic")
+                .containsExactlyInAnyOrder("orders.uk", "logs.app");
+    }
+
+    @Test
+    void shouldSynthesiseErrorForUnroutableFetchTopics() {
+        var noDefaultTable = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"), null);
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+
+        var request = fetchRequest("orders.uk", "unknown.topic");
+        var respA = fetchResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA));
+        noDefaultRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+
+        var merged = (FetchResponseData) ctx.sentResponseBody();
+        assertThat(merged.responses()).hasSize(2);
+        var unknownResp = merged.responses().stream()
+                .filter(t -> t.topic().equals("unknown.topic"))
+                .findFirst().orElseThrow();
+        assertThat(unknownResp.partitions().get(0).errorCode())
+                .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+    }
+
+    // --- LIST_OFFSETS ---
+
+    @Test
+    void shouldRouteListOffsetsToSingleCluster() {
+        var request = listOffsetsRequest("orders.uk");
+        var backendResp = listOffsetsResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
+        router.onClientRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
+        assertThat(ctx.sentResponseBody()).isInstanceOf(ListOffsetsResponseData.class);
+    }
+
+    @Test
+    void shouldFanOutListOffsetsAcrossRoutes() {
+        var request = listOffsetsRequest("orders.uk", "logs.app");
+        var respA = listOffsetsResponse("orders.uk", 0, Errors.NONE);
+        var respB = listOffsetsResponse("logs.app", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        router.onClientRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(2);
+        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
+                .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        var merged = (ListOffsetsResponseData) ctx.sentResponseBody();
+        assertThat(merged.topics()).extracting("name")
+                .containsExactlyInAnyOrder("orders.uk", "logs.app");
+    }
+
+    @Test
+    void shouldSynthesiseErrorForUnroutableListOffsetsTopics() {
+        var noDefaultTable = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"), null);
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+
+        var request = listOffsetsRequest("orders.uk", "unknown.topic");
+        var respA = listOffsetsResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA));
+        noDefaultRouter.onClientRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx);
+
+        var merged = (ListOffsetsResponseData) ctx.sentResponseBody();
+        assertThat(merged.topics()).hasSize(2);
+        var unknownResp = merged.topics().stream()
+                .filter(t -> t.name().equals("unknown.topic"))
+                .findFirst().orElseThrow();
+        assertThat(unknownResp.partitions().get(0).errorCode())
+                .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+    }
+
+    // --- OFFSET_COMMIT ---
+
+    @Test
+    void shouldRouteOffsetCommitToSingleCluster() {
+        var request = offsetCommitRequest("orders.uk");
+        var backendResp = offsetCommitResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
+        router.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
+        assertThat(ctx.sentResponseBody()).isInstanceOf(OffsetCommitResponseData.class);
+    }
+
+    @Test
+    void shouldFanOutOffsetCommitAcrossRoutes() {
+        var request = offsetCommitRequest("orders.uk", "logs.app");
+        var respA = offsetCommitResponse("orders.uk", 0, Errors.NONE);
+        var respB = offsetCommitResponse("logs.app", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        router.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(2);
+        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
+                .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        var merged = (OffsetCommitResponseData) ctx.sentResponseBody();
+        assertThat(merged.topics()).extracting("name")
+                .containsExactlyInAnyOrder("orders.uk", "logs.app");
+    }
+
+    @Test
+    void shouldSynthesiseErrorForUnroutableOffsetCommitTopics() {
+        var noDefaultTable = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"), null);
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+
+        var request = offsetCommitRequest("orders.uk", "unknown.topic");
+        var respA = offsetCommitResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA));
+        noDefaultRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx);
+
+        var merged = (OffsetCommitResponseData) ctx.sentResponseBody();
+        assertThat(merged.topics()).hasSize(2);
+        var unknownResp = merged.topics().stream()
+                .filter(t -> t.name().equals("unknown.topic"))
+                .findFirst().orElseThrow();
+        assertThat(unknownResp.partitions().get(0).errorCode())
+                .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+    }
+
     // --- helpers ---
 
     private static InitProducerIdResponseData initProducerIdResponse(long producerId,
@@ -665,6 +849,76 @@ class TopicPartitionRouterTest {
         var topicCollection = new MetadataResponseTopicCollection();
         topics.forEach(t -> topicCollection.add(t.duplicate()));
         resp.setTopics(topicCollection);
+        return resp;
+    }
+
+    private static FetchRequestData fetchRequest(String... topicNames) {
+        var request = new FetchRequestData();
+        for (var name : topicNames) {
+            var topic = new FetchTopic().setTopic(name);
+            topic.partitions().add(new FetchPartition().setPartition(0).setFetchOffset(0));
+            request.topics().add(topic);
+        }
+        return request;
+    }
+
+    private static FetchResponseData fetchResponse(String topicName,
+                                                   int partition,
+                                                   Errors error) {
+        var resp = new FetchResponseData();
+        var tr = new FetchableTopicResponse().setTopic(topicName);
+        tr.partitions().add(
+                new PartitionData()
+                        .setPartitionIndex(partition)
+                        .setErrorCode(error.code()));
+        resp.responses().add(tr);
+        return resp;
+    }
+
+    private static ListOffsetsRequestData listOffsetsRequest(String... topicNames) {
+        var request = new ListOffsetsRequestData();
+        for (var name : topicNames) {
+            var topic = new ListOffsetsTopic().setName(name);
+            topic.partitions().add(new ListOffsetsPartition().setPartitionIndex(0).setTimestamp(-1));
+            request.topics().add(topic);
+        }
+        return request;
+    }
+
+    private static ListOffsetsResponseData listOffsetsResponse(String topicName,
+                                                               int partition,
+                                                               Errors error) {
+        var resp = new ListOffsetsResponseData();
+        var tr = new ListOffsetsTopicResponse().setName(topicName);
+        tr.partitions().add(
+                new ListOffsetsPartitionResponse()
+                        .setPartitionIndex(partition)
+                        .setErrorCode(error.code()));
+        resp.topics().add(tr);
+        return resp;
+    }
+
+    private static OffsetCommitRequestData offsetCommitRequest(String... topicNames) {
+        var request = new OffsetCommitRequestData().setGroupId("test-group");
+        for (var name : topicNames) {
+            var topic = new OffsetCommitRequestTopic().setName(name);
+            topic.partitions().add(new OffsetCommitRequestPartition()
+                    .setPartitionIndex(0).setCommittedOffset(0));
+            request.topics().add(topic);
+        }
+        return request;
+    }
+
+    private static OffsetCommitResponseData offsetCommitResponse(String topicName,
+                                                                 int partition,
+                                                                 Errors error) {
+        var resp = new OffsetCommitResponseData();
+        var tr = new OffsetCommitResponseTopic().setName(topicName);
+        tr.partitions().add(
+                new OffsetCommitResponsePartition()
+                        .setPartitionIndex(partition)
+                        .setErrorCode(error.code()));
+        resp.topics().add(tr);
         return resp;
     }
 
