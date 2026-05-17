@@ -15,9 +15,8 @@ import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.protocol.Errors;
 
 /**
- * Splits a FETCH request by topic ownership and merges the per-route
- * responses. Fetch sessions are forced off: sub-requests always use
- * {@code sessionId=0, sessionEpoch=-1}.
+ * Splits a FETCH request by topic ownership and merges the per-route responses.
+ * Session fields are managed externally by {@link FetchSessionManager}.
  */
 class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchResponseData> {
 
@@ -52,8 +51,6 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
             maxThrottle = Math.max(maxThrottle, resp.throttleTimeMs());
         }
         merged.setThrottleTimeMs(maxThrottle);
-        merged.setSessionId(0);
-        merged.setErrorCode(Errors.NONE.code());
         return merged;
     }
 
@@ -83,8 +80,6 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
         copy.setIsolationLevel(original.isolationLevel());
         copy.setRackId(original.rackId());
         copy.setReplicaId(-1);
-        copy.setSessionId(0);
-        copy.setSessionEpoch(-1);
         return copy;
     }
 }
