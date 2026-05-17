@@ -28,6 +28,13 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  *   <li>instances will be initialised and closed on the same thread.</li>
  * </ol>
  *
+ * <p><strong>Per-connection router instances:</strong>
+ * {@link #createRouter} is called once per client connection, so each
+ * connection gets its own {@link Router} instance. Any state that must
+ * survive a client disconnect and reconnect (e.g. producer ID mappings)
+ * must be stored in the shared initialisation data {@code I}, not in
+ * the {@code Router} instance itself.</p>
+ *
  * @param <C> the configuration type. Use {@link Void} if not configurable.
  * @param <I> the initialisation data type
  */
