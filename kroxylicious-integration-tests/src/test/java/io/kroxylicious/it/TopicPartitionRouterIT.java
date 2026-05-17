@@ -27,6 +27,10 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.RecordBatch;
@@ -64,13 +68,20 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Integration tests for {@link TopicPartitionRouterFactory}.
- * Covers version capping (Phase 1) and produce fan-out (Phase 2).
+ * Covers version capping (Phase 1), produce fan-out (Phase 2),
+ * idempotent produce (Phase 3), and metadata merging (Phase 4).
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 class TopicPartitionRouterIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRouterIT.class);
+
+    /**
+     * METADATA version used for raw protocol tests. v9 is the first flexible
+     * version and avoids the nullable-name semantics introduced at v12+.
+     */
+    private static final short METADATA_VERSION = 9;
 
     static KafkaCluster clusterA;
     static KafkaCluster clusterB;
@@ -599,6 +610,128 @@ class TopicPartitionRouterIT {
                 .containsExactly("before-a", "after-a");
         assertThat(recordsB).extracting(ConsumerRecord::value)
                 .containsExactly("before-b", "after-b");
+    }
+
+    // --- Phase 4: metadata merging ---
+
+    @Test
+    void shouldReturnMetadataForTopicsOnBothRoutes() throws Exception {
+        String topicA = "a.meta";
+        String topicB = "b.meta";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            negotiateApiVersions(client);
+            var request = new MetadataRequestData();
+            request.topics().add(new MetadataRequestTopic().setName(topicA));
+            request.topics().add(new MetadataRequestTopic().setName(topicB));
+
+            var response = client.getSync(
+                    new Request(ApiKeys.METADATA, METADATA_VERSION, "test-client", request));
+            var body = (MetadataResponseData) response.payload().message();
+
+            assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                    .containsExactlyInAnyOrder(topicA, topicB);
+
+            for (var t : body.topics()) {
+                assertThat(t.partitions())
+                        .as("topic %s (error=%s) should have partitions",
+                                t.name(), Errors.forCode(t.errorCode()))
+                        .isNotEmpty();
+            }
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.METADATA))
+                .as("METADATA for a.meta should be routed to route-a")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.METADATA))
+                .as("METADATA for b.meta should be routed to route-b")
+                .isNotEmpty();
+    }
+
+    @Test
+    void shouldReturnBrokerListInMergedMetadata() throws Exception {
+        String topicA = "a.brokers";
+        String topicB = "b.brokers";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            negotiateApiVersions(client);
+            var request = new MetadataRequestData();
+            request.topics().add(new MetadataRequestTopic().setName(topicA));
+            request.topics().add(new MetadataRequestTopic().setName(topicB));
+
+            var response = client.getSync(
+                    new Request(ApiKeys.METADATA, METADATA_VERSION, "test-client", request));
+            var body = (MetadataResponseData) response.payload().message();
+
+            // Both single-node test clusters have nodeId 0, so after proxy address
+            // remapping the union has one entry. With multi-node clusters the
+            // union would be larger.
+            assertThat(body.brokers())
+                    .as("merged broker list should contain at least one broker")
+                    .isNotEmpty();
+
+            assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                    .as("both topics should be present in merged response")
+                    .containsExactlyInAnyOrder(topicA, topicB);
+        }
+    }
+
+    @Test
+    void shouldExcludePhantomTopicsFromAllTopicsMetadata() throws Exception {
+        String topicA = "a.real-topic";
+        String topicB = "b.real-topic";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            negotiateApiVersions(client);
+            var request = new MetadataRequestData().setTopics(null);
+
+            var response = client.getSync(
+                    new Request(ApiKeys.METADATA, METADATA_VERSION, "test-client", request));
+            var body = (MetadataResponseData) response.payload().message();
+
+            assertThat(body.topics()).extracting(MetadataResponseTopic::name)
+                    .as("all-topics metadata should include topics from both routes")
+                    .contains(topicA, topicB);
+
+            // Phantom topics would be topics appearing on the wrong cluster
+            // (e.g. "b.real-topic" on clusterA). The router filters these out.
+            for (var topic : body.topics()) {
+                if (topic.name() != null && topic.name().startsWith("b.")) {
+                    assertThat(topic.partitions())
+                            .as("b.* topic %s should have partition metadata from route-b", topic.name())
+                            .isNotEmpty();
+                }
+            }
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.METADATA))
+                .as("all-topics METADATA should fan out to route-a")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.METADATA))
+                .as("all-topics METADATA should fan out to route-b")
+                .isNotEmpty();
+    }
+
+    private static void negotiateApiVersions(KafkaClient client) {
+        client.getSync(new Request(
+                ApiKeys.API_VERSIONS,
+                ApiKeys.API_VERSIONS.latestVersion(),
+                "test-client",
+                new ApiVersionsRequestData()
+                        .setClientSoftwareName("test")
+                        .setClientSoftwareVersion("1.0")));
     }
 
     private static long initProducerIdFromResponse(RoutingEventCaptor captor,

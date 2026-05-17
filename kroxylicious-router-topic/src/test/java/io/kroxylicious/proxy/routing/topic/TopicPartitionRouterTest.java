@@ -19,6 +19,14 @@ import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrokerCollection;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponsePartition;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
+import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopicCollection;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
@@ -72,7 +80,7 @@ class TopicPartitionRouterTest {
         Map<ApiKeys, String> routes = router.staticRoutes();
 
         assertThat(routes).containsEntry(ApiKeys.FETCH, "default-route");
-        assertThat(routes).containsEntry(ApiKeys.METADATA, "default-route");
+        assertThat(routes).doesNotContainKey(ApiKeys.METADATA);
     }
 
     // --- API_VERSIONS capping ---
@@ -421,6 +429,99 @@ class TopicPartitionRouterTest {
                 (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
     }
 
+    // --- METADATA ---
+
+    @Test
+    void shouldRouteMetadataToSingleCluster() {
+        var request = metadataRequest("orders.uk");
+        var backendResp = metadataResponse(
+                List.of(broker(0, "host-a", 9092)),
+                List.of(topicMetadata("orders.uk", 0)));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
+        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
+        assertThat(ctx.sentResponseBody()).isInstanceOf(MetadataResponseData.class);
+    }
+
+    @Test
+    void shouldFanOutMetadataAcrossRoutes() {
+        var request = metadataRequest("orders.uk", "logs.app");
+        var respA = metadataResponse(
+                List.of(broker(0, "host-a", 9092)),
+                List.of(topicMetadata("orders.uk", 0)));
+        var respB = metadataResponse(
+                List.of(broker(1, "host-b", 9092)),
+                List.of(topicMetadata("logs.app", 1)));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(2);
+        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
+                .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        var merged = (MetadataResponseData) ctx.sentResponseBody();
+        assertThat(merged.topics()).extracting(MetadataResponseTopic::name)
+                .containsExactlyInAnyOrder("orders.uk", "logs.app");
+    }
+
+    @Test
+    void shouldFanOutAllTopicsMetadataToAllRoutes() {
+        var request = new MetadataRequestData().setTopics(null);
+        var respA = metadataResponse(
+                List.of(broker(0, "host-a", 9092)),
+                List.of(topicMetadata("orders.uk", 0)));
+        respA.setClusterId("cluster-a-id");
+        var respB = metadataResponse(
+                List.of(broker(1, "host-b", 9092)),
+                List.of(topicMetadata("logs.app", 1)));
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-a", respA, "cluster-b", respB, "default-route", respA));
+        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(ctx.sentResponseBody()).isInstanceOf(MetadataResponseData.class);
+    }
+
+    @Test
+    void shouldRouteBrokerOnlyMetadataToDefaultRoute() {
+        var request = new MetadataRequestData();
+        var defaultResp = metadataResponse(
+                List.of(broker(0, "host-default", 9092)),
+                List.of());
+        defaultResp.setClusterId("default-cluster");
+
+        var ctx = new CapturingRoutingContext(Map.of("default-route", defaultResp));
+        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
+    }
+
+    @Test
+    void shouldMergeBrokerListsInMetadataResponse() {
+        var request = metadataRequest("orders.uk", "logs.app");
+        var respA = metadataResponse(
+                List.of(broker(0, "host-a", 9092), broker(1, "host-a", 9093)),
+                List.of(topicMetadata("orders.uk", 0)));
+        respA.setClusterId("cluster-a-id");
+        var respB = metadataResponse(
+                List.of(broker(2, "host-b", 9092)),
+                List.of(topicMetadata("logs.app", 2)));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+
+        var merged = (MetadataResponseData) ctx.sentResponseBody();
+        assertThat(merged.brokers()).hasSize(3);
+        assertThat(merged.brokers()).extracting(MetadataResponseBroker::nodeId)
+                .containsExactlyInAnyOrder(0, 1, 2);
+    }
+
     // --- helpers ---
 
     private static InitProducerIdResponseData initProducerIdResponse(long producerId,
@@ -521,6 +622,49 @@ class TopicPartitionRouterTest {
                         .setIndex(partition)
                         .setErrorCode(error.code()));
         resp.responses().add(tr);
+        return resp;
+    }
+
+    private static MetadataRequestData metadataRequest(String... topicNames) {
+        var request = new MetadataRequestData();
+        var topics = new ArrayList<MetadataRequestTopic>();
+        for (var name : topicNames) {
+            topics.add(new MetadataRequestTopic().setName(name));
+        }
+        request.setTopics(topics);
+        return request;
+    }
+
+    private static MetadataResponseBroker broker(int nodeId,
+                                                 String host,
+                                                 int port) {
+        return new MetadataResponseBroker()
+                .setNodeId(nodeId)
+                .setHost(host)
+                .setPort(port);
+    }
+
+    private static MetadataResponseTopic topicMetadata(String name,
+                                                       int leaderId) {
+        var topic = new MetadataResponseTopic()
+                .setName(name)
+                .setErrorCode(Errors.NONE.code());
+        topic.partitions().add(new MetadataResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(leaderId));
+        return topic;
+    }
+
+    private static MetadataResponseData metadataResponse(
+                                                         List<MetadataResponseBroker> brokers,
+                                                         List<MetadataResponseTopic> topics) {
+        var resp = new MetadataResponseData();
+        var brokerCollection = new MetadataResponseBrokerCollection();
+        brokers.forEach(b -> brokerCollection.add(b.duplicate()));
+        resp.setBrokers(brokerCollection);
+        var topicCollection = new MetadataResponseTopicCollection();
+        topics.forEach(t -> topicCollection.add(t.duplicate()));
+        resp.setTopics(topicCollection);
         return resp;
     }
 
