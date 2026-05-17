@@ -549,6 +549,8 @@ class TopicPartitionRouterTest {
     @Test
     void shouldRouteFetchToSingleCluster() {
         var request = fetchRequest("orders.uk");
+        request.setSessionId(42);
+        request.setSessionEpoch(3);
         var backendResp = fetchResponse("orders.uk", 0, Errors.NONE);
 
         var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
@@ -556,12 +558,19 @@ class TopicPartitionRouterTest {
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
-        assertThat(ctx.sentResponseBody()).isInstanceOf(FetchResponseData.class);
+
+        var sentReq = (FetchRequestData) ctx.sentRequests().get(0).body();
+        assertThat(sentReq.sessionId()).as("sessions forced off").isEqualTo(0);
+        assertThat(sentReq.sessionEpoch()).as("sessions forced off").isEqualTo(-1);
+        assertThat(sentReq.forgottenTopicsData()).as("no forgotten topics without sessions").isEmpty();
+        assertThat(sentReq.topics()).extracting("topic").containsExactly("orders.uk");
     }
 
     @Test
     void shouldFanOutFetchAcrossRoutes() {
         var request = fetchRequest("orders.uk", "logs.app");
+        request.setSessionId(42);
+        request.setSessionEpoch(3);
         var respA = fetchResponse("orders.uk", 0, Errors.NONE);
         var respB = fetchResponse("logs.app", 0, Errors.NONE);
 
@@ -571,6 +580,19 @@ class TopicPartitionRouterTest {
         assertThat(ctx.sentRequests()).hasSize(2);
         assertThat(ctx.sentRequests()).extracting(SentRequest::route)
                 .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        for (var sent : ctx.sentRequests()) {
+            var sentReq = (FetchRequestData) sent.body();
+            assertThat(sentReq.sessionId()).as("sessions forced off on %s", sent.route()).isEqualTo(0);
+            assertThat(sentReq.sessionEpoch()).as("sessions forced off on %s", sent.route()).isEqualTo(-1);
+            assertThat(sentReq.forgottenTopicsData()).as("no forgotten topics on %s", sent.route()).isEmpty();
+            if (sent.route().equals("cluster-a")) {
+                assertThat(sentReq.topics()).extracting("topic").containsExactly("orders.uk");
+            }
+            else {
+                assertThat(sentReq.topics()).extracting("topic").containsExactly("logs.app");
+            }
+        }
 
         var merged = (FetchResponseData) ctx.sentResponseBody();
         assertThat(merged.responses()).extracting("topic")
@@ -610,7 +632,9 @@ class TopicPartitionRouterTest {
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
-        assertThat(ctx.sentResponseBody()).isInstanceOf(ListOffsetsResponseData.class);
+
+        var sentReq = (ListOffsetsRequestData) ctx.sentRequests().get(0).body();
+        assertThat(sentReq.topics()).extracting("name").containsExactly("orders.uk");
     }
 
     @Test
@@ -625,6 +649,16 @@ class TopicPartitionRouterTest {
         assertThat(ctx.sentRequests()).hasSize(2);
         assertThat(ctx.sentRequests()).extracting(SentRequest::route)
                 .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        for (var sent : ctx.sentRequests()) {
+            var sentReq = (ListOffsetsRequestData) sent.body();
+            if (sent.route().equals("cluster-a")) {
+                assertThat(sentReq.topics()).extracting("name").containsExactly("orders.uk");
+            }
+            else {
+                assertThat(sentReq.topics()).extracting("name").containsExactly("logs.app");
+            }
+        }
 
         var merged = (ListOffsetsResponseData) ctx.sentResponseBody();
         assertThat(merged.topics()).extracting("name")
@@ -664,7 +698,10 @@ class TopicPartitionRouterTest {
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
-        assertThat(ctx.sentResponseBody()).isInstanceOf(OffsetCommitResponseData.class);
+
+        var sentReq = (OffsetCommitRequestData) ctx.sentRequests().get(0).body();
+        assertThat(sentReq.groupId()).isEqualTo("test-group");
+        assertThat(sentReq.topics()).extracting("name").containsExactly("orders.uk");
     }
 
     @Test
@@ -679,6 +716,17 @@ class TopicPartitionRouterTest {
         assertThat(ctx.sentRequests()).hasSize(2);
         assertThat(ctx.sentRequests()).extracting(SentRequest::route)
                 .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+
+        for (var sent : ctx.sentRequests()) {
+            var sentReq = (OffsetCommitRequestData) sent.body();
+            assertThat(sentReq.groupId()).as("groupId preserved on %s", sent.route()).isEqualTo("test-group");
+            if (sent.route().equals("cluster-a")) {
+                assertThat(sentReq.topics()).extracting("name").containsExactly("orders.uk");
+            }
+            else {
+                assertThat(sentReq.topics()).extracting("name").containsExactly("logs.app");
+            }
+        }
 
         var merged = (OffsetCommitResponseData) ctx.sentResponseBody();
         assertThat(merged.topics()).extracting("name")
