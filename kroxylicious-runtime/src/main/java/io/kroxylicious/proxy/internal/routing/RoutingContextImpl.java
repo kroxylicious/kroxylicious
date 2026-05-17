@@ -171,6 +171,7 @@ class RoutingContextImpl implements RoutingContext {
 
     @Override
     public void sendResponse(Response response) {
+        // DecodedFrame.encode() writes header.correlationId() to the wire, not frame.correlationId
         response.header().setCorrelationId(clientCorrelationId);
         var responseFrame = new DecodedResponseFrame<>(
                 apiVersion,
