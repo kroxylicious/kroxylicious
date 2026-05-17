@@ -1415,6 +1415,71 @@ class ClientConnectionStateMachineTest {
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         }
 
+        // --- routing callback interaction with in-flight count ---
+
+        @Test
+        void responseClaimedByRoutingCallbackDoesNotDecrementInFlightCount() {
+            // Given — Forwarding with one in-flight, routing callback that claims all responses
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+
+            // When — server delivers a response that the routing callback claims
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+
+            // Then — drain has NOT fired because the in-flight count was not decremented
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
+        @Test
+        void onRoutedRequestCompleteDecrementsInFlightAndFiresDrain() {
+            // Given — Forwarding with one in-flight, routing callback active, drain started
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+
+            // Simulate routing callback claiming the response (no decrement)
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+            assertThat(closedFuture).isNotCompleted();
+
+            // When — router signals the logical client request is complete
+            clientConnectionStateMachine.onRoutedRequestComplete();
+
+            // Then — in-flight count hits zero, drain fires
+            assertThat(closedFuture).isCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            verify(scheduledFuture).cancel(false);
+        }
+
+        @Test
+        void fanOutWithMultipleResponsesDoesNotDrainPrematurely() {
+            // Given — one client request fans out to 2 backend requests
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+            bumpClientInFlightCount();
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // When — two backend responses arrive (both claimed by routing callback)
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+
+            // Then — still draining, in-flight count has not been decremented
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+
+            // When — router signals logical completion
+            clientConnectionStateMachine.onRoutedRequestComplete();
+
+            // Then — drain fires
+            assertThat(closedFuture).isCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        }
+
         /**
          * Drives a request through {@code onClientRequest} while in Forwarding to bump
          * the internal client-in-flight counter by one. {@code admitToFilterChain} is
