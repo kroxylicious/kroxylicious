@@ -15,6 +15,8 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
@@ -61,13 +63,15 @@ class TopicPartitionRouter implements Router {
     private static final Set<ApiKeys> DYNAMICALLY_ROUTED = Set.of(
             ApiKeys.API_VERSIONS,
             ApiKeys.PRODUCE,
-            ApiKeys.INIT_PRODUCER_ID);
+            ApiKeys.INIT_PRODUCER_ID,
+            ApiKeys.METADATA);
 
     private final PrefixTopicRoutingTable routingTable;
     private final String defaultRoute;
     private final Map<ApiKeys, String> staticRoutes;
     private final ApiVersionsResponseTransformer versionCapper;
     private final ProduceDecomposer produceDecomposer = ProduceDecomposer.INSTANCE;
+    private final MetadataDecomposer metadataDecomposer = MetadataDecomposer.INSTANCE;
     private final ProducerIdManager producerIdManager;
 
     /**
@@ -109,6 +113,9 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.INIT_PRODUCER_ID) {
             return handleInitProducerId(header, (InitProducerIdRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.METADATA) {
+            return handleMetadata(header, (MetadataRequestData) request, context);
         }
 
         return context.sendRequest(defaultRoute, header, request)
@@ -355,6 +362,82 @@ class TopicPartitionRouter implements Router {
             merged.responses().add(tr.duplicate());
         }
         return merged;
+    }
+
+    private CompletionStage<RoutingResult> handleMetadata(
+                                                          RequestHeaderData header,
+                                                          MetadataRequestData request,
+                                                          RoutingContext context) {
+        Map<String, MetadataRequestData> subRequests = metadataDecomposer.decompose(
+                request, routingTable, defaultRoute);
+
+        if (subRequests.size() == 1 && request.topics() != null) {
+            var entry = subRequests.entrySet().iterator().next();
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", entry.getKey())
+                    .log("Metadata routed to single cluster");
+
+            return context.sendRequest(entry.getKey(), header, entry.getValue())
+                    .thenApply(response -> {
+                        logMergedMetadata(context, (MetadataResponseData) response.body());
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("routeCount", subRequests.size())
+                .log("Metadata fanning out across clusters");
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (var entry : subRequests.entrySet()) {
+            futures.put(entry.getKey(),
+                    context.sendRequest(entry.getKey(), header, entry.getValue()));
+        }
+
+        return collectAll(futures).thenApply(responses -> {
+            Map<String, MetadataResponseData> bodies = new HashMap<>();
+            for (var entry : responses.entrySet()) {
+                bodies.put(entry.getKey(), (MetadataResponseData) entry.getValue().body());
+            }
+            MetadataResponseData merged = metadataDecomposer.recompose(
+                    bodies, request, routingTable, defaultRoute);
+            logMergedMetadata(context, merged);
+            sendMetadataResponse(context, merged);
+            return RoutingResult.completed();
+        });
+    }
+
+    private static void logMergedMetadata(RoutingContext context,
+                                          MetadataResponseData merged) {
+        if (LOGGER.isDebugEnabled()) {
+            var topicSummary = new java.util.ArrayList<String>();
+            for (var topic : merged.topics()) {
+                short errorCode = topic.errorCode();
+                if (errorCode != 0) {
+                    topicSummary.add(topic.name() + "(error=" + Errors.forCode(errorCode) + ")");
+                }
+                else {
+                    topicSummary.add(topic.name() + "(partitions=" + topic.partitions().size() + ")");
+                }
+            }
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("brokerCount", merged.brokers().size())
+                    .addKeyValue("topicCount", merged.topics().size())
+                    .addKeyValue("topics", topicSummary)
+                    .addKeyValue("clusterId", merged.clusterId())
+                    .log("Merged metadata response");
+        }
+    }
+
+    private void sendMetadataResponse(RoutingContext context,
+                                      MetadataResponseData body) {
+        var responseHeader = new ResponseHeaderData()
+                .setCorrelationId(0);
+        context.sendResponse(new SimpleResponse(responseHeader, body));
     }
 
     private void sendProduceResponse(RoutingContext context,
