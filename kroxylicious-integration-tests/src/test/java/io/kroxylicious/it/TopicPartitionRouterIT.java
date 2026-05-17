@@ -21,16 +21,28 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
+import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsPartition;
+import org.apache.kafka.common.message.ListOffsetsRequestData.ListOffsetsTopic;
+import org.apache.kafka.common.message.ListOffsetsResponseData;
+import org.apache.kafka.common.message.ListOffsetsResponseData.ListOffsetsTopicResponse;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataRequestData.MetadataRequestTopic;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseTopic;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestPartition;
+import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
+import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponseTopic;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.RecordBatch;
@@ -907,6 +919,196 @@ class TopicPartitionRouterIT {
                         .as("%s at v%d should route to default route-a", shape, apiVersion)
                         .isNotEmpty();
             }
+        }
+    }
+
+    // --- Phase 5: fetch, list offsets, offset commit ---
+
+    @Test
+    void shouldFetchFromTopicsOnBothRoutes() throws Exception {
+        String topicA = "a.fetch";
+        String topicB = "b.fetch";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config)) {
+            try (var producer = tester.producer(Map.of(
+                    "enable.idempotence", false,
+                    "retries", 0,
+                    "batch.size", 0,
+                    "linger.ms", 0))) {
+                producer.send(new ProducerRecord<>(topicA, "key-a", "val-a"))
+                        .get(10, TimeUnit.SECONDS);
+                producer.send(new ProducerRecord<>(topicB, "key-b", "val-b"))
+                        .get(10, TimeUnit.SECONDS);
+            }
+
+            var consumerProps = new java.util.HashMap<String, Object>();
+            consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, tester.getBootstrapAddress());
+            consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+            consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+            consumerProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+            consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+            try (var consumer = new KafkaConsumer<String, String>(consumerProps)) {
+                consumer.assign(List.of(
+                        new TopicPartition(topicA, 0),
+                        new TopicPartition(topicB, 0)));
+
+                List<ConsumerRecord<String, String>> all = new ArrayList<>();
+                long deadline = System.currentTimeMillis() + 10_000;
+                while (all.size() < 2 && System.currentTimeMillis() < deadline) {
+                    consumer.poll(Duration.ofMillis(500)).forEach(all::add);
+                }
+
+                assertThat(all).extracting(ConsumerRecord::value)
+                        .containsExactlyInAnyOrder("val-a", "val-b");
+            }
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH))
+                .as("FETCH should be routed to route-a")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH))
+                .as("FETCH should be routed to route-b")
+                .isNotEmpty();
+    }
+
+    @Test
+    void shouldListOffsetsForTopicsOnBothRoutes() throws Exception {
+        String topicA = "a.listoffsets";
+        String topicB = "b.listoffsets";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config)) {
+            try (var producer = tester.producer(Map.of(
+                    "enable.idempotence", false,
+                    "retries", 0,
+                    "batch.size", 0,
+                    "linger.ms", 0))) {
+                producer.send(new ProducerRecord<>(topicA, "k", "v"))
+                        .get(10, TimeUnit.SECONDS);
+                producer.send(new ProducerRecord<>(topicB, "k", "v"))
+                        .get(10, TimeUnit.SECONDS);
+            }
+
+            try (var client = tester.simpleTestClient()) {
+                negotiateApiVersions(client);
+
+                var request = new ListOffsetsRequestData()
+                        .setReplicaId(-1)
+                        .setIsolationLevel((byte) 0);
+                var topicAReq = new ListOffsetsTopic().setName(topicA);
+                topicAReq.partitions().add(new ListOffsetsPartition()
+                        .setPartitionIndex(0)
+                        .setTimestamp(-1));
+                var topicBReq = new ListOffsetsTopic().setName(topicB);
+                topicBReq.partitions().add(new ListOffsetsPartition()
+                        .setPartitionIndex(0)
+                        .setTimestamp(-1));
+                request.topics().add(topicAReq);
+                request.topics().add(topicBReq);
+
+                var response = client.getSync(
+                        new Request(ApiKeys.LIST_OFFSETS, (short) 7, "test-client", request));
+                var body = (ListOffsetsResponseData) response.payload().message();
+
+                assertThat(body.topics()).extracting(ListOffsetsTopicResponse::name)
+                        .containsExactlyInAnyOrder(topicA, topicB);
+                for (var topic : body.topics()) {
+                    var partition = topic.partitions().get(0);
+                    assertThat(partition.errorCode())
+                            .as("partition error for %s", topic.name())
+                            .isEqualTo(Errors.NONE.code());
+                    assertThat(partition.offset())
+                            .as("latest offset for %s", topic.name())
+                            .isGreaterThanOrEqualTo(1);
+                }
+            }
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.LIST_OFFSETS))
+                .as("LIST_OFFSETS for a.* should be routed to route-a")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.LIST_OFFSETS))
+                .as("LIST_OFFSETS for b.* should be routed to route-b")
+                .isNotEmpty();
+    }
+
+    @Test
+    void shouldCommitOffsetsForTopicsOnBothRoutes() throws Exception {
+        String topicA = "a.commitoffsets";
+        String topicB = "b.commitoffsets";
+        String groupId = "test-simple-group";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+
+        // The proxy decomposes OFFSET_COMMIT by topic, sending sub-requests
+        // to each route's cluster. Each cluster must have its coordinator
+        // initialised for the group, which normally happens via
+        // FIND_COORDINATOR. Warm up both clusters by committing a dummy
+        // offset directly.
+        warmUpGroupCoordinator(clusterA, topicA, groupId);
+        warmUpGroupCoordinator(clusterB, topicB, groupId);
+
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config)) {
+            try (var client = tester.simpleTestClient()) {
+                negotiateApiVersions(client);
+
+                var request = new OffsetCommitRequestData()
+                        .setGroupId(groupId)
+                        .setMemberId("")
+                        .setGenerationIdOrMemberEpoch(-1);
+                var topicAReq = new OffsetCommitRequestTopic().setName(topicA);
+                topicAReq.partitions().add(new OffsetCommitRequestPartition()
+                        .setPartitionIndex(0)
+                        .setCommittedOffset(42));
+                var topicBReq = new OffsetCommitRequestTopic().setName(topicB);
+                topicBReq.partitions().add(new OffsetCommitRequestPartition()
+                        .setPartitionIndex(0)
+                        .setCommittedOffset(99));
+                request.topics().add(topicAReq);
+                request.topics().add(topicBReq);
+
+                var response = client.getSync(
+                        new Request(ApiKeys.OFFSET_COMMIT, (short) 8, "test-client", request));
+                var body = (OffsetCommitResponseData) response.payload().message();
+
+                assertThat(body.topics()).extracting(OffsetCommitResponseTopic::name)
+                        .containsExactlyInAnyOrder(topicA, topicB);
+                for (var topic : body.topics()) {
+                    assertThat(topic.partitions().get(0).errorCode())
+                            .as("offset commit error for %s", topic.name())
+                            .isEqualTo(Errors.NONE.code());
+                }
+            }
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.OFFSET_COMMIT))
+                .as("OFFSET_COMMIT for a.* should be routed to route-a")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.OFFSET_COMMIT))
+                .as("OFFSET_COMMIT for b.* should be routed to route-b")
+                .isNotEmpty();
+    }
+
+    private static void warmUpGroupCoordinator(KafkaCluster cluster,
+                                               String topic,
+                                               String groupId) {
+        var props = new java.util.HashMap<>(cluster.getKafkaClientConfiguration());
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        try (var consumer = new KafkaConsumer<String, String>(props)) {
+            consumer.assign(List.of(new TopicPartition(topic, 0)));
+            consumer.commitSync(Map.of(
+                    new TopicPartition(topic, 0), new OffsetAndMetadata(0)));
         }
     }
 
