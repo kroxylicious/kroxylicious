@@ -662,6 +662,209 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
         }
     }
 
+    // --- cache eviction tests ---
+
+    @Test
+    void shouldEvictStaleSessionFromCacheWhenFull() throws Exception {
+        String topicA = "a.stale";
+        String topicB = "b.stale";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ZERO);
+
+        try (var tester = kroxyliciousTester(config)) {
+            produceOneRecord(tester, topicA, "val-a");
+            produceOneRecord(tester, topicB, "val-b");
+
+            int sessionIdA;
+            try (var clientA = tester.simpleTestClient()) {
+                negotiateApiVersions(clientA);
+
+                // Client A creates a session
+                var createA = buildFetchRequest(topicA, topicB);
+                createA.setSessionId(0);
+                createA.setSessionEpoch(0);
+
+                var respA = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", createA))
+                        .payload().message();
+                sessionIdA = respA.sessionId();
+                assertThat(sessionIdA)
+                        .as("client A should get a session")
+                        .isGreaterThan(0);
+
+                // Client B creates a session — evicts A's stale session
+                try (var clientB = tester.simpleTestClient()) {
+                    negotiateApiVersions(clientB);
+
+                    var createB = buildFetchRequest(topicA, topicB);
+                    createB.setSessionId(0);
+                    createB.setSessionEpoch(0);
+
+                    var respB = (FetchResponseData) clientB.getSync(
+                            new Request(ApiKeys.FETCH, (short) 12, "client-b", createB))
+                            .payload().message();
+                    assertThat(respB.sessionId())
+                            .as("client B should get a session (A was stale-evicted)")
+                            .isGreaterThan(0);
+                }
+
+                // Client A sends incremental — should fail
+                var incA = buildFetchRequest(topicA, topicB);
+                incA.setSessionId(sessionIdA);
+                incA.setSessionEpoch(1);
+
+                var errorResp = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", incA))
+                        .payload().message();
+                assertThat(errorResp.errorCode())
+                        .as("evicted session should return FETCH_SESSION_ID_NOT_FOUND")
+                        .isEqualTo(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
+            }
+        }
+    }
+
+    @Test
+    void shouldDeclineSessionWhenCacheFullAndNothingEvictable() throws Exception {
+        String topicA = "a.decline";
+        String topicB = "b.decline";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMinutes(10));
+
+        try (var tester = kroxyliciousTester(config)) {
+            produceOneRecord(tester, topicA, "val-a");
+            produceOneRecord(tester, topicB, "val-b");
+
+            try (var clientA = tester.simpleTestClient()) {
+                negotiateApiVersions(clientA);
+
+                // Client A creates a session
+                var createA = buildFetchRequest(topicA, topicB);
+                createA.setSessionId(0);
+                createA.setSessionEpoch(0);
+
+                var respA = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", createA))
+                        .payload().message();
+                int sessionIdA = respA.sessionId();
+                assertThat(sessionIdA)
+                        .as("client A should get a session")
+                        .isGreaterThan(0);
+
+                // Client B tries to create a session — declined (A too recent to evict)
+                try (var clientB = tester.simpleTestClient()) {
+                    negotiateApiVersions(clientB);
+
+                    var createB = buildFetchRequest(topicA, topicB);
+                    createB.setSessionId(0);
+                    createB.setSessionEpoch(0);
+
+                    var respB = (FetchResponseData) clientB.getSync(
+                            new Request(ApiKeys.FETCH, (short) 12, "client-b", createB))
+                            .payload().message();
+                    assertThat(respB.sessionId())
+                            .as("client B should be declined (sessionId=0)")
+                            .isEqualTo(0);
+                    assertThat(respB.errorCode())
+                            .as("declined session is not an error — response is valid")
+                            .isEqualTo(Errors.NONE.code());
+                    assertThat(respB.responses())
+                            .extracting(FetchResponseData.FetchableTopicResponse::topic)
+                            .as("client B should still receive data despite no session")
+                            .containsExactlyInAnyOrder(topicA, topicB);
+                }
+
+                // Client A's session is still valid
+                var incA = buildFetchRequest(topicA, topicB);
+                incA.setSessionId(sessionIdA);
+                incA.setSessionEpoch(1);
+
+                var incResp = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", incA))
+                        .payload().message();
+                assertThat(incResp.errorCode())
+                        .as("client A's session should still be valid")
+                        .isEqualTo(Errors.NONE.code());
+                assertThat(incResp.sessionId()).isEqualTo(sessionIdA);
+            }
+        }
+    }
+
+    @Test
+    void shouldEvictSmallerSessionForLargerOne() throws Exception {
+        String topicA = "a.size";
+        String topicB = "b.size";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMillis(500));
+
+        try (var tester = kroxyliciousTester(config)) {
+            produceOneRecord(tester, topicA, "val-a");
+            produceOneRecord(tester, topicB, "val-b");
+
+            try (var clientA = tester.simpleTestClient()) {
+                negotiateApiVersions(clientA);
+
+                // Client A creates session with 1 topic (small session)
+                var createA = buildFetchRequest(topicA);
+                createA.setSessionId(0);
+                createA.setSessionEpoch(0);
+
+                var respA = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", createA))
+                        .payload().message();
+                int sessionIdA = respA.sessionId();
+                assertThat(sessionIdA)
+                        .as("client A should get a session")
+                        .isGreaterThan(0);
+
+                // Wait for A's session to age past minEviction into the evictable tree
+                Thread.sleep(600);
+
+                // Touch A's session so it's not stale
+                var incA = buildFetchRequest(topicA);
+                incA.setSessionId(sessionIdA);
+                incA.setSessionEpoch(1);
+
+                var touchResp = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", incA))
+                        .payload().message();
+                assertThat(touchResp.errorCode())
+                        .as("touch should succeed")
+                        .isEqualTo(Errors.NONE.code());
+
+                // Client B creates session with 2 topics (larger session) — size-based eviction
+                try (var clientB = tester.simpleTestClient()) {
+                    negotiateApiVersions(clientB);
+
+                    var createB = buildFetchRequest(topicA, topicB);
+                    createB.setSessionId(0);
+                    createB.setSessionEpoch(0);
+
+                    var respB = (FetchResponseData) clientB.getSync(
+                            new Request(ApiKeys.FETCH, (short) 12, "client-b", createB))
+                            .payload().message();
+                    assertThat(respB.sessionId())
+                            .as("client B should evict A's smaller session")
+                            .isGreaterThan(0);
+                }
+
+                // Client A's session was evicted
+                var incA2 = buildFetchRequest(topicA);
+                incA2.setSessionId(sessionIdA);
+                incA2.setSessionEpoch(2);
+
+                var errorResp = (FetchResponseData) clientA.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "client-a", incA2))
+                        .payload().message();
+                assertThat(errorResp.errorCode())
+                        .as("evicted session should return FETCH_SESSION_ID_NOT_FOUND")
+                        .isEqualTo(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
+            }
+        }
+    }
+
     // --- helpers ---
 
     private static FetchRequestData buildFetchRequest(String... topicNames) {
