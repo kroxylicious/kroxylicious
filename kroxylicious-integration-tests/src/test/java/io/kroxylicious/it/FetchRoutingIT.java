@@ -414,9 +414,9 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
     }
 
     @Test
-    void shouldFetchSuccessfullyWhenBackendsDeclinesSession(
-                                                            @BrokerConfig(name = "max.incremental.fetch.session.cache.slots", value = "0") KafkaCluster noSessionA,
-                                                            @BrokerConfig(name = "max.incremental.fetch.session.cache.slots", value = "0") KafkaCluster noSessionB)
+    void shouldFetchSuccessfullyWhenServersDeclineSession(
+                                                          @BrokerConfig(name = "max.incremental.fetch.session.cache.slots", value = "0") KafkaCluster noSessionA,
+                                                          @BrokerConfig(name = "max.incremental.fetch.session.cache.slots", value = "0") KafkaCluster noSessionB)
             throws Exception {
         String topicA = "a.nosess";
         String topicB = "b.nosess";
@@ -431,7 +431,7 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
             try (var client = tester.simpleTestClient()) {
                 negotiateApiVersions(client);
 
-                // First fetch: proxy requests session, backends decline
+                // First fetch: proxy requests session, servers decline
                 var firstRequest = buildFetchRequest(topicA, topicB);
                 firstRequest.setSessionId(0);
                 firstRequest.setSessionEpoch(0);
@@ -450,16 +450,24 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
 
                 int proxySessionId = firstBody.sessionId();
                 int fetchCountA = routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH).size();
-                int fetchCountB = routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH).size();
 
-                // Second fetch: proxy tries incremental with backends, but backends
-                // have no session, so proxy should send full requests
+                // Second fetch: advance offsets past existing records via
+                // incremental modification, so the server returns no records
+                // for unchanged partitions on subsequent fetches.
                 var secondRequest = new FetchRequestData()
                         .setMaxWaitMs(5000)
                         .setMinBytes(1)
                         .setMaxBytes(1024 * 1024)
                         .setSessionId(proxySessionId)
                         .setSessionEpoch(1);
+                var modA = new FetchTopic().setTopic(topicA);
+                modA.partitions().add(new FetchPartition()
+                        .setPartition(0).setFetchOffset(1).setPartitionMaxBytes(1024 * 1024));
+                secondRequest.topics().add(modA);
+                var modB = new FetchTopic().setTopic(topicB);
+                modB.partitions().add(new FetchPartition()
+                        .setPartition(0).setFetchOffset(1).setPartitionMaxBytes(1024 * 1024));
+                secondRequest.topics().add(modB);
 
                 var secondResponse = client.getSync(
                         new Request(ApiKeys.FETCH, (short) 12, "test-client", secondRequest));
@@ -467,23 +475,47 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 assertThat(secondBody.errorCode()).isEqualTo(Errors.NONE.code());
                 assertThat(secondBody.sessionId()).isEqualTo(proxySessionId);
 
-                // Backend should receive full (non-incremental) requests since
+                // Server should receive full (non-incremental) requests since
                 // sessions were declined
                 var secondBatchToA = routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH)
-                        .subList(fetchCountA, routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH).size());
+                        .subList(fetchCountA,
+                                routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH).size());
                 assertThat(secondBatchToA).isNotEmpty();
                 for (var event : secondBatchToA) {
                     var reqBody = (FetchRequestData) event.body();
                     assertThat(reqBody.sessionId())
-                            .as("backend sessionId should be 0 when sessions are declined")
+                            .as("server sessionId should be 0 when sessions are declined")
                             .isEqualTo(0);
                     assertThat(reqBody.sessionEpoch())
-                            .as("backend epoch should be 0 (session creation retry)")
+                            .as("server epoch should be 0 (session creation retry)")
                             .isEqualTo(0);
-                    assertThat(reqBody.topics())
-                            .as("backend should receive full partition set")
-                            .isNotEmpty();
                 }
+
+                // Produce a new record to topicA only — this changes its HWM
+                produceOneRecord(tester, topicA, "val-a2");
+
+                // Third fetch: incremental (no topic changes), still no server
+                // sessions. The proxy should return only topicA (new record,
+                // changed HWM) and omit topicB (at HWM, no records, unchanged
+                // metadata), proving the client session computes incremental
+                // responses independently of server session state.
+                var thirdRequest = new FetchRequestData()
+                        .setMaxWaitMs(5000)
+                        .setMinBytes(1)
+                        .setMaxBytes(1024 * 1024)
+                        .setSessionId(proxySessionId)
+                        .setSessionEpoch(2);
+
+                var thirdResponse = client.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "test-client", thirdRequest));
+                var thirdBody = (FetchResponseData) thirdResponse.payload().message();
+
+                assertThat(thirdBody.sessionId()).isEqualTo(proxySessionId);
+                assertThat(thirdBody.errorCode()).isEqualTo(Errors.NONE.code());
+                assertThat(thirdBody.responses())
+                        .extracting(FetchResponseData.FetchableTopicResponse::topic)
+                        .as("incremental client response should contain only the changed topic")
+                        .containsExactly(topicA);
             }
         }
     }
@@ -542,6 +574,90 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 assertThat(staleBody.errorCode())
                         .as("closed session should return FETCH_SESSION_ID_NOT_FOUND")
                         .isEqualTo(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
+            }
+        }
+    }
+
+    @Test
+    void shouldMaintainServerSessionsWithoutClientSession() throws Exception {
+        String topicA = "a.srvsess";
+        String topicB = "b.srvsess";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config)) {
+            produceOneRecord(tester, topicA, "val-a");
+            produceOneRecord(tester, topicB, "val-b");
+
+            try (var client = tester.simpleTestClient()) {
+                negotiateApiVersions(client);
+
+                // First fetch: no client session (epoch=-1), but proxy
+                // should still create server-side sessions
+                var firstRequest = buildFetchRequest(topicA, topicB);
+                firstRequest.setSessionId(0);
+                firstRequest.setSessionEpoch(-1);
+
+                var firstResponse = client.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "test-client", firstRequest));
+                var firstBody = (FetchResponseData) firstResponse.payload().message();
+
+                assertThat(firstBody.sessionId())
+                        .as("no client session requested")
+                        .isEqualTo(0);
+                assertThat(firstBody.responses())
+                        .extracting(FetchResponseData.FetchableTopicResponse::topic)
+                        .containsExactlyInAnyOrder(topicA, topicB);
+
+                int fetchCountA = routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH).size();
+                int fetchCountB = routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH).size();
+
+                // Second fetch: still no client session, but proxy should
+                // use established server sessions (incremental)
+                var secondRequest = buildFetchRequest(topicA, topicB);
+                secondRequest.setSessionId(0);
+                secondRequest.setSessionEpoch(-1);
+
+                var secondResponse = client.getSync(
+                        new Request(ApiKeys.FETCH, (short) 12, "test-client", secondRequest));
+                var secondBody = (FetchResponseData) secondResponse.payload().message();
+
+                assertThat(secondBody.sessionId()).isEqualTo(0);
+                assertThat(secondBody.errorCode()).isEqualTo(Errors.NONE.code());
+                assertThat(secondBody.responses())
+                        .extracting(FetchResponseData.FetchableTopicResponse::topic)
+                        .as("client should still see all topics despite incremental server response")
+                        .containsExactlyInAnyOrder(topicA, topicB);
+
+                // Verify second requests used server sessions (incremental)
+                var secondBatchToA = routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH)
+                        .subList(fetchCountA,
+                                routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH).size());
+                assertThat(secondBatchToA).isNotEmpty();
+                for (var event : secondBatchToA) {
+                    var reqBody = (FetchRequestData) event.body();
+                    assertThat(reqBody.sessionId())
+                            .as("server session should be established")
+                            .isNotEqualTo(0);
+                    assertThat(reqBody.sessionEpoch())
+                            .as("should be incremental")
+                            .isGreaterThan(0);
+                }
+
+                var secondBatchToB = routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH)
+                        .subList(fetchCountB,
+                                routingCaptor.requestsToRoute("route-b", ApiKeys.FETCH).size());
+                assertThat(secondBatchToB).isNotEmpty();
+                for (var event : secondBatchToB) {
+                    var reqBody = (FetchRequestData) event.body();
+                    assertThat(reqBody.sessionId())
+                            .as("server session should be established")
+                            .isNotEqualTo(0);
+                    assertThat(reqBody.sessionEpoch())
+                            .as("should be incremental")
+                            .isGreaterThan(0);
+                }
             }
         }
     }
