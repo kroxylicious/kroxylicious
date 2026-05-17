@@ -26,10 +26,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FetchSessionManagerTest {
 
     private FetchSessionManager manager;
+    private FetchSessionCache cache;
 
     @BeforeEach
     void setUp() {
-        manager = new FetchSessionManager();
+        cache = new FetchSessionCache(1000, 0);
+        manager = new FetchSessionManager(cache);
     }
 
     @Nested
@@ -263,6 +265,75 @@ class FetchSessionManagerTest {
 
                 assertThat(result).isInstanceOf(FetchSessionManager.ClientRequestResult.FullFetch.class);
             }
+        }
+    }
+
+    @Nested
+    class CacheIntegration {
+
+        @Test
+        void shouldOperateSessionlessWhenCacheDeclines() {
+            var zeroSlotCache = new FetchSessionCache(0, 0);
+            var sessionless = new FetchSessionManager(zeroSlotCache);
+
+            var request = fetchRequest("topic-a");
+            request.setSessionId(0);
+            request.setSessionEpoch(0);
+
+            var result = sessionless.processClientRequest(request, (short) 12);
+
+            assertThat(result).isInstanceOf(FetchSessionManager.ClientRequestResult.FullFetch.class);
+            assertThat(sessionless.clientSessionId()).isEqualTo(0);
+
+            var merged = responseWithPartition("topic-a", 0, 10L);
+            var response = sessionless.computeClientResponse(merged);
+            assertThat(response.sessionId()).isEqualTo(0);
+            assertThat(response.responses()).hasSize(1);
+        }
+
+        @Test
+        void shouldDetectEvictionFromSharedCache() {
+            createSession("topic-a");
+            int sessionId = manager.clientSessionId();
+            assertThat(sessionId).isGreaterThan(0);
+
+            // Externally evict the session from the shared cache
+            cache.release(sessionId);
+
+            // Client sends incremental — should get FETCH_SESSION_ID_NOT_FOUND
+            var incremental = new FetchRequestData();
+            incremental.setSessionId(sessionId);
+            incremental.setSessionEpoch(1);
+
+            var result = manager.processClientRequest(incremental, (short) 12);
+
+            assertThat(result).isInstanceOf(FetchSessionManager.ClientRequestResult.SessionError.class);
+            var error = (FetchSessionManager.ClientRequestResult.SessionError) result;
+            assertThat(error.response().errorCode())
+                    .isEqualTo(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
+            assertThat(manager.clientSessionId()).isEqualTo(0);
+        }
+
+        @Test
+        void shouldReleaseCacheSlotOnSessionClose() {
+            var oneSlotCache = new FetchSessionCache(1, 0);
+            var mgr = new FetchSessionManager(oneSlotCache);
+
+            var create = fetchRequest("topic-a");
+            create.setSessionId(0);
+            create.setSessionEpoch(0);
+            mgr.processClientRequest(create, (short) 12);
+            int sessionId = mgr.clientSessionId();
+            assertThat(sessionId).isGreaterThan(0);
+            assertThat(oneSlotCache.size()).isEqualTo(1);
+
+            // Close session
+            var close = fetchRequest("topic-a");
+            close.setSessionId(sessionId);
+            close.setSessionEpoch(-1);
+            mgr.processClientRequest(close, (short) 12);
+
+            assertThat(oneSlotCache.size()).isEqualTo(0);
         }
     }
 

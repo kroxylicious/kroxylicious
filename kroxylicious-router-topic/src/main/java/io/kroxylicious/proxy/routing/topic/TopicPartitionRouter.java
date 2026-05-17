@@ -93,14 +93,16 @@ class TopicPartitionRouter implements Router {
      * @param producerIdManager shared manager for per-route producer ID mappings; must outlive
      *                          individual connections so that reconnecting producers retain
      *                          their per-route mappings
+     * @param fetchSessionCache shared cache bounding the total number of client-side fetch sessions
      */
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute,
-                         ProducerIdManager producerIdManager) {
+                         ProducerIdManager producerIdManager,
+                         FetchSessionCache fetchSessionCache) {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
         this.producerIdManager = producerIdManager;
-        this.fetchSessionManager = new FetchSessionManager();
+        this.fetchSessionManager = new FetchSessionManager(fetchSessionCache);
         this.staticRoutes = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> defaultRoute));

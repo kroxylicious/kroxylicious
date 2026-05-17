@@ -79,7 +79,8 @@ class TopicPartitionRouterTest {
     void setUp() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
-        router = new TopicPartitionRouter(table, "default-route", new ProducerIdManager(Duration.ofDays(7)));
+        router = new TopicPartitionRouter(table, "default-route", new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0));
     }
 
     // --- static routes ---
@@ -193,7 +194,8 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableTopicsWithNoDefault() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0));
 
         var request = produceRequest("orders.uk", "logs.app");
         var respA = produceResponse("orders.uk", 0, Errors.NONE);
@@ -288,7 +290,8 @@ class TopicPartitionRouterTest {
     void shouldPassThroughInitProducerIdWithSingleRoute() {
         var singleRouteTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "only-route"), null);
-        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", new ProducerIdManager(Duration.ofDays(7)));
+        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0));
 
         var request = new InitProducerIdRequestData()
                 .setTransactionTimeoutMs(60000);
@@ -598,7 +601,8 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableFetchTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0));
 
         var request = fetchRequest("orders.uk", "unknown.topic");
         request.setSessionId(0);
@@ -666,7 +670,8 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableListOffsetsTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0));
 
         var request = listOffsetsRequest("orders.uk", "unknown.topic");
         var respA = listOffsetsResponse("orders.uk", 0, Errors.NONE);
@@ -734,7 +739,8 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableOffsetCommitTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0));
 
         var request = offsetCommitRequest("orders.uk", "unknown.topic");
         var respA = offsetCommitResponse("orders.uk", 0, Errors.NONE);
