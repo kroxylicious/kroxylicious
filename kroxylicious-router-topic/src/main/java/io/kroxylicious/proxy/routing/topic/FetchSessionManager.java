@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -31,7 +30,8 @@ import org.apache.kafka.common.record.MemoryRecords;
 class FetchSessionManager {
 
     static final short MIN_SESSION_VERSION = 7;
-    private static final AtomicInteger SESSION_ID_COUNTER = new AtomicInteger(1);
+
+    private final FetchSessionCache cache;
 
     private int clientSessionId;
     private int clientNextEpoch;
@@ -40,6 +40,10 @@ class FetchSessionManager {
 
     private final Map<String, ServerSession> serverSessions = new HashMap<>();
     private short lastApiVersion = -1;
+
+    FetchSessionManager(FetchSessionCache cache) {
+        this.cache = cache;
+    }
 
     // --- Client-side session management ---
 
@@ -78,7 +82,10 @@ class FetchSessionManager {
         }
 
         // Incremental: sessionId != 0, epoch > 0
-        if (sessionId != clientSessionId) {
+        if (sessionId != clientSessionId || !cache.isValid(clientSessionId)) {
+            if (sessionId == clientSessionId) {
+                clearClientSession();
+            }
             return sessionError(Errors.FETCH_SESSION_ID_NOT_FOUND);
         }
         if (epoch != clientNextEpoch) {
@@ -87,18 +94,25 @@ class FetchSessionManager {
 
         clientNextEpoch = epoch + 1;
         applyIncrementalChanges(request);
+        cache.touch(clientSessionId, clientPartitions.size(), System.currentTimeMillis());
         return new ClientRequestResult.FullFetch(buildFullRequestFromState(request));
     }
 
     private ClientRequestResult.FullFetch createClientSession(FetchRequestData request) {
         clearClientSession();
-        clientSessionId = SESSION_ID_COUNTER.getAndIncrement();
-        clientNextEpoch = 1;
         populateClientPartitions(request);
+        int id = cache.maybeCreateSession(clientPartitions.size(), System.currentTimeMillis());
+        if (id != 0) {
+            clientSessionId = id;
+            clientNextEpoch = 1;
+        }
         return new ClientRequestResult.FullFetch(buildFullRequestFromState(request));
     }
 
     private void clearClientSession() {
+        if (clientSessionId != 0) {
+            cache.release(clientSessionId);
+        }
         clientSessionId = 0;
         clientNextEpoch = 0;
         clientPartitions.clear();
