@@ -13,10 +13,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
+import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.ListOffsetsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
@@ -64,7 +70,10 @@ class TopicPartitionRouter implements Router {
             ApiKeys.API_VERSIONS,
             ApiKeys.PRODUCE,
             ApiKeys.INIT_PRODUCER_ID,
-            ApiKeys.METADATA);
+            ApiKeys.METADATA,
+            ApiKeys.FETCH,
+            ApiKeys.LIST_OFFSETS,
+            ApiKeys.OFFSET_COMMIT);
 
     private final PrefixTopicRoutingTable routingTable;
     private final String defaultRoute;
@@ -72,6 +81,9 @@ class TopicPartitionRouter implements Router {
     private final ApiVersionsResponseTransformer versionCapper;
     private final ProduceDecomposer produceDecomposer = ProduceDecomposer.INSTANCE;
     private final MetadataDecomposer metadataDecomposer = MetadataDecomposer.INSTANCE;
+    private final FetchDecomposer fetchDecomposer = FetchDecomposer.INSTANCE;
+    private final ListOffsetsDecomposer listOffsetsDecomposer = ListOffsetsDecomposer.INSTANCE;
+    private final OffsetCommitDecomposer offsetCommitDecomposer = OffsetCommitDecomposer.INSTANCE;
     private final ProducerIdManager producerIdManager;
 
     /**
@@ -116,6 +128,15 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.METADATA) {
             return handleMetadata(header, (MetadataRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.FETCH) {
+            return handleFetch(header, (FetchRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.LIST_OFFSETS) {
+            return handleListOffsets(header, (ListOffsetsRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.OFFSET_COMMIT) {
+            return handleOffsetCommit(header, (OffsetCommitRequestData) request, context);
         }
 
         return context.sendRequest(defaultRoute, header, request)
@@ -433,18 +454,180 @@ class TopicPartitionRouter implements Router {
         }
     }
 
-    private void sendMetadataResponse(RoutingContext context,
-                                      MetadataResponseData body) {
+    private CompletionStage<RoutingResult> handleFetch(
+                                                       RequestHeaderData header,
+                                                       FetchRequestData request,
+                                                       RoutingContext context) {
+        FetchResponseData errorResponse = FetchDecomposer.errorResponseForUnroutableTopics(
+                request, routingTable);
+        Map<String, FetchRequestData> subRequests = fetchDecomposer.decompose(
+                request, routingTable);
+
+        if (subRequests.isEmpty()) {
+            sendSyntheticResponse(context, errorResponse);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        if (subRequests.size() == 1 && errorResponse.responses().isEmpty()) {
+            var entry = subRequests.entrySet().iterator().next();
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", entry.getKey())
+                    .log("Fetch routed to single cluster");
+            return context.sendRequest(entry.getKey(), header, entry.getValue())
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("routeCount", subRequests.size())
+                .log("Fetch fanning out across clusters");
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (var entry : subRequests.entrySet()) {
+            futures.put(entry.getKey(),
+                    context.sendRequest(entry.getKey(), header, entry.getValue()));
+        }
+
+        FetchResponseData capturedErrors = errorResponse;
+        return collectAll(futures).thenApply(responses -> {
+            Map<String, FetchResponseData> bodies = new HashMap<>();
+            for (var entry : responses.entrySet()) {
+                bodies.put(entry.getKey(), (FetchResponseData) entry.getValue().body());
+            }
+            FetchResponseData merged = fetchDecomposer.recompose(bodies, request);
+            for (var tr : capturedErrors.responses()) {
+                merged.responses().add(tr.duplicate());
+            }
+            sendSyntheticResponse(context, merged);
+            return RoutingResult.completed();
+        });
+    }
+
+    private CompletionStage<RoutingResult> handleListOffsets(
+                                                             RequestHeaderData header,
+                                                             ListOffsetsRequestData request,
+                                                             RoutingContext context) {
+        ListOffsetsResponseData errorResponse = ListOffsetsDecomposer.errorResponseForUnroutableTopics(
+                request, routingTable);
+        Map<String, ListOffsetsRequestData> subRequests = listOffsetsDecomposer.decompose(
+                request, routingTable);
+
+        if (subRequests.isEmpty()) {
+            sendSyntheticResponse(context, errorResponse);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        if (subRequests.size() == 1 && errorResponse.topics().isEmpty()) {
+            var entry = subRequests.entrySet().iterator().next();
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", entry.getKey())
+                    .log("ListOffsets routed to single cluster");
+            return context.sendRequest(entry.getKey(), header, entry.getValue())
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("routeCount", subRequests.size())
+                .log("ListOffsets fanning out across clusters");
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (var entry : subRequests.entrySet()) {
+            futures.put(entry.getKey(),
+                    context.sendRequest(entry.getKey(), header, entry.getValue()));
+        }
+
+        ListOffsetsResponseData capturedErrors = errorResponse;
+        return collectAll(futures).thenApply(responses -> {
+            Map<String, ListOffsetsResponseData> bodies = new HashMap<>();
+            for (var entry : responses.entrySet()) {
+                bodies.put(entry.getKey(), (ListOffsetsResponseData) entry.getValue().body());
+            }
+            ListOffsetsResponseData merged = listOffsetsDecomposer.recompose(bodies, request);
+            for (var tr : capturedErrors.topics()) {
+                merged.topics().add(tr.duplicate());
+            }
+            sendSyntheticResponse(context, merged);
+            return RoutingResult.completed();
+        });
+    }
+
+    private CompletionStage<RoutingResult> handleOffsetCommit(
+                                                              RequestHeaderData header,
+                                                              OffsetCommitRequestData request,
+                                                              RoutingContext context) {
+        OffsetCommitResponseData errorResponse = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
+                request, routingTable);
+        Map<String, OffsetCommitRequestData> subRequests = offsetCommitDecomposer.decompose(
+                request, routingTable);
+
+        if (subRequests.isEmpty()) {
+            sendSyntheticResponse(context, errorResponse);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        if (subRequests.size() == 1 && errorResponse.topics().isEmpty()) {
+            var entry = subRequests.entrySet().iterator().next();
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", entry.getKey())
+                    .log("OffsetCommit routed to single cluster");
+            return context.sendRequest(entry.getKey(), header, entry.getValue())
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("routeCount", subRequests.size())
+                .log("OffsetCommit fanning out across clusters");
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (var entry : subRequests.entrySet()) {
+            futures.put(entry.getKey(),
+                    context.sendRequest(entry.getKey(), header, entry.getValue()));
+        }
+
+        OffsetCommitResponseData capturedErrors = errorResponse;
+        return collectAll(futures).thenApply(responses -> {
+            Map<String, OffsetCommitResponseData> bodies = new HashMap<>();
+            for (var entry : responses.entrySet()) {
+                bodies.put(entry.getKey(), (OffsetCommitResponseData) entry.getValue().body());
+            }
+            OffsetCommitResponseData merged = offsetCommitDecomposer.recompose(bodies, request);
+            for (var tr : capturedErrors.topics()) {
+                merged.topics().add(tr.duplicate());
+            }
+            sendSyntheticResponse(context, merged);
+            return RoutingResult.completed();
+        });
+    }
+
+    private void sendSyntheticResponse(RoutingContext context,
+                                       ApiMessage body) {
         var responseHeader = new ResponseHeaderData()
                 .setCorrelationId(0);
         context.sendResponse(new SimpleResponse(responseHeader, body));
     }
 
+    private void sendMetadataResponse(RoutingContext context,
+                                      MetadataResponseData body) {
+        sendSyntheticResponse(context, body);
+    }
+
     private void sendProduceResponse(RoutingContext context,
                                      ProduceResponseData body) {
-        var responseHeader = new ResponseHeaderData()
-                .setCorrelationId(0);
-        context.sendResponse(new SimpleResponse(responseHeader, body));
+        sendSyntheticResponse(context, body);
     }
 
     private static <K> CompletionStage<Map<K, Response>> collectAll(
