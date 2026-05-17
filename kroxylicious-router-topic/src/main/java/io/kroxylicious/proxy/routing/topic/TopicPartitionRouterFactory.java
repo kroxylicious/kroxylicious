@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.routing.topic;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -17,38 +16,24 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.routing.Router;
 import io.kroxylicious.proxy.routing.RouterFactory;
 import io.kroxylicious.proxy.routing.RouterFactoryContext;
+import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
 
 /**
  * Creates {@link TopicPartitionRouter} instances that route Kafka requests
  * to backend clusters based on topic name prefix matching.
  */
-@Plugin(configType = TopicPartitionRouterFactory.Config.class)
+@Plugin(configType = TopicPartitionRouterConfig.class)
 public class TopicPartitionRouterFactory
-        implements RouterFactory<TopicPartitionRouterFactory.Config, TopicPartitionRouterFactory.InitData> {
+        implements RouterFactory<TopicPartitionRouterConfig, TopicPartitionRouterFactory.InitData> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRouterFactory.class);
-
-    /**
-     * @param defaultRoute route for topics matching no prefix, or null if unmatched topics should be rejected
-     * @param topicRoutes per-route topic prefix assignments
-     */
-    public record Config(String defaultRoute,
-                         List<TopicRoute> topicRoutes) {
-
-        /**
-         * @param route the route name
-         * @param topicPrefixes topic name prefixes assigned to this route
-         */
-        public record TopicRoute(String route,
-                                 List<String> topicPrefixes) {}
-    }
 
     record InitData(PrefixTopicRoutingTable routingTable,
                     String defaultRoute) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
-                               Config config)
+                               TopicPartitionRouterConfig config)
             throws PluginConfigurationException {
         if (config.topicRoutes() == null || config.topicRoutes().isEmpty()) {
             if (config.defaultRoute() == null) {

@@ -10,8 +10,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
-import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory.Config;
-import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory.Config.TopicRoute;
+import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
+import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -22,7 +22,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldInitialiseWithDefaultRouteOnly() {
-        var config = new Config("fallback", List.of());
+        var config = new TopicPartitionRouterConfig("fallback", List.of());
 
         var initData = factory.initialize(null, config);
 
@@ -31,7 +31,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldInitialiseWithTopicRoutes() {
-        var config = new Config("default-route", List.of(
+        var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new TopicRoute("cluster-a", List.of("orders.", "payments.")),
                 new TopicRoute("cluster-b", List.of("logs."))));
 
@@ -46,7 +46,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectNoRoutesAndNoDefault() {
-        var config = new Config(null, List.of());
+        var config = new TopicPartitionRouterConfig(null, List.of());
 
         assertThatThrownBy(() -> factory.initialize(null, config))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -55,7 +55,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectDuplicatePrefixOnDifferentRoutes() {
-        var config = new Config("default", List.of(
+        var config = new TopicPartitionRouterConfig("default", List.of(
                 new TopicRoute("a", List.of("orders.")),
                 new TopicRoute("b", List.of("orders."))));
 
@@ -67,7 +67,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectOverlappingPrefixesOnDifferentRoutes() {
-        var config = new Config("default", List.of(
+        var config = new TopicPartitionRouterConfig("default", List.of(
                 new TopicRoute("a", List.of("orders.")),
                 new TopicRoute("b", List.of("orders.uk."))));
 
@@ -78,7 +78,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldCreateRouter() {
-        var config = new Config("default-route", List.of(
+        var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new TopicRoute("cluster-a", List.of("orders."))));
 
         var initData = factory.initialize(null, config);
