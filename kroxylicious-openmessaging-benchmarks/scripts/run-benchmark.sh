@@ -383,7 +383,7 @@ spec:
       claimName: ${RESULTS_PVC_NAME}
   containers:
   - name: reader
-    image: cgr.dev/chainguard/busybox:latest@sha256:512f3ca0acc9d54d640afd9ac6166ae94548bf66d290ae447968fba5557d10c9
+    image: cgr.dev/chainguard/busybox@sha256:512f3ca0acc9d54d640afd9ac6166ae94548bf66d290ae447968fba5557d10c9
     command: ["sleep", "infinity"]
     volumeMounts:
     - name: results

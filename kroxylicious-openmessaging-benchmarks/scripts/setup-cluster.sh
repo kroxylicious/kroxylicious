@@ -16,6 +16,13 @@ KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.22.0-SNAPSHOT}"
 NAMESPACE="${NAMESPACE:-kafka}"
 KROXYLICIOUS_OPERATOR_NAMESPACE="kroxylicious-operator"
 
+# Resolve 'latest' to the actual current Strimzi release — GitHub releases has no literal 'latest' artifact path
+if [[ "${STRIMZI_VERSION}" == "latest" ]]; then
+    STRIMZI_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        "https://github.com/strimzi/strimzi-kafka-operator/releases/latest" \
+        | sed 's|.*/tag/||' | sed 's/^v//')"
+fi
+
 STRIMZI_BASE_URL="https://github.com/strimzi/strimzi-kafka-operator/releases/download/${STRIMZI_VERSION}"
 
 usage() {
@@ -32,7 +39,7 @@ Options:
 
 Environment:
   NAMESPACE                     Kafka namespace (default: kafka)
-  STRIMZI_VERSION               Strimzi version to install from GitHub releases (default: latest)
+  STRIMZI_VERSION               Strimzi version to install from GitHub releases (default: resolved from latest release)
   KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.22.0-SNAPSHOT)
 
 Examples:

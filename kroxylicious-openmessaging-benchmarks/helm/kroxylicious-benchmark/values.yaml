@@ -10,7 +10,6 @@ scenario: baseline
 # Kafka cluster configuration (Strimzi-based)
 kafka:
   replicas: 3
-  version: "4.1.1"  # Kafka version for Strimzi
   # Replication settings (defaults match replica count for safety)
   replicationFactor: 3  # Should be <= replicas
   minInSyncReplicas: 2  # Should be < replicationFactor
