@@ -4,8 +4,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.Record;
+import org.apache.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.kafka.transform.RecordTransform;
 import ${package}.config.SampleFilterConfig;

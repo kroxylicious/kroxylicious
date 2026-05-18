@@ -70,7 +70,7 @@ public class BytebufValidation {
     }
 
     /**
-     * Are buffers valid if they are null on the {@link org.apache.kafka.common.record.Record}
+     * Are buffers valid if they are null on the {@link org.apache.kafka.common.record.internal.Record}
      * @return allowNulls
      */
     public boolean isAllowNulls() {
@@ -78,7 +78,7 @@ public class BytebufValidation {
     }
 
     /**
-     * Are buffers valid if they are empty (non-null, 0 length) on the {@link org.apache.kafka.common.record.Record}
+     * Are buffers valid if they are empty (non-null, 0 length) on the {@link org.apache.kafka.common.record.internal.Record}
      * @return allowEmpty
      */
     public boolean isAllowEmpty() {

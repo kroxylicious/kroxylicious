@@ -8,7 +8,7 @@ package io.kroxylicious.filter.validation.validators.record;
 
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.validation.validators.Result;

@@ -7,7 +7,7 @@
 package io.kroxylicious.testing.filter.assertj;
 
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.AbstractLongAssert;

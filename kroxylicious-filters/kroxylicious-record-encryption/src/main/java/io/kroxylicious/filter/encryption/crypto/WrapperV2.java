@@ -13,8 +13,8 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.Record;
+import org.apache.kafka.common.record.internal.RecordBatch;
 import org.apache.kafka.common.utils.ByteUtils;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
