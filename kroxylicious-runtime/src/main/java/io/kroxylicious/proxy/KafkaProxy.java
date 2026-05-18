@@ -48,6 +48,7 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.cluster.ProxyCluster;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
@@ -157,6 +158,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    private final @Nullable ProxyCluster proxyCluster;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable RouterChainFactory routerChainFactory;
@@ -166,17 +168,40 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig proxyEventGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
-        this(pfr, config, features, defaultRegistry(config, pfr));
+        this(pfr, config, features, defaultRegistry(config, pfr), null);
+    }
+
+    public KafkaProxy(
+                      PluginFactoryRegistry pfr,
+                      Configuration config,
+                      Features features,
+                      @Nullable ProxyCluster proxyCluster) {
+        this(pfr, config, features, defaultRegistry(config, pfr), proxyCluster);
     }
 
     @VisibleForTesting
-    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterRegistry virtualClusterRegistry) {
+    KafkaProxy(
+               PluginFactoryRegistry pfr,
+               Configuration config,
+               Features features,
+               VirtualClusterRegistry virtualClusterRegistry) {
+        this(pfr, config, features, virtualClusterRegistry, null);
+    }
+
+    @VisibleForTesting
+    KafkaProxy(
+               PluginFactoryRegistry pfr,
+               Configuration config,
+               Features features,
+               VirtualClusterRegistry virtualClusterRegistry,
+               @Nullable ProxyCluster proxyCluster) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterRegistry = requireNonNull(virtualClusterRegistry);
         this.virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+        this.proxyCluster = proxyCluster;
     }
 
     private static VirtualClusterRegistry defaultRegistry(Configuration config, PluginFactoryRegistry pfr) {
