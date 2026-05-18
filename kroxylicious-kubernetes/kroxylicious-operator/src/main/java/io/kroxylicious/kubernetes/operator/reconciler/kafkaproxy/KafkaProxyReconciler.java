@@ -493,6 +493,10 @@ public class KafkaProxyReconciler implements
         var existingConditions = Optional.ofNullable(primary.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
+        // Deprecation conditions are fully re-evaluated each reconcile. This ensures they are removed when appropriate.
+        var existingWithoutDeprecations = existingConditions.stream()
+                .filter(c -> c.getType() != Condition.Type.DeprecationWarning)
+                .toList();
         // Need to be explicit with the type here to stop SonarQube from complaining
         DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> deprecationCheckContext = new DeprecationCheckContext<>(primary,
                 statusFactory, existingConditions);
@@ -505,7 +509,7 @@ public class KafkaProxyReconciler implements
 
         var conditions = new ArrayList<>(deprecationCheckContext.conditions());
         conditions.add(statusFactory.newTrueCondition(primary, Condition.Type.Ready));
-        var update = statusFactory.kafkaProxyStatusPatch(primary, ResourceState.fromList(conditions), readyReplicas);
+        var update = statusFactory.kafkaProxyStatusPatch(primary, existingWithoutDeprecations, ResourceState.fromList(conditions), readyReplicas);
         var uc = UpdateControl.patchStatus(update);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.atInfo()

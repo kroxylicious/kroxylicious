@@ -26,10 +26,11 @@ class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
         super(clock);
     }
 
-    public KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
-                                            ResourceState condition,
-                                            @Nullable Integer replicaCount) {
-        var conds = ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), condition);
+    KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
+                                     List<Condition> existingConditions,
+                                     ResourceState condition,
+                                     @Nullable Integer replicaCount) {
+        var conds = ResourceState.newConditions(existingConditions, condition);
 
         // @formatter:off
         KafkaProxyBuilder kafkaProxyBuilder = new KafkaProxyBuilder()
@@ -47,6 +48,15 @@ class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
             kafkaProxyBuilder.editStatus().withReplicas(replicaCount).endStatus();
         }
         return kafkaProxyBuilder.build();
+    }
+
+    public KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
+                                            ResourceState condition,
+                                            @Nullable Integer replicaCount) {
+        List<Condition> existingConditions = Optional.ofNullable(observedProxy.getStatus())
+                .map(KafkaProxyStatus::getConditions)
+                .orElse(List.of());
+        return kafkaProxyStatusPatch(observedProxy, existingConditions, condition, replicaCount);
     }
 
     private KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,

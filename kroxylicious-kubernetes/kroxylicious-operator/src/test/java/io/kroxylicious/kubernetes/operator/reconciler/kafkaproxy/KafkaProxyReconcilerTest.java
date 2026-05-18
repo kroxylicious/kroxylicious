@@ -583,6 +583,53 @@ class KafkaProxyReconcilerTest {
         }
     }
 
+    @Test
+    void shouldRemoveDeprecationWarningWhenSpecIsAdded() {
+        // Given
+        long generation = 42L;
+        // @formatter:off
+        var primary = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withGeneration(generation)
+                    .withName("my-proxy")
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withObservedGeneration(generation)
+                        .withType(Condition.Type.DeprecationWarning)
+                        .withStatus(Condition.Status.TRUE)
+                        .withReason(Condition.Type.DeprecationWarning.name())
+                        .withMessage(DEPRECATION_SPEC_MESSAGE)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
+                    .endCondition()
+                    .addNewCondition()
+                        .withObservedGeneration(generation)
+                        .withType(Condition.Type.Ready)
+                        .withStatus(Condition.Status.TRUE)
+                        .withMessage("")
+                        .withReason("")
+                        .withLastTransitionTime(TEST_CLOCK.instant())
+                    .endCondition()
+                .endStatus()
+                .build();
+        // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
+
+        // When
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, reconcilerContext);
+
+        // Then
+        assertThat(updateControl.isPatchStatus()).isTrue();
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
+                .extracting(KafkaProxy::getStatus, AssertFactory.status());
+        statusAssert.hasObservedGeneration(generation)
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready);
+    }
+
     private static KafkaProxyBuilder proxyBuilder(String name) {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
     }
