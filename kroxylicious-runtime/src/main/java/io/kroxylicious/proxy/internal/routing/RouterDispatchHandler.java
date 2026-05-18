@@ -82,6 +82,11 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     }
 
     @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) {
+        router.close();
+    }
+
+    @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof RequestFrame frame) {
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
