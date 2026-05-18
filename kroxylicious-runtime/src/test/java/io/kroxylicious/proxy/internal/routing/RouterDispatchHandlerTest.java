@@ -20,6 +20,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.router.Router;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
@@ -29,6 +30,10 @@ import static org.mockito.Mockito.when;
 class RouterDispatchHandlerTest {
 
     private static final int CORRELATION_ID = 42;
+    private static final int ROUTING_CORRELATION_ID = Integer.MIN_VALUE / 2;
+
+    @Mock
+    private Router router;
 
     @Mock
     private ClientConnectionStateMachine ccsm;
@@ -37,7 +42,7 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldDelegateNonFrameMessagesToCcsm() {
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
+        var handler = new RouterDispatchHandler(router, Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
 
         var nonFrame = "not-a-frame";
@@ -48,7 +53,7 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldThrowForDynamicallyRoutedDecodedFrame() {
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
+        var handler = new RouterDispatchHandler(router, Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
 
         var header = new org.apache.kafka.common.message.RequestHeaderData();
@@ -63,7 +68,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldForwardStaticallyRoutedDecodedFrameViaForwardToRoute() {
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
-        var handler = new RouterDispatchHandler(staticRoutes, ccsm);
+        var handler = new RouterDispatchHandler(router, staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
 
         var header = new org.apache.kafka.common.message.RequestHeaderData();
@@ -78,7 +83,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldForwardStaticallyRoutedOpaqueFrameViaForwardToRoute() {
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
-        var handler = new RouterDispatchHandler(staticRoutes, ccsm);
+        var handler = new RouterDispatchHandler(router, staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
 
         var buf = Unpooled.buffer();
@@ -94,7 +99,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldFallThroughToCcsmForOpaqueFrameNotInStaticRoutes() {
         var staticRoutes = Map.of(ApiKeys.PRODUCE, "default");
-        var handler = new RouterDispatchHandler(staticRoutes, ccsm);
+        var handler = new RouterDispatchHandler(router, staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
         when(ccsm.sessionId()).thenReturn("test-session");
 

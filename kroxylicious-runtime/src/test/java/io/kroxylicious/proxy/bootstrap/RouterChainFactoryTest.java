@@ -5,32 +5,29 @@
  */
 package io.kroxylicious.proxy.bootstrap;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
+import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterResponse;
-import io.kroxylicious.proxy.topology.TopologyService;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,20 +37,20 @@ class RouterChainFactoryTest {
     private static final List<RouteDefinition> DUMMY_ROUTES = List.of(
             new RouteDefinition("route1", 0, null, new RouteTarget("someCluster", null)));
 
+    private static final String VC_NAME = "testVc";
+
     @Test
     void shouldHandleNullDefinitions() {
-        try (var factory = new RouterChainFactory(testPfr(), null)) {
-            var ctx = testContext();
-            assertThatThrownBy(() -> factory.createRouter("nonexistent", ctx))
+        try (var factory = new RouterChainFactory(testPfr(), List.of(), null)) {
+            assertThatThrownBy(() -> factory.createRouter("nonexistent", VC_NAME))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
     @Test
     void shouldHandleEmptyDefinitions() {
-        try (var factory = new RouterChainFactory(testPfr(), List.of())) {
-            var ctx = testContext();
-            assertThatThrownBy(() -> factory.createRouter("nonexistent", ctx))
+        try (var factory = new RouterChainFactory(testPfr(), List.of(), List.of())) {
+            assertThatThrownBy(() -> factory.createRouter("nonexistent", VC_NAME))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
@@ -62,8 +59,9 @@ class RouterChainFactoryTest {
     void shouldCreateRouterInstance() {
         var rd = new RouterDefinition("myRouter", TestRouterFactory.class.getName(),
                 null, DUMMY_ROUTES);
-        try (var factory = new RouterChainFactory(testPfr(), List.of(rd))) {
-            Router router = factory.createRouter("myRouter", testContext());
+        var vc = testVc(VC_NAME, "myRouter");
+        try (var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd))) {
+            Router router = factory.createRouter("myRouter", VC_NAME);
             assertThat(router).isNotNull();
         }
     }
@@ -72,9 +70,9 @@ class RouterChainFactoryTest {
     void shouldThrowForUnknownRouterName() {
         var rd = new RouterDefinition("myRouter", TestRouterFactory.class.getName(),
                 null, DUMMY_ROUTES);
-        try (var factory = new RouterChainFactory(testPfr(), List.of(rd))) {
-            var ctx = testContext();
-            assertThatThrownBy(() -> factory.createRouter("unknown", ctx))
+        var vc = testVc(VC_NAME, "myRouter");
+        try (var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd))) {
+            assertThatThrownBy(() -> factory.createRouter("unknown", VC_NAME))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("unknown");
         }
@@ -91,7 +89,8 @@ class RouterChainFactoryTest {
             }
         });
         var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
-        try (var factory = new RouterChainFactory(pfr, List.of(rd))) {
+        var vc = testVc(VC_NAME, "r1");
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
             assertThat(initCount.get()).isEqualTo(1);
         }
     }
@@ -112,9 +111,11 @@ class RouterChainFactoryTest {
                         closeOrder.add("second");
                     }
                 });
-        var rd1 = new RouterDefinition("r1", "factory-0", null, DUMMY_ROUTES);
+        var routes1 = List.of(new RouteDefinition("r", 0, null, new RouteTarget(null, "r2")));
+        var rd1 = new RouterDefinition("r1", "factory-0", null, routes1);
         var rd2 = new RouterDefinition("r2", "factory-1", null, DUMMY_ROUTES);
-        var factory = new RouterChainFactory(pfr, List.of(rd1, rd2));
+        var vc = testVc(VC_NAME, "r1");
+        var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd1, rd2));
         factory.close();
 
         assertThat(closeOrder).containsExactly("second", "first");
@@ -123,11 +124,11 @@ class RouterChainFactoryTest {
     @Test
     void shouldThrowAfterClose() {
         var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
-        var factory = new RouterChainFactory(testPfr(), List.of(rd));
+        var vc = testVc(VC_NAME, "r1");
+        var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd));
         factory.close();
 
-        var ctx = testContext();
-        assertThatThrownBy(() -> factory.createRouter("r1", ctx))
+        assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -136,9 +137,9 @@ class RouterChainFactoryTest {
         var pfr = testPfrWithConfigType(String.class);
         var rd = new RouterDefinition("r1", TestRouterFactory.class.getName(),
                 Integer.valueOf(42), DUMMY_ROUTES);
+        var vc = testVc(VC_NAME, "r1");
 
-        var defs = List.of(rd);
-        assertThatThrownBy(() -> new RouterChainFactory(pfr, defs))
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, List.of(vc), List.of(rd)))
                 .isInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("config of type");
     }
@@ -161,18 +162,18 @@ class RouterChainFactoryTest {
                 }
         };
         var pfr = testPfrWithMultiple(factories);
-        var rd1 = new RouterDefinition("r1", "factory-0", null, DUMMY_ROUTES);
+        var routes1 = List.of(new RouteDefinition("r", 0, null, new RouteTarget(null, "r2")));
+        var rd1 = new RouterDefinition("r1", "factory-0", null, routes1);
         var rd2 = new RouterDefinition("r2", "factory-1", null, DUMMY_ROUTES);
+        var vc = testVc(VC_NAME, "r1");
 
-        var defs = List.of(rd1, rd2);
-        assertThatThrownBy(() -> new RouterChainFactory(pfr, defs))
+        assertThatThrownBy(() -> new RouterChainFactory(pfr, List.of(vc), List.of(rd1, rd2)))
                 .isInstanceOf(PluginConfigurationException.class);
         assertThat(closed.get()).isTrue();
     }
 
     @Test
     void shouldSurfaceExceptionFromCloseAndStillCloseOthers() {
-        // Given
         var secondClosed = new AtomicBoolean(false);
         var pfr = testPfrWithMultiple(
                 new TestRouterFactory() {
@@ -187,11 +188,12 @@ class RouterChainFactoryTest {
                         throw new RuntimeException("close boom");
                     }
                 });
-        var rd1 = new RouterDefinition("r1", "factory-0", null, DUMMY_ROUTES);
+        var routes1 = List.of(new RouteDefinition("r", 0, null, new RouteTarget(null, "r2")));
+        var rd1 = new RouterDefinition("r1", "factory-0", null, routes1);
         var rd2 = new RouterDefinition("r2", "factory-1", null, DUMMY_ROUTES);
-        var factory = new RouterChainFactory(pfr, List.of(rd1, rd2));
+        var vc = testVc(VC_NAME, "r1");
+        var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd1, rd2));
 
-        // When / Then
         assertThatThrownBy(factory::close)
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("close boom");
@@ -200,7 +202,6 @@ class RouterChainFactoryTest {
 
     @Test
     void shouldSuppressSecondCloseException() {
-        // Given
         var pfr = testPfrWithMultiple(
                 new TestRouterFactory() {
                     @Override
@@ -214,11 +215,12 @@ class RouterChainFactoryTest {
                         throw new RuntimeException("second close boom");
                     }
                 });
-        var rd1 = new RouterDefinition("r1", "factory-0", null, DUMMY_ROUTES);
+        var routes1 = List.of(new RouteDefinition("r", 0, null, new RouteTarget(null, "r2")));
+        var rd1 = new RouterDefinition("r1", "factory-0", null, routes1);
         var rd2 = new RouterDefinition("r2", "factory-1", null, DUMMY_ROUTES);
-        var factory = new RouterChainFactory(pfr, List.of(rd1, rd2));
+        var vc = testVc(VC_NAME, "r1");
+        var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd1, rd2));
 
-        // When / Then
         assertThatThrownBy(factory::close)
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("second close boom")
@@ -226,12 +228,86 @@ class RouterChainFactoryTest {
                         .singleElement().satisfies(s -> assertThat(s).hasMessage("first close boom")));
     }
 
+    @Test
+    void shouldPassCorrectContextToInitialize() {
+        var capturedContext = new AtomicReference<RouterFactoryContext>();
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                capturedContext.set(context);
+                return super.initialize(context, config);
+            }
+        });
+        var rd = new RouterDefinition("myRouter", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var vc = testVc("myVc", "myRouter");
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
+            assertThat(capturedContext.get().virtualClusterName()).isEqualTo("myVc");
+            assertThat(capturedContext.get().routerName()).isEqualTo("myRouter");
+        }
+    }
+
+    @Test
+    void shouldInitialiseSameRouterSeparatelyPerVirtualCluster() {
+        var initCount = new AtomicInteger(0);
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                initCount.incrementAndGet();
+                return new Object();
+            }
+        });
+        var rd = new RouterDefinition("shared", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var vc1 = testVc("vc1", "shared");
+        var vc2 = testVc("vc2", "shared");
+        try (var factory = new RouterChainFactory(pfr, List.of(vc1, vc2), List.of(rd))) {
+            assertThat(initCount.get()).isEqualTo(2);
+            assertThat(factory.createRouter("shared", "vc1")).isNotNull();
+            assertThat(factory.createRouter("shared", "vc2")).isNotNull();
+        }
+    }
+
+    @Test
+    void shouldNotInitialiseRoutersNotReferencedByAnyVc() {
+        var initCount = new AtomicInteger(0);
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                initCount.incrementAndGet();
+                return super.initialize(context, config);
+            }
+        });
+        var rd1 = new RouterDefinition("used", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var rdOrphan = new RouterDefinition("orphan", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var vc = testVc(VC_NAME, "used");
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd1, rdOrphan))) {
+            assertThat(initCount.get()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void shouldInitialiseSubRouters() {
+        var initCount = new AtomicInteger(0);
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                initCount.incrementAndGet();
+                return super.initialize(context, config);
+            }
+        });
+        var routes1 = List.of(new RouteDefinition("toChild", 0, null, new RouteTarget(null, "child")));
+        var rdParent = new RouterDefinition("parent", TestRouterFactory.class.getName(), null, routes1);
+        var rdChild = new RouterDefinition("child", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var vc = testVc(VC_NAME, "parent");
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rdParent, rdChild))) {
+            assertThat(initCount.get()).isEqualTo(2);
+            assertThat(factory.createRouter("parent", VC_NAME)).isNotNull();
+            assertThat(factory.createRouter("child", VC_NAME)).isNotNull();
+        }
+    }
+
     // -- test helpers --
 
     static class TestRouterFactory implements RouterFactory<Object, Object> {
-
-        private static final Map<ApiKeys, String> ALL_STATIC = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> "default"));
 
         @Override
         public Object initialize(RouterFactoryContext context, Object config) {
@@ -240,25 +316,21 @@ class RouterChainFactoryTest {
 
         @Override
         public Router createRouter(RouterFactoryContext context, Object initializationData) {
-            return new Router() {
-                @Override
-                public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
-                                                                 RequestHeaderData header, ApiMessage request,
-                                                                 RouterContext routerContext) {
-                    throw new IllegalStateException("Dynamic routing is not supported");
-                }
-
-                @Override
-                public Map<ApiKeys, String> staticRoutes() {
-                    return ALL_STATIC;
-                }
-            };
+            return (apiKey, apiVersion, header, request, routingContext) -> CompletableFuture.completedFuture(null);
         }
 
         @SuppressWarnings("java:S1186") // intentional no-op for test factory
         @Override
         public void close(Object initializationData) {
         }
+    }
+
+    private static VirtualCluster testVc(String name, String router) {
+        var gateway = new VirtualClusterGateway("gw",
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty());
+        return new VirtualCluster(name, null, new RouteTarget(null, router),
+                List.of(gateway), false, false, null, null, null, null);
     }
 
     private static PluginFactoryRegistry testPfr() {
@@ -349,45 +421,6 @@ class RouterChainFactoryTest {
                         return Set.of();
                     }
                 };
-            }
-        };
-    }
-
-    private static RouterFactoryContext testContext() {
-        return new RouterFactoryContext() {
-            @Override
-            public String virtualClusterName() {
-                return "test-cluster";
-            }
-
-            @Override
-            public String routerName() {
-                return "test-router";
-            }
-
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return Set.of();
-            }
-
-            @Override
-            public Set<String> routeNames() {
-                return Set.of();
-            }
-
-            @Override
-            public TopologyService topologyService() {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public void allowSharedClusterTargets() {
-                // intentional no-op for test context
             }
         };
     }

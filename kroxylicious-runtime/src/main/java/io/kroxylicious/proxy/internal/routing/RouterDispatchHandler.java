@@ -17,6 +17,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.router.Router;
 
 /**
  * Sits at the end of the VC-level filter chain (replacing
@@ -29,13 +30,21 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
 
+    private final Router router;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
 
-    public RouterDispatchHandler(Map<ApiKeys, String> staticRoutes,
+    public RouterDispatchHandler(Router router,
+                                 Map<ApiKeys, String> staticRoutes,
                                  ClientConnectionStateMachine ccsm) {
+        this.router = router;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
+    }
+
+    @Override
+    public void handlerRemoved(ChannelHandlerContext ctx) {
+        router.close();
     }
 
     @Override

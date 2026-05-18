@@ -47,9 +47,7 @@ import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-import io.kroxylicious.proxy.topology.TopologyService;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -266,8 +264,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         if (virtualCluster.usesRouter()) {
             Objects.requireNonNull(routerChainFactory,
                     "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
-            var routerFactoryContext = createRouterFactoryContext(virtualCluster.getClusterName(), virtualCluster.routerName());
-            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), routerFactoryContext);
+            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
             Map<ApiKeys, String> staticRoutes = router.staticRoutes();
             if (!staticRoutes.isEmpty()) {
                 Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
@@ -277,7 +274,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             else {
                 dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
             }
-            var dispatchHandler = new RouterDispatchHandler(staticRoutes, clientConnectionStateMachine);
+            var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }
         else {
@@ -290,46 +287,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 .addKeyValue("channelId", ch::toString)
                 .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
-    }
-
-    private RouterFactoryContext createRouterFactoryContext(String virtualClusterName, String routerName) {
-        return new RouterFactoryContext() {
-            @Override
-            public String virtualClusterName() {
-                return virtualClusterName;
-            }
-
-            @Override
-            public String routerName() {
-                return routerName;
-            }
-
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass,
-                                        String implementationName) {
-                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
-            }
-
-            @Override
-            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
-            }
-
-            @Override
-            public Set<String> routeNames() {
-                return Set.of();
-            }
-
-            @Override
-            public TopologyService topologyService() {
-                throw new UnsupportedOperationException("TopologyService not available in this context");
-            }
-
-            @Override
-            public void allowSharedClusterTargets() {
-                // no-op: shared-cluster-target validation is not yet enforced by the runtime
-            }
-        };
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
