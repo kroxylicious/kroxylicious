@@ -103,5 +103,6 @@ public class TopicPartitionRouterFactory
     @Override
     public void close(@NonNull InitData initData) {
         initData.producerIdManager().close();
+        initData.fetchSessionCache().close();
     }
 }

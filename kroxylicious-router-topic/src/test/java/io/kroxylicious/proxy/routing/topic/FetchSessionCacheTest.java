@@ -55,6 +55,16 @@ class FetchSessionCacheTest {
     }
 
     @Test
+    void shouldRemoveMetricsOnClose() {
+        var cache = createCache(10, 0);
+        cache.close();
+
+        assertThat(registry.find(FetchSessionCache.ACTIVE_SESSIONS_METRIC).gauge()).isNull();
+        assertThat(registry.find(FetchSessionCache.PARTITIONS_CACHED_METRIC).gauge()).isNull();
+        assertThat(registry.find(FetchSessionCache.EVICTIONS_METRIC).counter()).isNull();
+    }
+
+    @Test
     void shouldCreateSessionWhenSlotsAvailable() {
         var cache = createCache(2, 0);
         int id = cache.maybeCreateSession(5, 1000);
