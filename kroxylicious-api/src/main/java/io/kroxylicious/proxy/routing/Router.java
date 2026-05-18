@@ -94,6 +94,18 @@ public interface Router {
                                                    RoutingContext context);
 
     /**
+     * Called by the runtime when the client connection is torn down.
+     *
+     * <p>Implementations should release any per-connection resources
+     * (e.g. reclaim cache slots).</p>
+     *
+     * <p>Guaranteed to be called on the same event loop thread as
+     * {@link #onClientRequest}. Called at most once per router instance.</p>
+     */
+    default void close() {
+    }
+
+    /**
      * Declares API keys that are always forwarded to a fixed named route
      * without deserialisation. For these API keys the runtime forwards
      * frames directly (opaque or decoded) without calling
