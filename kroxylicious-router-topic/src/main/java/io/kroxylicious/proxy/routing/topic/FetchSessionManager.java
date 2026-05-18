@@ -21,6 +21,8 @@ import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages bidirectional KIP-227 fetch sessions for a single client connection.
@@ -28,6 +30,8 @@ import org.apache.kafka.common.record.MemoryRecords;
  * for each upstream backend route.
  */
 class FetchSessionManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FetchSessionManager.class);
 
     static final short MIN_SESSION_VERSION = 7;
 
@@ -75,6 +79,9 @@ class FetchSessionManager {
 
         if (epoch == -1) {
             if (sessionId != clientSessionId) {
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", sessionId)
+                        .log("Client fetch session not found");
                 return sessionError(Errors.FETCH_SESSION_ID_NOT_FOUND);
             }
             clearClientSession();
@@ -83,18 +90,31 @@ class FetchSessionManager {
 
         // Incremental: sessionId != 0, epoch > 0
         if (sessionId != clientSessionId || !cache.isValid(clientSessionId)) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", sessionId)
+                    .log("Client fetch session not found");
             if (sessionId == clientSessionId) {
                 clearClientSession();
             }
             return sessionError(Errors.FETCH_SESSION_ID_NOT_FOUND);
         }
         if (epoch != clientNextEpoch) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("expectedEpoch", clientNextEpoch)
+                    .addKeyValue("actualEpoch", epoch)
+                    .log("Invalid client fetch session epoch");
             return sessionError(Errors.INVALID_FETCH_SESSION_EPOCH);
         }
 
         clientNextEpoch = epoch + 1;
         applyIncrementalChanges(request);
         cache.touch(clientSessionId, clientPartitions.size(), System.currentTimeMillis());
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", clientSessionId)
+                .addKeyValue("epoch", epoch)
+                .addKeyValue("partitionCount", clientPartitions.size())
+                .log("Processed incremental client fetch");
         return new ClientRequestResult.FullFetch(buildFullRequestFromState(request));
     }
 
@@ -105,12 +125,24 @@ class FetchSessionManager {
         if (id != 0) {
             clientSessionId = id;
             clientNextEpoch = 1;
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", id)
+                    .addKeyValue("partitionCount", clientPartitions.size())
+                    .log("Created client fetch session");
+        }
+        else {
+            LOGGER.atDebug()
+                    .addKeyValue("partitionCount", clientPartitions.size())
+                    .log("Client fetch session declined by cache");
         }
         return new ClientRequestResult.FullFetch(buildFullRequestFromState(request));
     }
 
     private void clearClientSession() {
         if (clientSessionId != 0) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", clientSessionId)
+                    .log("Closed client fetch session");
             cache.release(clientSessionId);
         }
         clientSessionId = 0;
