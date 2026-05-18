@@ -22,7 +22,8 @@ class ReconfigureErrorTest {
 
     @Test
     void constructorRejectsNullIdentifier() {
-        assertThatThrownBy(() -> new ReconfigureError(null, new RuntimeException()))
+        var cause = new RuntimeException();
+        assertThatThrownBy(() -> new ReconfigureError(null, cause))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("humanReadableIdentifier");
     }
@@ -40,7 +41,7 @@ class ReconfigureErrorTest {
         var a = new ReconfigureError("vc-1", cause);
         var b = new ReconfigureError("vc-1", cause);
         assertThat(a).isEqualTo(b);
-        assertThat(a.hashCode()).isEqualTo(b.hashCode());
+        assertThat(a).hasSameHashCodeAs(b);
     }
 
     @Test

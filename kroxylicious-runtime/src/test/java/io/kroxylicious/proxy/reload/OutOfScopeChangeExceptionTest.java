@@ -31,7 +31,8 @@ class OutOfScopeChangeExceptionTest {
     @Test
     void differingSectionsIsImmutable() {
         var ex = new OutOfScopeChangeException(Set.of("metrics"));
-        assertThatThrownBy(() -> ex.differingSections().add("admin"))
+        var sections = ex.differingSections();
+        assertThatThrownBy(() -> sections.add("admin"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 

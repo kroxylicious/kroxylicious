@@ -46,7 +46,9 @@ class ReconfigureResultTest {
     @Test
     void ofReturnsImmutableErrorsCollection() {
         var result = ReconfigureResult.of(List.of());
-        assertThatThrownBy(() -> result.errors().add(new ReconfigureError("x", new RuntimeException())))
+        var errors = result.errors();
+        var extra = new ReconfigureError("x", new RuntimeException());
+        assertThatThrownBy(() -> errors.add(extra))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
