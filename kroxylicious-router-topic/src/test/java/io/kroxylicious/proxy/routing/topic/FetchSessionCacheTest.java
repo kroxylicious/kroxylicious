@@ -5,15 +5,58 @@
  */
 package io.kroxylicious.proxy.routing.topic;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FetchSessionCacheTest {
 
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+
+    {
+        Metrics.globalRegistry.add(registry);
+    }
+
+    @AfterEach
+    void tearDown() {
+        Metrics.globalRegistry.remove(registry);
+        registry.close();
+    }
+
+    private static FetchSessionCache createCache(int maxSlots, long minEvictionMs) {
+        return new FetchSessionCache(maxSlots, minEvictionMs, "testVc", "testRouter");
+    }
+
+    @Test
+    void shouldTagMetricsWithVirtualClusterAndRouter() {
+        createCache(10, 0);
+
+        var sessions = registry.find(FetchSessionCache.ACTIVE_SESSIONS_METRIC)
+                .tag(FetchSessionCache.VIRTUAL_CLUSTER_TAG, "testVc")
+                .tag(FetchSessionCache.ROUTER_TAG, "testRouter")
+                .gauge();
+        assertThat(sessions).isNotNull();
+
+        var partitions = registry.find(FetchSessionCache.PARTITIONS_CACHED_METRIC)
+                .tag(FetchSessionCache.VIRTUAL_CLUSTER_TAG, "testVc")
+                .tag(FetchSessionCache.ROUTER_TAG, "testRouter")
+                .gauge();
+        assertThat(partitions).isNotNull();
+
+        var evictions = registry.find(FetchSessionCache.EVICTIONS_METRIC)
+                .tag(FetchSessionCache.VIRTUAL_CLUSTER_TAG, "testVc")
+                .tag(FetchSessionCache.ROUTER_TAG, "testRouter")
+                .counter();
+        assertThat(evictions).isNotNull();
+    }
+
     @Test
     void shouldCreateSessionWhenSlotsAvailable() {
-        var cache = new FetchSessionCache(2, 0);
+        var cache = createCache(2, 0);
         int id = cache.maybeCreateSession(5, 1000);
         assertThat(id).isGreaterThan(0);
         assertThat(cache.size()).isEqualTo(1);
@@ -22,7 +65,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldDeclineSessionWhenFullAndNoEvictable() {
-        var cache = new FetchSessionCache(1, 10_000);
+        var cache = createCache(1, 10_000);
         int id1 = cache.maybeCreateSession(5, 1000);
         assertThat(id1).isGreaterThan(0);
 
@@ -35,7 +78,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldEvictStaleSessionWhenFull() {
-        var cache = new FetchSessionCache(1, 100);
+        var cache = createCache(1, 100);
         int id1 = cache.maybeCreateSession(5, 1000);
         assertThat(id1).isGreaterThan(0);
 
@@ -50,7 +93,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldEvictSmallerSessionWhenFull() {
-        var cache = new FetchSessionCache(1, 100);
+        var cache = createCache(1, 100);
         int small = cache.maybeCreateSession(2, 1000);
         assertThat(small).isGreaterThan(0);
 
@@ -66,7 +109,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldNotEvictLargerSessionForSmallerProposal() {
-        var cache = new FetchSessionCache(1, 100);
+        var cache = createCache(1, 100);
         int large = cache.maybeCreateSession(10, 1000);
         assertThat(large).isGreaterThan(0);
 
@@ -81,7 +124,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldPreferStaleEvictionOverSizeEviction() {
-        var cache = new FetchSessionCache(1, 100);
+        var cache = createCache(1, 100);
         int stale = cache.maybeCreateSession(100, 1000);
         assertThat(stale).isGreaterThan(0);
 
@@ -93,7 +136,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldNotEvictRecentlyCreatedSession() {
-        var cache = new FetchSessionCache(1, 10_000);
+        var cache = createCache(1, 10_000);
         int recent = cache.maybeCreateSession(2, 1000);
         assertThat(recent).isGreaterThan(0);
 
@@ -105,7 +148,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldReleaseSlotOnExplicitRelease() {
-        var cache = new FetchSessionCache(1, 10_000);
+        var cache = createCache(1, 10_000);
         int id = cache.maybeCreateSession(5, 1000);
         assertThat(id).isGreaterThan(0);
 
@@ -120,7 +163,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldReportEvictedSessionAsInvalid() {
-        var cache = new FetchSessionCache(1, 0);
+        var cache = createCache(1, 0);
         int id1 = cache.maybeCreateSession(5, 1000);
         int id2 = cache.maybeCreateSession(5, 2000);
         assertThat(id2).isGreaterThan(0);
@@ -131,7 +174,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldUpdatePartitionCountOnTouch() {
-        var cache = new FetchSessionCache(1, 100);
+        var cache = createCache(1, 100);
         int small = cache.maybeCreateSession(2, 1000);
         assertThat(small).isGreaterThan(0);
 
@@ -145,7 +188,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldGenerateUniqueSessionIds() {
-        var cache = new FetchSessionCache(100, 0);
+        var cache = createCache(100, 0);
         var ids = new java.util.HashSet<Integer>();
         for (int i = 0; i < 50; i++) {
             int id = cache.maybeCreateSession(1, 1000 + i);
@@ -156,21 +199,21 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldHandleReleaseOfNonexistentSession() {
-        var cache = new FetchSessionCache(10, 0);
+        var cache = createCache(10, 0);
         cache.release(999);
         assertThat(cache.size()).isEqualTo(0);
     }
 
     @Test
     void shouldHandleTouchOfNonexistentSession() {
-        var cache = new FetchSessionCache(10, 0);
+        var cache = createCache(10, 0);
         cache.touch(999, 5, 1000);
         assertThat(cache.size()).isEqualTo(0);
     }
 
     @Test
     void shouldEvictLeastRecentlyUsedFirst() {
-        var cache = new FetchSessionCache(2, 100);
+        var cache = createCache(2, 100);
         int id1 = cache.maybeCreateSession(5, 1000);
         int id2 = cache.maybeCreateSession(5, 1001);
 
@@ -187,7 +230,7 @@ class FetchSessionCacheTest {
 
     @Test
     void shouldAllowZeroMaxSlots() {
-        var cache = new FetchSessionCache(0, 0);
+        var cache = createCache(0, 0);
         int id = cache.maybeCreateSession(5, 1000);
         assertThat(id).isEqualTo(0);
         assertThat(cache.size()).isEqualTo(0);
