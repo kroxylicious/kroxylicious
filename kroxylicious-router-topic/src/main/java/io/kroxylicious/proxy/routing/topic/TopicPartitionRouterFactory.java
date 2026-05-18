@@ -85,7 +85,9 @@ public class TopicPartitionRouterFactory
                 .log("Topic routing table initialised");
 
         return new InitData(routingTable, config.defaultRoute(),
-                new ProducerIdManager(ttl), new FetchSessionCache(maxSlots, evictionMs));
+                new ProducerIdManager(ttl),
+                new FetchSessionCache(maxSlots, evictionMs,
+                        context.virtualClusterName(), context.routerName()));
     }
 
     @Override

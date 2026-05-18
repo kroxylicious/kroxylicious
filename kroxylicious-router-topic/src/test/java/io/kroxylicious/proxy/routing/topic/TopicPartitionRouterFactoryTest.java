@@ -6,10 +6,12 @@
 package io.kroxylicious.proxy.routing.topic;
 
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.routing.RouterFactoryContext;
 import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
 import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
 
@@ -19,12 +21,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TopicPartitionRouterFactoryTest {
 
     private final TopicPartitionRouterFactory factory = new TopicPartitionRouterFactory();
+    private final RouterFactoryContext context = testContext("testVc", "testRouter");
 
     @Test
     void shouldInitialiseWithDefaultRouteOnly() {
         var config = new TopicPartitionRouterConfig("fallback", List.of());
 
-        var initData = factory.initialize(null, config);
+        var initData = factory.initialize(context, config);
 
         assertThat(initData.routingTable().allRoutes()).containsExactly("fallback");
     }
@@ -35,7 +38,7 @@ class TopicPartitionRouterFactoryTest {
                 new TopicRoute("cluster-a", List.of("orders.", "payments.")),
                 new TopicRoute("cluster-b", List.of("logs."))));
 
-        var initData = factory.initialize(null, config);
+        var initData = factory.initialize(context, config);
 
         assertThat(initData.routingTable().allRoutes())
                 .containsExactlyInAnyOrder("cluster-a", "cluster-b", "default-route");
@@ -48,7 +51,7 @@ class TopicPartitionRouterFactoryTest {
     void shouldRejectNoRoutesAndNoDefault() {
         var config = new TopicPartitionRouterConfig(null, List.of());
 
-        assertThatThrownBy(() -> factory.initialize(null, config))
+        assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("At least one topicRoute or a defaultRoute");
     }
@@ -59,7 +62,7 @@ class TopicPartitionRouterFactoryTest {
                 new TopicRoute("a", List.of("orders.")),
                 new TopicRoute("b", List.of("orders."))));
 
-        assertThatThrownBy(() -> factory.initialize(null, config))
+        assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("orders.")
                 .hasMessageContaining("assigned to both");
@@ -71,7 +74,7 @@ class TopicPartitionRouterFactoryTest {
                 new TopicRoute("a", List.of("orders.")),
                 new TopicRoute("b", List.of("orders.uk."))));
 
-        assertThatThrownBy(() -> factory.initialize(null, config))
+        assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("disjoint");
     }
@@ -81,10 +84,34 @@ class TopicPartitionRouterFactoryTest {
         var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new TopicRoute("cluster-a", List.of("orders."))));
 
-        var initData = factory.initialize(null, config);
-        var router = factory.createRouter(null, initData);
+        var initData = factory.initialize(context, config);
+        var router = factory.createRouter(context, initData);
 
         assertThat(router).isNotNull();
         assertThat(router.staticRoutes()).isNotEmpty();
+    }
+
+    private static RouterFactoryContext testContext(String vcName, String routerName) {
+        return new RouterFactoryContext() {
+            @Override
+            public String virtualClusterName() {
+                return vcName;
+            }
+
+            @Override
+            public String routerName() {
+                return routerName;
+            }
+
+            @Override
+            public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 }
