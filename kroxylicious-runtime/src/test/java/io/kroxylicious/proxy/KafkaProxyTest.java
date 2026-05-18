@@ -382,6 +382,53 @@ class KafkaProxyTest {
     }
 
     @Test
+    void shouldRejectReconfigureWithNullConfig() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            assertThatThrownBy(() -> proxy.reconfigure(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("newConfig");
+        }
+    }
+
+    @Test
+    void shouldRejectReconfigureBeforeStartup() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
+            assertThatThrownBy(() -> proxy.reconfigure(newConfig))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("This proxy is not running");
+        }
+    }
+
+    @Test
+    void shouldRejectReconfigureAfterShutdown() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            proxy.shutdown();
+            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
+            assertThatThrownBy(() -> proxy.reconfigure(newConfig))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("This proxy is not running");
+        }
+    }
+
+    @Test
+    void shouldDelegateReconfigureToOrchestrator() throws Exception {
+        // Proves the wiring: KafkaProxy.reconfigure() reaches the orchestrator, which
+        // runs its full pipeline and throws UOE at the swap point (this PR's placeholder).
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
+            var future = proxy.reconfigure(newConfig);
+            assertThat(future).isCompletedExceptionally();
+            assertThatThrownBy(future::join).cause()
+                    .isInstanceOf(UnsupportedOperationException.class)
+                    .hasMessageContaining("per-VC mechanics not yet implemented");
+        }
+    }
+
+    @Test
     @EnabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is not available")
     void shouldEnableIOUring() throws Exception {
         // Given

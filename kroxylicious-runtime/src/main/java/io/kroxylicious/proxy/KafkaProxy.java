@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -16,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -65,8 +67,10 @@ import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcesso
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -154,7 +158,16 @@ public final class KafkaProxy implements AutoCloseable {
     private final PluginFactoryRegistry pfr;
     private final VirtualClusterRegistry virtualClusterRegistry;
     private @Nullable MeterRegistries meterRegistries;
-    private @Nullable FilterChainFactory filterChainFactory;
+    /**
+     * Holds the currently-installed {@link FilterChainFactory}. Mutable so that a reconfigure
+     * operation can atomically swap in a new factory without restarting the proxy. Read by
+     * {@link KafkaProxyInitializer} on each new connection via a {@link java.util.function.Supplier}
+     * backed by {@link #filterChainFactoryRef}'s {@code get}; written by the orchestrator via
+     * {@link #swapFilterChainFactory(FilterChainFactory)}.
+     */
+    private final AtomicReference<FilterChainFactory> filterChainFactoryRef = new AtomicReference<>();
+
+    private @Nullable ConfigurationReloadOrchestrator reconfigureOrchestrator;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
@@ -261,16 +274,18 @@ public final class KafkaProxy implements AutoCloseable {
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
-            this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
+            this.filterChainFactoryRef.set(new FilterChainFactory(pfr, config.filterDefinitions()));
+            this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
+                    config, virtualClusterRegistry, this::swapFilterChainFactory, pfr);
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, virtualClusterRegistry));
+                    new KafkaProxyInitializer(filterChainFactoryRef::get, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode,
+                            apiVersionsService, proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, virtualClusterRegistry));
+                    new KafkaProxyInitializer(filterChainFactoryRef::get, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode,
+                            apiVersionsService, proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -386,6 +401,50 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
+     * Apply the given configuration to this running proxy, restarting only the virtual clusters
+     * whose effective configuration differs from the current running state. Unaffected clusters
+     * continue serving traffic throughout the reconfigure.
+     *
+     * <p>See {@link ConfigurationReloadOrchestrator} for the full pipeline shape (pre-flight
+     * static-section diff, concurrency control, change detection, per-VC execution, factory
+     * swap, result construction).
+     *
+     *
+     * @param newConfig the desired end-state configuration; must be non-null
+     * @return a future that completes with the reconfigure outcome
+     * @throws NullPointerException  if {@code newConfig} is {@code null}
+     * @throws IllegalStateException if the proxy is not in the running state
+     */
+    public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
+        Objects.requireNonNull(newConfig, "newConfig");
+        if (!running.get()) {
+            throw new IllegalStateException("This proxy is not running");
+        }
+        ConfigurationReloadOrchestrator orchestrator = reconfigureOrchestrator;
+        if (orchestrator == null) {
+            throw new IllegalStateException("Reconfigure orchestrator has not been initialised");
+        }
+        return orchestrator.reconfigure(newConfig);
+    }
+
+    /**
+     * Atomically swap the installed {@link FilterChainFactory} reference. Invoked by
+     * {@link ConfigurationReloadOrchestrator} after a successful reconfigure to install the
+     * new factory; the old factory's resources are closed once the swap completes.
+     *
+     * <p>Package-private: only the orchestrator should call this. {@link KafkaProxyInitializer}
+     * reads through the {@link AtomicReference} via a {@link java.util.function.Supplier} and
+     * does not call this method.
+     */
+    void swapFilterChainFactory(FilterChainFactory newFactory) {
+        Objects.requireNonNull(newFactory, "newFactory");
+        FilterChainFactory previous = filterChainFactoryRef.getAndSet(newFactory);
+        if (previous != null) {
+            previous.close();
+        }
+    }
+
+    /**
      * Shuts down a running proxy. The sequence is:
      * <ol>
      *   <li>Unbind ports — prevents new connections from arriving</li>
@@ -434,8 +493,9 @@ public final class KafkaProxy implements AutoCloseable {
             }
             closeFutures.forEach(Future::syncUninterruptibly);
 
-            if (filterChainFactory != null) {
-                filterChainFactory.close();
+            FilterChainFactory currentFilterChainFactory = filterChainFactoryRef.get();
+            if (currentFilterChainFactory != null) {
+                currentFilterChainFactory.close();
             }
             if (meterRegistries != null) {
                 meterRegistries.close();
@@ -447,7 +507,8 @@ public final class KafkaProxy implements AutoCloseable {
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
-            filterChainFactory = null;
+            filterChainFactoryRef.set(null);
+            reconfigureOrchestrator = null;
             shutdown.complete(null);
             LOGGER.atInfo()
                     .log("Shut down completed");

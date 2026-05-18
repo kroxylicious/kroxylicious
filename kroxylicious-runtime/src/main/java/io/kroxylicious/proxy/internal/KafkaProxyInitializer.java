@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +61,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
+    /**
+     * Read-only handle to the {@link FilterChainFactory} currently installed in {@code KafkaProxy}.
+     * {@code Supplier} (rather than a direct {@code FilterChainFactory} reference) so that a
+     * reconfigure operation that swaps the factory is picked up on each new connection. The owner
+     * (KafkaProxy) holds the mutable cell; this initializer only reads.
+     */
+    private final Supplier<FilterChainFactory> filterChainFactorySupplier;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
@@ -70,7 +77,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final VirtualClusterRegistry virtualClusterRegistry;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+    public KafkaProxyInitializer(Supplier<FilterChainFactory> filterChainFactorySupplier,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
@@ -84,7 +91,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactorySupplier = Objects.requireNonNull(filterChainFactorySupplier, "filterChainFactorySupplier");
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
@@ -246,7 +253,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
         var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
+                filterChainFactorySupplier.get(),
                 virtualCluster.getFilters(),
                 endpointReconciler,
                 apiVersionsService,

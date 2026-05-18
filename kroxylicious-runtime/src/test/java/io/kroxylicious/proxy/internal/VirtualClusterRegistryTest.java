@@ -625,4 +625,64 @@ class VirtualClusterRegistryTest {
         // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
+
+    // -----------------------------------------------------------------------------------------
+    // Stub reconfigure operations — currently no-op. The follow-up PR will replace these stubs
+    // with the real lifecycle transitions; until then we pin the contract: each stub completes
+    // its future immediately without mutating registry state, so the orchestrator can drive
+    // the full pipeline against this class even before per-VC mechanics land.
+    // -----------------------------------------------------------------------------------------
+
+    @Test
+    void removeVirtualClusterStubReturnsCompletedFutureWithoutMutatingState() {
+        // given
+        vcc.initializationSucceeded(CLUSTER_A);
+        var lifecycleBefore = vcc.lifecycleFor(CLUSTER_A);
+
+        // when
+        var future = vcc.removeVirtualCluster(CLUSTER_A);
+
+        // then
+        assertThat(future).isCompleted();
+        // the stub doesn't actually remove the lifecycle — that's the follow-up PR's job
+        assertThat(vcc.lifecycleFor(CLUSTER_A)).isSameAs(lifecycleBefore);
+    }
+
+    @Test
+    void replaceVirtualClusterStubReturnsCompletedFutureWithoutMutatingState() {
+        // given
+        vcc.initializationSucceeded(CLUSTER_A);
+        var lifecycleBefore = vcc.lifecycleFor(CLUSTER_A);
+        var newModel = mockModel(CLUSTER_A);
+
+        // when
+        var future = vcc.replaceVirtualCluster(CLUSTER_A, newModel);
+
+        // then
+        assertThat(future).isCompleted();
+        assertThat(vcc.lifecycleFor(CLUSTER_A)).isSameAs(lifecycleBefore);
+    }
+
+    @Test
+    void addVirtualClusterStubReturnsCompletedFutureWithoutCreatingLifecycle() {
+        // given
+        var newModel = mockModel(CLUSTER_B);
+        assertThat(vcc.lifecycleFor(CLUSTER_B)).isNull();
+
+        // when
+        var future = vcc.addVirtualCluster(newModel);
+
+        // then
+        assertThat(future).isCompleted();
+        // the stub doesn't actually create a lifecycle for the new cluster
+        assertThat(vcc.lifecycleFor(CLUSTER_B)).isNull();
+    }
+
+    @Test
+    void removeVirtualClusterStubAcceptsUnknownClusterName() {
+        // Unlike runtime-state methods, the stub does not validate the cluster name — when the
+        // real implementation lands, validation will be part of the lifecycle transition.
+        var future = vcc.removeVirtualCluster("never-existed");
+        assertThat(future).isCompleted();
+    }
 }
