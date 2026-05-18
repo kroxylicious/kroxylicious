@@ -132,52 +132,60 @@ public class ConfigurationReloadOrchestrator {
             // initialisation; a thrown exception propagates as a future-exceptional-completion
             // via the catch block below.
             FilterChainFactory newFactory = new FilterChainFactory(pfr, newConfig.filterDefinitions());
+            try {
+                // 4. Aggregate change-detector results.
+                var changeResult = aggregateChanges(currentConfiguration, newConfig);
 
-            // 4. Aggregate change-detector results.
-            var changeResult = aggregateChanges(currentConfiguration, newConfig);
+                // 5. Per-VC operations in order: remove -> replace -> add. These are no-ops in
+                // this PR — see VirtualClusterRegistry's stub methods and class-level Javadoc.
+                var newModelsByName = newConfig.virtualClusterModel(pfr).stream()
+                        .collect(Collectors.toMap(VirtualClusterModel::getClusterName, m -> m));
 
-            // 5. Per-VC operations in order: remove -> replace -> add. These are no-ops in
-            // this PR — see VirtualClusterRegistry's stub methods and class-level Javadoc.
-            var newModelsByName = newConfig.virtualClusterModel(pfr).stream()
-                    .collect(Collectors.toMap(VirtualClusterModel::getClusterName, m -> m));
+                // TODO (follow-up PR): when the registry methods become real:
+                // 1. wrap each .join() in try/catch to accumulate ReconfigureError into a list
+                // rather than aborting on the first failure — a failed cluster shouldn't
+                // prevent the others from being attempted.
+                // 2. parallelise within each phase via CompletableFuture.allOf — operations
+                // within a phase are independent; only the phase boundaries (remove →
+                // replace → add) must remain ordered.
+                // 3. on success: filterChainFactorySwap.accept(newFactory); update
+                // currentConfiguration; return ReconfigureResult.of(errors). The throw
+                // at step 6 below is what's keeping this PR honest about the missing work.
+                for (String name : changeResult.clustersToRemove()) {
+                    virtualClusterRegistry.removeVirtualCluster(name).join();
+                }
+                for (String name : changeResult.clustersToModify()) {
+                    VirtualClusterModel newModel = requireModel(newModelsByName, name);
+                    virtualClusterRegistry.replaceVirtualCluster(name, newModel).join();
+                }
+                for (String name : changeResult.clustersToAdd()) {
+                    VirtualClusterModel newModel = requireModel(newModelsByName, name);
+                    virtualClusterRegistry.addVirtualCluster(newModel).join();
+                }
 
-            // TODO (follow-up PR): when the registry methods become real:
-            // 1. wrap each .join() in try/catch to accumulate ReconfigureError into a list
-            // rather than aborting on the first failure — a failed cluster shouldn't
-            // prevent the others from being attempted.
-            // 2. parallelise within each phase via CompletableFuture.allOf — operations
-            // within a phase are independent; only the phase boundaries (remove →
-            // replace → add) must remain ordered.
-            // 3. on success: filterChainFactorySwap.accept(newFactory); update
-            // currentConfiguration; return ReconfigureResult.of(errors). The throw
-            // at step 6 below is what's keeping this PR honest about the missing work.
-            for (String name : changeResult.clustersToRemove()) {
-                virtualClusterRegistry.removeVirtualCluster(name).join();
+                // 6. PLACEHOLDER: throw until the follow-up PR implements the swap + result
+                // construction. The throw lands here intentionally — every phase above is real
+                // and will run on a real call to reconfigure(), but the proxy's state has not
+                // yet been mutated (per-VC ops are no-ops; FilterChainFactory is not swapped).
+                // Embedders calling reconfigure() therefore see a clear "feature not done"
+                // signal rather than a misleading "successful no-op" outcome.
+                throw new UnsupportedOperationException(
+                        "KafkaProxy.reconfigure() per-VC mechanics not yet implemented; coming in follow-up PR. "
+                                + "Pre-flight, concurrency, validation, and change detection have completed.");
+
+                // 7. (Follow-up PR) On success:
+                // filterChainFactorySwap.accept(newFactory);
+                // currentConfiguration = newConfig;
+                // return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
             }
-            for (String name : changeResult.clustersToModify()) {
-                VirtualClusterModel newModel = requireModel(newModelsByName, name);
-                virtualClusterRegistry.replaceVirtualCluster(name, newModel).join();
+            finally {
+                // TODO (follow-up PR): once filterChainFactorySwap.accept(newFactory) is
+                // wired up, ownership of newFactory transfers to KafkaProxy and this
+                // unconditional close will be removed
+                // This is done to satisfies the SonarQube error "Use try-with-resources
+                // or close this 'FilterChainFactory' in a 'finally' clause."
+                newFactory.close();
             }
-            for (String name : changeResult.clustersToAdd()) {
-                VirtualClusterModel newModel = requireModel(newModelsByName, name);
-                virtualClusterRegistry.addVirtualCluster(newModel).join();
-            }
-
-            // 6. PLACEHOLDER: throw until the follow-up PR implements the swap + result
-            // construction. The throw lands here intentionally — every phase above is real
-            // and will run on a real call to reconfigure(), but the proxy's state has not
-            // yet been mutated (per-VC ops are no-ops; FilterChainFactory is not swapped).
-            // Embedders calling reconfigure() therefore see a clear "feature not done"
-            // signal rather than a misleading "successful no-op" outcome.
-            newFactory.close(); // we built one but won't install it; release plugin resources
-            throw new UnsupportedOperationException(
-                    "KafkaProxy.reconfigure() per-VC mechanics not yet implemented; coming in follow-up PR. "
-                            + "Pre-flight, concurrency, validation, and change detection have completed.");
-
-            // 7. (Follow-up PR) On success:
-            // filterChainFactorySwap.accept(newFactory);
-            // currentConfiguration = newConfig;
-            // return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
         }
         catch (RuntimeException e) {
             return CompletableFuture.failedFuture(e);
