@@ -605,6 +605,7 @@
         <module>kroxylicious-kms-providers</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
+        <module>kroxylicious-cluster-inmemory</module>
         <module>kroxylicious-app</module>
         <module>kroxylicious-krpc-plugin</module>
         <module>kroxylicious-integration-test-support</module>
