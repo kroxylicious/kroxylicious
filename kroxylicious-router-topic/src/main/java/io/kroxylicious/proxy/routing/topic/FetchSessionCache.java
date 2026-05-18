@@ -13,6 +13,10 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.Metrics;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -32,8 +36,13 @@ class FetchSessionCache {
     static final int DEFAULT_MAX_SLOTS = 1000;
     static final long DEFAULT_MIN_EVICTION_MS = 120_000L;
 
+    static final String ACTIVE_SESSIONS_METRIC = "kroxylicious_fetch_session_active_sessions";
+    static final String PARTITIONS_CACHED_METRIC = "kroxylicious_fetch_session_partitions_cached";
+    static final String EVICTIONS_METRIC = "kroxylicious_fetch_session_evictions_total";
+
     private final int maxSlots;
     private final long minEvictionMs;
+    private final Counter evictionCounter;
 
     private final Map<Integer, SessionEntry> sessions = new HashMap<>();
     private final TreeMap<LastUsedKey, SessionEntry> lastUsed = new TreeMap<>();
@@ -43,6 +52,17 @@ class FetchSessionCache {
                       long minEvictionMs) {
         this.maxSlots = maxSlots;
         this.minEvictionMs = minEvictionMs;
+        this.evictionCounter = Counter.builder(EVICTIONS_METRIC)
+                .description("Number of fetch sessions evicted from the cache.")
+                .register(Metrics.globalRegistry);
+        Gauge.builder(ACTIVE_SESSIONS_METRIC, this, FetchSessionCache::size)
+                .strongReference(true)
+                .description("Number of active incremental fetch sessions.")
+                .register(Metrics.globalRegistry);
+        Gauge.builder(PARTITIONS_CACHED_METRIC, this, FetchSessionCache::totalPartitionsCached)
+                .strongReference(true)
+                .description("Total number of partitions cached across all fetch sessions.")
+                .register(Metrics.globalRegistry);
     }
 
     synchronized int maybeCreateSession(int partitionCount,
@@ -99,14 +119,23 @@ class FetchSessionCache {
         return sessions.size();
     }
 
+    synchronized int totalPartitionsCached() {
+        return sessions.values()
+                .stream()
+                .mapToInt(SessionEntry::partitionCount)
+                .sum();
+    }
+
     private boolean tryEvict(int proposedPartitionCount,
                              long nowMs) {
         var stalest = lastUsed.firstEntry();
         if (stalest == null) {
+            LOGGER.atTrace().log("No cache entries to evict");
             return false;
         }
         if (nowMs - stalest.getKey().lastUsedMs() >= minEvictionMs) {
             remove(stalest.getValue());
+            evictionCounter.increment();
             LOGGER.atTrace()
                     .addKeyValue("sessionId", stalest.getValue().id)
                     .log("Evicted stale fetch session");
@@ -120,6 +149,7 @@ class FetchSessionCache {
         var proposedKey = new EvictableKey(proposedPartitionCount, 0);
         if (proposedKey.compareTo(smallest.getKey()) > 0) {
             remove(smallest.getValue());
+            evictionCounter.increment();
             LOGGER.atTrace()
                     .addKeyValue("sessionId", smallest.getValue().id)
                     .addKeyValue("evictedPartitions", smallest.getValue().partitionCount)
@@ -128,6 +158,10 @@ class FetchSessionCache {
             return true;
         }
 
+        LOGGER.atTrace()
+                .addKeyValue("evictedPartitions", smallest.getValue().partitionCount)
+                .addKeyValue("proposedPartitions", proposedPartitionCount)
+                .log("Cannot evict, proposed session not larger");
         return false;
     }
 
