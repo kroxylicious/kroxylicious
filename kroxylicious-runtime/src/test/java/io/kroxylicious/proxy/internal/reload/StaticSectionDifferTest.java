@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
@@ -97,12 +98,11 @@ class StaticSectionDifferTest {
     @Test
     void changesToReconcilableSectionsAreIgnored() {
         // virtualClusters, filterDefinitions, defaultFilters all changed — but none are
-        // static, so the differ reports no diff. The orchestrator's change-detection pipeline
-        // handles these.
+        // static, so the differ reports no diff.
         var oldConfig = baseConfig();
         var newConfig = new Configuration(
                 oldConfig.management(),
-                List.of(), // changed: filterDefinitions (empty rather than null)
+                List.of(new NamedFilterDefinition("filter-a", "SomeFilterType", null)), // changed: filterDefinitions
                 List.of("filter-a"), // changed: defaultFilters
                 List.of(vc("different-cluster")), // changed: virtualClusters
                 oldConfig.micrometer(),
@@ -110,9 +110,6 @@ class StaticSectionDifferTest {
                 oldConfig.development(),
                 oldConfig.network(),
                 oldConfig.proxyProtocol());
-        // Configuration validation will throw if filterDefinitions are unused; sidestep by
-        // making filterDefinitions empty rather than non-empty. We only care that the differ
-        // doesn't flag these reconcilable sections.
         assertThat(differ.diff(oldConfig, newConfig)).isEmpty();
     }
 
