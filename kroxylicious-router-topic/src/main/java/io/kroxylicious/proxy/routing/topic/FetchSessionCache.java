@@ -46,6 +46,8 @@ class FetchSessionCache {
     private final int maxSlots;
     private final long minEvictionMs;
     private final Counter evictionCounter;
+    private final Gauge activeSessionsGauge;
+    private final Gauge partitionsCachedGauge;
 
     private final Map<Integer, SessionEntry> sessions = new HashMap<>();
     private final TreeMap<LastUsedKey, SessionEntry> lastUsed = new TreeMap<>();
@@ -62,13 +64,14 @@ class FetchSessionCache {
                 .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
                 .tag(ROUTER_TAG, routerName)
                 .register(Metrics.globalRegistry);
-        Gauge.builder(ACTIVE_SESSIONS_METRIC, this, FetchSessionCache::size)
+
+        this.activeSessionsGauge = Gauge.builder(ACTIVE_SESSIONS_METRIC, this, FetchSessionCache::size)
                 .strongReference(true)
                 .description("Number of active incremental fetch sessions.")
                 .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
                 .tag(ROUTER_TAG, routerName)
                 .register(Metrics.globalRegistry);
-        Gauge.builder(PARTITIONS_CACHED_METRIC, this, FetchSessionCache::totalPartitionsCached)
+        this.partitionsCachedGauge = Gauge.builder(PARTITIONS_CACHED_METRIC, this, FetchSessionCache::totalPartitionsCached)
                 .strongReference(true)
                 .description("Total number of partitions cached across all fetch sessions.")
                 .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
@@ -135,6 +138,12 @@ class FetchSessionCache {
                 .stream()
                 .mapToInt(SessionEntry::partitionCount)
                 .sum();
+    }
+
+    void close() {
+        Metrics.globalRegistry.remove(evictionCounter);
+        Metrics.globalRegistry.remove(activeSessionsGauge);
+        Metrics.globalRegistry.remove(partitionsCachedGauge);
     }
 
     private boolean tryEvict(int proposedPartitionCount,
