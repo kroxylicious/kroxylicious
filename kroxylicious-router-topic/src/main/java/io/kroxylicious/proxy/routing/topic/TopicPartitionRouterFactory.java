@@ -47,7 +47,9 @@ public class TopicPartitionRouterFactory
                     @Nullable String defaultRoute,
                     ProducerIdManager producerIdManager,
                     FetchSessionCache fetchSessionCache,
-                    Clock clock) {}
+                    Clock clock,
+                    String virtualClusterName,
+                    String routerName) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
@@ -106,7 +108,9 @@ public class TopicPartitionRouterFactory
                 new ProducerIdManager(ttl),
                 new FetchSessionCache(maxSlots, evictionMs,
                         context.virtualClusterName(), context.routerName()),
-                clock);
+                clock,
+                context.virtualClusterName(),
+                context.routerName());
     }
 
     @Override
@@ -117,7 +121,9 @@ public class TopicPartitionRouterFactory
                 initData.defaultRoute(),
                 initData.producerIdManager(),
                 initData.fetchSessionCache(),
-                initData.clock());
+                initData.clock(),
+                initData.virtualClusterName(),
+                initData.routerName());
     }
 
     @Override
