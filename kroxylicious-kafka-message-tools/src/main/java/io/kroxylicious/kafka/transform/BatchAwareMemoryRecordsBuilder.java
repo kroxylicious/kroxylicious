@@ -9,8 +9,6 @@ package io.kroxylicious.kafka.transform;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.EndTransactionMarker;
@@ -22,6 +20,8 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.SimpleRecord;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
+
+import io.kroxylicious.proxy.tag.NotThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

@@ -15,5 +15,6 @@
     <allow pkg="javax?\..*" regex="true"/>
     <allow pkg="org.slf4j"/>
     <allow pkg="edu.umd.cs.findbugs"/>
+    <allow pkg="io.kroxylicious.proxy.tag"/>
     <allow pkg="org.apache.kafka"/>
 </import-control>

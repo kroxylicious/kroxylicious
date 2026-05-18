@@ -13,8 +13,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
@@ -30,6 +28,7 @@ import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 class DeleteTopicsEnforcement extends ApiEnforcement<DeleteTopicsRequestData, DeleteTopicsResponseData> {
 
