@@ -264,7 +264,7 @@ public final class KafkaProxy implements AutoCloseable {
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
-            this.routerChainFactory = new RouterChainFactory(pfr, config.routerDefinitions());
+            this.routerChainFactory = new RouterChainFactory(pfr, config.virtualClusters(), config.routerDefinitions());
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();

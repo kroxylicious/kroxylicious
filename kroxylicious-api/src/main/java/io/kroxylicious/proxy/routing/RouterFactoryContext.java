@@ -12,9 +12,23 @@ import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 /**
  * Context for {@link RouterFactory} initialisation and router creation,
- * providing access to the plugin registry.
+ * providing access to the plugin registry and router identity.
  */
 public interface RouterFactoryContext {
+
+    /**
+     * Returns the name of the virtual cluster that owns this router.
+     *
+     * @return the virtual cluster name
+     */
+    String virtualClusterName();
+
+    /**
+     * Returns the name of this router, as declared in the router definition.
+     *
+     * @return the router name
+     */
+    String routerName();
 
     /**
      * Gets a plugin instance for the given plugin type and name.

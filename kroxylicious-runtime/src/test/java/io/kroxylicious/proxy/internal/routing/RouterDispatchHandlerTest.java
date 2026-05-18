@@ -51,6 +51,7 @@ class RouterDispatchHandlerTest {
 
     private static final TargetCluster TARGET = new TargetCluster("localhost:9092", Optional.empty());
     private static final int CORRELATION_ID = 42;
+    private static final int ROUTING_CORRELATION_ID = Integer.MIN_VALUE / 2;
 
     @Mock
     private ClientConnectionStateMachine ccsm;
@@ -148,12 +149,12 @@ class RouterDispatchHandlerTest {
         CompletableFuture<Response> future = new CompletableFuture<>();
         var pending = new RouterDispatchHandler.PendingResponse(
                 future, Timer.start(), "default", ApiKeys.FETCH);
-        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, pending);
+        RouterDispatchHandler.registerPendingResponse(channel, ROUTING_CORRELATION_ID, pending);
         pendingResponseCount.incrementAndGet();
 
-        var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
+        var responseHeader = new ResponseHeaderData().setCorrelationId(ROUTING_CORRELATION_ID);
         var responseBody = new FetchResponseData();
-        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, responseHeader, responseBody);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, responseHeader, responseBody);
 
         handler.onResponse(responseFrame);
 
@@ -166,16 +167,17 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldNotFailWhenResponseHasNoPendingFuture() {
+        when(ccsm.sessionId()).thenReturn("test-session");
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
-        var responseHeader = new ResponseHeaderData().setCorrelationId(999);
+        int unknownRoutingId = ROUTING_CORRELATION_ID + 999;
+        var responseHeader = new ResponseHeaderData().setCorrelationId(unknownRoutingId);
         var responseBody = new FetchResponseData();
-        var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, responseBody);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, unknownRoutingId, responseHeader, responseBody);
 
         handler.onResponse(responseFrame);
-        // should not throw — no pending futures so warning is suppressed
     }
 
     @Test
@@ -217,18 +219,21 @@ class RouterDispatchHandlerTest {
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
 
+        int routingId1 = ROUTING_CORRELATION_ID;
+        int routingId2 = ROUTING_CORRELATION_ID + 1;
+
         CompletableFuture<Response> future1 = new CompletableFuture<>();
         CompletableFuture<Response> future2 = new CompletableFuture<>();
 
-        RouterDispatchHandler.registerPendingResponse(channel, 1,
+        RouterDispatchHandler.registerPendingResponse(channel, routingId1,
                 new RouterDispatchHandler.PendingResponse(future1, Timer.start(), "default", ApiKeys.FETCH));
-        RouterDispatchHandler.registerPendingResponse(channel, 2,
+        RouterDispatchHandler.registerPendingResponse(channel, routingId2,
                 new RouterDispatchHandler.PendingResponse(future2, Timer.start(), "default", ApiKeys.FETCH));
 
         when(ccsm.clientChannel()).thenReturn(channel);
 
-        var header1 = new ResponseHeaderData().setCorrelationId(1);
-        handler.onResponse(new DecodedResponseFrame<>((short) 12, 1, header1, new FetchResponseData()));
+        var header1 = new ResponseHeaderData().setCorrelationId(routingId1);
+        handler.onResponse(new DecodedResponseFrame<>((short) 12, routingId1, header1, new FetchResponseData()));
 
         assertThat(future1).isCompleted();
         assertThat(future2).isNotCompleted();
@@ -280,10 +285,10 @@ class RouterDispatchHandlerTest {
         CompletableFuture<Response> future = new CompletableFuture<>();
         var pending = new RouterDispatchHandler.PendingResponse(
                 future, Timer.start(), "default", ApiKeys.FETCH);
-        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, pending);
+        RouterDispatchHandler.registerPendingResponse(channel, ROUTING_CORRELATION_ID, pending);
 
-        var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
-        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, responseHeader, new FetchResponseData());
+        var responseHeader = new ResponseHeaderData().setCorrelationId(ROUTING_CORRELATION_ID);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, responseHeader, new FetchResponseData());
 
         boolean handled = handler.onResponse(responseFrame);
 
@@ -293,12 +298,14 @@ class RouterDispatchHandlerTest {
 
     @Test
     void shouldReturnFalseFromOnResponseWhenNoPendingFuture() {
+        when(ccsm.sessionId()).thenReturn("test-session");
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
         when(ccsm.clientChannel()).thenReturn(channel);
 
-        var responseHeader = new ResponseHeaderData().setCorrelationId(999);
-        var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, new FetchResponseData());
+        int unknownRoutingId = ROUTING_CORRELATION_ID + 999;
+        var responseHeader = new ResponseHeaderData().setCorrelationId(unknownRoutingId);
+        var responseFrame = new DecodedResponseFrame<>((short) 12, unknownRoutingId, responseHeader, new FetchResponseData());
 
         boolean handled = handler.onResponse(responseFrame);
 
@@ -321,6 +328,26 @@ class RouterDispatchHandlerTest {
         var counter = meterRegistry.find("test_routing_requests").counter();
         assertThat(counter).isNotNull();
         assertThat(counter.count()).isEqualTo(1.0);
+    }
+
+    @Test
+    void shouldCloseRouterOnHandlerRemoved() {
+        var handler = createHandler(Map.of());
+        channel = new EmbeddedChannel(handler);
+
+        channel.pipeline().remove(handler);
+
+        verify(router).close();
+    }
+
+    @Test
+    void shouldCloseRouterOnChannelClose() {
+        var handler = createHandler(Map.of());
+        channel = new EmbeddedChannel(handler);
+
+        channel.close();
+
+        verify(router).close();
     }
 
     @Test
