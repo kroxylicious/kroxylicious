@@ -270,7 +270,7 @@ public final class KafkaProxy implements AutoCloseable {
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
-            this.routerChainFactory = new RouterChainFactory(pfr, config.routerDefinitions());
+            this.routerChainFactory = new RouterChainFactory(pfr, config.virtualClusters(), config.routerDefinitions());
             this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
                     config, virtualClusterRegistry, endpointRegistry, pfr,
                     ConfigurationReloadOrchestrator.defaultDetectors());

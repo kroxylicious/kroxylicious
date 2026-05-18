@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -270,8 +269,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         pipeline.addLast("frontendHandler", frontendHandler);
         if (virtualCluster.usesRouter() && routerChainFactory != null) {
-            var routerFactoryContext = createRouterFactoryContext(virtualCluster.getClusterName(), virtualCluster.routerName());
-            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), routerFactoryContext);
+            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
             var routeDescriptors = virtualCluster.routeDescriptors();
             Map<ApiKeys, String> staticRoutes = router.staticRoutes();
             if (!staticRoutes.isEmpty()) {
@@ -306,31 +304,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 .addKeyValue("channelId", ch::toString)
                 .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
-    }
-
-    private RouterFactoryContext createRouterFactoryContext(String virtualClusterName, String routerName) {
-        return new RouterFactoryContext() {
-            @Override
-            public String virtualClusterName() {
-                return virtualClusterName;
-            }
-
-            @Override
-            public String routerName() {
-                return routerName;
-            }
-
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass,
-                                        String implementationName) {
-                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
-            }
-
-            @Override
-            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
-            }
-        };
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
