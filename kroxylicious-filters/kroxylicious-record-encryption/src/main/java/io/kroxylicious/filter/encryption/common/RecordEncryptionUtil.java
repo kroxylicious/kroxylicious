@@ -11,9 +11,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MutableRecordBatch;
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.MemoryRecords;
+import org.apache.kafka.common.record.internal.MutableRecordBatch;
+import org.apache.kafka.common.record.internal.Record;
 import org.apache.kafka.common.utils.BufferSupplier;
 import org.apache.kafka.common.utils.CloseableIterator;
 

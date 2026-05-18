@@ -20,7 +20,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;

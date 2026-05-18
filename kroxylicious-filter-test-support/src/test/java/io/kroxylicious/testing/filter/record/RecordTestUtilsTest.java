@@ -6,7 +6,7 @@
 
 package io.kroxylicious.testing.filter.record;
 
-import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

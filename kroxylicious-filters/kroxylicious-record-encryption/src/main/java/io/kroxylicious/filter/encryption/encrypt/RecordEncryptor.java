@@ -11,8 +11,8 @@ import java.util.Objects;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.Record;
+import org.apache.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;

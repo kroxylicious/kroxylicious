@@ -5,7 +5,7 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;

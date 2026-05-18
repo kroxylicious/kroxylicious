@@ -9,7 +9,7 @@ package io.kroxylicious.filter.validation.validators.record;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 
 import io.kroxylicious.filter.validation.validators.Result;
 import io.kroxylicious.filter.validation.validators.bytebuf.BytebufValidator;
