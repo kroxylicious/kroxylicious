@@ -23,6 +23,7 @@ import org.apache.kafka.common.message.DeleteRecordsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
+import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
@@ -90,7 +91,9 @@ class TopicPartitionRouter implements Router {
             ApiKeys.CREATE_TOPICS,
             ApiKeys.DELETE_TOPICS,
             ApiKeys.CREATE_PARTITIONS,
-            ApiKeys.DELETE_RECORDS);
+            ApiKeys.DELETE_RECORDS,
+            ApiKeys.FIND_COORDINATOR,
+            ApiKeys.DESCRIBE_CLUSTER);
 
     static final String REJECTED_ASSIGNMENTS_METRIC = "kroxylicious_routing_rejected_assignments_total";
     static final String VIRTUAL_CLUSTER_TAG = "virtual_cluster";
@@ -193,6 +196,12 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.DELETE_RECORDS) {
             return handleDeleteRecords(header, (DeleteRecordsRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.FIND_COORDINATOR) {
+            return handleFindCoordinator(header, request, context);
+        }
+        if (apiKey == ApiKeys.DESCRIBE_CLUSTER) {
+            return handleDescribeCluster(header, request, context);
         }
 
         return context.sendRequest(defaultRoute, header, request)
@@ -898,6 +907,89 @@ class TopicPartitionRouter implements Router {
             for (var tr : capturedErrors.topics()) {
                 merged.topics().add(tr.duplicate());
             }
+            sendSyntheticResponse(context, merged);
+            return RoutingResult.completed();
+        });
+    }
+
+    private CompletionStage<RoutingResult> handleFindCoordinator(
+                                                                 RequestHeaderData header,
+                                                                 ApiMessage request,
+                                                                 RoutingContext context) {
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", defaultRoute)
+                .log("FIND_COORDINATOR forwarded to default route");
+
+        return context.sendRequest(defaultRoute, header, request)
+                .thenApply(response -> {
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                });
+    }
+
+    private CompletionStage<RoutingResult> handleDescribeCluster(
+                                                                 RequestHeaderData header,
+                                                                 ApiMessage request,
+                                                                 RoutingContext context) {
+        Set<String> allRoutes = routingTable.allRoutes();
+
+        if (allRoutes.size() == 1) {
+            return context.sendRequest(defaultRoute, header, request)
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("routeCount", allRoutes.size())
+                .log("DESCRIBE_CLUSTER fanning out across clusters");
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (String route : allRoutes) {
+            futures.put(route, context.sendRequest(route, header, request));
+        }
+
+        return collectAll(futures).thenApply(responses -> {
+            DescribeClusterResponseData base = null;
+            int maxThrottle = 0;
+
+            for (var entry : responses.entrySet()) {
+                var resp = (DescribeClusterResponseData) entry.getValue().body();
+                maxThrottle = Math.max(maxThrottle, resp.throttleTimeMs());
+                if (entry.getKey().equals(defaultRoute)) {
+                    base = resp;
+                }
+            }
+
+            if (base == null) {
+                base = (DescribeClusterResponseData) responses.values().iterator().next().body();
+            }
+
+            var merged = new DescribeClusterResponseData()
+                    .setErrorCode(base.errorCode())
+                    .setErrorMessage(base.errorMessage())
+                    .setClusterId(base.clusterId())
+                    .setControllerId(base.controllerId())
+                    .setClusterAuthorizedOperations(base.clusterAuthorizedOperations())
+                    .setEndpointType(base.endpointType())
+                    .setThrottleTimeMs(maxThrottle);
+
+            for (var resp : responses.values()) {
+                var body = (DescribeClusterResponseData) resp.body();
+                for (var broker : body.brokers()) {
+                    merged.brokers().add(broker.duplicate());
+                }
+            }
+
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("brokerCount", merged.brokers().size())
+                    .addKeyValue("clusterId", merged.clusterId())
+                    .log("Merged DESCRIBE_CLUSTER response");
+
             sendSyntheticResponse(context, merged);
             return RoutingResult.completed();
         });

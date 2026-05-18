@@ -18,12 +18,16 @@ import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.DescribeClusterRequestData;
+import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchRequestData.FetchPartition;
 import org.apache.kafka.common.message.FetchRequestData.FetchTopic;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
@@ -127,7 +131,9 @@ class TopicPartitionRouterTest {
                 .doesNotContainKey(ApiKeys.METADATA)
                 .doesNotContainKey(ApiKeys.FETCH)
                 .doesNotContainKey(ApiKeys.LIST_OFFSETS)
-                .doesNotContainKey(ApiKeys.OFFSET_COMMIT);
+                .doesNotContainKey(ApiKeys.OFFSET_COMMIT)
+                .doesNotContainKey(ApiKeys.FIND_COORDINATOR)
+                .doesNotContainKey(ApiKeys.DESCRIBE_CLUSTER);
     }
 
     // --- API_VERSIONS capping ---
@@ -781,7 +787,140 @@ class TopicPartitionRouterTest {
                 .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
     }
 
+    // --- FIND_COORDINATOR ---
+
+    @Test
+    void shouldForwardFindCoordinatorToDefaultRoute() {
+        var request = new FindCoordinatorRequestData()
+                .setKey("test-group")
+                .setKeyType((byte) 0);
+
+        var backendResp = new FindCoordinatorResponseData()
+                .setNodeId(1)
+                .setHost("broker-1")
+                .setPort(9092);
+
+        var ctx = new CapturingRoutingContext(Map.of("default-route", backendResp));
+        router.onClientRequest(
+                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
+        var resp = (FindCoordinatorResponseData) ctx.sentResponseBody();
+        assertThat(resp.nodeId()).isEqualTo(1);
+    }
+
+    // --- DESCRIBE_CLUSTER ---
+
+    @Test
+    void shouldFanOutDescribeClusterAndMergeBrokers() {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a",
+                new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"),
+                Clock.systemUTC(), "testVc", "testRouter");
+
+        var request = new DescribeClusterRequestData()
+                .setIncludeClusterAuthorizedOperations(false);
+
+        var respA = describeClusterResponse("cluster-A", 0, 100);
+        respA.brokers().add(describeClusterBroker(0, "hostA-0", 9092));
+        respA.brokers().add(describeClusterBroker(1, "hostA-1", 9093));
+
+        var respB = describeClusterResponse("cluster-B", 1, 200);
+        respB.brokers().add(describeClusterBroker(2, "hostB-0", 9092));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        twoRouteRouter.onClientRequest(
+                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx);
+
+        var merged = (DescribeClusterResponseData) ctx.sentResponseBody();
+        assertThat(merged.brokers()).hasSize(3);
+        assertThat(merged.brokers().find(0)).isNotNull();
+        assertThat(merged.brokers().find(1)).isNotNull();
+        assertThat(merged.brokers().find(2)).isNotNull();
+
+        twoRouteRouter.close();
+    }
+
+    @Test
+    void shouldUseDefaultRouteClusterFieldsInDescribeCluster() {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a",
+                new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"),
+                Clock.systemUTC(), "testVc", "testRouter");
+
+        var request = new DescribeClusterRequestData();
+
+        var respDefault = describeClusterResponse("default-cluster", 42, 100);
+        respDefault.setClusterAuthorizedOperations(0xFF);
+        respDefault.brokers().add(describeClusterBroker(0, "host0", 9092));
+
+        var respOther = describeClusterResponse("other-cluster", 99, 50);
+        respOther.setClusterAuthorizedOperations(0x01);
+        respOther.brokers().add(describeClusterBroker(1, "host1", 9092));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respDefault, "cluster-b", respOther));
+        twoRouteRouter.onClientRequest(
+                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx);
+
+        var merged = (DescribeClusterResponseData) ctx.sentResponseBody();
+        assertThat(merged.clusterId()).isEqualTo("default-cluster");
+        assertThat(merged.controllerId()).isEqualTo(42);
+        assertThat(merged.clusterAuthorizedOperations()).isEqualTo(0xFF);
+
+        twoRouteRouter.close();
+    }
+
+    @Test
+    void shouldTakeMaxThrottleTimeInDescribeCluster() {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a",
+                new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"),
+                Clock.systemUTC(), "testVc", "testRouter");
+
+        var request = new DescribeClusterRequestData();
+
+        var respA = describeClusterResponse("c1", 0, 100);
+        respA.brokers().add(describeClusterBroker(0, "h0", 9092));
+        var respB = describeClusterResponse("c2", 1, 300);
+        respB.brokers().add(describeClusterBroker(1, "h1", 9092));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        twoRouteRouter.onClientRequest(
+                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx);
+
+        var merged = (DescribeClusterResponseData) ctx.sentResponseBody();
+        assertThat(merged.throttleTimeMs()).isEqualTo(300);
+
+        twoRouteRouter.close();
+    }
+
     // --- helpers ---
+
+    private static DescribeClusterResponseData describeClusterResponse(String clusterId,
+                                                                       int controllerId,
+                                                                       int throttleTimeMs) {
+        return new DescribeClusterResponseData()
+                .setClusterId(clusterId)
+                .setControllerId(controllerId)
+                .setThrottleTimeMs(throttleTimeMs);
+    }
+
+    private static DescribeClusterResponseData.DescribeClusterBroker describeClusterBroker(
+                                                                                           int brokerId,
+                                                                                           String host,
+                                                                                           int port) {
+        return new DescribeClusterResponseData.DescribeClusterBroker()
+                .setBrokerId(brokerId)
+                .setHost(host)
+                .setPort(port);
+    }
 
     private static InitProducerIdResponseData initProducerIdResponse(long producerId,
                                                                      short producerEpoch) {
