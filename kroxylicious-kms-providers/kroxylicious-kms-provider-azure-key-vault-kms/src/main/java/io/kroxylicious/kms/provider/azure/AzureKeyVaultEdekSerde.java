@@ -11,11 +11,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.Objects;
 
-import javax.annotation.concurrent.ThreadSafe;
-
 import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

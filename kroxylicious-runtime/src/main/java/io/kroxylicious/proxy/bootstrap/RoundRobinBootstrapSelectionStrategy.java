@@ -8,11 +8,10 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.NotThreadSafe;
 
 /**
  * {@link BootstrapSelectionStrategy} that selects a server from the given list of servers as the bootstrap server in a round-robin fashion.

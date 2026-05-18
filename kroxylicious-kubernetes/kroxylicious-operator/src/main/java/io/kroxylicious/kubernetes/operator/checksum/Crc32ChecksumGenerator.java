@@ -11,8 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.zip.CRC32;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
+import io.kroxylicious.proxy.tag.NotThreadSafe;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
