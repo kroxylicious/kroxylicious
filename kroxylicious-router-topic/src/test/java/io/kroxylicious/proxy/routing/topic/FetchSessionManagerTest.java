@@ -30,7 +30,7 @@ class FetchSessionManagerTest {
 
     @BeforeEach
     void setUp() {
-        cache = new FetchSessionCache(1000, 0);
+        cache = new FetchSessionCache(1000, 0, "testVc", "testRouter");
         manager = new FetchSessionManager(cache);
     }
 
@@ -273,7 +273,7 @@ class FetchSessionManagerTest {
 
         @Test
         void shouldOperateSessionlessWhenCacheDeclines() {
-            var zeroSlotCache = new FetchSessionCache(0, 0);
+            var zeroSlotCache = new FetchSessionCache(0, 0, "testVc", "testRouter");
             var sessionless = new FetchSessionManager(zeroSlotCache);
 
             var request = fetchRequest("topic-a");
@@ -316,7 +316,7 @@ class FetchSessionManagerTest {
 
         @Test
         void shouldReleaseCacheSlotOnSessionClose() {
-            var oneSlotCache = new FetchSessionCache(1, 0);
+            var oneSlotCache = new FetchSessionCache(1, 0, "testVc", "testRouter");
             var mgr = new FetchSessionManager(oneSlotCache);
 
             var create = fetchRequest("topic-a");
