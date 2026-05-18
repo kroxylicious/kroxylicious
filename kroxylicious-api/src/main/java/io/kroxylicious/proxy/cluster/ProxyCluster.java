@@ -23,7 +23,7 @@ import java.util.Set;
  *   <li><b>Leader election</b> — at most one leader per virtual cluster at any time (no split-brain).
  *       If the leader fails, a new leader is eventually elected.</li>
  *   <li><b>Partition assignment</b> — linearisable or epoch-fenced. Every partition assigned to
- *       exactly one live member. All members must agree on the assignment before router.</li>
+ *       exactly one live member. All members must agree on the assignment before routing.</li>
  * </ul>
  *
  * <p>Eventual-consistency systems (e.g. Kubernetes leases) may not satisfy these requirements
