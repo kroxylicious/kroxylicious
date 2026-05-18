@@ -562,7 +562,9 @@ class KafkaProxyReconcilerTest {
         var existingConditions = Optional.ofNullable(proxy.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
-        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, (StatusFactory<KafkaProxy>) statusFactory, existingConditions);
+        // Need to be explicit with the type here to stop SonarQube from complaining
+        DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> deprecationCheckContext = new DeprecationCheckContext<>(proxy,
+                statusFactory, existingConditions);
 
         // When
         deprecationCheckers.forEach(checker -> checker.check(deprecationCheckContext));

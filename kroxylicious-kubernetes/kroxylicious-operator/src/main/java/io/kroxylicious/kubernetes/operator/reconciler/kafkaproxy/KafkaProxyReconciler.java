@@ -493,7 +493,9 @@ public class KafkaProxyReconciler implements
         var existingConditions = Optional.ofNullable(primary.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
-        var deprecationCheckContext = new DeprecationCheckContext<>(primary, (StatusFactory<KafkaProxy>) statusFactory, existingConditions);
+        // Need to be explicit with the type here to stop SonarQube from complaining
+        DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> deprecationCheckContext = new DeprecationCheckContext<>(primary,
+                statusFactory, existingConditions);
         DEPRECATION_CHECKERS.forEach(checker -> checker.check(deprecationCheckContext));
 
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)
