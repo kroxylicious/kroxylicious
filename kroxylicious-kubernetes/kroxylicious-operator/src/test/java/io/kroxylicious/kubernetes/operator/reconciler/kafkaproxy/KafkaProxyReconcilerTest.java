@@ -26,8 +26,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.spi.LoggingEventBuilder;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -57,11 +55,7 @@ import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class KafkaProxyReconcilerTest {
@@ -562,26 +556,19 @@ class KafkaProxyReconcilerTest {
     @MethodSource("absentSourceScenarios")
     void shouldWarnAboutAbsentSpec(KafkaProxy proxy, boolean warnExpected) {
         // Given
-        var logger = mock(Logger.class);
-        var eventBuilder = mock(LoggingEventBuilder.class);
-        when(eventBuilder.addKeyValue(anyString(), anyString())).thenReturn(eventBuilder);
-        when(logger.atWarn()).thenReturn(eventBuilder);
-
         var statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(TEST_CLOCK));
         List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>>> deprecationCheckers = List.of(
                 new AbsentSpecDeprecationChecker());
         var existingConditions = Optional.ofNullable(proxy.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
-        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, logger, (StatusFactory<KafkaProxy>) statusFactory, TEST_CLOCK, existingConditions);
+        var deprecationCheckContext = new DeprecationCheckContext<>(proxy, (StatusFactory<KafkaProxy>) statusFactory, existingConditions);
 
         // When
         deprecationCheckers.forEach(checker -> checker.check(deprecationCheckContext));
         // Then
 
         if (warnExpected) {
-            verify(logger).atWarn();
-            verify(eventBuilder).log(DEPRECATION_SPEC_MESSAGE);
             assertThat(deprecationCheckContext.conditions()).hasSize(1).allSatisfy(condition -> {
                 assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
                 assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
@@ -590,7 +577,6 @@ class KafkaProxyReconcilerTest {
             });
         }
         else {
-            verifyNoInteractions(logger);
             assertThat(deprecationCheckContext.conditions()).isEmpty();
         }
     }

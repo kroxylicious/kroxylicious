@@ -13,8 +13,8 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 /**
  * Checks a custom resource for deprecations.
  * <p>
- * If found, uses {@link DeprecationCheckContext#addConditionAndLogWarning} to simultaneously
- * add a status condition to the custom resource and log a warning.
+ * If found, uses {@link DeprecationCheckContext#addCondition} to add a
+ * status condition to the custom resource.
  *
  * @param <S> the spec type of the custom resource
  * @param <T> the status type of the custom resource
@@ -28,7 +28,7 @@ public interface DeprecationChecker<S, T, R extends CustomResource<S, T>, F exte
     /**
      * Performs the deprecation check against {@link DeprecationCheckContext#resource()}.
      * <p>
-     * Implementations should call {@link DeprecationCheckContext#addConditionAndLogWarning} for each
+     * Implementations should call {@link DeprecationCheckContext#addCondition} for each
      * deprecation detected.
      *
      * @param context see {@link DeprecationCheckContext}

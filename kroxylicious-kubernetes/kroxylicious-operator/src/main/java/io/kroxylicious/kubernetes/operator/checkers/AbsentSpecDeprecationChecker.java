@@ -6,11 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.checkers;
 
-import java.util.Optional;
-
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
-
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
@@ -20,7 +15,7 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 /**
  * Checks whether a {@link KafkaProxy} resource has a {@code null} spec.
  * <p>
- * If true, appends a {@link io.kroxylicious.kubernetes.api.common.Condition.Type#DeprecationWarning} condition and logs a warning.
+ * If true, appends a {@link io.kroxylicious.kubernetes.api.common.Condition.Type#DeprecationWarning} condition.
  *
  * @see DeprecationCheckContext
  */
@@ -31,13 +26,8 @@ public class AbsentSpecDeprecationChecker implements DeprecationChecker<KafkaPro
     public void check(DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> context) {
         var proxy = context.resource();
 
-        Optional.ofNullable(proxy)
-                .map(HasMetadata::getMetadata)
-                .map(ObjectMeta::getUid)
-                .ifPresent(uid -> {
-                    if (proxy.getSpec() == null) {
-                        context.addConditionAndLogWarning(Condition.Type.DeprecationWarning, MESSAGE);
-                    }
-                });
+        if (proxy.getSpec() == null) {
+            context.addCondition(Condition.Type.DeprecationWarning, MESSAGE);
+        }
     }
 }

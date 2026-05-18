@@ -493,7 +493,7 @@ public class KafkaProxyReconciler implements
         var existingConditions = Optional.ofNullable(primary.getStatus())
                 .map(KafkaProxyStatus::getConditions)
                 .orElse(List.of());
-        var deprecationCheckContext = new DeprecationCheckContext<>(primary, LOGGER, (StatusFactory<KafkaProxy>) statusFactory, clock, existingConditions);
+        var deprecationCheckContext = new DeprecationCheckContext<>(primary, (StatusFactory<KafkaProxy>) statusFactory, existingConditions);
         DEPRECATION_CHECKERS.forEach(checker -> checker.check(deprecationCheckContext));
 
         Integer readyReplicas = context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP)
