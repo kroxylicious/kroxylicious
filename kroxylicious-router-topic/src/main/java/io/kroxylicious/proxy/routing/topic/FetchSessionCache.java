@@ -40,6 +40,9 @@ class FetchSessionCache {
     static final String PARTITIONS_CACHED_METRIC = "kroxylicious_fetch_session_partitions_cached";
     static final String EVICTIONS_METRIC = "kroxylicious_fetch_session_evictions_total";
 
+    static final String VIRTUAL_CLUSTER_TAG = "virtual_cluster";
+    static final String ROUTER_TAG = "router";
+
     private final int maxSlots;
     private final long minEvictionMs;
     private final Counter evictionCounter;
@@ -49,19 +52,27 @@ class FetchSessionCache {
     private final TreeMap<EvictableKey, SessionEntry> evictable = new TreeMap<>();
 
     FetchSessionCache(int maxSlots,
-                      long minEvictionMs) {
+                      long minEvictionMs,
+                      String virtualClusterName,
+                      String routerName) {
         this.maxSlots = maxSlots;
         this.minEvictionMs = minEvictionMs;
         this.evictionCounter = Counter.builder(EVICTIONS_METRIC)
                 .description("Number of fetch sessions evicted from the cache.")
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(ROUTER_TAG, routerName)
                 .register(Metrics.globalRegistry);
         Gauge.builder(ACTIVE_SESSIONS_METRIC, this, FetchSessionCache::size)
                 .strongReference(true)
                 .description("Number of active incremental fetch sessions.")
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(ROUTER_TAG, routerName)
                 .register(Metrics.globalRegistry);
         Gauge.builder(PARTITIONS_CACHED_METRIC, this, FetchSessionCache::totalPartitionsCached)
                 .strongReference(true)
                 .description("Total number of partitions cached across all fetch sessions.")
+                .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
+                .tag(ROUTER_TAG, routerName)
                 .register(Metrics.globalRegistry);
     }
 
