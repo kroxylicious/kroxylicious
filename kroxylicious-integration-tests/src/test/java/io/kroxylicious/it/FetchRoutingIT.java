@@ -31,10 +31,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.internal.routing.RoutingEvent;
 import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.tester.ManagementClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.testing.integration.tester.SimpleMetricAssert.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -670,9 +672,11 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
         String topicB = "b.stale";
         createTopic(topicA, clusterA);
         createTopic(topicB, clusterB);
-        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ZERO);
+        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ZERO)
+                .withNewManagement().withNewEndpoints().withNewPrometheus().endPrometheus().endEndpoints().endManagement();
 
-        try (var tester = kroxyliciousTester(config)) {
+        try (var tester = kroxyliciousTester(config);
+                var mgmt = tester.getManagementClient()) {
             produceOneRecord(tester, topicA, "val-a");
             produceOneRecord(tester, topicB, "val-b");
 
@@ -692,6 +696,8 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 assertThat(sessionIdA)
                         .as("client A should get a session")
                         .isGreaterThan(0);
+                assertActiveSessionsEquals(mgmt, 1.0);
+                assertPartitionsCachedEquals(mgmt, 2.0);
 
                 // Client B creates a session — evicts A's stale session
                 try (var clientB = tester.simpleTestClient()) {
@@ -707,6 +713,8 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                     assertThat(respB.sessionId())
                             .as("client B should get a session (A was stale-evicted)")
                             .isGreaterThan(0);
+                    assertActiveSessionsEquals(mgmt, 1.0);
+                    assertEvictionsEquals(mgmt, 1.0);
                 }
 
                 // Client A sends incremental — should fail
@@ -730,9 +738,11 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
         String topicB = "b.decline";
         createTopic(topicA, clusterA);
         createTopic(topicB, clusterB);
-        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMinutes(10));
+        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMinutes(10))
+                .withNewManagement().withNewEndpoints().withNewPrometheus().endPrometheus().endEndpoints().endManagement();
 
-        try (var tester = kroxyliciousTester(config)) {
+        try (var tester = kroxyliciousTester(config);
+                var mgmt = tester.getManagementClient()) {
             produceOneRecord(tester, topicA, "val-a");
             produceOneRecord(tester, topicB, "val-b");
 
@@ -751,6 +761,7 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 assertThat(sessionIdA)
                         .as("client A should get a session")
                         .isGreaterThan(0);
+                assertActiveSessionsEquals(mgmt, 1.0);
 
                 // Client B tries to create a session — declined (A too recent to evict)
                 try (var clientB = tester.simpleTestClient()) {
@@ -773,6 +784,8 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                             .extracting(FetchResponseData.FetchableTopicResponse::topic)
                             .as("client B should still receive data despite no session")
                             .containsExactlyInAnyOrder(topicA, topicB);
+                    assertActiveSessionsEquals(mgmt, 1.0);
+                    assertEvictionsEquals(mgmt, 0.0);
                 }
 
                 // Client A's session is still valid
@@ -797,9 +810,11 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
         String topicB = "b.size";
         createTopic(topicA, clusterA);
         createTopic(topicB, clusterB);
-        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMillis(500));
+        var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMillis(500))
+                .withNewManagement().withNewEndpoints().withNewPrometheus().endPrometheus().endEndpoints().endManagement();
 
-        try (var tester = kroxyliciousTester(config)) {
+        try (var tester = kroxyliciousTester(config);
+                var mgmt = tester.getManagementClient()) {
             produceOneRecord(tester, topicA, "val-a");
             produceOneRecord(tester, topicB, "val-b");
 
@@ -818,6 +833,8 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 assertThat(sessionIdA)
                         .as("client A should get a session")
                         .isGreaterThan(0);
+                assertActiveSessionsEquals(mgmt, 1.0);
+                assertPartitionsCachedEquals(mgmt, 1.0);
 
                 // Wait for A's session to age past minEviction into the evictable tree
                 Thread.sleep(600);
@@ -848,6 +865,9 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                     assertThat(respB.sessionId())
                             .as("client B should evict A's smaller session")
                             .isGreaterThan(0);
+                    assertActiveSessionsEquals(mgmt, 1.0);
+                    assertPartitionsCachedEquals(mgmt, 2.0);
+                    assertEvictionsEquals(mgmt, 1.0);
                 }
 
                 // Client A's session was evicted
@@ -904,5 +924,32 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 .filter(e -> e.route().equals(route))
                 .filter(e -> e.apiKey() == ApiKeys.FETCH)
                 .toList();
+    }
+
+    private static void assertActiveSessionsEquals(ManagementClient mgmt,
+                                                   double expected) {
+        assertThat(mgmt.scrapeMetrics())
+                .filterByName("kroxylicious_fetch_session_active_sessions")
+                .singleElement()
+                .value()
+                .isEqualTo(expected);
+    }
+
+    private static void assertPartitionsCachedEquals(ManagementClient mgmt,
+                                                     double expected) {
+        assertThat(mgmt.scrapeMetrics())
+                .filterByName("kroxylicious_fetch_session_partitions_cached")
+                .singleElement()
+                .value()
+                .isEqualTo(expected);
+    }
+
+    private static void assertEvictionsEquals(ManagementClient mgmt,
+                                              double expected) {
+        assertThat(mgmt.scrapeMetrics())
+                .filterByName("kroxylicious_fetch_session_evictions_total")
+                .singleElement()
+                .value()
+                .isEqualTo(expected);
     }
 }
