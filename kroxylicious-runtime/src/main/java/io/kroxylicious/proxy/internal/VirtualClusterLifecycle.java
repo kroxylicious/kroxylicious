@@ -144,7 +144,7 @@ public class VirtualClusterLifecycle {
     }
 
     public synchronized boolean registerConnection(ProxyChannelStateMachine pcsm) {
-        if (state instanceof Draining || state instanceof Stopped) {
+        if (!(state instanceof Serving)) {
             return false;
         }
         activeConnections.add(pcsm);
