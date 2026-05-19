@@ -25,7 +25,6 @@ import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.spy;
 
 class AbsentSpecDeprecationCheckerTest {
 
@@ -42,7 +41,7 @@ class AbsentSpecDeprecationCheckerTest {
     void setUp() {
         statusFactory = KafkaProxyReconciler.newStatusFactory(TEST_CLOCK);
         checker = new AbsentSpecDeprecationChecker();
-        existingConditions = spy(new ArrayList<>());
+        existingConditions = new ArrayList<>();
     }
 
     @Test
