@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.checkers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import io.fabric8.kubernetes.client.CustomResource;
@@ -38,9 +39,9 @@ public class DeprecationCheckContext<S, T, R extends CustomResource<S, T>, F ext
     private final List<Condition> conditions = new ArrayList<>();
 
     public DeprecationCheckContext(R resource, F statusFactory, List<Condition> existingConditions) {
-        this.resource = resource;
-        this.statusFactory = statusFactory;
-        this.existingConditions = existingConditions;
+        this.resource = Objects.requireNonNull(resource);
+        this.statusFactory = Objects.requireNonNull(statusFactory);
+        this.existingConditions = Objects.requireNonNull(existingConditions);
     }
 
     /**
