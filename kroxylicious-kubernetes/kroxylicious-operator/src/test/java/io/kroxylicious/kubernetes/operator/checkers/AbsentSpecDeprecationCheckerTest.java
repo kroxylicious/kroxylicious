@@ -85,10 +85,11 @@ class AbsentSpecDeprecationCheckerTest {
         var ctx1 = contextFor(proxy);
         var ctx2 = contextFor(proxy);
 
-        // When
         checker.check(ctx1);
         replaceExistingConditions(ctx1.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
+
+        // When
         checker.check(ctx2);
 
         // Then
@@ -109,13 +110,14 @@ class AbsentSpecDeprecationCheckerTest {
         var ctxPresent = contextFor(presentProxy);
         var ctxAbsent2 = contextFor(absentProxy);
 
-        // When
         checker.check(ctxAbsent1); // spec absent = condition added
         replaceExistingConditions(ctxAbsent1.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
         checker.check(ctxPresent); // spec present = condition removed
         replaceExistingConditions(ctxPresent.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
+
+        // When
         checker.check(ctxAbsent2); // spec absent again = condition added
 
         // Then
