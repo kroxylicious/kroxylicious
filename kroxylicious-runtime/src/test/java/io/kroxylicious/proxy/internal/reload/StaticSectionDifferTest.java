@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -58,6 +59,16 @@ class StaticSectionDifferTest {
         var oldConfig = baseConfig();
         var newConfig = withProxyProtocol(oldConfig, new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
         assertThat(differ.diff(oldConfig, newConfig)).containsExactly("proxyProtocol");
+    }
+
+    @Test
+    void differingMicrometerIsDetected() {
+        var oldConfig = baseConfig();
+        var newConfig = new Configuration(oldConfig.management(), oldConfig.filterDefinitions(),
+                oldConfig.defaultFilters(), oldConfig.virtualClusters(),
+                List.of(new MicrometerDefinition("SomeMicrometerType", null)), // different from base's null
+                oldConfig.useIoUring(), oldConfig.development(), oldConfig.network(), oldConfig.proxyProtocol());
+        assertThat(differ.diff(oldConfig, newConfig)).containsExactly("micrometer");
     }
 
     @Test
