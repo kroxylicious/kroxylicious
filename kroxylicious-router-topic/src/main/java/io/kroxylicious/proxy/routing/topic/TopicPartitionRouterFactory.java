@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.routing.topic;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -45,6 +46,7 @@ public class TopicPartitionRouterFactory
 
     record InitData(PrefixTopicRoutingTable routingTable,
                     @Nullable String defaultRoute,
+                    Map<String, String> transactionalUserRoutes,
                     ProducerIdManager producerIdManager,
                     FetchSessionCache fetchSessionCache,
                     Clock clock,
@@ -90,13 +92,27 @@ public class TopicPartitionRouterFactory
                 ? config.minFetchSessionEviction().toMillis()
                 : FetchSessionCache.DEFAULT_MIN_EVICTION_MS;
 
+        Map<String, String> txnUserRoutes = config.transactionalUserRoutes() != null
+                ? Map.copyOf(config.transactionalUserRoutes())
+                : Map.of();
+
+        Set<String> allRouteNames = routingTable.allRoutes();
+        for (var entry : txnUserRoutes.entrySet()) {
+            if (!allRouteNames.contains(entry.getValue())) {
+                throw new PluginConfigurationException(
+                        "transactionalUserRoutes maps user '" + entry.getKey()
+                                + "' to unknown route '" + entry.getValue() + "'");
+            }
+        }
+
         LOGGER.atInfo()
                 .addKeyValue("defaultRoute", config.defaultRoute())
                 .addKeyValue("prefixCount", prefixToRoute.size())
-                .addKeyValue("routeCount", routingTable.allRoutes().size())
+                .addKeyValue("routeCount", allRouteNames.size())
                 .addKeyValue("producerIdTtl", ttl)
                 .addKeyValue("maxFetchSessionCacheSlots", maxSlots)
                 .addKeyValue("minFetchSessionEvictionMs", evictionMs)
+                .addKeyValue("transactionalUserRouteCount", txnUserRoutes.size())
                 .log("Topic routing table initialised");
 
         Clock clock = clockOverride.get();
@@ -105,6 +121,7 @@ public class TopicPartitionRouterFactory
         }
 
         return new InitData(routingTable, config.defaultRoute(),
+                txnUserRoutes,
                 new ProducerIdManager(ttl),
                 new FetchSessionCache(maxSlots, evictionMs,
                         context.virtualClusterName(), context.routerName()),
@@ -119,6 +136,7 @@ public class TopicPartitionRouterFactory
         return new TopicPartitionRouter(
                 initData.routingTable(),
                 initData.defaultRoute(),
+                initData.transactionalUserRoutes(),
                 initData.producerIdManager(),
                 initData.fetchSessionCache(),
                 initData.clock(),
