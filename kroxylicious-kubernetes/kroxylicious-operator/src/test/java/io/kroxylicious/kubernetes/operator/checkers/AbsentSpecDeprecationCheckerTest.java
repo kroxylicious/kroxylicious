@@ -48,13 +48,13 @@ class AbsentSpecDeprecationCheckerTest {
     void absentSpecShouldAddDeprecationWarningCondition() {
         // Given
         var proxy = proxyWithoutSpec();
-        var ctx = contextFor(proxy);
+        var absentSpecContext = contextFor(proxy);
 
         // When
-        checker.check(ctx);
+        checker.check(absentSpecContext);
 
         // Then
-        assertThat(ctx.conditions())
+        assertThat(absentSpecContext.conditions())
                 .hasSize(1)
                 .singleElement()
                 .satisfies(condition -> {
@@ -69,35 +69,35 @@ class AbsentSpecDeprecationCheckerTest {
     void presentSpecShouldNotAddCondition() {
         // Given
         var proxy = proxyWithSpec();
-        var ctx = contextFor(proxy);
+        var presentSpecContext = contextFor(proxy);
 
         // When
-        checker.check(ctx);
+        checker.check(presentSpecContext);
 
         // Then
-        assertThat(ctx.conditions()).isEmpty();
+        assertThat(presentSpecContext.conditions()).isEmpty();
     }
 
     @Test
     void absentSpecOnSubsequentReconcileOfSameResourceShouldPreserveCondition() {
         // Given
         var proxy = proxyWithoutSpec();
-        var ctx1 = contextFor(proxy);
-        var ctx2 = contextFor(proxy);
+        var absentSpecContextBefore = contextFor(proxy);
+        var absentSpecContextAfter = contextFor(proxy);
 
-        checker.check(ctx1);
-        replaceExistingConditions(ctx1.conditions());
+        checker.check(absentSpecContextBefore);
+        replaceExistingConditions(absentSpecContextBefore.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
 
         // When
-        checker.check(ctx2);
+        checker.check(absentSpecContextAfter);
 
         // Then
         // The condition is added on each reconcile
-        assertThat(ctx1.conditions()).hasSize(1);
-        assertThat(ctx2.conditions()).hasSize(1);
+        assertThat(absentSpecContextBefore.conditions()).hasSize(1);
+        assertThat(absentSpecContextAfter.conditions()).hasSize(1);
         // Existing condition passed through to preserve lastTransitionTime
-        assertThat(ctx1.conditions()).hasSameElementsAs(ctx2.conditions());
+        assertThat(absentSpecContextBefore.conditions()).hasSameElementsAs(absentSpecContextAfter.conditions());
     }
 
     @Test
@@ -106,26 +106,26 @@ class AbsentSpecDeprecationCheckerTest {
         var absentProxy = proxyWithoutSpec();
         var presentProxy = proxyWithSpec();
 
-        var ctxAbsent1 = contextFor(absentProxy);
-        var ctxPresent = contextFor(presentProxy);
-        var ctxAbsent2 = contextFor(absentProxy);
+        var absentSpecContextBefore = contextFor(absentProxy);
+        var presentSpecContext = contextFor(presentProxy);
+        var absentSpecContextAfter = contextFor(absentProxy);
 
-        checker.check(ctxAbsent1); // spec absent = condition added
-        replaceExistingConditions(ctxAbsent1.conditions());
+        checker.check(absentSpecContextBefore); // spec absent = condition added
+        replaceExistingConditions(absentSpecContextBefore.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
-        checker.check(ctxPresent); // spec present = condition removed
-        replaceExistingConditions(ctxPresent.conditions());
+        checker.check(presentSpecContext); // spec present = condition removed
+        replaceExistingConditions(presentSpecContext.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
 
         // When
-        checker.check(ctxAbsent2); // spec absent again = condition added
+        checker.check(absentSpecContextAfter); // spec absent again = condition added
 
         // Then
-        assertThat(ctxAbsent1.conditions()).hasSize(1);
-        assertThat(ctxPresent.conditions()).isEmpty();
-        assertThat(ctxAbsent2.conditions()).hasSize(1);
+        assertThat(absentSpecContextBefore.conditions()).hasSize(1);
+        assertThat(presentSpecContext.conditions()).isEmpty();
+        assertThat(absentSpecContextAfter.conditions()).hasSize(1);
         // New condition created
-        assertThat(ctxAbsent1.conditions()).doesNotContainAnyElementsOf(ctxAbsent2.conditions());
+        assertThat(absentSpecContextBefore.conditions()).doesNotContainAnyElementsOf(absentSpecContextAfter.conditions());
     }
 
     private DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> contextFor(KafkaProxy proxy) {
