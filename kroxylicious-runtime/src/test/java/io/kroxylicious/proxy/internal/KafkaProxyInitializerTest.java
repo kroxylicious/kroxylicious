@@ -422,7 +422,7 @@ class KafkaProxyInitializerTest {
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
-        return new KafkaProxyInitializer(() -> filterChainFactory,
+        return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
                 bindingResolver,

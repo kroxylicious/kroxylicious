@@ -11,11 +11,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -39,9 +37,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConfigurationReloadOrchestratorTest {
-
-    @SuppressWarnings("unchecked")
-    private final Consumer<FilterChainFactory> filterChainFactorySwap = mock(Consumer.class);
 
     @Test
     void preFlightRejectsStaticSectionDiff() {
@@ -73,13 +68,11 @@ class ConfigurationReloadOrchestratorTest {
         // when
         var future = orchestrator.reconfigure(config);
 
-        // then — pipeline reaches the swap-point throw
+        // then — pipeline reaches the placeholder throw
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::join).cause()
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessageContaining("per-VC mechanics not yet implemented");
-        // Factory swap never invoked — we throw before reaching that point.
-        verify(filterChainFactorySwap, never()).accept(any());
     }
 
     @Test
@@ -199,7 +192,7 @@ class ConfigurationReloadOrchestratorTest {
     // -------- fixture helpers --------
 
     private ConfigurationReloadOrchestrator newOrchestrator(Configuration initial, VirtualClusterRegistry registry) {
-        return new ConfigurationReloadOrchestrator(initial, registry, filterChainFactorySwap, mock(PluginFactoryRegistry.class));
+        return new ConfigurationReloadOrchestrator(initial, registry, mock(PluginFactoryRegistry.class));
     }
 
     /**
