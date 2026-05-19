@@ -6,10 +6,10 @@
 package io.kroxylicious.testing.integration.client;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -24,40 +24,44 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class KafkaClientHandlerTest {
 
+    private final KafkaClientHandler handler = new KafkaClientHandler();
+    private final EmbeddedChannel channel = new EmbeddedChannel(handler);
+
+    @AfterEach
+    void tearDown() {
+        channel.close();
+    }
+
     @Test
     void channelInactive_completesQueuedRequestsExceptionally() {
         // given
-        var handler = new KafkaClientHandler();
-        var channel = new EmbeddedChannel(handler);
         var requestFrame = createRequestFrame();
-        CompletableFuture<SequencedResponse> future = handler.sendRequest(requestFrame);
+        var responseFuture = handler.sendRequest(requestFrame);
 
         // when
         channel.pipeline().fireChannelInactive();
 
         // then
-        assertThat(future)
+        assertThat(responseFuture)
                 .isCompletedExceptionally();
-        assertThatThrownBy(future::join)
+        assertThatThrownBy(responseFuture::join)
                 .hasCauseInstanceOf(ChannelClosedException.class);
     }
 
     @Test
     void exceptionCaught_failsQueuedRequestsWithCause() {
         // given
-        var handler = new KafkaClientHandler();
-        var channel = new EmbeddedChannel(handler);
         var requestFrame = createRequestFrame();
-        CompletableFuture<SequencedResponse> future = handler.sendRequest(requestFrame);
+        var responseFuture = handler.sendRequest(requestFrame);
+        var testException = new IOException("test error");
 
         // when
-        var testException = new IOException("test error");
         channel.pipeline().fireExceptionCaught(testException);
 
         // then
-        assertThat(future)
+        assertThat(responseFuture)
                 .isCompletedExceptionally();
-        assertThatThrownBy(future::join)
+        assertThatThrownBy(responseFuture::join)
                 .hasCauseExactlyInstanceOf(IOException.class)
                 .hasMessageContaining("test error");
     }
@@ -65,22 +69,21 @@ class KafkaClientHandlerTest {
     @Test
     void channelActive_sendsQueuedRequests() {
         // given
-        var handler = new KafkaClientHandler();
-        var channel = new EmbeddedChannel(handler);
         var requestFrame = createRequestFrame();
-        CompletableFuture<SequencedResponse> future = handler.sendRequest(requestFrame);
+        var responseFuture = handler.sendRequest(requestFrame);
 
         // when
+
+        // fireChannelActive activates the channel, with processes pending writes, async, on the Netty thread.
+        // the runPendingTasks is present to ensure that the async work has actually happened.
         channel.pipeline().fireChannelActive();
         channel.runPendingTasks();
 
         // then
         assertThat(channel.outboundMessages())
                 .hasSize(1);
-        assertThat(future)
+        assertThat(responseFuture)
                 .isNotCompleted();
-
-        channel.close();
     }
 
     private DecodedRequestFrame<ApiVersionsRequestData> createRequestFrame() {
