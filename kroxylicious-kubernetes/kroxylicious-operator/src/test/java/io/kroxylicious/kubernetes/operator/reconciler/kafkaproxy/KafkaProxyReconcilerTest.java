@@ -10,6 +10,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -24,8 +26,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-import org.slf4j.spi.LoggingEventBuilder;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -37,6 +37,7 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkf
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
@@ -44,22 +45,23 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.InvalidResourceException;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
+import io.kroxylicious.kubernetes.operator.checkers.AbsentSpecDeprecationChecker;
+import io.kroxylicious.kubernetes.operator.checkers.DeprecationCheckContext;
+import io.kroxylicious.kubernetes.operator.checkers.DeprecationChecker;
 import io.kroxylicious.testing.operator.assertj.AssertFactory;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class KafkaProxyReconcilerTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+    private static final String DEPRECATION_SPEC_MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     Context<KafkaProxy> reconcilerContext;
@@ -104,7 +106,7 @@ class KafkaProxyReconcilerTest {
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
                 .conditionList()
-                .containsOnlyTypes(Condition.Type.Ready)
+                .containsOnlyTypes(Condition.Type.Ready, Condition.Type.DeprecationWarning)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
         assertThat(updateControl.isPatchResource()).isFalse();
@@ -180,7 +182,7 @@ class KafkaProxyReconcilerTest {
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
                 .conditionList()
-                .containsOnlyTypes(Condition.Type.Ready)
+                .containsOnlyTypes(Condition.Type.Ready, Condition.Type.DeprecationWarning)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
     }
@@ -373,7 +375,7 @@ class KafkaProxyReconcilerTest {
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
                 .conditionList()
-                .containsOnlyTypes(Condition.Type.Ready)
+                .containsOnlyTypes(Condition.Type.Ready, Condition.Type.DeprecationWarning)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
     }
@@ -554,24 +556,75 @@ class KafkaProxyReconcilerTest {
     @MethodSource("absentSourceScenarios")
     void shouldWarnAboutAbsentSpec(KafkaProxy proxy, boolean warnExpected) {
         // Given
-        KafkaProxyReconciler kafkaProxyReconciler = newKafkaProxyReconciler(TEST_CLOCK);
-        var logger = mock(Logger.class);
-        var eventBuilder = mock(LoggingEventBuilder.class);
-        when(eventBuilder.addKeyValue(anyString(), anyString())).thenReturn(eventBuilder);
-        when(logger.atWarn()).thenReturn(eventBuilder);
+        var statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(TEST_CLOCK));
+        List<DeprecationChecker<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>>> deprecationCheckers = List.of(
+                new AbsentSpecDeprecationChecker());
+        // Need to be explicit with the type here to stop SonarQube from complaining
+        DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> deprecationCheckContext = new DeprecationCheckContext<>(proxy,
+                statusFactory);
 
         // When
-        kafkaProxyReconciler.reportAbsentSpecIfNecessary(proxy, logger);
+        deprecationCheckers.forEach(checker -> checker.check(deprecationCheckContext));
         // Then
 
         if (warnExpected) {
-            verify(logger).atWarn();
-            verify(eventBuilder).log("No spec, please add an empty one. "
-                    + " Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.");
+            assertThat(deprecationCheckContext.conditions()).hasSize(1).allSatisfy(condition -> {
+                assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
+                assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
+                assertThat(condition.getReason()).isEqualTo(Condition.Type.DeprecationWarning.name());
+                assertThat(condition.getMessage()).isEqualTo(DEPRECATION_SPEC_MESSAGE);
+            });
         }
         else {
-            verifyNoInteractions(logger);
+            assertThat(deprecationCheckContext.conditions()).isEmpty();
         }
+    }
+
+    @Test
+    void shouldRemoveDeprecationWarningWhenSpecIsAdded() {
+        // Given
+        long generation = 42L;
+        // @formatter:off
+        var primary = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withGeneration(generation)
+                    .withName("my-proxy")
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withObservedGeneration(generation)
+                        .withType(Condition.Type.DeprecationWarning)
+                        .withStatus(Condition.Status.TRUE)
+                        .withReason(Condition.Type.DeprecationWarning.name())
+                        .withMessage(DEPRECATION_SPEC_MESSAGE)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
+                    .endCondition()
+                    .addNewCondition()
+                        .withObservedGeneration(generation)
+                        .withType(Condition.Type.Ready)
+                        .withStatus(Condition.Status.TRUE)
+                        .withMessage("")
+                        .withReason("")
+                        .withLastTransitionTime(TEST_CLOCK.instant())
+                    .endCondition()
+                .endStatus()
+                .build();
+        // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
+
+        // When
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, reconcilerContext);
+
+        // Then
+        assertThat(updateControl.isPatchStatus()).isTrue();
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
+                .extracting(KafkaProxy::getStatus, AssertFactory.status());
+        statusAssert.hasObservedGeneration(generation)
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready);
     }
 
     private static KafkaProxyBuilder proxyBuilder(String name) {

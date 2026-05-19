@@ -6,6 +6,13 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): feat(operator): report `DeprecationWarning` status condition on `KafkaProxy` resources with absent `spec`
+
+### Changes, deprecations and removals
+
+* [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): The operator now sets a `DeprecationWarning` status condition on `KafkaProxy` resources that have no `spec` field, complementing the existing log warning. Users should add an empty `spec: {}` to any `KafkaProxy` resource that lacks one. Support for spec-less `KafkaProxy` resources will be removed in a future release.
+
 ## 0.21.0
 
 * [#3860](https://github.com/kroxylicious/kroxylicious/pull/3860): perf(operator): reduce memory usage by sharing Secret and ConfigMap informer caches across reconcilers (78% reduction in informer caches)
