@@ -529,6 +529,7 @@ class VirtualClusterRegistryTest {
     @Test
     void shouldTrackRegisteredConnectionForCluster() {
         // given
+        vcc.initializationSucceeded(CLUSTER_A);
         var pcsm = mock(ProxyChannelStateMachine.class);
 
         // when
@@ -541,6 +542,7 @@ class VirtualClusterRegistryTest {
     @Test
     void shouldRemoveConnectionOnDeregister() {
         // given
+        vcc.initializationSucceeded(CLUSTER_A);
         var pcsm = mock(ProxyChannelStateMachine.class);
         vcc.registerConnection(CLUSTER_A, pcsm);
 
