@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator.checkers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import io.fabric8.kubernetes.client.CustomResource;
 
@@ -35,13 +34,11 @@ public class DeprecationCheckContext<S, T, R extends CustomResource<S, T>, F ext
 
     private final R resource;
     private final F statusFactory;
-    private final List<Condition> existingConditions;
     private final List<Condition> conditions = new ArrayList<>();
 
-    public DeprecationCheckContext(R resource, F statusFactory, List<Condition> existingConditions) {
+    public DeprecationCheckContext(R resource, F statusFactory) {
         this.resource = Objects.requireNonNull(resource);
         this.statusFactory = Objects.requireNonNull(statusFactory);
-        this.existingConditions = Objects.requireNonNull(existingConditions);
     }
 
     /**
@@ -53,27 +50,14 @@ public class DeprecationCheckContext<S, T, R extends CustomResource<S, T>, F ext
         return resource;
     }
 
-    private Optional<Condition> findExistingCondition(Condition.Type type, String message) {
-        return existingConditions.stream()
-                .filter(c -> type.equals(c.getType()))
-                .filter(c -> message.equals(c.getMessage()))
-                .findFirst();
-    }
-
     /**
      * Appends a {@link Condition} to {@link #conditions()}.
-     * <p>
-     * If a similar {@link Condition} is already present in {@link #existingConditions}, the
-     * existing condition is appended to {@link #conditions()} instead, in order to preserve
-     * {@link Condition#getLastTransitionTime()}.
      *
      * @param type the condition type (typically {@link Condition.Type#DeprecationWarning})
      * @param message the human-readable message that is attached to the condition
      */
     public void addCondition(Condition.Type type, String message) {
-        Optional<Condition> existingCondition = findExistingCondition(type, message);
-
-        existingCondition.ifPresentOrElse(conditions::add, () -> conditions.add(statusFactory.newTrueCondition(resource, type, message)));
+        conditions.add(statusFactory.newTrueCondition(resource, type, message));
     }
 
     /**
