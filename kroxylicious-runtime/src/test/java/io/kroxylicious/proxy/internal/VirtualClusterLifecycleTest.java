@@ -40,10 +40,12 @@ class VirtualClusterLifecycleTest {
     private static final String CLUSTER_NAME = "test-cluster";
     private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(5);
     private VirtualClusterLifecycle manager;
+    private ProxyChannelStateMachine pcsm;
 
     @BeforeEach
     void setUp() {
         manager = new VirtualClusterLifecycle(CLUSTER_NAME, DRAIN_TIMEOUT);
+        pcsm = mock(ProxyChannelStateMachine.class);
     }
 
     @Test
@@ -191,12 +193,75 @@ class VirtualClusterLifecycleTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
-    // --- Concurrency ---
+    @Test
+    void shouldRejectConnectionRegistrationWhenInitializing() {
+        // given - lifecycle starts in Initializing
+
+        // when
+        var registered = manager.registerConnection(pcsm);
+
+        // then
+        assertThat(registered).isFalse();
+        assertThat(manager.activeConnections()).isEmpty();
+    }
+
+    @Test
+    void shouldAcceptConnectionRegistrationWhenServing() {
+        // given
+        manager.initializationSucceeded();
+
+        // when
+        var registered = manager.registerConnection(pcsm);
+
+        // then
+        assertThat(registered).isTrue();
+        assertThat(manager.activeConnections()).containsExactly(pcsm);
+    }
+
+    @Test
+    void shouldRejectConnectionRegistrationWhenDraining() {
+        // given
+        manager.initializationSucceeded();
+        manager.startDraining();
+
+        // when
+        var registered = manager.registerConnection(pcsm);
+
+        // then
+        assertThat(registered).isFalse();
+    }
+
+    @Test
+    void shouldRejectConnectionRegistrationWhenFailed() {
+        // given
+        manager.initializationFailed(new RuntimeException("oops"));
+
+        // when
+        var registered = manager.registerConnection(pcsm);
+
+        // then
+        assertThat(registered).isFalse();
+        assertThat(manager.activeConnections()).isEmpty();
+    }
+
+    @Test
+    void shouldRejectConnectionRegistrationWhenStopped() {
+        // given
+        manager.initializationFailed(new RuntimeException("oops"));
+        manager.stop();
+
+        // when
+        var registered = manager.registerConnection(pcsm);
+
+        // then
+        assertThat(registered).isFalse();
+    }
 
     @Test
     void concurrentRegisterAndDeregisterDoesNotLoseConnection() throws Exception {
         for (int iter = 0; iter < 200; iter++) {
             var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
+            lifecycle.initializationSucceeded();
             var pcsm1 = mock(ProxyChannelStateMachine.class);
             var pcsm2 = mock(ProxyChannelStateMachine.class);
             lifecycle.registerConnection(pcsm1);
@@ -232,6 +297,7 @@ class VirtualClusterLifecycleTest {
         int threads = 8;
         int operationsPerThread = 500;
         var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
+        lifecycle.initializationSucceeded();
         var pcsms = new ProxyChannelStateMachine[threads * operationsPerThread];
         for (int i = 0; i < pcsms.length; i++) {
             pcsms[i] = mock(ProxyChannelStateMachine.class);
