@@ -32,6 +32,8 @@ IMPORTANT: Integration test classes (named `*IT`) are run by the failsafe plugin
 
 IMPORTANT: If you use `verify` with `-pl`, `-am` and `-Dit.test` at the same time then you must also add `-Dfailsafe.failIfNoSpecifiedTests=false`, otherwise a dependency's integration tests will most likely fail owing to the absence of the named test in that module.
 
+IMPORTANT: Our builds and tests can take a long time. To minimize time spent re-testing **do not** using shell pipelines which discard output like `mvn ... | head -20` or `mvn ... | grep ... | head -20`. Instead, use `mvn test ... | tee /tmp/claude-kroxylicious/test.log | head -20` or `mvn test ... | tee /tmp/claude-kroxylicious/test.log | grep ... | head -20`. This way, if the test fails, you have already captured all the test output for analysis so you don't need to re-exec the slow `mvn` command.
+
 ## Coding Rules
 
 When writing code, follow these prescriptive rules:
