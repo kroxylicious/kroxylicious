@@ -21,6 +21,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
@@ -93,21 +94,7 @@ class ProxyProtocolIT {
             var correlationManager = new CorrelationManager();
             var kafkaHandler = new KafkaClientHandler();
             try (var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())) {
-                var bootstrap = new Bootstrap()
-                        .group(group)
-                        .channel(NioSocketChannel.class)
-                        .option(ChannelOption.TCP_NODELAY, true)
-                        .handler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            protected void initChannel(SocketChannel ch) {
-                                ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
-                                ch.pipeline().addLast(new KafkaRequestEncoder(correlationManager));
-                                ch.pipeline().addLast(new KafkaResponseDecoder(correlationManager));
-                                ch.pipeline().addLast(kafkaHandler);
-                            }
-                        });
-
-                Channel channel = bootstrap.connect(host, port).sync().channel();
+                Channel channel = connectClient(group, host, port, correlationManager, kafkaHandler);
 
                 // Send PROXY header first
                 channel.writeAndFlush(new HAProxyMessage(
@@ -184,21 +171,7 @@ class ProxyProtocolIT {
                     .build();
 
             try (var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())) {
-                var bootstrap = new Bootstrap()
-                        .group(group)
-                        .channel(NioSocketChannel.class)
-                        .option(ChannelOption.TCP_NODELAY, true)
-                        .handler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            protected void initChannel(SocketChannel ch) {
-                                ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
-                                ch.pipeline().addLast(new KafkaRequestEncoder(correlationManager));
-                                ch.pipeline().addLast(new KafkaResponseDecoder(correlationManager));
-                                ch.pipeline().addLast(kafkaHandler);
-                            }
-                        });
-
-                Channel channel = bootstrap.connect(host, port).sync().channel();
+                Channel channel = connectClient(group, host, port, correlationManager, kafkaHandler);
 
                 // Send PROXY header first (before TLS handshake)
                 channel.writeAndFlush(new HAProxyMessage(
@@ -289,21 +262,7 @@ class ProxyProtocolIT {
                     .build();
 
             try (var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())) {
-                var bootstrap = new Bootstrap()
-                        .group(group)
-                        .channel(NioSocketChannel.class)
-                        .option(ChannelOption.TCP_NODELAY, true)
-                        .handler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            protected void initChannel(SocketChannel ch) {
-                                ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
-                                ch.pipeline().addLast(new KafkaRequestEncoder(correlationManager));
-                                ch.pipeline().addLast(new KafkaResponseDecoder(correlationManager));
-                                ch.pipeline().addLast(kafkaHandler);
-                            }
-                        });
-
-                Channel channel = bootstrap.connect(host, port).sync().channel();
+                Channel channel = connectClient(group, host, port, correlationManager, kafkaHandler);
 
                 // Send PROXY header first (before TLS handshake)
                 channel.writeAndFlush(new HAProxyMessage(
@@ -349,21 +308,7 @@ class ProxyProtocolIT {
             var correlationManager = new CorrelationManager();
             var kafkaHandler = new KafkaClientHandler();
             try (var group = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory())) {
-                var bootstrap = new Bootstrap()
-                        .group(group)
-                        .channel(NioSocketChannel.class)
-                        .option(ChannelOption.TCP_NODELAY, true)
-                        .handler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            protected void initChannel(SocketChannel ch) {
-                                ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
-                                ch.pipeline().addLast(new KafkaRequestEncoder(correlationManager));
-                                ch.pipeline().addLast(new KafkaResponseDecoder(correlationManager));
-                                ch.pipeline().addLast(kafkaHandler);
-                            }
-                        });
-
-                Channel channel = bootstrap.connect(host, port).sync().channel();
+                Channel channel = connectClient(group, host, port, correlationManager, kafkaHandler);
 
                 // Send PROXY header — in DISABLED mode, proxy treats this as Kafka data
                 channel.writeAndFlush(new HAProxyMessage(
@@ -392,6 +337,33 @@ class ProxyProtocolIT {
     }
 
     // ---- Helpers ----
+
+    /**
+     * Build a {@link Bootstrap} with the standard test-client pipeline
+     * (PROXY encoder, Kafka codec, {@code kafkaHandler}) and wire channel-close
+     * to {@link CorrelationManager#onChannelClose()} so in-flight request futures
+     * are completed when the peer drops the connection.
+     */
+    private static Channel connectClient(EventLoopGroup group, String host, int port,
+                                         CorrelationManager correlationManager, KafkaClientHandler kafkaHandler)
+            throws InterruptedException {
+        var bootstrap = new Bootstrap()
+                .group(group)
+                .channel(NioSocketChannel.class)
+                .option(ChannelOption.TCP_NODELAY, true)
+                .handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ch.pipeline().addLast(HAProxyMessageEncoder.INSTANCE);
+                        ch.pipeline().addLast(new KafkaRequestEncoder(correlationManager));
+                        ch.pipeline().addLast(new KafkaResponseDecoder(correlationManager));
+                        ch.pipeline().addLast(kafkaHandler);
+                    }
+                });
+        var channel = bootstrap.connect(host, port).sync().channel();
+        channel.closeFuture().addListener(f -> correlationManager.onChannelClose());
+        return channel;
+    }
 
     private static ConfigurationBuilder buildTlsProxyProtocolConfig(String mockBootstrap, CertificateGenerator.KeyStore keystore,
                                                                     ProxyProtocolMode mode) {
