@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator.checkers;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -35,20 +34,18 @@ class AbsentSpecDeprecationCheckerTest {
 
     private StatusFactory<KafkaProxy> statusFactory;
     private AbsentSpecDeprecationChecker checker;
-    private ArrayList<Condition> existingConditions;
 
     @BeforeEach
     void setUp() {
         statusFactory = KafkaProxyReconciler.newStatusFactory(TEST_CLOCK);
         checker = new AbsentSpecDeprecationChecker();
-        existingConditions = new ArrayList<>();
     }
 
     @Test
     void absentSpecShouldAddDeprecationWarningCondition() {
         // Given
         var proxy = proxyWithoutSpec();
-        var absentSpecContext = contextFor(proxy);
+        var absentSpecContext = contextFor(proxy, List.of());
 
         // When
         checker.check(absentSpecContext);
@@ -69,7 +66,7 @@ class AbsentSpecDeprecationCheckerTest {
     void presentSpecShouldNotAddCondition() {
         // Given
         var proxy = proxyWithSpec();
-        var presentSpecContext = contextFor(proxy);
+        var presentSpecContext = contextFor(proxy, List.of());
 
         // When
         checker.check(presentSpecContext);
@@ -82,11 +79,10 @@ class AbsentSpecDeprecationCheckerTest {
     void absentSpecOnSubsequentReconcileOfSameResourceShouldPreserveCondition() {
         // Given
         var proxy = proxyWithoutSpec();
-        var absentSpecContextBefore = contextFor(proxy);
-        var absentSpecContextAfter = contextFor(proxy);
+        var absentSpecContextBefore = contextFor(proxy, List.of());
 
         checker.check(absentSpecContextBefore);
-        replaceExistingConditions(absentSpecContextBefore.conditions());
+        var absentSpecContextAfter = contextFor(proxy, absentSpecContextBefore.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
 
         // When
@@ -106,15 +102,13 @@ class AbsentSpecDeprecationCheckerTest {
         var absentProxy = proxyWithoutSpec();
         var presentProxy = proxyWithSpec();
 
-        var absentSpecContextBefore = contextFor(absentProxy);
-        var presentSpecContext = contextFor(presentProxy);
-        var absentSpecContextAfter = contextFor(absentProxy);
-
+        var absentSpecContextBefore = contextFor(absentProxy, List.of());
         checker.check(absentSpecContextBefore); // spec absent = condition added
-        replaceExistingConditions(absentSpecContextBefore.conditions());
+        var presentSpecContext = contextFor(presentProxy, absentSpecContextBefore.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
+
         checker.check(presentSpecContext); // spec present = condition removed
-        replaceExistingConditions(presentSpecContext.conditions());
+        var absentSpecContextAfter = contextFor(absentProxy, presentSpecContext.conditions());
         TEST_CLOCK.add(Duration.ofMinutes(5));
 
         // When
@@ -128,13 +122,9 @@ class AbsentSpecDeprecationCheckerTest {
         assertThat(absentSpecContextBefore.conditions()).doesNotContainAnyElementsOf(absentSpecContextAfter.conditions());
     }
 
-    private DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> contextFor(KafkaProxy proxy) {
+    private DeprecationCheckContext<KafkaProxySpec, KafkaProxyStatus, KafkaProxy, StatusFactory<KafkaProxy>> contextFor(KafkaProxy proxy,
+                                                                                                                        List<Condition> existingConditions) {
         return new DeprecationCheckContext<>(proxy, statusFactory, existingConditions);
-    }
-
-    private void replaceExistingConditions(List<Condition> newExistingConditions) {
-        existingConditions.clear();
-        existingConditions.addAll(newExistingConditions);
     }
 
     private static KafkaProxy proxyWithoutSpec() {
