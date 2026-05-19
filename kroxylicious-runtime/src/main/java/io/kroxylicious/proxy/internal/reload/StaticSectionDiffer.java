@@ -56,10 +56,18 @@ public class StaticSectionDiffer {
         Objects.requireNonNull(newConfig, "newConfig");
 
         return Arrays.stream(Configuration.class.getRecordComponents())
-                .filter(component -> !RECONCILABLE.contains(component.getName()))
-                .filter(component -> !Objects.equals(read(component, oldConfig), read(component, newConfig)))
+                .filter(this::isStatic)
+                .filter(component -> hasChanged(component, oldConfig, newConfig))
                 .map(RecordComponent::getName)
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private boolean isStatic(RecordComponent component) {
+        return !RECONCILABLE.contains(component.getName());
+    }
+
+    private boolean hasChanged(RecordComponent component, Configuration oldConfig, Configuration newConfig) {
+        return !Objects.equals(read(component, oldConfig), read(component, newConfig));
     }
 
     private static Object read(RecordComponent component, Configuration config) {
