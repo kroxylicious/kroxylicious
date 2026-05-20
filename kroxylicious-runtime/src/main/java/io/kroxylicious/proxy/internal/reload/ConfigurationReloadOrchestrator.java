@@ -116,6 +116,7 @@ public class ConfigurationReloadOrchestrator {
      *               section</li>
      *           <li>exceptionally with {@link ConcurrentReconfigureException} when another
      *               reconfigure is already in progress</li>
+     *          </ul>
      */
     public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
         Objects.requireNonNull(newConfig, "newConfig");
