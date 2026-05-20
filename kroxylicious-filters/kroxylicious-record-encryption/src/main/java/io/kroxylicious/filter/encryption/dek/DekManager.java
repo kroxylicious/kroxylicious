@@ -9,12 +9,11 @@ package io.kroxylicious.filter.encryption.dek;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
-import javax.annotation.concurrent.ThreadSafe;
-
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

@@ -15,13 +15,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import javax.annotation.concurrent.NotThreadSafe;
-import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
+import io.kroxylicious.proxy.tag.NotThreadSafe;
+import io.kroxylicious.proxy.tag.ThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;

@@ -29,8 +29,6 @@ spec:
         env:
         - name: WORKERS
           value: {{ include "kroxylicious-benchmark.workerList" . | quote }}
-        - name: PRODUCER_RATE
-          value: {{ .Values.omb.coordinatorProducerRate | quote }}
         - name: HEAP_OPTS
           value: {{ .Values.omb.coordinatorHeapOpts | quote }}
         - name: JAVA_TOOL_OPTIONS
@@ -63,13 +61,7 @@ spec:
           done
           echo "Kafka is ready"
 
-          # Apply producer rate override if specified
-          if [[ -n "${PRODUCER_RATE}" ]]; then
-            sed "s|^producerRate:.*|producerRate: ${PRODUCER_RATE}|" \
-              /etc/omb/workloads/workload.yaml > /tmp/workload.yaml
-          else
-            cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml
-          fi
+          cp /etc/omb/workloads/workload.yaml /tmp/workload.yaml
 
           # Run the benchmark — this is the Job's primary work
           /opt/benchmark/bin/benchmark \

@@ -110,8 +110,19 @@
         </module>
 
         <module name="IllegalImport">
+            <property name="regexp" value="true"/>
             <!-- we shouldn't be relying on class shaded into TC for dependencies -->
-            <property name="illegalPkgs" value="org.testcontainers.shaded"/>
+            <property name="illegalPkgs" value="^org\.testcontainers\.shaded"/>
+            <!-- ban jsr305 annotations - we use spotbugs annotations and custom threading annotations instead -->
+            <!-- Note: javax.annotation.processing is allowed (standard Java annotation processing API) -->
+            <property name="illegalClasses" value="^javax\.annotation\.(?!processing\.).*"/>
+        </module>
+
+        <!-- Ban fully qualified uses of jsr305 annotations (catches cases without imports) -->
+        <!-- Negative lookahead (?!processing\.) allows javax.annotation.processing.* which is standard Java -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="javax\.annotation\.(?!processing\.)(concurrent\.)?" />
+            <property name="message" value="Do not use jsr305 annotations (javax.annotation.*). Use spotbugs annotations (e.g. edu.umd.cs.findbugs.annotations.Nullable) or Kroxylicious threading annotations (e.g. io.kroxylicious.proxy.tag.ThreadSafe) instead." />
         </module>
 
         <!--

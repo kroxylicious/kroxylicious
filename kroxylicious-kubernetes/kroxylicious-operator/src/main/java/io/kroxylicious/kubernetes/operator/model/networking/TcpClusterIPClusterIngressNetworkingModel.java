@@ -28,7 +28,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyDeploymentDependentResource;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -77,7 +76,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         var serviceSpecBuilder = new ServiceBuilder()
                 .withMetadata(serviceMetadata(serviceName))
                 .withNewSpec()
-                .withSelector(ProxyDeploymentDependentResource.podLabels(proxy));
+                .withSelector(standardLabels(proxy));
         for (int i = firstIdentifyingPort; i <= lastIdentifyingPort; i++) {
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()

@@ -6,14 +6,14 @@
 
 package io.kroxylicious.proxy.filter;
 
-import javax.annotation.Nullable;
-
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Builder for request filter results.

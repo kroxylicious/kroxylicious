@@ -21,11 +21,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ProxyConfigStateData;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.networking.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
-import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -74,7 +74,7 @@ public class ProxyConfigStateDependentResource
         // @formatter:on
     }
 
-    private static void addAcceptedConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
+    private static void addAcceptedConditions(StatusFactory<VirtualKafkaCluster> statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
         var model = proxyModel.networkingModel();
         for (ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel : model.clusterNetworkingModels()) {
             VirtualKafkaCluster cluster = clusterNetworkingModel.cluster();
@@ -96,7 +96,7 @@ public class ProxyConfigStateDependentResource
         }
     }
 
-    private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
+    private static void addResolvedRefsConditions(StatusFactory<VirtualKafkaCluster> statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
         proxyModel.resolutionResult().clusterResolutionResults().stream()
                 .filter(result -> !result.allReferentsFullyResolved() || ResourcesUtil.hasFreshResolvedRefsFalseCondition(result.cluster()))
                 .forEach(clusterResolutionResult -> {

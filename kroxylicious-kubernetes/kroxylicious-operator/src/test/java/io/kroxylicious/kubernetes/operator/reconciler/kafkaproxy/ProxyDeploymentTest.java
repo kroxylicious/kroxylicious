@@ -36,7 +36,7 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
-import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
+import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
@@ -78,18 +78,6 @@ class ProxyDeploymentTest {
     void operandImageOverrideFromEnvironment() {
         assertThat(ProxyDeploymentDependentResource.getOperandImage())
                 .isEqualTo("quay.io/myorg/kroxylicious:1");
-    }
-
-    // labels don't technically need to be ordered, but deterministic output reduces noise when comparing output YAML
-    @Test
-    void podLabelsDeterministicallyOrdered() {
-        // Given
-        LinkedHashMap<String, String> expected = expectedLabels();
-        // When
-        Map<String, String> labels = ProxyDeploymentDependentResource.podLabels(kafkaProxy);
-
-        // Then
-        assertThat(labels).containsExactlyEntriesOf(expected);
     }
 
     @Test
@@ -179,7 +167,7 @@ class ProxyDeploymentTest {
 
     private void configureProxyModel(ProxyModel proxyModel) {
         resourceContext.put(KafkaProxyContext.KEY_CTX,
-                new KafkaProxyContext(new VirtualKafkaClusterStatusFactory(Clock.systemUTC()), proxyModel, Optional.empty(), List.of(), List.of()));
+                new KafkaProxyContext(VirtualKafkaClusterReconciler.newStatusFactory(Clock.systemUTC()), proxyModel, Optional.empty(), List.of(), List.of()));
     }
 
     @NonNull

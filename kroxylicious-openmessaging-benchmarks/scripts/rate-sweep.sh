@@ -44,6 +44,7 @@ Options:
                             images, resource limits). Applied after --profile files so cluster
                             settings always win.
   --set <key=value>         Pass a Helm --set override to run-benchmark.sh (may be repeated)
+  --skip-proxy-isolation        Pass --skip-proxy-isolation to run-benchmark.sh (see that script for details)
   --dry-run                 Print rate sequence and planned steps without running anything
   -h, --help                Show this help
 
@@ -81,6 +82,7 @@ PROFILE_VALUES=("${DEFAULT_PROFILE_VALUES}")
 CLUSTER_OVERRIDES=""
 HELM_SET_ARGS=()
 DRY_RUN=false
+SKIP_PROXY_ISOLATION=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -94,6 +96,7 @@ while [[ $# -gt 0 ]]; do
         --profile)          PROFILE_VALUES+=("$2");    shift 2 ;;
         --cluster-overrides) CLUSTER_OVERRIDES="$2";  shift 2 ;;
         --set)              HELM_SET_ARGS+=("$2");     shift 2 ;;
+        --skip-proxy-isolation) SKIP_PROXY_ISOLATION=true;     shift   ;;
         --dry-run)          DRY_RUN=true;              shift   ;;
         -h|--help)          usage ;;
         -*)                 echo "Error: unknown option '$1'" >&2; usage ;;
@@ -247,8 +250,10 @@ print_summary() {
             local bf="${baseline_dir}/rate-${rate}/result.json"
             local bd="${baseline_dir}/rate-${rate}"
             if [[ -f "${bf}" ]]; then
-                local b_achieved b_sat b_p99
+                local b_achieved b_sat b_p99 b_topics
+                b_topics=$(jq -r '.topics // 1' "${bd}/run-metadata.json" 2>/dev/null || echo 1)
                 b_achieved=$(jq '[.publishRate[]] | add / length' "${bf}")
+                b_achieved=$(awk "BEGIN { print ${b_achieved} * ${b_topics} }")
                 b_sat=$(awk "BEGIN { print (${b_achieved} < ${rate} * 0.95) ? 1 : 0 }")
                 if [[ "${b_sat}" == "1" ]]; then
                     local b_achieved_int
@@ -281,8 +286,10 @@ print_summary() {
                 [[ -n "${baseline_dir}" ]] && printf "  %-12s" "—"
                 continue
             fi
-            local s_achieved s_sat s_p99
+            local s_achieved s_sat s_p99 s_topics
+            s_topics=$(jq -r '.topics // 1' "${sd}/run-metadata.json" 2>/dev/null || echo 1)
             s_achieved=$(jq '[.publishRate[]] | add / length' "${sf}")
+            s_achieved=$(awk "BEGIN { print ${s_achieved} * ${s_topics} }")
             s_sat=$(awk "BEGIN { print (${s_achieved} < ${rate} * 0.95) ? 1 : 0 }")
             if [[ "${s_sat}" == "1" ]]; then
                 local s_achieved_int
@@ -390,6 +397,7 @@ for SCENARIO in "${SCENARIO_ARRAY[@]}"; do
         for set_arg in "${HELM_SET_ARGS[@]+"${HELM_SET_ARGS[@]}"}"; do
             RB_ARGS+=(--set "${set_arg}")
         done
+        [[ "${SKIP_PROXY_ISOLATION}" == "true" ]] && RB_ARGS+=(--skip-proxy-isolation)
 
         if ! "${SCRIPT_DIR}/run-benchmark.sh" ${RB_ARGS[@]+"${RB_ARGS[@]}"} \
                 "${SCENARIO}" "${WORKLOAD}" "${PROBE_OUTPUT}"; then

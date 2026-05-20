@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kubernetes-parent</artifactId>
-        <version>0.21.0-SNAPSHOT</version>
+        <version>0.22.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-admission-dist</artifactId>
@@ -31,6 +31,13 @@
             <artifactId>kroxylicious-admission</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-docs</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+            <type>pom</type>
         </dependency>
     </dependencies>
 

@@ -11,12 +11,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Operator versions (override via environment variables)
 STRIMZI_VERSION="${STRIMZI_VERSION:-latest}"
-KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.18.0}"
+KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.22.0-SNAPSHOT}"
 
 NAMESPACE="${NAMESPACE:-kafka}"
 KROXYLICIOUS_OPERATOR_NAMESPACE="kroxylicious-operator"
 
-STRIMZI_INSTALL_URL="https://strimzi.io/install/${STRIMZI_VERSION}?namespace=${NAMESPACE}"
+# Resolve 'latest' to the actual current Strimzi release — GitHub releases has no literal 'latest' artifact path
+if [[ "${STRIMZI_VERSION}" == "latest" ]]; then
+    STRIMZI_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        "https://github.com/strimzi/strimzi-kafka-operator/releases/latest" \
+        | sed 's|.*/tag/||' | sed 's/^v//')"
+fi
+
+STRIMZI_BASE_URL="https://github.com/strimzi/strimzi-kafka-operator/releases/download/${STRIMZI_VERSION}"
 
 usage() {
     cat >&2 <<EOF
@@ -32,8 +39,8 @@ Options:
 
 Environment:
   NAMESPACE                     Kafka namespace (default: kafka)
-  STRIMZI_VERSION               Strimzi version to install (default: latest)
-  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.18.0)
+  STRIMZI_VERSION               Strimzi version to install from GitHub releases (default: resolved from latest release)
+  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.22.0-SNAPSHOT)
 
 Examples:
   # Full setup (baseline + proxy scenarios)
@@ -126,7 +133,13 @@ fi
 
 echo ""
 echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
-kubectl apply -f "${STRIMZI_INSTALL_URL}" -n "${NAMESPACE}"
+# Apply CRDs first (cluster-scoped, no namespace substitution needed)
+curl -fsSL "${STRIMZI_BASE_URL}/strimzi-crds-${STRIMZI_VERSION}.yaml" \
+    | kubectl apply -f -
+# Apply the cluster operator with namespace substituted (default is 'myproject')
+curl -fsSL "${STRIMZI_BASE_URL}/strimzi-cluster-operator-${STRIMZI_VERSION}.yaml" \
+    | sed "s/namespace: myproject/namespace: ${NAMESPACE}/g" \
+    | kubectl apply -n "${NAMESPACE}" -f -
 
 echo "Waiting for Strimzi operator to be ready..."
 kubectl rollout status deployment/strimzi-cluster-operator \
@@ -148,11 +161,16 @@ else
     trap 'rm -rf "${WORK_DIR}"' EXIT
 
     TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
+    TARBALL_URL="https://github.com/kroxylicious/kroxylicious/releases/download/v${KROXYLICIOUS_VERSION}/${TARBALL}"
     echo "  Downloading ${TARBALL}..."
-    gh release download "v${KROXYLICIOUS_VERSION}" \
-        --repo kroxylicious/kroxylicious \
-        --pattern "${TARBALL}" \
-        --output "${WORK_DIR}/${TARBALL}"
+    if command -v gh &>/dev/null; then
+        gh release download "v${KROXYLICIOUS_VERSION}" \
+            --repo kroxylicious/kroxylicious \
+            --pattern "${TARBALL}" \
+            --output "${WORK_DIR}/${TARBALL}"
+    else
+        curl -fsSL "${TARBALL_URL}" -o "${WORK_DIR}/${TARBALL}"
+    fi
 
     echo "  Extracting..."
     tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"

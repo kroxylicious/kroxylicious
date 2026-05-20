@@ -29,13 +29,17 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
                 .withObservedGeneration(ResourcesUtil.generation(observedGenerationSource));
     }
 
-    public Condition newTrueCondition(HasMetadata observedGenerationSource, Condition.Type type) {
+    public Condition newTrueCondition(HasMetadata observedGenerationSource, Condition.Type type, String message) {
         return newConditionBuilder(observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.TRUE)
-                .withMessage("")
+                .withMessage(message)
                 .withReason(type.name())
                 .build();
+    }
+
+    public Condition newTrueCondition(HasMetadata observedGenerationSource, Condition.Type type) {
+        return newTrueCondition(observedGenerationSource, type, "");
     }
 
     public Condition newFalseCondition(

@@ -8,11 +8,11 @@ package io.kroxylicious.kafka.transform;
 
 import java.nio.ByteBuffer;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+
+import io.kroxylicious.proxy.tag.NotThreadSafe;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

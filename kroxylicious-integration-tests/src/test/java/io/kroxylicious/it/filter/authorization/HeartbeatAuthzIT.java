@@ -153,6 +153,11 @@ public class HeartbeatAuthzIT extends AuthzIT {
         }
 
         @Override
+        public boolean needsRetry(HeartbeatResponseData response) {
+            return isTransientCoordinatorError(response.errorCode());
+        }
+
+        @Override
         public void assertUnproxiedResponses(Map<String, HeartbeatResponseData> unproxiedResponsesByUser) {
             Errors aliceError = Errors.forCode(unproxiedResponsesByUser.get(ALICE).errorCode());
             Errors bobError = Errors.forCode(unproxiedResponsesByUser.get(BOB).errorCode());
