@@ -14,16 +14,24 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.ToIntFunction;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerGroupMetadata;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
+import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
@@ -31,11 +39,14 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -216,6 +227,118 @@ class TransactionalProduceRoutingIT {
         assertThat(records).isEmpty();
     }
 
+    /**
+     * Exercises the exactly-once consume-transform-produce pattern: "bob" consumes
+     * from a {@code b.*} topic, then commits those offsets within the transaction
+     * via {@code sendOffsetsToTransaction}. This tests {@code ADD_OFFSETS_TO_TXN}
+     * (routed to the transaction coordinator on route-b) and {@code TXN_OFFSET_COMMIT}
+     * (routed to the group coordinator, also on route-b).
+     */
+    @Test
+    void shouldCommitOffsetsToTransactionOnMappedRoute(
+                                                       @SaslMechanism(value = "PLAIN", principals = {
+                                                               @SaslMechanism.Principal(user = "bob", password = "bob-secret")
+                                                       }) @BrokerCluster(numBrokers = 3) KafkaCluster clusterA,
+                                                       @BrokerCluster(numBrokers = 3) KafkaCluster clusterB)
+            throws Exception {
+        String inputTopic = "b.txn-ctp-in";
+        String outputTopic = "b.txn-ctp-out";
+        String groupId = "cg-txn-ctp";
+        createTopicOnCluster(inputTopic, 1, clusterB);
+        createTopicOnCluster(outputTopic, 1, clusterB);
+
+        var directProducerConfig = new HashMap<>(clusterB.getKafkaClientConfiguration());
+        directProducerConfig.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        directProducerConfig.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        try (var directProducer = new KafkaProducer<String, String>(directProducerConfig)) {
+            directProducer.send(new ProducerRecord<>(inputTopic, "k1", "input-val")).get(10, TimeUnit.SECONDS);
+        }
+
+        var config = buildConfig(clusterA, clusterB,
+                Map.of("bob", "route-b"), Map.of("bob", "route-b"));
+
+        try (var tester = kroxyliciousTester(config)) {
+            var consumerConfig = new HashMap<String, Object>();
+            consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, tester.getBootstrapAddress());
+            consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+            consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+            consumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+            consumerConfig.put(ConsumerConfig.GROUP_PROTOCOL_CONFIG, "consumer");
+            consumerConfig.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+            consumerConfig.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+            consumerConfig.put("security.protocol", "SASL_PLAINTEXT");
+            consumerConfig.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
+            consumerConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
+                    "org.apache.kafka.common.security.plain.PlainLoginModule required\n"
+                            + "  username=\"bob\"\n  password=\"bob-secret\";");
+
+            Map<String, Object> producerConfig = saslProducerConfig(
+                    tester.getBootstrapAddress(), "bob", "bob-secret", "txn-bob-ctp");
+
+            try (var consumer = new KafkaConsumer<String, String>(consumerConfig);
+                    var producer = new KafkaProducer<String, String>(producerConfig)) {
+                consumer.subscribe(List.of(inputTopic));
+                producer.initTransactions();
+
+                var polled = new AtomicReference<>(ConsumerRecords.<String, String> empty());
+                Awaitility.await()
+                        .atMost(Duration.ofSeconds(60))
+                        .pollInterval(Duration.ofSeconds(1))
+                        .untilAsserted(() -> {
+                            var p = consumer.poll(Duration.ofMillis(1000));
+                            if (!p.isEmpty()) {
+                                polled.set(p);
+                            }
+                            assertThat(polled.get()).isNotEmpty();
+                        });
+
+                producer.beginTransaction();
+                for (var record : polled.get()) {
+                    producer.send(new ProducerRecord<>(outputTopic, record.key(),
+                            "transformed-" + record.value())).get(10, TimeUnit.SECONDS);
+                }
+                producer.sendOffsetsToTransaction(
+                        offsetsFor(polled.get(), inputTopic),
+                        new ConsumerGroupMetadata(groupId));
+                producer.commitTransaction();
+            }
+        }
+
+        var outputRecords = consumeDirectly(clusterB, outputTopic, "read_committed");
+        assertThat(outputRecords).hasSize(1);
+        assertThat(outputRecords.iterator().next().value()).isEqualTo("transformed-input-val");
+
+        try (var admin = AdminClient.create(clusterB.getKafkaClientConfiguration())) {
+            var committedOffsets = admin.listConsumerGroupOffsets(groupId)
+                    .partitionsToOffsetAndMetadata().get(10, TimeUnit.SECONDS);
+            assertThat(committedOffsets)
+                    .as("transactional offset commit should be stored on clusterB")
+                    .containsKey(new TopicPartition(inputTopic, 0));
+            assertThat(committedOffsets.get(new TopicPartition(inputTopic, 0)).offset())
+                    .as("committed offset should be 1 (after consuming 1 record)")
+                    .isEqualTo(1);
+        }
+
+        var txnOffsetEvents = routingCaptor.requestsToRoute("route-b", ApiKeys.TXN_OFFSET_COMMIT);
+        var addOffsetsEvents = routingCaptor.requestsToRoute("route-b", ApiKeys.ADD_OFFSETS_TO_TXN);
+        assertThat(txnOffsetEvents.size() + addOffsetsEvents.size())
+                .as("TXN_OFFSET_COMMIT or ADD_OFFSETS_TO_TXN should route to route-b "
+                        + "(KIP-890 V2 sends only TXN_OFFSET_COMMIT v5)")
+                .isGreaterThanOrEqualTo(1);
+    }
+
+    private static Map<TopicPartition, OffsetAndMetadata> offsetsFor(
+                                                                     ConsumerRecords<String, String> records,
+                                                                     String topic) {
+        var offsets = new HashMap<TopicPartition, OffsetAndMetadata>();
+        for (var record : records) {
+            offsets.put(
+                    new TopicPartition(topic, record.partition()),
+                    new OffsetAndMetadata(record.offset() + 1));
+        }
+        return offsets;
+    }
+
     // --- version sweep ---
 
     static List<Arguments> findCoordinatorVersions() {
@@ -269,6 +392,95 @@ class TransactionalProduceRoutingIT {
                 .isNotEmpty();
     }
 
+    static List<Arguments> addOffsetsToTxnVersions() {
+        var result = new ArrayList<Arguments>();
+        for (short v = 0; v <= ApiKeys.ADD_OFFSETS_TO_TXN.latestVersion(); v++) {
+            result.add(Arguments.of(v));
+        }
+        return result;
+    }
+
+    /**
+     * Sweeps ADD_OFFSETS_TO_TXN versions. Without an active transaction the
+     * router returns COORDINATOR_NOT_AVAILABLE, but we verify it's handled
+     * at each version without protocol errors.
+     */
+    @ParameterizedTest
+    @MethodSource("addOffsetsToTxnVersions")
+    void addOffsetsToTxnAcrossVersions(
+                                       short apiVersion,
+                                       @SaslMechanism(value = "PLAIN", principals = {
+                                               @SaslMechanism.Principal(user = "bob", password = "bob-secret")
+                                       }) @BrokerCluster(numBrokers = 3) KafkaCluster clusterA,
+                                       @BrokerCluster(numBrokers = 3) KafkaCluster clusterB)
+            throws Exception {
+        var config = buildConfig(clusterA, clusterB, Map.of("bob", "route-b"));
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+
+            negotiateApiVersions(client);
+            authenticate(client, "bob", "bob-secret");
+
+            var request = new AddOffsetsToTxnRequestData()
+                    .setTransactionalId("txn-sweep-offsets-v" + apiVersion)
+                    .setGroupId("cg-sweep-v" + apiVersion)
+                    .setProducerId(0L)
+                    .setProducerEpoch((short) 0);
+
+            var response = client.getSync(new Request(ApiKeys.ADD_OFFSETS_TO_TXN, apiVersion,
+                    "test-client", request));
+            var body = (AddOffsetsToTxnResponseData) response.payload().message();
+            assertThat(body.errorCode())
+                    .as("v%d should return COORDINATOR_NOT_AVAILABLE (no active transaction)", apiVersion)
+                    .isEqualTo(Errors.COORDINATOR_NOT_AVAILABLE.code());
+        }
+    }
+
+    static List<Arguments> txnOffsetCommitVersions() {
+        var result = new ArrayList<Arguments>();
+        for (short v = 0; v <= ApiKeys.TXN_OFFSET_COMMIT.latestVersion(); v++) {
+            result.add(Arguments.of(v));
+        }
+        return result;
+    }
+
+    /**
+     * Sweeps TXN_OFFSET_COMMIT versions. The request will fail (no active
+     * transaction) but the routing should direct to route-b for bob.
+     */
+    @ParameterizedTest
+    @MethodSource("txnOffsetCommitVersions")
+    void txnOffsetCommitAcrossVersions(
+                                       short apiVersion,
+                                       @SaslMechanism(value = "PLAIN", principals = {
+                                               @SaslMechanism.Principal(user = "bob", password = "bob-secret")
+                                       }) @BrokerCluster(numBrokers = 3) KafkaCluster clusterA,
+                                       @BrokerCluster(numBrokers = 3) KafkaCluster clusterB)
+            throws Exception {
+        var config = buildConfig(clusterA, clusterB, Map.of("bob", "route-b"));
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+
+            negotiateApiVersions(client);
+            authenticate(client, "bob", "bob-secret");
+
+            var request = new TxnOffsetCommitRequestData()
+                    .setTransactionalId("txn-sweep-commit-v" + apiVersion)
+                    .setGroupId("cg-sweep-v" + apiVersion)
+                    .setProducerId(0L)
+                    .setProducerEpoch((short) 0);
+
+            client.getSync(new Request(ApiKeys.TXN_OFFSET_COMMIT, apiVersion,
+                    "test-client", request));
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.TXN_OFFSET_COMMIT))
+                .as("v%d TXN_OFFSET_COMMIT should route to route-b for bob", apiVersion)
+                .isNotEmpty();
+    }
+
     // --- protocol helpers ---
 
     private static void negotiateApiVersions(KafkaClient client) {
@@ -310,11 +522,11 @@ class TransactionalProduceRoutingIT {
                                                                     short apiVersion,
                                                                     ApiMessage request,
                                                                     Class<T> responseClass,
-                                                                    java.util.function.ToIntFunction<T> errorCodeExtractor) {
+                                                                    ToIntFunction<T> errorCodeExtractor) {
         var holder = new Object() {
             T value;
         };
-        org.awaitility.Awaitility.await()
+        Awaitility.await()
                 .atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
@@ -332,6 +544,13 @@ class TransactionalProduceRoutingIT {
     private ConfigurationBuilder buildConfig(KafkaCluster clusterA,
                                              KafkaCluster clusterB,
                                              Map<String, String> transactionalUserRoutes) {
+        return buildConfig(clusterA, clusterB, transactionalUserRoutes, Map.of());
+    }
+
+    private ConfigurationBuilder buildConfig(KafkaCluster clusterA,
+                                             KafkaCluster clusterB,
+                                             Map<String, String> transactionalUserRoutes,
+                                             Map<String, String> consumerGroupUserRoutes) {
         var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
@@ -344,6 +563,7 @@ class TransactionalProduceRoutingIT {
                         new TopicRoute("route-a", List.of("a.")),
                         new TopicRoute("route-b", List.of("b."))),
                 transactionalUserRoutes.isEmpty() ? null : transactionalUserRoutes,
+                consumerGroupUserRoutes.isEmpty() ? null : consumerGroupUserRoutes,
                 null, null, null);
 
         var routerDef = new RouterDefinition("topic-router",
@@ -404,10 +624,10 @@ class TransactionalProduceRoutingIT {
         }
     }
 
-    private static Iterable<org.apache.kafka.clients.consumer.ConsumerRecord<String, String>> consumeDirectly(
-                                                                                                              KafkaCluster cluster,
-                                                                                                              String topic,
-                                                                                                              String isolationLevel) {
+    private static List<ConsumerRecord<String, String>> consumeDirectly(
+                                                                        KafkaCluster cluster,
+                                                                        String topic,
+                                                                        String isolationLevel) {
         var config = new HashMap<>(cluster.getKafkaClientConfiguration());
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-" + System.nanoTime());
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -415,17 +635,18 @@ class TransactionalProduceRoutingIT {
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         config.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, isolationLevel);
 
-        var records = new java.util.ArrayList<org.apache.kafka.clients.consumer.ConsumerRecord<String, String>>();
+        var records = new ArrayList<ConsumerRecord<String, String>>();
         try (var consumer = new KafkaConsumer<String, String>(config)) {
             consumer.subscribe(List.of(topic));
-            long deadline = System.currentTimeMillis() + 15_000;
-            while (System.currentTimeMillis() < deadline) {
-                ConsumerRecords<String, String> polled = consumer.poll(Duration.ofMillis(500));
-                polled.forEach(records::add);
-                if (!records.isEmpty()) {
-                    break;
-                }
-            }
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(15))
+                    .pollInterval(Duration.ofMillis(500))
+                    .until(() -> {
+                        consumer.poll(Duration.ofMillis(500)).forEach(records::add);
+                        return !records.isEmpty();
+                    });
+        }
+        catch (ConditionTimeoutException e) {
         }
         return records;
     }

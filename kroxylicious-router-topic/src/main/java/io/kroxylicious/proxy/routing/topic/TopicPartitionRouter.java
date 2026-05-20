@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.routing.topic;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -15,6 +16,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
+import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResult;
@@ -55,6 +58,10 @@ import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceRespo
 import org.apache.kafka.common.message.ProduceResponseData.TopicProduceResponse;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
+import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
+import org.apache.kafka.common.message.TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition;
+import org.apache.kafka.common.message.TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
@@ -117,6 +124,8 @@ class TopicPartitionRouter implements Router {
             ApiKeys.FIND_COORDINATOR,
             ApiKeys.DESCRIBE_CLUSTER,
             ApiKeys.ADD_PARTITIONS_TO_TXN,
+            ApiKeys.ADD_OFFSETS_TO_TXN,
+            ApiKeys.TXN_OFFSET_COMMIT,
             ApiKeys.END_TXN,
             ApiKeys.CONSUMER_GROUP_HEARTBEAT,
             ApiKeys.CONSUMER_GROUP_DESCRIBE);
@@ -245,6 +254,14 @@ class TopicPartitionRouter implements Router {
         if (apiKey == ApiKeys.ADD_PARTITIONS_TO_TXN) {
             return handleAddPartitionsToTxn(header,
                     (AddPartitionsToTxnRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.ADD_OFFSETS_TO_TXN) {
+            return handleAddOffsetsToTxn(header,
+                    (AddOffsetsToTxnRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.TXN_OFFSET_COMMIT) {
+            return handleTxnOffsetCommit(header,
+                    (TxnOffsetCommitRequestData) request, context);
         }
         if (apiKey == ApiKeys.END_TXN) {
             return handleEndTxn(header, (EndTxnRequestData) request, context);
@@ -688,7 +705,7 @@ class TopicPartitionRouter implements Router {
     private static void logMergedMetadata(RoutingContext context,
                                           MetadataResponseData merged) {
         if (LOGGER.isDebugEnabled()) {
-            var topicSummary = new java.util.ArrayList<String>();
+            var topicSummary = new ArrayList<String>();
             for (var topic : merged.topics()) {
                 short errorCode = topic.errorCode();
                 if (errorCode != 0) {
@@ -878,7 +895,7 @@ class TopicPartitionRouter implements Router {
         String expectedRoute = consumerGroupRouteForSubject(context.authenticatedSubject());
 
         var errorResponse = new OffsetCommitResponseData();
-        var routableTopics = new java.util.ArrayList<OffsetCommitRequestData.OffsetCommitRequestTopic>();
+        var routableTopics = new ArrayList<OffsetCommitRequestData.OffsetCommitRequestTopic>();
 
         for (var topic : request.topics()) {
             String route = routingTable.routeForTopic(topic.name());
@@ -1175,7 +1192,7 @@ class TopicPartitionRouter implements Router {
                                                                     RoutingContext context) {
         String expectedRoute = transactionRouteForSubject(context.authenticatedSubject());
         var topics = request.v3AndBelowTopics();
-        var errorTopics = new java.util.ArrayList<AddPartitionsToTxnTopicResult>();
+        var errorTopics = new ArrayList<AddPartitionsToTxnTopicResult>();
         boolean hasRoutableTopic = false;
 
         for (var topic : topics) {
@@ -1298,6 +1315,116 @@ class TopicPartitionRouter implements Router {
             response.resultsByTopicV3AndBelow().add(topicResult);
         }
         return response;
+    }
+
+    private CompletionStage<RoutingResult> handleAddOffsetsToTxn(
+                                                                 RequestHeaderData header,
+                                                                 AddOffsetsToTxnRequestData request,
+                                                                 RoutingContext context) {
+        String route = transactionRouteForSubject(context.authenticatedSubject());
+
+        Integer coordinatorNodeId = transactionCoordinators.get(route);
+        if (coordinatorNodeId == null) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", route)
+                    .log("No cached coordinator for route during ADD_OFFSETS_TO_TXN");
+            sendSyntheticResponse(context,
+                    new AddOffsetsToTxnResponseData()
+                            .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        if (!route.equals(defaultRoute)) {
+            Map<String, ProducerIdEpoch> mapping = producerIdManager.get(request.producerId());
+            if (mapping != null) {
+                ProducerIdEpoch routeIds = mapping.get(route);
+                if (routeIds != null) {
+                    request.setProducerId(routeIds.producerId());
+                    request.setProducerEpoch(routeIds.producerEpoch());
+                }
+            }
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", route)
+                .addKeyValue("coordinatorNodeId", coordinatorNodeId)
+                .addKeyValue("groupId", request.groupId())
+                .log("ADD_OFFSETS_TO_TXN routed to transaction coordinator");
+
+        return context.sendRequestToNode(coordinatorNodeId, header, request)
+                .thenApply(response -> {
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", route)
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "ADD_OFFSETS_TO_TXN forwarding failed"
+                                    : "ADD_OFFSETS_TO_TXN forwarding failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    sendSyntheticResponse(context,
+                            new AddOffsetsToTxnResponseData()
+                                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                    return RoutingResult.completed();
+                });
+    }
+
+    private CompletionStage<RoutingResult> handleTxnOffsetCommit(
+                                                                 RequestHeaderData header,
+                                                                 TxnOffsetCommitRequestData request,
+                                                                 RoutingContext context) {
+        String route = transactionRouteForSubject(context.authenticatedSubject());
+
+        if (!route.equals(defaultRoute)) {
+            Map<String, ProducerIdEpoch> mapping = producerIdManager.get(request.producerId());
+            if (mapping != null) {
+                ProducerIdEpoch routeIds = mapping.get(route);
+                if (routeIds != null) {
+                    request.setProducerId(routeIds.producerId());
+                    request.setProducerEpoch(routeIds.producerEpoch());
+                }
+            }
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", route)
+                .addKeyValue("groupId", request.groupId())
+                .log("TXN_OFFSET_COMMIT forwarded to transaction route");
+
+        return context.sendRequest(route, header, request)
+                .thenApply(response -> {
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", route)
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "TXN_OFFSET_COMMIT forwarding failed"
+                                    : "TXN_OFFSET_COMMIT forwarding failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    var errorResp = new TxnOffsetCommitResponseData();
+                    for (var topic : request.topics()) {
+                        var topicResp = new TxnOffsetCommitResponseTopic().setName(topic.name());
+                        for (var partition : topic.partitions()) {
+                            topicResp.partitions().add(
+                                    new TxnOffsetCommitResponsePartition()
+                                            .setPartitionIndex(partition.partitionIndex())
+                                            .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                        }
+                        errorResp.topics().add(topicResp);
+                    }
+                    sendSyntheticResponse(context, errorResp);
+                    return RoutingResult.completed();
+                });
     }
 
     private CompletionStage<RoutingResult> handleEndTxn(
