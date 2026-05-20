@@ -52,7 +52,7 @@ class EagerMetadataLearnerTest {
 
     @BeforeEach
     void setUp() {
-        learner = new EagerMetadataLearner();
+        learner = new EagerMetadataLearner(true);
     }
 
     public static Stream<Arguments> preludeRequests() {

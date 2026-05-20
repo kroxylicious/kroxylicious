@@ -25,7 +25,6 @@ import io.netty.channel.Channel;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.routing.Response;
 import io.kroxylicious.proxy.routing.RoutingContext;
@@ -38,6 +37,7 @@ class RoutingContextImpl implements RoutingContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingContextImpl.class);
 
+    private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
     private final short apiVersion;
     private final String sessionId;
@@ -74,8 +74,7 @@ class RoutingContextImpl implements RoutingContext {
         void forward(int virtualNodeId, String routeName, Object msg);
     }
 
-    RoutingContextImpl(int clientCorrelationId,
-                       short apiVersion,
+    RoutingContextImpl(DecodedRequestFrame<?> clientFrame,
                        Channel clientChannel,
                        String sessionId,
                        Subject subject,
@@ -89,8 +88,9 @@ class RoutingContextImpl implements RoutingContext {
                        MeterProvider<Timer> routingRequestDurationTimer,
                        AtomicInteger pendingResponseCount,
                        ResponseSequencer responseSequencer) {
-        this.clientCorrelationId = clientCorrelationId;
-        this.apiVersion = apiVersion;
+        this.clientFrame = Objects.requireNonNull(clientFrame);
+        this.clientCorrelationId = clientFrame.correlationId();
+        this.apiVersion = clientFrame.apiVersion();
         this.clientChannel = Objects.requireNonNull(clientChannel);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
@@ -296,11 +296,7 @@ class RoutingContextImpl implements RoutingContext {
     public void sendResponse(Response response) {
         // DecodedFrame.encode() writes header.correlationId() to the wire, not frame.correlationId
         response.header().setCorrelationId(clientCorrelationId);
-        var responseFrame = new DecodedResponseFrame<>(
-                apiVersion,
-                clientCorrelationId,
-                response.header(),
-                response.body());
+        var responseFrame = clientFrame.responseFrame(response.header(), response.body());
         responseSequencer.submit(sequenceNumber, responseFrame);
         LOGGER.atTrace()
                 .addKeyValue("sessionId", sessionId)
