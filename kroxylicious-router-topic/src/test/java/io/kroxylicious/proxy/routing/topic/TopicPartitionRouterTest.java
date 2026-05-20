@@ -667,13 +667,14 @@ class TopicPartitionRouterTest {
         request.setSessionEpoch(-1);
         var backendResp = fetchResponse("orders.uk", 0, Errors.NONE);
 
-        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
+        primeLeaderCache(router, 1, "orders.uk");
+        var ctx = new CapturingRoutingContext(Map.of())
+                .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
+                .withNodeResponses(Map.of(1, backendResp));
         router.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
 
-        assertThat(ctx.sentRequests()).hasSize(1);
-        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
-
-        var sentReq = (FetchRequestData) ctx.sentRequests().get(0).body();
+        assertThat(ctx.sentNodeRequests()).hasSize(1);
+        var sentReq = (FetchRequestData) ctx.sentNodeRequests().get(0).body();
         assertThat(sentReq.sessionId()).as("no client session → backend gets session creation").isEqualTo(0);
         assertThat(sentReq.topics()).extracting("topic").containsExactly("orders.uk");
     }
@@ -686,16 +687,20 @@ class TopicPartitionRouterTest {
         var respA = fetchResponse("orders.uk", 0, Errors.NONE);
         var respB = fetchResponse("logs.app", 0, Errors.NONE);
 
-        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        primeLeaderCache(router, 1, "orders.uk");
+        primeLeaderCache(router, 2, "logs.app");
+        var ctx = new CapturingRoutingContext(Map.of())
+                .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
+                .withNodeResponses(Map.of(1, respA, 2, respB));
         router.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
 
-        assertThat(ctx.sentRequests()).hasSize(2);
-        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
-                .containsExactlyInAnyOrder("cluster-a", "cluster-b");
+        assertThat(ctx.sentNodeRequests()).hasSize(2);
+        assertThat(ctx.sentNodeRequests()).extracting(SentNodeRequest::virtualNodeId)
+                .containsExactlyInAnyOrder(1, 2);
 
-        for (var sent : ctx.sentRequests()) {
+        for (var sent : ctx.sentNodeRequests()) {
             var sentReq = (FetchRequestData) sent.body();
-            if (sent.route().equals("cluster-a")) {
+            if (sent.virtualNodeId() == 1) {
                 assertThat(sentReq.topics()).extracting("topic").containsExactly("orders.uk");
             }
             else {
@@ -720,7 +725,10 @@ class TopicPartitionRouterTest {
         request.setSessionEpoch(-1);
         var respA = fetchResponse("orders.uk", 0, Errors.NONE);
 
-        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA));
+        primeLeaderCache(noDefaultRouter, 1, "orders.uk");
+        var ctx = new CapturingRoutingContext(Map.of())
+                .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
+                .withNodeResponses(Map.of(1, respA));
         noDefaultRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
 
         var merged = (FetchResponseData) ctx.sentResponseBody();
@@ -730,6 +738,62 @@ class TopicPartitionRouterTest {
                 .findFirst().orElseThrow();
         assertThat(unknownResp.partitions().get(0).errorCode())
                 .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+    }
+
+    @Test
+    void shouldCreatePerLeaderFetchSessions() {
+        // Two topics on the same route but different leaders should get separate sessions
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"), "default-route");
+        var sessionRouter = new TopicPartitionRouter(table, "default-route", Map.of(), Map.of(),
+                new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 10_000, "testVc", "testRouter"),
+                Clock.systemUTC(), "testVc", "testRouter");
+
+        primeLeaderCache(sessionRouter, 1, "orders.uk");
+        primeLeaderCache(sessionRouter, 2, "orders.de");
+
+        // First fetch: backend returns sessionId to establish the session
+        var request1 = fetchRequest("orders.uk", "orders.de");
+        request1.setSessionId(0);
+        request1.setSessionEpoch(0);
+        var resp1 = fetchResponse("orders.uk", 0, Errors.NONE);
+        resp1.setSessionId(100);
+        var resp2 = fetchResponse("orders.de", 0, Errors.NONE);
+        resp2.setSessionId(200);
+
+        var ctx1 = new CapturingRoutingContext(Map.of())
+                .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
+                .withNodeResponses(Map.of(1, resp1, 2, resp2));
+        sessionRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request1, ctx1);
+
+        assertThat(ctx1.sentNodeRequests()).hasSize(2);
+        for (var sent : ctx1.sentNodeRequests()) {
+            var sentReq = (FetchRequestData) sent.body();
+            assertThat(sentReq.sessionEpoch())
+                    .as("leader %d should get session creation", sent.virtualNodeId())
+                    .isEqualTo(0);
+        }
+
+        // Second fetch: each leader should get incremental request with its own session ID
+        var request2 = fetchRequest("orders.uk", "orders.de");
+        request2.setSessionId(0);
+        request2.setSessionEpoch(-1);
+        var ctx2 = new CapturingRoutingContext(Map.of())
+                .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
+                .withNodeResponses(Map.of(1, resp1, 2, resp2));
+        sessionRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request2, ctx2);
+
+        assertThat(ctx2.sentNodeRequests()).hasSize(2);
+        for (var sent : ctx2.sentNodeRequests()) {
+            var sentReq = (FetchRequestData) sent.body();
+            if (sent.virtualNodeId() == 1) {
+                assertThat(sentReq.sessionId()).as("leader 1 session").isEqualTo(100);
+            }
+            else {
+                assertThat(sentReq.sessionId()).as("leader 2 session").isEqualTo(200);
+            }
+        }
     }
 
     // --- LIST_OFFSETS ---
