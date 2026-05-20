@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,6 +65,7 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.CertificateRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRef;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
@@ -155,6 +157,8 @@ public class KafkaProxyReconcilerIT {
     public static final String TLS_CIPHER_SUITE_AES256GCM_SHA384 = "TLS_AES_256_GCM_SHA384";
     // Default ingress controller domain used if we can't detect it from the platform (CRC/MicroShift).
     public static final String DEFAULT_INGRESS_CONTROLLER_DOMAIN = "apps.crc.testing";
+
+    private static final String DEPRECATION_SPEC_MESSAGE = "No spec, please add an empty one. Support for spec-less KafkaProxy resources is deprecated and will be removed in a future release.";
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
@@ -438,6 +442,36 @@ public class KafkaProxyReconcilerIT {
 
         // then
         assertStausReplicaCount(created.proxy(), desiredReplicaCount);
+    }
+
+    @Test
+    void shouldNotIncludeDeprecationWarningInKafkaProxyStatus() {
+        // given
+        int desiredReplicaCount = 3;
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // when
+        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, desiredReplicaCount));
+        assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
+
+        // then
+        assertStausReplicaCount(created.proxy(), desiredReplicaCount); // contains its own AWAIT
+        // assertStausReplicaCount already awaited reconciliation above, so the status is current here
+        assertThat(Collections.singleton(created.proxy())).noneSatisfy(this::assertStatusDeprecationWarning);
+    }
+
+    @Test
+    void shouldIncludeDeprecationWarningInKafkaProxyStatus() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // when
+        var created = doCreate(kafkaService, kafkaProxyNoSpec(PROXY_A));
+
+        // then
+        AWAIT.alias("DeprecationWarning condition present").untilAsserted(() -> {
+            assertThat(Collections.singleton(created.proxy())).allSatisfy(this::assertStatusDeprecationWarning);
+        });
     }
 
     @Test
@@ -1317,6 +1351,20 @@ public class KafkaProxyReconcilerIT {
         });
     }
 
+    private void assertStatusDeprecationWarning(KafkaProxy proxy) {
+        var deployment = testActor.get(KafkaProxy.class, ResourcesUtil.name(proxy));
+        assertThat(deployment).isNotNull()
+                .extracting(KafkaProxy::getStatus, AssertFactory.status())
+                .isNotNull()
+                .conditionList()
+                .satisfiesOnlyOnce(condition -> {
+                    assertThat(condition.getType()).isEqualTo(Condition.Type.DeprecationWarning);
+                    assertThat(condition.getStatus()).isEqualTo(Condition.Status.TRUE);
+                    assertThat(condition.getReason()).isEqualTo(Condition.Type.DeprecationWarning.name());
+                    assertThat(condition.getMessage()).isEqualTo(DEPRECATION_SPEC_MESSAGE);
+                });
+    }
+
     private void assertProxyConfigContents(KafkaProxy cr, Set<String> contains, Set<String> notContains) {
         AWAIT.alias("Config as expected").untilAsserted(() -> {
             AbstractStringAssert<?> proxyConfig = assertThatProxyConfigFor(cr);
@@ -1669,6 +1717,16 @@ public class KafkaProxyReconcilerIT {
                 .withNewSpec()
                     .withReplicas(replicaCount)
                 .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    KafkaProxy kafkaProxyNoSpec(String name) {
+        // @formatter:off
+        return new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
                 .build();
         // @formatter:on
     }
