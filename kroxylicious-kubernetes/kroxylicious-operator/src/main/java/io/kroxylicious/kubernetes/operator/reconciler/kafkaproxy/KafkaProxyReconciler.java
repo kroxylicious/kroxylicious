@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -501,14 +502,7 @@ public class KafkaProxyReconciler implements
         DEPRECATION_CHECKERS.forEach(checker -> checker.check(deprecationCheckContext));
 
         var newConditions = new ArrayList<>(deprecationCheckContext.conditions());
-        var existingConditionsWithoutOutdatedDeprecations = new ArrayList<>(Optional.ofNullable(primary.getStatus())
-                .map(KafkaProxyStatus::getConditions)
-                .orElse(List.of()));
-
-        existingConditionsWithoutOutdatedDeprecations
-                .removeIf(existingCondition -> existingCondition.getType().equals(Condition.Type.DeprecationWarning) && newConditions.stream()
-                        .noneMatch(newCondition -> newCondition.getType().equals(Condition.Type.DeprecationWarning)
-                                && existingCondition.getMessage().equals(newCondition.getMessage())));
+        var existingConditionsWithoutOutdatedDeprecations = removeOutdatedDeprecations(primary, newConditions);
 
         newConditions.add(statusFactory.newTrueCondition(primary, Condition.Type.Ready));
         var update = statusFactory.kafkaProxyStatusPatch(primary, existingConditionsWithoutOutdatedDeprecations, ResourceState.fromList(newConditions), readyReplicas);
@@ -520,6 +514,26 @@ public class KafkaProxyReconciler implements
                     .log("Completed reconciliation");
         }
         return uc;
+    }
+
+    private List<Condition> removeOutdatedDeprecations(KafkaProxy primary, List<Condition> newConditions) {
+        var existingConditions = new ArrayList<>(Optional.ofNullable(primary.getStatus())
+                .map(KafkaProxyStatus::getConditions)
+                .orElse(List.of()));
+
+        // If existingConditions and newConditions both contain the same DeprecationWarning, keep it and let
+        // statusFactory.kafkaProxyStatusPatch handle replacement (it preserves lastTransitionTime).
+        // If existingConditions contains an outdated DeprecationWarning (not in newConditions), remove it so
+        // statusFactory.kafkaProxyStatusPatch does not include it in the status.
+        existingConditions.removeIf(existingCondition -> {
+            Predicate<Condition> isDeprecationWarning = c -> c.getType().equals(Condition.Type.DeprecationWarning);
+            Predicate<Condition> hasSameMessage = c -> c.getMessage().equals(existingCondition.getMessage());
+
+            return isDeprecationWarning.test(existingCondition)
+                    && newConditions.stream().noneMatch(isDeprecationWarning.and(hasSameMessage));
+        });
+
+        return existingConditions;
     }
 
     /**
