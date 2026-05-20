@@ -7,10 +7,10 @@
 
 set -euo pipefail
 
-# Polls the Kafka JMX Prometheus exporter during a benchmark run.
+# Polls the Strimzi Metrics Reporter endpoint on Kafka brokers during a benchmark run.
 # Intended to be started as a background process by run-benchmark.sh.
 #
-# The exporter is only available when kafka.metrics.enabled=true in the Helm chart.
+# The endpoint is only available when kafka.metrics.enabled=true in the Helm chart.
 # If the endpoint does not respond within the initial timeout, this script exits
 # cleanly (exit 0) so run-benchmark.sh is not disrupted when metrics are disabled.
 #
@@ -24,7 +24,7 @@ usage() {
     cat >&2 <<EOF
 Usage: $(basename "$0") <broker-pod> <namespace> <output-dir> [interval-seconds]
 
-Polls the Kafka JMX Prometheus exporter endpoint (/metrics on port 9404) via
+Polls the Strimzi Metrics Reporter endpoint (/metrics on port 9404) via
 kubectl port-forward and appends timestamped Prometheus snapshots to
 <output-dir>/kafka-metrics.txt.
 
@@ -66,22 +66,22 @@ kubectl port-forward "pod/${BROKER_POD}" "${LOCAL_PORT}:9404" \
     -n "${NAMESPACE}" &>/dev/null &
 PF_PID=$!
 
-# Wait for endpoint to respond. Exit cleanly if it doesn't — JMX exporter is not deployed.
-echo "Waiting for Kafka JMX metrics endpoint to be ready..."
+# Wait for endpoint to respond. Exit cleanly if it doesn't — metrics reporter is not enabled.
+echo "Waiting for Kafka metrics endpoint to be ready..."
 PF_DEADLINE=$((SECONDS + 15))
 until curl -sf "http://localhost:${LOCAL_PORT}/metrics" >/dev/null 2>&1; do
     if [[ $SECONDS -ge $PF_DEADLINE ]]; then
-        echo "Kafka JMX metrics endpoint not available on ${BROKER_POD}:9404 — skipping Kafka metrics collection" \
+        echo "Kafka metrics endpoint not available on ${BROKER_POD}:9404 — skipping Kafka metrics collection" \
             "(enable with kafka.metrics.enabled=true in cluster-overrides.yaml)" >&2
         exit 0
     fi
     if ! kill -0 "${PF_PID}" 2>/dev/null; then
-        echo "Kafka metrics port-forward exited — JMX exporter likely not deployed" >&2
+        echo "Kafka metrics port-forward exited — metrics reporter likely not enabled" >&2
         exit 0
     fi
     sleep 1
 done
-echo "Kafka JMX metrics endpoint ready."
+echo "Kafka metrics endpoint ready."
 
 {
     echo "# kafka-metrics polling started"

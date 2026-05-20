@@ -17,11 +17,7 @@ spec:
     {{- end }}
     {{- if .Values.kafka.metrics.enabled }}
     metricsConfig:
-      type: jmxPrometheusExporter
-      valueFrom:
-        configMapKeyRef:
-          name: kafka-jmx-metrics-config
-          key: kafka-metrics-config.yml
+      type: strimziMetricsReporter
     {{- end }}
     listeners:
       - name: plain
