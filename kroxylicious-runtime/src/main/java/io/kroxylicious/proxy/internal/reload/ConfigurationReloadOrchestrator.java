@@ -76,15 +76,28 @@ public class ConfigurationReloadOrchestrator {
      *                               methods (currently no-ops; see class-level Javadoc)
      * @param pfr                    plugin factory registry, used by change detectors and
      *                               by filter-chain reconciliation
+     * @param detectors              the change-detector pipeline to drive; production wiring
+     *                               passes {@link #defaultDetectors()}, tests can pass stubs
+     *                               to drive the orchestrator with a controlled
+     *                               {@link ChangeResult}
      */
     public ConfigurationReloadOrchestrator(Configuration initialConfiguration,
                                            VirtualClusterRegistry virtualClusterRegistry,
-                                           PluginFactoryRegistry pfr) {
+                                           PluginFactoryRegistry pfr,
+                                           List<ChangeDetector> detectors) {
         this.currentConfiguration = Objects.requireNonNull(initialConfiguration, "initialConfiguration");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.pfr = Objects.requireNonNull(pfr, "pfr");
         this.staticSectionDiffer = new StaticSectionDiffer();
-        this.detectors = List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector());
+        this.detectors = List.copyOf(Objects.requireNonNull(detectors, "detectors"));
+    }
+
+    /**
+     * The production-default set of change detectors:
+     * {@link VirtualClusterChangeDetector} and {@link FilterChangeDetector}.
+     */
+    public static List<ChangeDetector> defaultDetectors() {
+        return List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector());
     }
 
     /**
@@ -128,9 +141,10 @@ public class ConfigurationReloadOrchestrator {
             // 1. wrap each .join() in try/catch to accumulate ReconfigureError into a list
             // rather than aborting on the first failure — a failed cluster shouldn't
             // prevent the others from being attempted.
-            // 2. parallelise within each phase via CompletableFuture.allOf — operations
-            // within a phase are independent; only the phase boundaries (remove →
-            // replace → add) must remain ordered.
+            // 2. keep per-VC operations SEQUENTIAL within a phase — VCs that share a
+            // NamedFilterDefinition (directly via filters: or transitively via
+            // defaultFilters) are coupled through shared filter-wrapper state, so
+            // concurrent reconciles would race on that shared state.
             // 3. introduce per-wrapper replacement inside FilterChainFactory so filter
             // definitions used by unchanged VCs are not torn down.
             for (String name : changeResult.clustersToRemove()) {

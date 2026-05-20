@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.reload;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -164,6 +166,9 @@ class ConfigurationReloadOrchestratorTest {
                 firstResult.set(t);
             }
         }, "first-reconfigure");
+        // Daemon so a bug in this test (e.g. release.countDown() never reached) can't
+        // keep the JVM alive after the test framework has otherwise finished.
+        thread.setDaemon(true);
         thread.start();
         // Wait until thread-1 has acquired the lock and is parked in the registry stub.
         assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
@@ -189,10 +194,42 @@ class ConfigurationReloadOrchestratorTest {
                 .hasMessageContaining("newConfig");
     }
 
+    @Test
+    void orchestratorDrivesRegistryFromInjectedDetectorOutput() {
+        // given — identical old/new configs. The production detectors would return EMPTY here
+        // (nothing changed). We inject a custom detector that returns a non-empty ChangeResult
+        // anyway, so the only way the orchestrator can drive the registry is if it is in fact
+        // consulting the injected detector rather than synthesising its own diff.
+        var config = configWith(vc("cluster-a"));
+        var customDetector = mock(ChangeDetector.class);
+        when(customDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of(), // clustersToAdd
+                Set.of(), // clustersToRemove
+                Set.of("cluster-a"))); // clustersToModify
+
+        var registry = stubbedRegistry();
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, registry, mock(PluginFactoryRegistry.class), List.of(customDetector));
+
+        // when
+        var future = orchestrator.reconfigure(config);
+
+        // then — the orchestrator consulted the injected detector and acted on its verdict.
+        verify(customDetector).detect(any());
+        verify(registry).replaceVirtualCluster(eq("cluster-a"), any());
+        verify(registry, never()).removeVirtualCluster(anyString());
+        verify(registry, never()).addVirtualCluster(any());
+
+        // The pipeline still reaches the swap-point placeholder.
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
+    }
+
     // -------- fixture helpers --------
 
     private ConfigurationReloadOrchestrator newOrchestrator(Configuration initial, VirtualClusterRegistry registry) {
-        return new ConfigurationReloadOrchestrator(initial, registry, mock(PluginFactoryRegistry.class));
+        return new ConfigurationReloadOrchestrator(initial, registry, mock(PluginFactoryRegistry.class),
+                ConfigurationReloadOrchestrator.defaultDetectors());
     }
 
     /**
