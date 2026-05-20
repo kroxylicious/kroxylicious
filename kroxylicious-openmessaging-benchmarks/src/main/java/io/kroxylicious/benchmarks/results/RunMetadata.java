@@ -146,42 +146,18 @@ public class RunMetadata {
         metadata.put("gitCommit", gitCommit);
         metadata.put("gitBranch", gitBranch);
         metadata.put("timestamp", timestamp);
-        if (probeContext.scenario() != null) {
-            metadata.put("scenario", probeContext.scenario());
-        }
-        if (probeContext.workload() != null) {
-            metadata.put("workload", probeContext.workload());
-        }
-        if (probeContext.targetRate() != null) {
-            metadata.put("targetRate", probeContext.targetRate());
-        }
-        if (probeContext.warmupDurationMinutes() != null) {
-            metadata.put("warmupDurationMinutes", probeContext.warmupDurationMinutes());
-        }
-        if (probeContext.testDurationMinutes() != null) {
-            metadata.put("testDurationMinutes", probeContext.testDurationMinutes());
-        }
-        if (probeContext.benchmarkStartedAt() != null) {
-            metadata.put("benchmarkStartedAt", probeContext.benchmarkStartedAt());
-        }
-        if (probeContext.benchmarkCompletedAt() != null) {
-            metadata.put("benchmarkCompletedAt", probeContext.benchmarkCompletedAt());
-        }
-        if (probeContext.topics() != null) {
-            metadata.put("topics", probeContext.topics());
-        }
-        if (probeContext.partitionsPerTopic() != null) {
-            metadata.put("partitionsPerTopic", probeContext.partitionsPerTopic());
-        }
-        if (probeContext.messageSize() != null) {
-            metadata.put("messageSize", probeContext.messageSize());
-        }
-        if (probeContext.producersPerTopic() != null) {
-            metadata.put("producersPerTopic", probeContext.producersPerTopic());
-        }
-        if (probeContext.consumerPerSubscription() != null) {
-            metadata.put("consumerPerSubscription", probeContext.consumerPerSubscription());
-        }
+        putIfPresent(metadata, "scenario", probeContext.scenario());
+        putIfPresent(metadata, "workload", probeContext.workload());
+        putIfPresent(metadata, "targetRate", probeContext.targetRate());
+        putIfPresent(metadata, "warmupDurationMinutes", probeContext.warmupDurationMinutes());
+        putIfPresent(metadata, "testDurationMinutes", probeContext.testDurationMinutes());
+        putIfPresent(metadata, "benchmarkStartedAt", probeContext.benchmarkStartedAt());
+        putIfPresent(metadata, "benchmarkCompletedAt", probeContext.benchmarkCompletedAt());
+        putIfPresent(metadata, "topics", probeContext.topics());
+        putIfPresent(metadata, "partitionsPerTopic", probeContext.partitionsPerTopic());
+        putIfPresent(metadata, "messageSize", probeContext.messageSize());
+        putIfPresent(metadata, "producersPerTopic", probeContext.producersPerTopic());
+        putIfPresent(metadata, "consumerPerSubscription", probeContext.consumerPerSubscription());
 
         Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
         if (!minikubeProfile.isEmpty()) {
@@ -278,24 +254,12 @@ public class RunMetadata {
                     JsonNode requests = container.path("resources").path("requests");
                     JsonNode limits = container.path("resources").path("limits");
                     if (!requests.isMissingNode()) {
-                        String cpu = requests.path("cpu").asText(null);
-                        if (cpu != null) {
-                            info.put("cpuRequest", cpu);
-                        }
-                        String mem = requests.path("memory").asText(null);
-                        if (mem != null) {
-                            info.put("memoryRequest", mem);
-                        }
+                        putIfPresent(info, "cpuRequest", requests.path("cpu").asText(null));
+                        putIfPresent(info, "memoryRequest", requests.path("memory").asText(null));
                     }
                     if (!limits.isMissingNode()) {
-                        String cpu = limits.path("cpu").asText(null);
-                        if (cpu != null) {
-                            info.put("cpuLimit", cpu);
-                        }
-                        String mem = limits.path("memory").asText(null);
-                        if (mem != null) {
-                            info.put("memoryLimit", mem);
-                        }
+                        putIfPresent(info, "cpuLimit", limits.path("cpu").asText(null));
+                        putIfPresent(info, "memoryLimit", limits.path("memory").asText(null));
                     }
                     break;
                 }
@@ -410,6 +374,12 @@ public class RunMetadata {
                 .map(l -> l.substring(l.indexOf(':') + 1).trim())
                 .ifPresent(mhz -> info.put("cpuMhz", mhz));
         return info;
+    }
+
+    private static void putIfPresent(Map<String, Object> map, String key, Object value) {
+        if (value != null) {
+            map.put(key, value);
+        }
     }
 
     @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
