@@ -37,6 +37,7 @@ class RoutingContextImpl implements RouterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingContextImpl.class);
 
+    private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
     private final short apiVersion;
     private final String sessionId;
@@ -73,8 +74,7 @@ class RoutingContextImpl implements RouterContext {
         void forward(int virtualNodeId, String routeName, Object msg);
     }
 
-    RoutingContextImpl(int clientCorrelationId,
-                       short apiVersion,
+    RoutingContextImpl(DecodedRequestFrame<?> clientFrame,
                        Channel clientChannel,
                        String sessionId,
                        Subject subject,
@@ -88,8 +88,9 @@ class RoutingContextImpl implements RouterContext {
                        MeterProvider<Timer> routingRequestDurationTimer,
                        AtomicInteger pendingResponseCount,
                        ResponseSequencer responseSequencer) {
-        this.clientCorrelationId = clientCorrelationId;
-        this.apiVersion = apiVersion;
+        this.clientFrame = Objects.requireNonNull(clientFrame);
+        this.clientCorrelationId = clientFrame.correlationId();
+        this.apiVersion = clientFrame.apiVersion();
         this.clientChannel = Objects.requireNonNull(clientChannel);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
