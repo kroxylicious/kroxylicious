@@ -52,6 +52,8 @@ import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResp
 import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponseTopic;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
@@ -156,6 +158,7 @@ class TopicPartitionRouter implements Router {
             ApiKeys.METADATA,
             ApiKeys.FETCH,
             ApiKeys.LIST_OFFSETS,
+            ApiKeys.OFFSET_FOR_LEADER_EPOCH,
             ApiKeys.OFFSET_COMMIT,
             ApiKeys.OFFSET_FETCH,
             ApiKeys.CREATE_TOPICS,
@@ -281,6 +284,9 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.LIST_OFFSETS) {
             return handleListOffsets(header, (ListOffsetsRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.OFFSET_FOR_LEADER_EPOCH) {
+            return handleOffsetForLeaderEpoch(header, (OffsetForLeaderEpochRequestData) request, context);
         }
         if (apiKey == ApiKeys.OFFSET_COMMIT) {
             return handleOffsetCommit(header, (OffsetCommitRequestData) request, context);
@@ -863,6 +869,100 @@ class TopicPartitionRouter implements Router {
                 return RoutingResult.completed();
             });
         });
+    }
+
+    private CompletionStage<RoutingResult> handleOffsetForLeaderEpoch(
+                                                                      RequestHeaderData header,
+                                                                      OffsetForLeaderEpochRequestData request,
+                                                                      RoutingContext context) {
+        Map<String, OffsetForLeaderEpochRequestData> subRequests = new HashMap<>();
+        var errorResponse = new OffsetForLeaderEpochResponseData();
+
+        for (var topic : request.topics()) {
+            String route = routingTable.routeForTopic(topic.topic());
+            if (route == null) {
+                var topicResult = new OffsetForLeaderEpochResponseData.OffsetForLeaderTopicResult()
+                        .setTopic(topic.topic());
+                for (var partition : topic.partitions()) {
+                    topicResult.partitions().add(
+                            new OffsetForLeaderEpochResponseData.EpochEndOffset()
+                                    .setPartition(partition.partition())
+                                    .setErrorCode(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+                }
+                errorResponse.topics().add(topicResult);
+            }
+            else {
+                var sub = subRequests.computeIfAbsent(route, k -> new OffsetForLeaderEpochRequestData().setReplicaId(request.replicaId()));
+                var subTopic = new OffsetForLeaderEpochRequestData.OffsetForLeaderTopic()
+                        .setTopic(topic.topic());
+                for (var p : topic.partitions()) {
+                    subTopic.partitions().add(p.duplicate());
+                }
+                sub.topics().add(subTopic);
+            }
+        }
+
+        if (subRequests.isEmpty()) {
+            sendSyntheticResponse(context, errorResponse);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
+            Map<Integer, OffsetForLeaderEpochRequestData> byLeader = new HashMap<>();
+            for (var routeEntry : subRequests.entrySet()) {
+                for (var topic : routeEntry.getValue().topics()) {
+                    for (var partition : topic.partitions()) {
+                        Integer leader = leaderForPartition(topic.topic(), partition.partition());
+                        if (leader == null) {
+                            leader = -1;
+                        }
+                        var leaderReq = byLeader.computeIfAbsent(leader, k -> new OffsetForLeaderEpochRequestData().setReplicaId(request.replicaId()));
+                        var leaderTopic = findOrCreateOffsetForLeaderTopic(leaderReq, topic.topic());
+                        leaderTopic.partitions().add(partition.duplicate());
+                    }
+                }
+            }
+
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("leaderCount", byLeader.size())
+                    .log("OffsetForLeaderEpoch dispatching to partition leaders");
+
+            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            for (var entry : byLeader.entrySet()) {
+                futures.put(entry.getKey(),
+                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
+            }
+
+            OffsetForLeaderEpochResponseData capturedErrors = errorResponse;
+            return collectAll(futures).thenApply(responses -> {
+                var merged = new OffsetForLeaderEpochResponseData();
+                for (var entry : responses.entrySet()) {
+                    var body = (OffsetForLeaderEpochResponseData) entry.getValue().body();
+                    for (var topicResult : body.topics()) {
+                        merged.topics().add(topicResult.duplicate());
+                    }
+                }
+                for (var tr : capturedErrors.topics()) {
+                    merged.topics().add(tr.duplicate());
+                }
+                sendSyntheticResponse(context, merged);
+                return RoutingResult.completed();
+            });
+        });
+    }
+
+    private static OffsetForLeaderEpochRequestData.OffsetForLeaderTopic findOrCreateOffsetForLeaderTopic(
+                                                                                                         OffsetForLeaderEpochRequestData data,
+                                                                                                         String topicName) {
+        for (var t : data.topics()) {
+            if (t.topic().equals(topicName)) {
+                return t;
+            }
+        }
+        var t = new OffsetForLeaderEpochRequestData.OffsetForLeaderTopic().setTopic(topicName);
+        data.topics().add(t);
+        return t;
     }
 
     private CompletionStage<RoutingResult> handleOffsetCommit(
@@ -1971,6 +2071,16 @@ class TopicPartitionRouter implements Router {
         }
         else if (subRequest instanceof FetchRequestData fr) {
             for (var topic : fr.topics()) {
+                for (var partition : topic.partitions()) {
+                    if (leaderForPartition(topic.topic(), partition.partition()) == null) {
+                        uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.topic());
+                        break;
+                    }
+                }
+            }
+        }
+        else if (subRequest instanceof OffsetForLeaderEpochRequestData oflr) {
+            for (var topic : oflr.topics()) {
                 for (var partition : topic.partitions()) {
                     if (leaderForPartition(topic.topic(), partition.partition()) == null) {
                         uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.topic());
