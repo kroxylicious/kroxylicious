@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -27,14 +28,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class KafkaProxyLifecycleTest {
 
     private ConfigParser configParser;
+    private KafkaProxy proxy;
 
     @BeforeEach
     void setUp() {
         configParser = new ConfigParser();
     }
 
+    @AfterEach
+    void tearDown() {
+        if (this.proxy != null) {
+            this.proxy.close();
+        }
+    }
+
     @Test
-    void shouldTrackVirtualClusterAsServingAfterStartup() throws Exception {
+    void shouldTrackVirtualClusterAsServingAfterStartup() {
         // given
         var config = """
                    virtualClusters:
@@ -47,19 +56,19 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             // when
-            proxy.startup();
+            kafkaProxy.startup();
 
             // then
-            assertThat(proxy.lifecycleFor("demo1"))
+            assertThat(kafkaProxy.lifecycleFor("demo1"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
         }
     }
 
     @Test
-    void shouldTrackMultipleVirtualClustersAsServing() throws Exception {
+    void shouldTrackMultipleVirtualClustersAsServing() {
         // given
         var config = """
                    virtualClusters:
@@ -79,15 +88,15 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9292
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             // when
-            proxy.startup();
+            kafkaProxy.startup();
 
             // then
-            assertThat(proxy.lifecycleFor("cluster-a"))
+            assertThat(kafkaProxy.lifecycleFor("cluster-a"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
-            assertThat(proxy.lifecycleFor("cluster-b"))
+            assertThat(kafkaProxy.lifecycleFor("cluster-b"))
                     .isNotNull()
                     .satisfies(m -> assertThat(m.state()).isInstanceOf(Serving.class));
         }
@@ -107,17 +116,16 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            proxy.startup();
-            var manager = proxy.lifecycleFor("demo1");
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        proxy.startup();
+        var manager = proxy.lifecycleFor("demo1");
 
-            // when
-            proxy.shutdown();
+        // when
+        proxy.shutdown();
 
-            // then
-            assertThat(manager).isNotNull();
-            assertThat(manager.state()).isInstanceOf(Stopped.class);
-        }
+        // then
+        assertThat(manager).isNotNull();
+        assertThat(manager.state()).isInstanceOf(Stopped.class);
     }
 
     @Test
@@ -189,7 +197,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
         assertThat(future).isNotNull().isNotDone();
         proxy.shutdown();
@@ -209,7 +217,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         try {
             CompletableFuture<Void> first = proxy.startup();
             CompletableFuture<Void> second = proxy.startup();
@@ -233,7 +241,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         assertThatCode(proxy::shutdown).doesNotThrowAnyException();
     }
 
@@ -250,7 +258,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         proxy.startup();
         proxy.shutdown();
         assertThatCode(proxy::shutdown).doesNotThrowAnyException();
@@ -269,7 +277,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         proxy.startup();
         proxy.shutdown();
         assertThatThrownBy(proxy::startup)
@@ -278,15 +286,6 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-<<<<<<< HEAD
-    void shouldFailConstructionWhenFilterInitializationFails() {
-        // The FCF-per-VC refactor moved filter init into VirtualClusterModel construction (run from
-        // KafkaProxy's constructor via defaultRegistry), so a bad filter config now surfaces from the
-        // constructor — wrapped as LifecycleException by defaultRegistry — rather than from startup().
-        // The proxy object never exists when its construction throws, so the previously-observed
-        // post-failure transition to Stopped is no longer reachable; the exception-type contract is the
-        // observable contract that remains.
-=======
     void cancelOnFutureTriggersGracefulShutdown() {
         var config = """
                    virtualClusters:
@@ -299,7 +298,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
 
         boolean cancelled = future.cancel(true);
@@ -321,7 +320,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         proxy.startup();
         assertThatCode(proxy::close).doesNotThrowAnyException();
         assertThatCode(proxy::close).doesNotThrowAnyException();
@@ -340,7 +339,7 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
 
         CompletableFuture.runAsync(proxy::shutdown).join();
@@ -366,7 +365,7 @@ class KafkaProxyLifecycleTest {
                    - filter1
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         assertThatThrownBy(proxy::startup).isInstanceOf(LifecycleException.class);
 
         assertThat(proxy.shutdownFuture())
@@ -410,7 +409,7 @@ class KafkaProxyLifecycleTest {
             }
         };
 
-        var proxy = new KafkaProxy(configParser, configuration, Features.defaultFeatures(), blockingRegistry);
+        this.proxy = new KafkaProxy(configParser, configuration, Features.defaultFeatures(), blockingRegistry);
         proxy.startup();
 
         var shutdownThread = new Thread(proxy::shutdown);
@@ -449,7 +448,7 @@ class KafkaProxyLifecycleTest {
                    - filter1
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
 
         proxy.shutdown();
@@ -463,9 +462,13 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void shouldTransitionToStoppedOnStartupFailure() throws Exception {
-        // given
->>>>>>> b9cf1455a (test(runtime): add lifecycle tests for proposal 098)
+    void shouldFailConstructionWhenFilterInitializationFails() {
+        // The FCF-per-VC refactor moved filter init into VirtualClusterModel construction (run from
+        // KafkaProxy's constructor via defaultRegistry), so a bad filter config now surfaces from the
+        // constructor — wrapped as LifecycleException by defaultRegistry — rather than from startup().
+        // The proxy object never exists when its construction throws, so the previously-observed
+        // post-failure transition to Stopped is no longer reachable; the exception-type contract is the
+        // observable contract that remains.
         var config = """
                    virtualClusters:
                      - name: demo1
