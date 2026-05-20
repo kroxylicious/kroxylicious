@@ -42,7 +42,7 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
               matchLabels:
-                strimzi.io/cluster: kafka
+                strimzi.io/pool-name: kafka-pool
             topologyKey: kubernetes.io/hostname
           - labelSelector:
               matchExpressions:
