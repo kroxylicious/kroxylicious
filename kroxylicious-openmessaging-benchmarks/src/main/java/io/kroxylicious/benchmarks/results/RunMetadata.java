@@ -248,22 +248,7 @@ public class RunMetadata {
         Map<String, Object> info = new LinkedHashMap<>();
         try {
             String json = runner.run("kubectl", "get", "pod", proxyPodName, "-n", namespace, "-o", "json");
-            JsonNode pod = MAPPER.readTree(json);
-            for (JsonNode container : pod.path("spec").path("containers")) {
-                if ("proxy".equals(container.path("name").asText())) {
-                    JsonNode requests = container.path("resources").path("requests");
-                    JsonNode limits = container.path("resources").path("limits");
-                    if (!requests.isMissingNode()) {
-                        putIfPresent(info, "cpuRequest", requests.path("cpu").asText(null));
-                        putIfPresent(info, "memoryRequest", requests.path("memory").asText(null));
-                    }
-                    if (!limits.isMissingNode()) {
-                        putIfPresent(info, "cpuLimit", limits.path("cpu").asText(null));
-                        putIfPresent(info, "memoryLimit", limits.path("memory").asText(null));
-                    }
-                    break;
-                }
-            }
+            extractProxyContainerResources(MAPPER.readTree(json), info);
         }
         catch (Exception e) {
             LOGGER.atDebug().addKeyValue("proxyPodName", proxyPodName).setCause(e).log("Could not read proxy pod resources");
@@ -374,6 +359,24 @@ public class RunMetadata {
                 .map(l -> l.substring(l.indexOf(':') + 1).trim())
                 .ifPresent(mhz -> info.put("cpuMhz", mhz));
         return info;
+    }
+
+    private static void extractProxyContainerResources(JsonNode pod, Map<String, Object> info) {
+        for (JsonNode container : pod.path("spec").path("containers")) {
+            if ("proxy".equals(container.path("name").asText())) {
+                JsonNode requests = container.path("resources").path("requests");
+                JsonNode limits = container.path("resources").path("limits");
+                if (!requests.isMissingNode()) {
+                    putIfPresent(info, "cpuRequest", requests.path("cpu").asText(null));
+                    putIfPresent(info, "memoryRequest", requests.path("memory").asText(null));
+                }
+                if (!limits.isMissingNode()) {
+                    putIfPresent(info, "cpuLimit", limits.path("cpu").asText(null));
+                    putIfPresent(info, "memoryLimit", limits.path("memory").asText(null));
+                }
+                break;
+            }
+        }
     }
 
     private static void putIfPresent(Map<String, Object> map, String key, Object value) {
