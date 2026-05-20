@@ -19,9 +19,9 @@ management:
     prometheus: {}
 targetClusters:
   - name: cluster-a
-    bootstrapServers: localhost:19092
+    bootstrapServers: kafka-a-1:9093
   - name: cluster-b
-    bootstrapServers: localhost:29092
+    bootstrapServers: kafka-b-1:9093
 filterDefinitions:
   - name: sasl-inspection
     type: io.kroxylicious.filter.sasl.inspection.SaslInspection
@@ -57,7 +57,7 @@ virtualClusters:
     gateways:
       - name: host
         portIdentifiesNode:
-          bootstrapAddress: localhost:9192
+          bootstrapAddress: kroxylicious:9192
           nodeIdRanges:
             - name: brokers
               start: 0

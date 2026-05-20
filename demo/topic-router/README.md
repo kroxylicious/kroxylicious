@@ -1,7 +1,7 @@
 # Topic Router Demo
 
-This demo runs two independent 3-broker Kafka clusters behind a single Kroxylicious proxy.
-The topic router splits traffic by topic name prefix:
+This demo runs two independent 3-broker Kafka clusters and a Kroxylicious proxy
+in Docker.  The topic router splits traffic by topic name prefix:
 
 - `a.*` topics -> **cluster-a** (default route)
 - `b.*` topics -> **cluster-b**
@@ -14,8 +14,8 @@ transactional produce, and read-committed consumer groups.
 ```
                           +---------------------------+
                           |     Kroxylicious Proxy    |
- Client --SASL_PLAIN--->  |  (localhost:9192)         |
-                          |  SaslInspection filter    |
+ Client ----SASL--------> |  (kroxylicious:9192)      |
+   (on Docker network)    |  SaslInspection filter    |
                           |  TopicPartitionRouter     |
                           +---+-----------------+-----+
                               |                 |
@@ -27,10 +27,19 @@ transactional produce, and read-committed consumer groups.
                     | 3 brokers  |    | 3 brokers  |
                     | a.* topics |    | b.* topics |
                     +------------+    +------------+
+
+          All containers on the "kroxylicious-demo" Docker network
 ```
 
 SASL PLAIN authentication identifies users for subject-based routing of
 transactions and consumer groups. User `bob` is mapped to `route-b` for both.
+
+Aside: The presence of _some_ authentication is required for the Subject-based routing
+used to avoid the need for cross-cluster transactions. SASL termination at the proxy 
+is the right way to do this (because, in general, you cannot re-use a SASL exchange 
+with multiple brokers). However, the project currently doesn't really support any SASL 
+termination filters, so using SaslInspection forwarding only to the default cluster is 
+a temporary hack.
 
 ## Prerequisites
 
@@ -46,11 +55,13 @@ Throughout this guide, replace `podman` with `docker` if you use Docker.
 
 ## Helper alias
 
-To avoid repeating the full `podman run` invocation, define a shell function:
+To avoid repeating the full `podman run` invocation, define a shell function.
+All containers join the `kroxylicious-demo` network so they can reach the
+brokers and proxy by hostname:
 
 ```bash
 kafka-cmd() {
-  podman run --rm --network host docker.io/apache/kafka:4.2.0 \
+  podman run --rm --network kroxylicious-demo docker.io/apache/kafka:4.2.0 \
     /opt/kafka/bin/"$@"
 }
 ```
@@ -82,7 +93,13 @@ kafka-cmd-bob() {
 mvn clean package -Pdist -Dquick
 ```
 
-### 2. Start Kafka clusters
+### 2. Load the proxy image
+
+```bash
+podman load < kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+```
+
+### 3. Start the clusters and proxy
 
 ```bash
 podman compose -f demo/topic-router/docker-compose.yaml up -d
@@ -91,41 +108,32 @@ podman compose -f demo/topic-router/docker-compose.yaml up -d
 Wait for both clusters to be ready (may take 15-20 seconds):
 
 ```bash
-# Cluster A (PLAINTEXT listener on port 19192)
-kafka-cmd kafka-topics.sh --bootstrap-server localhost:19192 --list
+# Cluster A (PLAINTEXT listener)
+kafka-cmd kafka-topics.sh --bootstrap-server kafka-a-1:9094 --list
 
-# Cluster B (PLAINTEXT listener on port 29092)
-kafka-cmd kafka-topics.sh --bootstrap-server localhost:29092 --list
+# Cluster B (PLAINTEXT listener)
+kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 --list 2>&1 | head -1
 ```
 
 Both commands should return without error (empty list is fine).
 
-### 3. Create topics
+Check that the proxy is running:
+
+```bash
+podman compose -f demo/topic-router/docker-compose.yaml logs kroxylicious | tail -5
+```
+
+### 4. Create topics
 
 Create topics directly on each cluster via their PLAINTEXT listeners:
 
 ```bash
-kafka-cmd kafka-topics.sh --bootstrap-server localhost:19192 \
+kafka-cmd kafka-topics.sh --bootstrap-server kafka-a-1:9094 \
   --create --topic a.orders --partitions 3
 
-kafka-cmd kafka-topics.sh --bootstrap-server localhost:29092 \
+kafka-cmd kafka-topics.sh --bootstrap-server kafka-b-1:9093 \
   --create --topic b.analytics --partitions 3
 ```
-
-### 4. Start the proxy
-
-The topic router module is not bundled in `kroxylicious-app` by default.
-Use `KROXYLICIOUS_CLASSPATH` to add it at runtime:
-
-```bash
-KROXYLICIOUS_CLASSPATH=$(echo kroxylicious-router-topic/target/kroxylicious-router-topic-*.jar):$(echo kroxylicious-kafka-message-tools/target/kroxylicious-kafka-message-tools-*.jar) \
-  kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh \
-  --config demo/topic-router/proxy-config.yaml
-```
-
-The proxy listens on `localhost:9192` (bootstrap) with broker ports 9193-9201.
-
-Leave this running in a separate terminal.
 
 ## Demo 1: Non-transactional produce routing
 
@@ -134,40 +142,51 @@ Records land on different backend clusters.
 
 ```bash
 # Produce to a.orders -- routes to cluster-a
-echo "order-1" | kafka-cmd-alice kafka-console-producer.sh \
-  --bootstrap-server localhost:9192 \
-  --topic a.orders
+echo "order:order-1" | kafka-cmd-alice kafka-console-producer.sh \
+  --bootstrap-server kroxylicious:9192 \
+  --topic a.orders \
+  --reader-property parse.key=true --reader-property key.separator=:
 
 # Produce to b.analytics -- routes to cluster-b
-echo "event-1" | kafka-cmd-alice kafka-console-producer.sh \
-  --bootstrap-server localhost:9192 \
-  --topic b.analytics
+echo "event:event-1" | kafka-cmd-alice kafka-console-producer.sh \
+  --bootstrap-server kroxylicious:9192 \
+  --topic b.analytics \
+  --reader-property parse.key=true --reader-property key.separator=:
 ```
 
 Verify directly on each cluster (PLAINTEXT, no authentication needed):
 
 ```bash
 # Records on cluster-a
-kafka-cmd kafka-console-consumer.sh --bootstrap-server localhost:19192 \
+kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-a-1:9094 \
   --topic a.orders --from-beginning --max-messages 1
 
 # Records on cluster-b
-kafka-cmd kafka-console-consumer.sh --bootstrap-server localhost:29092 \
+kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 \
   --topic b.analytics --from-beginning --max-messages 1
 ```
 
 ## Demo 2: Cross-cluster consume
 
-A single consumer through the proxy sees records from topics on both clusters.
-Use `group.protocol=consumer` (KIP-848) because the classic consumer group protocol's
-coordinator APIs are statically routed to the default cluster.
+Consume records from each cluster individually through the proxy using manual
+partition assignment (`--partition 2`). This bypasses the group coordinator,
+which currently cannot route across clusters for ungrouped consumers.
+
+The keys `order` and `event` both hash to partition 2 under Kafka's default
+murmur2 partitioner with 3 partitions.
 
 ```bash
+# a.orders (routed to cluster-a)
 kafka-cmd-alice kafka-console-consumer.sh \
-  --bootstrap-server localhost:9192 \
-  --include "a.orders|b.analytics" \
-  --from-beginning --max-messages 2 \
-  --command-property group.protocol=consumer
+  --bootstrap-server kroxylicious:9192 \
+  --topic a.orders --partition 2 \
+  --from-beginning --max-messages 1
+
+# b.analytics (routed to cluster-b)
+kafka-cmd-alice kafka-console-consumer.sh \
+  --bootstrap-server kroxylicious:9192 \
+  --topic b.analytics --partition 2 \
+  --from-beginning --max-messages 1
 ```
 
 ## Demo 3: Transactional produce
@@ -176,9 +195,9 @@ User `bob` is mapped to `route-b` for transactions, so his transaction
 coordinator lives on cluster-b.
 
 ```bash
-podman run --rm --network host docker.io/apache/kafka:4.2.0 sh -c '
+podman run --rm --network kroxylicious-demo docker.io/apache/kafka:4.2.0 sh -c '
 cat > /tmp/bob-txn.properties << '\''PROPS'\''
-bootstrap.servers=localhost:9192
+bootstrap.servers=kroxylicious:9192
 security.protocol=SASL_PLAINTEXT
 sasl.mechanism=PLAIN
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="bob" password="bob-secret";
@@ -194,7 +213,7 @@ PROPS
 Verify with a `read_committed` consumer directly on cluster-b:
 
 ```bash
-kafka-cmd kafka-console-consumer.sh --bootstrap-server localhost:29092 \
+kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 \
   --topic b.analytics --from-beginning \
   --isolation-level read_committed
 ```
@@ -210,7 +229,7 @@ His consumer group coordinator routes to cluster-b
 
 ```bash
 kafka-cmd-bob kafka-console-consumer.sh \
-  --bootstrap-server localhost:9192 \
+  --bootstrap-server kroxylicious:9192 \
   --topic b.analytics --from-beginning \
   --group bob-consumer-group \
   --isolation-level read_committed \
@@ -223,17 +242,15 @@ Verify the consumer group exists on cluster-b but not cluster-a:
 
 ```bash
 # Group exists on cluster-b
-kafka-cmd kafka-consumer-groups.sh --bootstrap-server localhost:29092 \
+kafka-cmd kafka-consumer-groups.sh --bootstrap-server kafka-b-1:9093 \
   --describe --group bob-consumer-group
 
 # Group does NOT exist on cluster-a
-kafka-cmd kafka-consumer-groups.sh --bootstrap-server localhost:19192 \
+kafka-cmd kafka-consumer-groups.sh --bootstrap-server kafka-a-1:9094 \
   --describe --group bob-consumer-group
 ```
 
 ## Teardown
-
-Stop the proxy with Ctrl+C, then tear down the Kafka clusters:
 
 ```bash
 podman compose -f demo/topic-router/docker-compose.yaml down -v
