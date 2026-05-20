@@ -60,6 +60,10 @@ All containers join the `kroxylicious-demo` network so they can reach the
 brokers and proxy by hostname:
 
 ```bash
+PROXY=kroxylicious:9192
+CLUSTER_A=kafka-a-1:9094    # PLAINTEXT listener for direct access
+CLUSTER_B=kafka-b-1:9093    # PLAINTEXT listener for direct access
+
 kafka-cmd() {
   podman run --rm --network kroxylicious-demo docker.io/apache/kafka:4.2.0 \
     /opt/kafka/bin/"$@"
@@ -108,11 +112,8 @@ podman compose -f demo/topic-router/docker-compose.yaml up -d
 Wait for both clusters to be ready (may take 15-20 seconds):
 
 ```bash
-# Cluster A (PLAINTEXT listener)
-kafka-cmd kafka-topics.sh --bootstrap-server kafka-a-1:9094 --list
-
-# Cluster B (PLAINTEXT listener)
-kafka-cmd kafka-topics.sh --bootstrap-server kafka-b-1:9093 --list 2>&1 | head -1
+kafka-cmd kafka-topics.sh --bootstrap-server $CLUSTER_A --list
+kafka-cmd kafka-topics.sh --bootstrap-server $CLUSTER_B --list
 ```
 
 Both commands should return without error (empty list is fine).
@@ -128,10 +129,10 @@ podman compose -f demo/topic-router/docker-compose.yaml logs kroxylicious | tail
 Create topics directly on each cluster via their PLAINTEXT listeners:
 
 ```bash
-kafka-cmd kafka-topics.sh --bootstrap-server kafka-a-1:9094 \
+kafka-cmd kafka-topics.sh --bootstrap-server $CLUSTER_A \
   --create --topic a.orders --partitions 3
 
-kafka-cmd kafka-topics.sh --bootstrap-server kafka-b-1:9093 \
+kafka-cmd kafka-topics.sh --bootstrap-server $CLUSTER_B \
   --create --topic b.analytics --partitions 3
 ```
 
@@ -143,26 +144,36 @@ Records land on different backend clusters.
 ```bash
 # Produce to a.orders -- routes to cluster-a
 echo "order:order-1" | kafka-cmd-alice kafka-console-producer.sh \
-  --bootstrap-server kroxylicious:9192 \
+  --bootstrap-server $PROXY \
   --topic a.orders \
   --reader-property parse.key=true --reader-property key.separator=:
 
 # Produce to b.analytics -- routes to cluster-b
 echo "event:event-1" | kafka-cmd-alice kafka-console-producer.sh \
-  --bootstrap-server kroxylicious:9192 \
+  --bootstrap-server $PROXY \
   --topic b.analytics \
   --reader-property parse.key=true --reader-property key.separator=:
 ```
 
-Verify directly on each cluster (PLAINTEXT, no authentication needed):
+Check offsets directly on each cluster to confirm records landed on the
+right cluster.  The keys `order` and `event` both hash to partition 2
+under Kafka's default murmur2 partitioner with 3 partitions.
 
 ```bash
-# Records on cluster-a
-kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-a-1:9094 \
+kafka-cmd kafka-get-offsets.sh --bootstrap-server $CLUSTER_A --topic a.orders
+# Expected: a.orders:2:1  (partition 2 has one record)
+
+kafka-cmd kafka-get-offsets.sh --bootstrap-server $CLUSTER_B --topic b.analytics
+# Expected: b.analytics:2:1  (partition 2 has one record)
+```
+
+Verify the record contents:
+
+```bash
+kafka-cmd kafka-console-consumer.sh --bootstrap-server $CLUSTER_A \
   --topic a.orders --partition 2 --from-beginning --max-messages 1
 
-# Records on cluster-b
-kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 \
+kafka-cmd kafka-console-consumer.sh --bootstrap-server $CLUSTER_B \
   --topic b.analytics --partition 2 --from-beginning --max-messages 1
 ```
 
@@ -172,19 +183,16 @@ Consume records from each cluster individually through the proxy using manual
 partition assignment (`--partition 2`). This bypasses the group coordinator,
 which currently cannot route across clusters for ungrouped consumers.
 
-The keys `order` and `event` both hash to partition 2 under Kafka's default
-murmur2 partitioner with 3 partitions.
-
 ```bash
 # a.orders (routed to cluster-a)
 kafka-cmd-alice kafka-console-consumer.sh \
-  --bootstrap-server kroxylicious:9192 \
+  --bootstrap-server $PROXY \
   --topic a.orders --partition 2 \
   --from-beginning --max-messages 1
 
 # b.analytics (routed to cluster-b)
 kafka-cmd-alice kafka-console-consumer.sh \
-  --bootstrap-server kroxylicious:9192 \
+  --bootstrap-server $PROXY \
   --topic b.analytics --partition 2 \
   --from-beginning --max-messages 1
 ```
@@ -210,10 +218,16 @@ PROPS
 '
 ```
 
+Check offsets — partition 2 should now have 7 (1 from Demo 1 + 5 data + 1 txn marker):
+
+```bash
+kafka-cmd kafka-get-offsets.sh --bootstrap-server $CLUSTER_B --topic b.analytics
+```
+
 Verify with a `read_committed` consumer directly on cluster-b:
 
 ```bash
-kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 \
+kafka-cmd kafka-console-consumer.sh --bootstrap-server $CLUSTER_B \
   --topic b.analytics --from-beginning \
   --isolation-level read_committed
 ```
@@ -229,7 +243,7 @@ His consumer group coordinator routes to cluster-b
 
 ```bash
 kafka-cmd-bob kafka-console-consumer.sh \
-  --bootstrap-server kroxylicious:9192 \
+  --bootstrap-server $PROXY \
   --topic b.analytics --from-beginning \
   --group bob-consumer-group \
   --isolation-level read_committed \
@@ -242,11 +256,11 @@ Verify the consumer group exists on cluster-b but not cluster-a:
 
 ```bash
 # Group exists on cluster-b
-kafka-cmd kafka-consumer-groups.sh --bootstrap-server kafka-b-1:9093 \
+kafka-cmd kafka-consumer-groups.sh --bootstrap-server $CLUSTER_B \
   --describe --group bob-consumer-group
 
 # Group does NOT exist on cluster-a
-kafka-cmd kafka-consumer-groups.sh --bootstrap-server kafka-a-1:9094 \
+kafka-cmd kafka-consumer-groups.sh --bootstrap-server $CLUSTER_A \
   --describe --group bob-consumer-group
 ```
 
