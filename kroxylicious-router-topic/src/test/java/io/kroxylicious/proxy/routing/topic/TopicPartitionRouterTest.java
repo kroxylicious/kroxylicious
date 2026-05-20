@@ -20,6 +20,9 @@ import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
+import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.DescribeClusterRequestData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.EndTxnRequestData;
@@ -89,7 +92,7 @@ class TopicPartitionRouterTest {
     void setUp() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
-        router = new TopicPartitionRouter(table, "default-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        router = new TopicPartitionRouter(table, "default-route", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
     }
 
@@ -100,7 +103,7 @@ class TopicPartitionRouterTest {
         var cache = new FetchSessionCache(1000, 10_000, "testVc", "testRouter");
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), "default-route");
-        var closeable = new TopicPartitionRouter(table, "default-route", Map.of(),
+        var closeable = new TopicPartitionRouter(table, "default-route", Map.of(), Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)), cache, Clock.systemUTC(), "testVc", "testRouter");
 
         var request = fetchRequest("orders.uk");
@@ -229,7 +232,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableTopicsWithNoDefault() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = produceRequest("orders.uk", "logs.app");
@@ -325,7 +328,7 @@ class TopicPartitionRouterTest {
     void shouldPassThroughInitProducerIdWithSingleRoute() {
         var singleRouteTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "only-route"), null);
-        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = new InitProducerIdRequestData()
@@ -695,7 +698,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableFetchTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = fetchRequest("orders.uk", "unknown.topic");
@@ -764,7 +767,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableListOffsetsTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = listOffsetsRequest("orders.uk", "unknown.topic");
@@ -833,7 +836,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableOffsetCommitTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = offsetCommitRequest("orders.uk", "unknown.topic");
@@ -945,7 +948,7 @@ class TopicPartitionRouterTest {
     void shouldFanOutDescribeClusterAndMergeBrokers() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
-        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(), Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -977,7 +980,7 @@ class TopicPartitionRouterTest {
     void shouldUseDefaultRouteClusterFieldsInDescribeCluster() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
-        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(), Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -1008,7 +1011,7 @@ class TopicPartitionRouterTest {
     void shouldTakeMaxThrottleTimeInDescribeCluster() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
-        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(), Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -1187,6 +1190,245 @@ class TopicPartitionRouterTest {
         txnRouter.close();
     }
 
+    // --- CONSUMER_GROUP_HEARTBEAT ---
+
+    @Test
+    void shouldRouteConsumerGroupHeartbeatToMappedRoute() {
+        var cgRouter = createCgRouter("cluster-b");
+        var heartbeatReq = new ConsumerGroupHeartbeatRequestData()
+                .setGroupId("my-group")
+                .setMemberId("member-1")
+                .setMemberEpoch(0);
+
+        var heartbeatResp = new ConsumerGroupHeartbeatResponseData()
+                .setMemberId("member-1")
+                .setMemberEpoch(1)
+                .setHeartbeatIntervalMs(5000);
+
+        var ctx = new SingleRouteInitCapturingContext(
+                "cluster-b", heartbeatResp, cgRouter);
+        ctx.withSubject(CG_SUBJECT);
+
+        cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                new RequestHeaderData(), heartbeatReq, ctx);
+
+        assertThat(ctx.sentResponseBody()).isNotNull();
+        var respBody = (ConsumerGroupHeartbeatResponseData) ctx.sentResponseBody();
+        assertThat(respBody.memberId()).isEqualTo("member-1");
+        cgRouter.close();
+    }
+
+    @Test
+    void shouldRouteConsumerGroupHeartbeatToDefaultRouteWhenUnmapped() {
+        var cgRouter = createCgRouter("cluster-b");
+        var heartbeatReq = new ConsumerGroupHeartbeatRequestData()
+                .setGroupId("my-group")
+                .setMemberId("member-1")
+                .setMemberEpoch(0);
+
+        var heartbeatResp = new ConsumerGroupHeartbeatResponseData()
+                .setMemberId("member-1")
+                .setMemberEpoch(1);
+
+        var ctx = new SingleRouteInitCapturingContext(
+                "default-route", heartbeatResp, cgRouter);
+        ctx.withSubject(new Subject(new User("unmapped-user")));
+
+        cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                new RequestHeaderData(), heartbeatReq, ctx);
+
+        assertThat(ctx.sentResponseBody()).isNotNull();
+        cgRouter.close();
+    }
+
+    // --- CONSUMER_GROUP_DESCRIBE ---
+
+    @Test
+    void shouldRouteConsumerGroupDescribeToMappedRoute() {
+        var cgRouter = createCgRouter("cluster-b");
+        var describeReq = new ConsumerGroupDescribeRequestData();
+        describeReq.groupIds().add("my-group");
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-b", new org.apache.kafka.common.message.ConsumerGroupDescribeResponseData()))
+                .withSubject(CG_SUBJECT);
+
+        cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_DESCRIBE,
+                new RequestHeaderData(), describeReq, ctx);
+
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
+        cgRouter.close();
+    }
+
+    // --- FIND_COORDINATOR for consumer groups ---
+
+    @Test
+    void shouldRouteFindCoordinatorToMappedRouteForConsumerGroupKeyType() {
+        var cgRouter = createCgRouter("cluster-b");
+        var findCoordReq = new FindCoordinatorRequestData()
+                .setKey("my-group")
+                .setKeyType((byte) 0);
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-b", new FindCoordinatorResponseData()))
+                .withSubject(CG_SUBJECT);
+
+        cgRouter.onClientRequest((short) 3, ApiKeys.FIND_COORDINATOR,
+                new RequestHeaderData(), findCoordReq, ctx);
+
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
+        cgRouter.close();
+    }
+
+    @Test
+    void shouldRouteFindCoordinatorToDefaultRouteForUnmappedUserGroupKeyType() {
+        var cgRouter = createCgRouter("cluster-b");
+        var findCoordReq = new FindCoordinatorRequestData()
+                .setKey("my-group")
+                .setKeyType((byte) 0);
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("default-route", new FindCoordinatorResponseData()))
+                .withSubject(new Subject(new User("unmapped-user")));
+
+        cgRouter.onClientRequest((short) 3, ApiKeys.FIND_COORDINATOR,
+                new RequestHeaderData(), findCoordReq, ctx);
+
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
+        cgRouter.close();
+    }
+
+    // --- OFFSET_COMMIT with consumer group routing ---
+
+    @Test
+    void shouldRouteOffsetCommitToGroupRouteWhenMapped() {
+        var cgRouter = createCgRouter("cluster-a");
+
+        var commitReq = new OffsetCommitRequestData()
+                .setGroupId("my-group")
+                .setMemberId("member-1")
+                .setGenerationIdOrMemberEpoch(1);
+        commitReq.topics().add(new OffsetCommitRequestTopic()
+                .setName("orders.uk")
+                .setPartitions(List.of(
+                        new OffsetCommitRequestPartition()
+                                .setPartitionIndex(0)
+                                .setCommittedOffset(100))));
+
+        var backendResp = new OffsetCommitResponseData();
+        backendResp.topics().add(new OffsetCommitResponseTopic()
+                .setName("orders.uk")
+                .setPartitions(List.of(
+                        new OffsetCommitResponsePartition()
+                                .setPartitionIndex(0)
+                                .setErrorCode(Errors.NONE.code()))));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp))
+                .withSubject(CG_SUBJECT);
+
+        cgRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT,
+                new RequestHeaderData(), commitReq, ctx);
+
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
+        cgRouter.close();
+    }
+
+    @Test
+    void shouldRejectCrossRouteOffsetsInGroupCommit() {
+        var cgRouter = createCgRouter("cluster-a");
+
+        var commitReq = new OffsetCommitRequestData()
+                .setGroupId("my-group")
+                .setMemberId("member-1")
+                .setGenerationIdOrMemberEpoch(1);
+        commitReq.topics().add(new OffsetCommitRequestTopic()
+                .setName("logs.errors")
+                .setPartitions(List.of(
+                        new OffsetCommitRequestPartition()
+                                .setPartitionIndex(0)
+                                .setCommittedOffset(50))));
+
+        var ctx = new CapturingRoutingContext(Map.of())
+                .withSubject(CG_SUBJECT);
+
+        cgRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT,
+                new RequestHeaderData(), commitReq, ctx);
+
+        assertThat(ctx.sentResponseBody).isNotNull();
+        var resp = (OffsetCommitResponseData) ctx.sentResponseBody;
+        assertThat(resp.topics()).hasSize(1);
+        assertThat(resp.topics().get(0).partitions().get(0).errorCode())
+                .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+        cgRouter.close();
+    }
+
+    // --- OFFSET_FETCH ---
+
+    @Test
+    void shouldRouteOffsetFetchToGroupRouteWhenMapped() {
+        var cgRouter = createCgRouter("cluster-b");
+
+        var fetchReq = new org.apache.kafka.common.message.OffsetFetchRequestData();
+        fetchReq.setGroupId("my-group");
+        fetchReq.topics().add(new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic()
+                .setName("logs.errors")
+                .setPartitionIndexes(List.of(0)));
+
+        var backendResp = new org.apache.kafka.common.message.OffsetFetchResponseData();
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-b", backendResp))
+                .withSubject(CG_SUBJECT);
+
+        cgRouter.onClientRequest((short) 7, ApiKeys.OFFSET_FETCH,
+                new RequestHeaderData(), fetchReq, ctx);
+
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
+        cgRouter.close();
+    }
+
+    @Test
+    void shouldDecomposeOffsetFetchByTopicWhenUnmapped() {
+        var fetchReq = new org.apache.kafka.common.message.OffsetFetchRequestData();
+        fetchReq.setGroupId("my-group");
+        fetchReq.topics().add(new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic()
+                .setName("orders.uk")
+                .setPartitionIndexes(List.of(0)));
+        fetchReq.topics().add(new org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestTopic()
+                .setName("logs.errors")
+                .setPartitionIndexes(List.of(0)));
+
+        var respA = new org.apache.kafka.common.message.OffsetFetchResponseData();
+        respA.topics().add(new org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic()
+                .setName("orders.uk"));
+        var respB = new org.apache.kafka.common.message.OffsetFetchResponseData();
+        respB.topics().add(new org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic()
+                .setName("logs.errors"));
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+
+        router.onClientRequest((short) 7, ApiKeys.OFFSET_FETCH,
+                new RequestHeaderData(), fetchReq, ctx);
+
+        assertThat(ctx.sentResponseBody).isNotNull();
+        var resp = (org.apache.kafka.common.message.OffsetFetchResponseData) ctx.sentResponseBody;
+        assertThat(resp.topics()).hasSize(2);
+    }
+
+    // --- consumer group helpers ---
+
+    private static final Subject CG_SUBJECT = new Subject(new User("cg-user"));
+
+    private TopicPartitionRouter createCgRouter(String mappedRoute) {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
+        return new TopicPartitionRouter(table, "default-route",
+                Map.of(),
+                Map.of("cg-user", mappedRoute),
+                new ProducerIdManager(Duration.ofDays(7)),
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"),
+                Clock.systemUTC(), "testVc", "testRouter");
+    }
+
     // --- transaction helpers ---
 
     private static final Subject TXN_SUBJECT = new Subject(new User("txn-user"));
@@ -1196,6 +1438,7 @@ class TopicPartitionRouterTest {
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
         return new TopicPartitionRouter(table, "default-route",
                 Map.of("txn-user", mappedRoute),
+                Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -1614,9 +1857,10 @@ class TopicPartitionRouterTest {
         private final String route;
         private final int coordinatorNodeId;
         private final FindCoordinatorResponseData findCoordResp;
-        private final InitProducerIdResponseData initResp;
+        private final ApiMessage nodeResponse;
         private int sendRequestCount;
         private ApiMessage sentResponseBody;
+        private Subject subject = TXN_SUBJECT;
 
         ApiMessage sentResponseBody() {
             return sentResponseBody;
@@ -1629,7 +1873,21 @@ class TopicPartitionRouterTest {
             this.route = route;
             this.coordinatorNodeId = coordinatorNodeId;
             this.findCoordResp = findCoordResp;
-            this.initResp = initResp;
+            this.nodeResponse = initResp;
+        }
+
+        SingleRouteInitCapturingContext(String route,
+                                        ApiMessage nodeResponse,
+                                        TopicPartitionRouter router) {
+            this.route = route;
+            this.coordinatorNodeId = 1;
+            this.findCoordResp = new FindCoordinatorResponseData().setNodeId(1);
+            this.nodeResponse = nodeResponse;
+        }
+
+        SingleRouteInitCapturingContext withSubject(Subject subject) {
+            this.subject = subject;
+            return this;
         }
 
         @Override
@@ -1656,7 +1914,7 @@ class TopicPartitionRouterTest {
                                                            RequestHeaderData header,
                                                            ApiMessage request) {
             return CompletableFuture.completedFuture(
-                    new SimpleResponse(new ResponseHeaderData(), initResp));
+                    new SimpleResponse(new ResponseHeaderData(), nodeResponse));
         }
 
         @Override
@@ -1675,7 +1933,7 @@ class TopicPartitionRouterTest {
 
         @Override
         public Subject authenticatedSubject() {
-            return TXN_SUBJECT;
+            return subject;
         }
     }
 }

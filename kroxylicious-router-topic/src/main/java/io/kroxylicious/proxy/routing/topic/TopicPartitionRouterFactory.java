@@ -47,6 +47,7 @@ public class TopicPartitionRouterFactory
     record InitData(PrefixTopicRoutingTable routingTable,
                     @Nullable String defaultRoute,
                     Map<String, String> transactionalUserRoutes,
+                    Map<String, String> consumerGroupUserRoutes,
                     ProducerIdManager producerIdManager,
                     FetchSessionCache fetchSessionCache,
                     Clock clock,
@@ -96,11 +97,22 @@ public class TopicPartitionRouterFactory
                 ? Map.copyOf(config.transactionalUserRoutes())
                 : Map.of();
 
+        Map<String, String> cgUserRoutes = config.consumerGroupUserRoutes() != null
+                ? Map.copyOf(config.consumerGroupUserRoutes())
+                : Map.of();
+
         Set<String> allRouteNames = routingTable.allRoutes();
         for (var entry : txnUserRoutes.entrySet()) {
             if (!allRouteNames.contains(entry.getValue())) {
                 throw new PluginConfigurationException(
                         "transactionalUserRoutes maps user '" + entry.getKey()
+                                + "' to unknown route '" + entry.getValue() + "'");
+            }
+        }
+        for (var entry : cgUserRoutes.entrySet()) {
+            if (!allRouteNames.contains(entry.getValue())) {
+                throw new PluginConfigurationException(
+                        "consumerGroupUserRoutes maps user '" + entry.getKey()
                                 + "' to unknown route '" + entry.getValue() + "'");
             }
         }
@@ -113,6 +125,7 @@ public class TopicPartitionRouterFactory
                 .addKeyValue("maxFetchSessionCacheSlots", maxSlots)
                 .addKeyValue("minFetchSessionEvictionMs", evictionMs)
                 .addKeyValue("transactionalUserRouteCount", txnUserRoutes.size())
+                .addKeyValue("consumerGroupUserRouteCount", cgUserRoutes.size())
                 .log("Topic routing table initialised");
 
         Clock clock = clockOverride.get();
@@ -122,6 +135,7 @@ public class TopicPartitionRouterFactory
 
         return new InitData(routingTable, config.defaultRoute(),
                 txnUserRoutes,
+                cgUserRoutes,
                 new ProducerIdManager(ttl),
                 new FetchSessionCache(maxSlots, evictionMs,
                         context.virtualClusterName(), context.routerName()),
@@ -137,6 +151,7 @@ public class TopicPartitionRouterFactory
                 initData.routingTable(),
                 initData.defaultRoute(),
                 initData.transactionalUserRoutes(),
+                initData.consumerGroupUserRoutes(),
                 initData.producerIdManager(),
                 initData.fetchSessionCache(),
                 initData.clock(),
