@@ -19,6 +19,9 @@ import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResult;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResult;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
+import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
 import org.apache.kafka.common.message.CreatePartitionsResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -42,6 +45,10 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
+import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponsePartition;
+import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponseTopic;
+import org.apache.kafka.common.message.OffsetFetchRequestData;
+import org.apache.kafka.common.message.OffsetFetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
@@ -102,6 +109,7 @@ class TopicPartitionRouter implements Router {
             ApiKeys.FETCH,
             ApiKeys.LIST_OFFSETS,
             ApiKeys.OFFSET_COMMIT,
+            ApiKeys.OFFSET_FETCH,
             ApiKeys.CREATE_TOPICS,
             ApiKeys.DELETE_TOPICS,
             ApiKeys.CREATE_PARTITIONS,
@@ -109,7 +117,9 @@ class TopicPartitionRouter implements Router {
             ApiKeys.FIND_COORDINATOR,
             ApiKeys.DESCRIBE_CLUSTER,
             ApiKeys.ADD_PARTITIONS_TO_TXN,
-            ApiKeys.END_TXN);
+            ApiKeys.END_TXN,
+            ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+            ApiKeys.CONSUMER_GROUP_DESCRIBE);
 
     static final String REJECTED_ASSIGNMENTS_METRIC = "kroxylicious_routing_rejected_assignments_total";
     static final String VIRTUAL_CLUSTER_TAG = "virtual_cluster";
@@ -124,16 +134,19 @@ class TopicPartitionRouter implements Router {
     private final FetchDecomposer fetchDecomposer = FetchDecomposer.INSTANCE;
     private final ListOffsetsDecomposer listOffsetsDecomposer = ListOffsetsDecomposer.INSTANCE;
     private final OffsetCommitDecomposer offsetCommitDecomposer = OffsetCommitDecomposer.INSTANCE;
+    private final OffsetFetchDecomposer offsetFetchDecomposer = OffsetFetchDecomposer.INSTANCE;
     private final CreateTopicsDecomposer createTopicsDecomposer = CreateTopicsDecomposer.INSTANCE;
     private final DeleteTopicsDecomposer deleteTopicsDecomposer = DeleteTopicsDecomposer.INSTANCE;
     private final CreatePartitionsDecomposer createPartitionsDecomposer = CreatePartitionsDecomposer.INSTANCE;
     private final DeleteRecordsDecomposer deleteRecordsDecomposer = DeleteRecordsDecomposer.INSTANCE;
     private final Map<String, String> transactionalUserRoutes;
+    private final Map<String, String> consumerGroupUserRoutes;
     private final ProducerIdManager producerIdManager;
     private final FetchSessionManager fetchSessionManager;
     private final Counter rejectedAssignmentsCounter;
 
     private final Map<String, Integer> transactionCoordinators = new HashMap<>();
+    private final Map<String, Integer> consumerGroupCoordinators = new HashMap<>();
     @Nullable
     private String activeTransactionRoute;
 
@@ -143,6 +156,7 @@ class TopicPartitionRouter implements Router {
      * @param routingTable determines which route owns each topic
      * @param defaultRoute route used for topics that match no prefix and for non-PRODUCE API keys
      * @param transactionalUserRoutes mapping from username to route name for transaction routing
+     * @param consumerGroupUserRoutes mapping from username to route name for consumer group coordinator routing
      * @param producerIdManager shared manager for per-route producer ID mappings; must outlive
      *                          individual connections so that reconnecting producers retain
      *                          their per-route mappings
@@ -151,6 +165,7 @@ class TopicPartitionRouter implements Router {
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute,
                          Map<String, String> transactionalUserRoutes,
+                         Map<String, String> consumerGroupUserRoutes,
                          ProducerIdManager producerIdManager,
                          FetchSessionCache fetchSessionCache,
                          Clock clock,
@@ -159,6 +174,7 @@ class TopicPartitionRouter implements Router {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
         this.transactionalUserRoutes = transactionalUserRoutes;
+        this.consumerGroupUserRoutes = consumerGroupUserRoutes;
         this.producerIdManager = producerIdManager;
         this.fetchSessionManager = new FetchSessionManager(fetchSessionCache, clock);
         this.staticRoutes = Arrays.stream(ApiKeys.values())
@@ -211,6 +227,9 @@ class TopicPartitionRouter implements Router {
         if (apiKey == ApiKeys.OFFSET_COMMIT) {
             return handleOffsetCommit(header, (OffsetCommitRequestData) request, context);
         }
+        if (apiKey == ApiKeys.OFFSET_FETCH) {
+            return handleOffsetFetch(apiVersion, header, (OffsetFetchRequestData) request, context);
+        }
         if (apiKey == ApiKeys.CREATE_TOPICS) {
             return handleCreateTopics(header, (CreateTopicsRequestData) request, context);
         }
@@ -232,6 +251,14 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.FIND_COORDINATOR) {
             return handleFindCoordinator(header, request, context);
+        }
+        if (apiKey == ApiKeys.CONSUMER_GROUP_HEARTBEAT) {
+            return handleConsumerGroupHeartbeat(header,
+                    (ConsumerGroupHeartbeatRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.CONSUMER_GROUP_DESCRIBE) {
+            return handleConsumerGroupDescribe(header,
+                    (ConsumerGroupDescribeRequestData) request, context);
         }
         if (apiKey == ApiKeys.DESCRIBE_CLUSTER) {
             return handleDescribeCluster(header, request, context);
@@ -410,99 +437,117 @@ class TopicPartitionRouter implements Router {
         });
     }
 
-    private CompletionStage<RoutingResult> discoverCoordinatorAndInitProducerId(
-                                                                                RequestHeaderData header,
-                                                                                InitProducerIdRequestData request,
-                                                                                String txnRoute,
-                                                                                RoutingContext context) {
+    private CompletionStage<Integer> discoverCoordinator(
+                                                         String route,
+                                                         byte keyType,
+                                                         String key,
+                                                         RoutingContext context) {
         var mdHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.METADATA.id)
                 .setRequestApiVersion((short) 9);
         var mdReq = new MetadataRequestData();
 
-        return context.sendRequest(txnRoute, mdHeader, mdReq).thenCompose(mdResponse -> {
+        return context.sendRequest(route, mdHeader, mdReq).thenCompose(mdResponse -> {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
-                    .addKeyValue("route", txnRoute)
+                    .addKeyValue("route", route)
                     .log("Broker discovery completed before coordinator lookup");
 
             var findCoordHeader = new RequestHeaderData()
                     .setRequestApiKey(ApiKeys.FIND_COORDINATOR.id)
                     .setRequestApiVersion(FIND_COORDINATOR_API_VERSION);
             var findCoordReq = new FindCoordinatorRequestData()
-                    .setKey(request.transactionalId())
-                    .setKeyType((byte) 1);
+                    .setKey(key)
+                    .setKeyType(keyType);
 
-            return context.sendRequest(txnRoute, findCoordHeader, findCoordReq);
-        }).thenCompose(coordResponse -> {
+            return context.sendRequest(route, findCoordHeader, findCoordReq);
+        }).thenApply(coordResponse -> {
             var resp = (FindCoordinatorResponseData) coordResponse.body();
             if (resp.errorCode() != Errors.NONE.code()) {
-                LOGGER.atWarn()
-                        .addKeyValue("sessionId", context.sessionId())
-                        .addKeyValue("route", txnRoute)
-                        .addKeyValue("errorCode", Errors.forCode(resp.errorCode()))
-                        .log("FIND_COORDINATOR failed during transactional INIT_PRODUCER_ID");
-                sendSyntheticResponse(context,
-                        new InitProducerIdResponseData()
-                                .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
-                return CompletableFuture.completedFuture(RoutingResult.completed());
+                throw new CoordinatorDiscoveryException(Errors.forCode(resp.errorCode()));
             }
-            transactionCoordinators.put(txnRoute, resp.nodeId());
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
-                    .addKeyValue("route", txnRoute)
+                    .addKeyValue("route", route)
                     .addKeyValue("coordinatorNodeId", resp.nodeId())
-                    .addKeyValue("transactionalId", request.transactionalId())
-                    .log("Discovered transaction coordinator");
-
-            int coordinatorNodeId = resp.nodeId();
-            var initHeader = new RequestHeaderData()
-                    .setRequestApiKey(ApiKeys.INIT_PRODUCER_ID.id)
-                    .setRequestApiVersion(header.requestApiVersion());
-
-            return context.sendRequestToNode(coordinatorNodeId, initHeader, request)
-                    .thenApply(initResponse -> {
-                        var initResp = (InitProducerIdResponseData) initResponse.body();
-                        if (initResp.errorCode() != Errors.NONE.code()) {
-                            LOGGER.atDebug()
-                                    .addKeyValue("sessionId", context.sessionId())
-                                    .addKeyValue("route", txnRoute)
-                                    .addKeyValue("errorCode", Errors.forCode(initResp.errorCode()))
-                                    .log("Transactional INIT_PRODUCER_ID failed on route");
-                            context.sendResponse(initResponse);
-                            return RoutingResult.completed();
-                        }
-
-                        Map<String, ProducerIdEpoch> routeMapping = Map.of(
-                                txnRoute, new ProducerIdEpoch(initResp.producerId(), initResp.producerEpoch()));
-                        producerIdManager.put(initResp.producerId(), routeMapping);
-
-                        LOGGER.atDebug()
-                                .addKeyValue("sessionId", context.sessionId())
-                                .addKeyValue("clientProducerId", initResp.producerId())
-                                .addKeyValue("route", txnRoute)
-                                .addKeyValue("transactionalId", request.transactionalId())
-                                .log("Transactional producer ID mapping established");
-
-                        var responseHeader = new ResponseHeaderData().setCorrelationId(0);
-                        context.sendResponse(new SimpleResponse(responseHeader, initResp));
-                        return RoutingResult.completed();
-                    });
-        }).exceptionally(ex -> {
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", context.sessionId())
-                    .addKeyValue("route", txnRoute)
-                    .addKeyValue("transactionalId", request.transactionalId())
-                    .setCause(LOGGER.isDebugEnabled() ? ex : null)
-                    .addKeyValue("error", ex.getMessage())
-                    .log(LOGGER.isDebugEnabled()
-                            ? "Transactional INIT_PRODUCER_ID failed"
-                            : "Transactional INIT_PRODUCER_ID failed, increase log level to DEBUG for stacktrace");
-            sendSyntheticResponse(context,
-                    new InitProducerIdResponseData()
-                            .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
-            return RoutingResult.completed();
+                    .addKeyValue("key", key)
+                    .addKeyValue("keyType", keyType)
+                    .log("Discovered coordinator");
+            return resp.nodeId();
         });
+    }
+
+    private CompletionStage<RoutingResult> discoverCoordinatorAndInitProducerId(
+                                                                                RequestHeaderData header,
+                                                                                InitProducerIdRequestData request,
+                                                                                String txnRoute,
+                                                                                RoutingContext context) {
+        return discoverCoordinator(txnRoute, (byte) 1, request.transactionalId(), context)
+                .thenCompose(coordinatorNodeId -> {
+                    transactionCoordinators.put(txnRoute, coordinatorNodeId);
+
+                    var initHeader = new RequestHeaderData()
+                            .setRequestApiKey(ApiKeys.INIT_PRODUCER_ID.id)
+                            .setRequestApiVersion(header.requestApiVersion());
+
+                    return context.sendRequestToNode(coordinatorNodeId, initHeader, request)
+                            .thenApply(initResponse -> {
+                                var initResp = (InitProducerIdResponseData) initResponse.body();
+                                if (initResp.errorCode() != Errors.NONE.code()) {
+                                    LOGGER.atDebug()
+                                            .addKeyValue("sessionId", context.sessionId())
+                                            .addKeyValue("route", txnRoute)
+                                            .addKeyValue("errorCode", Errors.forCode(initResp.errorCode()))
+                                            .log("Transactional INIT_PRODUCER_ID failed on route");
+                                    context.sendResponse(initResponse);
+                                    return RoutingResult.completed();
+                                }
+
+                                Map<String, ProducerIdEpoch> routeMapping = Map.of(
+                                        txnRoute,
+                                        new ProducerIdEpoch(initResp.producerId(), initResp.producerEpoch()));
+                                producerIdManager.put(initResp.producerId(), routeMapping);
+
+                                LOGGER.atDebug()
+                                        .addKeyValue("sessionId", context.sessionId())
+                                        .addKeyValue("clientProducerId", initResp.producerId())
+                                        .addKeyValue("route", txnRoute)
+                                        .addKeyValue("transactionalId", request.transactionalId())
+                                        .log("Transactional producer ID mapping established");
+
+                                var responseHeader = new ResponseHeaderData().setCorrelationId(0);
+                                context.sendResponse(new SimpleResponse(responseHeader, initResp));
+                                return RoutingResult.completed();
+                            });
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", txnRoute)
+                            .addKeyValue("transactionalId", request.transactionalId())
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "Transactional INIT_PRODUCER_ID failed"
+                                    : "Transactional INIT_PRODUCER_ID failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    sendSyntheticResponse(context,
+                            new InitProducerIdResponseData()
+                                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                    return RoutingResult.completed();
+                });
+    }
+
+    static final class CoordinatorDiscoveryException extends RuntimeException {
+        private final Errors error;
+
+        CoordinatorDiscoveryException(Errors error) {
+            super("Coordinator discovery failed: " + error);
+            this.error = error;
+        }
+
+        Errors error() {
+            return error;
+        }
     }
 
     private InitProducerIdRequestData rewriteInitProducerIdRequest(InitProducerIdRequestData original,
@@ -773,6 +818,10 @@ class TopicPartitionRouter implements Router {
                                                               RequestHeaderData header,
                                                               OffsetCommitRequestData request,
                                                               RoutingContext context) {
+        if (!consumerGroupUserRoutes.isEmpty()) {
+            return handleGroupRoutedOffsetCommit(header, request, context);
+        }
+
         OffsetCommitResponseData errorResponse = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, OffsetCommitRequestData> subRequests = offsetCommitDecomposer.decompose(
@@ -820,6 +869,70 @@ class TopicPartitionRouter implements Router {
             sendSyntheticResponse(context, merged);
             return RoutingResult.completed();
         });
+    }
+
+    private CompletionStage<RoutingResult> handleGroupRoutedOffsetCommit(
+                                                                         RequestHeaderData header,
+                                                                         OffsetCommitRequestData request,
+                                                                         RoutingContext context) {
+        String expectedRoute = consumerGroupRouteForSubject(context.authenticatedSubject());
+
+        var errorResponse = new OffsetCommitResponseData();
+        var routableTopics = new java.util.ArrayList<OffsetCommitRequestData.OffsetCommitRequestTopic>();
+
+        for (var topic : request.topics()) {
+            String route = routingTable.routeForTopic(topic.name());
+            if (route == null || !route.equals(expectedRoute)) {
+                var topicResponse = new OffsetCommitResponseTopic().setName(topic.name());
+                for (var partition : topic.partitions()) {
+                    topicResponse.partitions().add(
+                            new OffsetCommitResponsePartition()
+                                    .setPartitionIndex(partition.partitionIndex())
+                                    .setErrorCode(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+                }
+                errorResponse.topics().add(topicResponse);
+            }
+            else {
+                routableTopics.add(topic);
+            }
+        }
+
+        if (routableTopics.isEmpty()) {
+            sendSyntheticResponse(context, errorResponse);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        var routeRequest = new OffsetCommitRequestData()
+                .setGroupId(request.groupId())
+                .setGenerationIdOrMemberEpoch(request.generationIdOrMemberEpoch())
+                .setMemberId(request.memberId())
+                .setGroupInstanceId(request.groupInstanceId())
+                .setRetentionTimeMs(request.retentionTimeMs());
+        routableTopics.forEach(t -> routeRequest.topics().add(t.duplicate()));
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", expectedRoute)
+                .log("OffsetCommit routed to consumer group route");
+
+        if (errorResponse.topics().isEmpty()) {
+            return context.sendRequest(expectedRoute, header, routeRequest)
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        OffsetCommitResponseData capturedErrors = errorResponse;
+        return context.sendRequest(expectedRoute, header, routeRequest)
+                .thenApply(response -> {
+                    var body = (OffsetCommitResponseData) response.body();
+                    for (var tr : capturedErrors.topics()) {
+                        body.topics().add(tr.duplicate());
+                    }
+                    sendSyntheticResponse(context, body);
+                    return RoutingResult.completed();
+                });
     }
 
     private CompletionStage<RoutingResult> handleCreateTopics(
@@ -1286,6 +1399,15 @@ class TopicPartitionRouter implements Router {
                 .orElse(defaultRoute);
     }
 
+    private String consumerGroupRouteForSubject(Subject subject) {
+        if (consumerGroupUserRoutes.isEmpty()) {
+            return defaultRoute;
+        }
+        return subject.uniquePrincipalOfType(User.class)
+                .map(user -> consumerGroupUserRoutes.getOrDefault(user.name(), defaultRoute))
+                .orElse(defaultRoute);
+    }
+
     private CompletionStage<RoutingResult> handleFindCoordinator(
                                                                  RequestHeaderData header,
                                                                  ApiMessage request,
@@ -1294,6 +1416,9 @@ class TopicPartitionRouter implements Router {
         String route;
         if (findCoordReq.keyType() == 1) {
             route = transactionRouteForSubject(context.authenticatedSubject());
+        }
+        else if (findCoordReq.keyType() == 0) {
+            route = consumerGroupRouteForSubject(context.authenticatedSubject());
         }
         else {
             route = defaultRoute;
@@ -1310,6 +1435,170 @@ class TopicPartitionRouter implements Router {
                     context.sendResponse(response);
                     return RoutingResult.completed();
                 });
+    }
+
+    private CompletionStage<RoutingResult> handleConsumerGroupHeartbeat(
+                                                                        RequestHeaderData header,
+                                                                        ConsumerGroupHeartbeatRequestData request,
+                                                                        RoutingContext context) {
+        String route = consumerGroupRouteForSubject(context.authenticatedSubject());
+        Integer cachedCoordinator = consumerGroupCoordinators.get(route);
+
+        if (cachedCoordinator != null) {
+            return forwardToConsumerGroupCoordinator(
+                    cachedCoordinator, route, header, request, context);
+        }
+
+        return discoverCoordinator(route, (byte) 0, request.groupId(), context)
+                .thenCompose(coordinatorNodeId -> {
+                    consumerGroupCoordinators.put(route, coordinatorNodeId);
+                    return forwardToConsumerGroupCoordinator(
+                            coordinatorNodeId, route, header, request, context);
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", route)
+                            .addKeyValue("groupId", request.groupId())
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "CONSUMER_GROUP_HEARTBEAT coordinator discovery failed"
+                                    : "CONSUMER_GROUP_HEARTBEAT coordinator discovery failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    sendSyntheticResponse(context,
+                            new ConsumerGroupHeartbeatResponseData()
+                                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                    return RoutingResult.completed();
+                });
+    }
+
+    private CompletionStage<RoutingResult> forwardToConsumerGroupCoordinator(
+                                                                             int coordinatorNodeId,
+                                                                             String route,
+                                                                             RequestHeaderData header,
+                                                                             ApiMessage request,
+                                                                             RoutingContext context) {
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", route)
+                .addKeyValue("coordinatorNodeId", coordinatorNodeId)
+                .log("Consumer group request forwarded to coordinator");
+
+        return context.sendRequestToNode(coordinatorNodeId, header, request)
+                .thenApply(response -> {
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                });
+    }
+
+    private CompletionStage<RoutingResult> handleConsumerGroupDescribe(
+                                                                       RequestHeaderData header,
+                                                                       ConsumerGroupDescribeRequestData request,
+                                                                       RoutingContext context) {
+        String route = consumerGroupRouteForSubject(context.authenticatedSubject());
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", route)
+                .addKeyValue("groupCount", request.groupIds().size())
+                .log("CONSUMER_GROUP_DESCRIBE forwarded");
+
+        return context.sendRequest(route, header, request)
+                .thenApply(response -> {
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                });
+    }
+
+    private CompletionStage<RoutingResult> handleOffsetFetch(
+                                                             short apiVersion,
+                                                             RequestHeaderData header,
+                                                             OffsetFetchRequestData request,
+                                                             RoutingContext context) {
+        String cgRoute = consumerGroupRouteForSubject(context.authenticatedSubject());
+        if (!consumerGroupUserRoutes.isEmpty()) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", cgRoute)
+                    .log("OffsetFetch routed to consumer group route");
+            return context.sendRequest(cgRoute, header, request)
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        OffsetFetchResponseData errorResponse = OffsetFetchDecomposer.errorResponseForUnroutableTopics(
+                request, routingTable, apiVersion);
+        Map<String, OffsetFetchRequestData> subRequests = offsetFetchDecomposer.decompose(
+                request, routingTable, apiVersion);
+
+        if (subRequests.isEmpty()) {
+            sendSyntheticResponse(context, errorResponse);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        if (subRequests.size() == 1 && !hasOffsetFetchErrors(errorResponse, apiVersion)) {
+            var entry = subRequests.entrySet().iterator().next();
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", entry.getKey())
+                    .log("OffsetFetch routed to single cluster");
+            return context.sendRequest(entry.getKey(), header, entry.getValue())
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("routeCount", subRequests.size())
+                .log("OffsetFetch fanning out across clusters");
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (var entry : subRequests.entrySet()) {
+            futures.put(entry.getKey(),
+                    context.sendRequest(entry.getKey(), header, entry.getValue()));
+        }
+
+        OffsetFetchResponseData capturedErrors = errorResponse;
+        return collectAll(futures).thenApply(responses -> {
+            Map<String, OffsetFetchResponseData> bodies = new HashMap<>();
+            for (var entry : responses.entrySet()) {
+                bodies.put(entry.getKey(), (OffsetFetchResponseData) entry.getValue().body());
+            }
+            OffsetFetchResponseData merged = offsetFetchDecomposer.recompose(
+                    bodies, request, apiVersion);
+            mergeOffsetFetchErrors(merged, capturedErrors, apiVersion);
+            sendSyntheticResponse(context, merged);
+            return RoutingResult.completed();
+        });
+    }
+
+    private static boolean hasOffsetFetchErrors(OffsetFetchResponseData errorResponse,
+                                                short apiVersion) {
+        if (apiVersion <= 7) {
+            return !errorResponse.topics().isEmpty();
+        }
+        else {
+            return !errorResponse.groups().isEmpty();
+        }
+    }
+
+    private static void mergeOffsetFetchErrors(OffsetFetchResponseData merged,
+                                               OffsetFetchResponseData errors,
+                                               short apiVersion) {
+        if (apiVersion <= 7) {
+            for (var tr : errors.topics()) {
+                merged.topics().add(tr.duplicate());
+            }
+        }
+        else {
+            for (var gr : errors.groups()) {
+                merged.groups().add(gr.duplicate());
+            }
+        }
     }
 
     private CompletionStage<RoutingResult> handleDescribeCluster(

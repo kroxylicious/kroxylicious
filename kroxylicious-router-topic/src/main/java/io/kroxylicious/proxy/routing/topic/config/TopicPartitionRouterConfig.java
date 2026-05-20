@@ -18,6 +18,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param topicRoutes per-route topic prefix assignments
  * @param transactionalUserRoutes mapping from authenticated username to route name for transaction routing,
  *                                or null if all transactions should use the default route
+ * @param consumerGroupUserRoutes mapping from authenticated username to route name for consumer group
+ *                                coordinator routing, or null if all consumer groups should use the default route
  * @param producerIdTtl time after last use before an idempotent producer's per-route ID mapping is evicted,
  *                      or null to use the default (7 days)
  * @param maxFetchSessionCacheSlots maximum number of concurrent client-side fetch sessions across all connections,
@@ -28,19 +30,20 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record TopicPartitionRouterConfig(@Nullable String defaultRoute,
                                          List<TopicRoute> topicRoutes,
                                          @Nullable Map<String, String> transactionalUserRoutes,
+                                         @Nullable Map<String, String> consumerGroupUserRoutes,
                                          @Nullable Duration producerIdTtl,
                                          @Nullable Integer maxFetchSessionCacheSlots,
                                          @Nullable Duration minFetchSessionEviction) {
 
     public TopicPartitionRouterConfig(@Nullable String defaultRoute,
                                       List<TopicRoute> topicRoutes) {
-        this(defaultRoute, topicRoutes, null, null, null, null);
+        this(defaultRoute, topicRoutes, null, null, null, null, null);
     }
 
     public TopicPartitionRouterConfig(@Nullable String defaultRoute,
                                       List<TopicRoute> topicRoutes,
                                       @Nullable Duration producerIdTtl) {
-        this(defaultRoute, topicRoutes, null, producerIdTtl, null, null);
+        this(defaultRoute, topicRoutes, null, null, producerIdTtl, null, null);
     }
 
     public TopicPartitionRouterConfig(@Nullable String defaultRoute,
@@ -48,6 +51,16 @@ public record TopicPartitionRouterConfig(@Nullable String defaultRoute,
                                       @Nullable Duration producerIdTtl,
                                       @Nullable Integer maxFetchSessionCacheSlots,
                                       @Nullable Duration minFetchSessionEviction) {
-        this(defaultRoute, topicRoutes, null, producerIdTtl, maxFetchSessionCacheSlots, minFetchSessionEviction);
+        this(defaultRoute, topicRoutes, null, null, producerIdTtl, maxFetchSessionCacheSlots, minFetchSessionEviction);
+    }
+
+    public TopicPartitionRouterConfig(@Nullable String defaultRoute,
+                                      List<TopicRoute> topicRoutes,
+                                      @Nullable Map<String, String> transactionalUserRoutes,
+                                      @Nullable Duration producerIdTtl,
+                                      @Nullable Integer maxFetchSessionCacheSlots,
+                                      @Nullable Duration minFetchSessionEviction) {
+        this(defaultRoute, topicRoutes, transactionalUserRoutes, null,
+                producerIdTtl, maxFetchSessionCacheSlots, minFetchSessionEviction);
     }
 }
