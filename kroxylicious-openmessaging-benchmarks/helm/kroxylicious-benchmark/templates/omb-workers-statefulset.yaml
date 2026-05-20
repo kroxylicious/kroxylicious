@@ -37,6 +37,26 @@ spec:
       labels:
         app: omb-worker
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/cluster: kafka
+            topologyKey: kubernetes.io/hostname
+          - labelSelector:
+              matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: ["proxy"]
+            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: omb-worker
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: omb-worker
         image: {{ .Values.omb.image }}
