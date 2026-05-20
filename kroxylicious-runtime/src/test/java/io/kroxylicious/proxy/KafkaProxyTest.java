@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -416,15 +417,15 @@ class KafkaProxyTest {
     @Test
     void shouldDelegateReconfigureToOrchestrator() throws Exception {
         // Proves the wiring: KafkaProxy.reconfigure() reaches the orchestrator, which
-        // runs its full pipeline and throws UOE at the swap point (this PR's placeholder).
+        // runs its pipeline. With an identical config (no clusters changed) the orchestrator
+        // takes the no-op early-return path and returns a ReconfigureResult with no errors.
+        // The fact that a ReconfigureResult is produced at all proves the orchestrator's
+        // pipeline ran end-to-end (only the orchestrator's success path yields one).
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             proxy.startup();
             var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
-            var future = proxy.reconfigure(newConfig);
-            assertThat(future).isCompletedExceptionally();
-            assertThatThrownBy(future::join).cause()
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessageContaining("per-VC mechanics not yet implemented");
+            var result = proxy.reconfigure(newConfig).get(5, TimeUnit.SECONDS);
+            assertThat(result.hasErrors()).isFalse();
         }
     }
 

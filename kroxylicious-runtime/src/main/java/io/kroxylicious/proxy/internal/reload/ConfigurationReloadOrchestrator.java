@@ -61,10 +61,11 @@ public class ConfigurationReloadOrchestrator {
     /**
      * The configuration currently applied to the running proxy. Either the initial
      * constructor-supplied configuration, or the result of the most recent successful
-     * reconfigure. Read under {@link #reconfigureLock} during the pipeline; the lock also
-     * guards updates to this field (none today since the swap step throws).
+     * reconfigure. Both reads and writes happen while {@link #reconfigureLock} is held,
+     * which makes this field effectively single-writer / single-reader at any instant —
+     * no additional synchronisation is required on top of the lock.
      */
-    private final Configuration currentConfiguration;
+    private Configuration currentConfiguration;
 
     /**
      * Constructs an orchestrator wired into a running proxy.
@@ -105,10 +106,16 @@ public class ConfigurationReloadOrchestrator {
      * full pipeline shape and the current incomplete-implementation status.
      *
      * @param newConfig the desired configuration; must not be null
-     * @return a future that completes either with a {@link ReconfigureResult} (success path,
-     *         not reachable in this PR) or exceptionally with one of:
-     *         {@link StaticConfigurationChangedException} (static-section diff),
-     *         {@link ConcurrentReconfigureException} (a reconfigure is already in progress)
+     * @return a future that completes:
+     *         <ul>
+     *           <li>successfully with an empty-errors {@link ReconfigureResult} when the
+     *               submitted configuration produces no changes (a no-op reconfigure);
+     *               {@code currentConfiguration} is updated to the submitted value</li>
+     *           <li>exceptionally with {@link StaticConfigurationChangedException} when the
+     *               submitted configuration differs from the current one in any static
+     *               section</li>
+     *           <li>exceptionally with {@link ConcurrentReconfigureException} when another
+     *               reconfigure is already in progress</li>
      */
     public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
         Objects.requireNonNull(newConfig, "newConfig");
@@ -132,7 +139,17 @@ public class ConfigurationReloadOrchestrator {
             // 3. Aggregate change-detector results.
             var changeResult = aggregateChanges(currentConfiguration, newConfig);
 
-            // 4. Per-VC operations in order: remove -> replace -> add. These are no-ops in
+            // 4. No-op early return: if no clusters were added, removed, or modified, record
+            // the submitted configuration as currently-applied and return a clean result.
+            // This is the operator-observable "reload triggered, nothing to do" outcome — a
+            // reload tool can round-trip a no-op reconfigure cleanly without provoking the
+            // per-VC placeholder below.
+            if (changeResult.isEmpty()) {
+                this.currentConfiguration = newConfig;
+                return CompletableFuture.completedFuture(ReconfigureResult.of(List.of()));
+            }
+
+            // 5. Per-VC operations in order: remove -> replace -> add. These are no-ops in
             // this PR — see VirtualClusterRegistry's stub methods and class-level Javadoc.
             var newModelsByName = newConfig.virtualClusterModel(pfr).stream()
                     .collect(Collectors.toMap(VirtualClusterModel::getClusterName, m -> m));
@@ -159,7 +176,7 @@ public class ConfigurationReloadOrchestrator {
                 virtualClusterRegistry.addVirtualCluster(newModel).join();
             }
 
-            // 5. PLACEHOLDER: throw until the follow-up PR implements per-VC mechanics +
+            // 6. PLACEHOLDER: throw until the follow-up PR implements per-VC mechanics +
             // filter-chain reconciliation + result construction. The throw lands here
             // intentionally — every phase above is real and will run on a real call to
             // reconfigure(), but the proxy's state has not been mutated (per-VC ops are
@@ -169,7 +186,7 @@ public class ConfigurationReloadOrchestrator {
                     "KafkaProxy.reconfigure() per-VC mechanics not yet implemented; coming in follow-up PR. "
                             + "Pre-flight, concurrency, validation, and change detection have completed.");
 
-            // 6. (Follow-up PR) On success:
+            // 7. (Follow-up PR) On success:
             // reconcile filter chain (per-wrapper replacement inside FilterChainFactory);
             // update currentConfiguration;
             // return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
