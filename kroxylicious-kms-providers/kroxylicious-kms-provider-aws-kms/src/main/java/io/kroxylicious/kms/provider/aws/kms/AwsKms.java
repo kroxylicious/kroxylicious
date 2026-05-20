@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpClient.Builder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -87,7 +86,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
            CredentialsProvider credentialsProvider,
            String region,
            Duration timeout,
-           UnaryOperator<Builder> tlsConfigurator) {
+           UnaryOperator<HttpClient.Builder> tlsConfigurator) {
         Objects.requireNonNull(awsUrl);
         Objects.requireNonNull(credentialsProvider);
         Objects.requireNonNull(region);
@@ -100,7 +99,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         this.client = createClient(tlsConfigurator);
     }
 
-    private HttpClient createClient(UnaryOperator<Builder> tlsConfigurator) {
+    private HttpClient createClient(UnaryOperator<HttpClient.Builder> tlsConfigurator) {
         return tlsConfigurator.apply(HttpClient.newBuilder())
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(timeout)

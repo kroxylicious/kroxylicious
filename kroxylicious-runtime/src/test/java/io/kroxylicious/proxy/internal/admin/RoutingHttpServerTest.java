@@ -19,7 +19,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 
-import static io.kroxylicious.proxy.internal.admin.RoutingHttpServer.builder;
 import static io.kroxylicious.proxy.internal.admin.RoutingHttpServer.responseWithBody;
 import static io.kroxylicious.proxy.internal.admin.RoutingHttpServer.responseWithStatus;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,7 +30,7 @@ class RoutingHttpServerTest {
         // Given
 
         var route = URI.create("https://localhost/mypath").toString();
-        var handler = builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
+        var handler = RoutingHttpServer.builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
         var channel = new EmbeddedChannel(handler);
         var request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, route);
 
@@ -49,7 +48,7 @@ class RoutingHttpServerTest {
         // Given
 
         var route = URI.create("https://localhost/mypath").toString();
-        var handler = builder().withRoute(route, rq -> responseWithBody(rq, HttpResponseStatus.OK, "Hello World")).build();
+        var handler = RoutingHttpServer.builder().withRoute(route, rq -> responseWithBody(rq, HttpResponseStatus.OK, "Hello World")).build();
         var channel = new EmbeddedChannel(handler);
         var request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, route);
 
@@ -73,7 +72,7 @@ class RoutingHttpServerTest {
 
         var route = URI.create("https://localhost/mypath").toString();
         var another = URI.create("https://localhost/another").toString();
-        var handler = builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
+        var handler = RoutingHttpServer.builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
         var channel = new EmbeddedChannel(handler);
         var request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, another);
 
@@ -91,7 +90,7 @@ class RoutingHttpServerTest {
         // Given
 
         var route = URI.create("https://localhost/mypath").toString();
-        var handler = builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
+        var handler = RoutingHttpServer.builder().withRoute(route, rq -> responseWithStatus(rq, HttpResponseStatus.OK)).build();
         var channel = new EmbeddedChannel(handler);
         var request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, route);
 
