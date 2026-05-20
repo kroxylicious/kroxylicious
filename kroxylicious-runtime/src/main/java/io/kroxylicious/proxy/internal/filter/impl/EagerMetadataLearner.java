@@ -41,11 +41,17 @@ public class EagerMetadataLearner implements RequestFilter {
      */
     private static final Set<ApiKeys> KAFKA_PRELUDE = Set.of(ApiKeys.API_VERSIONS, ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_AUTHENTICATE);
 
+    private final boolean closeConnectionAfterLearning;
+
     /**
-     * Create EagerMetadataLearner
+     * Create EagerMetadataLearner.
+     *
+     * @param closeConnectionAfterLearning whether to close the downstream connection after metadata is learned.
+     *        For non-routed VCs this must be true so the client reconnects to the correct upstream broker.
+     *        For routed VCs this should be false because the router handles per-request forwarding.
      */
-    public EagerMetadataLearner() {
-        // explicit default constructor for javadoc
+    public EagerMetadataLearner(boolean closeConnectionAfterLearning) {
+        this.closeConnectionAfterLearning = closeConnectionAfterLearning;
     }
 
     @Override
@@ -63,22 +69,33 @@ public class EagerMetadataLearner implements RequestFilter {
             var future = new CompletableFuture<RequestFilterResult>();
             context.<MetadataResponseData> sendRequest(requestHeader, request)
                     .thenAccept(metadataResponse -> {
-                        // closing the connection is important. This client connection is connected to bootstrap (it could
-                        // be any broker or maybe not something else). we must close the connection to force the client to
-                        // connect again.
                         var builder = context.requestFilterResultBuilder();
                         if (useClientRequest) {
-                            // The client's request matched our out-of-band message, so we may as well return the
-                            // response.
-                            future.complete(builder.shortCircuitResponse(metadataResponse).withCloseConnection().build());
+                            if (closeConnectionAfterLearning) {
+                                future.complete(builder.shortCircuitResponse(metadataResponse).withCloseConnection().build());
+                            }
+                            else {
+                                future.complete(builder.shortCircuitResponse(metadataResponse).build());
+                            }
                         }
                         else {
-                            future.complete(builder.withCloseConnection().build());
-
+                            if (closeConnectionAfterLearning) {
+                                future.complete(builder.withCloseConnection().build());
+                            }
+                            else {
+                                future.complete(builder.forward(header, body).build());
+                            }
                         }
-                        LOGGER.atInfo()
-                                .addKeyValue("sessionId", context.sessionId())
-                                .log("Closing upstream bootstrap connection now that endpoint reconciliation is complete");
+                        if (closeConnectionAfterLearning) {
+                            LOGGER.atInfo()
+                                    .addKeyValue("sessionId", context.sessionId())
+                                    .log("Closing upstream bootstrap connection now that endpoint reconciliation is complete");
+                        }
+                        else {
+                            LOGGER.atDebug()
+                                    .addKeyValue("sessionId", context.sessionId())
+                                    .log("Endpoint reconciliation complete, forwarding original request");
+                        }
                     });
             return future;
         }
