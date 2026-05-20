@@ -69,6 +69,7 @@ jobs:
   run_system_tests:
     needs: discover_system_test_clients
     uses: ./.github/workflows/run-system-tests.yaml
+    secrets: inherit
     with:
       kafkaClient: ${{ matrix.tests }}
       excludedGroups: 'externalKafkaClients,operator'

@@ -78,6 +78,7 @@ jobs:
   run_system_tests:
     needs: [build_artifacts,set_variables]
     uses: ./.github/workflows/run-system-tests.yaml
+    secrets: inherit
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
