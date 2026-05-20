@@ -41,4 +41,13 @@ public record NamedFilterDefinition(
         Objects.requireNonNull(type);
     }
 
+    /**
+     * Returns {@code true} if this definition is semantically identical to {@code other}.
+     * Used by the configuration change-detection pipeline (see {@code FilterChangeDetector})
+     * to decide whether clusters referencing this filter need to be restarted during hot-reload
+     */
+    public boolean sameAs(@Nullable NamedFilterDefinition other) {
+        return Objects.equals(this, other);
+    }
+
 }

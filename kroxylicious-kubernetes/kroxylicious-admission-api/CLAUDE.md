@@ -1,15 +1,14 @@
-# Kroxylicious Kubernetes API - Claude Context
+# Kroxylicious Admission API - Claude Context
 
-This module defines the Kubernetes Custom Resource Definitions (CRDs) for the Kroxylicious operator.
+This module defines the `KroxyliciousSidecarConfig` CRD for the Kroxylicious sidecar injection webhook.
 
 ## Primary Documentation
 
-See [README.md](README.md) for comprehensive Kubernetes API documentation including:
-- API roles (CR Authors, Operator Developers)
+See [README.md](README.md) for comprehensive API documentation including:
+- API roles (CR Authors, Webhook Developers)
+- `KroxyliciousSidecarConfig` CRD fields and status conditions
 - Kubernetes API versioning and compatibility
-- Gateway API inspiration and patterns
-- For CR Authors: using the CRDs, understanding status conditions
-- For Operator Developers: maintaining status conditions, API compatibility requirements
+- Gateway API inspiration for status conditions
 
 ## Critical Constraints
 

@@ -40,6 +40,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.testing.operator.assertj.ConditionListAssert;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
@@ -221,7 +222,9 @@ class KafkaServiceReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        kafkaServiceReconciler = new KafkaServiceReconciler(Clock.systemUTC());
+        // SharedInformerManager is only needed for prepareEventSources(), which these tests don't call
+        SharedInformerManager mockSharedInformerManager = mock(SharedInformerManager.class);
+        kafkaServiceReconciler = new KafkaServiceReconciler(Clock.systemUTC(), mockSharedInformerManager);
     }
 
     @Test
@@ -229,7 +232,7 @@ class KafkaServiceReconcilerTest {
         // given
         final KafkaService kafkaService = new KafkaServiceBuilder().withNewMetadata().withGeneration(OBSERVED_GENERATION).endMetadata().build();
 
-        var reconciler = new KafkaServiceReconciler(TEST_CLOCK);
+        var reconciler = new KafkaServiceReconciler(TEST_CLOCK, mock(SharedInformerManager.class));
 
         Context<KafkaService> context = mock();
 
@@ -332,7 +335,7 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.of(KAFKA));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("strimziKafkaRef missing listener name",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewStrimziKafkaRef()
@@ -360,7 +363,7 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(KAFKA));
             result.add(Arguments.argumentSet("unsupported strimziKafkaRef kind",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewStrimziKafkaRef()
@@ -386,7 +389,7 @@ class KafkaServiceReconcilerTest {
             mockGetConfigMap(context, Optional.empty());
             mockGetKafka(context, Optional.of(UNSUPPORTED_KAFKA));
             result.add(Arguments.argumentSet("listeners not present",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewStrimziKafkaRef()
@@ -482,7 +485,7 @@ class KafkaServiceReconcilerTest {
             mockGetKafka(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(CRT_CONFIG_MAP));
             result.add(Arguments.argumentSet("crt trust bundle of pem store type",
-                    // @formatter:off
+            // @formatter:off
                     new KafkaServiceBuilder(SERVICE)
                             .withNewSpec()
                                 .withNewTls()

@@ -17,10 +17,7 @@
 This procedure shows how to configure sidecar injection for a namespace and verify that the proxy sidecar is injected into application pods.
 
 // TODO: Add a complete end-to-end example with a sample Kafka client application.
-// TODO: Document configuring filters via filterDefinitions.
-// TODO: Document configuring secret mounts for filter credentials.
 // TODO: Document configuring TLS to the target Kafka cluster via targetClusterTls.
-// TODO: Document resource requests and limits configuration.
 // TODO: Document third-party plugin image configuration.
 .Prerequisites
 
@@ -50,6 +47,123 @@ Apply the resource:
 [source,shell,subs="+quotes"]
 ----
 kubectl apply -f my-sidecar-config.yaml
+----
+
+. (Optional) Configure resource requests and limits for the sidecar proxy container.
+By default, the sidecar container is specified without resource constraints.
+To specify CPU and memory resources, add the `resources` field to your `KroxyliciousSidecarConfig`:
++
+[source,yaml,subs="+quotes,attributes+"]
+----
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+kind: KroxyliciousSidecarConfig
+metadata:
+  name: my-sidecar-config
+  namespace: _my-app-namespace_
+spec:
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-kafka-cluster-bootstrap:9092
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+----
++
+The `resources` field follows the standard Kubernetes ResourceRequirements format:
++
+--
+* `requests.memory` and `requests.cpu`: The minimum resources guaranteed to the sidecar container.
+The scheduler uses these values when placing the pod.
+* `limits.memory` and `limits.cpu`: The maximum resources the sidecar container can consume.
+If the container exceeds the memory limit, it is terminated and restarted.
+--
+
+. (Optional) Configure filters to transform traffic passing through the sidecar proxy.
+Add the `filterDefinitions` field to your `KroxyliciousSidecarConfig` to apply filters:
++
+[source,yaml,subs="+quotes,attributes+"]
+----
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+kind: KroxyliciousSidecarConfig
+metadata:
+  name: my-sidecar-config
+  namespace: _my-app-namespace_
+spec:
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-kafka-cluster-bootstrap:9092
+  filterDefinitions:
+    - name: uppercase-producer
+      type: ProduceRequestTransformation
+      config:
+        transformation: UpperCasing
+        transformationConfig:
+          charset: UTF-8
+----
++
+Each filter definition requires:
++
+--
+* `name`: A unique name for the filter instance.
+* `type`: The FilterFactory plugin type (e.g., `ProduceRequestTransformation`).
+* `config`: Plugin-specific configuration. In this example, the `UpperCasing` transformation converts all produce request message values to uppercase.
+--
+
+. (Optional) Mount secrets to provide credentials or sensitive configuration to filters.
+Secrets are mounted as read-only files in the sidecar container.
++
+Create a Kubernetes Secret in the namespace containing the credentials:
++
+[source,shell,subs="+quotes"]
+----
+kubectl create secret generic filter-credentials \
+  --from-literal=api-key=my-secret-key \
+  --from-literal=password=my-password \
+  -n _my-app-namespace_
+----
++
+Add the `secretMounts` field to your `KroxyliciousSidecarConfig` to mount the secret:
++
+[source,yaml,subs="+quotes,attributes+"]
+----
+apiVersion: sidecar.kroxylicious.io/v1alpha1
+kind: KroxyliciousSidecarConfig
+metadata:
+  name: my-sidecar-config
+  namespace: _my-app-namespace_
+spec:
+  virtualClusters:
+    - name: my-cluster
+      targetBootstrapServers: my-kafka-cluster-bootstrap:9092
+  secretMounts:
+    - name: credentials
+      secretName: filter-credentials
+----
++
+The secret keys are mounted as files under `/opt/kroxylicious/secrets/[name]/[key]`.
+For the example above:
++
+--
+* The mount name is `credentials`
+* The secret name is `filter-credentials`
+* The `api-key` is available at `/opt/kroxylicious/secrets/credentials/api-key`
+* The `password` is available at `/opt/kroxylicious/secrets/credentials/password`
+--
++
+You can reference these paths in filter configurations:
++
+[source,yaml,subs="+quotes,attributes+"]
+----
+filterDefinitions:
+  - name: my-filter
+    type: SomeFilterRequiringCredentials
+    config:
+      apiKeyFile: /opt/kroxylicious/secrets/credentials/api-key
+      passwordFile: /opt/kroxylicious/secrets/credentials/password
 ----
 
 . Label the namespace to enable sidecar injection:

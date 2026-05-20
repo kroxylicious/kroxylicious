@@ -51,15 +51,24 @@ sidecar.kroxylicious.io/injection: disabled
 
 Pods that already have a container named `kroxylicious-proxy` are also skipped to avoid double injection.
 
-== Failure policy
+== Failure policies
 
-By default, the webhook uses fail-closed semantics.
-If the webhook encounters an internal error while processing an admission request, it rejects the pod.
-The `MutatingWebhookConfiguration` uses `failurePolicy: Fail` so that if the webhook is unavailable pod creation is blocked until the webhook becomes available again.
-This ensures that pods in injection-enabled namespaces are never created without the expected sidecar.
+The webhook has two separate failure policies:
 
-The failure policy is controlled in two places that must be kept in sync: the `FAILURE_POLICY` environment variable on the webhook `Deployment`, and the `failurePolicy` field in the `MutatingWebhookConfiguration`.
-To switch to fail-open semantics, set both to `Ignore`.
+**Internal error handling:**
+The webhook defaults to failing closed for internal errors.
+When an exception occurs during admission request processing, the webhook returns HTTP 500.
+The Kubernetes API server's behavior is controlled by the `MutatingWebhookConfiguration.failurePolicy` field (default: `Fail`), which blocks pod creation until the webhook becomes available again.
+The `failurePolicy` can be changed to `Ignore` if availability of pod creation in targeted namespaces is preferred over honoring the request for sidecar injection.
+
+**Unavailable configuration handling:**
+When a pod cannot be injected due to missing or invalid `KroxyliciousSidecarConfig` (no config, multiple configs, or invalid config), behavior is controlled by the `UNINJECTED_POD_POLICY` environment variable on the webhook `Deployment`:
+
+* `Admit` (default): Allow pod creation without sidecar injection
+* `Deny`: Reject pod creation
+
+This is separate from the internal error handling policy because it represents a configuration problem rather than a webhook failure.
+Administrators may want different responses: fail-open for misconfigured applications (allowing deployments to proceed), but fail-closed for webhook infrastructure failures (preventing potentially insecure pods).
 
 == Trust model
 

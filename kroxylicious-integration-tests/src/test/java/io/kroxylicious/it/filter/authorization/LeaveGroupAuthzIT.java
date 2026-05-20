@@ -162,6 +162,11 @@ class LeaveGroupAuthzIT extends AuthzIT {
         }
 
         @Override
+        public boolean needsRetry(LeaveGroupResponseData response) {
+            return isTransientCoordinatorError(response.errorCode());
+        }
+
+        @Override
         public LeaveGroupRequestData requestData(String user, BaseClusterFixture clusterFixture) {
             LeaveGroupRequestData request = new LeaveGroupRequestData();
             request.setGroupId(group);

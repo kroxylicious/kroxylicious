@@ -27,5 +27,14 @@
             <directory>${project.basedir}/../kroxylicious-admission/target/packaged</directory>
             <outputDirectory>/</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>../../kroxylicious-docs/target/docs/</directory>
+            <outputDirectory>/docs</outputDirectory>
+            <includes>
+                <include>html/images/**</include>
+                <include>html/admission-webhook-guide/**</include>
+                <include>pdf/admission-webhook-guide/**</include>
+            </includes>
+        </fileSet>
     </fileSets>
 </assembly>

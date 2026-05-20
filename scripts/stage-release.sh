@@ -157,6 +157,7 @@ replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${RELEASE_VERSION}'_g" compose/kafka-compose.yaml
 
 updateVersionInBenchmarks "${RELEASE_VERSION}"
+replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${RELEASE_VERSION}_g" performance-tests/docker-compose.yaml
 
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
@@ -203,6 +204,7 @@ replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: main_g" kroxyliciou
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${NEXT_VERSION}'_g" compose/kafka-compose.yaml
 
 updateVersionInBenchmarks "${NEXT_VERSION}"
+replaceInFile "s_quay\.io/kroxylicious/proxy:[^}]*_quay.io/kroxylicious/proxy:${NEXT_VERSION}_g" performance-tests/docker-compose.yaml
 
 # bump the reference version in kroxylicious-api
 mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
@@ -224,6 +226,7 @@ cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
 # csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
 APP_BINARY_DISTRIBUTION_ASSET="./kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
 OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${RELEASE_VERSION}"
+ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${RELEASE_VERSION}"
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
   --draft "${RELEASE_TAG}" \
@@ -235,6 +238,10 @@ gh release create --title "${RELEASE_TAG}" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
   "${API_COMPATABILITY_REPORT}"
 
 

@@ -18,14 +18,14 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,
+public record KafkaProxyContext(StatusFactory<VirtualKafkaCluster> virtualKafkaClusterStatusFactory,
                                 ProxyModel model,
                                 Optional<Configuration> configuration,
                                 List<Volume> volumes,
@@ -35,7 +35,7 @@ public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClu
     static final String KEY_CTX = KafkaProxyContext.class.getName();
 
     static void init(Context<KafkaProxy> context,
-                     VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,
+                     StatusFactory<VirtualKafkaCluster> virtualKafkaClusterStatusFactory,
                      ProxyModel model,
                      @Nullable ConfigurationFragment<Configuration> configuration) {
         var rc = context.managedWorkflowAndDependentResourceContext();

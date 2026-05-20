@@ -48,9 +48,23 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        failQueuedRequests(new ChannelClosedException("Channel closed before request could be sent"));
+        ctx.fireChannelInactive();
+    }
+
+    @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.warn("Kafka test client received unexpected exception, closing connection.", cause);
+        failQueuedRequests(cause);
         ctx.close();
+    }
+
+    private void failQueuedRequests(Throwable cause) {
+        RequestFrame pending;
+        while ((pending = queue.pollFirst()) != null) {
+            pending.getResponseFuture().completeExceptionally(cause);
+        }
     }
 
     /**

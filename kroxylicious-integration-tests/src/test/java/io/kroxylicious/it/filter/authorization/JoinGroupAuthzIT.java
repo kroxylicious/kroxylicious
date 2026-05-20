@@ -156,7 +156,7 @@ public class JoinGroupAuthzIT extends AuthzIT {
 
         @Override
         public boolean needsRetry(JoinGroupResponseData response) {
-            return Errors.forCode(response.errorCode()) == Errors.NOT_COORDINATOR;
+            return isTransientCoordinatorError(response.errorCode());
         }
 
         @Override

@@ -20,9 +20,9 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
-public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngress> {
+class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngress> {
 
-    public KafkaProxyIngressStatusFactory(Clock clock) {
+    KafkaProxyIngressStatusFactory(Clock clock) {
         super(clock);
     }
 
