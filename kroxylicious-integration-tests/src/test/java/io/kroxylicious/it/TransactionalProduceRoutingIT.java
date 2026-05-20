@@ -5,7 +5,9 @@
  */
 package io.kroxylicious.it;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,12 +24,25 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
+import org.apache.kafka.common.message.SaslAuthenticateResponseData;
+import org.apache.kafka.common.message.SaslHandshakeRequestData;
+import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +58,8 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory;
 import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
 import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
@@ -110,6 +127,16 @@ class TransactionalProduceRoutingIT {
         var records = consumeDirectly(clusterA, topic, "read_committed");
         assertThat(records).hasSize(1);
         assertThat(records.iterator().next().value()).isEqualTo("val1");
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.FIND_COORDINATOR))
+                .as("FIND_COORDINATOR should route to route-a for unmapped alice")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .as("PRODUCE should route to route-a for a.* topic")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.PRODUCE))
+                .as("no produces should go to route-b")
+                .isEmpty();
     }
 
     /**
@@ -146,6 +173,16 @@ class TransactionalProduceRoutingIT {
         var records = consumeDirectly(clusterB, topic, "read_committed");
         assertThat(records).hasSize(1);
         assertThat(records.iterator().next().value()).isEqualTo("val1");
+
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.FIND_COORDINATOR))
+                .as("FIND_COORDINATOR should route to route-b for mapped bob")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.PRODUCE))
+                .as("PRODUCE should route to route-b for b.* topic")
+                .isNotEmpty();
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .as("no produces should go to route-a")
+                .isEmpty();
     }
 
     /**
@@ -177,6 +214,117 @@ class TransactionalProduceRoutingIT {
 
         var records = consumeDirectly(clusterA, topic, "read_committed");
         assertThat(records).isEmpty();
+    }
+
+    // --- version sweep ---
+
+    static List<Arguments> findCoordinatorVersions() {
+        // FIND_COORDINATOR is capped at v3 by the router (v4+ uses coordinatorKeys array)
+        short maxVersion = (short) Math.min(ApiKeys.FIND_COORDINATOR.latestVersion(), 3);
+        var result = new ArrayList<Arguments>();
+        for (short v = 1; v <= maxVersion; v++) {
+            result.add(Arguments.of(v));
+        }
+        return result;
+    }
+
+    /**
+     * Sweeps FIND_COORDINATOR versions (up to the capped maximum) for
+     * keyType=1 (transaction coordinator). Authenticates as "bob"
+     * (mapped to route-b) and verifies routing to route-b.
+     */
+    @ParameterizedTest
+    @MethodSource("findCoordinatorVersions")
+    void findCoordinatorForTransactionAcrossVersions(
+                                                     short apiVersion,
+                                                     @SaslMechanism(value = "PLAIN", principals = {
+                                                             @SaslMechanism.Principal(user = "bob", password = "bob-secret")
+                                                     }) @BrokerCluster(numBrokers = 3) KafkaCluster clusterA,
+                                                     @BrokerCluster(numBrokers = 3) KafkaCluster clusterB)
+            throws Exception {
+        var config = buildConfig(clusterA, clusterB, Map.of("bob", "route-b"));
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+
+            negotiateApiVersions(client);
+            authenticate(client, "bob", "bob-secret");
+
+            var findCoordReq = new FindCoordinatorRequestData()
+                    .setKey("txn-sweep-v" + apiVersion)
+                    .setKeyType((byte) 1);
+
+            var body = awaitSuccessfulResponse(client,
+                    ApiKeys.FIND_COORDINATOR, apiVersion, findCoordReq,
+                    FindCoordinatorResponseData.class,
+                    FindCoordinatorResponseData::errorCode);
+
+            assertThat(body.nodeId())
+                    .as("v%d should return a valid coordinator node", apiVersion)
+                    .isGreaterThanOrEqualTo(0);
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.FIND_COORDINATOR))
+                .as("v%d FIND_COORDINATOR should route to route-b for bob", apiVersion)
+                .isNotEmpty();
+    }
+
+    // --- protocol helpers ---
+
+    private static void negotiateApiVersions(KafkaClient client) {
+        client.getSync(new Request(
+                ApiKeys.API_VERSIONS,
+                ApiKeys.API_VERSIONS.latestVersion(),
+                "test-client",
+                new ApiVersionsRequestData()
+                        .setClientSoftwareName("test")
+                        .setClientSoftwareVersion("1.0")));
+    }
+
+    private static void authenticate(KafkaClient client,
+                                     String username,
+                                     String password) {
+        var handshakeResp = (SaslHandshakeResponseData) client.getSync(new Request(
+                ApiKeys.SASL_HANDSHAKE,
+                ApiKeys.SASL_HANDSHAKE.latestVersion(),
+                "test-client",
+                new SaslHandshakeRequestData().setMechanism("PLAIN")))
+                .payload().message();
+        assertThat(Errors.forCode(handshakeResp.errorCode())).isEqualTo(Errors.NONE);
+
+        byte[] saslBytes = (username + "\0" + username + "\0" + password)
+                .getBytes(StandardCharsets.UTF_8);
+        var authResp = (SaslAuthenticateResponseData) client.getSync(new Request(
+                ApiKeys.SASL_AUTHENTICATE,
+                ApiKeys.SASL_AUTHENTICATE.latestVersion(),
+                "test-client",
+                new SaslAuthenticateRequestData().setAuthBytes(saslBytes)))
+                .payload().message();
+        assertThat(Errors.forCode(authResp.errorCode())).isEqualTo(Errors.NONE);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends ApiMessage> T awaitSuccessfulResponse(
+                                                                    KafkaClient client,
+                                                                    ApiKeys apiKey,
+                                                                    short apiVersion,
+                                                                    ApiMessage request,
+                                                                    Class<T> responseClass,
+                                                                    java.util.function.ToIntFunction<T> errorCodeExtractor) {
+        var holder = new Object() {
+            T value;
+        };
+        org.awaitility.Awaitility.await()
+                .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(500))
+                .untilAsserted(() -> {
+                    var response = client.getSync(
+                            new Request(apiKey, apiVersion, "test-client", request));
+                    holder.value = responseClass.cast(response.payload().message());
+                    assertThat(errorCodeExtractor.applyAsInt(holder.value))
+                            .isEqualTo(Errors.NONE.code());
+                });
+        return holder.value;
     }
 
     // --- config helpers ---
