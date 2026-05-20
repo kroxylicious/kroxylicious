@@ -4,7 +4,9 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-# Two independent 3-broker KRaft Kafka clusters for the topic router demo.
+# Two independent 3-broker KRaft Kafka clusters and a Kroxylicious proxy
+# for the topic router demo.  Everything runs on a single shared Docker
+# network so the proxy and CLI containers can reach brokers by hostname.
 #
 # Cluster A (default route): SASL_PLAINTEXT listener for the proxy, PLAINTEXT for direct access.
 # Cluster B (non-default route): PLAINTEXT only.
@@ -26,7 +28,7 @@ x-cluster-a-common: &cluster-a-common
       user_alice="alice-secret"
       user_bob="bob-secret";
   networks:
-    - cluster-a-net
+    - demo-net
 
 x-cluster-b-common: &cluster-b-common
   image: 'docker.io/apache/kafka:4.2.0'
@@ -38,7 +40,7 @@ x-cluster-b-common: &cluster-b-common
     KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-b-1:9095,2@kafka-b-2:9095,3@kafka-b-3:9095
     KAFKA_KRAFT_CLUSTER_ID: X7Bm_CkrVSzW9Y4PKuD_IC
   networks:
-    - cluster-b-net
+    - demo-net
 
 services:
   # ---------- Cluster A (default route, SASL) ----------
@@ -50,10 +52,7 @@ services:
       <<: *cluster-a-env
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: INTERNAL://:9092,SASL://:9093,PLAIN://:9094,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-1:9092,SASL://localhost:19092,PLAIN://localhost:19192
-    ports:
-      - "19092:9093"
-      - "19192:9094"
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-1:9092,SASL://kafka-a-1:9093,PLAIN://kafka-a-1:9094
 
   kafka-a-2:
     <<: *cluster-a-common
@@ -62,10 +61,7 @@ services:
       <<: *cluster-a-env
       KAFKA_NODE_ID: 2
       KAFKA_LISTENERS: INTERNAL://:9092,SASL://:9093,PLAIN://:9094,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-2:9092,SASL://localhost:19093,PLAIN://localhost:19193
-    ports:
-      - "19093:9093"
-      - "19193:9094"
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-2:9092,SASL://kafka-a-2:9093,PLAIN://kafka-a-2:9094
 
   kafka-a-3:
     <<: *cluster-a-common
@@ -74,10 +70,7 @@ services:
       <<: *cluster-a-env
       KAFKA_NODE_ID: 3
       KAFKA_LISTENERS: INTERNAL://:9092,SASL://:9093,PLAIN://:9094,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-3:9092,SASL://localhost:19094,PLAIN://localhost:19194
-    ports:
-      - "19094:9093"
-      - "19194:9094"
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-3:9092,SASL://kafka-a-3:9093,PLAIN://kafka-a-3:9094
 
   # ---------- Cluster B (non-default route, PLAINTEXT) ----------
 
@@ -88,9 +81,7 @@ services:
       <<: *cluster-b-env
       KAFKA_NODE_ID: 1
       KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9093,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-1:9092,EXTERNAL://localhost:29092
-    ports:
-      - "29092:9093"
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-1:9092,EXTERNAL://kafka-b-1:9093
 
   kafka-b-2:
     <<: *cluster-b-common
@@ -99,9 +90,7 @@ services:
       <<: *cluster-b-env
       KAFKA_NODE_ID: 2
       KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9093,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-2:9092,EXTERNAL://localhost:29093
-    ports:
-      - "29093:9093"
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-2:9092,EXTERNAL://kafka-b-2:9093
 
   kafka-b-3:
     <<: *cluster-b-common
@@ -110,12 +99,31 @@ services:
       <<: *cluster-b-env
       KAFKA_NODE_ID: 3
       KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9093,CONTROLLER://:9095
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-3:9092,EXTERNAL://localhost:29094
-    ports:
-      - "29094:9093"
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-3:9092,EXTERNAL://kafka-b-3:9093
+
+  # ---------- Kroxylicious proxy ----------
+
+  kroxylicious:
+    image: quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}
+    container_name: kroxylicious
+    volumes:
+      - ../../kroxylicious-router-topic/target/kroxylicious-router-topic-${KROXYLICIOUS_VERSION}.jar:/opt/kroxylicious/classpath-plugins/kroxylicious-router-topic.jar:ro,z
+      - ../../kroxylicious-kafka-message-tools/target/kroxylicious-kafka-message-tools-${KROXYLICIOUS_VERSION}.jar:/opt/kroxylicious/classpath-plugins/kroxylicious-kafka-message-tools.jar:ro,z
+      - ./proxy-config.yaml:/opt/kroxylicious/config/proxy-config.yaml:ro,z
+    environment:
+      KROXYLICIOUS_CLASSPATH: "/opt/kroxylicious/classpath-plugins/kroxylicious-router-topic.jar:/opt/kroxylicious/classpath-plugins/kroxylicious-kafka-message-tools.jar"
+    command: ["--config", "/opt/kroxylicious/config/proxy-config.yaml"]
+    networks:
+      - demo-net
+    depends_on:
+      - kafka-a-1
+      - kafka-a-2
+      - kafka-a-3
+      - kafka-b-1
+      - kafka-b-2
+      - kafka-b-3
 
 networks:
-  cluster-a-net:
-    driver: bridge
-  cluster-b-net:
+  demo-net:
+    name: kroxylicious-demo
     driver: bridge
