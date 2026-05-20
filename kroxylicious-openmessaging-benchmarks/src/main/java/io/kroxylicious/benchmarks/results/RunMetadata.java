@@ -39,14 +39,65 @@ public class RunMetadata {
     /**
      * Probe-specific context written alongside the standard git/system metadata.
      *
-     * @param scenario   the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
-     * @param workload   the OMB workload name (e.g. {@code 1topic-1kb})
-     * @param targetRate the target producer rate in msg/sec for this probe
+     * @param scenario                the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
+     * @param workload                the OMB workload name (e.g. {@code 1topic-1kb})
+     * @param targetRate              the target producer rate in msg/sec for this probe
+     * @param warmupDurationMinutes   warmup phase duration in minutes, or {@code null} if not recorded
+     * @param testDurationMinutes     measurement phase duration in minutes, or {@code null} if not recorded
+     * @param benchmarkStartedAt      ISO-8601 UTC timestamp when the benchmark job started, or {@code null} if not recorded
+     * @param benchmarkCompletedAt    ISO-8601 UTC timestamp when the benchmark job completed, or {@code null} if not recorded
+     * @param topics                  number of topics in the workload, or {@code null} if not recorded
+     * @param partitionsPerTopic      number of partitions per topic, or {@code null} if not recorded
+     * @param messageSize             message payload size in bytes, or {@code null} if not recorded
+     * @param producersPerTopic       number of producers per topic, or {@code null} if not recorded
+     * @param consumerPerSubscription number of consumers per subscription, or {@code null} if not recorded
+     * @param namespace               Kubernetes namespace containing the proxy pod, or {@code null} to skip proxy info
+     * @param proxyPodName            name of the proxy pod to query for resource limits, or {@code null} to skip proxy info
      */
-    public record ProbeContext(String scenario, String workload, Integer targetRate) {
+    public record ProbeContext(String scenario, String workload, Integer targetRate,
+                               Integer warmupDurationMinutes, Integer testDurationMinutes,
+                               String benchmarkStartedAt, String benchmarkCompletedAt,
+                               Integer topics, Integer partitionsPerTopic, Integer messageSize,
+                               Integer producersPerTopic, Integer consumerPerSubscription,
+                               String namespace, String proxyPodName) {
+
         /** An empty context that writes no probe-specific fields. */
         public static ProbeContext empty() {
-            return new ProbeContext(null, null, null);
+            return new ProbeContext(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** Create a context with probe identifiers but no phase timing or workload parameters. */
+        public static ProbeContext of(String scenario, String workload, Integer targetRate) {
+            return new ProbeContext(scenario, workload, targetRate, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** Return a copy of this context with benchmark phase durations and timestamps added. */
+        public ProbeContext withPhases(Integer warmupDurationMinutes, Integer testDurationMinutes,
+                                       String benchmarkStartedAt, String benchmarkCompletedAt) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
+        }
+
+        /** Return a copy of this context with workload shape parameters added. */
+        public ProbeContext withWorkload(Integer topics, Integer partitionsPerTopic, Integer messageSize,
+                                         Integer producersPerTopic, Integer consumerPerSubscription) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
+        }
+
+        /** Return a copy of this context with the proxy pod coordinates added. */
+        public ProbeContext withProxy(String namespace, String proxyPodName) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
         }
     }
 
@@ -95,15 +146,18 @@ public class RunMetadata {
         metadata.put("gitCommit", gitCommit);
         metadata.put("gitBranch", gitBranch);
         metadata.put("timestamp", timestamp);
-        if (probeContext.scenario() != null) {
-            metadata.put("scenario", probeContext.scenario());
-        }
-        if (probeContext.workload() != null) {
-            metadata.put("workload", probeContext.workload());
-        }
-        if (probeContext.targetRate() != null) {
-            metadata.put("targetRate", probeContext.targetRate());
-        }
+        putIfPresent(metadata, "scenario", probeContext.scenario());
+        putIfPresent(metadata, "workload", probeContext.workload());
+        putIfPresent(metadata, "targetRate", probeContext.targetRate());
+        putIfPresent(metadata, "warmupDurationMinutes", probeContext.warmupDurationMinutes());
+        putIfPresent(metadata, "testDurationMinutes", probeContext.testDurationMinutes());
+        putIfPresent(metadata, "benchmarkStartedAt", probeContext.benchmarkStartedAt());
+        putIfPresent(metadata, "benchmarkCompletedAt", probeContext.benchmarkCompletedAt());
+        putIfPresent(metadata, "topics", probeContext.topics());
+        putIfPresent(metadata, "partitionsPerTopic", probeContext.partitionsPerTopic());
+        putIfPresent(metadata, "messageSize", probeContext.messageSize());
+        putIfPresent(metadata, "producersPerTopic", probeContext.producersPerTopic());
+        putIfPresent(metadata, "consumerPerSubscription", probeContext.consumerPerSubscription());
 
         Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
         if (!minikubeProfile.isEmpty()) {
@@ -112,6 +166,12 @@ public class RunMetadata {
         Map<String, Object> clusterNodes = clusterNodesInfo(runner);
         if (!clusterNodes.isEmpty()) {
             metadata.put("clusterNodes", clusterNodes);
+        }
+        if (probeContext.proxyPodName() != null && probeContext.namespace() != null) {
+            Map<String, Object> proxyConfig = proxyInfo(runner, probeContext.namespace(), probeContext.proxyPodName());
+            if (!proxyConfig.isEmpty()) {
+                metadata.put("proxyConfig", proxyConfig);
+            }
         }
         metadata.put("orchestratorSystem", orchestratorSystemInfo());
 
@@ -180,6 +240,31 @@ public class RunMetadata {
         }
         catch (Exception e) {
             LOGGER.debug("kubectl not available or not pointed at a cluster — cluster node info will be omitted", e);
+        }
+        return info;
+    }
+
+    static Map<String, Object> proxyInfo(CommandRunner runner, String namespace, String proxyPodName) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            String json = runner.run("kubectl", "get", "pod", proxyPodName, "-n", namespace, "-o", "json");
+            extractProxyContainerResources(MAPPER.readTree(json), info);
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("proxyPodName", proxyPodName).setCause(e).log("Could not read proxy pod resources");
+        }
+        try {
+            String json = runner.run("kubectl", "get", "kafkaproxy", "-n", namespace, "-o", "json");
+            JsonNode items = MAPPER.readTree(json).path("items");
+            if (items.isArray() && !items.isEmpty()) {
+                int replicas = items.get(0).path("spec").path("replicas").asInt(0);
+                if (replicas > 0) {
+                    info.put("replicas", replicas);
+                }
+            }
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("namespace", namespace).setCause(e).log("Could not read KafkaProxy replica count");
         }
         return info;
     }
@@ -274,6 +359,30 @@ public class RunMetadata {
                 .map(l -> l.substring(l.indexOf(':') + 1).trim())
                 .ifPresent(mhz -> info.put("cpuMhz", mhz));
         return info;
+    }
+
+    private static void extractProxyContainerResources(JsonNode pod, Map<String, Object> info) {
+        for (JsonNode container : pod.path("spec").path("containers")) {
+            if ("proxy".equals(container.path("name").asText())) {
+                JsonNode requests = container.path("resources").path("requests");
+                JsonNode limits = container.path("resources").path("limits");
+                if (!requests.isMissingNode()) {
+                    putIfPresent(info, "cpuRequest", requests.path("cpu").asText(null));
+                    putIfPresent(info, "memoryRequest", requests.path("memory").asText(null));
+                }
+                if (!limits.isMissingNode()) {
+                    putIfPresent(info, "cpuLimit", limits.path("cpu").asText(null));
+                    putIfPresent(info, "memoryLimit", limits.path("memory").asText(null));
+                }
+                break;
+            }
+        }
+    }
+
+    private static void putIfPresent(Map<String, Object> map, String key, Object value) {
+        if (value != null) {
+            map.put(key, value);
+        }
     }
 
     @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")

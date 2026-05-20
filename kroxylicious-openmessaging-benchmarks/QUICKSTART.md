@@ -91,6 +91,10 @@ create a cluster overrides file and pass it with `--cluster-overrides`:
 kafka:
   storage:
     storageClass: my-storage-class
+
+# Override the Vault image when Docker Hub is restricted (e.g. some OpenShift clusters)
+vault:
+  image: quay.io/your-org/vault:1.21.4
 ```
 
 ```bash

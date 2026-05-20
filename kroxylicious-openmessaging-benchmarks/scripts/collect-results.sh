@@ -25,13 +25,21 @@ Arguments:
   output-dir                Directory containing result.json, to write JFR/flamegraph into
 
 Options:
-  --scenario <name>         Benchmark scenario name written into run-metadata.json
-  --workload <name>         OMB workload name written into run-metadata.json
-  --target-rate <n>         Target producer rate (msg/sec) written into run-metadata.json
+  --scenario <name>                   Benchmark scenario name written into run-metadata.json
+  --workload <name>                   OMB workload name written into run-metadata.json
+  --target-rate <n>                   Target producer rate (msg/sec) written into run-metadata.json
+  --warmup-duration-minutes <n>       Warmup phase duration in minutes
+  --test-duration-minutes <n>         Measurement phase duration in minutes
+  --benchmark-started-at <iso8601>    UTC timestamp when the benchmark job started
+  --benchmark-completed-at <iso8601>  UTC timestamp when the benchmark job completed
+  --topics <n>                        Number of topics in the workload
+  --partitions-per-topic <n>          Number of partitions per topic
+  --message-size <n>                  Message payload size in bytes
+  --producers-per-topic <n>           Number of producers per topic
+  --consumer-per-subscription <n>     Number of consumers per subscription
 
 Environment:
   NAMESPACE                 Kubernetes namespace (default: kafka)
-  JFR_PVC_NAME              Name of the PVC holding the JFR recording (set by run-benchmark.sh)
   PROXY_POD                 Name of the proxy pod to collect JFR from (set by run-benchmark.sh)
 
 Prerequisites:
@@ -45,18 +53,33 @@ EOF
 SCENARIO=""
 WORKLOAD=""
 TARGET_RATE=""
+WARMUP_DURATION_MINUTES=""
+TEST_DURATION_MINUTES=""
+BENCHMARK_STARTED_AT=""
+BENCHMARK_COMPLETED_AT=""
+TOPICS=""
+PARTITIONS_PER_TOPIC=""
+MESSAGE_SIZE=""
+PRODUCERS_PER_TOPIC=""
+CONSUMER_PER_SUBSCRIPTION=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help)
             usage
             ;;
-        --scenario)
-            SCENARIO="$2"; shift 2 ;;
-        --workload)
-            WORKLOAD="$2"; shift 2 ;;
-        --target-rate)
-            TARGET_RATE="$2"; shift 2 ;;
+        --scenario)                  SCENARIO="$2";                  shift 2 ;;
+        --workload)                  WORKLOAD="$2";                  shift 2 ;;
+        --target-rate)               TARGET_RATE="$2";               shift 2 ;;
+        --warmup-duration-minutes)   WARMUP_DURATION_MINUTES="$2";   shift 2 ;;
+        --test-duration-minutes)     TEST_DURATION_MINUTES="$2";     shift 2 ;;
+        --benchmark-started-at)      BENCHMARK_STARTED_AT="$2";      shift 2 ;;
+        --benchmark-completed-at)    BENCHMARK_COMPLETED_AT="$2";    shift 2 ;;
+        --topics)                    TOPICS="$2";                    shift 2 ;;
+        --partitions-per-topic)      PARTITIONS_PER_TOPIC="$2";      shift 2 ;;
+        --message-size)              MESSAGE_SIZE="$2";              shift 2 ;;
+        --producers-per-topic)       PRODUCERS_PER_TOPIC="$2";       shift 2 ;;
+        --consumer-per-subscription) CONSUMER_PER_SUBSCRIPTION="$2"; shift 2 ;;
         -*)
             echo "Error: unknown option $1" >&2
             usage
@@ -86,77 +109,47 @@ fi
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Copy JFR recording if one was created by run-benchmark.sh.
-# Prefer copying directly from the proxy pod (still running at this point) to avoid
-# EBS ReadWriteOnce attachment conflicts: a jfr-collect pod may land on a different
-# node and block waiting for the volume to detach from the proxy node.
-# Fall back to a jfr-collect pod only when the proxy pod is no longer available.
-JFR_PVC_NAME="${JFR_PVC_NAME:-}"
+# Copy JFR recording and flamegraph directly from the proxy pod while it is still running.
+# run-benchmark.sh calls jcmd JFR.stop before invoking this script, so the files are
+# already written to /tmp inside the pod's emptyDir volume.
 PROXY_POD="${PROXY_POD:-}"
 JFR_FILE="/tmp/benchmark.jfr"
 FLAMEGRAPH_FILE="/tmp/flamegraph.html"
 
-copy_jfr_files() {
-    local src_pod="$1"
+if [[ -n "${PROXY_POD}" ]] && kubectl get pod "${PROXY_POD}" -n "${NAMESPACE}" &>/dev/null; then
+    echo "Copying JFR recording from proxy pod ${PROXY_POD}..."
     # Use 'kubectl exec -- cat' rather than 'kubectl cp' — the proxy container does not
-    # have tar, which kubectl cp requires.  Streaming via cat works for any container.
-    kubectl exec -n "${NAMESPACE}" "${src_pod}" -- cat "${JFR_FILE}" > "${OUTPUT_DIR}/benchmark.jfr" 2>/dev/null || true
+    # have tar, which kubectl cp requires.
+    kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- cat "${JFR_FILE}" > "${OUTPUT_DIR}/benchmark.jfr" 2>/dev/null || true
     if [[ ! -s "${OUTPUT_DIR}/benchmark.jfr" ]]; then
-        echo "Warning: benchmark.jfr is empty — JFR dump may not have completed before pod terminated" >&2
+        echo "Warning: benchmark.jfr is empty — JFR dump may not have completed" >&2
     else
         echo "  benchmark.jfr ($(du -h "${OUTPUT_DIR}/benchmark.jfr" | cut -f1))"
     fi
-    if kubectl exec -n "${NAMESPACE}" "${src_pod}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
-        kubectl exec -n "${NAMESPACE}" "${src_pod}" -- cat "${FLAMEGRAPH_FILE}" > "${OUTPUT_DIR}/flamegraph.html" 2>/dev/null || true
+    if kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- test -s "${FLAMEGRAPH_FILE}" 2>/dev/null; then
+        kubectl exec -n "${NAMESPACE}" "${PROXY_POD}" -- cat "${FLAMEGRAPH_FILE}" > "${OUTPUT_DIR}/flamegraph.html" 2>/dev/null || true
         echo "  flamegraph.html ($(du -h "${OUTPUT_DIR}/flamegraph.html" | cut -f1))"
     else
         echo "Warning: flamegraph.html is absent or empty — async-profiler may not have run or perf events were unavailable" >&2
     fi
-}
-
-if [[ -n "${PROXY_POD}" ]] && kubectl get pod "${PROXY_POD}" -n "${NAMESPACE}" &>/dev/null; then
-    echo "Copying JFR recording directly from proxy pod ${PROXY_POD}..."
-    copy_jfr_files "${PROXY_POD}"
-elif [[ -n "${JFR_PVC_NAME}" ]] && kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-    echo "Proxy pod gone — copying JFR recording from PVC ${JFR_PVC_NAME} via collector pod..."
-    DEBUG_POD="jfr-collect-$$"
-    delete_debug_pod() {
-        kubectl delete pod "${DEBUG_POD}" -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
-    }
-    trap delete_debug_pod EXIT
-    kubectl apply -f - <<EOF
-apiVersion: v1
-kind: Pod
-metadata:
-  name: ${DEBUG_POD}
-  namespace: ${NAMESPACE}
-  labels:
-    app: jfr-collect
-spec:
-  restartPolicy: Never
-  volumes:
-  - name: jfr
-    persistentVolumeClaim:
-      claimName: ${JFR_PVC_NAME}
-  containers:
-  - name: debug
-    image: busybox:1.37.0@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
-    command: ["sleep", "infinity"]
-    volumeMounts:
-    - name: jfr
-      mountPath: /tmp
-EOF
-    kubectl wait pod "${DEBUG_POD}" -n "${NAMESPACE}" --for=condition=ready --timeout=120s
-    copy_jfr_files "${DEBUG_POD}"
-    # trap handles deletion on exit
 fi
 
 # Generate run metadata
 echo "Generating run metadata..."
 JBANG_ARGS=(--generate-run-metadata "$OUTPUT_DIR")
-[[ -n "${SCENARIO}" ]]    && JBANG_ARGS+=(--scenario "${SCENARIO}")
-[[ -n "${WORKLOAD}" ]]    && JBANG_ARGS+=(--workload "${WORKLOAD}")
-[[ -n "${TARGET_RATE}" ]] && JBANG_ARGS+=(--target-rate "${TARGET_RATE}")
+[[ -n "${SCENARIO}" ]]                  && JBANG_ARGS+=(--scenario "${SCENARIO}")
+[[ -n "${WORKLOAD}" ]]                  && JBANG_ARGS+=(--workload "${WORKLOAD}")
+[[ -n "${TARGET_RATE}" ]]               && JBANG_ARGS+=(--target-rate "${TARGET_RATE}")
+[[ -n "${WARMUP_DURATION_MINUTES}" ]]   && JBANG_ARGS+=(--warmup-duration-minutes "${WARMUP_DURATION_MINUTES}")
+[[ -n "${TEST_DURATION_MINUTES}" ]]     && JBANG_ARGS+=(--test-duration-minutes "${TEST_DURATION_MINUTES}")
+[[ -n "${BENCHMARK_STARTED_AT}" ]]      && JBANG_ARGS+=(--benchmark-started-at "${BENCHMARK_STARTED_AT}")
+[[ -n "${BENCHMARK_COMPLETED_AT}" ]]    && JBANG_ARGS+=(--benchmark-completed-at "${BENCHMARK_COMPLETED_AT}")
+[[ -n "${TOPICS}" ]]                    && JBANG_ARGS+=(--topics "${TOPICS}")
+[[ -n "${PARTITIONS_PER_TOPIC}" ]]      && JBANG_ARGS+=(--partitions-per-topic "${PARTITIONS_PER_TOPIC}")
+[[ -n "${MESSAGE_SIZE}" ]]              && JBANG_ARGS+=(--message-size "${MESSAGE_SIZE}")
+[[ -n "${PRODUCERS_PER_TOPIC}" ]]       && JBANG_ARGS+=(--producers-per-topic "${PRODUCERS_PER_TOPIC}")
+[[ -n "${CONSUMER_PER_SUBSCRIPTION}" ]] && JBANG_ARGS+=(--consumer-per-subscription "${CONSUMER_PER_SUBSCRIPTION}")
+[[ -n "${PROXY_POD}" ]]                 && JBANG_ARGS+=(--proxy-pod "${PROXY_POD}" --namespace "${NAMESPACE}")
 jbang "$FILTERED" "${JBANG_ARGS[@]}"
 
 echo "Done. Results collected in $OUTPUT_DIR/"

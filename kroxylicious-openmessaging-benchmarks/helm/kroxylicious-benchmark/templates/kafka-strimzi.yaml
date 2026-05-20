@@ -12,7 +12,9 @@ metadata:
     app: kafka
 spec:
   kafka:
+    {{- if .Values.kafka.version }}
     version: {{ .Values.kafka.version }}
+    {{- end }}
     listeners:
       - name: plain
         port: 9092

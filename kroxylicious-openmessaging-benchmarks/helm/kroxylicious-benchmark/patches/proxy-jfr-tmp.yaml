@@ -6,14 +6,16 @@
 
 # Patches the proxy Deployment to enable JFR recording.
 #
-# - Mounts a PVC at /tmp so the JFR recording survives pod termination and can
-#   be collected after the proxy has been scaled to zero.
+# - Mounts an emptyDir at /tmp so the JFR recording is written to pod-local storage.
+#   run-benchmark.sh copies the file from the live pod via kubectl exec before teardown.
+#   Using emptyDir (rather than a PVC) avoids local-PV node-affinity constraints that
+#   can deadlock scheduling when anti-affinity rules are also in play.
 # - Sets JAVA_TOOL_OPTIONS to start a JFR recording at JVM startup.
-#   After the benchmark completes, run-benchmark.sh uses jcmd JFR.dump to write
+#   After the benchmark completes, run-benchmark.sh uses jcmd JFR.stop to write
 #   the recording to /tmp/benchmark.jfr while the proxy pod is still running.
 #
-# The PROXY_DEPLOYMENT, NAMESPACE, JFR_PVC_NAME, and JFR_MAX_SIZE placeholders
-# are substituted by the script using envsubst before applying.
+# The PROXY_DEPLOYMENT, NAMESPACE, and JFR_MAX_SIZE placeholders are substituted
+# by the script using envsubst before applying.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,12 +24,9 @@ metadata:
 spec:
   template:
     spec:
-      securityContext:
-        fsGroup: 185
       volumes:
       - name: jfr-tmp
-        persistentVolumeClaim:
-          claimName: ${JFR_PVC_NAME}
+        emptyDir: {}
       containers:
       - name: proxy
         env:
