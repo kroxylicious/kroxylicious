@@ -15,6 +15,7 @@ import java.util.function.IntSupplier;
 
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -65,10 +66,19 @@ class RoutingContextImplTest {
         return () -> nextRoutingCorrelationId++;
     }
 
+    private DecodedRequestFrame<?> clientFrame() {
+        return new DecodedRequestFrame<>(
+                API_VERSION, CORRELATION_ID, true,
+                new RequestHeaderData()
+                        .setRequestApiKey(ApiKeys.FETCH.id)
+                        .setRequestApiVersion(API_VERSION)
+                        .setCorrelationId(CORRELATION_ID),
+                new FetchRequestData());
+    }
+
     private RoutingContextImpl createContext() {
         return new RoutingContextImpl(
-                CORRELATION_ID,
-                API_VERSION,
+                clientFrame(),
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),
@@ -196,8 +206,7 @@ class RoutingContextImplTest {
 
         List<Object> forwardedFrames = new java.util.ArrayList<>();
         var fanOutCtx = new RoutingContextImpl(
-                CORRELATION_ID,
-                API_VERSION,
+                clientFrame(),
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),
@@ -235,8 +244,7 @@ class RoutingContextImplTest {
         var nodeForwardedMsg = new AtomicReference<Object>();
 
         var ctx = new RoutingContextImpl(
-                CORRELATION_ID,
-                API_VERSION,
+                clientFrame(),
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),
@@ -271,8 +279,7 @@ class RoutingContextImplTest {
     @Test
     void sendRequestToNodeShouldFailWhenForwarderThrows() {
         var ctx = new RoutingContextImpl(
-                CORRELATION_ID,
-                API_VERSION,
+                clientFrame(),
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),

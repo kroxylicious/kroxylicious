@@ -152,8 +152,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         }
 
         var routingContext = new RoutingContextImpl(
-                correlationId,
-                apiVersion,
+                frame,
                 ctx.channel(),
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
