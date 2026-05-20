@@ -65,7 +65,7 @@ CLUSTER_A=kafka-a-1:9094    # PLAINTEXT listener for direct access
 CLUSTER_B=kafka-b-1:9093    # PLAINTEXT listener for direct access
 
 kafka-cmd() {
-  podman run --rm --network kroxylicious-demo docker.io/apache/kafka:4.2.0 \
+  podman run --rm -i --network kroxylicious-demo docker.io/apache/kafka:4.2.0 \
     /opt/kafka/bin/"$@"
 }
 ```
