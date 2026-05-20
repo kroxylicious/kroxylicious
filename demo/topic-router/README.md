@@ -118,7 +118,7 @@ The topic router module is not bundled in `kroxylicious-app` by default.
 Use `KROXYLICIOUS_CLASSPATH` to add it at runtime:
 
 ```bash
-KROXYLICIOUS_CLASSPATH="$(pwd)/kroxylicious-router-topic/target/kroxylicious-router-topic-*.jar:$(pwd)/kroxylicious-kafka-message-tools/target/kroxylicious-kafka-message-tools-*.jar" \
+KROXYLICIOUS_CLASSPATH=$(echo kroxylicious-router-topic/target/kroxylicious-router-topic-*.jar):$(echo kroxylicious-kafka-message-tools/target/kroxylicious-kafka-message-tools-*.jar) \
   kroxylicious-app/target/kroxylicious-app-*-bin/kroxylicious-app-*/bin/kroxylicious-start.sh \
   --config demo/topic-router/proxy-config.yaml
 ```
@@ -158,13 +158,16 @@ kafka-cmd kafka-console-consumer.sh --bootstrap-server localhost:29092 \
 
 ## Demo 2: Cross-cluster consume
 
-A single consumer through the proxy sees records from topics on both clusters:
+A single consumer through the proxy sees records from topics on both clusters.
+Use `group.protocol=consumer` (KIP-848) because the classic consumer group protocol's
+coordinator APIs are statically routed to the default cluster.
 
 ```bash
 kafka-cmd-alice kafka-console-consumer.sh \
   --bootstrap-server localhost:9192 \
   --include "a.orders|b.analytics" \
-  --from-beginning --max-messages 2
+  --from-beginning --max-messages 2 \
+  --command-property group.protocol=consumer
 ```
 
 ## Demo 3: Transactional produce
