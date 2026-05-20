@@ -16,10 +16,15 @@ server:
   updateStrategyType: RollingUpdate
   service:
     type: NodePort
+  # Workaround for Vault 2.x in rootless containers (IPC_LOCK capability unavailable). Acceptable for development/testing.
+  statefulSet:
+    securityContext:
+      container:
+        capabilities:
+          add:
+            - IPC_LOCK
   extraEnvironmentVars:
     VAULT_FORMAT: json
-    # Workaround for Vault 2.x in rootless containers (SETFCAP capability unavailable). Acceptable for development/testing.
-    SKIP_SETCAP: "true"
 injector:
   enabled: false
 
