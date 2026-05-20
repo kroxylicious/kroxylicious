@@ -794,33 +794,44 @@ class TopicPartitionRouter implements Router {
             return CompletableFuture.completedFuture(RoutingResult.completed());
         }
 
-        fetchSessionManager.wrapForBackends(subRequests);
-
-        LOGGER.atDebug()
-                .addKeyValue("sessionId", context.sessionId())
-                .addKeyValue("routeCount", subRequests.size())
-                .log("Fetch fanning out across clusters");
-
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
-        for (var entry : subRequests.entrySet()) {
-            futures.put(entry.getKey(),
-                    context.sendRequest(entry.getKey(), header, entry.getValue()));
-        }
-
-        FetchResponseData capturedErrors = errorResponse;
-        return collectAll(futures).thenApply(responses -> {
-            Map<String, FetchResponseData> bodies = new HashMap<>();
-            for (var entry : responses.entrySet()) {
-                bodies.put(entry.getKey(), (FetchResponseData) entry.getValue().body());
+        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
+            // Group by leader — each leader is a distinct backend connection
+            // and gets its own fetch session keyed by String.valueOf(nodeId)
+            Map<Integer, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest);
+            Map<String, FetchRequestData> byLeaderStr = new HashMap<>();
+            for (var entry : byLeader.entrySet()) {
+                byLeaderStr.put(String.valueOf(entry.getKey()), entry.getValue());
             }
-            fetchSessionManager.processServerResponses(bodies);
-            FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest);
-            for (var tr : capturedErrors.responses()) {
-                merged.responses().add(tr.duplicate());
+
+            fetchSessionManager.wrapForBackends(byLeaderStr);
+
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("leaderCount", byLeader.size())
+                    .log("Fetch dispatching to partition leaders");
+
+            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            for (var entry : byLeader.entrySet()) {
+                futures.put(entry.getKey(),
+                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
             }
-            var clientResponse = fetchSessionManager.computeClientResponse(merged);
-            sendSyntheticResponse(context, clientResponse);
-            return RoutingResult.completed();
+
+            FetchResponseData capturedErrors = errorResponse;
+            return collectAll(futures).thenApply(responses -> {
+                Map<String, FetchResponseData> bodies = new HashMap<>();
+                for (var entry : responses.entrySet()) {
+                    bodies.put(String.valueOf(entry.getKey()),
+                            (FetchResponseData) entry.getValue().body());
+                }
+                fetchSessionManager.processServerResponses(bodies);
+                FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest);
+                for (var tr : capturedErrors.responses()) {
+                    merged.responses().add(tr.duplicate());
+                }
+                var clientResponse = fetchSessionManager.computeClientResponse(merged);
+                sendSyntheticResponse(context, clientResponse);
+                return RoutingResult.completed();
+            });
         });
     }
 
@@ -2170,6 +2181,45 @@ class TopicPartitionRouter implements Router {
         }
         var t = new ProduceRequestData.TopicProduceData().setName(topicName);
         data.topicData().add(t);
+        return t;
+    }
+
+    private Map<Integer, FetchRequestData> groupFetchByLeader(
+                                                              Map<String, FetchRequestData> subRequestsByRoute,
+                                                              FetchRequestData original) {
+        Map<Integer, FetchRequestData> byLeader = new HashMap<>();
+        for (var routeEntry : subRequestsByRoute.entrySet()) {
+            var routeReq = routeEntry.getValue();
+            for (var topic : routeReq.topics()) {
+                for (var partition : topic.partitions()) {
+                    Integer leader = leaderForPartition(topic.topic(), partition.partition());
+                    if (leader == null) {
+                        leader = -1;
+                    }
+                    var leaderReq = byLeader.computeIfAbsent(leader, k -> new FetchRequestData()
+                            .setMaxBytes(original.maxBytes())
+                            .setMaxWaitMs(original.maxWaitMs())
+                            .setMinBytes(original.minBytes())
+                            .setIsolationLevel(original.isolationLevel())
+                            .setReplicaId(original.replicaId()));
+                    var leaderTopic = findOrCreateFetchTopic(leaderReq, topic.topic());
+                    leaderTopic.partitions().add(partition.duplicate());
+                }
+            }
+        }
+        return byLeader;
+    }
+
+    private static FetchRequestData.FetchTopic findOrCreateFetchTopic(
+                                                                      FetchRequestData data,
+                                                                      String topicName) {
+        for (var t : data.topics()) {
+            if (t.topic().equals(topicName)) {
+                return t;
+            }
+        }
+        var t = new FetchRequestData.FetchTopic().setTopic(topicName);
+        data.topics().add(t);
         return t;
     }
 
