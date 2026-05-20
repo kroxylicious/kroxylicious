@@ -112,7 +112,7 @@ Wait for both clusters to be ready (may take 15-20 seconds):
 kafka-cmd kafka-topics.sh --bootstrap-server kafka-a-1:9094 --list
 
 # Cluster B (PLAINTEXT listener)
-kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 --list 2>&1 | head -1
+kafka-cmd kafka-topics.sh --bootstrap-server kafka-b-1:9093 --list 2>&1 | head -1
 ```
 
 Both commands should return without error (empty list is fine).
@@ -159,11 +159,11 @@ Verify directly on each cluster (PLAINTEXT, no authentication needed):
 ```bash
 # Records on cluster-a
 kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-a-1:9094 \
-  --topic a.orders --from-beginning --max-messages 1
+  --topic a.orders --partition 2 --from-beginning --max-messages 1
 
 # Records on cluster-b
 kafka-cmd kafka-console-consumer.sh --bootstrap-server kafka-b-1:9093 \
-  --topic b.analytics --from-beginning --max-messages 1
+  --topic b.analytics --partition 2 --from-beginning --max-messages 1
 ```
 
 ## Demo 2: Cross-cluster consume
