@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.ToIntFunction;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -38,6 +40,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -507,11 +510,11 @@ class ConsumerGroupRoutingIT {
                                                                     short apiVersion,
                                                                     ApiMessage request,
                                                                     Class<T> responseClass,
-                                                                    java.util.function.ToIntFunction<T> errorCodeExtractor) {
+                                                                    ToIntFunction<T> errorCodeExtractor) {
         var holder = new Object() {
             T value;
         };
-        org.awaitility.Awaitility.await()
+        Awaitility.await()
                 .atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
@@ -575,13 +578,17 @@ class ConsumerGroupRoutingIT {
 
     private static <K, V> ConsumerRecords<K, V> pollUntilRecords(KafkaConsumer<K, V> consumer,
                                                                  Duration timeout) {
-        long deadline = System.currentTimeMillis() + timeout.toMillis();
-        while (System.currentTimeMillis() < deadline) {
-            ConsumerRecords<K, V> records = consumer.poll(Duration.ofMillis(500));
-            if (!records.isEmpty()) {
-                return records;
-            }
-        }
-        return consumer.poll(Duration.ZERO);
+        var result = new AtomicReference<>(ConsumerRecords.<K, V> empty());
+        Awaitility.await()
+                .atMost(timeout)
+                .pollInterval(Duration.ofMillis(500))
+                .until(() -> {
+                    var records = consumer.poll(Duration.ofMillis(500));
+                    if (!records.isEmpty()) {
+                        result.set(records);
+                    }
+                    return !result.get().isEmpty();
+                });
+        return result.get();
     }
 }
