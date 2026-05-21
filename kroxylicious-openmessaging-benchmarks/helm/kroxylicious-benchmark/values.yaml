@@ -24,7 +24,7 @@ kafka:
     size: "100Gi"
     storageClass: ""  # Use default storage class
   metrics:
-    enabled: false  # Enable Strimzi Metrics Reporter on Kafka brokers (port 9404)
+    enabled: true  # Enable Strimzi Metrics Reporter on Kafka brokers (port 9404)
 
 # Kroxylicious proxy (enabled for proxy scenarios)
 # Requires the Kroxylicious operator to be installed in the cluster.
