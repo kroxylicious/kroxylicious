@@ -63,16 +63,16 @@ public class KroxyliciousUtils {
     /**
      * Tls config from cert.
      *
-     * @param certNane the cert nane
+     * @param certName the cert nane
      * @return the tls
      */
-    public static Tls tlsConfigFromCert(String certNane) {
+    public static Tls tlsConfigFromCert(String certName) {
         TlsBuilder tlsBuilder = new TlsBuilder();
-        if (certNane != null) {
+        if (certName != null) {
             // formatter:off
             tlsBuilder
                     .withNewCertificateRef()
-                    .withName(certNane)
+                    .withName(certName)
                     .withKind("Secret")
                     .endCertificateRef();
             // formatter:on
