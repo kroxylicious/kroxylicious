@@ -174,6 +174,18 @@ class TopicPartitionRouter implements Router {
             ApiKeys.CONSUMER_GROUP_HEARTBEAT,
             ApiKeys.CONSUMER_GROUP_DESCRIBE);
 
+    private static final Set<ApiKeys> SUBJECT_ROUTED_API_KEYS = Set.of(
+            ApiKeys.FIND_COORDINATOR,
+            ApiKeys.INIT_PRODUCER_ID,
+            ApiKeys.ADD_PARTITIONS_TO_TXN,
+            ApiKeys.ADD_OFFSETS_TO_TXN,
+            ApiKeys.TXN_OFFSET_COMMIT,
+            ApiKeys.END_TXN,
+            ApiKeys.OFFSET_COMMIT,
+            ApiKeys.OFFSET_FETCH,
+            ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+            ApiKeys.CONSUMER_GROUP_DESCRIBE);
+
     static final String REJECTED_ASSIGNMENTS_METRIC = "kroxylicious_routing_rejected_assignments_total";
     static final String VIRTUAL_CLUSTER_TAG = "virtual_cluster";
     static final String ROUTER_TAG = "router";
@@ -192,12 +204,12 @@ class TopicPartitionRouter implements Router {
     private final DeleteTopicsDecomposer deleteTopicsDecomposer = DeleteTopicsDecomposer.INSTANCE;
     private final CreatePartitionsDecomposer createPartitionsDecomposer = CreatePartitionsDecomposer.INSTANCE;
     private final DeleteRecordsDecomposer deleteRecordsDecomposer = DeleteRecordsDecomposer.INSTANCE;
-    private final Map<String, String> transactionalUserRoutes;
-    private final Map<String, String> consumerGroupUserRoutes;
+    private final Map<String, String> subjectRoutes;
     private final ProducerIdManager producerIdManager;
     private final FetchSessionManager fetchSessionManager;
     private final Counter rejectedAssignmentsCounter;
 
+    // Coordinator caches for the non-subject-routed path only.
     private final Map<String, Integer> transactionCoordinators = new HashMap<>();
     private final Map<String, Integer> consumerGroupCoordinators = new HashMap<>();
     /**
@@ -216,8 +228,7 @@ class TopicPartitionRouter implements Router {
     /**
      * @param routingTable determines which route owns each topic
      * @param defaultRoute route used for topics that match no prefix and for non-PRODUCE API keys
-     * @param transactionalUserRoutes mapping from username to route name for transaction routing
-     * @param consumerGroupUserRoutes mapping from username to route name for consumer group coordinator routing
+     * @param subjectRoutes mapping from username to route name for subject-routed users
      * @param producerIdManager shared manager for per-route producer ID mappings; must outlive
      *                          individual connections so that reconnecting producers retain
      *                          their per-route mappings
@@ -225,8 +236,7 @@ class TopicPartitionRouter implements Router {
      */
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute,
-                         Map<String, String> transactionalUserRoutes,
-                         Map<String, String> consumerGroupUserRoutes,
+                         Map<String, String> subjectRoutes,
                          ProducerIdManager producerIdManager,
                          FetchSessionCache fetchSessionCache,
                          Clock clock,
@@ -234,8 +244,7 @@ class TopicPartitionRouter implements Router {
                          String routerName) {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
-        this.transactionalUserRoutes = transactionalUserRoutes;
-        this.consumerGroupUserRoutes = consumerGroupUserRoutes;
+        this.subjectRoutes = subjectRoutes;
         this.producerIdManager = producerIdManager;
         this.fetchSessionManager = new FetchSessionManager(fetchSessionCache, clock);
         this.staticRoutes = Arrays.stream(ApiKeys.values())
@@ -267,6 +276,16 @@ class TopicPartitionRouter implements Router {
                                                           RequestHeaderData header,
                                                           ApiMessage request,
                                                           RoutingContext context) {
+        // Subject-routed users have coordinator-bound operations forwarded to their
+        // assigned route. Topic-addressed ops (PRODUCE, FETCH, etc.) still go through
+        // the normal handlers for leader-based routing. METADATA and admin ops fan out.
+        String subjectRoute = subjectRouteFor(context.authenticatedSubject());
+        if (subjectRoute != null && SUBJECT_ROUTED_API_KEYS.contains(apiKey)) {
+            return forwardToRoute(subjectRoute, header, request, context);
+        }
+
+        // Non-subject-routed users: topic-addressed requests are decomposed across routes,
+        // coordinator-bound requests go to the default route.
         if (apiKey == ApiKeys.API_VERSIONS) {
             return handleApiVersions(header, request, context);
         }
@@ -368,7 +387,8 @@ class TopicPartitionRouter implements Router {
                 request, routingTable);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
                 request, routingTable);
-        if (!rewriteProducerIdsForRoutes(subRequests)) {
+        boolean subjectRouted = subjectRouteFor(context.authenticatedSubject()) != null;
+        if (!subjectRouted && !rewriteProducerIdsForRoutes(subRequests)) {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .log("Producer ID mapping not found, returning UNKNOWN_PRODUCER_ID");
@@ -437,7 +457,7 @@ class TopicPartitionRouter implements Router {
         }
 
         if (isTransactional) {
-            String txnRoute = transactionRouteForSubject(context.authenticatedSubject());
+            String txnRoute = defaultRoute;
             return discoverCoordinatorAndInitProducerId(
                     header, request, txnRoute, context);
         }
@@ -980,7 +1000,7 @@ class TopicPartitionRouter implements Router {
                                                               RequestHeaderData header,
                                                               OffsetCommitRequestData request,
                                                               RoutingContext context) {
-        if (!consumerGroupUserRoutes.isEmpty()) {
+        if (!subjectRoutes.isEmpty()) {
             return handleGroupRoutedOffsetCommit(header, request, context);
         }
 
@@ -1024,7 +1044,7 @@ class TopicPartitionRouter implements Router {
                                                                          RequestHeaderData header,
                                                                          OffsetCommitRequestData request,
                                                                          RoutingContext context) {
-        String expectedRoute = consumerGroupRouteForSubject(context.authenticatedSubject());
+        String expectedRoute = defaultRoute;
 
         var errorResponse = new OffsetCommitResponseData();
         var routableTopics = new ArrayList<OffsetCommitRequestData.OffsetCommitRequestTopic>();
@@ -1312,7 +1332,7 @@ class TopicPartitionRouter implements Router {
                                                                     RequestHeaderData header,
                                                                     AddPartitionsToTxnRequestData request,
                                                                     RoutingContext context) {
-        String expectedRoute = transactionRouteForSubject(context.authenticatedSubject());
+        String expectedRoute = defaultRoute;
         var topics = request.v3AndBelowTopics();
         var errorTopics = new ArrayList<AddPartitionsToTxnTopicResult>();
         boolean hasRoutableTopic = false;
@@ -1443,7 +1463,7 @@ class TopicPartitionRouter implements Router {
                                                                  RequestHeaderData header,
                                                                  AddOffsetsToTxnRequestData request,
                                                                  RoutingContext context) {
-        String route = transactionRouteForSubject(context.authenticatedSubject());
+        String route = defaultRoute;
 
         Integer coordinatorNodeId = transactionCoordinators.get(route);
         if (coordinatorNodeId == null) {
@@ -1500,7 +1520,7 @@ class TopicPartitionRouter implements Router {
                                                                  RequestHeaderData header,
                                                                  TxnOffsetCommitRequestData request,
                                                                  RoutingContext context) {
-        String route = transactionRouteForSubject(context.authenticatedSubject());
+        String route = defaultRoute;
 
         if (!route.equals(defaultRoute)) {
             Map<String, ProducerIdEpoch> mapping = producerIdManager.get(request.producerId());
@@ -1553,7 +1573,7 @@ class TopicPartitionRouter implements Router {
                                                         RequestHeaderData header,
                                                         EndTxnRequestData request,
                                                         RoutingContext context) {
-        String route = transactionRouteForSubject(context.authenticatedSubject());
+        String route = defaultRoute;
 
         Integer coordinatorNodeId = transactionCoordinators.get(route);
         if (coordinatorNodeId == null) {
@@ -1639,22 +1659,25 @@ class TopicPartitionRouter implements Router {
                 });
     }
 
-    private String transactionRouteForSubject(Subject subject) {
-        if (transactionalUserRoutes.isEmpty()) {
-            return defaultRoute;
+    @Nullable
+    private String subjectRouteFor(Subject subject) {
+        if (subjectRoutes.isEmpty()) {
+            return null;
         }
         return subject.uniquePrincipalOfType(User.class)
-                .map(user -> transactionalUserRoutes.getOrDefault(user.name(), defaultRoute))
-                .orElse(defaultRoute);
+                .map(user -> subjectRoutes.get(user.name()))
+                .orElse(null);
     }
 
-    private String consumerGroupRouteForSubject(Subject subject) {
-        if (consumerGroupUserRoutes.isEmpty()) {
-            return defaultRoute;
-        }
-        return subject.uniquePrincipalOfType(User.class)
-                .map(user -> consumerGroupUserRoutes.getOrDefault(user.name(), defaultRoute))
-                .orElse(defaultRoute);
+    private CompletionStage<RoutingResult> forwardToRoute(String route,
+                                                          RequestHeaderData header,
+                                                          ApiMessage request,
+                                                          RoutingContext context) {
+        return context.sendRequest(route, header, request)
+                .thenApply(response -> {
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                });
     }
 
     private CompletionStage<RoutingResult> handleFindCoordinator(
@@ -1664,10 +1687,10 @@ class TopicPartitionRouter implements Router {
         var findCoordReq = (FindCoordinatorRequestData) request;
         String route;
         if (findCoordReq.keyType() == 1) {
-            route = transactionRouteForSubject(context.authenticatedSubject());
+            route = defaultRoute;
         }
         else if (findCoordReq.keyType() == 0) {
-            route = consumerGroupRouteForSubject(context.authenticatedSubject());
+            route = defaultRoute;
         }
         else {
             route = defaultRoute;
@@ -1690,7 +1713,7 @@ class TopicPartitionRouter implements Router {
                                                                         RequestHeaderData header,
                                                                         ConsumerGroupHeartbeatRequestData request,
                                                                         RoutingContext context) {
-        String route = consumerGroupRouteForSubject(context.authenticatedSubject());
+        String route = defaultRoute;
         Integer cachedCoordinator = consumerGroupCoordinators.get(route);
 
         if (cachedCoordinator != null) {
@@ -1744,7 +1767,7 @@ class TopicPartitionRouter implements Router {
                                                                        RequestHeaderData header,
                                                                        ConsumerGroupDescribeRequestData request,
                                                                        RoutingContext context) {
-        String route = consumerGroupRouteForSubject(context.authenticatedSubject());
+        String route = defaultRoute;
 
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
@@ -1765,8 +1788,8 @@ class TopicPartitionRouter implements Router {
                                                              RequestHeaderData header,
                                                              OffsetFetchRequestData request,
                                                              RoutingContext context) {
-        String cgRoute = consumerGroupRouteForSubject(context.authenticatedSubject());
-        if (!consumerGroupUserRoutes.isEmpty()) {
+        String cgRoute = defaultRoute;
+        if (!subjectRoutes.isEmpty()) {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", cgRoute)

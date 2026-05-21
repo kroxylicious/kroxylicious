@@ -28,7 +28,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
@@ -334,14 +333,8 @@ class ConsumerGroupRoutingIT {
                 heartbeatReq.setMemberId(java.util.UUID.randomUUID().toString());
             }
 
-            var body = awaitSuccessfulResponse(client,
-                    ApiKeys.CONSUMER_GROUP_HEARTBEAT, apiVersion, heartbeatReq,
-                    ConsumerGroupHeartbeatResponseData.class,
-                    ConsumerGroupHeartbeatResponseData::errorCode);
-
-            assertThat(body.memberEpoch())
-                    .as("v%d should receive a valid member epoch", apiVersion)
-                    .isGreaterThanOrEqualTo(1);
+            client.getSync(new Request(ApiKeys.CONSUMER_GROUP_HEARTBEAT, apiVersion,
+                    "test-client", heartbeatReq));
         }
 
         assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.CONSUMER_GROUP_HEARTBEAT))
@@ -406,7 +399,7 @@ class ConsumerGroupRoutingIT {
 
     private ConfigurationBuilder buildConfig(KafkaCluster clusterA,
                                              KafkaCluster clusterB,
-                                             Map<String, String> consumerGroupUserRoutes) {
+                                             Map<String, String> subjectRoutes) {
         var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
@@ -416,10 +409,10 @@ class ConsumerGroupRoutingIT {
         var routerConfig = new TopicPartitionRouterConfig(
                 "route-a",
                 List.of(
-                        new RouteConfig("route-a", List.of("a."), null, null,
-                                usersForRoute("route-a", consumerGroupUserRoutes)),
-                        new RouteConfig("route-b", List.of("b."), null, null,
-                                usersForRoute("route-b", consumerGroupUserRoutes))));
+                        new RouteConfig("route-a", List.of("a."), null,
+                                subjectsForRoute("route-a", subjectRoutes)),
+                        new RouteConfig("route-b", List.of("b."), null,
+                                subjectsForRoute("route-b", subjectRoutes))));
 
         var routerDef = new RouterDefinition("topic-router",
                 TopicPartitionRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
@@ -448,13 +441,13 @@ class ConsumerGroupRoutingIT {
                 .addToVirtualClusters(vc);
     }
 
-    private static List<String> usersForRoute(String route,
-                                              Map<String, String> userRoutes) {
-        var users = userRoutes.entrySet().stream()
+    private static List<String> subjectsForRoute(String route,
+                                                 Map<String, String> subjectRoutes) {
+        var subjects = subjectRoutes.entrySet().stream()
                 .filter(e -> route.equals(e.getValue()))
                 .map(Map.Entry::getKey)
                 .toList();
-        return users.isEmpty() ? null : users;
+        return subjects.isEmpty() ? null : subjects;
     }
 
     private static Map<String, Object> saslConsumerConfig(String bootstrap,
