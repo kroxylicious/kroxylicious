@@ -40,6 +40,11 @@ on:
         type: string
   workflow_call:
     inputs: *workflow-inputs
+    secrets:
+      KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY:
+        required: false
+      KROXYLICIOUS_KMS_FORTANIX_API_KEY:
+        required: false
 
 jobs:
   discover_system_test_chunks:

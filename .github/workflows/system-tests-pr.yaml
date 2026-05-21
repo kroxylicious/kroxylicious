@@ -78,6 +78,9 @@ jobs:
   run_system_tests:
     needs: [build_artifacts,set_variables]
     uses: ./.github/workflows/run-system-tests.yaml
+    secrets:
+      KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
+      KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
     with:
       kafkaClient: ${{ needs.set_variables.outputs.kafka_client }}
       testFortanixKMS: ${{ contains(github.event.pull_request.labels.*.name, 'kms/fortanix') }}
