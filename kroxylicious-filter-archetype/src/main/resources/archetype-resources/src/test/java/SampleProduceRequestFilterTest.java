@@ -2,17 +2,17 @@ package ${package};
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
@@ -21,128 +21,130 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
 import ${package}.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+/**
+ * Unit tests for {@link SampleProduceRequestFilter}.
+ *
+ * <p>These tests use {@link MockFilterContext} — Kroxylicious's tested emulation of
+ * {@link io.kroxylicious.proxy.filter.FilterContext} — instead of building a Mockito mock by hand.
+ * That avoids reimplementing the {@code FilterContext} contract in every test and keeps the
+ * test code focused on filter behaviour.</p>
+ */
 class SampleProduceRequestFilterTest {
 
     private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true); // this is arbitrary for our filter
+    private static final String TOPIC_NAME = "my-topic";
+    private static final Uuid TOPIC_ID = new Uuid(5L, 5L);
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
-    private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
+    private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = "[" + TOPIC_NAME + "] this is what the value will be transformed to";
+    private static final String EXPECTED_NO_TRANSFORM_RECORD_VALUE = "[" + TOPIC_NAME + "] " + NO_TRANSFORM_VALUE;
     private static final String CONFIG_FIND_VALUE = "from";
     private static final String CONFIG_REPLACE_VALUE = "to";
-
-    @Mock
-    private FilterContext context;
-
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    private RequestFilterResult requestFilterResult;
-    @Captor
-    private ArgumentCaptor<Integer> bufferInitialCapacity;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
-    @Captor
-    private ArgumentCaptor<RequestHeaderData> requestHeaderDataCaptor;
 
     private SampleProduceRequestFilter filter;
     private RequestHeaderData headerData;
 
     @BeforeEach
     public void beforeEach() {
-        setupContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
         this.filter = new SampleProduceRequestFilter(config);
         this.headerData = new RequestHeaderData();
     }
 
     /**
-     * Unit Test: Checks that transformation is applied when request data contains configured value.
+     * Unit Test: Checks that the transformation is applied (find/replace + topic-name prefix) when the
+     * request carries the topic name directly.
      */
     @Test
-    void willTransformProduceRequestTest() throws Exception {
-        var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
+    void willTransformProduceRequestUsingTopicNameTest() {
+        var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE, topic -> topic.setName(TOPIC_NAME));
+        MockFilterContext context = MockFilterContext.builder(headerData, requestData).build();
+
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        assertThat(stage).isCompleted();
-        var forwardedRequest = stage.toCompletableFuture().get().message();
-        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
-        // We should see that the unpacked request value has changed from the input value, and
-        // We should see that the unpacked request value has been transformed to the correct value
-        assertThat(unpackedRequest)
-                .doesNotContain(PRE_TRANSFORM_VALUE)
-                .containsExactly(POST_TRANSFORM_VALUE);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardRequest()
+                    .hasMessageInstanceOfSatisfying(ProduceRequestData.class, forwarded -> {
+                        var unpackedRequest = unpackProduceRequestData(forwarded);
+                        assertThat(unpackedRequest)
+                                .doesNotContain(PRE_TRANSFORM_VALUE)
+                                .containsExactly(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    });
+        });
     }
 
     /**
-     * Unit Test: Checks that transformation is not applied when request data does not contain configured
-     * value.
+     * Unit Test: Checks that the topic-name prefix is applied even when no find/replace match occurs.
      */
     @Test
-    void wontTransformProduceRequestTest() throws Exception {
-        var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
+    void wontTransformProduceRequestTest() {
+        var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE, topic -> topic.setName(TOPIC_NAME));
+        MockFilterContext context = MockFilterContext.builder(headerData, requestData).build();
+
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        assertThat(stage).isCompleted();
-        var forwardedRequest = stage.toCompletableFuture().get().message();
-        var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
-        // We should see that the unpacked request value has not changed from the input value
-        assertThat(unpackedRequest)
-                .containsExactly(NO_TRANSFORM_VALUE);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardRequest()
+                    .hasMessageInstanceOfSatisfying(ProduceRequestData.class, forwarded -> {
+                        var unpackedRequest = unpackProduceRequestData(forwarded);
+                        assertThat(unpackedRequest).containsExactly(EXPECTED_NO_TRANSFORM_RECORD_VALUE);
+                    });
+        });
     }
 
     /**
-     * Unit Test: Checks that when a transformation is applied that the request record(s) metadata matches what was sent.
+     * Unit Test: Checks that when a transformation is applied, the request record(s) metadata
+     * (offset, timestamp, key, headers) is preserved.
      */
     @Test
-    void onTransformMetadataRetainedProduceRequestTest() throws Exception {
-        var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE);
+    void onTransformMetadataRetainedProduceRequestTest() {
+        var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE, topic -> topic.setName(TOPIC_NAME));
         var sent = requestData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+        MockFilterContext context = MockFilterContext.builder(headerData, requestData).build();
+
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        assertThat(stage).isCompleted();
-        var received = (ProduceRequestData) stage.toCompletableFuture().get().message();
-        compareRecords(received, sent);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardRequest()
+                    .hasMessageInstanceOfSatisfying(ProduceRequestData.class, forwarded -> compareRecords(forwarded, sent));
+        });
     }
 
     /**
-     * Unit Test: Checks that when a transformation is not applied that the request record(s) metadata matches what was sent.
+     * Unit Test: Demonstrates the topic-id lookup pattern. The request carries only a {@code topicId}
+     * (the latest Produce RPC behaviour) and the filter is expected to resolve the topic name via
+     * {@link io.kroxylicious.proxy.filter.FilterContext#topicNames} before applying its transformation.
      */
     @Test
-    void onNoTransformMetadataRetainedProduceRequestTest() throws Exception {
-        var requestData = buildProduceRequestData(NO_TRANSFORM_VALUE);
-        var sent = requestData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+    void willResolveTopicNameFromTopicIdTest() {
+        var requestData = buildProduceRequestData(PRE_TRANSFORM_VALUE, topic -> topic.setTopicId(TOPIC_ID));
+        MockFilterContext context = MockFilterContext.builder(headerData, requestData)
+                .withTopicName(TOPIC_ID, TOPIC_NAME)
+                .build();
+
         var stage = filter.onProduceRequest(API_VERSION, headerData, requestData, context);
-        assertThat(stage).isCompleted();
-        var received = (ProduceRequestData) stage.toCompletableFuture().get().message();
-        compareRecords(received, sent);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardRequest()
+                    .hasMessageInstanceOfSatisfying(ProduceRequestData.class, forwarded -> {
+                        var unpackedRequest = unpackProduceRequestData(forwarded);
+                        // Value is both transformed (foo→bar) AND prefixed with the topic name resolved from the id
+                        assertThat(unpackedRequest)
+                                .doesNotContain(PRE_TRANSFORM_VALUE)
+                                .containsExactly(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    });
+        });
     }
 
-    private void setupContextMock() {
-        when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(requestFilterResult));
-        when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
-
-        when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
-                (Answer<ByteBufferOutputStream>) invocation -> {
-                    Object[] args = invocation.getArguments();
-                    Integer size = (Integer) args[0];
-                    return new ByteBufferOutputStream(size);
-                });
-    }
-
-    private static ProduceRequestData buildProduceRequestData(String transformValue) {
+    private static ProduceRequestData buildProduceRequestData(String transformValue,
+                                                              java.util.function.Consumer<ProduceRequestData.TopicProduceData> topicConfigurer) {
         var requestData = new ProduceRequestData();
         // Build stream
         var stream = new ByteBufferOutputStream(ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)));
@@ -164,6 +166,7 @@ class SampleProduceRequestFilterTest {
         var topics = new ProduceRequestData.TopicProduceDataCollection();
         var topicData = new ProduceRequestData.TopicProduceData();
         topicData.setPartitionData(partitions);
+        topicConfigurer.accept(topicData);
         topics.add(topicData);
         // Add built topics to ProduceRequestData object so that we can return it
         requestData.setTopicData(topics);
