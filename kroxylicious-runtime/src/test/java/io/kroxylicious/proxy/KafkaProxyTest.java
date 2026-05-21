@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -378,6 +379,53 @@ class KafkaProxyTest {
     void shouldNotAllowShuttingDownOfAStoppedInstance() throws Exception {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             assertThatThrownBy(proxy::shutdown).isInstanceOf(IllegalStateException.class).hasMessage("This proxy is not running");
+        }
+    }
+
+    @Test
+    void shouldRejectReconfigureWithNullConfig() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            assertThatThrownBy(() -> proxy.reconfigure(null))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("newConfig");
+        }
+    }
+
+    @Test
+    void shouldRejectReconfigureBeforeStartup() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
+            assertThatThrownBy(() -> proxy.reconfigure(newConfig))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("This proxy is not running");
+        }
+    }
+
+    @Test
+    void shouldRejectReconfigureAfterShutdown() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            proxy.shutdown();
+            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
+            assertThatThrownBy(() -> proxy.reconfigure(newConfig))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage("This proxy is not running");
+        }
+    }
+
+    @Test
+    void shouldDelegateReconfigureToOrchestrator() throws Exception {
+        // Proves the wiring: KafkaProxy.reconfigure() reaches the orchestrator, which
+        // runs its pipeline. With an identical config (no clusters changed) the orchestrator
+        // takes the no-op early-return path and returns a ReconfigureResult with no errors.
+        // The fact that a ReconfigureResult is produced at all proves the orchestrator's
+        // pipeline ran end-to-end (only the orchestrator's success path yields one).
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
+            var result = proxy.reconfigure(newConfig).get(5, TimeUnit.SECONDS);
+            assertThat(result.hasErrors()).isFalse();
         }
     }
 

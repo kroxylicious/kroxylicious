@@ -84,7 +84,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
-        this.filterChainFactory = filterChainFactory;
+        this.filterChainFactory = Objects.requireNonNull(filterChainFactory, "filterChainFactory");
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
