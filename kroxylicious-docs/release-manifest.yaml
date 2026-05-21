@@ -21,6 +21,13 @@ assets:
         path: kroxylicious-operator-$(VERSION).zip
       - format: tar.gz
         path: kroxylicious-operator-$(VERSION).tar.gz
+  - name: Webhook
+    description: The Kubernetes admission webhook.
+    downloads:
+      - format: zip
+        path: kroxylicious-admission-$(VERSION).zip
+      - format: tar.gz
+        path: kroxylicious-admission-$(VERSION).tar.gz
 images:
   - name: Proxy
     url: https://quay.io/repository/kroxylicious/proxy?tab=tags
@@ -30,5 +37,10 @@ images:
   - name: Operator
     url: https://quay.io/repository/kroxylicious/operator?tab=tags
     registry: quay.io/kroxylicious/operator
+    tag: $(VERSION)
+    digest: sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE
+  - name: Webhook
+    url: https://quay.io/repository/kroxylicious/webhook?tab=tags
+    registry: quay.io/kroxylicious/webhook
     tag: $(VERSION)
     digest: sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE
