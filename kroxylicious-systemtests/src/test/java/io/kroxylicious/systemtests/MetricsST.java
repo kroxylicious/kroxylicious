@@ -227,8 +227,7 @@ class MetricsST extends AbstractSystemTests {
         Kroxylicious kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(namespace)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
                         Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())

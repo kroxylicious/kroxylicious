@@ -55,8 +55,7 @@ class KroxyliciousST extends AbstractSystemTests {
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(replicas).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
                         Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
@@ -99,8 +98,7 @@ class KroxyliciousST extends AbstractSystemTests {
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withTls(tls)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
                         Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
@@ -123,8 +121,7 @@ class KroxyliciousST extends AbstractSystemTests {
         Kroxylicious kroxylicious2 = new KroxyliciousBuilder()
                 .withNamespace(newNamespace)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
                         Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())

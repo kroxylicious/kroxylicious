@@ -138,8 +138,7 @@ class RecordEncryptionST extends AbstractSystemTests {
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .addKafkaProtocolFilter(
                         KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(Constants.KROXYLICIOUS_NAMESPACE,

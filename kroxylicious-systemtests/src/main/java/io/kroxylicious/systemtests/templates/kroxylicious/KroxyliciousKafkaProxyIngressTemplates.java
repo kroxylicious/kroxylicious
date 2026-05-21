@@ -17,16 +17,15 @@ public class KroxyliciousKafkaProxyIngressTemplates {
     }
 
     /**
-     * Default Kafka proxy ingress CR.
+     * Kafka proxy ingress cluster IP CR.
      *
-     * @param ingressName the ingress name
      * @return the Kafka proxy ingress builder
      */
-    public static KafkaProxyIngressBuilder defaultKafkaProxyIngressCR(String ingressName) {
+    public static KafkaProxyIngressBuilder kafkaProxyIngressClusterIpCR() {
         // @formatter:off
         return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
-                    .withName(ingressName)
+                    .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP)
                 .endMetadata()
                 .withNewSpec()
                     .withNewClusterIP()

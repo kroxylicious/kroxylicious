@@ -101,8 +101,7 @@ class EntityIsolationST extends AbstractSystemTests {
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
                 .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(Constants.KROXYLICIOUS_NAMESPACE).build())
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates
