@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -65,8 +66,10 @@ import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcesso
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -155,6 +158,8 @@ public final class KafkaProxy implements AutoCloseable {
     private final VirtualClusterRegistry virtualClusterRegistry;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
+
+    private @Nullable ConfigurationReloadOrchestrator reconfigureOrchestrator;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
 
@@ -262,15 +267,18 @@ public final class KafkaProxy implements AutoCloseable {
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
+            this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
+                    config, virtualClusterRegistry, pfr,
+                    ConfigurationReloadOrchestrator.defaultDetectors());
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, virtualClusterRegistry));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode,
+                            apiVersionsService, proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode, apiVersionsService,
-                            proxyNettySettings, virtualClusterRegistry));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode,
+                            apiVersionsService, proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -386,6 +394,33 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
+     * Apply the given configuration to this running proxy, restarting only the virtual clusters
+     * whose effective configuration differs from the current running state. Unaffected clusters
+     * continue serving traffic throughout the reconfigure.
+     *
+     * <p>See {@link ConfigurationReloadOrchestrator} for the full pipeline shape (pre-flight
+     * static-section diff, concurrency control, change detection, per-VC execution,
+     * result construction).
+     *
+     *
+     * @param newConfig the desired end-state configuration; must be non-null
+     * @return a future that completes with the reconfigure outcome
+     * @throws NullPointerException  if {@code newConfig} is {@code null}
+     * @throws IllegalStateException if the proxy is not in the running state
+     */
+    public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
+        Objects.requireNonNull(newConfig, "newConfig");
+        if (!running.get()) {
+            throw new IllegalStateException("This proxy is not running");
+        }
+        ConfigurationReloadOrchestrator orchestrator = reconfigureOrchestrator;
+        if (orchestrator == null) {
+            throw new IllegalStateException("Reconfigure orchestrator has not been initialised");
+        }
+        return orchestrator.reconfigure(newConfig);
+    }
+
+    /**
      * Shuts down a running proxy. The sequence is:
      * <ol>
      *   <li>Unbind ports — prevents new connections from arriving</li>
@@ -448,6 +483,7 @@ public final class KafkaProxy implements AutoCloseable {
             proxyEventGroup = null;
             meterRegistries = null;
             filterChainFactory = null;
+            reconfigureOrchestrator = null;
             shutdown.complete(null);
             LOGGER.atInfo()
                     .log("Shut down completed");
