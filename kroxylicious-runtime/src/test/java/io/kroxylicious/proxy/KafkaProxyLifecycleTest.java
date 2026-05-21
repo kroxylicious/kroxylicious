@@ -26,6 +26,23 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaProxyLifecycleTest {
 
+    // Zero quiet period avoids the 2-second default Netty shutdown wait in each test.
+    private static final String DEMO1_CONFIG = """
+            network:
+              proxy:
+                shutdownQuietPeriod: 0s
+              management:
+                shutdownQuietPeriod: 0s
+            virtualClusters:
+              - name: demo1
+                targetCluster:
+                  bootstrapServers: kafka.example:1234
+                gateways:
+                - name: default
+                  portIdentifiesNode:
+                    bootstrapAddress: localhost:9192
+            """;
+
     private ConfigParser configParser;
     private KafkaProxy proxy;
 
@@ -44,16 +61,7 @@ class KafkaProxyLifecycleTest {
     @Test
     void shouldTrackVirtualClusterAsServingAfterStartup() {
         // given
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
+        var config = DEMO1_CONFIG;
 
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             // when
@@ -70,21 +78,26 @@ class KafkaProxyLifecycleTest {
     void shouldTrackMultipleVirtualClustersAsServing() {
         // given
         var config = """
-                   virtualClusters:
-                     - name: cluster-a
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                     - name: cluster-b
-                       targetCluster:
-                         bootstrapServers: kafka.example:5678
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9292
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 0s
+                  management:
+                    shutdownQuietPeriod: 0s
+                virtualClusters:
+                  - name: cluster-a
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                  - name: cluster-b
+                    targetCluster:
+                      bootstrapServers: kafka.example:5678
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9292
                 """;
 
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
@@ -103,19 +116,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void shouldTransitionToStoppedAfterShutdown() {
-        // given
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         proxy.startup();
         var manager = proxy.lifecycleFor("demo1");
 
@@ -129,18 +130,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void startupReturnsFutureThatCompletesOnShutdown() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
         assertThat(future).isNotNull().isNotDone();
         proxy.shutdown();
@@ -149,18 +139,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void startupTwiceReturnsSameFutureInstance() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         try {
             CompletableFuture<Void> first = proxy.startup();
             CompletableFuture<Void> second = proxy.startup();
@@ -173,35 +152,13 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void shutdownBeforeStartupIsNoOp() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         assertThatCode(proxy::shutdown).doesNotThrowAnyException();
     }
 
     @Test
     void shutdownTwiceIsNoOp() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         proxy.startup();
         proxy.shutdown();
         assertThatCode(proxy::shutdown).doesNotThrowAnyException();
@@ -209,18 +166,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void startupAfterStopThrowsIllegalState() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         proxy.startup();
         proxy.shutdown();
         assertThatThrownBy(proxy::startup)
@@ -230,18 +176,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void cancelOnFutureTriggersGracefulShutdown() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
 
         boolean cancelled = future.cancel(true);
@@ -252,18 +187,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void closeIsIdempotent() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         proxy.startup();
         assertThatCode(proxy::close).doesNotThrowAnyException();
         assertThatCode(proxy::close).doesNotThrowAnyException();
@@ -271,18 +195,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void shutdownFromDifferentThread() {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
+        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         CompletableFuture<Void> future = proxy.startup();
 
         CompletableFuture.runAsync(proxy::shutdown).join();
@@ -293,19 +206,24 @@ class KafkaProxyLifecycleTest {
     @Test
     void futureCompletesExceptionallyWhenStartupFails() {
         var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                   filterDefinitions:
-                   - name: filter1
-                     type: RequiresConfigFactory
-                   defaultFilters:
-                   - filter1
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 0s
+                  management:
+                    shutdownQuietPeriod: 0s
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                filterDefinitions:
+                - name: filter1
+                  type: RequiresConfigFactory
+                defaultFilters:
+                - filter1
                 """;
 
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
@@ -320,16 +238,7 @@ class KafkaProxyLifecycleTest {
 
     @Test
     void startupWhileStoppingThrows() throws InterruptedException {
-        var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                """;
+        var config = DEMO1_CONFIG;
 
         var configuration = configParser.parseConfiguration(config);
         var models = configuration.virtualClusterModel(configParser);
@@ -374,21 +283,26 @@ class KafkaProxyLifecycleTest {
     @Test
     void futureCompletesExceptionallyWhenShutdownFails() {
         var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                   filterDefinitions:
-                   - name: filter1
-                     type: FlakyFactory
-                     config:
-                       closeExceptionMsg: "simulated close failure"
-                   defaultFilters:
-                   - filter1
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 0s
+                  management:
+                    shutdownQuietPeriod: 0s
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                filterDefinitions:
+                - name: filter1
+                  type: FlakyFactory
+                  config:
+                    closeExceptionMsg: "simulated close failure"
+                defaultFilters:
+                - filter1
                 """;
 
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
@@ -408,19 +322,24 @@ class KafkaProxyLifecycleTest {
     void shouldTransitionToStoppedOnStartupFailure() {
         // given
         var config = """
-                   virtualClusters:
-                     - name: demo1
-                       targetCluster:
-                         bootstrapServers: kafka.example:1234
-                       gateways:
-                       - name: default
-                         portIdentifiesNode:
-                           bootstrapAddress: localhost:9192
-                   filterDefinitions:
-                   - name: filter1
-                     type: RequiresConfigFactory
-                   defaultFilters:
-                   - filter1
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 0s
+                  management:
+                    shutdownQuietPeriod: 0s
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                filterDefinitions:
+                - name: filter1
+                  type: RequiresConfigFactory
+                defaultFilters:
+                - filter1
                 """;
 
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
