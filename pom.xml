@@ -137,21 +137,6 @@
         <url>https://github.com/kroxylicious/kroxylicious</url>
     </scm>
 
-    <repositories>
-        <repository>
-            <id>apache-staging</id>
-            <name>Apache Staging Repository</name>
-            <url>https://repository.apache.org/content/groups/staging/</url>
-            <releases>
-                <enabled>true</enabled>
-                <updatePolicy>never</updatePolicy>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
