@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.systemtests.Constants;
 
 public class KroxyliciousKafkaProxyTemplates {
 
@@ -14,17 +15,16 @@ public class KroxyliciousKafkaProxyTemplates {
     }
 
     /**
-     * Default kafka proxy CR.
+     * Default Kafka proxy CR.
      *
-     * @param name the name
      * @param replicas the number proxy pods to deploy
-     * @return the kafka proxy builder
+     * @return the Kafka proxy builder
      */
-    public static KafkaProxyBuilder defaultKafkaProxyCR(String name, int replicas) {
+    public static KafkaProxyBuilder defaultKafkaProxyCR(int replicas) {
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
-                    .withName(name)
+                    .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                 .endMetadata()
                 .withNewSpec()
                     .withReplicas(replicas)

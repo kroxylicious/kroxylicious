@@ -109,15 +109,14 @@ class AuthorizationST extends AbstractSystemTests {
         deployAuthorizationResources(usernamePasswords, aclRules);
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
                 .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
+                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(Constants.KROXYLICIOUS_NAMESPACE).build())
                 .addKafkaProtocolFilter(
                         KroxyliciousFilterTemplates.kroxyliciousAuthorizationFilter(Constants.KROXYLICIOUS_NAMESPACE, "${configmap:acl-rules:acl-rules}").build())
-                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         List.of(Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME)).build())
                 .build();
         kroxylicious.createOrUpdateResources();

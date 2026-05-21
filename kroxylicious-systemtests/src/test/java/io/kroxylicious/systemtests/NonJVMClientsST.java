@@ -57,12 +57,12 @@ class NonJVMClientsST extends AbstractSystemTests {
     private void deployPortIdentifiesNodeWithNoFilters() {
         kroxylicious = new KroxyliciousBuilder()
                 .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
                 .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
+                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
+                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
                 .build();
         kroxylicious.createOrUpdateResources();
     }

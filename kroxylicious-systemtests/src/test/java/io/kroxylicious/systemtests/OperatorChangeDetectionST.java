@@ -89,12 +89,12 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     private KroxyliciousBuilder defaultKroxylicious(String namespace, String clusterName) {
         return new KroxyliciousBuilder()
                 .withNamespace(namespace)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1).build())
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
                 .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates
-                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).build())
+                        .defaultKafkaProxyIngressCR(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
                 .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build());
+                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build());
     }
 
     private void deployPortIdentifiesNodeWithNoFilters(String namespace, String clusterName) {
@@ -112,7 +112,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     private void deployPortIdentifiesNodeWithFilters(String namespace, String clusterName, List<String> filterNames) {
         kroxylicious = defaultKroxylicious(namespace, clusterName)
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
-                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames).build())
+                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames).build())
                 .build();
         kroxylicious.createOrUpdateResources();
     }

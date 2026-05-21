@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 
@@ -16,13 +17,12 @@ public class KroxyliciousKafkaProxyIngressTemplates {
     }
 
     /**
-     * Default kafka proxy ingress CR.
+     * Default Kafka proxy ingress CR.
      *
      * @param ingressName the ingress name
-     * @param proxyName the name of the proxy to reference
-     * @return the kafka proxy ingress builder
+     * @return the Kafka proxy ingress builder
      */
-    public static KafkaProxyIngressBuilder defaultKafkaProxyIngressCR(String ingressName, String proxyName) {
+    public static KafkaProxyIngressBuilder defaultKafkaProxyIngressCR(String ingressName) {
         // @formatter:off
         return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
@@ -33,7 +33,7 @@ public class KroxyliciousKafkaProxyIngressTemplates {
                         .withProtocol(TCP)
                     .endClusterIP()
                     .withNewProxyRef()
-                        .withName(proxyName)
+                        .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                     .endProxyRef()
                 .endSpec();
         // @formatter:on
