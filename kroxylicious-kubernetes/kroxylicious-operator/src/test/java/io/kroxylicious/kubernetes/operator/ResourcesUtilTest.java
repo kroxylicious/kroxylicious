@@ -64,9 +64,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceReconciler;
-import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceStatusFactory;
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
-import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterStatusFactory;
 import io.kroxylicious.testing.operator.assertj.KafkaServiceStatusAssert;
 import io.kroxylicious.testing.operator.assertj.VirtualKafkaClusterStatusAssert;
 
@@ -796,7 +794,7 @@ class ResourcesUtilTest {
         // When
         ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
                 VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, trustAnchorRef,
-                "spec.ingresses[].tls.trustAnchor", new VirtualKafkaClusterStatusFactory(TEST_CLOCK));
+                "spec.ingresses[].tls.trustAnchor", VirtualKafkaClusterReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then
         assertThat(actual)
@@ -828,7 +826,7 @@ class ResourcesUtilTest {
         // When
         ResourceCheckResult<KafkaService> actual = ResourcesUtil.checkStrimziKafkaRef(service, reconcilerContext,
                 KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRef,
-                "spec.strimziKafkaRef", new KafkaServiceStatusFactory(TEST_CLOCK));
+                "spec.strimziKafkaRef", KafkaServiceReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then
         assertThat(actual)
@@ -868,7 +866,7 @@ class ResourcesUtilTest {
                 KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME,
                 strimziKafkaRef,
                 "spec.strimziKafkaRef",
-                new KafkaServiceStatusFactory(TEST_CLOCK));
+                KafkaServiceReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then
         assertThat(actual)
@@ -899,7 +897,7 @@ class ResourcesUtilTest {
         // When
         ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
                 VirtualKafkaClusterReconciler.CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, trustAnchorRef,
-                "spec.ingresses[].tls.trustAnchor", new VirtualKafkaClusterStatusFactory(TEST_CLOCK));
+                "spec.ingresses[].tls.trustAnchor", VirtualKafkaClusterReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then
         assertThat(actual).isNotNull()
@@ -1050,7 +1048,7 @@ class ResourcesUtilTest {
         when(client.secrets().inNamespace(namespace).withName(kafkaName + "-cluster-ca-cert")).thenReturn(mock());
         when(client.secrets().inNamespace(namespace).withName(kafkaName + "-cluster-ca-cert").get()).thenReturn(clusterCaSecret);
 
-        KafkaServiceStatusFactory statusFactory = new KafkaServiceStatusFactory(TEST_CLOCK);
+        StatusFactory<KafkaService> statusFactory = KafkaServiceReconciler.newStatusFactory(TEST_CLOCK);
 
         // When
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(service, context, strimziKafkaRef, statusFactory);
@@ -1092,7 +1090,7 @@ class ResourcesUtilTest {
         when(client.secrets().inNamespace(namespace).withName(kafkaName + "-cluster-ca-cert")).thenReturn(mock());
         when(client.secrets().inNamespace(namespace).withName(kafkaName + "-cluster-ca-cert").get()).thenReturn(null);
 
-        KafkaServiceStatusFactory statusFactory = new KafkaServiceStatusFactory(TEST_CLOCK);
+        StatusFactory<KafkaService> statusFactory = KafkaServiceReconciler.newStatusFactory(TEST_CLOCK);
 
         // When
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(service, context, strimziKafkaRef, statusFactory);
@@ -1148,7 +1146,7 @@ class ResourcesUtilTest {
         when(client.secrets().inNamespace(namespace).withName(kafkaName + "-cluster-ca-cert")).thenReturn(mock());
         when(client.secrets().inNamespace(namespace).withName(kafkaName + "-cluster-ca-cert").get()).thenReturn(clusterCaSecret);
 
-        KafkaServiceStatusFactory statusFactory = new KafkaServiceStatusFactory(TEST_CLOCK);
+        StatusFactory<KafkaService> statusFactory = KafkaServiceReconciler.newStatusFactory(TEST_CLOCK);
 
         // When
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(service, context, strimziKafkaRef, statusFactory);

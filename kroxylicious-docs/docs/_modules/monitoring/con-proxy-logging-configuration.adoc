@@ -1,0 +1,89 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-proxy-monitoring.adoc
+
+[id='con-proxy-logging-configuration-{context}']
+= Logging configuration
+
+[role="_abstract"]
+
+The Kroxylicious binary distribution uses Apache Log4j2 as the default logging backend.
+
+When you start the proxy using the `bin/kroxylicious-start.sh` script, you can configure logging behavior using environment variables.
+
+.Logging environment variables
+[cols="2,1,2,3",options="header"]
+|===
+|Environment variable |Default |Valid values |Description
+
+|`KROXYLICIOUS_ROOT_LOG_LEVEL`
+|`WARN`
+|`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
+|Log level for all loggers that are not otherwise configured.
+
+|`KROXYLICIOUS_APP_LOG_LEVEL`
+|`INFO`
+|`TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `FATAL`, `OFF`
+|Log level for Kroxylicious application loggers (`io.kroxylicious.*`).
+`KROXYLICIOUS_APP_LOG_LEVEL` takes precedence over `KROXYLICIOUS_ROOT_LOG_LEVEL` for application loggers.
+
+|`KROXYLICIOUS_LOG_FORMAT`
+|`text`
+|`text`, `json`
+|Output format for log messages.
+Set to `json` to enable structured JSON logging.
+
+|`KROXYLICIOUS_LOG_JSON_TEMPLATE`
+|`classpath:LogstashJsonEventLayoutV1.json`
+|Any valid Log4j2 `JsonTemplateLayout` event template URI
+|JSON layout template used when `KROXYLICIOUS_LOG_FORMAT=json`.
+For example, use `classpath:EcsLayout.json` for Elastic Common Schema or `classpath:GelfLayout.json` for GELF format.
+
+|`KROXYLICIOUS_LOGGING_OPTIONS`
+|(built-in defaults)
+|Any valid Log4j2 JVM system properties
+|Overrides the entire set of Log4j2 JVM system properties.
+When set, the default `-Dlog4j2.configurationFile` and `-Dlog4j2.contextSelector` options are replaced.
+You must explicitly include all required options.
+|===
+
+Kroxylicious supports both text and structured JSON log output.
+Structured JSON logging is useful when integrating with centralized log aggregation and analysis systems such as Elasticsearch or Splunk.
+
+JSON logging uses Log4j2 `JsonTemplateLayout` with the Logstash JSON Event V1 format.
+Structured context fields emitted by Kroxylicious appear as top-level fields alongside standard log metadata.
+
+== Logging configuration examples
+
+.Setting the application log level to DEBUG
+[source,properties]
+----
+KROXYLICIOUS_APP_LOG_LEVEL="DEBUG"
+----
+
+NOTE: Setting the log level to `DEBUG` or `TRACE` can produce very large volumes of log output.
+
+.Loading a custom Log4j2 configuration file
+[source,bash]
+----
+export KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml \
+  -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
+----
+
+WARNING: Setting `KROXYLICIOUS_LOGGING_OPTIONS` replaces the built-in defaults.
+Always include `-Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector` to preserve asynchronous logging.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {github-release}[Kroxylicious releases (binary distribution)^]
+* https://logging.apache.org/log4j/2.x[Apache Log4j2^]
+* https://logging.apache.org/log4j/2.x/manual/json-template-layout.html[Log4j2 Json Template Layout]

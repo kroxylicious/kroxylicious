@@ -10,7 +10,6 @@ scenario: baseline
 # Kafka cluster configuration (Strimzi-based)
 kafka:
   replicas: 3
-  version: "4.1.1"  # Kafka version for Strimzi
   # Replication settings (defaults match replica count for safety)
   replicationFactor: 3  # Should be <= replicas
   minInSyncReplicas: 2  # Should be < replicationFactor
@@ -46,7 +45,7 @@ kroxylicious:
 vault:
   provision: false
   token: benchmark-token  # Root token for the provisioned Vault dev instance
-  image: hashicorp/vault:1.21.4@sha256:4e33b126a59c0c333b76fb4e894722462659a6bec7c48c9ee8cea56fccfd2569
+  image: docker.io/hashicorp/vault:1.21.4@sha256:4e33b126a59c0c333b76fb4e894722462659a6bec7c48c9ee8cea56fccfd2569
   imagePullPolicy: IfNotPresent
   resources:
     requests:
@@ -81,7 +80,6 @@ omb:
   workerJavaOpts: "-XX:MaxRAMPercentage=50"  # JVM opts for OMB workers
   logLevel: warn  # SLF4J SimpleLogger log level (debug, info, warn, error)
   createBenchmarkJob: false  # Job is created explicitly by run-benchmark.sh; not managed by Helm install
-  coordinatorProducerRate: ""  # Producer rate override injected per-probe; empty uses workload default
   # Coordinator heap sizing passed as HEAP_OPTS to the OMB launcher script.
   # The coordinator is an orchestrator only — workers do the actual producing/consuming.
   coordinatorHeapOpts: "-Xms512m -Xmx1g"

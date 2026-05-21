@@ -41,6 +41,8 @@ class RunMetadataTest {
     private static Path actual;
     private static String minikubeJson;
     private static String kubectlGetNodesJson;
+    private static String kubectlGetPodProxyJson;
+    private static String kubectlGetKafkaProxyJson;
     private static String generatedJson;
 
     // --- Integration-style tests (real CommandRunner) ---
@@ -57,6 +59,8 @@ class RunMetadataTest {
         memInfoPath = fixture("proc/meminfo");
         minikubeJson = Files.readString(fixture("minikube-profile-list.json"));
         kubectlGetNodesJson = Files.readString(fixture("kubectl-get-nodes.json"));
+        kubectlGetPodProxyJson = Files.readString(fixture("kubectl-get-pod-proxy.json"));
+        kubectlGetKafkaProxyJson = Files.readString(fixture("kubectl-get-kafkaproxy.json"));
     }
 
     @Test
@@ -366,6 +370,69 @@ class RunMetadataTest {
         assertThat(clusterNodes.has("nicSpeedMbps")).isFalse();
     }
 
+    // --- proxyInfo tests ---
+
+    @Test
+    void proxyConfigPopulatedFromClusterState(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        // kubectl calls in order: get nodes, MCD pod lookup (returns blank → NIC speed skipped),
+        // get pod (proxy resources), get kafkaproxy (replicas)
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn(kubectlGetNodesJson, "", kubectlGetPodProxyJson, kubectlGetKafkaProxyJson);
+
+        RunMetadata.ProbeContext ctx = RunMetadata.ProbeContext.of("encryption", "1topic-1kb", 8000)
+                .withProxy("kafka", "proxy-pod-xyz");
+        RunMetadata.generate(tempDir, ctx, runner);
+
+        JsonNode proxyConfig = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json"))).get("proxyConfig");
+        assertThat(proxyConfig).isNotNull();
+        assertThat(proxyConfig.get("cpuRequest").asText()).isEqualTo("4000m");
+        assertThat(proxyConfig.get("cpuLimit").asText()).isEqualTo("4000m");
+        assertThat(proxyConfig.get("memoryRequest").asText()).isEqualTo("2Gi");
+        assertThat(proxyConfig.get("memoryLimit").asText()).isEqualTo("4Gi");
+        assertThat(proxyConfig.get("replicas").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void proxyConfigAbsentWhenProxyPodNameIsNull(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.generate(tempDir, RunMetadata.ProbeContext.of("encryption", "1topic-1kb", 8000), runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("proxyConfig")).isFalse();
+    }
+
+    @Test
+    void proxyInfoExtractsCpuAndMemoryFromPodFixture() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class)))
+                .thenReturn(kubectlGetPodProxyJson, kubectlGetKafkaProxyJson);
+
+        var info = RunMetadata.proxyInfo(runner, "kafka", "proxy-pod-xyz");
+
+        assertThat(info).containsEntry("cpuRequest", "4000m")
+                .containsEntry("cpuLimit", "4000m")
+                .containsEntry("memoryRequest", "2Gi")
+                .containsEntry("memoryLimit", "4Gi")
+                .containsEntry("replicas", 1);
+    }
+
+    @Test
+    void proxyInfoReturnsEmptyMapWhenPodQueryFails() throws Exception {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("kubectl"), any(String[].class))).thenThrow(new java.io.IOException("kubectl not found"));
+
+        var info = RunMetadata.proxyInfo(runner, "kafka", "proxy-pod-xyz");
+
+        assertThat(info).isEmpty();
+    }
+
     private static Path fixture(String name) throws URISyntaxException {
         URL fixtureUrl = RunMetadataTest.class.getResource("/fixtures/" + name);
         Assumptions.assumeTrue(fixtureUrl != null);
@@ -381,7 +448,7 @@ class RunMetadataTest {
         when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
         when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
 
-        RunMetadata.ProbeContext probeContext = new RunMetadata.ProbeContext("proxy-no-filters", "1topic-1kb", 50000);
+        RunMetadata.ProbeContext probeContext = RunMetadata.ProbeContext.of("proxy-no-filters", "1topic-1kb", 50000);
 
         RunMetadata.generate(tempDir, probeContext, runner);
 
@@ -404,5 +471,77 @@ class RunMetadataTest {
         assertThat(metadata.has("scenario")).isFalse();
         assertThat(metadata.has("workload")).isFalse();
         assertThat(metadata.has("targetRate")).isFalse();
+    }
+
+    @Test
+    void benchmarkPhaseFieldsWrittenToMetadata(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.ProbeContext probeContext = RunMetadata.ProbeContext.of("encryption", "1topic-1kb", 30000)
+                .withPhases(5, 5, "2026-05-08T10:00:00Z", "2026-05-08T10:10:00Z");
+
+        RunMetadata.generate(tempDir, probeContext, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.get("warmupDurationMinutes").asInt()).isEqualTo(5);
+        assertThat(metadata.get("testDurationMinutes").asInt()).isEqualTo(5);
+        assertThat(metadata.get("benchmarkStartedAt").asText()).isEqualTo("2026-05-08T10:00:00Z");
+        assertThat(metadata.get("benchmarkCompletedAt").asText()).isEqualTo("2026-05-08T10:10:00Z");
+    }
+
+    @Test
+    void workloadParametersWrittenToMetadata(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.ProbeContext probeContext = RunMetadata.ProbeContext.of("encryption", "1topic-1kb", 30000)
+                .withWorkload(1, 1, 1024, 4, 4);
+
+        RunMetadata.generate(tempDir, probeContext, runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.get("topics").asInt()).isEqualTo(1);
+        assertThat(metadata.get("partitionsPerTopic").asInt()).isEqualTo(1);
+        assertThat(metadata.get("messageSize").asInt()).isEqualTo(1024);
+        assertThat(metadata.get("producersPerTopic").asInt()).isEqualTo(4);
+        assertThat(metadata.get("consumerPerSubscription").asInt()).isEqualTo(4);
+    }
+
+    @Test
+    void workloadParametersAbsentWhenNotProvided(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.generate(tempDir, RunMetadata.ProbeContext.of("baseline", "1topic-1kb", 50000), runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("topics")).isFalse();
+        assertThat(metadata.has("partitionsPerTopic")).isFalse();
+        assertThat(metadata.has("messageSize")).isFalse();
+        assertThat(metadata.has("producersPerTopic")).isFalse();
+        assertThat(metadata.has("consumerPerSubscription")).isFalse();
+    }
+
+    @Test
+    void benchmarkPhaseFieldsAbsentWhenNotProvided(@TempDir Path tempDir) throws IOException {
+        RunMetadata.CommandRunner runner = mock(RunMetadata.CommandRunner.class);
+        when(runner.run(eq("git"), any(String[].class))).thenReturn("unknown");
+        when(runner.run(eq("minikube"), any(String[].class))).thenReturn("{}");
+        when(runner.run(eq("kubectl"), any(String[].class))).thenReturn("unknown");
+
+        RunMetadata.generate(tempDir, RunMetadata.ProbeContext.of("baseline", "1topic-1kb", 50000), runner);
+
+        JsonNode metadata = MAPPER.readTree(Files.readString(tempDir.resolve("run-metadata.json")));
+        assertThat(metadata.has("warmupDurationMinutes")).isFalse();
+        assertThat(metadata.has("testDurationMinutes")).isFalse();
+        assertThat(metadata.has("benchmarkStartedAt")).isFalse();
+        assertThat(metadata.has("benchmarkCompletedAt")).isFalse();
     }
 }

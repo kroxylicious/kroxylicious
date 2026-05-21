@@ -8,9 +8,9 @@ package io.kroxylicious.filter.encryption.dek;
 
 import java.security.SecureRandom;
 
-import javax.annotation.concurrent.NotThreadSafe;
 import javax.security.auth.Destroyable;
 
+import io.kroxylicious.proxy.tag.NotThreadSafe;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;

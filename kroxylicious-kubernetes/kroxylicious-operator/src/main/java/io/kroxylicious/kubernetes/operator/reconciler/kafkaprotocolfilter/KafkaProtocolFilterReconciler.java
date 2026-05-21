@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapVolumeSource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretVolumeSource;
+import io.fabric8.kubernetes.client.informers.SharedIndexInformer;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -33,7 +34,6 @@ import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -41,6 +41,8 @@ import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerEventSource;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -58,29 +60,78 @@ public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
+    private static final String SECRETS = "secrets";
+    private static final String CONFIG_MAPS = "configmaps";
     private final KafkaProtocolFilterStatusFactory statusFactory;
     private final SecureConfigInterpolator secureConfigInterpolator;
+    private final SharedInformerManager sharedInformerManager;
 
-    public KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
+    public KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator, SharedInformerManager sharedInformerManager) {
         this.statusFactory = new KafkaProtocolFilterStatusFactory(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
+        this.sharedInformerManager = Objects.requireNonNull(sharedInformerManager);
     }
 
     @Override
     public List<EventSource<?, KafkaProtocolFilter>> prepareEventSources(EventSourceContext<KafkaProtocolFilter> context) {
-        return List.of(
-                new InformerEventSource<>(templateResourceReferenceEventSourceConfig(context, Secret.class,
-                        interpolationResult -> interpolationResult.volumes().stream()
-                                .flatMap(volume -> Optional.ofNullable(volume.getSecret())
-                                        .map(SecretVolumeSource::getSecretName)
-                                        .stream())),
-                        context),
-                new InformerEventSource<>(templateResourceReferenceEventSourceConfig(context, ConfigMap.class,
-                        interpolationResult -> interpolationResult.volumes().stream()
-                                .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
-                                        .map(ConfigMapVolumeSource::getName)
-                                        .stream())),
-                        context));
+        // Get shared informers - all event sources of the same type share the same underlying cache
+        var sharedSecretInformer = sharedInformerManager.getOrCreateInformer(Secret.class);
+        var sharedConfigMapInformer = sharedInformerManager.getOrCreateInformer(ConfigMap.class);
+        var allowedNamespaces = sharedInformerManager.effectiveNamespaces();
+
+        var secretEventSource = createSharedInformerEventSource(
+                context,
+                Secret.class,
+                SECRETS,
+                sharedSecretInformer,
+                interpolationResult -> interpolationResult.volumes().stream()
+                        .flatMap(volume -> Optional.ofNullable(volume.getSecret())
+                                .map(SecretVolumeSource::getSecretName)
+                                .stream()),
+                allowedNamespaces);
+
+        var configMapEventSource = createSharedInformerEventSource(
+                context,
+                ConfigMap.class,
+                CONFIG_MAPS,
+                sharedConfigMapInformer,
+                interpolationResult -> interpolationResult.volumes().stream()
+                        .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
+                                .map(ConfigMapVolumeSource::getName)
+                                .stream()),
+                allowedNamespaces);
+
+        return List.of(secretEventSource, configMapEventSource);
+    }
+
+    /**
+     * Creates a SharedInformerEventSource for tracking resource dependencies in filter config templates.
+     *
+     * @param context The event source context
+     * @param resourceClass The Java type of resource reference (e.g. Secret, ConfigMap)
+     * @param eventSourceName The name for the event source
+     * @param sharedInformer The shared informer instance
+     * @param resourceNameExtractor Function to extract resource names from interpolation results
+     * @param allowedNamespaces Namespaces to filter events (empty means all namespaces)
+     * @param <R> The type of referenced resource
+     * @return A configured SharedInformerEventSource
+     */
+    private <R extends HasMetadata> SharedInformerEventSource<R, KafkaProtocolFilter> createSharedInformerEventSource(
+                                                                                                                      EventSourceContext<KafkaProtocolFilter> context,
+                                                                                                                      Class<R> resourceClass,
+                                                                                                                      String eventSourceName,
+                                                                                                                      SharedIndexInformer<R> sharedInformer,
+                                                                                                                      Function<SecureConfigInterpolator.InterpolationResult, Stream<String>> resourceNameExtractor,
+                                                                                                                      Set<String> allowedNamespaces) {
+        var config = templateResourceReferenceEventSourceConfig(context, resourceClass, resourceNameExtractor);
+
+        return new SharedInformerEventSource<>(
+                resourceClass,
+                eventSourceName,
+                sharedInformer,
+                config.getPrimaryToSecondaryMapper(),
+                config.getSecondaryToPrimaryMapper(),
+                allowedNamespaces);
     }
 
     /**

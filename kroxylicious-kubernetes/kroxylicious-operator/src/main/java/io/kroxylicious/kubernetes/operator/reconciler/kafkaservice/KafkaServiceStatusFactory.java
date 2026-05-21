@@ -23,9 +23,9 @@ import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
+class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
 
-    public KafkaServiceStatusFactory(Clock clock) {
+    KafkaServiceStatusFactory(Clock clock) {
         super(clock);
     }
 

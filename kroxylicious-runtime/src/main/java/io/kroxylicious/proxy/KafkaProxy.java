@@ -174,10 +174,19 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static VirtualClusterRegistry defaultRegistry(Configuration config, PluginFactoryRegistry pfr) {
         var models = config.virtualClusterModel(pfr);
-        return new VirtualClusterRegistry(models, (clusterName, cause) -> STARTUP_SHUTDOWN_LOGGER.atWarn()
-                .addKeyValue("virtualCluster", clusterName)
-                .addKeyValue("error", cause.map(Throwable::getMessage).orElse(null))
-                .log("Virtual cluster reached terminal stopped state, proxy shutdown required"));
+        return new VirtualClusterRegistry(models, (clusterName, cause) -> {
+            if (cause.isPresent()) {
+                STARTUP_SHUTDOWN_LOGGER.atWarn()
+                        .addKeyValue("virtualCluster", clusterName)
+                        .addKeyValue("error", cause.get().getMessage())
+                        .log("Virtual cluster reached terminal stopped state due to failure, proxy shutdown required");
+            }
+            else {
+                STARTUP_SHUTDOWN_LOGGER.atInfo()
+                        .addKeyValue("virtualCluster", clusterName)
+                        .log("Virtual cluster stopped");
+            }
+        });
     }
 
     @VisibleForTesting

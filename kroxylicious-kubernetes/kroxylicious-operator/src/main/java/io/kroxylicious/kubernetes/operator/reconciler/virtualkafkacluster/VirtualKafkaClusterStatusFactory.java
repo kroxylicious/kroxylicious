@@ -19,9 +19,9 @@ import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StatusFactory;
 
-public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafkaCluster> {
+class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafkaCluster> {
 
-    public VirtualKafkaClusterStatusFactory(Clock clock) {
+    VirtualKafkaClusterStatusFactory(Clock clock) {
         super(clock);
     }
 

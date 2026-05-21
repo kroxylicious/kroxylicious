@@ -1,0 +1,35 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Patches the proxy Deployment to add hard pod anti-affinity against Kafka broker pods.
+#
+# This ensures the proxy is never co-located with a Kafka broker. Without isolation,
+# the proxy and a broker share CPU on the same node, which causes enough contention
+# to push the encryption ceiling below its true value — making the proxy appear
+# slower than it is on a properly provisioned cluster.
+#
+# Requires at least one worker node that has no Kafka pod scheduled on it.
+# On a 3-worker cluster where Strimzi fills each worker with one broker, this
+# patch will prevent the proxy from scheduling at all — use --no-isolate-proxy
+# in that case and treat results as indicative only.
+#
+# The PROXY_DEPLOYMENT and NAMESPACE placeholders are substituted by the script
+# using envsubst before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROXY_DEPLOYMENT}
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/cluster: kafka
+            topologyKey: kubernetes.io/hostname

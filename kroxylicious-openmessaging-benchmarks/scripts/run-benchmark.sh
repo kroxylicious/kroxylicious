@@ -26,9 +26,6 @@ PROXY_POD_LABEL="app.kubernetes.io/name=kroxylicious,app.kubernetes.io/component
 # JFR configuration
 JFR_MAX_SIZE_MB="${JFR_MAX_SIZE_MB:-64}"
 JFR_MAX_SIZE="${JFR_MAX_SIZE_MB}m"
-JFR_PVC_SIZE_MI=$(( JFR_MAX_SIZE_MB * 110 / 100 ))
-JFR_PVC_SIZE="${JFR_PVC_SIZE_MI}Mi"
-JFR_PVC_NAME="${HELM_RELEASE}-jfr"
 
 usage() {
     cat >&2 <<EOF
@@ -65,6 +62,13 @@ Options:
                             The script will print the teardown commands to run manually.
   --producer-rate <n>       Override the producerRate in the workload (msg/sec).
                             When set, the rate is injected via sed before running.
+  --producers-per-topic <n> Override producersPerTopic in the workload.
+  --consumers-per-subscription <n>
+                            Override consumerPerSubscription in the workload.
+  --skip-proxy-isolation        Skip the pod anti-affinity patch that keeps the proxy off Kafka
+                            broker nodes. Use only on clusters with fewer than 5 workers where
+                            the proxy cannot avoid sharing a node with a broker. Results from
+                            such runs may understate encryption throughput due to CPU contention.
   -h, --help                Show this help
 
 Environment:
@@ -97,6 +101,9 @@ HELM_SET_ARGS=()
 SKIP_DEPLOY=false
 SKIP_TEARDOWN=false
 PRODUCER_RATE=""
+PRODUCERS_PER_TOPIC=""
+CONSUMERS_PER_SUBSCRIPTION=""
+ISOLATE_PROXY=true
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -124,6 +131,18 @@ while [[ $# -gt 0 ]]; do
             PRODUCER_RATE="$2"
             shift 2
             ;;
+        --producers-per-topic)
+            PRODUCERS_PER_TOPIC="$2"
+            shift 2
+            ;;
+        --consumers-per-subscription)
+            CONSUMERS_PER_SUBSCRIPTION="$2"
+            shift 2
+            ;;
+        --skip-proxy-isolation)
+            ISOLATE_PROXY=false
+            shift
+            ;;
         -h|--help)
             usage
             ;;
@@ -145,6 +164,13 @@ fi
 SCENARIO="$1"
 WORKLOAD="$2"
 OUTPUT_DIR="$3"
+
+if [[ "${ISOLATE_PROXY}" == "false" ]]; then
+    echo "Warning: --skip-proxy-isolation is set. The proxy may share a node with a Kafka broker." >&2
+    echo "         Resource contention between co-located pods is unpredictable and varies run to" >&2
+    echo "         run, making results unreliable and not comparable across runs." >&2
+    echo "         For reliable results, use a cluster with >= 5 workers." >&2
+fi
 
 SCENARIO_VALUES="${HELM_CHART}/scenarios/${SCENARIO}-values.yaml"
 
@@ -192,13 +218,10 @@ teardown() {
     # Wait explicitly so the pvc-protection finalizer on the JFR PVC is released.
     kubectl wait pod -l "${PROXY_POD_LABEL}" -n "${NAMESPACE}" \
         --for=delete --timeout=60s 2>/dev/null || true
-    # Delete any stale results-reader or jfr-collect pods — they mount PVCs and prevent deletion
+    # Delete any stale results-reader pods — they mount the results PVC and prevent its deletion
     kubectl delete pod -l app=omb-results-reader -n "${NAMESPACE}" --ignore-not-found --wait=false 2>/dev/null || true
-    kubectl delete pod -l app=jfr-collect -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     # Delete Kafka PVCs to avoid cluster ID conflicts on next install
     kubectl delete pvc -l strimzi.io/cluster=kafka -n "${NAMESPACE}" --ignore-not-found --timeout=60s
-    # Delete JFR PVC if one was created
-    kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete the benchmark Job (not Helm-managed so helm uninstall won't remove it)
     kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --timeout=60s
     # Delete vault-init Job — previously created as a Helm hook (no Helm ownership labels),
@@ -312,15 +335,29 @@ spec:
 EOF
 }
 
+# Re-renders and applies the workload ConfigMap from the Helm chart, picking up any
+# per-probe benchmark.* overrides (rate, producers, consumers) without redeploying
+# infrastructure. Called unconditionally before every benchmark run.
+# HELM_ARGS must be set before calling this function.
+apply_workload_configmap() {
+    local extra_args=()
+    [[ -n "${PRODUCER_RATE}" ]]             && extra_args+=(--set "benchmark.producerRate=${PRODUCER_RATE}")
+    [[ -n "${PRODUCERS_PER_TOPIC}" ]]       && extra_args+=(--set "benchmark.producersPerTopic=${PRODUCERS_PER_TOPIC}")
+    [[ -n "${CONSUMERS_PER_SUBSCRIPTION}" ]] && extra_args+=(--set "benchmark.consumerPerSubscription=${CONSUMERS_PER_SUBSCRIPTION}")
+    helm template "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" \
+        ${extra_args[@]+"${extra_args[@]}"} \
+        --show-only "templates/configmaps/workload-${WORKLOAD}.yaml" \
+        | kubectl apply -n "${NAMESPACE}" -f -
+}
+
 # Deletes any existing benchmark Job then creates a fresh one using helm template,
 # so the Job inherits all chart config (image, resources, ConfigMap names, etc.).
 # HELM_ARGS must be set before calling this function.
 create_benchmark_job() {
-    echo "Creating benchmark Job (rate=${PRODUCER_RATE:-workload default})..."
+    echo "Creating benchmark Job..."
     kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     helm template "${HELM_RELEASE}" "${HELM_CHART}" "${HELM_ARGS[@]}" \
         --set omb.createBenchmarkJob=true \
-        --set "omb.coordinatorProducerRate=${PRODUCER_RATE:-}" \
         --show-only templates/omb-benchmark-job.yaml \
         | kubectl apply -n "${NAMESPACE}" -f -
 }
@@ -346,7 +383,7 @@ spec:
       claimName: ${RESULTS_PVC_NAME}
   containers:
   - name: reader
-    image: busybox:1.37.0@sha256:b3255e7dfbcd10cb367af0d409747d511aeb66dfac98cf30e97e87e4207dd76f
+    image: cgr.dev/chainguard/busybox@sha256:512f3ca0acc9d54d640afd9ac6166ae94548bf66d290ae447968fba5557d10c9
     command: ["sleep", "infinity"]
     volumeMounts:
     - name: results
@@ -522,24 +559,10 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
         -l "${PROXY_POD_LABEL}" \
         -o jsonpath='{.items[0].metadata.name}')
 
-    # Ensure any stale JFR PVC from a previous run is fully gone before creating a new one.
-    # It may be Terminating (teardown in progress) or simply orphaned (--skip-teardown was used).
-    # kubectl delete --timeout waits for full removal in both cases.
-    if kubectl get pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" &>/dev/null; then
-        echo "Deleting stale JFR PVC ${JFR_PVC_NAME} and waiting for full removal..."
-        kubectl delete pvc "${JFR_PVC_NAME}" -n "${NAMESPACE}" --ignore-not-found --timeout=60s
-    fi
-
-    echo "Creating JFR PVC ${JFR_PVC_NAME} (${JFR_PVC_SIZE})..."
-    JFR_PVC_NAME="${JFR_PVC_NAME}" NAMESPACE="${NAMESPACE}" JFR_PVC_SIZE="${JFR_PVC_SIZE}" \
-        envsubst '${JFR_PVC_NAME} ${NAMESPACE} ${JFR_PVC_SIZE}' \
-        < "${HELM_CHART}/patches/proxy-jfr-pvc.yaml" \
-        | kubectl apply -f -
-
-    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount JFR PVC at /tmp and enable JFR + async-profiler..."
+    echo "Patching proxy deployment ${PROXY_DEPLOYMENT} to mount emptyDir at /tmp and enable JFR + async-profiler..."
     PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
-        JFR_PVC_NAME="${JFR_PVC_NAME}" JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
-        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_PVC_NAME} ${JFR_MAX_SIZE}' \
+        JFR_MAX_SIZE="${JFR_MAX_SIZE}" \
+        envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE} ${JFR_MAX_SIZE}' \
         < "${HELM_CHART}/patches/proxy-jfr-tmp.yaml" \
         | kubectl apply --server-side --field-manager=benchmark-jfr -f - >/dev/null
 
@@ -557,6 +580,13 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
     else
         echo "${async_profiler_patch}" \
             | kubectl apply --server-side --field-manager=benchmark-async-profiler -f - >/dev/null
+    fi
+
+    if [[ "${ISOLATE_PROXY}" == "true" ]]; then
+        PROXY_DEPLOYMENT="${PROXY_DEPLOYMENT}" NAMESPACE="${NAMESPACE}" \
+            envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
+            < "${HELM_CHART}/patches/proxy-anti-affinity.yaml" \
+            | kubectl apply --server-side --field-manager=benchmark-anti-affinity -f - >/dev/null
     fi
 
     echo "Waiting for proxy deployment rollout after patch..."
@@ -584,6 +614,11 @@ fi
 
 # --- Run benchmark ---
 
+# Apply workload ConfigMap with per-probe overrides (rate, producers, consumers).
+# Done unconditionally — works both on first deploy and on --skip-deploy probes so
+# the ConfigMap always reflects the current probe's parameters.
+apply_workload_configmap
+
 # Create the benchmark Job now — after JFR is set up on the proxy so profiling starts
 # before load begins.  The Job is the entrypoint for the benchmark binary; it writes
 # result JSON to the results PVC on exit.
@@ -610,6 +645,7 @@ LOGS_PID=$!
 # kubectl wait --for=condition=complete alone would block indefinitely on failure.
 BENCHMARK_EXIT=0
 PROBE_START=${SECONDS}
+BENCHMARK_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 while true; do
     if kubectl wait job/omb-benchmark -n "${NAMESPACE}" \
             --for=condition=complete --timeout=10s 2>/dev/null; then
@@ -627,6 +663,7 @@ while true; do
     fi
 done
 stop_logs_tailer
+BENCHMARK_COMPLETED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
 if [[ "${BENCHMARK_EXIT}" -eq 124 ]]; then
     echo "TIMED OUT after ${PROBE_TIMEOUT}s" >&2
@@ -737,11 +774,43 @@ mkdir -p "${OUTPUT_DIR}"
 # before exiting, and exec into a completed/failed pod is not possible.
 collect_result_from_pvc
 
+# Assemble phase timing and workload parameters for run-metadata.json.
+# Warmup/test durations come from the live Helm release values.
+# Workload shape (topics, partitions, messageSize, producer/consumer counts)
+# comes from result.json which is already collected at this point.
+METADATA_ARGS=()
+METADATA_ARGS+=(--benchmark-started-at "${BENCHMARK_STARTED_AT}")
+METADATA_ARGS+=(--benchmark-completed-at "${BENCHMARK_COMPLETED_AT}")
+if command -v helm &>/dev/null; then
+    _helm_vals=$(helm get values benchmark -n "${NAMESPACE}" --all -o json 2>/dev/null || true)
+    if [[ -n "${_helm_vals}" ]]; then
+        _warmup=$(printf '%s' "${_helm_vals}" | jq -r '.benchmark.warmupDurationMinutes // empty' 2>/dev/null || true)
+        _test=$(printf '%s' "${_helm_vals}" | jq -r '.benchmark.testDurationMinutes // empty' 2>/dev/null || true)
+        [[ -n "${_warmup}" ]] && METADATA_ARGS+=(--warmup-duration-minutes "${_warmup}")
+        [[ -n "${_test}" ]]   && METADATA_ARGS+=(--test-duration-minutes "${_test}")
+    fi
+fi
+if [[ -f "${OUTPUT_DIR}/result.json" ]] && command -v jq &>/dev/null; then
+    _topics=$(jq -r '.topics // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _parts=$(jq -r '.partitions // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _msgsize=$(jq -r '.messageSize // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _prods=$(jq -r '.producersPerTopic // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    _cons=$(jq -r '.consumersPerTopic // empty' "${OUTPUT_DIR}/result.json" 2>/dev/null || true)
+    [[ -n "${_topics}" ]]  && METADATA_ARGS+=(--topics "${_topics}")
+    if [[ -n "${_parts}" && -n "${_topics}" && "${_topics}" -gt 0 ]]; then
+        METADATA_ARGS+=(--partitions-per-topic "$(( _parts / _topics ))")
+    fi
+    [[ -n "${_msgsize}" ]] && METADATA_ARGS+=(--message-size "${_msgsize}")
+    [[ -n "${_prods}" ]]   && METADATA_ARGS+=(--producers-per-topic "${_prods}")
+    [[ -n "${_cons}" ]]    && METADATA_ARGS+=(--consumer-per-subscription "${_cons}")
+fi
+
 if [[ "${SKIP_DEPLOY}" == "false" ]]; then
     # Full collection: JFR dump + flamegraph + run metadata (JSON already collected above)
-    JFR_PVC_NAME="${JFR_PVC_NAME}" PROXY_POD="${PROXY_POD:-}" \
+    PROXY_POD="${PROXY_POD:-}" \
         "${SCRIPT_DIR}/collect-results.sh" \
         --scenario "${SCENARIO}" --workload "${WORKLOAD}" --target-rate "${PRODUCER_RATE:-0}" \
+        "${METADATA_ARGS[@]+"${METADATA_ARGS[@]}"}" \
         "${OUTPUT_DIR}"
     [[ -f "${OUTPUT_DIR}/benchmark.jfr" ]] && mv "${OUTPUT_DIR}/benchmark.jfr" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-benchmark.jfr"
     [[ -f "${OUTPUT_DIR}/flamegraph.html" ]] && mv "${OUTPUT_DIR}/flamegraph.html" "${OUTPUT_DIR}/${SCENARIO}-${WORKLOAD}-flamegraph.html"
@@ -773,6 +842,7 @@ else
         [[ -n "${SCENARIO}" ]]        && JBANG_ARGS+=(--scenario "${SCENARIO}")
         [[ -n "${WORKLOAD}" ]]        && JBANG_ARGS+=(--workload "${WORKLOAD}")
         [[ -n "${PRODUCER_RATE:-}" ]] && JBANG_ARGS+=(--target-rate "${PRODUCER_RATE}")
+        JBANG_ARGS+=("${METADATA_ARGS[@]+"${METADATA_ARGS[@]}"}")
         jbang "${FILTERED}" "${JBANG_ARGS[@]}"
     fi
 fi
@@ -785,9 +855,7 @@ if [[ "${SKIP_TEARDOWN}" == "true" ]]; then
     echo ""
     echo "Infrastructure left running (--skip-teardown). To tear down manually:"
     echo "  helm uninstall ${HELM_RELEASE} -n ${NAMESPACE} --wait"
-    echo "  kubectl delete pod -l app=jfr-collect -n ${NAMESPACE} --ignore-not-found"
     echo "  kubectl delete pvc -l strimzi.io/cluster=kafka -n ${NAMESPACE} --ignore-not-found"
-    echo "  kubectl delete pvc ${JFR_PVC_NAME} -n ${NAMESPACE} --ignore-not-found"
 fi
 # teardown runs via trap on EXIT (unless --skip-teardown was set)
 exit "${BENCHMARK_EXIT}"

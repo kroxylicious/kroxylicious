@@ -31,6 +31,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.operator.OperatorLoggingKeys;
 import io.kroxylicious.kubernetes.operator.ResourceState;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StatusFactory;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -58,6 +59,10 @@ public class KafkaProxyIngressReconciler implements
 
     public KafkaProxyIngressReconciler(Clock clock) {
         this.statusFactory = new KafkaProxyIngressStatusFactory(Objects.requireNonNull(clock));
+    }
+
+    public static StatusFactory<KafkaProxyIngress> newStatusFactory(Clock clock) {
+        return new KafkaProxyIngressStatusFactory(clock);
     }
 
     @Override

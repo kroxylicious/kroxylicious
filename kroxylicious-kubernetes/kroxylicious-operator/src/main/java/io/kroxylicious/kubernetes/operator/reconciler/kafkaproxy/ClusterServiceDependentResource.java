@@ -120,7 +120,7 @@ public class ClusterServiceDependentResource
                     .withMetadata(sniLoadbalancerServiceMetadata(primary, serviceName, bootstraps))
                     .withNewSpec()
                     .withType("LoadBalancer")
-                    .withSelector(ProxyDeploymentDependentResource.podLabels(primary));
+                    .withSelector(standardLabels(primary));
             for (Integer loadBalancerPort : loadBalancerPorts) {
                 serviceSpecBuilder = serviceSpecBuilder
                         .addNewPort()

@@ -226,6 +226,7 @@ cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
 # csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
 APP_BINARY_DISTRIBUTION_ASSET="./kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
 OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${RELEASE_VERSION}"
+ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${RELEASE_VERSION}"
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
   --draft "${RELEASE_TAG}" \
@@ -237,6 +238,10 @@ gh release create --title "${RELEASE_TAG}" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
   "${API_COMPATABILITY_REPORT}"
 
 
