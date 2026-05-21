@@ -30,22 +30,6 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
-
-    <!-- TODO allows archetype build to pull in the Kafka 4.2 RC.  Remove me before merge to main -->
-    <repositories>
-        <repository>
-            <id>apache-kafka-staging</id>
-            <name>Apache Kafka Staging Repository</name>
-            <url>https://repository.apache.org/content/groups/staging/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-    
     <dependencyManagement>
         <dependencies>
             <dependency>
