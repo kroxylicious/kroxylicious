@@ -31,8 +31,9 @@ transactional produce, and read-committed consumer groups.
           All containers on the "kroxylicious-demo" Docker network
 ```
 
-SASL PLAIN authentication identifies users for subject-based routing of
-transactions and consumer groups. User `bob` is mapped to `route-b` for both.
+SASL PLAIN authentication identifies users for subject-based routing.
+User `bob` is subject-routed to `route-b`, so all his coordinator-bound
+operations (transactions, consumer groups) go to cluster-b.
 
 Aside: The presence of _some_ authentication is required for the Subject-based routing
 used to avoid the need for cross-cluster transactions. SASL termination at the proxy 
@@ -199,7 +200,7 @@ kafka-cmd-alice kafka-console-consumer.sh \
 
 ## Demo 3: Transactional produce
 
-User `bob` is mapped to `route-b` for transactions, so his transaction
+User `bob` is subject-routed to `route-b`, so his transaction
 coordinator lives on cluster-b.
 
 ```bash
@@ -218,7 +219,7 @@ PROPS
 '
 ```
 
-Check offsets — partition 2 should now have 7 (1 from Demo 1 + 5 data + 1 txn marker):
+Check offsets — one partition should show 6 additional records (5 data + 1 txn marker):
 
 ```bash
 kafka-cmd kafka-get-offsets.sh --bootstrap-server $CLUSTER_B --topic b.analytics
@@ -239,7 +240,7 @@ kafka-cmd kafka-console-consumer.sh --bootstrap-server $CLUSTER_B \
 Bob consumes the transactionally-produced records through the proxy using a
 consumer group with the new consumer group protocol (KIP-848).
 His consumer group coordinator routes to cluster-b
-(via `consumerGroupUserRoutes` in the proxy config).
+(via `subjects` in the proxy config).
 
 ```bash
 kafka-cmd-bob kafka-console-consumer.sh \
