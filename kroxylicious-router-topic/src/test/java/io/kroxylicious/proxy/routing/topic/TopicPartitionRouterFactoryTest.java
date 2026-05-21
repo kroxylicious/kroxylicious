@@ -50,8 +50,8 @@ class TopicPartitionRouterFactoryTest {
     @Test
     void shouldInitialiseWithExplicitTopics() {
         var config = new TopicPartitionRouterConfig("default-route", List.of(
-                new RouteConfig("cluster-a", List.of("orders."), null, null, null),
-                new RouteConfig("cluster-b", null, List.of("special-topic"), null, null)));
+                new RouteConfig("cluster-a", List.of("orders."), null, null),
+                new RouteConfig("cluster-b", null, List.of("special-topic"), null)));
 
         var initData = factory.initialize(context, config);
 
@@ -63,16 +63,14 @@ class TopicPartitionRouterFactoryTest {
     }
 
     @Test
-    void shouldInitialiseWithSubjectRoutes() {
+    void shouldInitialiseWithSubjects() {
         var config = new TopicPartitionRouterConfig("default-route", List.of(
-                new RouteConfig("cluster-a", List.of("a."), null, null, null),
-                new RouteConfig("cluster-b", List.of("b."), null,
-                        List.of("bob"), List.of("bob"))));
+                new RouteConfig("cluster-a", List.of("a."), null, null),
+                new RouteConfig("cluster-b", List.of("b."), null, List.of("bob"))));
 
         var initData = factory.initialize(context, config);
 
-        assertThat(initData.transactionalUserRoutes()).containsEntry("bob", "cluster-b");
-        assertThat(initData.consumerGroupUserRoutes()).containsEntry("bob", "cluster-b");
+        assertThat(initData.subjectRoutes()).containsEntry("bob", "cluster-b");
     }
 
     @Test
@@ -110,8 +108,8 @@ class TopicPartitionRouterFactoryTest {
     @Test
     void shouldRejectDuplicateExplicitTopicOnDifferentRoutes() {
         var config = new TopicPartitionRouterConfig("default", List.of(
-                new RouteConfig("a", null, List.of("my-topic"), null, null),
-                new RouteConfig("b", null, List.of("my-topic"), null, null)));
+                new RouteConfig("a", null, List.of("my-topic"), null),
+                new RouteConfig("b", null, List.of("my-topic"), null)));
 
         assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -120,28 +118,14 @@ class TopicPartitionRouterFactoryTest {
     }
 
     @Test
-    void shouldRejectDuplicateTransactionalUserOnDifferentRoutes() {
+    void shouldRejectDuplicateSubjectOnDifferentRoutes() {
         var config = new TopicPartitionRouterConfig("default", List.of(
-                new RouteConfig("a", List.of("a."), null, List.of("bob"), null),
-                new RouteConfig("b", List.of("b."), null, List.of("bob"), null)));
+                new RouteConfig("a", List.of("a."), null, List.of("bob")),
+                new RouteConfig("b", List.of("b."), null, List.of("bob"))));
 
         assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("bob")
-                .hasMessageContaining("transactionalUsers")
-                .hasMessageContaining("assigned to");
-    }
-
-    @Test
-    void shouldRejectDuplicateConsumerGroupUserOnDifferentRoutes() {
-        var config = new TopicPartitionRouterConfig("default", List.of(
-                new RouteConfig("a", List.of("a."), null, null, List.of("bob")),
-                new RouteConfig("b", List.of("b."), null, null, List.of("bob"))));
-
-        assertThatThrownBy(() -> factory.initialize(context, config))
-                .isInstanceOf(PluginConfigurationException.class)
-                .hasMessageContaining("bob")
-                .hasMessageContaining("consumerGroupUsers")
                 .hasMessageContaining("assigned to");
     }
 

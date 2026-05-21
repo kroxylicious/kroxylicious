@@ -92,7 +92,7 @@ class TopicPartitionRouterTest {
     void setUp() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
-        router = new TopicPartitionRouter(table, "default-route", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        router = new TopicPartitionRouter(table, "default-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
     }
 
@@ -103,7 +103,7 @@ class TopicPartitionRouterTest {
         var cache = new FetchSessionCache(1000, 10_000, "testVc", "testRouter");
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), "default-route");
-        var closeable = new TopicPartitionRouter(table, "default-route", Map.of(), Map.of(),
+        var closeable = new TopicPartitionRouter(table, "default-route", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)), cache, Clock.systemUTC(), "testVc", "testRouter");
 
         var request = fetchRequest("orders.uk");
@@ -239,7 +239,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableTopicsWithNoDefault() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = produceRequest("orders.uk", "logs.app");
@@ -337,7 +337,7 @@ class TopicPartitionRouterTest {
     void shouldPassThroughInitProducerIdWithSingleRoute() {
         var singleRouteTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "only-route"), null);
-        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = new InitProducerIdRequestData()
@@ -395,21 +395,21 @@ class TopicPartitionRouterTest {
     }
 
     @Test
-    void shouldRouteTransactionalInitProducerIdToMappedRoute() {
+    void shouldRouteTransactionalInitProducerIdToSubjectRoute() {
         var txnRouter = createTxnRouter("cluster-a");
         var request = new InitProducerIdRequestData()
                 .setTransactionalId("my-txn-id")
                 .setTransactionTimeoutMs(60000);
 
-        int coordinatorNodeId = 1;
-        var findCoordResp = findCoordinatorResponse(coordinatorNodeId);
         var initResp = initProducerIdResponse(100L, (short) 0);
 
-        var ctx = new SingleRouteInitCapturingContext("cluster-a", coordinatorNodeId,
-                findCoordResp, initResp);
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", initResp))
+                .withSubject(TXN_SUBJECT);
         txnRouter.onClientRequest(
                 (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
 
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
         var response = (InitProducerIdResponseData) ctx.sentResponseBody();
         assertThat(response).isNotNull();
         assertThat(response.producerId()).isEqualTo(100L);
@@ -717,7 +717,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableFetchTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = fetchRequest("orders.uk", "unknown.topic");
@@ -745,7 +745,7 @@ class TopicPartitionRouterTest {
         // Two topics on the same route but different leaders should get separate sessions
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), "default-route");
-        var sessionRouter = new TopicPartitionRouter(table, "default-route", Map.of(), Map.of(),
+        var sessionRouter = new TopicPartitionRouter(table, "default-route", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 10_000, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -850,7 +850,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableListOffsetsTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = listOffsetsRequest("orders.uk", "unknown.topic");
@@ -926,7 +926,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableOffsetCommitTopics() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), Map.of(), new ProducerIdManager(Duration.ofDays(7)),
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = offsetCommitRequest("orders.uk", "unknown.topic");
@@ -992,7 +992,7 @@ class TopicPartitionRouterTest {
     }
 
     @Test
-    void shouldRouteFindCoordinatorToDefaultRouteForGroupKeyType() {
+    void shouldRouteFindCoordinatorToSubjectRouteForGroupKeyType() {
         var txnRouter = createTxnRouter("cluster-a");
         var request = new FindCoordinatorRequestData()
                 .setKey("my-group")
@@ -1003,13 +1003,13 @@ class TopicPartitionRouterTest {
                 .setHost("broker-0")
                 .setPort(9092);
 
-        var ctx = new CapturingRoutingContext(Map.of("default-route", backendResp))
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp))
                 .withSubject(TXN_SUBJECT);
         txnRouter.onClientRequest(
                 (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx);
 
         assertThat(ctx.sentRequests()).hasSize(1);
-        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
         txnRouter.close();
     }
 
@@ -1040,7 +1040,7 @@ class TopicPartitionRouterTest {
     void shouldFanOutDescribeClusterAndMergeBrokers() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
-        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(), Map.of(),
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -1072,7 +1072,7 @@ class TopicPartitionRouterTest {
     void shouldUseDefaultRouteClusterFieldsInDescribeCluster() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
-        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(), Map.of(),
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -1103,7 +1103,7 @@ class TopicPartitionRouterTest {
     void shouldTakeMaxThrottleTimeInDescribeCluster() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "cluster-a");
-        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(), Map.of(),
+        var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
@@ -1128,99 +1128,30 @@ class TopicPartitionRouterTest {
     // --- ADD_PARTITIONS_TO_TXN ---
 
     @Test
-    void shouldRouteAddPartitionsToTxnToMappedRoute() {
+    void shouldRouteAddPartitionsToTxnToSubjectRoute() {
         var txnRouter = createTxnRouter("cluster-a");
-        setupTransactionalProducer(txnRouter, "my-txn-id", "cluster-a", 100L);
 
         var request = addPartitionsToTxnRequest("my-txn-id", 100L, (short) 0,
                 "orders.uk");
         var backendResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
 
-        var ctx = new CapturingRoutingContext(Map.of())
-                .withNodeResponses(Map.of(1, backendResp))
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp))
                 .withSubject(TXN_SUBJECT);
         txnRouter.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
                 new RequestHeaderData(), request, ctx);
 
-        assertThat(ctx.sentNodeRequests()).hasSize(1);
-        assertThat(ctx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(1);
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
         assertThat(ctx.sentResponseBody())
                 .isInstanceOf(AddPartitionsToTxnResponseData.class);
-        txnRouter.close();
-    }
-
-    @Test
-    void shouldRejectAddPartitionsToTxnForWrongRoute() {
-        var txnRouter = createTxnRouter("cluster-a");
-        setupTransactionalProducer(txnRouter, "my-txn-id", "cluster-a", 100L);
-
-        var request = addPartitionsToTxnRequest("my-txn-id", 100L, (short) 0,
-                "logs.app");
-        var ctx = new CapturingRoutingContext(Map.of())
-                .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
-                new RequestHeaderData(), request, ctx);
-
-        assertThat(ctx.sentRequests()).isEmpty();
-        assertThat(ctx.sentNodeRequests()).isEmpty();
-        var response = (AddPartitionsToTxnResponseData) ctx.sentResponseBody();
-        for (var tr : response.resultsByTopicV3AndBelow()) {
-            for (var pr : tr.resultsByPartition()) {
-                assertThat(pr.partitionErrorCode())
-                        .isEqualTo(Errors.INVALID_TXN_STATE.code());
-            }
-        }
-        txnRouter.close();
-    }
-
-    @Test
-    void shouldRewriteProducerIdInAddPartitionsToTxn() {
-        var txnRouter = createTxnRouter("cluster-b");
-        setupTransactionalProducer(txnRouter, "my-txn-id", "cluster-b", 200L);
-
-        var request = addPartitionsToTxnRequest("my-txn-id", 200L, (short) 0,
-                "logs.app");
-        var backendResp = addPartitionsToTxnResponse("logs.app", 0, Errors.NONE);
-        var ctx = new CapturingRoutingContext(Map.of())
-                .withNodeResponses(Map.of(2, backendResp))
-                .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
-                new RequestHeaderData(), request, ctx);
-
-        var sentReq = (AddPartitionsToTxnRequestData) ctx.sentNodeRequests()
-                .get(0).body();
-        assertThat(sentReq.v3AndBelowProducerId()).isEqualTo(200L);
-        assertThat(sentReq.v3AndBelowProducerEpoch()).isEqualTo((short) 0);
-        txnRouter.close();
-    }
-
-    @Test
-    void shouldReturnUnknownProducerIdWhenMappingMissingForAddPartitionsToTxn() {
-        var txnRouter = createTxnRouter("cluster-b");
-
-        var request = addPartitionsToTxnRequest("my-txn-id", 999L, (short) 0,
-                "logs.app");
-        var ctx = new CapturingRoutingContext(Map.of())
-                .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
-                new RequestHeaderData(), request, ctx);
-
-        var response = (AddPartitionsToTxnResponseData) ctx.sentResponseBody();
-        for (var tr : response.resultsByTopicV3AndBelow()) {
-            for (var pr : tr.resultsByPartition()) {
-                assertThat(pr.partitionErrorCode())
-                        .isEqualTo(Errors.UNKNOWN_PRODUCER_ID.code());
-            }
-        }
         txnRouter.close();
     }
 
     // --- END_TXN ---
 
     @Test
-    void shouldRouteEndTxnToMappedRoute() {
+    void shouldRouteEndTxnToSubjectRoute() {
         var txnRouter = createTxnRouter("cluster-a");
-        setupTransactionalProducer(txnRouter, "my-txn-id", "cluster-a", 100L);
 
         var endReq = new EndTxnRequestData()
                 .setTransactionalId("my-txn-id")
@@ -1229,14 +1160,13 @@ class TopicPartitionRouterTest {
                 .setCommitted(true);
         var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
 
-        var endCtx = new CapturingRoutingContext(Map.of())
-                .withNodeResponses(Map.of(1, endResp))
+        var endCtx = new CapturingRoutingContext(Map.of("cluster-a", endResp))
                 .withSubject(TXN_SUBJECT);
         txnRouter.onClientRequest((short) 3, ApiKeys.END_TXN,
                 new RequestHeaderData(), endReq, endCtx);
 
-        assertThat(endCtx.sentNodeRequests()).hasSize(1);
-        assertThat(endCtx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(1);
+        assertThat(endCtx.sentRequests()).hasSize(1);
+        assertThat(endCtx.sentRequests().get(0).route()).isEqualTo("cluster-a");
         assertThat(endCtx.sentResponseBody())
                 .isInstanceOf(EndTxnResponseData.class);
         txnRouter.close();
@@ -1260,9 +1190,8 @@ class TopicPartitionRouterTest {
     }
 
     @Test
-    void shouldRewriteProducerIdInEndTxn() {
+    void shouldForwardEndTxnUnmodifiedForSubjectRoutedUser() {
         var txnRouter = createTxnRouter("cluster-b");
-        setupTransactionalProducer(txnRouter, "my-txn-id", "cluster-b", 200L);
 
         var endReq = new EndTxnRequestData()
                 .setTransactionalId("my-txn-id")
@@ -1270,22 +1199,22 @@ class TopicPartitionRouterTest {
                 .setProducerEpoch((short) 0)
                 .setCommitted(true);
         var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
-        var endCtx = new CapturingRoutingContext(Map.of())
-                .withNodeResponses(Map.of(2, endResp))
+        var endCtx = new CapturingRoutingContext(Map.of("cluster-b", endResp))
                 .withSubject(TXN_SUBJECT);
         txnRouter.onClientRequest((short) 3, ApiKeys.END_TXN,
                 new RequestHeaderData(), endReq, endCtx);
 
-        var sentReq = (EndTxnRequestData) endCtx.sentNodeRequests().get(0).body();
+        assertThat(endCtx.sentRequests()).hasSize(1);
+        assertThat(endCtx.sentRequests().get(0).route()).isEqualTo("cluster-b");
+        var sentReq = (EndTxnRequestData) endCtx.sentRequests().get(0).body();
         assertThat(sentReq.producerId()).isEqualTo(200L);
-        assertThat(sentReq.producerEpoch()).isEqualTo((short) 0);
         txnRouter.close();
     }
 
     // --- CONSUMER_GROUP_HEARTBEAT ---
 
     @Test
-    void shouldRouteConsumerGroupHeartbeatToMappedRoute() {
+    void shouldRouteConsumerGroupHeartbeatToSubjectRoute() {
         var cgRouter = createCgRouter("cluster-b");
         var heartbeatReq = new ConsumerGroupHeartbeatRequestData()
                 .setGroupId("my-group")
@@ -1297,13 +1226,14 @@ class TopicPartitionRouterTest {
                 .setMemberEpoch(1)
                 .setHeartbeatIntervalMs(5000);
 
-        var ctx = new SingleRouteInitCapturingContext(
-                "cluster-b", heartbeatResp, cgRouter);
-        ctx.withSubject(CG_SUBJECT);
+        var ctx = new CapturingRoutingContext(Map.of("cluster-b", heartbeatResp))
+                .withSubject(CG_SUBJECT);
 
         cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
                 new RequestHeaderData(), heartbeatReq, ctx);
 
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
         assertThat(ctx.sentResponseBody()).isNotNull();
         var respBody = (ConsumerGroupHeartbeatResponseData) ctx.sentResponseBody();
         assertThat(respBody.memberId()).isEqualTo("member-1");
@@ -1426,7 +1356,7 @@ class TopicPartitionRouterTest {
     }
 
     @Test
-    void shouldRejectCrossRouteOffsetsInGroupCommit() {
+    void shouldForwardOffsetCommitToSubjectRouteForCrossRouteTopics() {
         var cgRouter = createCgRouter("cluster-a");
 
         var commitReq = new OffsetCommitRequestData()
@@ -1440,17 +1370,15 @@ class TopicPartitionRouterTest {
                                 .setPartitionIndex(0)
                                 .setCommittedOffset(50))));
 
-        var ctx = new CapturingRoutingContext(Map.of())
+        var backendResp = new OffsetCommitResponseData();
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp))
                 .withSubject(CG_SUBJECT);
 
         cgRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT,
                 new RequestHeaderData(), commitReq, ctx);
 
-        assertThat(ctx.sentResponseBody).isNotNull();
-        var resp = (OffsetCommitResponseData) ctx.sentResponseBody;
-        assertThat(resp.topics()).hasSize(1);
-        assertThat(resp.topics().get(0).partitions().get(0).errorCode())
-                .isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
         cgRouter.close();
     }
 
@@ -1516,7 +1444,6 @@ class TopicPartitionRouterTest {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
         return new TopicPartitionRouter(table, "default-route",
-                Map.of(),
                 Map.of("cg-user", mappedRoute),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
@@ -1532,7 +1459,6 @@ class TopicPartitionRouterTest {
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
         return new TopicPartitionRouter(table, "default-route",
                 Map.of("txn-user", mappedRoute),
-                Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
                 Clock.systemUTC(), "testVc", "testRouter");
