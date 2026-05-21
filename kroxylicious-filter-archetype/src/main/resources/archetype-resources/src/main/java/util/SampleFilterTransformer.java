@@ -12,13 +12,17 @@ import ${package}.config.SampleFilterConfig;
 
 /**
  * A {@link RecordTransform} implementation used by the sample filters to perform find-and-replace
- * on the UTF-8 encoded value of each Kafka {@link Record}.
+ * on the UTF-8 encoded value of each Kafka {@link Record}. The transformed value is also prefixed
+ * with the name of the topic the record belongs to, demonstrating how a filter can incorporate
+ * topic-name-derived context into the record. Filters using a {@code SampleFilterTransformer}
+ * therefore need to resolve topic names from the topic ids carried in newer Kafka RPCs (see
+ * {@code FilterContext#topicNames}).
  *
  * <p>Instances are stateful and follow the {@link RecordTransform} lifecycle:
  * <ol>
  * <li>
  *     {@link SampleFilterTransformer#init} is called first to pre-compute the transformed value.
- *     This is where the find-and-replace occurs.
+ *     This is where the find-and-replace occurs and where the topic-name prefix is applied.
  * </li>
  * <li>
  *     {@code SampleFilterTransformer#transform*()} methods are then called to supply the fields
@@ -35,18 +39,23 @@ import ${package}.config.SampleFilterConfig;
  */
 public class SampleFilterTransformer implements RecordTransform<Void> {
 
+    private final String topicName;
     private final String findValue;
     private final String replacementValue;
     private ByteBuffer transformedValue;
 
     /**
      * Creates a transformer that replaces all occurrences of {@code findValue} with
-     * {@code replacementValue} in the UTF-8 encoded value of each Kafka {@link Record}.
+     * {@code replacementValue} in the UTF-8 encoded value of each Kafka {@link Record}, and
+     * prefixes the result with the topic name in square brackets, for example
+     * {@code "[my-topic] hello"}.
      *
+     * @param topicName the name of the topic the records belong to; prepended to the transformed value
      * @param findValue the regex pattern to search for in the record value
      * @param replacementValue the string to substitute for each match
      */
-    public SampleFilterTransformer(String findValue, String replacementValue) {
+    public SampleFilterTransformer(String topicName, String findValue, String replacementValue) {
+        this.topicName = topicName;
         this.findValue = findValue;
         this.replacementValue = replacementValue;
     }
@@ -60,9 +69,10 @@ public class SampleFilterTransformer implements RecordTransform<Void> {
 
     /**
      * Called once per record before any {@code transform*()} methods are invoked.
-     * Applies the find-and-replace to the record's value and caches the result so
-     * that {@link #transformValue(Record)} can be called repeatedly without repeating the work.
-     * Records with a {@code null} value are handled gracefully by storing {@code null}.
+     * Applies the find-and-replace to the record's value, prepends the topic name in
+     * square brackets, and caches the result so that {@link #transformValue(Record)}
+     * can be called repeatedly without repeating the work. Records with a {@code null}
+     * value are handled gracefully by storing {@code null}.
      *
      * @param state unused — this transformer requires no external state
      * @param record the record about to be transformed
@@ -72,7 +82,9 @@ public class SampleFilterTransformer implements RecordTransform<Void> {
         ByteBuffer value = record.value();
         if (value != null) {
             String original = StandardCharsets.UTF_8.decode(value.duplicate()).toString();
-            transformedValue = ByteBuffer.wrap(original.replaceAll(findValue, replacementValue).getBytes(StandardCharsets.UTF_8));
+            String replaced = original.replaceAll(findValue, replacementValue);
+            String prefixed = "[" + topicName + "] " + replaced;
+            transformedValue = ByteBuffer.wrap(prefixed.getBytes(StandardCharsets.UTF_8));
         }
         else {
             transformedValue = null;

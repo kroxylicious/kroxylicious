@@ -2,17 +2,17 @@ package ${package};
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
@@ -21,125 +21,126 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.testing.filter.assertj.MockFilterContextAssert;
+import io.kroxylicious.testing.filter.context.MockFilterContext;
 import ${package}.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+/**
+ * Unit tests for {@link SampleFetchResponseFilter}.
+ *
+ * <p>These tests use {@link MockFilterContext} — Kroxylicious's tested emulation of
+ * {@link io.kroxylicious.proxy.filter.FilterContext} — instead of building a Mockito mock by hand.
+ * That avoids reimplementing the {@code FilterContext} contract in every test and keeps the
+ * test code focused on filter behaviour.</p>
+ */
 class SampleFetchResponseFilterTest {
 
     private static final short API_VERSION = ApiMessageType.FETCH.highestSupportedVersion(true); // this is arbitrary for our filter
+    private static final String TOPIC_NAME = "my-topic";
+    private static final Uuid TOPIC_ID = new Uuid(7L, 7L);
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
-    private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
+    private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = "[" + TOPIC_NAME + "] this is what the value will be transformed to";
+    private static final String EXPECTED_NO_TRANSFORM_RECORD_VALUE = "[" + TOPIC_NAME + "] " + NO_TRANSFORM_VALUE;
     private static final String CONFIG_FIND_VALUE = "from";
     private static final String CONFIG_REPLACE_VALUE = "to";
-    @Mock
-    private FilterContext context;
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    private ResponseFilterResult responseFilterResult;
-    @Captor
-    private ArgumentCaptor<Integer> bufferInitialCapacity;
-
-    @Captor
-    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
-
-    @Captor
-    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
     private SampleFetchResponseFilter filter;
     private ResponseHeaderData headerData;
 
     @BeforeEach
     public void beforeEach() {
-        setupContextMock();
         SampleFilterConfig config = new SampleFilterConfig(CONFIG_FIND_VALUE, CONFIG_REPLACE_VALUE);
         this.filter = new SampleFetchResponseFilter(config);
         this.headerData = new ResponseHeaderData();
     }
 
     /**
-     * Unit Test: Checks that transformation is applied when response data contains configured value.
+     * Unit Test: Checks that the transformation is applied (find/replace + topic-name prefix) when the
+     * response carries the topic name directly.
      */
     @Test
-    void willTransformFetchResponseTest() throws Exception {
-        var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
+    void willTransformFetchResponseUsingTopicNameTest() {
+        var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE, topic -> topic.setTopic(TOPIC_NAME));
+        MockFilterContext context = MockFilterContext.builder(headerData, responseData).build();
+
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        assertThat(stage).isCompleted();
-        var response = stage.toCompletableFuture().get().message();
-        var unpackedResponse = unpackFetchResponseData(((FetchResponseData) response));
-        // We only put 1 record in, we should only get 1 record back, and
-        // We should see that the unpacked response value has changed from the input value, and
-        // We should see that the unpacked response value has been transformed to the correct value
-        assertThat(unpackedResponse)
-                .doesNotContain(PRE_TRANSFORM_VALUE)
-                .containsExactly(POST_TRANSFORM_VALUE);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(FetchResponseData.class, forwarded -> {
+                        var unpackedResponse = unpackFetchResponseData(forwarded);
+                        assertThat(unpackedResponse)
+                                .doesNotContain(PRE_TRANSFORM_VALUE)
+                                .containsExactly(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    });
+        });
     }
 
     /**
-     * Unit Test: Checks that transformation is not applied when response data does not contain configured
-     * value.
+     * Unit Test: Checks that the topic-name prefix is applied even when no find/replace match occurs.
      */
     @Test
-    void wontTransformFetchResponseTest() throws Exception {
-        var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
+    void wontTransformFetchResponseTest() {
+        var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE, topic -> topic.setTopic(TOPIC_NAME));
+        MockFilterContext context = MockFilterContext.builder(headerData, responseData).build();
+
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        assertThat(stage).isCompleted();
-        var response = stage.toCompletableFuture().get().message();
-        var unpackedResponse = unpackFetchResponseData((FetchResponseData) response);
-        // We only put 1 record in, we should only get 1 record back, and
-        // We should see that the unpacked response value has not changed from the input value
-        assertThat(unpackedResponse).containsExactly(NO_TRANSFORM_VALUE);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(FetchResponseData.class, forwarded -> {
+                        var unpackedResponse = unpackFetchResponseData(forwarded);
+                        assertThat(unpackedResponse).containsExactly(EXPECTED_NO_TRANSFORM_RECORD_VALUE);
+                    });
+        });
     }
 
     /**
-     * Unit Test: Checks that when a transformation is applied that the response record(s) metadata matches what was sent.
+     * Unit Test: Checks that when a transformation is applied, the response record(s) metadata
+     * (offset, timestamp, key, headers) is preserved.
      */
     @Test
-    void onTransformMetadataRetainedFetchResponseTest() throws Exception {
-        var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE);
+    void onTransformMetadataRetainedFetchResponseTest() {
+        var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE, topic -> topic.setTopic(TOPIC_NAME));
         var sent = responseData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+        MockFilterContext context = MockFilterContext.builder(headerData, responseData).build();
+
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        assertThat(stage).isCompleted();
-        var received = (FetchResponseData) stage.toCompletableFuture().get().message();
-        compareRecords(received, sent);
+
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(FetchResponseData.class, forwarded -> compareRecords(forwarded, sent));
+        });
     }
 
     /**
-     * Unit Test: Checks that when a transformation is not applied that the response record(s) metadata matches what was sent.
+     * Unit Test: Demonstrates the topic-id lookup pattern. The response carries only a {@code topicId}
+     * (the latest Fetch RPC behaviour) and the filter is expected to resolve the topic name via
+     * {@link io.kroxylicious.proxy.filter.FilterContext#topicNames} before applying its transformation.
      */
     @Test
-    void onNoTransformMetadataRetainedFetchResponseTest() throws Exception {
-        var responseData = buildFetchResponseData(NO_TRANSFORM_VALUE);
-        var sent = responseData.duplicate(); // due to pass-by-reference issues we need a safe copy to compare with
+    void willResolveTopicNameFromTopicIdTest() {
+        var responseData = buildFetchResponseData(PRE_TRANSFORM_VALUE, topic -> topic.setTopicId(TOPIC_ID));
+        MockFilterContext context = MockFilterContext.builder(headerData, responseData)
+                .withTopicName(TOPIC_ID, TOPIC_NAME)
+                .build();
+
         var stage = filter.onFetchResponse(API_VERSION, headerData, responseData, context);
-        assertThat(stage).isCompleted();
-        var received = (FetchResponseData) stage.toCompletableFuture().get().message();
-        compareRecords(received, sent);
-    }
 
-    private void setupContextMock() {
-        when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
-        when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
-        when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
-
-        when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
-                (Answer<ByteBufferOutputStream>) invocation -> {
-                    Object[] args = invocation.getArguments();
-                    Integer size = (Integer) args[0];
-                    return new ByteBufferOutputStream(size);
-                });
+        assertThat(stage).succeedsWithin(Duration.ZERO).satisfies(result -> {
+            MockFilterContextAssert.assertThat(result).isForwardResponse()
+                    .hasMessageInstanceOfSatisfying(FetchResponseData.class, forwarded -> {
+                        var unpackedResponse = unpackFetchResponseData(forwarded);
+                        // Value is both transformed (from→to) AND prefixed with the topic name resolved from the id
+                        assertThat(unpackedResponse)
+                                .doesNotContain(PRE_TRANSFORM_VALUE)
+                                .containsExactly(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                    });
+        });
     }
 
     /**
@@ -147,9 +148,11 @@ class SampleFetchResponseFilterTest {
      * the SampleFetchResponseFilter during the test, after which it will attempt to perform a
      * transformation on that string based on the provided configuration.
      * @param transformValue  the content to be embedded in the response and transformed (or not) in the test
+     * @param topicConfigurer applied to the synthesized topic response to set either {@code topic} or {@code topicId}
      * @return the FetchResponseData object to be passed to the SampleFetchResponseFilter during the test
      */
-    private static FetchResponseData buildFetchResponseData(String transformValue) {
+    private static FetchResponseData buildFetchResponseData(String transformValue,
+                                                            java.util.function.Consumer<FetchResponseData.FetchableTopicResponse> topicConfigurer) {
         var responseData = new FetchResponseData();
         // Build stream
         var stream = new ByteBufferOutputStream(ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)));
@@ -171,6 +174,7 @@ class SampleFetchResponseFilterTest {
         var responses = new ArrayList<FetchResponseData.FetchableTopicResponse>();
         var response = new FetchResponseData.FetchableTopicResponse();
         response.setPartitions(partitions);
+        topicConfigurer.accept(response);
         responses.add(response);
         // Add built responses to FetchResponseData object so that we can return it
         responseData.setResponses(responses);
