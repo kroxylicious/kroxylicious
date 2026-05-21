@@ -7,19 +7,14 @@ package io.kroxylicious.proxy.routing.topic.config;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Configuration for the topic-based router.
  *
- * @param defaultRoute route for topics matching no prefix, or null if unmatched topics should be rejected
- * @param topicRoutes per-route topic prefix assignments
- * @param transactionalUserRoutes mapping from authenticated username to route name for transaction routing,
- *                                or null if all transactions should use the default route
- * @param consumerGroupUserRoutes mapping from authenticated username to route name for consumer group
- *                                coordinator routing, or null if all consumer groups should use the default route
+ * @param defaultRoute route for topics matching no prefix or explicit name, or null if unmatched topics should be rejected
+ * @param routes per-route configuration defining topic ownership and subject-based routing
  * @param producerIdTtl time after last use before an idempotent producer's per-route ID mapping is evicted,
  *                      or null to use the default (7 days)
  * @param maxFetchSessionCacheSlots maximum number of concurrent client-side fetch sessions across all connections,
@@ -28,39 +23,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *                                or null to use the default (120 seconds)
  */
 public record TopicPartitionRouterConfig(@Nullable String defaultRoute,
-                                         List<TopicRoute> topicRoutes,
-                                         @Nullable Map<String, String> transactionalUserRoutes,
-                                         @Nullable Map<String, String> consumerGroupUserRoutes,
+                                         List<RouteConfig> routes,
                                          @Nullable Duration producerIdTtl,
                                          @Nullable Integer maxFetchSessionCacheSlots,
                                          @Nullable Duration minFetchSessionEviction) {
 
     public TopicPartitionRouterConfig(@Nullable String defaultRoute,
-                                      List<TopicRoute> topicRoutes) {
-        this(defaultRoute, topicRoutes, null, null, null, null, null);
-    }
-
-    public TopicPartitionRouterConfig(@Nullable String defaultRoute,
-                                      List<TopicRoute> topicRoutes,
-                                      @Nullable Duration producerIdTtl) {
-        this(defaultRoute, topicRoutes, null, null, producerIdTtl, null, null);
-    }
-
-    public TopicPartitionRouterConfig(@Nullable String defaultRoute,
-                                      List<TopicRoute> topicRoutes,
-                                      @Nullable Duration producerIdTtl,
-                                      @Nullable Integer maxFetchSessionCacheSlots,
-                                      @Nullable Duration minFetchSessionEviction) {
-        this(defaultRoute, topicRoutes, null, null, producerIdTtl, maxFetchSessionCacheSlots, minFetchSessionEviction);
-    }
-
-    public TopicPartitionRouterConfig(@Nullable String defaultRoute,
-                                      List<TopicRoute> topicRoutes,
-                                      @Nullable Map<String, String> transactionalUserRoutes,
-                                      @Nullable Duration producerIdTtl,
-                                      @Nullable Integer maxFetchSessionCacheSlots,
-                                      @Nullable Duration minFetchSessionEviction) {
-        this(defaultRoute, topicRoutes, transactionalUserRoutes, null,
-                producerIdTtl, maxFetchSessionCacheSlots, minFetchSessionEviction);
+                                      List<RouteConfig> routes) {
+        this(defaultRoute, routes, null, null, null);
     }
 }

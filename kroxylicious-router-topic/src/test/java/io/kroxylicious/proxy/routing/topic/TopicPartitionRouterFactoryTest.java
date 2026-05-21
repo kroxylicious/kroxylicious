@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.routing.RouterFactoryContext;
+import io.kroxylicious.proxy.routing.topic.config.RouteConfig;
 import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
-import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,8 +35,8 @@ class TopicPartitionRouterFactoryTest {
     @Test
     void shouldInitialiseWithTopicRoutes() {
         var config = new TopicPartitionRouterConfig("default-route", List.of(
-                new TopicRoute("cluster-a", List.of("orders.", "payments.")),
-                new TopicRoute("cluster-b", List.of("logs."))));
+                new RouteConfig("cluster-a", List.of("orders.", "payments.")),
+                new RouteConfig("cluster-b", List.of("logs."))));
 
         var initData = factory.initialize(context, config);
 
@@ -48,19 +48,47 @@ class TopicPartitionRouterFactoryTest {
     }
 
     @Test
+    void shouldInitialiseWithExplicitTopics() {
+        var config = new TopicPartitionRouterConfig("default-route", List.of(
+                new RouteConfig("cluster-a", List.of("orders."), null, null, null),
+                new RouteConfig("cluster-b", null, List.of("special-topic"), null, null)));
+
+        var initData = factory.initialize(context, config);
+
+        assertThat(initData.routingTable().allRoutes())
+                .containsExactlyInAnyOrder("cluster-a", "cluster-b", "default-route");
+        assertThat(initData.routingTable().routeForTopic("orders.uk")).isEqualTo("cluster-a");
+        assertThat(initData.routingTable().routeForTopic("special-topic")).isEqualTo("cluster-b");
+        assertThat(initData.routingTable().routeForTopic("unknown")).isEqualTo("default-route");
+    }
+
+    @Test
+    void shouldInitialiseWithSubjectRoutes() {
+        var config = new TopicPartitionRouterConfig("default-route", List.of(
+                new RouteConfig("cluster-a", List.of("a."), null, null, null),
+                new RouteConfig("cluster-b", List.of("b."), null,
+                        List.of("bob"), List.of("bob"))));
+
+        var initData = factory.initialize(context, config);
+
+        assertThat(initData.transactionalUserRoutes()).containsEntry("bob", "cluster-b");
+        assertThat(initData.consumerGroupUserRoutes()).containsEntry("bob", "cluster-b");
+    }
+
+    @Test
     void shouldRejectNoRoutesAndNoDefault() {
         var config = new TopicPartitionRouterConfig(null, List.of());
 
         assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
-                .hasMessageContaining("At least one topicRoute or a defaultRoute");
+                .hasMessageContaining("At least one route or a defaultRoute");
     }
 
     @Test
     void shouldRejectDuplicatePrefixOnDifferentRoutes() {
         var config = new TopicPartitionRouterConfig("default", List.of(
-                new TopicRoute("a", List.of("orders.")),
-                new TopicRoute("b", List.of("orders."))));
+                new RouteConfig("a", List.of("orders.")),
+                new RouteConfig("b", List.of("orders."))));
 
         assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(PluginConfigurationException.class)
@@ -71,8 +99,8 @@ class TopicPartitionRouterFactoryTest {
     @Test
     void shouldRejectOverlappingPrefixesOnDifferentRoutes() {
         var config = new TopicPartitionRouterConfig("default", List.of(
-                new TopicRoute("a", List.of("orders.")),
-                new TopicRoute("b", List.of("orders.uk."))));
+                new RouteConfig("a", List.of("orders.")),
+                new RouteConfig("b", List.of("orders.uk."))));
 
         assertThatThrownBy(() -> factory.initialize(context, config))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -80,9 +108,47 @@ class TopicPartitionRouterFactoryTest {
     }
 
     @Test
+    void shouldRejectDuplicateExplicitTopicOnDifferentRoutes() {
+        var config = new TopicPartitionRouterConfig("default", List.of(
+                new RouteConfig("a", null, List.of("my-topic"), null, null),
+                new RouteConfig("b", null, List.of("my-topic"), null, null)));
+
+        assertThatThrownBy(() -> factory.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("my-topic")
+                .hasMessageContaining("assigned to both");
+    }
+
+    @Test
+    void shouldRejectDuplicateTransactionalUserOnDifferentRoutes() {
+        var config = new TopicPartitionRouterConfig("default", List.of(
+                new RouteConfig("a", List.of("a."), null, List.of("bob"), null),
+                new RouteConfig("b", List.of("b."), null, List.of("bob"), null)));
+
+        assertThatThrownBy(() -> factory.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("bob")
+                .hasMessageContaining("transactionalUsers")
+                .hasMessageContaining("assigned to");
+    }
+
+    @Test
+    void shouldRejectDuplicateConsumerGroupUserOnDifferentRoutes() {
+        var config = new TopicPartitionRouterConfig("default", List.of(
+                new RouteConfig("a", List.of("a."), null, null, List.of("bob")),
+                new RouteConfig("b", List.of("b."), null, null, List.of("bob"))));
+
+        assertThatThrownBy(() -> factory.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("bob")
+                .hasMessageContaining("consumerGroupUsers")
+                .hasMessageContaining("assigned to");
+    }
+
+    @Test
     void shouldCreateRouter() {
         var config = new TopicPartitionRouterConfig("default-route", List.of(
-                new TopicRoute("cluster-a", List.of("orders."))));
+                new RouteConfig("cluster-a", List.of("orders."))));
 
         var initData = factory.initialize(context, config);
         var router = factory.createRouter(context, initData);
