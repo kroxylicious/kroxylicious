@@ -71,7 +71,7 @@ jobs:
 
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
-        uses: tspascoal/get-user-teams-membership@818140d631d5f29f26b151afbe4179f87d9ceb5e
+        uses: tspascoal/get-user-teams-membership@b2546c5affc730fd8e3d8483ae9ad3621938c2f9
         id: team-membership
         with:
           username: ${{ github.actor }}
