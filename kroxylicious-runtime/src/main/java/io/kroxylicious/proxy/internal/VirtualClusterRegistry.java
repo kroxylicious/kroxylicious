@@ -16,6 +16,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -40,6 +43,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * </p>
  */
 public class VirtualClusterRegistry {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterRegistry.class);
 
     private final List<VirtualClusterModel> virtualClusterModels;
     private final Map<String, VirtualClusterLifecycle> lifecyclesByCluster;
@@ -171,6 +176,69 @@ public class VirtualClusterRegistry {
     @VisibleForTesting
     Set<ProxyChannelStateMachine> activeConnectionsFor(String clusterName) {
         return requireKnownCluster(clusterName).activeConnections();
+    }
+
+    /**
+     * Drives an existing virtual cluster through {@code SERVING → DRAINING → STOPPED} and
+     * deregisters its gateways. Invoked by {@code ConfigurationReloadOrchestrator} for clusters
+     * present in the running configuration but absent in the submitted one.
+     *
+     * @param clusterName the virtual cluster to remove; must name an existing cluster
+     * @return a future that completes when the removal is finished (currently completes
+     *         immediately because no work is done)
+     */
+    public CompletableFuture<Void> removeVirtualCluster(String clusterName) {
+        // TODO: implement SERVING -> DRAINING -> STOPPED transition + gateway deregistration
+        // in the follow-up PR. This no-op exists so the orchestrator can be reviewed and
+        // tested for its pipeline structure ahead of the lifecycle work.
+        LOGGER.atWarn()
+                .addKeyValue("virtualCluster", clusterName)
+                .addKeyValue("operation", "removeVirtualCluster")
+                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Drives an existing virtual cluster through {@code SERVING → DRAINING → INITIALIZING → SERVING}
+     * with the supplied new model. Invoked by {@code ConfigurationReloadOrchestrator} for
+     * clusters whose configuration differs between the running and submitted configurations.
+     *
+     * <p>Named by its <em>intent</em> (apply {@code newModel} to the cluster identified by
+     * {@code clusterName}) rather than its implementation; a future iteration may implement
+     * replace more surgically (filter-chain swap on existing connections, rolling handoff)
+     * without changing the caller's interface.
+     *
+     * @param clusterName the virtual cluster to replace; must name an existing cluster
+     * @param newModel    the new model to apply
+     * @return a future that completes when the replacement is finished
+     */
+    public CompletableFuture<Void> replaceVirtualCluster(String clusterName, VirtualClusterModel newModel) {
+        // TODO: implement SERVING -> DRAINING -> [drain] -> [deregister] -> INITIALIZING ->
+        // [register] -> SERVING in the follow-up PR. See removeVirtualCluster Javadoc.
+        LOGGER.atWarn()
+                .addKeyValue("virtualCluster", clusterName)
+                .addKeyValue("operation", "replaceVirtualCluster")
+                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Brings a new virtual cluster up: creates a {@link VirtualClusterLifecycle} in
+     * {@code INITIALIZING}, registers its gateways, and transitions it to {@code SERVING}.
+     * Invoked by {@code ConfigurationReloadOrchestrator} for clusters absent in the running
+     * configuration but present in the submitted one.
+     *
+     * @param newModel the model for the new cluster
+     * @return a future that completes when the cluster is in {@code SERVING}
+     */
+    public CompletableFuture<Void> addVirtualCluster(VirtualClusterModel newModel) {
+        // TODO: implement [create lifecycle in INITIALIZING] -> [register gateways] -> SERVING
+        // in the follow-up PR. See removeVirtualCluster Javadoc.
+        LOGGER.atWarn()
+                .addKeyValue("virtualCluster", newModel.getClusterName())
+                .addKeyValue("operation", "addVirtualCluster")
+                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
+        return CompletableFuture.completedFuture(null);
     }
 
     private VirtualClusterLifecycle requireKnownCluster(String clusterName) {
