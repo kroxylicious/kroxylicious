@@ -67,8 +67,8 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory;
+import io.kroxylicious.proxy.routing.topic.config.RouteConfig;
 import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
-import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -560,11 +560,12 @@ class TransactionalProduceRoutingIT {
         var routerConfig = new TopicPartitionRouterConfig(
                 "route-a",
                 List.of(
-                        new TopicRoute("route-a", List.of("a.")),
-                        new TopicRoute("route-b", List.of("b."))),
-                transactionalUserRoutes.isEmpty() ? null : transactionalUserRoutes,
-                consumerGroupUserRoutes.isEmpty() ? null : consumerGroupUserRoutes,
-                null, null, null);
+                        new RouteConfig("route-a", List.of("a."), null,
+                                usersForRoute("route-a", transactionalUserRoutes),
+                                usersForRoute("route-a", consumerGroupUserRoutes)),
+                        new RouteConfig("route-b", List.of("b."), null,
+                                usersForRoute("route-b", transactionalUserRoutes),
+                                usersForRoute("route-b", consumerGroupUserRoutes))));
 
         var routerDef = new RouterDefinition("topic-router",
                 TopicPartitionRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
@@ -591,6 +592,15 @@ class TransactionalProduceRoutingIT {
                 .addToFilterDefinitions(saslFilter)
                 .addToDefaultFilters(saslFilter.name())
                 .addToVirtualClusters(vc);
+    }
+
+    private static List<String> usersForRoute(String route,
+                                              Map<String, String> userRoutes) {
+        var users = userRoutes.entrySet().stream()
+                .filter(e -> route.equals(e.getValue()))
+                .map(Map.Entry::getKey)
+                .toList();
+        return users.isEmpty() ? null : users;
     }
 
     private static Map<String, Object> saslProducerConfig(String bootstrap,

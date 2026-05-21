@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.routing.topic;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -58,29 +57,66 @@ public class TopicPartitionRouterFactory
     public InitData initialize(RouterFactoryContext context,
                                @NonNull TopicPartitionRouterConfig config)
             throws PluginConfigurationException {
-        if (config.topicRoutes() == null || config.topicRoutes().isEmpty()) {
-            if (config.defaultRoute() == null) {
-                throw new PluginConfigurationException(
-                        "At least one topicRoute or a defaultRoute must be configured");
-            }
+        if ((config.routes() == null || config.routes().isEmpty()) && config.defaultRoute() == null) {
+            throw new PluginConfigurationException(
+                    "At least one route or a defaultRoute must be configured");
         }
 
         Map<String, String> prefixToRoute = new LinkedHashMap<>();
-        if (config.topicRoutes() != null) {
-            for (var tr : config.topicRoutes()) {
-                for (var prefix : tr.topicPrefixes()) {
-                    String existing = prefixToRoute.put(prefix, tr.route());
-                    if (existing != null && !existing.equals(tr.route())) {
-                        throw new PluginConfigurationException(
-                                "Prefix '" + prefix + "' is assigned to both route '"
-                                        + existing + "' and '" + tr.route() + "'");
+        Map<String, String> topicToRoute = new LinkedHashMap<>();
+        Map<String, String> txnUserRoutes = new LinkedHashMap<>();
+        Map<String, String> cgUserRoutes = new LinkedHashMap<>();
+
+        if (config.routes() != null) {
+            for (var rc : config.routes()) {
+                if (rc.topicPrefixes() != null) {
+                    for (var prefix : rc.topicPrefixes()) {
+                        String existing = prefixToRoute.put(prefix, rc.name());
+                        if (existing != null && !existing.equals(rc.name())) {
+                            throw new PluginConfigurationException(
+                                    "Prefix '" + prefix + "' is assigned to both route '"
+                                            + existing + "' and '" + rc.name() + "'");
+                        }
+                    }
+                }
+
+                if (rc.topics() != null) {
+                    for (var topic : rc.topics()) {
+                        String existing = topicToRoute.put(topic, rc.name());
+                        if (existing != null && !existing.equals(rc.name())) {
+                            throw new PluginConfigurationException(
+                                    "Topic '" + topic + "' is assigned to both route '"
+                                            + existing + "' and '" + rc.name() + "'");
+                        }
+                    }
+                }
+
+                if (rc.transactionalUsers() != null) {
+                    for (var user : rc.transactionalUsers()) {
+                        String existing = txnUserRoutes.put(user, rc.name());
+                        if (existing != null && !existing.equals(rc.name())) {
+                            throw new PluginConfigurationException(
+                                    "User '" + user + "' is assigned to transactionalUsers on both route '"
+                                            + existing + "' and '" + rc.name() + "'");
+                        }
+                    }
+                }
+
+                if (rc.consumerGroupUsers() != null) {
+                    for (var user : rc.consumerGroupUsers()) {
+                        String existing = cgUserRoutes.put(user, rc.name());
+                        if (existing != null && !existing.equals(rc.name())) {
+                            throw new PluginConfigurationException(
+                                    "User '" + user + "' is assigned to consumerGroupUsers on both route '"
+                                            + existing + "' and '" + rc.name() + "'");
+                        }
                     }
                 }
             }
         }
 
         PrefixTopicRoutingTable routingTable = PrefixTopicRoutingTable.create(
-                prefixToRoute, config.defaultRoute());
+                prefixToRoute, topicToRoute, config.defaultRoute());
 
         var ttl = config.producerIdTtl() != null
                 ? config.producerIdTtl()
@@ -93,34 +129,14 @@ public class TopicPartitionRouterFactory
                 ? config.minFetchSessionEviction().toMillis()
                 : FetchSessionCache.DEFAULT_MIN_EVICTION_MS;
 
-        Map<String, String> txnUserRoutes = config.transactionalUserRoutes() != null
-                ? Map.copyOf(config.transactionalUserRoutes())
-                : Map.of();
-
-        Map<String, String> cgUserRoutes = config.consumerGroupUserRoutes() != null
-                ? Map.copyOf(config.consumerGroupUserRoutes())
-                : Map.of();
-
-        Set<String> allRouteNames = routingTable.allRoutes();
-        for (var entry : txnUserRoutes.entrySet()) {
-            if (!allRouteNames.contains(entry.getValue())) {
-                throw new PluginConfigurationException(
-                        "transactionalUserRoutes maps user '" + entry.getKey()
-                                + "' to unknown route '" + entry.getValue() + "'");
-            }
-        }
-        for (var entry : cgUserRoutes.entrySet()) {
-            if (!allRouteNames.contains(entry.getValue())) {
-                throw new PluginConfigurationException(
-                        "consumerGroupUserRoutes maps user '" + entry.getKey()
-                                + "' to unknown route '" + entry.getValue() + "'");
-            }
-        }
+        txnUserRoutes = Map.copyOf(txnUserRoutes);
+        cgUserRoutes = Map.copyOf(cgUserRoutes);
 
         LOGGER.atInfo()
                 .addKeyValue("defaultRoute", config.defaultRoute())
                 .addKeyValue("prefixCount", prefixToRoute.size())
-                .addKeyValue("routeCount", allRouteNames.size())
+                .addKeyValue("topicCount", topicToRoute.size())
+                .addKeyValue("routeCount", routingTable.allRoutes().size())
                 .addKeyValue("producerIdTtl", ttl)
                 .addKeyValue("maxFetchSessionCacheSlots", maxSlots)
                 .addKeyValue("minFetchSessionEvictionMs", evictionMs)

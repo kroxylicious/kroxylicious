@@ -85,10 +85,42 @@ class PrefixTopicRoutingTableTest {
     }
 
     @Test
+    void shouldMatchExplicitTopicBeforePrefix() {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"),
+                Map.of("orders.special", "cluster-b"),
+                null);
+
+        assertThat(table.routeForTopic("orders.special")).isEqualTo("cluster-b");
+        assertThat(table.routeForTopic("orders.other")).isEqualTo("cluster-a");
+    }
+
+    @Test
+    void shouldIncludeExplicitTopicRoutesInAllRoutes() {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"),
+                Map.of("special-topic", "cluster-b"),
+                null);
+
+        assertThat(table.allRoutes()).containsExactlyInAnyOrder("cluster-a", "cluster-b");
+    }
+
+    @Test
+    void shouldRouteExplicitTopicWithNoPrefixes() {
+        var table = PrefixTopicRoutingTable.create(
+                Map.of(),
+                Map.of("special-topic", "cluster-b"),
+                "fallback");
+
+        assertThat(table.routeForTopic("special-topic")).isEqualTo("cluster-b");
+        assertThat(table.routeForTopic("other")).isEqualTo("fallback");
+    }
+
+    @Test
     void shouldRejectEmptyPrefixesWithNoDefault() {
         assertThatThrownBy(() -> PrefixTopicRoutingTable.create(Map.of(), null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("At least one prefix or a default route");
+                .hasMessageContaining("At least one prefix");
     }
 
     @Test

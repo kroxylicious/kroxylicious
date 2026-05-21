@@ -42,8 +42,8 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory;
+import io.kroxylicious.proxy.routing.topic.config.RouteConfig;
 import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
-import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
@@ -145,8 +145,8 @@ abstract class TopicPartitionRoutingBaseIT {
         var routerConfig = new TopicPartitionRouterConfig(
                 "route-a",
                 List.of(
-                        new TopicRoute("route-a", List.of("a.")),
-                        new TopicRoute("route-b", List.of("b."))),
+                        new RouteConfig("route-a", List.of("a.")),
+                        new RouteConfig("route-b", List.of("b."))),
                 producerIdTtl,
                 maxFetchSessionCacheSlots,
                 minFetchSessionEviction);
