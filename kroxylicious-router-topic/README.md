@@ -20,28 +20,25 @@ Routing precedence: explicit topic name > prefix match > default route. An expli
 
 If a topic matches no explicit name, no prefix, and a default route is configured, the topic is routed there. If no default route is configured, the topic is unroutable and gets a synthetic error response (`UNKNOWN_TOPIC_OR_PARTITION`).
 
-### Subject-based routing
+### Subject-routed users
 
-Coordinator-dependent requests (transactions, consumer groups) are routed based on the authenticated user's identity. Each route can declare which users' transactions and consumer groups it owns. Users not explicitly assigned fall back to the default route.
+Each route can declare `subjects` — authenticated users whose coordinator-bound operations are locked to that route. A subject-routed user has all transactional, consumer group, and coordinator-discovery operations forwarded unconditionally to their assigned route. This avoids cross-cluster transactions and consumer groups entirely, relying on the client's own `FIND_COORDINATOR` flow and the proxy's bijective node ID mapping to reach the correct coordinator node.
 
-### Static vs dynamic routing
+Topic-addressed operations (PRODUCE, FETCH, etc.) still go through the normal leader-based routing handlers, but producer ID rewriting is skipped (a subject-routed user operates on a single backend, so one producer ID suffices).
 
-Most Kafka API keys are *statically routed* to the default route. The router only needs to inspect and decompose requests for API keys that contain topic or partition addressing:
+METADATA and admin operations (CREATE_TOPICS, DELETE_TOPICS, CREATE_PARTITIONS) still fan out across all routes, so subject-routed users can see all topics and receive informative errors if they attempt cross-route operations.
 
-| API key | Routing | Notes |
-|---|---|---|
-| API_VERSIONS | Dynamic | Intercepted for version capping |
-| PRODUCE | Dynamic | Fan-out by topic, producer ID rewriting |
-| INIT_PRODUCER_ID | Dynamic | Fanned out to all routes for ID mapping |
-| METADATA | Dynamic | Fan-out, broker union, phantom filtering |
-| FETCH | Dynamic | Fan-out by topic, bidirectional session management |
-| LIST_OFFSETS | Dynamic | Fan-out by topic |
-| OFFSET_COMMIT | Dynamic | Fan-out by topic |
-| CREATE_TOPICS | Dynamic | Fan-out by topic, assignment rejection |
-| DELETE_TOPICS | Dynamic | Fan-out by topic name (v0-5 wire format) |
-| CREATE_PARTITIONS | Dynamic | Fan-out by topic, assignment rejection |
-| DELETE_RECORDS | Dynamic | Fan-out by topic |
-| Everything else | Static | Forwarded to the default route unchanged |
+Users not listed as `subjects` on any route are non-subject-routed: their topic-addressed requests are decomposed across routes by topic name, and coordinator-bound requests go to the default route.
+
+### Routing modes
+
+Requests are handled in one of three ways depending on the API key and whether the authenticated user is subject-routed:
+
+**Static routing** — API keys not explicitly handled by the router are forwarded to the default route unchanged.
+
+**Subject-routed forwarding** — For subject-routed users, coordinator-bound API keys (FIND_COORDINATOR, INIT_PRODUCER_ID, ADD_PARTITIONS_TO_TXN, ADD_OFFSETS_TO_TXN, TXN_OFFSET_COMMIT, END_TXN, OFFSET_COMMIT, OFFSET_FETCH, CONSUMER_GROUP_HEARTBEAT, CONSUMER_GROUP_DESCRIBE) are forwarded directly to the user's assigned route without decomposition or coordinator discovery.
+
+**Dynamic decomposition** — Topic-addressed API keys (PRODUCE, FETCH, LIST_OFFSETS, METADATA, CREATE_TOPICS, DELETE_TOPICS, CREATE_PARTITIONS, DELETE_RECORDS, OFFSET_FOR_LEADER_EPOCH, DESCRIBE_CLUSTER) and API_VERSIONS are handled by dedicated per-API-key logic that may decompose the request by topic, fan out to multiple routes, and recompose the responses.
 
 ## Request decomposition
 
@@ -73,9 +70,9 @@ The router intercepts `API_VERSIONS` responses and applies these caps via `ApiVe
 
 ## Idempotent produce
 
-Kafka's idempotent producer uses a `producerId` and `producerEpoch` (allocated by `INIT_PRODUCER_ID`) to enable exactly-once semantics. These IDs are scoped to a single broker cluster. When topics span multiple backends, each backend must allocate its own producer ID.
+Kafka's idempotent producer uses a `producerId` and `producerEpoch` (allocated by `INIT_PRODUCER_ID`) to enable exactly-once semantics. These IDs are scoped to a single broker cluster. When a non-subject-routed user's topics span multiple backends, each backend must allocate its own producer ID.
 
-The router handles this with `ProducerIdManager`:
+The router handles this with `ProducerIdManager` (for non-subject-routed users only; subject-routed users operate on a single backend and need no ID rewriting):
 
 1. On `INIT_PRODUCER_ID`, the request is fanned out to all routes. Each backend allocates its own (producerId, epoch) pair.
 2. The client-visible ID (from the default route) is returned to the client. The per-route mappings are stored with TTL-based eviction (default 7 days, matching Kafka's `transactional.id.expiration.ms`).
@@ -144,7 +141,7 @@ router:
     minFetchSessionEviction: PT2M    # optional; default 120 seconds
 ```
 
-Subject-routed users have all coordinator-bound and data-plane operations (PRODUCE, FETCH, transactions, consumer groups, etc.) locked to their assigned route. Only METADATA and admin operations (CREATE_TOPICS, DELETE_TOPICS, etc.) still fan out across routes, so the user can see all topics and receive informative errors if they attempt cross-route operations.
+Subject-routed users have all coordinator-bound operations (transactions, consumer groups, coordinator discovery) forwarded to their assigned route. Topic-addressed operations still use leader-based routing within the subject's route. METADATA and admin operations fan out across all routes so the user can see all topics.
 
 ## Limitations and future work
 
