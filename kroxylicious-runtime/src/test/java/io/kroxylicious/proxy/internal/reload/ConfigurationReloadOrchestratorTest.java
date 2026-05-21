@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -35,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -201,35 +203,34 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     @Test
-    void noOpSuccessUpdatesCurrentConfigurationSoSubsequentDiffUsesNewBaseline() {
+    void noOpSuccessUpdatesCurrentConfigurationSoSubsequentChangeDetectionUsesNewBaseline() {
         // After a no-op reconfigure succeeds, currentConfiguration must advance to the
-        // submitted config — otherwise a subsequent reconfigure's static-section diff
-        // would compare against a stale baseline.
+        // submitted config — otherwise subsequent change detection would compare against
+        // a stale baseline.
         //
-        // Verified observationally: start with config-A (useIoUring=false), do a no-op
-        // reconfigure to config-A' (functionally identical), then submit config-B
-        // (useIoUring=true). If currentConfiguration was advanced, the static-section diff
-        // sees A' vs B → flags "useIoUring" and rejects. If currentConfiguration was NOT
-        // advanced, the diff still sees A vs B and reports the same rejection — the test
-        // can't distinguish those two cases that way. Instead use a config that's static-
-        // identical but differs in a reconcilable field: change cluster set between calls
-        // 1 and 2 (no-op-style equivalents), then assert call 3 with a static-section
-        // change is rejected.
-        var configA = configWith(vc("cluster-a"));
-        var configA2 = configWith(vc("cluster-a")); // structurally identical to configA
-        var configB = withDifferentUseIoUring(configA);
-        var orchestrator = newOrchestrator(configA, mock(VirtualClusterRegistry.class));
+        // Capture the ConfigurationChangeContext passed to the detector on each call and
+        // verify the second call's oldConfig is the config the first call SUBMITTED, not
+        // the orchestrator's original constructor-supplied config. Both configs here are
+        // structurally identical at the static-section level (so the static-section diff
+        // returns empty and the pipeline reaches change detection), but they are distinct
+        // object instances, so isSameAs distinguishes them.
+        var initialConfig = configWith(vc("cluster-a"));
+        var firstSubmittedConfig = configWith(vc("cluster-a")); // distinct instance, structurally identical
+        var capturingDetector = mock(ChangeDetector.class);
+        when(capturingDetector.detect(any())).thenReturn(ChangeResult.EMPTY);
 
-        // First reconfigure: configA → configA2 (no-op, success).
-        var first = orchestrator.reconfigure(configA2);
-        assertThat(first).isCompletedWithValueMatching(r -> !r.hasErrors());
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                initialConfig, mock(VirtualClusterRegistry.class),
+                mock(PluginFactoryRegistry.class), List.of(capturingDetector));
 
-        // Second reconfigure: now baseline is configA2. Submit configB (different
-        // useIoUring) — must be rejected by the static-section diff.
-        var second = orchestrator.reconfigure(configB);
-        assertThat(second).isCompletedExceptionally();
-        assertThatThrownBy(second::join).cause()
-                .isInstanceOf(StaticConfigurationChangedException.class);
+        orchestrator.reconfigure(firstSubmittedConfig).join();
+        orchestrator.reconfigure(firstSubmittedConfig).join();
+
+        var captor = ArgumentCaptor.forClass(ConfigurationChangeContext.class);
+        verify(capturingDetector, times(2)).detect(captor.capture());
+        var contexts = captor.getAllValues();
+        assertThat(contexts.get(0).oldConfig()).isSameAs(initialConfig);
+        assertThat(contexts.get(1).oldConfig()).isSameAs(firstSubmittedConfig);
     }
 
     @Test
