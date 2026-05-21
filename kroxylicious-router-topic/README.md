@@ -10,11 +10,17 @@ The router is plugged in as a `RouterFactory` via the Kroxylicious plugin system
 
 ## Routing model
 
-### Prefix-based topic ownership
+### Topic ownership
 
-Each route declares one or more topic name prefixes. `PrefixTopicRoutingTable` enforces that prefixes on different routes are disjoint (no prefix may be a prefix of another on a different route). Lookup is O(log n + k) via binary search over sorted prefixes.
+Each route declares topic ownership via prefixes, explicit topic names, or both. `PrefixTopicRoutingTable` enforces that prefixes on different routes are disjoint (no prefix may be a prefix of another on a different route), and that the same explicit topic name does not appear on multiple routes.
 
-If a topic matches no prefix and a default route is configured, the topic is routed there. If no default route is configured, the topic is unroutable and gets a synthetic error response (`UNKNOWN_TOPIC_OR_PARTITION`).
+Routing precedence: explicit topic name > prefix match > default route. An explicit name can override a prefix on a different route, allowing exceptions to broad prefix rules.
+
+If a topic matches no explicit name, no prefix, and a default route is configured, the topic is routed there. If no default route is configured, the topic is unroutable and gets a synthetic error response (`UNKNOWN_TOPIC_OR_PARTITION`).
+
+### Subject-based routing
+
+Coordinator-dependent requests (transactions, consumer groups) are routed based on the authenticated user's identity. Each route can declare which users' transactions and consumer groups it owns. Users not explicitly assigned fall back to the default route.
 
 ### Static vs dynamic routing
 
@@ -117,16 +123,21 @@ Rather than letting the backend reject these confusingly, the router detects the
 
 ## Configuration
 
+Each route defines what it owns: topic prefixes, explicit topic names, and subject-based routing for transactions and consumer groups.
+
 ```yaml
 router:
   type: TopicPartitionRouterFactory
   config:
     defaultRoute: cluster-a          # optional; route for unmatched topics
-    topicRoutes:
-      - route: cluster-a
+    routes:
+      - name: cluster-a
         topicPrefixes: ["orders.", "payments."]
-      - route: cluster-b
+      - name: cluster-b
         topicPrefixes: ["analytics.", "logs."]
+        topics: ["special-topic"]    # optional; explicit topic names
+        transactionalUsers: [bob]    # optional; subject-based txn routing
+        consumerGroupUsers: [bob]    # optional; subject-based group routing
     producerIdTtl: PT168H            # optional; default 7 days
     maxFetchSessionCacheSlots: 1000  # optional
     minFetchSessionEviction: PT2M    # optional; default 120 seconds
@@ -134,7 +145,7 @@ router:
 
 ## Limitations and future work
 
-- **Transactions**: Transactional produce and commit are not yet supported across routes. A transactional producer whose topics span multiple backends will not get correct exactly-once semantics.
-- **Consumer group coordination**: GROUP_COORDINATOR, JOIN_GROUP, SYNC_GROUP, HEARTBEAT, LEAVE_GROUP, and OFFSET_FETCH are not yet decomposed. Consumer groups whose subscriptions span routes will see incomplete behaviour.
+- **Cross-route transactions**: A transactional producer whose topics span multiple backends will not get correct exactly-once semantics. Subject-based routing ensures each user's transactions target a single backend.
+- **Cross-route consumer groups**: Consumer groups whose subscriptions span routes will see incomplete behaviour. Subject-based routing ensures each user's groups target a single backend.
 - **Single proxy instance**: There is no control plane for coordinating multiple proxy instances. Partition leadership is determined by the backends.
-- **No topic migration**: Once a topic is assigned to a route by prefix, it cannot be moved without reconfiguration and data migration.
+- **No topic migration**: Once a topic is assigned to a route by prefix or explicit name, it cannot be moved without reconfiguration and data migration.
