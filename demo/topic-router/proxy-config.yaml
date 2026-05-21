@@ -35,17 +35,17 @@ routerDefinitions:
     type: io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory
     config:
       defaultRoute: route-a
-      topicRoutes:
-        - route: route-a
+      routes:
+        - name: route-a
           topicPrefixes:
             - "a."
-        - route: route-b
+        - name: route-b
           topicPrefixes:
             - "b."
-      transactionalUserRoutes:
-        bob: route-b
-      consumerGroupUserRoutes:
-        bob: route-b
+          transactionalUsers:
+            - bob
+          consumerGroupUsers:
+            - bob
     routes:
       - name: route-a
         targetCluster: cluster-a
