@@ -63,7 +63,7 @@ public class KroxyliciousUtils {
     /**
      * Tls config from cert.
      *
-     * @param certName the cert nane
+     * @param certName the cert name
      * @return the tls
      */
     public static Tls tlsConfigFromCert(String certName) {
