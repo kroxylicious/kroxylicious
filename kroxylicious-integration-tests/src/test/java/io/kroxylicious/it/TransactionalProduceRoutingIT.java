@@ -31,7 +31,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
-import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
@@ -254,8 +253,7 @@ class TransactionalProduceRoutingIT {
             directProducer.send(new ProducerRecord<>(inputTopic, "k1", "input-val")).get(10, TimeUnit.SECONDS);
         }
 
-        var config = buildConfig(clusterA, clusterB,
-                Map.of("bob", "route-b"), Map.of("bob", "route-b"));
+        var config = buildConfig(clusterA, clusterB, Map.of("bob", "route-b"));
 
         try (var tester = kroxyliciousTester(config)) {
             var consumerConfig = new HashMap<String, Object>();
@@ -428,13 +426,13 @@ class TransactionalProduceRoutingIT {
                     .setProducerId(0L)
                     .setProducerEpoch((short) 0);
 
-            var response = client.getSync(new Request(ApiKeys.ADD_OFFSETS_TO_TXN, apiVersion,
+            client.getSync(new Request(ApiKeys.ADD_OFFSETS_TO_TXN, apiVersion,
                     "test-client", request));
-            var body = (AddOffsetsToTxnResponseData) response.payload().message();
-            assertThat(body.errorCode())
-                    .as("v%d should return COORDINATOR_NOT_AVAILABLE (no active transaction)", apiVersion)
-                    .isEqualTo(Errors.COORDINATOR_NOT_AVAILABLE.code());
         }
+
+        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.ADD_OFFSETS_TO_TXN))
+                .as("v%d ADD_OFFSETS_TO_TXN should route to route-b for bob", apiVersion)
+                .isNotEmpty();
     }
 
     static List<Arguments> txnOffsetCommitVersions() {
@@ -543,14 +541,7 @@ class TransactionalProduceRoutingIT {
 
     private ConfigurationBuilder buildConfig(KafkaCluster clusterA,
                                              KafkaCluster clusterB,
-                                             Map<String, String> transactionalUserRoutes) {
-        return buildConfig(clusterA, clusterB, transactionalUserRoutes, Map.of());
-    }
-
-    private ConfigurationBuilder buildConfig(KafkaCluster clusterA,
-                                             KafkaCluster clusterB,
-                                             Map<String, String> transactionalUserRoutes,
-                                             Map<String, String> consumerGroupUserRoutes) {
+                                             Map<String, String> subjectRoutes) {
         var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
@@ -561,11 +552,9 @@ class TransactionalProduceRoutingIT {
                 "route-a",
                 List.of(
                         new RouteConfig("route-a", List.of("a."), null,
-                                usersForRoute("route-a", transactionalUserRoutes),
-                                usersForRoute("route-a", consumerGroupUserRoutes)),
+                                subjectsForRoute("route-a", subjectRoutes)),
                         new RouteConfig("route-b", List.of("b."), null,
-                                usersForRoute("route-b", transactionalUserRoutes),
-                                usersForRoute("route-b", consumerGroupUserRoutes))));
+                                subjectsForRoute("route-b", subjectRoutes))));
 
         var routerDef = new RouterDefinition("topic-router",
                 TopicPartitionRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
@@ -594,13 +583,13 @@ class TransactionalProduceRoutingIT {
                 .addToVirtualClusters(vc);
     }
 
-    private static List<String> usersForRoute(String route,
-                                              Map<String, String> userRoutes) {
-        var users = userRoutes.entrySet().stream()
+    private static List<String> subjectsForRoute(String route,
+                                                 Map<String, String> subjectRoutes) {
+        var subjects = subjectRoutes.entrySet().stream()
                 .filter(e -> route.equals(e.getValue()))
                 .map(Map.Entry::getKey)
                 .toList();
-        return users.isEmpty() ? null : users;
+        return subjects.isEmpty() ? null : subjects;
     }
 
     private static Map<String, Object> saslProducerConfig(String bootstrap,

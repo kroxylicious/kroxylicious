@@ -1,6 +1,8 @@
 # kroxylicious-router-topic
 
-A `Router` implementation that presents a single Kroxylicious virtual cluster backed by multiple independent Kafka clusters, routing requests to the correct backend based on topic name ownership.
+A Proof of Concept `Router` implementation that presents a single Kroxylicious virtual cluster backed by multiple independent Kafka clusters, routing requests to the correct backend based on topic name ownership.
+
+See the [Limitations and future work](#limitations-and-future-work) at the end of this document.
 
 ## Overview
 
@@ -123,7 +125,7 @@ Rather than letting the backend reject these confusingly, the router detects the
 
 ## Configuration
 
-Each route defines what it owns: topic prefixes, explicit topic names, and subject-based routing for transactions and consumer groups.
+Each route defines what it owns: topic prefixes, explicit topic names, and subject-routed users.
 
 ```yaml
 router:
@@ -136,16 +138,22 @@ router:
       - name: cluster-b
         topicPrefixes: ["analytics.", "logs."]
         topics: ["special-topic"]    # optional; explicit topic names
-        transactionalUsers: [bob]    # optional; subject-based txn routing
-        consumerGroupUsers: [bob]    # optional; subject-based group routing
+        subjects: [bob]              # optional; subject-routed users
     producerIdTtl: PT168H            # optional; default 7 days
     maxFetchSessionCacheSlots: 1000  # optional
     minFetchSessionEviction: PT2M    # optional; default 120 seconds
 ```
 
+Subject-routed users have all coordinator-bound and data-plane operations (PRODUCE, FETCH, transactions, consumer groups, etc.) locked to their assigned route. Only METADATA and admin operations (CREATE_TOPICS, DELETE_TOPICS, etc.) still fan out across routes, so the user can see all topics and receive informative errors if they attempt cross-route operations.
+
 ## Limitations and future work
 
+- **Inadequate testing**: **DO NOT RELY ON THIS CODE IN ANY WAY WHATSOEVER**. Really, we mean it. It's not been reviewed. It's been only lightly tested, in very limited environments. 
+- **No classic consumer groups**: Only the "new" KIP-848 consumer group protocol is supported.
+- **No support topic ids**: We're capping API versions so a client cannot use a version the router doesn't support. That can prevent using more modern Kafka functionality.
 - **Cross-route transactions**: A transactional producer whose topics span multiple backends will not get correct exactly-once semantics. Subject-based routing ensures each user's transactions target a single backend.
 - **Cross-route consumer groups**: Consumer groups whose subscriptions span routes will see incomplete behaviour. Subject-based routing ensures each user's groups target a single backend.
-- **Single proxy instance**: There is no control plane for coordinating multiple proxy instances. Partition leadership is determined by the backends.
 - **No topic migration**: Once a topic is assigned to a route by prefix or explicit name, it cannot be moved without reconfiguration and data migration.
+- **Authentication termination required**: Because of the use of Subject-based routing the router requires a non-anonymous `Subject` to make routing decisions for transactional producers and consumer groups. Worse, most SASL mechanisms do not work with the fan-out concept. This means that SASL termination is more-or-less required.
+- **No support for new, or even newish, Kafka functionality**: Including Share Groups, Streams Groups and 2 Phase Commit.
+- **Impolite `FETCH` session closure**: We don't invalidate our session on the broker when our client disconnects, so it could consume resources until it expires.
