@@ -45,8 +45,7 @@ public class TopicPartitionRouterFactory
 
     record InitData(PrefixTopicRoutingTable routingTable,
                     @Nullable String defaultRoute,
-                    Map<String, String> transactionalUserRoutes,
-                    Map<String, String> consumerGroupUserRoutes,
+                    Map<String, String> subjectRoutes,
                     ProducerIdManager producerIdManager,
                     FetchSessionCache fetchSessionCache,
                     Clock clock,
@@ -64,8 +63,7 @@ public class TopicPartitionRouterFactory
 
         Map<String, String> prefixToRoute = new LinkedHashMap<>();
         Map<String, String> topicToRoute = new LinkedHashMap<>();
-        Map<String, String> txnUserRoutes = new LinkedHashMap<>();
-        Map<String, String> cgUserRoutes = new LinkedHashMap<>();
+        Map<String, String> subjectRoutes = new LinkedHashMap<>();
 
         if (config.routes() != null) {
             for (var rc : config.routes()) {
@@ -91,23 +89,12 @@ public class TopicPartitionRouterFactory
                     }
                 }
 
-                if (rc.transactionalUsers() != null) {
-                    for (var user : rc.transactionalUsers()) {
-                        String existing = txnUserRoutes.put(user, rc.name());
+                if (rc.subjects() != null) {
+                    for (var subject : rc.subjects()) {
+                        String existing = subjectRoutes.put(subject, rc.name());
                         if (existing != null && !existing.equals(rc.name())) {
                             throw new PluginConfigurationException(
-                                    "User '" + user + "' is assigned to transactionalUsers on both route '"
-                                            + existing + "' and '" + rc.name() + "'");
-                        }
-                    }
-                }
-
-                if (rc.consumerGroupUsers() != null) {
-                    for (var user : rc.consumerGroupUsers()) {
-                        String existing = cgUserRoutes.put(user, rc.name());
-                        if (existing != null && !existing.equals(rc.name())) {
-                            throw new PluginConfigurationException(
-                                    "User '" + user + "' is assigned to consumerGroupUsers on both route '"
+                                    "Subject '" + subject + "' is assigned to both route '"
                                             + existing + "' and '" + rc.name() + "'");
                         }
                     }
@@ -129,8 +116,7 @@ public class TopicPartitionRouterFactory
                 ? config.minFetchSessionEviction().toMillis()
                 : FetchSessionCache.DEFAULT_MIN_EVICTION_MS;
 
-        txnUserRoutes = Map.copyOf(txnUserRoutes);
-        cgUserRoutes = Map.copyOf(cgUserRoutes);
+        subjectRoutes = Map.copyOf(subjectRoutes);
 
         LOGGER.atInfo()
                 .addKeyValue("defaultRoute", config.defaultRoute())
@@ -140,8 +126,7 @@ public class TopicPartitionRouterFactory
                 .addKeyValue("producerIdTtl", ttl)
                 .addKeyValue("maxFetchSessionCacheSlots", maxSlots)
                 .addKeyValue("minFetchSessionEvictionMs", evictionMs)
-                .addKeyValue("transactionalUserRouteCount", txnUserRoutes.size())
-                .addKeyValue("consumerGroupUserRouteCount", cgUserRoutes.size())
+                .addKeyValue("subjectRouteCount", subjectRoutes.size())
                 .log("Topic routing table initialised");
 
         Clock clock = clockOverride.get();
@@ -150,8 +135,7 @@ public class TopicPartitionRouterFactory
         }
 
         return new InitData(routingTable, config.defaultRoute(),
-                txnUserRoutes,
-                cgUserRoutes,
+                subjectRoutes,
                 new ProducerIdManager(ttl),
                 new FetchSessionCache(maxSlots, evictionMs,
                         context.virtualClusterName(), context.routerName()),
@@ -166,8 +150,7 @@ public class TopicPartitionRouterFactory
         return new TopicPartitionRouter(
                 initData.routingTable(),
                 initData.defaultRoute(),
-                initData.transactionalUserRoutes(),
-                initData.consumerGroupUserRoutes(),
+                initData.subjectRoutes(),
                 initData.producerIdManager(),
                 initData.fetchSessionCache(),
                 initData.clock(),
