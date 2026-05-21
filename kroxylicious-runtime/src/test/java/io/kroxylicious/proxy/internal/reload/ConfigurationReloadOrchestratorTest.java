@@ -33,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -96,16 +95,18 @@ class ConfigurationReloadOrchestratorTest {
         // then
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
-        // The orchestrator invoked the addVirtualCluster stub for the new cluster before the
-        // swap-point throw. The other two ops are not called when there's only an addition.
-        verify(registry).addVirtualCluster(any());
+
+        verify(registry, never()).addVirtualCluster(any());
         verify(registry, never()).removeVirtualCluster(anyString());
         verify(registry, never()).replaceVirtualCluster(anyString(), any());
     }
 
     @Test
-    void clusterRemovalInvokesRemoveNoOpThenThrows() {
-        // given — old has cluster-a + cluster-b, new has only cluster-a → cluster-b removed
+    void pureRemoveCompletesSuccessfully() {
+        // given — old has cluster-a + cluster-b, new has only cluster-a → cluster-b removed.
+        // This is a pure-remove reconfigure: step 1 of the hot-reload staircase supports it
+        // end-to-end and the orchestrator returns a clean ReconfigureResult rather than
+        // throwing the placeholder UOE.
         var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"));
         var newConfig = configWith(vc("cluster-a"));
         var registry = stubbedRegistry();
@@ -115,8 +116,7 @@ class ConfigurationReloadOrchestratorTest {
         var future = orchestrator.reconfigure(newConfig);
 
         // then
-        assertThat(future).isCompletedExceptionally();
-        assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
+        assertThat(future).isCompletedWithValueMatching(r -> !r.hasErrors());
         verify(registry).removeVirtualCluster("cluster-b");
         verify(registry, never()).addVirtualCluster(any());
         verify(registry, never()).replaceVirtualCluster(anyString(), any());
@@ -149,19 +149,18 @@ class ConfigurationReloadOrchestratorTest {
         // Hold the reconfigure lock by blocking inside a registry no-op invocation. While the
         // first reconfigure is parked there, a second call from another thread must fail fast
         // with ConcurrentReconfigureException.
-        var oldConfig = configWith(vc("cluster-a"));
+        var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"));
         var newConfig = configWith(vc("cluster-b"));
         var registry = mock(VirtualClusterRegistry.class);
 
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
-        // removeVirtualCluster will be called for cluster-a — block there.
+        // removeVirtualCluster will be called for cluster-b — block there.
         when(registry.removeVirtualCluster(anyString())).thenAnswer(inv -> {
             entered.countDown();
             release.await();
             return CompletableFuture.completedFuture(null);
         });
-        when(registry.addVirtualCluster(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 
@@ -243,8 +242,8 @@ class ConfigurationReloadOrchestratorTest {
         var customDetector = mock(ChangeDetector.class);
         when(customDetector.detect(any())).thenReturn(new ChangeResult(
                 Set.of(), // clustersToAdd
-                Set.of(), // clustersToRemove
-                Set.of("cluster-a"))); // clustersToModify
+                Set.of("cluster-a"), // clustersToRemove
+                Set.of())); // clustersToModify
 
         var registry = stubbedRegistry();
         var orchestrator = new ConfigurationReloadOrchestrator(
@@ -255,13 +254,94 @@ class ConfigurationReloadOrchestratorTest {
 
         // then — the orchestrator consulted the injected detector and acted on its verdict.
         verify(customDetector).detect(any());
-        verify(registry).replaceVirtualCluster(eq("cluster-a"), any());
-        verify(registry, never()).removeVirtualCluster(anyString());
+        verify(registry).removeVirtualCluster("cluster-a");
+        verify(registry, never()).replaceVirtualCluster(anyString(), any());
         verify(registry, never()).addVirtualCluster(any());
 
-        // The pipeline still reaches the swap-point placeholder.
+        // Pure-remove reconfigure: orchestrator completes successfully.
+        assertThat(future).isCompletedWithValueMatching(r -> !r.hasErrors());
+    }
+
+    @Test
+    void mixedReconfigureWithRemoveAndAddIsRejectedUpfront() {
+        // A reconfigure that BOTH removes and adds clusters is a mixed result. Step 1 of the
+        // staircase rejects this upfront with UOE rather than processing the removes and then
+        // throwing for the adds (which would leave the proxy in a partial-state outcome).
+        var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"));
+        var newConfig = configWith(vc("cluster-a"), vc("cluster-c")); // removes cluster-b, adds cluster-c
+        var registry = stubbedRegistry();
+        var orchestrator = newOrchestrator(oldConfig, registry);
+
+        var future = orchestrator.reconfigure(newConfig);
+
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
+        // No registry methods invoked — rejection happens before the per-VC loop.
+        verify(registry, never()).removeVirtualCluster(anyString());
+        verify(registry, never()).addVirtualCluster(any());
+        verify(registry, never()).replaceVirtualCluster(anyString(), any());
+    }
+
+    @Test
+    void perClusterRemoveFailureSurfacesAsReconfigureErrorAndOthersStillRun() {
+        // Two clusters are being removed. The registry's removeVirtualCluster for one of them
+        // returns a failed future; the other returns a completed future. The orchestrator must:
+        // (a) still attempt the second removal (failure of one does not abort the loop);
+        // (b) surface the failure as a per-cluster ReconfigureError in the result;
+        // (c) return a successful future overall (ReconfigureResult conveys partial failure).
+        var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"), vc("cluster-c"));
+        var newConfig = configWith(vc("cluster-a")); // removes cluster-b AND cluster-c
+
+        var registry = mock(VirtualClusterRegistry.class);
+        var bSpecificFailure = new IllegalStateException("simulated drain failure on cluster-b");
+        when(registry.removeVirtualCluster("cluster-b"))
+                .thenReturn(CompletableFuture.failedFuture(bSpecificFailure));
+        when(registry.removeVirtualCluster("cluster-c"))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        var orchestrator = newOrchestrator(oldConfig, registry);
+
+        var future = orchestrator.reconfigure(newConfig);
+
+        // Both removals attempted.
+        verify(registry).removeVirtualCluster("cluster-b");
+        verify(registry).removeVirtualCluster("cluster-c");
+
+        // Future succeeds (with errors inside the result), not exceptional.
+        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
+                && r.errors().size() == 1
+                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-b")
+                && r.errors().iterator().next().cause() == bSpecificFailure);
+    }
+
+    @Test
+    void pureRemoveAdvancesCurrentConfigurationOnSuccess() {
+        // After a successful pure-remove, currentConfiguration should advance to the submitted
+        // value so subsequent reconfigures use the new baseline. Verified via the captured
+        // ConfigurationChangeContext on the detector's subsequent invocation.
+        var initialConfig = configWith(vc("cluster-a"), vc("cluster-b"));
+        var afterRemove = configWith(vc("cluster-a")); // removes cluster-b
+        var capturingDetector = mock(ChangeDetector.class);
+        // First call: report cluster-b as removed.
+        // Second call: report no changes (we're submitting afterRemove again).
+        when(capturingDetector.detect(any())).thenReturn(
+                new ChangeResult(Set.of(), Set.of("cluster-b"), Set.of()),
+                ChangeResult.EMPTY);
+
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                initialConfig, stubbedRegistry(), mock(PluginFactoryRegistry.class), List.of(capturingDetector));
+
+        orchestrator.reconfigure(afterRemove).join();
+        orchestrator.reconfigure(afterRemove).join();
+
+        var captor = ArgumentCaptor.forClass(ConfigurationChangeContext.class);
+        verify(capturingDetector, times(2)).detect(captor.capture());
+        var contexts = captor.getAllValues();
+        // First call's oldConfig is the constructor-supplied one.
+        assertThat(contexts.get(0).oldConfig()).isSameAs(initialConfig);
+        // Second call's oldConfig must be the previously-submitted config, proving the
+        // baseline advanced through the pure-remove path (not just the no-op early return).
+        assertThat(contexts.get(1).oldConfig()).isSameAs(afterRemove);
     }
 
     // -------- fixture helpers --------
