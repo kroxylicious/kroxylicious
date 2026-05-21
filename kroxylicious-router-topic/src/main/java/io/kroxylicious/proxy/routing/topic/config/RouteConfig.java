@@ -15,17 +15,17 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param name the route name (must match a route defined in the router's {@code routes} section)
  * @param topicPrefixes topic name prefixes assigned to this route, or null if none
  * @param topics explicit topic names assigned to this route, or null if none
- * @param transactionalUsers authenticated usernames whose transactions route here, or null if none
- * @param consumerGroupUsers authenticated usernames whose consumer groups route here, or null if none
+ * @param subjects authenticated usernames that are subject-routed to this route, or null if none.
+ *                 Subject-routed users have all their coordinator-bound and data-plane operations
+ *                 locked to this route (except METADATA and admin operations which still fan out).
  */
 public record RouteConfig(String name,
                           @Nullable List<String> topicPrefixes,
                           @Nullable List<String> topics,
-                          @Nullable List<String> transactionalUsers,
-                          @Nullable List<String> consumerGroupUsers) {
+                          @Nullable List<String> subjects) {
 
     public RouteConfig(String name,
                        @Nullable List<String> topicPrefixes) {
-        this(name, topicPrefixes, null, null, null);
+        this(name, topicPrefixes, null, null);
     }
 }
