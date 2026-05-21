@@ -45,6 +45,7 @@ import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.codec.ByteBufAccessorImpl;
 import io.kroxylicious.testing.integration.codec.OpaqueRequestFrame;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -54,7 +55,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.newBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -136,7 +136,7 @@ public class ApiVersionsDowngradeIT {
         var testConfigEnabled = Features.builder().enable(Feature.TEST_ONLY_CONFIGURATION).build();
         var proxy = proxy(cluster)
                 .withDevelopment(Map.of("apiKeyIdMaxVersionOverride", Map.of(ApiKeys.API_VERSIONS.name(), apiVersion)));
-        try (var tester = newBuilder(proxy).setFeatures(testConfigEnabled).createDefaultKroxyliciousTester();
+        try (var tester = KroxyliciousTesters.newBuilder(proxy).setFeatures(testConfigEnabled).createDefaultKroxyliciousTester();
                 var admin = tester.admin(clientSecurityProtocolConfig)) {
             // We've got no way to observe the actual version of the API versions request that is used during _negotiation_
             // so we make do with asserting the connection is usable.
@@ -188,7 +188,7 @@ public class ApiVersionsDowngradeIT {
             var testConfigEnabled = Features.builder().enable(Feature.TEST_ONLY_CONFIGURATION).build();
             var proxy = proxy("localhost:9092")
                     .withDevelopment(Map.of("apiKeyIdMaxVersionOverride", Map.of(ApiKeys.API_VERSIONS.name(), proxyApiVersion)));
-            try (var tester = newBuilder(proxy).setFeatures(testConfigEnabled).createDefaultKroxyliciousTester();
+            try (var tester = KroxyliciousTesters.newBuilder(proxy).setFeatures(testConfigEnabled).createDefaultKroxyliciousTester();
                     var admin = tester.admin()) {
                 // We've got no way to observe the actual version of the API versions request that is used during _negotiation_
                 // so we make do with asserting the connection is usable.

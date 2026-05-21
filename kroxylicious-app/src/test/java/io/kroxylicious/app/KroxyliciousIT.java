@@ -34,12 +34,12 @@ import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.newBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -89,7 +89,7 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
+        try (var tester = KroxyliciousTesters.newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
                 .setKroxyliciousFactory(new SubprocessKroxyliciousFactory(tempDir))
                 .setFeatures(Features.builder().enable(Feature.TEST_ONLY_CONFIGURATION).build())
                 .createDefaultKroxyliciousTester();
@@ -107,7 +107,7 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
+        try (var tester = KroxyliciousTesters.newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
                 .setKroxyliciousFactory(new SubprocessKroxyliciousFactory(tempDir, (features, processBuilder) -> processBuilder.inheritIO(),
                         List.of("-D" + prefixUnlockPropertyName(Feature.TEST_ONLY_CONFIGURATION) + "=true")))
                 .createDefaultKroxyliciousTester();
