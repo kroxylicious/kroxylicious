@@ -18,9 +18,9 @@ fi
 # Default chunk size
 TESTS_PER_CHUNK=${1:-15}
 
-# Discover ITs from all modules, format as "module:TestClass"
+# Discover ITs and KTs from all modules, format as "module:TestClass"
 # Exclude target dirs and archetype template resources
-TEST_LIST=$(find . -type f -name "*IT.java" \
+TEST_LIST=$(find . -type f \( -name "*IT.java" -o -name "*KT.java" \) \
   -not -path "*/target/*" \
   -not -path "*/archetype-resources/*" \
   | while read -r file; do
