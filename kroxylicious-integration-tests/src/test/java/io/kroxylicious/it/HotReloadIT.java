@@ -139,9 +139,7 @@ class HotReloadIT extends BaseIT {
 
     // Per-record produce: batch.size=1 + linger.ms=0 forces the producer to issue one
     // ProduceRequest per record rather than coalescing records into a single batched
-    // request. Without this, sending 50-100 small records in a tight loop yields just
-    // 1-3 batched requests — which exercises far less of the proxy's request-handling
-    // path than the variable name "messageCount" would imply.
+    // request.
     private static final Map<String, Object> PER_RECORD_PRODUCER_CONFIG = Map.of(
             ProducerConfig.BATCH_SIZE_CONFIG, 1,
             ProducerConfig.LINGER_MS_CONFIG, 0,
