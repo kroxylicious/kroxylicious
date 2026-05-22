@@ -137,18 +137,34 @@ class HotReloadIT extends BaseIT {
                 .build();
     }
 
+    // Per-record produce: batch.size=1 + linger.ms=0 forces the producer to issue one
+    // ProduceRequest per record rather than coalescing records into a single batched
+    // request. Without this, sending 50-100 small records in a tight loop yields just
+    // 1-3 batched requests — which exercises far less of the proxy's request-handling
+    // path than the variable name "messageCount" would imply.
+    private static final Map<String, Object> PER_RECORD_PRODUCER_CONFIG = Map.of(
+            ProducerConfig.BATCH_SIZE_CONFIG, 1,
+            ProducerConfig.LINGER_MS_CONFIG, 0,
+            ProducerConfig.ACKS_CONFIG, "all");
+
     /**
-     * Produce a random batch of records (50-100) via {@code tester.producer(vc)}, then
-     * consume them back via {@code tester.consumer(vc)}. Records are keyed
+     * Produce a random number of records (50-100) via {@code tester.producer(vc)}
+     * configured with {@code batch.size=1, linger.ms=0} so each record results in its
+     * own {@code ProduceRequest} — the proxy sees N round-trips rather than one batched
+     * request. Then consume them back via {@code tester.consumer(vc)}. Records are keyed
      * {@code marker-0}..{@code marker-N-1} so the consumer can isolate this round-trip's
      * records from earlier phases' records that share the same topic.
+     *
+     * <p>Asserts the consumer observes exactly {@code N} unique keys carrying this call's
+     * {@code marker} — proving the full proxy I/O round-trip is working and that no
+     * records are dropped mid-stream across many independent produce requests.
      */
     private static void assertProduceConsumeRoundTrip(KroxyliciousTester tester, String vc, String topic, String marker) throws Exception {
         int messageCount = ThreadLocalRandom.current().nextInt(50, 101);
-        LOGGER.info("Producing {} records via VC '{}' (marker='{}')", messageCount, vc, marker);
+        LOGGER.info("Producing {} records via VC '{}' (marker='{}') with per-record requests", messageCount, vc, marker);
 
         var sendFutures = new ArrayList<Future<RecordMetadata>>(messageCount);
-        try (var producer = tester.producer(vc)) {
+        try (var producer = tester.producer(vc, PER_RECORD_PRODUCER_CONFIG)) {
             for (int i = 0; i < messageCount; i++) {
                 sendFutures.add(producer.send(new ProducerRecord<>(topic, marker + "-" + i, marker + "-value-" + i)));
             }
