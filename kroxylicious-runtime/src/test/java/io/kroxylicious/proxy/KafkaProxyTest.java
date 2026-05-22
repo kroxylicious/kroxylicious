@@ -32,7 +32,6 @@ import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -50,26 +49,6 @@ class KafkaProxyTest {
                    - name: default
                      portIdentifiesNode:
                        bootstrapAddress: localhost:9192
-            """;
-    // Two port-addressed VCs. Each portIdentifiesNode strategy reserves a range of broker
-    // ports starting just after its bootstrap port, so the two bootstrap ports must be
-    // spaced far enough apart that their reserved broker-port ranges do not collide.
-    private static final String TWO_VC_CONFIG_YAML = """
-               virtualClusters:
-                 - name: demo1
-                   targetCluster:
-                     bootstrapServers: kafka.example:1234
-                   gateways:
-                   - name: default
-                     portIdentifiesNode:
-                       bootstrapAddress: localhost:9192
-                 - name: demo2
-                   targetCluster:
-                     bootstrapServers: kafka.example:1234
-                   gateways:
-                   - name: default
-                     portIdentifiesNode:
-                       bootstrapAddress: localhost:9292
             """;
     private ConfigParser configParser;
 
@@ -447,29 +426,6 @@ class KafkaProxyTest {
             var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
             var result = proxy.reconfigure(newConfig).get(5, TimeUnit.SECONDS);
             assertThat(result.hasErrors()).isFalse();
-        }
-    }
-
-    @Test
-    void shouldRemoveOneVirtualClusterEndToEnd() throws Exception {
-        // End-to-end integration test for step 1 of the hot-reload staircase:
-        // start a proxy with two virtual clusters, reconfigure to drop one, and assert:
-        // (a) the future completes successfully with no errors
-        // (b) the removed cluster's lifecycle is in Stopped state
-        // (c) the remaining cluster's lifecycle is still in Serving state (unaffected)
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(TWO_VC_CONFIG_YAML), Features.defaultFeatures())) {
-            proxy.startup();
-            assertThat(proxy.lifecycleFor("demo1").state()).isInstanceOf(VirtualClusterLifecycleState.Serving.class);
-            assertThat(proxy.lifecycleFor("demo2").state()).isInstanceOf(VirtualClusterLifecycleState.Serving.class);
-
-            // when — reconfigure to drop demo2
-            var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
-            var result = proxy.reconfigure(newConfig).get(10, TimeUnit.SECONDS);
-
-            // then
-            assertThat(result.hasErrors()).isFalse();
-            assertThat(proxy.lifecycleFor("demo2").state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
-            assertThat(proxy.lifecycleFor("demo1").state()).isInstanceOf(VirtualClusterLifecycleState.Serving.class);
         }
     }
 

@@ -649,6 +649,24 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
+    void removeVirtualClusterLeavesOtherClustersUnaffected() {
+        // given — two serving clusters in one registry
+        var registry = new VirtualClusterRegistry(
+                List.of(mockModel(CLUSTER_A), mockModel(CLUSTER_B)), noOpCallback);
+        registry.initializationSucceeded(CLUSTER_A);
+        registry.initializationSucceeded(CLUSTER_B);
+
+        // when — remove only CLUSTER_B
+        registry.removeVirtualCluster(CLUSTER_B).join();
+
+        // then — CLUSTER_B reaches Stopped, CLUSTER_A stays in Serving
+        assertThat(registry.lifecycleFor(CLUSTER_B).state())
+                .isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
+        assertThat(registry.lifecycleFor(CLUSTER_A).state())
+                .isInstanceOf(VirtualClusterLifecycleState.Serving.class);
+    }
+
+    @Test
     void removeVirtualClusterFiresOnStoppedCallback() {
         // given
         vcc.initializationSucceeded(CLUSTER_A);
