@@ -15,6 +15,10 @@ spec:
     {{- if .Values.kafka.version }}
     version: {{ .Values.kafka.version }}
     {{- end }}
+    {{- if .Values.kafka.metrics.enabled }}
+    metricsConfig:
+      type: strimziMetricsReporter
+    {{- end }}
     listeners:
       - name: plain
         port: 9092
