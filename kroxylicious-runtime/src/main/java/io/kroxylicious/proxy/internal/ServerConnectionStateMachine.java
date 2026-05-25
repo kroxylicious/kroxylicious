@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -50,7 +51,8 @@ class ServerConnectionStateMachine {
     private boolean serverReadsBlocked;
 
     @Nullable
-    private Timer.Sample serverBackpressureTimer;
+    @VisibleForTesting
+    Timer.Sample serverBackpressureTimer;
 
     private final Counter proxyToServerErrorCounter;
     private final Timer serverToProxyBackpressureMeter;

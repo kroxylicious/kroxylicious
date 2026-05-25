@@ -387,7 +387,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         method.invoke(handler, remote, channel, pipeline);
 
         // Then
-        verify(clientChannelStateMachine).onServerConnectionException(failure);
+        verify(clientChannelStateMachine).notifyServerConnectionException(failure);
     }
 
     @Test
@@ -410,7 +410,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).onServerConnectionException(captor.capture());
+        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -436,7 +436,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).onServerConnectionException(captor.capture());
+        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to obtain TLS credentials")
@@ -455,7 +455,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).onServerConnectionException(captor.capture());
+        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("TLS credential supplier returned null");
@@ -474,7 +474,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).onServerConnectionException(captor.capture());
+        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -493,7 +493,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then - should report error to state machine
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).onServerConnectionException(captor.capture());
+        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -518,7 +518,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then - SSL handler should be added to pipeline
         assertThat(channel.pipeline().get("ssl")).isNotNull();
-        verify(clientChannelStateMachine, never()).onServerConnectionException(any());
+        verify(clientChannelStateMachine, never()).notifyServerConnectionException(any());
 
         channel.close();
     }
