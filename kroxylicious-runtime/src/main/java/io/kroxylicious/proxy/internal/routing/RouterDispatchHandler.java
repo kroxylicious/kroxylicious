@@ -151,7 +151,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             responseSequencer = new ResponseSequencer(ctx.channel());
         }
 
-        var routingContext = new RoutingContextImpl(
+        var routingContext = new RouterContextImpl(
                 frame,
                 ctx.channel(),
                 ccsm.sessionId(),
