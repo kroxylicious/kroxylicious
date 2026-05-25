@@ -271,11 +271,11 @@ class TopicPartitionRouter implements Router {
 
     @Override
     public CompletionStage<RouterResult> onClientRequest(
-                                                          short apiVersion,
-                                                          ApiKeys apiKey,
-                                                          RequestHeaderData header,
-                                                          ApiMessage request,
-                                                          RouterContext context) {
+                                                         short apiVersion,
+                                                         ApiKeys apiKey,
+                                                         RequestHeaderData header,
+                                                         ApiMessage request,
+                                                         RouterContext context) {
         // Subject-routed users have coordinator-bound operations forwarded to their
         // assigned route. Topic-addressed ops (PRODUCE, FETCH, etc.) still go through
         // the normal handlers for leader-based router. METADATA and admin ops fan out.
@@ -363,9 +363,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleApiVersions(
-                                                             RequestHeaderData header,
-                                                             ApiMessage request,
-                                                             RouterContext context) {
+                                                            RequestHeaderData header,
+                                                            ApiMessage request,
+                                                            RouterContext context) {
         return context.sendRequest(defaultRoute, header, request)
                 .thenApply(response -> {
                     versionCapper.transform(
@@ -380,9 +380,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleProduce(
-                                                         RequestHeaderData header,
-                                                         ProduceRequestData request,
-                                                         RouterContext context) {
+                                                        RequestHeaderData header,
+                                                        ProduceRequestData request,
+                                                        RouterContext context) {
         ProduceResponseData errorResponse = ProduceDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
@@ -441,9 +441,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleInitProducerId(
-                                                                RequestHeaderData header,
-                                                                InitProducerIdRequestData request,
-                                                                RouterContext context) {
+                                                               RequestHeaderData header,
+                                                               InitProducerIdRequestData request,
+                                                               RouterContext context) {
         Set<String> allRoutes = routingTable.allRoutes();
         boolean isTransactional = request.transactionalId() != null
                 && !request.transactionalId().isEmpty();
@@ -466,10 +466,10 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> fanOutInitProducerId(
-                                                                RequestHeaderData header,
-                                                                InitProducerIdRequestData request,
-                                                                Set<String> allRoutes,
-                                                                RouterContext context) {
+                                                               RequestHeaderData header,
+                                                               InitProducerIdRequestData request,
+                                                               Set<String> allRoutes,
+                                                               RouterContext context) {
         Map<String, CompletionStage<Response>> futures = new HashMap<>();
         for (String route : allRoutes) {
             InitProducerIdRequestData routeRequest = rewriteInitProducerIdRequest(request, route);
@@ -557,10 +557,10 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> discoverCoordinatorAndInitProducerId(
-                                                                                RequestHeaderData header,
-                                                                                InitProducerIdRequestData request,
-                                                                                String txnRoute,
-                                                                                RouterContext context) {
+                                                                               RequestHeaderData header,
+                                                                               InitProducerIdRequestData request,
+                                                                               String txnRoute,
+                                                                               RouterContext context) {
         return discoverCoordinator(txnRoute, (byte) 1, request.transactionalId(), context)
                 .thenCompose(coordinatorNodeId -> {
                     transactionCoordinators.put(txnRoute, coordinatorNodeId);
@@ -719,9 +719,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleMetadata(
-                                                          RequestHeaderData header,
-                                                          MetadataRequestData request,
-                                                          RouterContext context) {
+                                                         RequestHeaderData header,
+                                                         MetadataRequestData request,
+                                                         RouterContext context) {
         Map<String, MetadataRequestData> subRequests = metadataDecomposer.decompose(
                 request, routingTable, defaultRoute);
 
@@ -792,10 +792,10 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleFetch(
-                                                       short apiVersion,
-                                                       RequestHeaderData header,
-                                                       FetchRequestData request,
-                                                       RouterContext context) {
+                                                      short apiVersion,
+                                                      RequestHeaderData header,
+                                                      FetchRequestData request,
+                                                      RouterContext context) {
         var clientResult = fetchSessionManager.processClientRequest(request, apiVersion);
         if (clientResult instanceof FetchSessionManager.ClientRequestResult.SessionError error) {
             sendSyntheticResponse(context, error.response());
@@ -856,9 +856,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleListOffsets(
-                                                             RequestHeaderData header,
-                                                             ListOffsetsRequestData request,
-                                                             RouterContext context) {
+                                                            RequestHeaderData header,
+                                                            ListOffsetsRequestData request,
+                                                            RouterContext context) {
         ListOffsetsResponseData errorResponse = ListOffsetsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, ListOffsetsRequestData> subRequests = listOffsetsDecomposer.decompose(
@@ -903,9 +903,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleOffsetForLeaderEpoch(
-                                                                      RequestHeaderData header,
-                                                                      OffsetForLeaderEpochRequestData request,
-                                                                      RouterContext context) {
+                                                                     RequestHeaderData header,
+                                                                     OffsetForLeaderEpochRequestData request,
+                                                                     RouterContext context) {
         Map<String, OffsetForLeaderEpochRequestData> subRequests = new HashMap<>();
         var errorResponse = new OffsetForLeaderEpochResponseData();
 
@@ -997,9 +997,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleOffsetCommit(
-                                                              RequestHeaderData header,
-                                                              OffsetCommitRequestData request,
-                                                              RouterContext context) {
+                                                             RequestHeaderData header,
+                                                             OffsetCommitRequestData request,
+                                                             RouterContext context) {
         if (!subjectRoutes.isEmpty()) {
             return handleGroupRoutedOffsetCommit(header, request, context);
         }
@@ -1041,9 +1041,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleGroupRoutedOffsetCommit(
-                                                                         RequestHeaderData header,
-                                                                         OffsetCommitRequestData request,
-                                                                         RouterContext context) {
+                                                                        RequestHeaderData header,
+                                                                        OffsetCommitRequestData request,
+                                                                        RouterContext context) {
         String expectedRoute = defaultRoute;
 
         var errorResponse = new OffsetCommitResponseData();
@@ -1101,9 +1101,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleCreateTopics(
-                                                              RequestHeaderData header,
-                                                              CreateTopicsRequestData request,
-                                                              RouterContext context) {
+                                                             RequestHeaderData header,
+                                                             CreateTopicsRequestData request,
+                                                             RouterContext context) {
         CreateTopicsResponseData errorResponse = CreateTopicsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         CreateTopicsResponseData assignmentErrors = CreateTopicsDecomposer.errorResponseForTopicsWithAssignments(
@@ -1165,9 +1165,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleDeleteTopics(
-                                                              RequestHeaderData header,
-                                                              DeleteTopicsRequestData request,
-                                                              RouterContext context) {
+                                                             RequestHeaderData header,
+                                                             DeleteTopicsRequestData request,
+                                                             RouterContext context) {
         DeleteTopicsResponseData errorResponse = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, DeleteTopicsRequestData> subRequests = deleteTopicsDecomposer.decompose(
@@ -1218,9 +1218,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleCreatePartitions(
-                                                                  RequestHeaderData header,
-                                                                  CreatePartitionsRequestData request,
-                                                                  RouterContext context) {
+                                                                 RequestHeaderData header,
+                                                                 CreatePartitionsRequestData request,
+                                                                 RouterContext context) {
         CreatePartitionsResponseData errorResponse = CreatePartitionsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         CreatePartitionsResponseData assignmentErrors = CreatePartitionsDecomposer.errorResponseForTopicsWithAssignments(
@@ -1282,9 +1282,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleDeleteRecords(
-                                                               RequestHeaderData header,
-                                                               DeleteRecordsRequestData request,
-                                                               RouterContext context) {
+                                                              RequestHeaderData header,
+                                                              DeleteRecordsRequestData request,
+                                                              RouterContext context) {
         DeleteRecordsResponseData errorResponse = DeleteRecordsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, DeleteRecordsRequestData> subRequests = deleteRecordsDecomposer.decompose(
@@ -1329,9 +1329,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleAddPartitionsToTxn(
-                                                                    RequestHeaderData header,
-                                                                    AddPartitionsToTxnRequestData request,
-                                                                    RouterContext context) {
+                                                                   RequestHeaderData header,
+                                                                   AddPartitionsToTxnRequestData request,
+                                                                   RouterContext context) {
         String expectedRoute = defaultRoute;
         var topics = request.v3AndBelowTopics();
         var errorTopics = new ArrayList<AddPartitionsToTxnTopicResult>();
@@ -1460,9 +1460,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleAddOffsetsToTxn(
-                                                                 RequestHeaderData header,
-                                                                 AddOffsetsToTxnRequestData request,
-                                                                 RouterContext context) {
+                                                                RequestHeaderData header,
+                                                                AddOffsetsToTxnRequestData request,
+                                                                RouterContext context) {
         String route = defaultRoute;
 
         Integer coordinatorNodeId = transactionCoordinators.get(route);
@@ -1517,9 +1517,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleTxnOffsetCommit(
-                                                                 RequestHeaderData header,
-                                                                 TxnOffsetCommitRequestData request,
-                                                                 RouterContext context) {
+                                                                RequestHeaderData header,
+                                                                TxnOffsetCommitRequestData request,
+                                                                RouterContext context) {
         String route = defaultRoute;
 
         if (!route.equals(defaultRoute)) {
@@ -1570,9 +1570,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleEndTxn(
-                                                        RequestHeaderData header,
-                                                        EndTxnRequestData request,
-                                                        RouterContext context) {
+                                                       RequestHeaderData header,
+                                                       EndTxnRequestData request,
+                                                       RouterContext context) {
         String route = defaultRoute;
 
         Integer coordinatorNodeId = transactionCoordinators.get(route);
@@ -1681,9 +1681,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleFindCoordinator(
-                                                                 RequestHeaderData header,
-                                                                 ApiMessage request,
-                                                                 RouterContext context) {
+                                                                RequestHeaderData header,
+                                                                ApiMessage request,
+                                                                RouterContext context) {
         var findCoordReq = (FindCoordinatorRequestData) request;
         String route;
         if (findCoordReq.keyType() == 1) {
@@ -1710,9 +1710,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleConsumerGroupHeartbeat(
-                                                                        RequestHeaderData header,
-                                                                        ConsumerGroupHeartbeatRequestData request,
-                                                                        RouterContext context) {
+                                                                       RequestHeaderData header,
+                                                                       ConsumerGroupHeartbeatRequestData request,
+                                                                       RouterContext context) {
         String route = defaultRoute;
         Integer cachedCoordinator = consumerGroupCoordinators.get(route);
 
@@ -1745,11 +1745,11 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> forwardToConsumerGroupCoordinator(
-                                                                             int coordinatorNodeId,
-                                                                             String route,
-                                                                             RequestHeaderData header,
-                                                                             ApiMessage request,
-                                                                             RouterContext context) {
+                                                                            int coordinatorNodeId,
+                                                                            String route,
+                                                                            RequestHeaderData header,
+                                                                            ApiMessage request,
+                                                                            RouterContext context) {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
@@ -1764,9 +1764,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleConsumerGroupDescribe(
-                                                                       RequestHeaderData header,
-                                                                       ConsumerGroupDescribeRequestData request,
-                                                                       RouterContext context) {
+                                                                      RequestHeaderData header,
+                                                                      ConsumerGroupDescribeRequestData request,
+                                                                      RouterContext context) {
         String route = defaultRoute;
 
         LOGGER.atDebug()
@@ -1784,10 +1784,10 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleOffsetFetch(
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             OffsetFetchRequestData request,
-                                                             RouterContext context) {
+                                                            short apiVersion,
+                                                            RequestHeaderData header,
+                                                            OffsetFetchRequestData request,
+                                                            RouterContext context) {
         String cgRoute = defaultRoute;
         if (!subjectRoutes.isEmpty()) {
             LOGGER.atDebug()
@@ -1862,9 +1862,9 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleDescribeCluster(
-                                                                 RequestHeaderData header,
-                                                                 ApiMessage request,
-                                                                 RouterContext context) {
+                                                                RequestHeaderData header,
+                                                                ApiMessage request,
+                                                                RouterContext context) {
         Set<String> allRoutes = routingTable.allRoutes();
 
         if (allRoutes.size() == 1) {
