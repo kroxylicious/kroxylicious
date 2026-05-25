@@ -23,6 +23,13 @@ See [DEV_GUIDE.md](DEV_GUIDE.md) for:
 - Container image building and pushing
 - Continuous integration workflows
 
+### Running specific tests
+
+- **Unit tests** (surefire): `mvn test -pl <module> -Dtest="TestClassA,TestClassB"`
+- **Integration tests** (failsafe): `mvn verify -pl <module> -Dit.test="SomeIT,OtherIT"`
+
+IMPORTANT: Integration test classes (named `*IT`) are run by the failsafe plugin, NOT surefire. You **must** use `-Dit.test` (not `-Dtest`) to select them. Using `-Dtest` will silently run zero integration tests while still running all ITs via failsafe.
+
 ## Coding Rules
 
 When writing code, follow these prescriptive rules:
