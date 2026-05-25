@@ -5,12 +5,12 @@
  */
 package io.kroxylicious.proxy.internal.reload;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +18,8 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
+import io.kroxylicious.proxy.reload.ReconfigureError;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.reload.StaticConfigurationChangedException;
 
@@ -111,12 +111,19 @@ public class ConfigurationReloadOrchestrator {
      *           <li>successfully with an empty-errors {@link ReconfigureResult} when the
      *               submitted configuration produces no changes (a no-op reconfigure);
      *               {@code currentConfiguration} is updated to the submitted value</li>
+     *           <li>successfully with a {@link ReconfigureResult} (possibly with per-cluster
+     *               errors) when the submitted configuration removes one or more virtual
+     *               clusters and does not add or modify any; {@code currentConfiguration}
+     *               is updated to the submitted value</li>
      *           <li>exceptionally with {@link StaticConfigurationChangedException} when the
      *               submitted configuration differs from the current one in any static
      *               section</li>
      *           <li>exceptionally with {@link ConcurrentReconfigureException} when another
      *               reconfigure is already in progress</li>
-     *          </ul>
+     *           <li>exceptionally with {@link UnsupportedOperationException} when the
+     *               submitted configuration would add or modify any virtual cluster
+     *               (placeholder for follow-up staircase steps)</li>
+     *         </ul>
      */
     public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
         Objects.requireNonNull(newConfig, "newConfig");
@@ -150,47 +157,30 @@ public class ConfigurationReloadOrchestrator {
                 return CompletableFuture.completedFuture(ReconfigureResult.of(List.of()));
             }
 
-            // 5. Per-VC operations in order: remove -> replace -> add. These are no-ops in
-            // this PR — see VirtualClusterRegistry's stub methods and class-level Javadoc.
-            var newModelsByName = newConfig.virtualClusterModel(pfr).stream()
-                    .collect(Collectors.toMap(VirtualClusterModel::getClusterName, m -> m));
+            // 5. Mixed-reconfigure guard. Submissions that ADD or MODIFY any virtual cluster
+            // would land at the per-VC modify/add placeholders below, which are still no-op
+            // stubs. Rather than partially apply the removes and leave the proxy in a half-
+            // reconciled state, reject the whole submission upfront.
+            if (!changeResult.clustersToModify().isEmpty() || !changeResult.clustersToAdd().isEmpty()) {
+                throw new UnsupportedOperationException(
+                        "KafkaProxy.reconfigure() does not yet support add/replace operations. "
+                                + "Pre-flight, concurrency, validation, and change detection have completed; "
+                                + "this reconfigure was rejected because it would have required "
+                                + changeResult.clustersToAdd().size() + " cluster add(s) and "
+                                + changeResult.clustersToModify().size() + " cluster modify operation(s).");
+            }
 
-            // TODO (follow-up PR): when the registry methods become real:
-            // 1. wrap each .join() in try/catch to accumulate ReconfigureError into a list
-            // rather than aborting on the first failure — a failed cluster shouldn't
-            // prevent the others from being attempted.
-            // 2. keep per-VC operations SEQUENTIAL within a phase — VCs that share a
-            // NamedFilterDefinition (directly via filters: or transitively via
-            // defaultFilters) are coupled through shared filter-wrapper state, so
-            // concurrent reconciles would race on that shared state.
-            // 3. introduce per-wrapper replacement inside FilterChainFactory so filter
-            // definitions used by unchanged VCs are not torn down.
+            // 6. Per-VC remove. SEQUENTIAL. Errors are accumulated into
+            // a per-cluster list and surfaced via the ReconfigureResult; a failed cluster
+            // does not prevent subsequent removes from being attempted.
+            var errors = new ArrayList<ReconfigureError>();
             for (String name : changeResult.clustersToRemove()) {
-                virtualClusterRegistry.removeVirtualCluster(name).join();
-            }
-            for (String name : changeResult.clustersToModify()) {
-                VirtualClusterModel newModel = requireModel(newModelsByName, name);
-                virtualClusterRegistry.replaceVirtualCluster(name, newModel).join();
-            }
-            for (String name : changeResult.clustersToAdd()) {
-                VirtualClusterModel newModel = requireModel(newModelsByName, name);
-                virtualClusterRegistry.addVirtualCluster(newModel).join();
+                removeCluster(name, errors);
             }
 
-            // 6. PLACEHOLDER: throw until the follow-up PR implements per-VC mechanics +
-            // filter-chain reconciliation + result construction. The throw lands here
-            // intentionally — every phase above is real and will run on a real call to
-            // reconfigure(), but the proxy's state has not been mutated (per-VC ops are
-            // no-ops). Embedders calling reconfigure() therefore see a clear "feature not
-            // done" signal rather than a misleading "successful no-op" outcome.
-            throw new UnsupportedOperationException(
-                    "KafkaProxy.reconfigure() per-VC mechanics not yet implemented; coming in follow-up PR. "
-                            + "Pre-flight, concurrency, validation, and change detection have completed.");
-
-            // 7. (Follow-up PR) On success:
-            // reconcile filter chain (per-wrapper replacement inside FilterChainFactory);
-            // update currentConfiguration;
-            // return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
+            // 7. Commit. currentConfiguration advances to the submitted value
+            this.currentConfiguration = newConfig;
+            return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
         }
         catch (RuntimeException e) {
             LOGGER.atError()
@@ -211,12 +201,23 @@ public class ConfigurationReloadOrchestrator {
                 .reduce(ChangeResult.EMPTY, ChangeResult::merge);
     }
 
-    private static VirtualClusterModel requireModel(Map<String, VirtualClusterModel> modelsByName, String name) {
-        VirtualClusterModel model = modelsByName.get(name);
-        if (model == null) {
-            throw new IllegalStateException("ChangeResult referenced cluster '" + name
-                    + "' but no matching model was built from the submitted configuration");
+    /**
+     * Attempt to remove a single virtual cluster.
+     */
+    private void removeCluster(String clusterName, List<ReconfigureError> errors) {
+        try {
+            virtualClusterRegistry.removeVirtualCluster(clusterName).join();
         }
-        return model;
+        catch (RuntimeException e) {
+            Throwable cause = e instanceof CompletionException ce && ce.getCause() != null
+                    ? ce.getCause()
+                    : e;
+            LOGGER.atWarn()
+                    .setCause(cause)
+                    .addKeyValue("virtualCluster", clusterName)
+                    .addKeyValue("error", cause.getMessage())
+                    .log("reconfigure: failed to remove virtual cluster");
+            errors.add(new ReconfigureError(clusterName, cause));
+        }
     }
 }

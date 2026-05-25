@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,7 @@ import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -301,6 +303,15 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         catch (Exception e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
+        if (!(proxy instanceof KafkaProxy kp)) {
+            throw new UnsupportedOperationException(
+                    "reconfigure() requires a KafkaProxy-backed tester; this tester's proxy is " + proxy.getClass().getName());
+        }
+        return kp.reconfigure(newConfig);
     }
 
     @Override
