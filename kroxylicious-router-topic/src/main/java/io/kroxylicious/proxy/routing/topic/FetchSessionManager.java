@@ -388,6 +388,10 @@ class FetchSessionManager {
         }
     }
 
+    void close() {
+        clearClientSession();
+    }
+
     // --- Accessors for testing ---
 
     int clientSessionId() {

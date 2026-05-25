@@ -110,6 +110,11 @@ class TopicPartitionRouter implements Router {
     }
 
     @Override
+    public void close() {
+        fetchSessionManager.close();
+    }
+
+    @Override
     public Map<ApiKeys, String> staticRoutes() {
         return staticRoutes;
     }
