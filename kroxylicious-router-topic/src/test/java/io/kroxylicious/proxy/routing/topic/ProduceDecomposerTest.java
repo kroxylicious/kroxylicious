@@ -177,6 +177,28 @@ class ProduceDecomposerTest {
                 .isEqualTo(Errors.NOT_LEADER_OR_FOLLOWER.code());
     }
 
+    @Test
+    void shouldMergeNodeEndpointsFromAllRoutes() {
+        var request = produceRequest("a.orders", "b.logs");
+
+        var respA = new ProduceResponseData();
+        respA.responses().add(topicResponse("a.orders", 0, Errors.NONE));
+        respA.nodeEndpoints().add(new ProduceResponseData.NodeEndpoint()
+                .setNodeId(0).setHost("hostA").setPort(9092));
+
+        var respB = new ProduceResponseData();
+        respB.responses().add(topicResponse("b.logs", 0, Errors.NONE));
+        respB.nodeEndpoints().add(new ProduceResponseData.NodeEndpoint()
+                .setNodeId(1).setHost("hostB").setPort(9093));
+
+        ProduceResponseData merged = decomposer.recompose(
+                Map.of("route-a", respA, "route-b", respB), request);
+
+        assertThat(merged.nodeEndpoints()).hasSize(2);
+        assertThat(merged.nodeEndpoints().find(0)).isNotNull();
+        assertThat(merged.nodeEndpoints().find(1)).isNotNull();
+    }
+
     // --- error response for unroutable topics ---
 
     @Test
