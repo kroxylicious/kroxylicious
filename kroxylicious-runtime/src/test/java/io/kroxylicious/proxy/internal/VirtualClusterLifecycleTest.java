@@ -40,12 +40,12 @@ class VirtualClusterLifecycleTest {
     private static final String CLUSTER_NAME = "test-cluster";
     private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(5);
     private VirtualClusterLifecycle manager;
-    private ProxyChannelStateMachine pcsm;
+    private ClientConnectionStateMachine ccsm;
 
     @BeforeEach
     void setUp() {
         manager = new VirtualClusterLifecycle(CLUSTER_NAME, DRAIN_TIMEOUT);
-        pcsm = mock(ProxyChannelStateMachine.class);
+        ccsm = mock(ClientConnectionStateMachine.class);
     }
 
     @Test
@@ -198,7 +198,7 @@ class VirtualClusterLifecycleTest {
         // given - lifecycle starts in Initializing
 
         // when
-        var registered = manager.registerConnection(pcsm);
+        var registered = manager.registerConnection(ccsm);
 
         // then
         assertThat(registered).isFalse();
@@ -211,11 +211,11 @@ class VirtualClusterLifecycleTest {
         manager.initializationSucceeded();
 
         // when
-        var registered = manager.registerConnection(pcsm);
+        var registered = manager.registerConnection(ccsm);
 
         // then
         assertThat(registered).isTrue();
-        assertThat(manager.activeConnections()).containsExactly(pcsm);
+        assertThat(manager.activeConnections()).containsExactly(ccsm);
     }
 
     @Test
@@ -225,7 +225,7 @@ class VirtualClusterLifecycleTest {
         manager.startDraining();
 
         // when
-        var registered = manager.registerConnection(pcsm);
+        var registered = manager.registerConnection(ccsm);
 
         // then
         assertThat(registered).isFalse();
@@ -237,7 +237,7 @@ class VirtualClusterLifecycleTest {
         manager.initializationFailed(new RuntimeException("oops"));
 
         // when
-        var registered = manager.registerConnection(pcsm);
+        var registered = manager.registerConnection(ccsm);
 
         // then
         assertThat(registered).isFalse();
@@ -251,7 +251,7 @@ class VirtualClusterLifecycleTest {
         manager.stop();
 
         // when
-        var registered = manager.registerConnection(pcsm);
+        var registered = manager.registerConnection(ccsm);
 
         // then
         assertThat(registered).isFalse();
@@ -262,18 +262,18 @@ class VirtualClusterLifecycleTest {
         for (int iter = 0; iter < 200; iter++) {
             var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
             lifecycle.initializationSucceeded();
-            var pcsm1 = mock(ProxyChannelStateMachine.class);
-            var pcsm2 = mock(ProxyChannelStateMachine.class);
-            lifecycle.registerConnection(pcsm1);
+            var ccsm1 = mock(ClientConnectionStateMachine.class);
+            var ccsm2 = mock(ClientConnectionStateMachine.class);
+            lifecycle.registerConnection(ccsm1);
 
             var startGate = new CountDownLatch(1);
             var deregisterer = new Thread(() -> {
                 awaitGate(startGate);
-                lifecycle.deregisterConnection(pcsm1);
+                lifecycle.deregisterConnection(ccsm1);
             });
             var registerer = new Thread(() -> {
                 awaitGate(startGate);
-                lifecycle.registerConnection(pcsm2);
+                lifecycle.registerConnection(ccsm2);
             });
             deregisterer.start();
             registerer.start();
@@ -282,15 +282,15 @@ class VirtualClusterLifecycleTest {
             registerer.join();
 
             assertThat(lifecycle.activeConnections())
-                    .as("iteration %d: pcsm2 must still be registered after concurrent register/deregister", iter)
-                    .containsExactly(pcsm2);
+                    .as("iteration %d: ccsm2 must still be registered after concurrent register/deregister", iter)
+                    .containsExactly(ccsm2);
         }
     }
 
     /**
-     * Higher-volume contention test. Each thread registers a batch of distinct PCSMs and
+     * Higher-volume contention test. Each thread registers a batch of distinct CCSMs and
      * deregisters half of them. The expected end state is exactly the never-deregistered
-     * PCSMs from every thread — no PCSM lost, no ghost PCSM remaining.
+     * CCSMs from every thread — no CCSM lost, no ghost CCSM remaining.
      */
     @Test
     void registerAndDeregisterAreThreadSafeUnderContention() throws Exception {
@@ -298,9 +298,9 @@ class VirtualClusterLifecycleTest {
         int operationsPerThread = 500;
         var lifecycle = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
         lifecycle.initializationSucceeded();
-        var pcsms = new ProxyChannelStateMachine[threads * operationsPerThread];
-        for (int i = 0; i < pcsms.length; i++) {
-            pcsms[i] = mock(ProxyChannelStateMachine.class);
+        var ccsms = new ClientConnectionStateMachine[threads * operationsPerThread];
+        for (int i = 0; i < ccsms.length; i++) {
+            ccsms[i] = mock(ClientConnectionStateMachine.class);
         }
 
         var executor = Executors.newFixedThreadPool(threads);
@@ -313,11 +313,11 @@ class VirtualClusterLifecycleTest {
                     awaitGate(startGate);
                     int base = threadIdx * operationsPerThread;
                     for (int i = 0; i < operationsPerThread; i++) {
-                        lifecycle.registerConnection(pcsms[base + i]);
+                        lifecycle.registerConnection(ccsms[base + i]);
                     }
                     // Deregister even-indexed half, leaving odd-indexed ones registered
                     for (int i = 0; i < operationsPerThread; i += 2) {
-                        lifecycle.deregisterConnection(pcsms[base + i]);
+                        lifecycle.deregisterConnection(ccsms[base + i]);
                     }
                     return null;
                 }));
@@ -336,11 +336,11 @@ class VirtualClusterLifecycleTest {
             executor.shutdownNow();
         }
 
-        Set<ProxyChannelStateMachine> expected = new HashSet<>();
+        Set<ClientConnectionStateMachine> expected = new HashSet<>();
         for (int t = 0; t < threads; t++) {
             int base = t * operationsPerThread;
             for (int i = 1; i < operationsPerThread; i += 2) {
-                expected.add(pcsms[base + i]);
+                expected.add(ccsms[base + i]);
             }
         }
         assertThat(lifecycle.activeConnections()).containsExactlyInAnyOrderElementsOf(expected);

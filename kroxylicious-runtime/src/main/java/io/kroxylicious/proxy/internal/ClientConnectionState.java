@@ -17,19 +17,19 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Draining;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.ClientActive;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.Connecting;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.Draining;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.HaProxy;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.SelectingServer;
+import static io.kroxylicious.proxy.internal.ClientConnectionState.Startup;
 
 /**
- * Root of a sealed class hierarchy representing the states of the {@link ProxyChannelStateMachine}.
+ * Root of a sealed class hierarchy representing the states of the {@link ClientConnectionStateMachine}.
  */
-sealed interface ProxyChannelState permits
+sealed interface ClientConnectionState permits
         Startup,
         ClientActive,
         HaProxy,
@@ -42,7 +42,7 @@ sealed interface ProxyChannelState permits
     /**
      * The statemachine has just been created.
      */
-    record Startup() implements ProxyChannelState {
+    record Startup() implements ClientConnectionState {
         public static final Startup STARTING_STATE = new Startup();
 
         public ClientActive toClientActive() {
@@ -54,7 +54,7 @@ sealed interface ProxyChannelState permits
      * The initial state, when a client has connected, but no messages
      * have been received yet.
      */
-    record ClientActive() implements ProxyChannelState {
+    record ClientActive() implements ClientConnectionState {
 
         /**
          * Transition to {@link HaProxy}, because a PROXY header has been received
@@ -81,7 +81,7 @@ sealed interface ProxyChannelState permits
      * {@link HaProxyContext}.
      */
     record HaProxy()
-            implements ProxyChannelState {
+            implements ClientConnectionState {
 
         /**
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
@@ -101,7 +101,7 @@ sealed interface ProxyChannelState permits
      */
     record SelectingServer(@Nullable String clientSoftwareName,
                            @Nullable String clientSoftwareVersion)
-            implements ProxyChannelState {
+            implements ClientConnectionState {
 
         /**
          * Transition to {@link Connecting}
@@ -123,7 +123,7 @@ sealed interface ProxyChannelState permits
     record Connecting(@Nullable String clientSoftwareName,
                       @Nullable String clientSoftwareVersion,
                       HostPort remote)
-            implements ProxyChannelState {
+            implements ClientConnectionState {
 
         /**
          * Transition to {@link Forwarding}
@@ -141,7 +141,7 @@ sealed interface ProxyChannelState permits
      * There's a KRPC-capable channel to the server
      */
     final class Forwarding
-            implements ProxyChannelState {
+            implements ClientConnectionState {
 
         @Nullable
         private final String clientSoftwareName;
@@ -195,23 +195,23 @@ sealed interface ProxyChannelState permits
     /**
      * Connections are being drained. autoRead is disabled on the client channel,
      * but responses to in-flight requests continue flowing. When the in-flight count
-     * reaches zero, the PCSM invokes {@code onDrained} — an externally-injected policy
+     * reaches zero, the CCSM invokes {@code onDrained} — an externally-injected policy
      * (typically wired by {@code VirtualClusterLifecycle}) that decides what to do next
      * (cancel the timeout timer, complete the per-connection future, close the
      * connection with {@code DisconnectCause.DRAIN_COMPLETED}).
      * <p>
      * {@code closedFuture} completes when this connection has fully closed. Callers of
-     * {@link ProxyChannelStateMachine#drain(java.time.Duration)} that arrive while the
+     * {@link ClientConnectionStateMachine#drain(java.time.Duration)} that arrive while the
      * connection is already draining chain their own promise to this future.
      */
-    record Draining(Runnable onDrained, CompletableFuture<Void> closedFuture) implements ProxyChannelState {
+    record Draining(Runnable onDrained, CompletableFuture<Void> closedFuture) implements ClientConnectionState {
 
     }
 
     /**
      * The final state, where there are no connections to either client or server
      */
-    record Closed() implements ProxyChannelState {
+    record Closed() implements ClientConnectionState {
 
     }
 

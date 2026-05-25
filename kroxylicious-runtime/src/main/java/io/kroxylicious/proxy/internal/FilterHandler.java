@@ -73,7 +73,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final @Nullable String sniHostname;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
-    private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final ClientConnectionStateMachine clientChannelStateMachine;
 
     /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
@@ -93,12 +93,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                          long timeoutMs,
                          @Nullable String sniHostname,
                          Channel inboundChannel,
-                         ProxyChannelStateMachine proxyChannelStateMachine) {
+                         ClientConnectionStateMachine clientChannelStateMachine) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.inboundChannel = inboundChannel;
-        this.proxyChannelStateMachine = proxyChannelStateMachine;
+        this.clientChannelStateMachine = clientChannelStateMachine;
     }
 
     @Override
@@ -258,7 +258,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("localAddress",
                             ctx.channel().localAddress().toString());
         }
-        return builder.addKeyValue("sessionId", proxyChannelStateMachine.sessionId())
+        return builder.addKeyValue("sessionId", clientChannelStateMachine.sessionId())
                 .addKeyValue("filter", filterDescriptor());
     }
 
@@ -622,7 +622,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Subject authenticatedSubject() {
-            return proxyChannelStateMachine.authenticatedSubject();
+            return clientChannelStateMachine.authenticatedSubject();
         }
 
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
@@ -636,7 +636,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public String sessionId() {
-            return proxyChannelStateMachine.sessionId();
+            return clientChannelStateMachine.sessionId();
         }
 
         @Override
@@ -654,12 +654,12 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public String getVirtualClusterName() {
-            return proxyChannelStateMachine.clusterName();
+            return clientChannelStateMachine.clusterName();
         }
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
-            return proxyChannelStateMachine.clientTlsContext();
+            return clientChannelStateMachine.clientTlsContext();
         }
 
         @Override
@@ -670,10 +670,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("subject", subject)
                     .log("Filter announces client has passed SASL authentication");
 
-            proxyChannelStateMachine.onSessionSaslAuthenticated();
+            clientChannelStateMachine.onSessionSaslAuthenticated();
 
             // dispatch principal injection
-            proxyChannelStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
+            clientChannelStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
         }
 
         @Override
@@ -687,12 +687,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
                     .log("Filter announces client has failed SASL authentication" +
                             (LOGGER.isDebugEnabled() ? "" : ", increase log level to DEBUG for stacktrace"));
-            proxyChannelStateMachine.clientSaslAuthenticationFailure();
+            clientChannelStateMachine.clientSaslAuthenticationFailure();
         }
 
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
-            return proxyChannelStateMachine.clientSaslContext();
+            return clientChannelStateMachine.clientSaslContext();
         }
 
         @Override
