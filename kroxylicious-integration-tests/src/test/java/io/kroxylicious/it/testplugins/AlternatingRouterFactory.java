@@ -23,8 +23,8 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RoutingContext;
-import io.kroxylicious.proxy.router.RoutingResult;
+import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.router.RouterResult;
 
 /**
  * A router that alternates PRODUCE requests between two routes in
@@ -73,37 +73,37 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
 
         return new Router() {
             @Override
-            public CompletionStage<RoutingResult> onClientRequest(
+            public CompletionStage<RouterResult> onClientRequest(
                                                                   short apiVersion,
                                                                   ApiKeys apiKey,
                                                                   RequestHeaderData header,
                                                                   ApiMessage request,
-                                                                  RoutingContext routingContext) {
+                                                                  RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    return routingContext.sendRequest(routeA, header, request)
+                    return routerContext.sendRequest(routeA, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response.body());
                                 LOGGER.atDebug()
-                                        .addKeyValue("sessionId", routingContext.sessionId())
+                                        .addKeyValue("sessionId", routerContext.sessionId())
                                         .addKeyValue("cappedMaxVersion", MAX_PRODUCE_VERSION)
                                         .log("Capped PRODUCE version in API_VERSIONS response");
-                                routingContext.sendResponse(response);
-                                return RoutingResult.completed();
+                                routerContext.sendResponse(response);
+                                return RouterResult.completed();
                             });
                 }
 
                 int index = counter.getAndIncrement();
                 String route = ((index / batchSize) % 2 == 0) ? routeA : routeB;
                 LOGGER.atDebug()
-                        .addKeyValue("sessionId", routingContext.sessionId())
+                        .addKeyValue("sessionId", routerContext.sessionId())
                         .addKeyValue("route", route)
                         .addKeyValue("batchIndex", index)
                         .addKeyValue("batchSize", batchSize)
                         .log("Alternating router chose route based on batch index");
-                return routingContext.sendRequest(route, header, request)
+                return routerContext.sendRequest(route, header, request)
                         .thenApply(response -> {
-                            routingContext.sendResponse(response);
-                            return RoutingResult.completed();
+                            routerContext.sendResponse(response);
+                            return RouterResult.completed();
                         });
             }
 

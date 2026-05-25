@@ -16,7 +16,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 /**
  * A router decides which route should handle a given incoming Kafka request.
  *
- * <p>Router implementations use the {@link RoutingContext} to send requests
+ * <p>Router implementations use the {@link RouterContext} to send requests
  * down named routes and to deliver a response back to the client. A single
  * incoming request may result in multiple outgoing requests to different
  * routes (e.g. fan-out), with the router composing the final response.</p>
@@ -37,7 +37,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * <ul>
  *   <li><strong>Routing rationale at DEBUG:</strong> explain <em>why</em> a
  *       particular route was chosen when the logic is non-trivial. Always
- *       include {@link RoutingContext#sessionId()} for correlation with
+ *       include {@link RouterContext#sessionId()} for correlation with
  *       runtime logs.</li>
  *   <li><strong>Configuration at INFO during initialisation:</strong> log once
  *       from {@link RouterFactory#createRouter} to describe the router's
@@ -65,15 +65,15 @@ public interface Router {
      * Called for each incoming client request.
      *
      * <p>The implementation must use {@code context} to
-     * {@linkplain RoutingContext#sendRequest send} at least one request
-     * and eventually {@linkplain RoutingContext#sendResponse deliver} a
+     * {@linkplain RouterContext#sendRequest send} at least one request
+     * and eventually {@linkplain RouterContext#sendResponse deliver} a
      * response to the client. The returned {@link CompletionStage} must
      * complete after the router has finished all its work for this request.</p>
      *
      * <p><strong>Threading model</strong></p>
      *
      * <p>All invocations of this method, all calls to
-     * {@link RoutingContext#sendRequest} and {@link RoutingContext#sendResponse},
+     * {@link RouterContext#sendRequest} and {@link RouterContext#sendResponse},
      * and all {@link CompletionStage} callbacks chained on the futures returned
      * by {@code sendRequest}, execute on the same Netty event loop thread.
      * Router implementations do not need to synchronise access to their own
@@ -86,12 +86,12 @@ public interface Router {
      * @param context the router context for sending requests and responses
      * @return a stage that completes when the router decision is fully handled
      */
-    CompletionStage<RoutingResult> onClientRequest(
+    CompletionStage<RouterResult> onClientRequest(
                                                    short apiVersion,
                                                    ApiKeys apiKey,
                                                    RequestHeaderData header,
                                                    ApiMessage request,
-                                                   RoutingContext context);
+                                                   RouterContext context);
 
     /**
      * Called by the runtime when the client connection is torn down.

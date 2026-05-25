@@ -27,15 +27,15 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Response;
-import io.kroxylicious.proxy.router.RoutingContext;
+import io.kroxylicious.proxy.router.RouterContext;
 
 /**
- * Per-request implementation of {@link RoutingContext}. Created by
+ * Per-request implementation of {@link RouterContext}. Created by
  * {@link RouterDispatchHandler} for each incoming client request.
  */
-class RoutingContextImpl implements RoutingContext {
+class RouterContextImpl implements RouterContext {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RoutingContextImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RouterContextImpl.class);
 
     private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
@@ -74,20 +74,20 @@ class RoutingContextImpl implements RoutingContext {
         void forward(int virtualNodeId, String routeName, Object msg);
     }
 
-    RoutingContextImpl(DecodedRequestFrame<?> clientFrame,
-                       Channel clientChannel,
-                       String sessionId,
-                       Subject subject,
-                       Map<String, RouteDescriptor> routes,
-                       RequestForwarder requestForwarder,
-                       NodeForwarder nodeForwarder,
-                       NodeIdMapping nodeIdMapping,
-                       IntSupplier routingCorrelationIdAllocator,
-                       MeterProvider<Counter> routingRequestsCounter,
-                       MeterProvider<Counter> routingErrorsCounter,
-                       MeterProvider<Timer> routingRequestDurationTimer,
-                       AtomicInteger pendingResponseCount,
-                       ResponseSequencer responseSequencer) {
+    RouterContextImpl(DecodedRequestFrame<?> clientFrame,
+                      Channel clientChannel,
+                      String sessionId,
+                      Subject subject,
+                      Map<String, RouteDescriptor> routes,
+                      RequestForwarder requestForwarder,
+                      NodeForwarder nodeForwarder,
+                      NodeIdMapping nodeIdMapping,
+                      IntSupplier routingCorrelationIdAllocator,
+                      MeterProvider<Counter> routingRequestsCounter,
+                      MeterProvider<Counter> routingErrorsCounter,
+                      MeterProvider<Timer> routingRequestDurationTimer,
+                      AtomicInteger pendingResponseCount,
+                      ResponseSequencer responseSequencer) {
         this.clientFrame = Objects.requireNonNull(clientFrame);
         this.clientCorrelationId = clientFrame.correlationId();
         this.apiVersion = clientFrame.apiVersion();
