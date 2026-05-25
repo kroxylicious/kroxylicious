@@ -28,7 +28,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for CREATE_PARTITIONS routing through the topic-partition router.
+ * Integration tests for CREATE_PARTITIONS router through the topic-partition router.
  */
 class CreatePartitionsRoutingIT extends TopicPartitionRoutingBaseIT {
 
@@ -82,7 +82,7 @@ class CreatePartitionsRoutingIT extends TopicPartitionRoutingBaseIT {
             assertThat(desc.partitions()).hasSize(3);
         }
 
-        // Verify routing
+        // Verify router
         var createPartToA = routingCaptor.requestsToRoute("route-a", ApiKeys.CREATE_PARTITIONS);
         var createPartToB = routingCaptor.requestsToRoute("route-b", ApiKeys.CREATE_PARTITIONS);
         assertThat(createPartToA).as("CREATE_PARTITIONS should be routed to route-a").isNotEmpty();

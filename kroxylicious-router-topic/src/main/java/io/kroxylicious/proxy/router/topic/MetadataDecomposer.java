@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.routing.topic;
+package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -78,7 +78,7 @@ class MetadataDecomposer {
      *
      * @param responses per-route responses
      * @param originalRequest the original client request (used to detect all-topics)
-     * @param table the routing table (used for phantom filtering)
+     * @param table the router table (used for phantom filtering)
      * @param defaultRoute the default route name
      * @return the merged response
      */

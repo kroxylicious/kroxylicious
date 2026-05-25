@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.routing.topic;
+package io.kroxylicious.proxy.router.topic;
 
 import java.time.Clock;
 import java.util.ArrayList;
@@ -79,11 +79,11 @@ import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformer;
 import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformers;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
-import io.kroxylicious.proxy.routing.Response;
-import io.kroxylicious.proxy.routing.Router;
-import io.kroxylicious.proxy.routing.RoutingContext;
-import io.kroxylicious.proxy.routing.RoutingResult;
-import io.kroxylicious.proxy.routing.topic.ProducerIdManager.ProducerIdEpoch;
+import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RoutingContext;
+import io.kroxylicious.proxy.router.RoutingResult;
+import io.kroxylicious.proxy.router.topic.ProducerIdManager.ProducerIdEpoch;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -278,7 +278,7 @@ class TopicPartitionRouter implements Router {
                                                           RoutingContext context) {
         // Subject-routed users have coordinator-bound operations forwarded to their
         // assigned route. Topic-addressed ops (PRODUCE, FETCH, etc.) still go through
-        // the normal handlers for leader-based routing. METADATA and admin ops fan out.
+        // the normal handlers for leader-based router. METADATA and admin ops fan out.
         String subjectRoute = subjectRouteFor(context.authenticatedSubject());
         if (subjectRoute != null && SUBJECT_ROUTED_API_KEYS.contains(apiKey)) {
             return forwardToRoute(subjectRoute, header, request, context);
@@ -2127,7 +2127,7 @@ class TopicPartitionRouter implements Router {
 
     /**
      * Groups LIST_OFFSETS partitions by their cached leader node ID.
-     * The routing table decomposition has already filtered to routable topics.
+     * The router table decomposition has already filtered to routable topics.
      */
     private Map<Integer, ListOffsetsRequestData> groupListOffsetsByLeader(
                                                                           Map<String, ListOffsetsRequestData> subRequestsByRoute,

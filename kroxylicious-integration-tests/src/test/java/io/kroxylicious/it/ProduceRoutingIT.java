@@ -40,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
- * Integration tests for PRODUCE routing through the topic-partition router.
+ * Integration tests for PRODUCE router through the topic-partition router.
  */
 class ProduceRoutingIT extends TopicPartitionRoutingBaseIT {
 
@@ -53,7 +53,7 @@ class ProduceRoutingIT extends TopicPartitionRoutingBaseIT {
         createTopicOnCluster(PARAM_TOPIC_B, 1, clusterB);
     }
 
-    // --- Basic produce routing ---
+    // --- Basic produce router ---
 
     @Test
     void shouldPassThroughProduceAndConsumeWithSingleRoute() throws Exception {
