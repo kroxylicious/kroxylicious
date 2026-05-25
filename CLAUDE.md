@@ -30,6 +30,8 @@ See [DEV_GUIDE.md](DEV_GUIDE.md) for:
 
 IMPORTANT: Integration test classes (named `*IT`) are run by the failsafe plugin, NOT surefire. You **must** use `-Dit.test` (not `-Dtest`) to select them. Using `-Dtest` will silently run zero integration tests while still running all ITs via failsafe.
 
+IMPORTANT: If you use `verify` with `-pl`, `-am` and `-Dit.test` at the same time then you must also add `-Dfailsafe.failIfNoSpecifiedTests=false`, otherwise a dependency's integration tests will most likely fail owing to the absence of the named test in that module.
+
 ## Coding Rules
 
 When writing code, follow these prescriptive rules:
