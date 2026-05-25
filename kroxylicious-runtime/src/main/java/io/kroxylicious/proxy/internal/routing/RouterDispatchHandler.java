@@ -146,6 +146,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ccsm.authenticatedSubject(),
                 routes,
                 (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded),
+                (virtualNodeId, routeName, forwarded) -> ccsm.forwardToNode(virtualNodeId, routeName, forwarded),
+                nodeIdMapping,
                 () -> nextRoutingCorrelationId++,
                 routingRequestsCounter,
                 routingErrorsCounter,
@@ -223,6 +225,11 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                         int correlationId,
                                         PendingResponse pendingResponse) {
         getPendingResponses(channel).put(correlationId, pendingResponse);
+    }
+
+    static void deregisterPendingResponse(Channel channel,
+                                          int correlationId) {
+        getPendingResponses(channel).remove(correlationId);
     }
 
     private static Map<Integer, PendingResponse> getPendingResponses(Channel channel) {
