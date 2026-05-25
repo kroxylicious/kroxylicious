@@ -13,12 +13,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.message.InitProducerIdRequestData;
+import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.RecordBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,13 +57,17 @@ class TopicPartitionRouter implements Router {
 
     private static final Set<ApiKeys> DYNAMICALLY_ROUTED = Set.of(
             ApiKeys.API_VERSIONS,
-            ApiKeys.PRODUCE);
+            ApiKeys.PRODUCE,
+            ApiKeys.INIT_PRODUCER_ID);
+
+    record ProducerIdEpoch(long producerId, short producerEpoch) {}
 
     private final PrefixTopicRoutingTable routingTable;
     private final String defaultRoute;
     private final Map<ApiKeys, String> staticRoutes;
     private final ApiVersionsResponseTransformer versionCapper;
     private final ProduceDecomposer produceDecomposer = ProduceDecomposer.INSTANCE;
+    private final Map<Long, Map<String, ProducerIdEpoch>> producerIdMappings = new HashMap<>();
 
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute) {
@@ -87,6 +96,9 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.PRODUCE) {
             return handleProduce(header, (ProduceRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.INIT_PRODUCER_ID) {
+            return handleInitProducerId(header, (InitProducerIdRequestData) request, context);
         }
 
         return context.sendRequest(defaultRoute, header, request)
@@ -121,6 +133,7 @@ class TopicPartitionRouter implements Router {
                 request, routingTable);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
                 request, routingTable);
+        rewriteProducerIdsForRoutes(subRequests);
 
         boolean isAcksZero = request.acks() == 0;
 
@@ -178,6 +191,125 @@ class TopicPartitionRouter implements Router {
             sendProduceResponse(context, merged);
             return RoutingResult.completed();
         });
+    }
+
+    private CompletionStage<RoutingResult> handleInitProducerId(
+                                                                RequestHeaderData header,
+                                                                InitProducerIdRequestData request,
+                                                                RoutingContext context) {
+        Set<String> allRoutes = routingTable.allRoutes();
+
+        if (allRoutes.size() == 1) {
+            return context.sendRequest(defaultRoute, header, request)
+                    .thenApply(response -> {
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        for (String route : allRoutes) {
+            InitProducerIdRequestData routeRequest = rewriteInitProducerIdRequest(request, route);
+            futures.put(route, context.sendRequest(route, header, routeRequest));
+        }
+
+        return collectAll(futures).thenApply(responses -> {
+            Map<String, ProducerIdEpoch> routeMapping = new HashMap<>();
+            InitProducerIdResponseData defaultResponse = null;
+
+            for (var entry : responses.entrySet()) {
+                var resp = (InitProducerIdResponseData) entry.getValue().body();
+                if (resp.errorCode() != Errors.NONE.code()) {
+                    LOGGER.atDebug()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", entry.getKey())
+                            .addKeyValue("errorCode", Errors.forCode(resp.errorCode()))
+                            .log("INIT_PRODUCER_ID failed on route");
+                    context.sendResponse(entry.getValue());
+                    return RoutingResult.completed();
+                }
+                routeMapping.put(entry.getKey(),
+                        new ProducerIdEpoch(resp.producerId(), resp.producerEpoch()));
+                if (entry.getKey().equals(defaultRoute)) {
+                    defaultResponse = resp;
+                }
+            }
+
+            if (defaultResponse == null) {
+                defaultResponse = (InitProducerIdResponseData) responses.values().iterator().next().body();
+            }
+            producerIdMappings.put(defaultResponse.producerId(), routeMapping);
+
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("clientProducerId", defaultResponse.producerId())
+                    .addKeyValue("routeCount", routeMapping.size())
+                    .log("Producer ID mapping established");
+
+            var responseHeader = new ResponseHeaderData().setCorrelationId(0);
+            context.sendResponse(new SimpleResponse(responseHeader, defaultResponse));
+            return RoutingResult.completed();
+        });
+    }
+
+    private InitProducerIdRequestData rewriteInitProducerIdRequest(InitProducerIdRequestData original,
+                                                                   String route) {
+        if (original.producerId() == RecordBatch.NO_PRODUCER_ID || route.equals(defaultRoute)) {
+            return original;
+        }
+        Map<String, ProducerIdEpoch> existing = producerIdMappings.get(original.producerId());
+        if (existing == null) {
+            return original;
+        }
+        ProducerIdEpoch routeIds = existing.get(route);
+        if (routeIds == null) {
+            return original;
+        }
+        return new InitProducerIdRequestData()
+                .setTransactionalId(original.transactionalId())
+                .setTransactionTimeoutMs(original.transactionTimeoutMs())
+                .setProducerId(routeIds.producerId())
+                .setProducerEpoch(routeIds.producerEpoch());
+    }
+
+    private void rewriteProducerIdsForRoutes(Map<String, ProduceRequestData> subRequests) {
+        for (var entry : subRequests.entrySet()) {
+            String route = entry.getKey();
+            if (route.equals(defaultRoute)) {
+                continue;
+            }
+            ProduceRequestData subReq = entry.getValue();
+            Long clientProducerId = findProducerIdInRequest(subReq);
+            if (clientProducerId == null) {
+                continue;
+            }
+            Map<String, ProducerIdEpoch> mapping = producerIdMappings.get(clientProducerId);
+            if (mapping == null) {
+                continue;
+            }
+            ProducerIdEpoch target = mapping.get(route);
+            if (target != null) {
+                RecordBatchRewriter.rewriteProducerId(subReq, target.producerId(), target.producerEpoch());
+            }
+        }
+    }
+
+    @edu.umd.cs.findbugs.annotations.Nullable
+    private static Long findProducerIdInRequest(ProduceRequestData request) {
+        for (var td : request.topicData()) {
+            for (var pd : td.partitionData()) {
+                if (pd.records() == null) {
+                    continue;
+                }
+                MemoryRecords records = (MemoryRecords) pd.records();
+                for (RecordBatch batch : records.batches()) {
+                    if (batch.producerId() != RecordBatch.NO_PRODUCER_ID) {
+                        return batch.producerId();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private ProduceResponseData mergeWithErrors(Map<String, ProduceResponseData> routeResponses,
