@@ -32,7 +32,8 @@ public class TopicPartitionRouterFactory
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRouterFactory.class);
 
     record InitData(PrefixTopicRoutingTable routingTable,
-                    @Nullable String defaultRoute) {}
+                    @Nullable String defaultRoute,
+                    ProducerIdManager producerIdManager) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
@@ -62,18 +63,31 @@ public class TopicPartitionRouterFactory
         PrefixTopicRoutingTable routingTable = PrefixTopicRoutingTable.create(
                 prefixToRoute, config.defaultRoute());
 
+        var ttl = config.producerIdTtl() != null
+                ? config.producerIdTtl()
+                : ProducerIdManager.DEFAULT_TTL;
+
         LOGGER.atInfo()
                 .addKeyValue("defaultRoute", config.defaultRoute())
                 .addKeyValue("prefixCount", prefixToRoute.size())
                 .addKeyValue("routeCount", routingTable.allRoutes().size())
+                .addKeyValue("producerIdTtl", ttl)
                 .log("Topic routing table initialised");
 
-        return new InitData(routingTable, config.defaultRoute());
+        return new InitData(routingTable, config.defaultRoute(), new ProducerIdManager(ttl));
     }
 
     @Override
     public Router createRouter(RouterFactoryContext context,
                                @NonNull InitData initData) {
-        return new TopicPartitionRouter(initData.routingTable(), initData.defaultRoute());
+        return new TopicPartitionRouter(
+                initData.routingTable(),
+                initData.defaultRoute(),
+                initData.producerIdManager());
+    }
+
+    @Override
+    public void close(@NonNull InitData initData) {
+        initData.producerIdManager().close();
     }
 }
