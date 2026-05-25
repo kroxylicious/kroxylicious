@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.routing.topic;
 
 import java.io.Closeable;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -118,6 +119,24 @@ class ProducerIdManager implements Closeable {
                             .log("Evicted expired producer ID mapping");
                 }
             }
+        });
+    }
+
+    /**
+     * Updates the epoch for a single route within an existing mapping.
+     * Used by END_TXN v5 (KIP-890) epoch bumping.
+     *
+     * @param clientPid the client-visible producer ID
+     * @param route the route whose epoch to update
+     * @param newMapping the new producer ID and epoch for the route
+     */
+    void updateRouteEpoch(long clientPid,
+                          String route,
+                          ProducerIdEpoch newMapping) {
+        mappings.computeIfPresent(clientPid, (k, existing) -> {
+            var updated = new HashMap<>(existing.routeMappings());
+            updated.put(route, newMapping);
+            return new TimestampedMapping(updated, clock.getAsLong());
         });
     }
 
