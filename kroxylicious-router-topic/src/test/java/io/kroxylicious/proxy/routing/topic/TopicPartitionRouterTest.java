@@ -1192,6 +1192,13 @@ class TopicPartitionRouterTest {
         }
 
         @Override
+        public CompletionStage<Response> sendRequestToNode(int virtualNodeId,
+                                                           RequestHeaderData header,
+                                                           ApiMessage request) {
+            throw new UnsupportedOperationException("sendRequestToNode not supported in test");
+        }
+
+        @Override
         public void sendResponse(Response response) {
             sentResponseBody = response.body();
         }
