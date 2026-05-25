@@ -728,6 +728,24 @@ class FetchSessionManagerTest {
         }
     }
 
+    @Test
+    void closeShouldReleaseClientSession() {
+        createSession("topic-a");
+        int sessionId = manager.clientSessionId();
+        assertThat(cache.isValid(sessionId)).isTrue();
+
+        manager.close();
+
+        assertThat(manager.clientSessionId()).isEqualTo(0);
+        assertThat(cache.isValid(sessionId)).isFalse();
+    }
+
+    @Test
+    void closeShouldBeIdempotentWhenNoSession() {
+        manager.close();
+        assertThat(manager.clientSessionId()).isEqualTo(0);
+    }
+
     // --- Helpers ---
 
     private void createSession(String... topicNames) {
