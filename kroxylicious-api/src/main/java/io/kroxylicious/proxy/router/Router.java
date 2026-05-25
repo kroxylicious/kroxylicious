@@ -87,11 +87,11 @@ public interface Router {
      * @return a stage that completes when the router decision is fully handled
      */
     CompletionStage<RouterResult> onClientRequest(
-                                                   short apiVersion,
-                                                   ApiKeys apiKey,
-                                                   RequestHeaderData header,
-                                                   ApiMessage request,
-                                                   RouterContext context);
+                                                  short apiVersion,
+                                                  ApiKeys apiKey,
+                                                  RequestHeaderData header,
+                                                  ApiMessage request,
+                                                  RouterContext context);
 
     /**
      * Called by the runtime when the client connection is torn down.
