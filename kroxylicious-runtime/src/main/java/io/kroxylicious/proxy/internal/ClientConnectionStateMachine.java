@@ -41,8 +41,10 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
@@ -208,6 +210,9 @@ public class ClientConnectionStateMachine {
     private RoutingResponseCallback routingResponseCallback;
 
     @Nullable
+    private NodeIdMapping nodeIdMapping;
+
+    @Nullable
     private Map<String, HostPort> routeTargets;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
@@ -329,6 +334,10 @@ public class ClientConnectionStateMachine {
 
     void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
         this.routingResponseCallback = callback;
+    }
+
+    void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
+        this.nodeIdMapping = nodeIdMapping;
     }
 
     @Nullable
@@ -852,12 +861,29 @@ public class ClientConnectionStateMachine {
         setState(forwarding);
         Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
         routeTargets = new HashMap<>();
+
+        // When the client connected to a broker-specific port (after metadata discovery),
+        // the owning route should connect to that specific broker instead of the bootstrap.
+        String owningRoute = null;
+        HostPort brokerTarget = null;
+        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
+            var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
+            owningRoute = routeAndNode.route();
+            brokerTarget = beb.upstreamTarget();
+        }
+
         var frontend = Objects.requireNonNull(frontendHandler);
         Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
         for (var entry : descriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
-                HostPort target = rd.targetCluster().bootstrapServer();
+                HostPort target;
+                if (entry.getKey().equals(owningRoute)) {
+                    target = brokerTarget;
+                }
+                else {
+                    target = rd.targetCluster().bootstrapServer();
+                }
                 routeTargets.put(entry.getKey(), target);
                 if (!serverConnections.containsKey(target)) {
                     proxyToServerConnectionCounter.increment();
