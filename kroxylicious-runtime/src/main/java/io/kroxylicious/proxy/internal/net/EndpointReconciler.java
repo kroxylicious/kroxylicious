@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal.net;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.proxy.service.HostPort;
@@ -23,4 +24,14 @@ public interface EndpointReconciler {
      * @return CompletionStage that is used to signal completion of the work.
      */
     CompletionStage<Void> reconcile(EndpointGateway virtualClusterModel, Map<Integer, HostPort> upstreamNodes);
+
+    /**
+     * Returns the upstream address for the given node ID, if it has been
+     * reconciled for the given gateway.
+     *
+     * @param gateway the endpoint gateway
+     * @param nodeId the node ID (virtual)
+     * @return the upstream address, or empty if not yet reconciled
+     */
+    Optional<HostPort> upstreamAddress(EndpointGateway gateway, int nodeId);
 }

@@ -69,6 +69,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -1587,6 +1588,59 @@ class ClientConnectionStateMachineTest {
             // Then — message goes to the SCSM for the specific broker
             var owningRouteScsm = createdConnections.get(CLUSTER_A_BROKER_1);
             verify(owningRouteScsm).sendRequest(msg);
+        }
+
+        @Test
+        void forwardToNodeShouldResolveAndDispatch() {
+            var targetBroker = new HostPort("cluster-a-broker2", 9092);
+            routingCcsm.setUpstreamAddressResolver(
+                    nodeId -> nodeId == 4 ? Optional.of(targetBroker) : Optional.empty());
+            routingCcsm.onClientActive(frontendHandler);
+            routingCcsm.onClientRequest(metadataRequest());
+
+            var msg = new Object();
+            // virtual node 4 = route-a, target broker 2
+            routingCcsm.forwardToNode(4, "route-a", msg);
+
+            assertThat(createdConnections).containsKey(targetBroker);
+            verify(createdConnections.get(targetBroker)).sendRequest(msg);
+        }
+
+        @Test
+        void forwardToNodeShouldReuseExistingConnection() {
+            routingCcsm.setUpstreamAddressResolver(
+                    nodeId -> nodeId == 2 ? Optional.of(CLUSTER_A_BROKER_1) : Optional.empty());
+            routingCcsm.onClientActive(frontendHandler);
+            routingCcsm.onClientRequest(metadataRequest());
+
+            int connectionsBefore = createdConnections.size();
+            var msg = new Object();
+            // virtual node 2 maps to CLUSTER_A_BROKER_1 which already has a connection
+            routingCcsm.forwardToNode(2, "route-a", msg);
+
+            assertThat(createdConnections).hasSize(connectionsBefore);
+            verify(createdConnections.get(CLUSTER_A_BROKER_1)).sendRequest(msg);
+        }
+
+        @Test
+        void forwardToNodeShouldThrowWhenAddressUnknown() {
+            routingCcsm.setUpstreamAddressResolver(nodeId -> Optional.empty());
+            routingCcsm.onClientActive(frontendHandler);
+            routingCcsm.onClientRequest(metadataRequest());
+
+            assertThatThrownBy(() -> routingCcsm.forwardToNode(99, "route-a", new Object()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Upstream address not yet known");
+        }
+
+        @Test
+        void forwardToNodeShouldThrowWhenResolverNotSet() {
+            routingCcsm.onClientActive(frontendHandler);
+            routingCcsm.onClientRequest(metadataRequest());
+
+            assertThatThrownBy(() -> routingCcsm.forwardToNode(0, "route-a", new Object()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("No upstream address resolver");
         }
     }
 }
