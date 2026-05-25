@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
@@ -23,7 +22,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +34,7 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
+import io.kroxylicious.testing.kafka.common.KeystoreManager;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,9 +60,6 @@ class HotReloadIT extends BaseIT {
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration PRODUCE_CONSUME_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(5);
-
-    @TempDir
-    private static Path certsDirectory;
 
     @Test
     void shouldStopRemovedVcButContinueServingOthersEndToEnd(@BrokerCluster KafkaCluster cluster) throws Exception {
@@ -220,16 +215,15 @@ class HotReloadIT extends BaseIT {
     private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {}
 
     private static KeystoreTrustStorePair buildKeystoreTrustStorePair(String domain) throws Exception {
-        var brokerCertificateGenerator = new KeytoolCertificateGenerator();
-        brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", domain, "KI", "kroxylicious.io", null, null, "US");
-        Path resolve = certsDirectory.resolve(UUID.randomUUID().toString());
-        if (!resolve.toFile().mkdirs()) {
-            throw new RuntimeException("Could not create directory " + resolve);
-        }
-        var clientTrustStore = resolve.resolve("kafka.truststore.jks");
-        brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
-        return new KeystoreTrustStorePair(brokerCertificateGenerator.getKeyStoreLocation(), clientTrustStore.toAbsolutePath().toString(),
-                brokerCertificateGenerator.getPassword());
+        var keystoreManager = new KeystoreManager();
+        String dn = keystoreManager.buildDistinguishedName("test@kroxylicious.io", domain, "KI", "kroxylicious.io", null, null, "US");
+        var bundle = keystoreManager.createSelfSignedCertificate(
+                keystoreManager.newCertificateBuilder(dn));
+        Path keystorePath = keystoreManager.generateCertificateFile(bundle);
+        String password = keystoreManager.getPassword(keystorePath);
+        // The generated JKS contains both the private key entry and the CA cert,
+        // so the same file serves as both the proxy keystore and the client truststore.
+        String keystore = keystorePath.toAbsolutePath().toString();
+        return new KeystoreTrustStorePair(keystore, keystore, password);
     }
 }
