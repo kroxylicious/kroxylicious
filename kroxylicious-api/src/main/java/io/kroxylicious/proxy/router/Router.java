@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.routing;
+package io.kroxylicious.proxy.router;
 
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -83,8 +83,8 @@ public interface Router {
      * @param apiKey the API key identifying the request type
      * @param header the request header
      * @param request the request body
-     * @param context the routing context for sending requests and responses
-     * @return a stage that completes when the routing decision is fully handled
+     * @param context the router context for sending requests and responses
+     * @return a stage that completes when the router decision is fully handled
      */
     CompletionStage<RoutingResult> onClientRequest(
                                                    short apiVersion,

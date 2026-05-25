@@ -23,9 +23,9 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
-import io.kroxylicious.proxy.routing.Router;
-import io.kroxylicious.proxy.routing.RouterFactory;
-import io.kroxylicious.proxy.routing.RouterFactoryContext;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterFactory;
+import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;

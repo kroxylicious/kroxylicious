@@ -10,7 +10,7 @@ import java.util.Objects;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-import io.kroxylicious.proxy.routing.Response;
+import io.kroxylicious.proxy.router.Response;
 
 /**
  * Immutable implementation of {@link Response}.

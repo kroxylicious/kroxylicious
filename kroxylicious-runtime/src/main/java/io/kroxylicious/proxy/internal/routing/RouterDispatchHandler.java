@@ -31,8 +31,8 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.routing.Response;
-import io.kroxylicious.proxy.routing.Router;
+import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -228,7 +228,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             LOGGER.atWarn()
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("clientCorrelationId", correlationId)
-                    .log("Received response with no pending routing future");
+                    .log("Received response with no pending router future");
         }
         return false;
     }
