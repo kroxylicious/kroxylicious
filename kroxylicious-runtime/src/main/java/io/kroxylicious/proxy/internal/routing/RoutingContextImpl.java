@@ -39,7 +39,6 @@ class RoutingContextImpl implements RouterContext {
 
     private final int clientCorrelationId;
     private final short apiVersion;
-    private final Channel clientChannel;
     private final String sessionId;
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
@@ -49,6 +48,9 @@ class RoutingContextImpl implements RouterContext {
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
+    private final Channel clientChannel;
+    private final ResponseSequencer responseSequencer;
+    private final long sequenceNumber;
 
     /**
      * Callback interface for forwarding requests to the backend. The
@@ -85,6 +87,8 @@ class RoutingContextImpl implements RouterContext {
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
         this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
+        this.responseSequencer = Objects.requireNonNull(responseSequencer);
+        this.sequenceNumber = responseSequencer.allocateSequence();
     }
 
     @Override
@@ -136,6 +140,28 @@ class RoutingContextImpl implements RouterContext {
                 header,
                 request);
 
+        var listener = RoutingEvent.EVENT_LISTENER.get();
+        if (listener != null) {
+            listener.accept(new RoutingEvent.Request(
+                    sessionId, route, clientCorrelationId, routingCorrelationId,
+                    apiKey, apiVersion, header, request));
+        }
+
+        if (!frame.hasResponse()) {
+            requestForwarder.forward(route, frame);
+            routingRequestsCounter.withTags(
+                    Metrics.ROUTE_LABEL, route,
+                    Metrics.ROUTING_MODE_LABEL, "dynamic",
+                    Metrics.API_KEY_LABEL, apiKey.name()).increment();
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .log("Fire-and-forget request sent to route (no response expected)");
+            return CompletableFuture.completedFuture(null);
+        }
+
         CompletableFuture<Response> future = new CompletableFuture<>();
         Timer.Sample timerSample = Timer.start();
         var pendingResponse = new RouterDispatchHandler.PendingResponse(
@@ -156,6 +182,15 @@ class RoutingContextImpl implements RouterContext {
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Request sent to route");
+        if (listener != null) {
+            future.whenComplete((resp, error) -> {
+                if (resp != null) {
+                    listener.accept(new RoutingEvent.Response(
+                            sessionId, route, routingCorrelationId, apiKey,
+                            resp.header(), resp.body()));
+                }
+            });
+        }
         return future;
     }
 
