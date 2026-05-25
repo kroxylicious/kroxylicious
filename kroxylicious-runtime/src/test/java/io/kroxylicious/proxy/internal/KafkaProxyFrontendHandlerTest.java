@@ -541,7 +541,8 @@ class KafkaProxyFrontendHandlerTest {
         givenHandlerIsConnecting(clientConnectionStateMachine, handler, "initial");
     }
 
-    private void givenHandlerIsConnecting(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler, String initialClientSoftwareName) {
+    private void givenHandlerIsConnecting(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler,
+                                          String initialClientSoftwareName) {
         initialiseInboundChannel(clientConnectionStateMachine, handler);
         writeInboundApiVersionsRequest(initialClientSoftwareName);
         assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Connecting.class);
