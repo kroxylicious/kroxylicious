@@ -13,6 +13,7 @@ import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -169,6 +170,20 @@ public class DeploymentUtils {
     }
 
     /**
+     * Wait for deployment to be rolled out
+     * @param namespace the namespace
+     * @param previousPodPid the pod PID of the pod before rollout starts
+     * @param deploymentName the name of the deployment
+     * @param timeout the timeout to wait for
+     */
+    public static void waitForDeploymentRollout(String namespace, String previousPodPid, String deploymentName, Duration timeout) {
+        await().atMost(timeout).pollInterval(Duration.ofMillis(200)).until(() -> {
+            String currentKafkaProxyPod = kubeClient().listPodsByPrefixInName(namespace, deploymentName).get(0).getMetadata().getName();
+            return !Objects.equals(DeploymentUtils.getPodUid(namespace, currentKafkaProxyPod), previousPodPid);
+        });
+    }
+
+    /**
      * Wait for pod leaving a pending phase
      * @param namespaceName the namespace
      * @param podName the pod name
@@ -273,6 +288,10 @@ public class DeploymentUtils {
     public static void copySecretInToNamespace(String namespace, String secretName) {
         Secret clientSecret = kubeClient().getClient().secrets().inNamespace(KubeClusterResource.getInstance().defaultNamespace()).withName(secretName).get();
         if (clientSecret != null) {
+            if (kubeClient().getClient().secrets().inNamespace(namespace).withName(secretName).get() != null) {
+                LOGGER.atInfo().setMessage("Skipping '{}' secret creation as it was already created").addArgument(secretName).log();
+                return;
+            }
             clientSecret.getMetadata().setResourceVersion("");
             kubeClient().getClient().secrets().inNamespace(namespace).resource(clientSecret).create();
         }
@@ -408,5 +427,21 @@ public class DeploymentUtils {
         String address = route.getSpec().getHost();
         LOGGER.debug("Deduced route address for service: {} as: {}", serviceName, address);
         return address;
+    }
+
+    /**
+     * Get the pod Uid
+     * @param deployNamespace the namespace
+     * @param podName the pod Name
+     * @return the uid
+     */
+    public static String getPodUid(String deployNamespace, String podName) {
+        final Pod pod = kubeClient().getPod(deployNamespace, podName);
+        if (pod != null) {
+            return pod.getMetadata().getUid();
+        }
+        else {
+            return "";
+        }
     }
 }

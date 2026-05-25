@@ -53,11 +53,11 @@ public class MockOauthServer {
         LOGGER.info("Deploy Mock Oauth Server in {} namespace", deploymentNamespace);
 
         NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 LowkeyVaultTemplates.defaultMockOauthServerService(deploymentNamespace));
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 LowkeyVaultTemplates.defaultMockOauthServerClusterIPService(deploymentNamespace));
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 LowkeyVaultTemplates.defaultMockOauthServerDeployment(MOCK_OAUTH_SERVER_IMAGE, deploymentNamespace));
     }
 

@@ -7,9 +7,9 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
-import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 
 public class KroxyliciousKafkaProxyIngressTemplates {
 
@@ -17,52 +17,22 @@ public class KroxyliciousKafkaProxyIngressTemplates {
     }
 
     /**
-     * Default kafka proxy ingress CR.
+     * Kafka proxy ingress cluster IP CR.
      *
-     * @param namespaceName the namespace name
-     * @param ingressName the ingress name
-     * @param proxyName the name of the proxy to reference
-     * @return the kafka proxy ingress builder
+     * @return the Kafka proxy ingress builder
      */
-    public static KafkaProxyIngressBuilder defaultKafkaProxyIngressCR(String namespaceName, String ingressName, String proxyName) {
+    public static KafkaProxyIngressBuilder kafkaProxyIngressClusterIpCR() {
         // @formatter:off
         return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
-                    .withName(ingressName)
-                    .withNamespace(namespaceName)
+                    .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP)
                 .endMetadata()
                 .withNewSpec()
                     .withNewClusterIP()
                         .withProtocol(TCP)
                     .endClusterIP()
                     .withNewProxyRef()
-                        .withName(proxyName)
-                    .endProxyRef()
-                .endSpec();
-        // @formatter:on
-    }
-
-    /**
-     * Default kafka proxy ingress CR.
-     *
-     * @param namespaceName the namespace name
-     * @param ingressName the ingress name
-     * @param proxyName the name of the proxy to reference
-     * @return the kafka proxy ingress builder
-     */
-    public static KafkaProxyIngressBuilder tlsKafkaProxyIngressCR(String namespaceName, String ingressName, String proxyName) {
-        // @formatter:off
-        return new KafkaProxyIngressBuilder()
-                .withNewMetadata()
-                    .withName(ingressName)
-                    .withNamespace(namespaceName)
-                .endMetadata()
-                .withNewSpec()
-                    .withNewClusterIP()
-                        .withProtocol(TLS)
-                    .endClusterIP()
-                    .withNewProxyRef()
-                        .withName(proxyName)
+                        .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                     .endProxyRef()
                 .endSpec();
         // @formatter:on

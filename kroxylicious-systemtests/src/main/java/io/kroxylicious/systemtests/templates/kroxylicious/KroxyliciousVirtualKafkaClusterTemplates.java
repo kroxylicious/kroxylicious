@@ -14,27 +14,25 @@ import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.systemtests.Constants;
 
 public class KroxyliciousVirtualKafkaClusterTemplates {
 
     private KroxyliciousVirtualKafkaClusterTemplates() {
     }
 
-    private static VirtualKafkaClusterBuilder baseVirtualKafkaClusterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                        String ingressName) {
+    private static VirtualKafkaClusterBuilder baseVirtualKafkaClusterCR(String clusterName, String ingressName) {
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
                     .withName(clusterName)
-                    .withNamespace(namespaceName)
                 .endMetadata()
                 .withNewSpec()
                     .withTargetKafkaServiceRef(new KafkaServiceRefBuilder()
-                            .withName(clusterRefName)
+                            .withName(clusterName)
                             .build())
                     .withNewProxyRef()
-                        .withName(proxyName)
+                        .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                     .endProxyRef()
                 .addNewIngress()
                     .withNewIngressRef()
@@ -46,60 +44,26 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
     }
 
     /**
-     * Default virtual kafka cluster CR.
+     * Default virtual Kafka cluster CR.
      *
-     * @param namespaceName the namespace name
      * @param clusterName the cluster name
-     * @param proxyName the proxy name
-     * @param clusterRefName the cluster ref name
      * @param ingressName the ingress name
-     * @return the virtual kafka cluster builder
+     * @return the virtual Kafka cluster builder
      */
-    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                          String ingressName) {
-        return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName);
+    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterCR(String clusterName, String ingressName) {
+        return baseVirtualKafkaClusterCR(clusterName, ingressName);
     }
 
     /**
-     * Default virtual kafka cluster CR.
+     * Default virtual Kafka cluster CR.
      *
-     * @param namespaceName the namespace name
      * @param clusterName the cluster name
-     * @param proxyName the proxy name
-     * @param clusterRefName the cluster ref name
-     * @param ingressName the ingress name
-     * @param tls the TLS config with a certificate references
-     * @return the virtual kafka cluster builder
-     */
-    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterWithTlsCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                 String ingressName, Tls tls) {
-        //@formatter:off
-        return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
-                .editSpec()
-                    .editIngress(0)
-                        .withNewTls()
-                            .withCertificateRef(tls.getCertificateRef())
-                            .withTrustAnchorRef(tls.getTrustAnchorRef())
-                        .endTls()
-                    .endIngress()
-                .endSpec();
-        //@formatter:on
-    }
-
-    /**
-     * Default virtual kafka cluster CR.
-     *
-     * @param namespaceName the namespace name
-     * @param clusterName the cluster name
-     * @param proxyName the proxy name
-     * @param clusterRefName the cluster ref name
      * @param ingressName the ingress name
      * @param filterNames the filter names
-     * @return the virtual kafka cluster builder
+     * @return the virtual Kafka cluster builder
      */
-    public static VirtualKafkaClusterBuilder virtualKafkaClusterWithFilterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                             String ingressName, List<String> filterNames) {
-        return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
+    public static VirtualKafkaClusterBuilder virtualKafkaClusterWithFilterCR(String clusterName, String ingressName, List<String> filterNames) {
+        return baseVirtualKafkaClusterCR(clusterName, ingressName)
                 .editSpec()
                 .addAllToFilterRefs(getFilterRefs(filterNames))
                 .endSpec();

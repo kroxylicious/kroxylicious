@@ -124,7 +124,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                     .withName(Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-operator-group")
                     .withNamespace(operatorNamespace)
                     .endMetadata();
-            ResourceManager.getInstance().createResourceFromBuilderWithWait(operatorGroup);
+            ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(operatorGroup);
         }
         else {
             LOGGER.info("OperatorGroup already exists.");

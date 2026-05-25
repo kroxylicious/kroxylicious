@@ -90,7 +90,7 @@ public class KafClient implements KafkaClient {
     @Override
     public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
                                       Map<String, String> additionalConfig) {
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
@@ -126,7 +126,7 @@ public class KafClient implements KafkaClient {
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
                                                 String consumerGroup) {
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
 
         LOGGER.atInfo().log("Consuming messages using kaf");

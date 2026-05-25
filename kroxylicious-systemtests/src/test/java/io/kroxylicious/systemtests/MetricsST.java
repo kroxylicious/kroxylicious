@@ -25,6 +25,7 @@ import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -46,7 +47,6 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 class MetricsST extends AbstractSystemTests {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "metrics-st-cluster";
-    protected static final String BROKER_NODE_NAME = "kafka";
     private static final String RECORD_VALUE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;
     private String bootstrap;
@@ -192,7 +192,7 @@ class MetricsST extends AbstractSystemTests {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
             int kafkaReplicas = 1;
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
                     KafkaTemplates.defaultKafka(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
         }
@@ -210,7 +210,7 @@ class MetricsST extends AbstractSystemTests {
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
         final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
-        resourceManager.createResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
         cluster.setNamespace(namespace);
 
         LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stabilize before collecting metrics.")
@@ -220,9 +220,9 @@ class MetricsST extends AbstractSystemTests {
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
 
-        Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
-        bootstrap = kroxylicious.getBootstrap(clusterName);
+        Kroxylicious kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1).build();
+        kroxylicious.createOrUpdateResources();
+        bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
                 .withNamespaceName(namespace)

@@ -55,7 +55,7 @@ class KroxyliciousAppST extends AbstractSystemTests {
                 + "minikube please run 'minikube tunnel' before running the tests");
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
         int kafkaReplicas = 3;
-        resourceManager.createResourceFromBuilderWithWait(
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(
                 KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
                 KafkaTemplates.kafkaWithExternalIp(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
     }

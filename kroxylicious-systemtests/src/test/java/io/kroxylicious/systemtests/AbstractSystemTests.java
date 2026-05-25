@@ -71,6 +71,7 @@ public class AbstractSystemTests {
 
         NamespaceUtils.createNamespaceAndPrepare(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
+        NamespaceUtils.createNamespaceAndPrepare(Constants.KROXYLICIOUS_NAMESPACE);
     }
 
     /**

@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -46,6 +47,13 @@ class NonJVMClientsST extends AbstractSystemTests {
     private final String clusterName = "non-jvm-clients-cluster";
     private static final String MESSAGE = "Hello-world";
     private KroxyliciousOperator kroxyliciousOperator;
+    private Kroxylicious kroxylicious;
+    private String bootstrap;
+
+    private void deployPortIdentifiesNodeWithNoFilters() {
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1).build();
+        kroxylicious.createOrUpdateResources();
+    }
 
     /**
      * Provides all combinations of Kafka clients for interoperability testing.
@@ -97,10 +105,6 @@ class NonJVMClientsST extends AbstractSystemTests {
     @MethodSource("clientCombinations")
     void produceConsumeMessagesWithClients(KafkaClient producer, KafkaClient consumer, String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
-        final String bootstrap = kroxylicious.getBootstrap(clusterName);
-
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
@@ -132,13 +136,16 @@ class NonJVMClientsST extends AbstractSystemTests {
             LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
 
             int kafkaReplicas = 3;
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
                     KafkaTemplates.defaultKafka(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
         }
 
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
+
+        deployPortIdentifiesNodeWithNoFilters();
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
     }
 
     private void preloadImages() {

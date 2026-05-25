@@ -135,25 +135,14 @@ public class ResourceManager {
      * @param resources the resources
      */
     @SafeVarargs
-    public final void createResourceFromBuilderWithWait(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get().createOrUpdateResourceWithWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
-    }
-
-    /**
-     * Create resource with wait.
-     *
-     * @param resources the resources
-     */
-    @SafeVarargs
-    public final void createResourceFromBuilder(Builder<? extends HasMetadata>... resources) {
+    public final void createOrUpdateResourceFromBuilderWithWait(Builder<? extends HasMetadata>... resources) {
         KubeResourceManager.get()
                 .createOrUpdateResourceWithWait(Arrays.stream(resources).filter(Objects::nonNull).map(Builder::build).toList().toArray(new HasMetadata[0]));
     }
 
     @SafeVarargs
-    public final void createOrUpdateResourceWithWait(Builder<? extends HasMetadata>... resources) {
-        KubeResourceManager.get()
-                .createOrUpdateResourceWithWait(Arrays.stream(resources).filter(Objects::nonNull).map(Builder::build).toList().toArray(new HasMetadata[0]));
+    public final <T extends HasMetadata> void createOrUpdateResourceWithWait(T... resources) {
+        KubeResourceManager.get().createOrUpdateResourceWithWait(resources);
     }
 
     public <T extends HasMetadata> void replaceResourceWithRetries(T resource, Consumer<T> editor) {
