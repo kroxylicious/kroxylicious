@@ -131,6 +131,13 @@ class RoutingContextImpl implements RoutingContext {
                 header,
                 request);
 
+        var listener = RoutingEvent.EVENT_LISTENER.get();
+        if (listener != null) {
+            listener.accept(new RoutingEvent.Request(
+                    sessionId, route, clientCorrelationId, routingCorrelationId,
+                    apiKey, apiVersion, header, request));
+        }
+
         if (!frame.hasResponse()) {
             requestForwarder.forward(route, frame);
             routingRequestsCounter.withTags(
@@ -166,6 +173,15 @@ class RoutingContextImpl implements RoutingContext {
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Request sent to route");
+        if (listener != null) {
+            future.whenComplete((resp, error) -> {
+                if (resp != null) {
+                    listener.accept(new RoutingEvent.Response(
+                            sessionId, route, routingCorrelationId, apiKey,
+                            resp.header(), resp.body()));
+                }
+            });
+        }
         return future;
     }
 
