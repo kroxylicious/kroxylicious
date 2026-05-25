@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
+import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
@@ -78,6 +79,10 @@ abstract class TopicPartitionRoutingBaseIT {
         if (routingCaptor != null) {
             routingCaptor.close();
         }
+        assertThat(Metrics.globalRegistry.getMeters())
+                .as("fetch session metrics should be deregistered after proxy shutdown")
+                .filteredOn(m -> m.getId().getName().startsWith("kroxylicious_fetch_session_"))
+                .isEmpty();
     }
 
     static void createTopicOnCluster(String topicName,
