@@ -62,6 +62,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -1501,6 +1502,95 @@ class ClientConnectionStateMachineTest {
                     new ApiVersionsRequestData()
                             .setClientSoftwareName("test-client")
                             .setClientSoftwareVersion("1.0.0"));
+        }
+    }
+
+    @Nested
+    class PerBrokerRoutingTest {
+
+        private static final HostPort CLUSTER_A_BOOTSTRAP = new HostPort("cluster-a", 9092);
+        private static final HostPort CLUSTER_B_BOOTSTRAP = new HostPort("cluster-b", 9092);
+        private static final HostPort CLUSTER_A_BROKER_1 = new HostPort("cluster-a-broker1", 9092);
+
+        private final Map<HostPort, ServerConnectionStateMachine> createdConnections = new java.util.LinkedHashMap<>();
+
+        private ClientConnectionStateMachine routingCcsm;
+
+        @BeforeEach
+        void setUpRouting() {
+            var routeA = new RouteDescriptor("route-a",
+                    new TargetCluster("cluster-a:9092", Optional.empty()), null, List.of());
+            var routeB = new RouteDescriptor("route-b",
+                    new TargetCluster("cluster-b:9092", Optional.empty()), null, List.of());
+            var routeDescriptors = Map.of("route-a", routeA, "route-b", routeB);
+
+            var routingVcm = new VirtualClusterModel(CLUSTER_NAME, null, false, false,
+                    List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null,
+                    "topic-router", routeDescriptors);
+
+            var brokerBinding = new io.kroxylicious.proxy.internal.net.BrokerEndpointBinding(
+                    endpointGateway, CLUSTER_A_BROKER_1, 2);
+
+            when(endpointGateway.virtualCluster()).thenReturn(routingVcm);
+
+            createdConnections.clear();
+            routingCcsm = new ClientConnectionStateMachine(brokerBinding,
+                    new DefaultSubjectBuilder(List.of()),
+                    new KafkaSession(KafkaSessionState.ESTABLISHING)) {
+                @Override
+                ServerConnectionStateMachine createServerConnection(HostPort remote) {
+                    var scsm = mock(ServerConnectionStateMachine.class);
+                    createdConnections.put(remote, scsm);
+                    return scsm;
+                }
+            };
+            routingCcsm.setNodeIdMapping(
+                    new io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping(
+                            List.of("route-a", "route-b")));
+        }
+
+        @Test
+        void shouldConnectOwningRouteToSpecificBroker() {
+            // Given — client connected to virtual node 2 (route-a, target broker 1)
+            routingCcsm.onClientActive(frontendHandler);
+
+            // When — first request triggers toForwardingWithRoutes
+            routingCcsm.onClientRequest(metadataRequest());
+
+            // Then — route-a connects to the specific broker, route-b to its bootstrap
+            assertThat(createdConnections).containsKey(CLUSTER_A_BROKER_1);
+            assertThat(createdConnections).containsKey(CLUSTER_B_BOOTSTRAP);
+            assertThat(createdConnections).doesNotContainKey(CLUSTER_A_BOOTSTRAP);
+        }
+
+        @Test
+        void shouldUseBootstrapsWhenNoNodeIdMapping() {
+            // Given — no NodeIdMapping set
+            routingCcsm.setNodeIdMapping(null);
+            routingCcsm.onClientActive(frontendHandler);
+
+            // When
+            routingCcsm.onClientRequest(metadataRequest());
+
+            // Then — both routes use their bootstraps
+            assertThat(createdConnections).containsKey(CLUSTER_A_BOOTSTRAP);
+            assertThat(createdConnections).containsKey(CLUSTER_B_BOOTSTRAP);
+            assertThat(createdConnections).doesNotContainKey(CLUSTER_A_BROKER_1);
+        }
+
+        @Test
+        void shouldForwardToOwningRouteViaSpecificBroker() {
+            // Given
+            routingCcsm.onClientActive(frontendHandler);
+            routingCcsm.onClientRequest(metadataRequest());
+
+            // When
+            var msg = new Object();
+            routingCcsm.forwardToRoute("route-a", msg);
+
+            // Then — message goes to the SCSM for the specific broker
+            var owningRouteScsm = createdConnections.get(CLUSTER_A_BROKER_1);
+            verify(owningRouteScsm).sendRequest(msg);
         }
     }
 }
