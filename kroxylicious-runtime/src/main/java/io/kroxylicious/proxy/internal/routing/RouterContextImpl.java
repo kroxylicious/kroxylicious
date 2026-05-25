@@ -33,9 +33,9 @@ import io.kroxylicious.proxy.router.RouterContext;
  * Per-request implementation of {@link RouterContext}. Created by
  * {@link RouterDispatchHandler} for each incoming client request.
  */
-class RoutingContextImpl implements RouterContext {
+class RouterContextImpl implements RouterContext {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RoutingContextImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RouterContextImpl.class);
 
     private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
@@ -74,20 +74,20 @@ class RoutingContextImpl implements RouterContext {
         void forward(int virtualNodeId, String routeName, Object msg);
     }
 
-    RoutingContextImpl(DecodedRequestFrame<?> clientFrame,
-                       Channel clientChannel,
-                       String sessionId,
-                       Subject subject,
-                       Map<String, RouteDescriptor> routes,
-                       RequestForwarder requestForwarder,
-                       NodeForwarder nodeForwarder,
-                       NodeIdMapping nodeIdMapping,
-                       IntSupplier routingCorrelationIdAllocator,
-                       MeterProvider<Counter> routingRequestsCounter,
-                       MeterProvider<Counter> routingErrorsCounter,
-                       MeterProvider<Timer> routingRequestDurationTimer,
-                       AtomicInteger pendingResponseCount,
-                       ResponseSequencer responseSequencer) {
+    RouterContextImpl(DecodedRequestFrame<?> clientFrame,
+                      Channel clientChannel,
+                      String sessionId,
+                      Subject subject,
+                      Map<String, RouteDescriptor> routes,
+                      RequestForwarder requestForwarder,
+                      NodeForwarder nodeForwarder,
+                      NodeIdMapping nodeIdMapping,
+                      IntSupplier routingCorrelationIdAllocator,
+                      MeterProvider<Counter> routingRequestsCounter,
+                      MeterProvider<Counter> routingErrorsCounter,
+                      MeterProvider<Timer> routingRequestDurationTimer,
+                      AtomicInteger pendingResponseCount,
+                      ResponseSequencer responseSequencer) {
         this.clientFrame = Objects.requireNonNull(clientFrame);
         this.clientCorrelationId = clientFrame.correlationId();
         this.apiVersion = clientFrame.apiVersion();
