@@ -175,20 +175,7 @@ public class ConfigurationReloadOrchestrator {
             // does not prevent subsequent removes from being attempted.
             var errors = new ArrayList<ReconfigureError>();
             for (String name : changeResult.clustersToRemove()) {
-                try {
-                    virtualClusterRegistry.removeVirtualCluster(name).join();
-                }
-                catch (RuntimeException e) {
-                    Throwable cause = e instanceof CompletionException ce && ce.getCause() != null
-                            ? ce.getCause()
-                            : e;
-                    LOGGER.atWarn()
-                            .setCause(cause)
-                            .addKeyValue("virtualCluster", name)
-                            .addKeyValue("error", cause.getMessage())
-                            .log("reconfigure: failed to remove virtual cluster");
-                    errors.add(new ReconfigureError(name, cause));
-                }
+                removeCluster(name, errors);
             }
 
             // 7. Commit. currentConfiguration advances to the submitted value
@@ -212,5 +199,25 @@ public class ConfigurationReloadOrchestrator {
         return detectors.stream()
                 .map(d -> d.detect(context))
                 .reduce(ChangeResult.EMPTY, ChangeResult::merge);
+    }
+
+    /**
+     * Attempt to remove a single virtual cluster.
+     */
+    private void removeCluster(String clusterName, List<ReconfigureError> errors) {
+        try {
+            virtualClusterRegistry.removeVirtualCluster(clusterName).join();
+        }
+        catch (RuntimeException e) {
+            Throwable cause = e instanceof CompletionException ce && ce.getCause() != null
+                    ? ce.getCause()
+                    : e;
+            LOGGER.atWarn()
+                    .setCause(cause)
+                    .addKeyValue("virtualCluster", clusterName)
+                    .addKeyValue("error", cause.getMessage())
+                    .log("reconfigure: failed to remove virtual cluster");
+            errors.add(new ReconfigureError(clusterName, cause));
+        }
     }
 }
