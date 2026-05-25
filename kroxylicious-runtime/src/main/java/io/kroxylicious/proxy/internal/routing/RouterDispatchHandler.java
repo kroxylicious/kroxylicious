@@ -33,6 +33,7 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterResult;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -55,6 +56,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final ClientConnectionStateMachine ccsm;
     private final NodeIdMapping nodeIdMapping;
     private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
+    private final Map<String, Integer> bootstrapVirtualNodeIds;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
@@ -86,6 +88,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         this.routingErrorsCounter = routingErrorsCounter;
         this.routingRequestDurationTimer = routingRequestDurationTimer;
         this.pendingResponseCount = pendingResponseCount;
+        this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
+                routes, nodeIdMapping, routerNodeAddresses);
     }
 
     @Override
@@ -156,9 +160,9 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
                 routes,
-                (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded),
                 (virtualNodeId, routeName, forwarded) -> ccsm.forwardToNode(virtualNodeId, routeName, forwarded),
                 nodeIdMapping,
+                bootstrapVirtualNodeIds,
                 () -> nextRoutingCorrelationId++,
                 routingRequestsCounter,
                 routingErrorsCounter,
@@ -184,14 +188,39 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         ctx.channel().close();
                     }
                     else {
-                        LOGGER.atTrace()
-                                .addKeyValue("sessionId", ccsm.sessionId())
-                                .addKeyValue("apiKey", apiKey)
-                                .addKeyValue("clientCorrelationId", correlationId)
-                                .log("Router completed request handling");
+                        handleRouterResult(routingContext, result, apiKey, correlationId);
                     }
                     ccsm.onRoutedRequestComplete();
                 });
+    }
+
+    private void handleRouterResult(RouterContextImpl context,
+                                    RouterResult result,
+                                    ApiKeys apiKey,
+                                    int correlationId) {
+        if (result instanceof RouterResult.Completed completed) {
+            context.submitResponse(completed.response());
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("clientCorrelationId", correlationId)
+                    .log("Router completed with response");
+        }
+        else if (result instanceof RouterResult.CompletedNoResponse) {
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("clientCorrelationId", correlationId)
+                    .log("Router completed with no response (fire-and-forget)");
+        }
+        else if (result instanceof RouterResult.Disconnect) {
+            context.disconnectClient();
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("clientCorrelationId", correlationId)
+                    .log("Router requested disconnect");
+        }
     }
 
     @Override

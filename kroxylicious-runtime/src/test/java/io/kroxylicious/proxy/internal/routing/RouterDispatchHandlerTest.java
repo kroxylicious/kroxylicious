@@ -189,17 +189,20 @@ class RouterDispatchHandlerTest {
 
         doAnswer(invocation -> {
             RouterContext ctx = invocation.getArgument(4);
-            var reqHeader = new RequestHeaderData();
+            int bootstrapId = ctx.bootstrapNodeId("default");
+            var reqHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.FETCH.id)
+                    .setRequestApiVersion((short) 12);
             var reqBody = new FetchRequestData();
-            ctx.sendRequest("default", reqHeader, reqBody);
+            ctx.sendRequestToNode("default", bootstrapId, reqHeader, reqBody);
             return CompletableFuture.completedFuture(null);
         }).when(router).onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
 
         doAnswer(invocation -> {
-            forwardedRoute.set(invocation.getArgument(0));
-            forwardedMsg.set(invocation.getArgument(1));
+            forwardedRoute.set(invocation.getArgument(1));
+            forwardedMsg.set(invocation.getArgument(2));
             return null;
-        }).when(ccsm).forwardToRoute(any(), any());
+        }).when(ccsm).forwardToNode(any(int.class), any(), any());
 
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);

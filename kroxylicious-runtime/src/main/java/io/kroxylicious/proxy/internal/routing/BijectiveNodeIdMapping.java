@@ -39,6 +39,11 @@ public record BijectiveNodeIdMapping(List<String> routes,
     }
 
     @Override
+    public int fromVirtual(String route, int virtualNodeId) {
+        return Math.floorDiv(virtualNodeId, routes.size());
+    }
+
+    @Override
     public RouteAndNode fromVirtual(int virtualNodeId) {
         int n = routes.size();
         int offset = Math.floorMod(virtualNodeId, n);

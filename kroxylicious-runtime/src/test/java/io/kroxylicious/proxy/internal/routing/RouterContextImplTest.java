@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
@@ -33,6 +32,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.router.Response;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RouterContextImplTest {
 
@@ -43,12 +43,14 @@ class RouterContextImplTest {
 
     private EmbeddedChannel channel;
     private Map<String, RouteDescriptor> routes;
+    private AtomicReference<Integer> forwardedNodeId;
     private AtomicReference<String> forwardedRoute;
     private AtomicReference<Object> forwardedMsg;
     private SimpleMeterRegistry meterRegistry;
     private AtomicInteger pendingResponseCount;
     private ResponseSequencer responseSequencer;
     private NodeIdMapping nodeIdMapping;
+    private Map<String, Integer> bootstrapVirtualNodeIds;
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
 
     @BeforeEach
@@ -57,12 +59,14 @@ class RouterContextImplTest {
         routes = Map.of(
                 "cluster-route", new RouteDescriptor("cluster-route", TARGET, null, List.of()),
                 "router-route", new RouteDescriptor("router-route", null, "nested", List.of()));
+        forwardedNodeId = new AtomicReference<>();
         forwardedRoute = new AtomicReference<>();
         forwardedMsg = new AtomicReference<>();
         meterRegistry = new SimpleMeterRegistry();
         pendingResponseCount = new AtomicInteger();
         responseSequencer = new ResponseSequencer(channel);
         nodeIdMapping = new IdentityNodeIdMapping("cluster-route");
+        bootstrapVirtualNodeIds = Map.of("cluster-route", -1);
     }
 
     private IntSupplier routingIdAllocator() {
@@ -86,15 +90,13 @@ class RouterContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
-                (routeName, msg) -> {
-                    forwardedRoute.set(routeName);
-                    forwardedMsg.set(msg);
-                },
                 (virtualNodeId, routeName, msg) -> {
+                    forwardedNodeId.set(virtualNodeId);
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
                 },
                 nodeIdMapping,
+                bootstrapVirtualNodeIds,
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
@@ -116,15 +118,30 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldForwardRequestToClusterRoute() {
+    void shouldReturnBootstrapNodeId() {
+        var ctx = createContext();
+        assertThat(ctx.bootstrapNodeId("cluster-route")).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldThrowForUnknownBootstrapRoute() {
+        var ctx = createContext();
+        assertThatThrownBy(() -> ctx.bootstrapNodeId("nonexistent"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unknown route");
+    }
+
+    @Test
+    void shouldForwardRequestToNode() {
         var ctx = createContext();
         var header = new RequestHeaderData()
-                .setRequestApiKey(org.apache.kafka.common.protocol.ApiKeys.FETCH.id)
+                .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
         var body = new FetchRequestData();
 
-        CompletableFuture<Response> future = (CompletableFuture<Response>) ctx.sendRequest("cluster-route", header, body);
+        var future = ctx.sendRequestToNode("cluster-route", 0, header, body);
 
+        assertThat(forwardedNodeId.get()).isEqualTo(0);
         assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
         assertThat(forwardedMsg.get())
                 .isInstanceOfSatisfying(DecodedRequestFrame.class, frame -> {
@@ -133,13 +150,13 @@ class RouterContextImplTest {
                     assertThat(frame.header()).isSameAs(header);
                     assertThat(frame.body()).isSameAs(body);
                 });
-        assertThat(future).isNotCompleted();
+        assertThat(future.toCompletableFuture()).isNotCompleted();
     }
 
     @Test
     void shouldFailForUnknownRoute() {
         var ctx = createContext();
-        var future = ctx.sendRequest("nonexistent", new RequestHeaderData(), new FetchRequestData());
+        var future = ctx.sendRequestToNode("nonexistent", 0, new RequestHeaderData(), new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally()
@@ -151,7 +168,7 @@ class RouterContextImplTest {
     @Test
     void shouldFailForNestedRouterRoute() {
         var ctx = createContext();
-        var future = ctx.sendRequest("router-route", new RequestHeaderData(), new FetchRequestData());
+        var future = ctx.sendRequestToNode("router-route", 0, new RequestHeaderData(), new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally()
@@ -161,13 +178,13 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldWriteResponseToClientChannel() {
+    void shouldSubmitResponseToSequencer() {
         var ctx = createContext();
         var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
         var responseBody = new FetchResponseData();
         Response response = new ResponseImpl(responseHeader, responseBody);
 
-        ctx.sendResponse(response);
+        ctx.submitResponse(response);
 
         Object written = channel.readOutbound();
         assertThat(written)
@@ -184,7 +201,7 @@ class RouterContextImplTest {
         var ctx = createContext();
         assertThat(channel.isOpen()).isTrue();
 
-        ctx.disconnect();
+        ctx.disconnectClient();
 
         assertThat(channel.isOpen()).isFalse();
     }
@@ -192,8 +209,11 @@ class RouterContextImplTest {
     @Test
     void shouldRegisterPendingResponseOnSend() {
         var ctx = createContext();
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
 
-        ctx.sendRequest("cluster-route", new RequestHeaderData(), new FetchRequestData());
+        ctx.sendRequestToNode("cluster-route", 0, header, new FetchRequestData());
 
         assertThat(pendingResponseCount.get()).isEqualTo(1);
     }
@@ -201,7 +221,11 @@ class RouterContextImplTest {
     @Test
     void shouldIncrementRequestCounterOnSend() {
         var ctx = createContext();
-        ctx.sendRequest("cluster-route", new RequestHeaderData(), new FetchRequestData());
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+
+        ctx.sendRequestToNode("cluster-route", 0, header, new FetchRequestData());
 
         var counter = meterRegistry.find("test_routing_requests").counter();
         assertThat(counter).isNotNull();
@@ -211,7 +235,7 @@ class RouterContextImplTest {
     @Test
     void shouldIncrementErrorCounterForUnknownRoute() {
         var ctx = createContext();
-        ctx.sendRequest("nonexistent", new RequestHeaderData(), new FetchRequestData());
+        ctx.sendRequestToNode("nonexistent", 0, new RequestHeaderData(), new FetchRequestData());
 
         var counter = meterRegistry.find("test_routing_errors").counter();
         assertThat(counter).isNotNull();
@@ -220,8 +244,6 @@ class RouterContextImplTest {
 
     @Test
     void shouldAllocateDistinctRoutingCorrelationIdsForFanOut() {
-        var ctx = createContext();
-
         List<Object> forwardedFrames = new java.util.ArrayList<>();
         var fanOutCtx = new RouterContextImpl(
                 clientFrame(),
@@ -229,9 +251,9 @@ class RouterContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
-                (routeName, msg) -> forwardedFrames.add(msg),
                 (virtualNodeId, routeName, msg) -> forwardedFrames.add(msg),
                 nodeIdMapping,
+                bootstrapVirtualNodeIds,
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
@@ -239,8 +261,15 @@ class RouterContextImplTest {
                 pendingResponseCount,
                 responseSequencer);
 
-        var futureA = fanOutCtx.sendRequest("cluster-route", new RequestHeaderData(), new FetchRequestData());
-        var futureB = fanOutCtx.sendRequest("cluster-route", new RequestHeaderData(), new FetchRequestData());
+        var headerA = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+        var headerB = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+
+        var futureA = fanOutCtx.sendRequestToNode("cluster-route", 0, headerA, new FetchRequestData());
+        var futureB = fanOutCtx.sendRequestToNode("cluster-route", 0, headerB, new FetchRequestData());
 
         assertThat(forwardedFrames).hasSize(2);
 
@@ -256,45 +285,6 @@ class RouterContextImplTest {
     }
 
     @Test
-    void sendRequestToNodeShouldForwardToCorrectRoute() {
-        var nodeForwardedId = new AtomicReference<Integer>();
-        var nodeForwardedRoute = new AtomicReference<String>();
-        var nodeForwardedMsg = new AtomicReference<Object>();
-
-        var ctx = new RouterContextImpl(
-                clientFrame(),
-                channel,
-                SESSION_ID,
-                Subject.anonymous(),
-                routes,
-                (routeName, msg) -> {
-                },
-                (virtualNodeId, routeName, msg) -> {
-                    nodeForwardedId.set(virtualNodeId);
-                    nodeForwardedRoute.set(routeName);
-                    nodeForwardedMsg.set(msg);
-                },
-                nodeIdMapping,
-                routingIdAllocator(),
-                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
-                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
-                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount,
-                responseSequencer);
-
-        var header = new RequestHeaderData()
-                .setRequestApiKey(org.apache.kafka.common.protocol.ApiKeys.FETCH.id)
-                .setRequestApiVersion(API_VERSION);
-        var future = ctx.sendRequestToNode(0, header, new FetchRequestData());
-
-        assertThat(future.toCompletableFuture()).isNotCompleted();
-        assertThat(nodeForwardedId.get()).isEqualTo(0);
-        assertThat(nodeForwardedRoute.get()).isEqualTo("cluster-route");
-        assertThat(nodeForwardedMsg.get()).isInstanceOf(DecodedRequestFrame.class);
-        assertThat(pendingResponseCount.get()).isEqualTo(1);
-    }
-
-    @Test
     void sendRequestToNodeShouldFailWhenForwarderThrows() {
         var ctx = new RouterContextImpl(
                 clientFrame(),
@@ -302,12 +292,11 @@ class RouterContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
-                (routeName, msg) -> {
-                },
                 (virtualNodeId, routeName, msg) -> {
                     throw new IllegalStateException("Upstream address not yet known");
                 },
                 nodeIdMapping,
+                bootstrapVirtualNodeIds,
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
@@ -316,9 +305,9 @@ class RouterContextImplTest {
                 responseSequencer);
 
         var header = new RequestHeaderData()
-                .setRequestApiKey(org.apache.kafka.common.protocol.ApiKeys.FETCH.id)
+                .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
-        var future = ctx.sendRequestToNode(0, header, new FetchRequestData());
+        var future = ctx.sendRequestToNode("cluster-route", 0, header, new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally();

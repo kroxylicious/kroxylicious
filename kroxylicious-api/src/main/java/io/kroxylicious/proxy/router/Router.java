@@ -62,29 +62,31 @@ import org.apache.kafka.common.protocol.ApiMessage;
 public interface Router {
 
     /**
-     * Called for each incoming client request.
+     * Called for each incoming client request that is dynamically routed.
      *
-     * <p>The implementation must use {@code context} to
-     * {@linkplain RouterContext#sendRequest send} at least one request
-     * and eventually {@linkplain RouterContext#sendResponse deliver} a
-     * response to the client. The returned {@link CompletionStage} must
-     * complete after the router has finished all its work for this request.</p>
+     * <p>The implementation inspects the request, sends one or more requests
+     * via {@link RouterContext#sendRequestToNode}, and returns a
+     * {@link RouterResult} encoding the outcome. Use
+     * {@link RouterResult.Completed Completed} to deliver a response,
+     * {@link RouterResult.CompletedNoResponse CompletedNoResponse} for
+     * fire-and-forget requests, or {@link RouterResult.Disconnect Disconnect}
+     * to close the client connection.</p>
      *
      * <p><strong>Threading model</strong></p>
      *
      * <p>All invocations of this method, all calls to
-     * {@link RouterContext#sendRequest} and {@link RouterContext#sendResponse},
-     * and all {@link CompletionStage} callbacks chained on the futures returned
-     * by {@code sendRequest}, execute on the same Netty event loop thread.
-     * Router implementations do not need to synchronise access to their own
-     * state.</p>
+     * {@link RouterContext#sendRequestToNode}, and all
+     * {@link CompletionStage} callbacks chained on the futures returned
+     * by {@code sendRequestToNode}, execute on the same Netty event loop
+     * thread. Router implementations do not need to synchronise access
+     * to their own state.</p>
      *
      * @param apiVersion the API version of the request
      * @param apiKey the API key identifying the request type
      * @param header the request header
      * @param request the request body
-     * @param context the router context for sending requests and responses
-     * @return a stage that completes when the router decision is fully handled
+     * @param context the router context for sending requests
+     * @return a stage that completes with the routing outcome
      */
     CompletionStage<RouterResult> onRequest(
                                             short apiVersion,
