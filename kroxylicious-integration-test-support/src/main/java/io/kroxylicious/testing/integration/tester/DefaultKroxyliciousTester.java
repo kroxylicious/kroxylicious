@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -59,11 +60,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<KroxyliciousTesterBuilder.TrustStoreConfiguration> trustStoreConfiguration;
 
-    // Volatile because reconfigure() updates this from the caller's thread while client-
-    // building helpers (createTopic, producer, etc.) may read it from any thread. The field
-    // is mutated only after a successful KafkaProxy.reconfigure() so the tester's view of
-    // the running configuration mirrors the proxy's currentConfiguration.
-    private volatile Configuration kroxyliciousConfig;
+    // AtomicReference because reconfigure() updates this from the caller's thread while
+    // client-building helpers (createTopic, producer, etc.) may read it from any thread.
+    // The reference is swapped only after a successful KafkaProxy.reconfigure(), so the
+    // tester's view of the running configuration mirrors the proxy's currentConfiguration.
+    private final AtomicReference<Configuration> kroxyliciousConfig;
 
     private final Map<GatewayId, KroxyliciousClients> clients;
     private final Map<String, Set<String>> topicsPerVirtualCluster;
@@ -75,8 +76,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
                               @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
-        this.kroxyliciousConfig = configurationBuilder.build();
-        this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
+        this.kroxyliciousConfig = new AtomicReference<>(configurationBuilder.build());
+        this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig.get());
         this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
         this.clients = new ConcurrentHashMap<>();
         this.clientFactory = clientFactory;
@@ -88,9 +89,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private String onlyVirtualCluster() {
-        int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
+        var config = kroxyliciousConfig.get();
+        int numVirtualClusters = config.virtualClusters().size();
         if (numVirtualClusters == 1) {
-            return kroxyliciousConfig.virtualClusters().stream().map(VirtualCluster::name).findFirst().orElseThrow();
+            return config.virtualClusters().stream().map(VirtualCluster::name).findFirst().orElseThrow();
         }
         else {
             throw new AmbiguousVirtualClusterException(
@@ -127,11 +129,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     @NonNull
     public String getBootstrapAddress(String virtualCluster, String gateway) {
-        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig, gateway);
+        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig.get(), gateway);
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {
-        var definedCluster = kroxyliciousConfig.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
+        var definedCluster = kroxyliciousConfig.get().virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
         definedCluster.ifPresent(cluster -> {
 
             var first = cluster.gateways().stream().filter(g -> g.name().equals(gateway)).findFirst();
@@ -302,7 +304,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     public void restartProxy() {
         try {
             proxy.close();
-            proxy = spawnProxy(kroxyliciousConfig, Features.defaultFeatures());
+            proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
@@ -321,7 +323,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         // semantics: advance on any non-exceptional completion, including partial-error
         // results, because the configuration intent has been committed.
         return kp.reconfigure(newConfig).thenApply(result -> {
-            this.kroxyliciousConfig = newConfig;
+            this.kroxyliciousConfig.set(newConfig);
             return result;
         });
     }
@@ -413,7 +415,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public ManagementClient getManagementClient() {
-        var client = Optional.ofNullable(kroxyliciousConfig.management())
+        var client = Optional.ofNullable(kroxyliciousConfig.get().management())
                 .map(ahc -> URI.create("http://localhost:" + ahc.getEffectivePort()))
                 .map(ManagementClient::new)
                 .orElseThrow(() -> new IllegalStateException("admin http interface not configured"));

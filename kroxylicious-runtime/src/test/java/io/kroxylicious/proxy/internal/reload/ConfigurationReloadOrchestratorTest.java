@@ -371,11 +371,11 @@ class ConfigurationReloadOrchestratorTest {
     @Test
     void perClusterAddFailureSurfacesAsReconfigureErrorAndOthersStillRun() {
         // Two clusters are being added. The registry's addVirtualCluster (bookkeeping) for
-        // one of them returns a failed future; the other returns a completed future. The
-        // orchestrator must:
-        // (a) still attempt the second add (failure of one does not abort the loop);
-        // (b) surface the failure as a per-cluster ReconfigureError in the result;
-        // (c) return a successful future overall (ReconfigureResult conveys partial failure).
+        // one of them returns a failed future; the other returns a completed future.
+        // Required orchestrator behaviour:
+        // - still attempt the second add (failure of one does not abort the loop);
+        // - surface the failure as a per-cluster ReconfigureError in the result;
+        // - return a successful future overall (ReconfigureResult conveys partial failure).
         var oldConfig = configWith(vc("cluster-a"));
         var newConfig = configWith(vc("cluster-a"), vc("cluster-b"), vc("cluster-c"));
 
@@ -404,10 +404,11 @@ class ConfigurationReloadOrchestratorTest {
     @Test
     void perClusterRemoveFailureSurfacesAsReconfigureErrorAndOthersStillRun() {
         // Two clusters are being removed. The registry's removeVirtualCluster for one of them
-        // returns a failed future; the other returns a completed future. The orchestrator must:
-        // (a) still attempt the second removal (failure of one does not abort the loop);
-        // (b) surface the failure as a per-cluster ReconfigureError in the result;
-        // (c) return a successful future overall (ReconfigureResult conveys partial failure).
+        // returns a failed future; the other returns a completed future.
+        // Required orchestrator behaviour:
+        // - still attempt the second removal (failure of one does not abort the loop);
+        // - surface the failure as a per-cluster ReconfigureError in the result;
+        // - return a successful future overall (ReconfigureResult conveys partial failure).
         var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"), vc("cluster-c"));
         var newConfig = configWith(vc("cluster-a")); // removes cluster-b AND cluster-c
 
