@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.routing.topic;
 
+import java.time.Clock;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -98,11 +99,12 @@ class TopicPartitionRouter implements Router {
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute,
                          ProducerIdManager producerIdManager,
-                         FetchSessionCache fetchSessionCache) {
+                         FetchSessionCache fetchSessionCache,
+                         Clock clock) {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
         this.producerIdManager = producerIdManager;
-        this.fetchSessionManager = new FetchSessionManager(fetchSessionCache);
+        this.fetchSessionManager = new FetchSessionManager(fetchSessionCache, clock);
         this.staticRoutes = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> defaultRoute));
