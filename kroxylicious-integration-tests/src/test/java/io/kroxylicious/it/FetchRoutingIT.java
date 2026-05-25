@@ -21,6 +21,7 @@ import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchRequestData.FetchPartition;
 import org.apache.kafka.common.message.FetchRequestData.FetchTopic;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -33,6 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.proxy.internal.routing.RoutingEvent;
 import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactoryTestSupport;
 import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.ManagementClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -144,33 +146,14 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                         .get(10, TimeUnit.SECONDS);
             }
 
-            try (var client = tester.simpleTestClient()) {
-                negotiateApiVersions(client);
-
-                var request = buildFetchRequest(PARAM_TOPIC_A, PARAM_TOPIC_B);
-                request.setSessionId(0);
-                request.setSessionEpoch(apiVersion >= 7 ? 0 : -1);
-
-                var response = client.getSync(
-                        new Request(ApiKeys.FETCH, apiVersion, "test-client", request));
-                var body = (FetchResponseData) response.payload().message();
-
-                assertThat(body.responses())
-                        .as("v%d FETCH response should contain topics", apiVersion)
-                        .isNotEmpty();
-
-                assertThat(body.responses()).extracting(FetchResponseData.FetchableTopicResponse::topic)
-                        .as("v%d response should contain both topics", apiVersion)
-                        .containsExactlyInAnyOrder(PARAM_TOPIC_A, PARAM_TOPIC_B);
-
-                for (var topicResp : body.responses()) {
-                    for (var partResp : topicResp.partitions()) {
-                        assertThat(partResp.errorCode())
-                                .as("v%d partition error for %s", apiVersion, topicResp.topic())
-                                .isEqualTo(Errors.NONE.code());
-                    }
-                }
+            MetadataResponseData metadata;
+            try (var metadataClient = tester.simpleTestClient()) {
+                negotiateApiVersions(metadataClient);
+                metadata = fetchMetadata(metadataClient, PARAM_TOPIC_A, PARAM_TOPIC_B);
             }
+
+            fetchFromLeader(tester, metadata, PARAM_TOPIC_A, apiVersion);
+            fetchFromLeader(tester, metadata, PARAM_TOPIC_B, apiVersion);
         }
 
         var fetchesToA = routingCaptor.requestsToRoute("route-a", ApiKeys.FETCH);
@@ -189,6 +172,32 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
             assertThat(body.topics()).extracting("topic")
                     .as("v%d: route-b should only receive b.* topics", apiVersion)
                     .allSatisfy(name -> assertThat((String) name).startsWith("b."));
+        }
+    }
+
+    private void fetchFromLeader(KroxyliciousTester tester,
+                                 MetadataResponseData metadata,
+                                 String topicName,
+                                 short apiVersion) {
+        try (var client = clientForLeader(tester, metadata, topicName, 0)) {
+            var request = buildFetchRequest(topicName);
+            request.setSessionId(0);
+            request.setSessionEpoch(apiVersion >= 7 ? 0 : -1);
+
+            var response = client.getSync(
+                    new Request(ApiKeys.FETCH, apiVersion, "test-client", request));
+            var body = (FetchResponseData) response.payload().message();
+
+            assertThat(body.responses())
+                    .as("v%d FETCH response should contain %s", apiVersion, topicName)
+                    .isNotEmpty();
+            for (var topicResp : body.responses()) {
+                for (var partResp : topicResp.partitions()) {
+                    assertThat(partResp.errorCode())
+                            .as("v%d partition error for %s", apiVersion, topicResp.topic())
+                            .isEqualTo(Errors.NONE.code());
+                }
+            }
         }
     }
 
@@ -912,7 +921,7 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
     }
 
     private void produceOneRecord(
-                                  io.kroxylicious.testing.integration.tester.KroxyliciousTester tester,
+                                  KroxyliciousTester tester,
                                   String topic,
                                   String value)
             throws Exception {
