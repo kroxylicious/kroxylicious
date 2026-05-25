@@ -17,11 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.routing.Router;
-import io.kroxylicious.proxy.routing.RouterFactory;
-import io.kroxylicious.proxy.routing.RouterFactoryContext;
-import io.kroxylicious.proxy.routing.RoutingContext;
-import io.kroxylicious.proxy.routing.RoutingResult;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterFactory;
+import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.router.RoutingContext;
+import io.kroxylicious.proxy.router.RoutingResult;
 
 /**
  * A router that forwards every request to a single named route, delivering
