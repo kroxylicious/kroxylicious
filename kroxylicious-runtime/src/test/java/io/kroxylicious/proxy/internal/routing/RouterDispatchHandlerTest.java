@@ -36,7 +36,7 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.router.RoutingContext;
+import io.kroxylicious.proxy.router.RouterContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -89,7 +89,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldInvokeRouterOnDecodedRequestFrame() {
         stubCcsmForRouting();
-        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class)))
+        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
         var handler = createHandler(Map.of());
@@ -106,7 +106,7 @@ class RouterDispatchHandlerTest {
                 any(ApiKeys.class),
                 any(),
                 any(),
-                any(RoutingContext.class));
+                any(RouterContext.class));
     }
 
     @Test
@@ -123,7 +123,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCloseChannelWhenRouterReturnsFailed() {
         stubCcsmForRouting();
-        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class)))
+        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("router error")));
 
         var handler = createHandler(Map.of());
@@ -188,12 +188,12 @@ class RouterDispatchHandlerTest {
         AtomicReference<Object> forwardedMsg = new AtomicReference<>();
 
         doAnswer(invocation -> {
-            RoutingContext ctx = invocation.getArgument(4);
+            RouterContext ctx = invocation.getArgument(4);
             var reqHeader = new RequestHeaderData();
             var reqBody = new FetchRequestData();
             ctx.sendRequest("default", reqHeader, reqBody);
             return CompletableFuture.completedFuture(null);
-        }).when(router).onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class));
+        }).when(router).onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
 
         doAnswer(invocation -> {
             forwardedRoute.set(invocation.getArgument(0));
@@ -354,7 +354,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldIncrementErrorCounterWhenRouterFails() {
         stubCcsmForRouting();
-        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RoutingContext.class)))
+        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
 
         var handler = createHandler(Map.of());

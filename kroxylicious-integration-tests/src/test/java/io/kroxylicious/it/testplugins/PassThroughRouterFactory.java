@@ -20,8 +20,8 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RoutingContext;
-import io.kroxylicious.proxy.router.RoutingResult;
+import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.router.RouterResult;
 
 /**
  * A router that forwards every request to a single named route, delivering
@@ -49,16 +49,16 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
         return new Router() {
             @Override
-            public CompletionStage<RoutingResult> onClientRequest(
+            public CompletionStage<RouterResult> onClientRequest(
                                                                   short apiVersion,
                                                                   ApiKeys apiKey,
                                                                   RequestHeaderData header,
                                                                   ApiMessage request,
-                                                                  RoutingContext routingContext) {
-                return routingContext.sendRequest(route, header, request)
+                                                                  RouterContext routerContext) {
+                return routerContext.sendRequest(route, header, request)
                         .thenApply(response -> {
-                            routingContext.sendResponse(response);
-                            return RoutingResult.completed();
+                            routerContext.sendResponse(response);
+                            return RouterResult.completed();
                         });
             }
 

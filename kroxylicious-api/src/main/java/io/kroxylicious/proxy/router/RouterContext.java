@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.authentication.Subject;
  * Context passed to {@link Router#onClientRequest} for issuing requests
  * to named routes and delivering responses to the client.
  */
-public interface RoutingContext {
+public interface RouterContext {
 
     /**
      * Sends a request down the named route.

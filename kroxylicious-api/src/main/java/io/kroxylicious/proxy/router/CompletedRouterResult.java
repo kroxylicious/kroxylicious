@@ -9,6 +9,6 @@ package io.kroxylicious.proxy.router;
 /**
  * Singleton implementation of a completed router result.
  */
-enum CompletedRoutingResult implements RoutingResult {
+enum CompletedRouterResult implements RouterResult {
     INSTANCE
 }
