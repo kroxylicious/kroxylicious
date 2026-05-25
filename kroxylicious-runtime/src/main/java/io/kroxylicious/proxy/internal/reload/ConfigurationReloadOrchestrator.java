@@ -239,7 +239,7 @@ public class ConfigurationReloadOrchestrator {
     }
 
     /**
-     * Attempt to add a single virtual cluster. Mirrors {@code KafkaProxy.start()}'s wiring:
+     * Attempt to add a single virtual cluster:
      * <ol>
      *   <li>Ask the registry to create the lifecycle in {@code INITIALIZING}.</li>
      *   <li>Bind each gateway via {@link EndpointRegistry#registerVirtualCluster}.</li>
@@ -249,8 +249,6 @@ public class ConfigurationReloadOrchestrator {
      *       {@link VirtualClusterRegistry#initializationFailed} and best-effort deregister each
      *       gateway to roll back any partial registration.</li>
      * </ol>
-     * Mirrors {@link #removeCluster}'s error-accumulation contract: failures are recorded
-     * but do not stop subsequent adds.
      */
     private void addCluster(String clusterName, VirtualClusterModel newModel, List<ReconfigureError> errors) {
         try {
