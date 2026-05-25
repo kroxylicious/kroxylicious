@@ -177,6 +177,11 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     public boolean onResponse(Object msg) {
         if (msg instanceof DecodedResponseFrame<?> frame) {
             int correlationId = frame.correlationId();
+            // Routing correlation IDs are negative (allocated from Integer.MIN_VALUE / 2 upward).
+            // Non-negative IDs are normal client correlation IDs for statically-routed requests.
+            if (correlationId >= 0) {
+                return false;
+            }
             Map<Integer, PendingResponse> pending = getPendingResponses(ccsm.clientChannel());
             PendingResponse pendingResponse = pending.remove(correlationId);
             if (pendingResponse != null) {
@@ -194,14 +199,12 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         .log("Routed response matched to pending request");
                 return true;
             }
-            else if (!pending.isEmpty()) {
-                routingErrorsCounter.withTags(
-                        Metrics.ERROR_TYPE_LABEL, "unmatched_response").increment();
-                LOGGER.atWarn()
-                        .addKeyValue("sessionId", ccsm.sessionId())
-                        .addKeyValue("clientCorrelationId", correlationId)
-                        .log("Received response with no pending routing future");
-            }
+            routingErrorsCounter.withTags(
+                    Metrics.ERROR_TYPE_LABEL, "unmatched_response").increment();
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("clientCorrelationId", correlationId)
+                    .log("Received response with no pending routing future");
         }
         return false;
     }
