@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.routing.topic;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,7 +53,7 @@ class TopicPartitionRouterTest {
     void setUp() {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
-        router = new TopicPartitionRouter(table, "default-route");
+        router = new TopicPartitionRouter(table, "default-route", new ProducerIdManager(Duration.ofDays(7)));
     }
 
     // --- static routes ---
@@ -162,7 +163,7 @@ class TopicPartitionRouterTest {
     void shouldSynthesiseErrorForUnroutableTopicsWithNoDefault() {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
-        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a");
+        var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", new ProducerIdManager(Duration.ofDays(7)));
 
         var request = produceRequest("orders.uk", "logs.app");
         var respA = produceResponse("orders.uk", 0, Errors.NONE);
@@ -257,7 +258,7 @@ class TopicPartitionRouterTest {
     void shouldPassThroughInitProducerIdWithSingleRoute() {
         var singleRouteTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "only-route"), null);
-        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route");
+        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", new ProducerIdManager(Duration.ofDays(7)));
 
         var request = new InitProducerIdRequestData()
                 .setTransactionTimeoutMs(60000);
@@ -318,9 +319,9 @@ class TopicPartitionRouterTest {
     @Test
     void shouldNotRewriteProducerIdForDefaultRoute() {
         setupProducerIdMapping(300L, Map.of(
-                "default-route", new TopicPartitionRouter.ProducerIdEpoch(300L, (short) 0),
-                "cluster-a", new TopicPartitionRouter.ProducerIdEpoch(100L, (short) 0),
-                "cluster-b", new TopicPartitionRouter.ProducerIdEpoch(200L, (short) 0)));
+                "default-route", new ProducerIdManager.ProducerIdEpoch(300L, (short) 0),
+                "cluster-a", new ProducerIdManager.ProducerIdEpoch(100L, (short) 0),
+                "cluster-b", new ProducerIdManager.ProducerIdEpoch(200L, (short) 0)));
 
         var request = idempotentProduceRequest(300L, (short) 0, "unknown.topic");
         var resp = produceResponse("unknown.topic", 0, Errors.NONE);
@@ -340,9 +341,9 @@ class TopicPartitionRouterTest {
     @Test
     void shouldRewriteProducerIdForNonDefaultRoute() {
         setupProducerIdMapping(300L, Map.of(
-                "default-route", new TopicPartitionRouter.ProducerIdEpoch(300L, (short) 0),
-                "cluster-a", new TopicPartitionRouter.ProducerIdEpoch(100L, (short) 0),
-                "cluster-b", new TopicPartitionRouter.ProducerIdEpoch(200L, (short) 0)));
+                "default-route", new ProducerIdManager.ProducerIdEpoch(300L, (short) 0),
+                "cluster-a", new ProducerIdManager.ProducerIdEpoch(100L, (short) 0),
+                "cluster-b", new ProducerIdManager.ProducerIdEpoch(200L, (short) 0)));
 
         var request = idempotentProduceRequest(300L, (short) 0, "orders.uk");
         var resp = produceResponse("orders.uk", 0, Errors.NONE);
@@ -362,9 +363,9 @@ class TopicPartitionRouterTest {
     @Test
     void shouldRewriteOnlyNonDefaultRoutesInFanOut() {
         setupProducerIdMapping(300L, Map.of(
-                "default-route", new TopicPartitionRouter.ProducerIdEpoch(300L, (short) 0),
-                "cluster-a", new TopicPartitionRouter.ProducerIdEpoch(100L, (short) 0),
-                "cluster-b", new TopicPartitionRouter.ProducerIdEpoch(200L, (short) 0)));
+                "default-route", new ProducerIdManager.ProducerIdEpoch(300L, (short) 0),
+                "cluster-a", new ProducerIdManager.ProducerIdEpoch(100L, (short) 0),
+                "cluster-b", new ProducerIdManager.ProducerIdEpoch(200L, (short) 0)));
 
         var request = idempotentProduceRequest(300L, (short) 0, "orders.uk", "logs.app");
         var respA = produceResponse("orders.uk", 0, Errors.NONE);
@@ -388,8 +389,25 @@ class TopicPartitionRouterTest {
         }
     }
 
+    @Test
+    void shouldReturnUnknownProducerIdWhenMappingMissing() {
+        var request = idempotentProduceRequest(999L, (short) 0, "orders.uk", "logs.app");
+
+        var ctx = new CapturingRoutingContext(Map.of());
+        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).as("no requests should be forwarded").isEmpty();
+        var response = (ProduceResponseData) ctx.sentResponseBody();
+        assertThat(response.responses()).hasSize(2);
+        for (var tr : response.responses()) {
+            for (var pr : tr.partitionResponses()) {
+                assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_PRODUCER_ID.code());
+            }
+        }
+    }
+
     private void setupProducerIdMapping(long clientProducerId,
-                                        Map<String, TopicPartitionRouter.ProducerIdEpoch> mapping) {
+                                        Map<String, ProducerIdManager.ProducerIdEpoch> mapping) {
         // Use INIT_PRODUCER_ID to establish mappings
         var request = new InitProducerIdRequestData()
                 .setTransactionTimeoutMs(60000);
