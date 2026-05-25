@@ -66,13 +66,11 @@ class FetchSessionCache {
                 .register(Metrics.globalRegistry);
 
         this.activeSessionsGauge = Gauge.builder(ACTIVE_SESSIONS_METRIC, this, FetchSessionCache::size)
-                .strongReference(true)
                 .description("Number of active incremental fetch sessions.")
                 .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
                 .tag(ROUTER_TAG, routerName)
                 .register(Metrics.globalRegistry);
         this.partitionsCachedGauge = Gauge.builder(PARTITIONS_CACHED_METRIC, this, FetchSessionCache::totalPartitionsCached)
-                .strongReference(true)
                 .description("Total number of partitions cached across all fetch sessions.")
                 .tag(VIRTUAL_CLUSTER_TAG, virtualClusterName)
                 .tag(ROUTER_TAG, routerName)

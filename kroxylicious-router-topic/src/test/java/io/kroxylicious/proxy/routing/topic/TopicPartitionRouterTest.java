@@ -83,6 +83,29 @@ class TopicPartitionRouterTest {
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"));
     }
 
+    // --- close ---
+
+    @Test
+    void closeShouldReleaseFetchSessionCacheSlot() {
+        var cache = new FetchSessionCache(1000, 10_000, "testVc", "testRouter");
+        var table = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "cluster-a"), "default-route");
+        var closeable = new TopicPartitionRouter(table, "default-route",
+                new ProducerIdManager(Duration.ofDays(7)), cache);
+
+        var request = fetchRequest("orders.uk");
+        request.setSessionId(0);
+        request.setSessionEpoch(0);
+        var backendResp = fetchResponse("orders.uk", 0, Errors.NONE);
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", backendResp));
+        closeable.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+        assertThat(cache.size()).isEqualTo(1);
+
+        closeable.close();
+
+        assertThat(cache.size()).isEqualTo(0);
+    }
+
     // --- static routes ---
 
     @Test
