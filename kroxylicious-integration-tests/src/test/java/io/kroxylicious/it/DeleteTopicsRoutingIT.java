@@ -26,7 +26,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for DELETE_TOPICS routing through the topic-partition router.
+ * Integration tests for DELETE_TOPICS router through the topic-partition router.
  * DELETE_TOPICS is capped at v5 to force name-based addressing.
  */
 class DeleteTopicsRoutingIT extends TopicPartitionRoutingBaseIT {
@@ -72,7 +72,7 @@ class DeleteTopicsRoutingIT extends TopicPartitionRoutingBaseIT {
             assertThat(names).doesNotContain(topicB);
         }
 
-        // Verify routing
+        // Verify router
         var deleteToA = routingCaptor.requestsToRoute("route-a", ApiKeys.DELETE_TOPICS);
         var deleteToB = routingCaptor.requestsToRoute("route-b", ApiKeys.DELETE_TOPICS);
         assertThat(deleteToA).as("DELETE_TOPICS should be routed to route-a").isNotEmpty();
