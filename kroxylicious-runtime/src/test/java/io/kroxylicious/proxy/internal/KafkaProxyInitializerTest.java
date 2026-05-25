@@ -423,7 +423,7 @@ class KafkaProxyInitializerTest {
                 pfr,
                 tls,
                 bindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
+                mock(io.kroxylicious.proxy.internal.net.EndpointReconciler.class),
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),

@@ -43,6 +43,8 @@ class RoutingContextImpl implements RouterContext {
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
     private final RequestForwarder requestForwarder;
+    private final NodeForwarder nodeForwarder;
+    private final NodeIdMapping nodeIdMapping;
     private final IntSupplier routingCorrelationIdAllocator;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
@@ -62,6 +64,15 @@ class RoutingContextImpl implements RouterContext {
         void forward(String routeName, Object msg);
     }
 
+    /**
+     * Callback interface for forwarding requests to a specific broker
+     * identified by virtual node ID.
+     */
+    @FunctionalInterface
+    interface NodeForwarder {
+        void forward(int virtualNodeId, String routeName, Object msg);
+    }
+
     RoutingContextImpl(int clientCorrelationId,
                        short apiVersion,
                        Channel clientChannel,
@@ -69,6 +80,8 @@ class RoutingContextImpl implements RouterContext {
                        Subject subject,
                        Map<String, RouteDescriptor> routes,
                        RequestForwarder requestForwarder,
+                       NodeForwarder nodeForwarder,
+                       NodeIdMapping nodeIdMapping,
                        IntSupplier routingCorrelationIdAllocator,
                        MeterProvider<Counter> routingRequestsCounter,
                        MeterProvider<Counter> routingErrorsCounter,
@@ -82,6 +95,8 @@ class RoutingContextImpl implements RouterContext {
         this.subject = Objects.requireNonNull(subject);
         this.routes = Objects.requireNonNull(routes);
         this.requestForwarder = Objects.requireNonNull(requestForwarder);
+        this.nodeForwarder = Objects.requireNonNull(nodeForwarder);
+        this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
         this.routingCorrelationIdAllocator = Objects.requireNonNull(routingCorrelationIdAllocator);
         this.routingRequestsCounter = Objects.requireNonNull(routingRequestsCounter);
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
@@ -182,6 +197,95 @@ class RoutingContextImpl implements RouterContext {
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", apiVersion)
                 .log("Request sent to route");
+        if (listener != null) {
+            future.whenComplete((resp, error) -> {
+                if (resp != null) {
+                    listener.accept(new RoutingEvent.Response(
+                            sessionId, route, routingCorrelationId, apiKey,
+                            resp.header(), resp.body()));
+                }
+            });
+        }
+        return future;
+    }
+
+    CompletionStage<Response> sendRequestToNode(
+                                                int virtualNodeId,
+                                                RequestHeaderData header,
+                                                ApiMessage request) {
+        NodeIdMapping.RouteAndNode resolved = nodeIdMapping.fromVirtual(virtualNodeId);
+        String route = resolved.route();
+
+        RouteDescriptor rd = routes.get(route);
+        if (rd == null || !rd.targetsCluster()) {
+            routingErrorsCounter.withTags(
+                    Metrics.ERROR_TYPE_LABEL, "invalid_virtual_node").increment();
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("virtualNodeId", virtualNodeId)
+                    .addKeyValue("route", route)
+                    .log("Virtual node ID resolved to invalid route");
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Virtual node " + virtualNodeId
+                            + " resolved to invalid route: " + route));
+        }
+
+        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
+        var frame = new DecodedRequestFrame<>(
+                apiVersion,
+                routingCorrelationId,
+                true,
+                header,
+                request);
+
+        var listener = RoutingEvent.EVENT_LISTENER.get();
+        if (listener != null) {
+            listener.accept(new RoutingEvent.Request(
+                    sessionId, route, clientCorrelationId, routingCorrelationId,
+                    apiKey, apiVersion, header, request));
+        }
+
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        Timer.Sample timerSample = Timer.start();
+        var pendingResponse = new RouterDispatchHandler.PendingResponse(
+                future, timerSample, route, apiKey);
+        RouterDispatchHandler.registerPendingResponse(
+                clientChannel, routingCorrelationId, pendingResponse);
+        pendingResponseCount.incrementAndGet();
+
+        try {
+            nodeForwarder.forward(virtualNodeId, route, frame);
+        }
+        catch (Exception e) {
+            RouterDispatchHandler.deregisterPendingResponse(
+                    clientChannel, routingCorrelationId);
+            pendingResponseCount.decrementAndGet();
+            routingErrorsCounter.withTags(
+                    Metrics.ERROR_TYPE_LABEL, "node_forward_failed").increment();
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("virtualNodeId", virtualNodeId)
+                    .addKeyValue("route", route)
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addKeyValue("error", e.getMessage())
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Failed to forward request to node"
+                            : "Failed to forward request to node, increase log level to DEBUG for stacktrace");
+            return CompletableFuture.failedFuture(e);
+        }
+
+        routingRequestsCounter.withTags(
+                Metrics.ROUTE_LABEL, route,
+                Metrics.ROUTING_MODE_LABEL, "dynamic",
+                Metrics.API_KEY_LABEL, apiKey.name()).increment();
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("route", route)
+                .addKeyValue("virtualNodeId", virtualNodeId)
+                .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .log("Request sent to specific node");
         if (listener != null) {
             future.whenComplete((resp, error) -> {
                 if (resp != null) {
