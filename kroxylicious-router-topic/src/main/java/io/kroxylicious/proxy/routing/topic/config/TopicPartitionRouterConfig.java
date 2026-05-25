@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.routing.topic.config;
 
+import java.time.Duration;
 import java.util.List;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -14,6 +15,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param defaultRoute route for topics matching no prefix, or null if unmatched topics should be rejected
  * @param topicRoutes per-route topic prefix assignments
+ * @param producerIdTtl time after last use before an idempotent producer's per-route ID mapping is evicted,
+ *                      or null to use the default (7 days)
  */
 public record TopicPartitionRouterConfig(@Nullable String defaultRoute,
-                                         List<TopicRoute> topicRoutes) {}
+                                         List<TopicRoute> topicRoutes,
+                                         @Nullable Duration producerIdTtl) {
+
+    public TopicPartitionRouterConfig(@Nullable String defaultRoute,
+                                      List<TopicRoute> topicRoutes) {
+        this(defaultRoute, topicRoutes, null);
+    }
+}
