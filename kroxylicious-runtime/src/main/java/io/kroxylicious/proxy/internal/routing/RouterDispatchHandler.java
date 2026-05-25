@@ -5,11 +5,14 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
@@ -31,6 +34,7 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResult;
+import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -51,6 +55,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
     private final NodeIdMapping nodeIdMapping;
+    private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
@@ -87,6 +92,13 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
         router.close();
+    }
+
+    /**
+     * Resolves a virtual node ID to a backend address using addresses discovered from internal METADATA responses.
+     */
+    public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
+        return Optional.ofNullable(routerNodeAddresses.get(virtualNodeId));
     }
 
     @Override
@@ -216,6 +228,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         Metrics.API_KEY_LABEL, pendingResponse.apiKey().name()));
                 NodeIdResponseTranslator.translate(
                         frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
+                cacheNodeAddressesIfMetadata(frame.body());
                 Response response = new ResponseImpl(
                         (ResponseHeaderData) frame.header(),
                         frame.body());
@@ -255,5 +268,19 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             attr.set(map);
         }
         return map;
+    }
+
+    private void cacheNodeAddressesIfMetadata(Object body) {
+        if (body instanceof MetadataResponseData md) {
+            for (var broker : md.brokers()) {
+                routerNodeAddresses.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
+            }
+            if (!md.brokers().isEmpty()) {
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("brokerCount", md.brokers().size())
+                        .log("Cached upstream node addresses from internal METADATA response");
+            }
+        }
     }
 }
