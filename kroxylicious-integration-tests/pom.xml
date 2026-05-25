@@ -161,6 +161,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-pkitesting</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kafka-message-tools</artifactId>
             <scope>test</scope>
