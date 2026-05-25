@@ -26,8 +26,8 @@ import io.netty.channel.Channel;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.routing.Response;
-import io.kroxylicious.proxy.routing.RoutingContext;
+import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.router.RoutingContext;
 
 /**
  * Per-request implementation of {@link RoutingContext}. Created by

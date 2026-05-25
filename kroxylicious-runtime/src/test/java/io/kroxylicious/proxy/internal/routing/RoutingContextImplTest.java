@@ -30,7 +30,7 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.routing.Response;
+import io.kroxylicious.proxy.router.Response;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

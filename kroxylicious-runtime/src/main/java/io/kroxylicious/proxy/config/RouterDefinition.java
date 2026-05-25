@@ -15,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
-import io.kroxylicious.proxy.routing.RouterFactory;
+import io.kroxylicious.proxy.router.RouterFactory;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

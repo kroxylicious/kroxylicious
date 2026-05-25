@@ -34,9 +34,9 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
-import io.kroxylicious.proxy.routing.Response;
-import io.kroxylicious.proxy.routing.Router;
-import io.kroxylicious.proxy.routing.RoutingContext;
+import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RoutingContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
