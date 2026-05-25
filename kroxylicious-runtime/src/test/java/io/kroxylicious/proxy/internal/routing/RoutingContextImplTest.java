@@ -105,7 +105,9 @@ class RoutingContextImplTest {
     @Test
     void shouldForwardRequestToClusterRoute() {
         var ctx = createContext();
-        var header = new RequestHeaderData();
+        var header = new RequestHeaderData()
+                .setRequestApiKey(org.apache.kafka.common.protocol.ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
         var body = new FetchRequestData();
 
         CompletableFuture<Response> future = (CompletableFuture<Response>) ctx.sendRequestToNode("cluster-route", 0, header, body);
