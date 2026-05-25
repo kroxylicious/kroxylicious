@@ -9,6 +9,7 @@ package io.kroxylicious.testing.integration.tester;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -16,6 +17,8 @@ import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
 /**
@@ -339,6 +342,17 @@ public interface KroxyliciousTester extends Closeable {
      * Restarts the Kroxylicious server under test without closing any other resources.
      */
     void restartProxy();
+
+    /**
+     * Submits {@code newConfig} to the underlying Kroxylicious server's
+     * {@code reconfigure(Configuration)} entry point. The future completes with the
+     * outcome reported by the server.
+     *
+     * @param newConfig the desired end-state configuration
+     * @return the proxy's reconfigure outcome
+     * @throws UnsupportedOperationException if the underlying proxy is not a {@link io.kroxylicious.proxy.KafkaProxy}
+     */
+    CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig);
 
     /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.

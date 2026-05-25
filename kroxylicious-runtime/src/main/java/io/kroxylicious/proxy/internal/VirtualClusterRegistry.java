@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,37 +121,65 @@ public class VirtualClusterRegistry {
      * </ul>
      */
     public void shutdownAllClusters() {
-        var drainFutures = new ArrayList<CompletableFuture<Void>>();
-        lifecyclesByCluster.forEach((name, lifecycle) -> {
-            var state = lifecycle.state();
-            if (state instanceof VirtualClusterLifecycleState.Serving) {
-                drainFutures.add(lifecycle.startDraining()
-                        .thenRun(() -> {
-                            lifecycle.drainComplete();
-                            onVirtualClusterStopped.accept(name, Optional.empty());
-                        }));
-            }
-            else if (state instanceof VirtualClusterLifecycleState.Draining) {
-                // Pre-existing drain (e.g. hot-reload) — join it rather than starting a new one.
-                drainFutures.add(lifecycle.drainFuture()
-                        .thenRun(() -> {
-                            lifecycle.drainComplete();
-                            onVirtualClusterStopped.accept(name, Optional.empty());
-                        }));
-            }
-            else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
-                lifecycle.stop();
-                onVirtualClusterStopped.accept(name, Optional.of(failed.cause()));
-            }
-            else if (state instanceof VirtualClusterLifecycleState.Stopped) {
-                // it's already dead, let sleeping dogs lie
-            }
-            else {
-                lifecycle.stop();
-                onVirtualClusterStopped.accept(name, Optional.empty());
-            }
-        });
-        CompletableFuture.allOf(drainFutures.toArray(CompletableFuture[]::new)).join();
+        var drainFutures = lifecyclesByCluster.entrySet().stream()
+                .map(e -> shutdownCluster(e.getKey(), e.getValue()))
+                .toArray(CompletableFuture[]::new);
+        CompletableFuture.allOf(drainFutures).join();
+    }
+
+    /**
+     * Drives a single virtual cluster to its terminal {@code Stopped} state, regardless of
+     * which non-terminal state it is currently in. Shared by {@link #shutdownAllClusters()}
+     * (which drives every cluster) and {@link #removeVirtualCluster(String)} (which drives one).
+     *
+     * <p>State handling matches the proxy-wide shutdown semantics:
+     * <ul>
+     *   <li>{@code Serving} → start draining, then transition to {@code Stopped} once
+     *       connections have drained; fires {@link #onVirtualClusterStopped} with empty cause</li>
+     *   <li>{@code Draining} (e.g. concurrent shutdown / reconfigure) → join the existing
+     *       drain future, then transition to {@code Stopped}; fires callback with empty cause</li>
+     *   <li>{@code Failed} → transition to {@code Stopped} synchronously; fires callback with
+     *       the prior failure cause</li>
+     *   <li>{@code Stopped} → no-op (cluster is already terminal)</li>
+     *   <li>{@code Initializing} → transition to {@code Stopped} synchronously; fires callback
+     *       with empty cause</li>
+     * </ul>
+     *
+     * @return a future that completes when the cluster has reached {@code Stopped}
+     */
+    private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
+        var state = lifecycle.state();
+        if (state instanceof VirtualClusterLifecycleState.Serving) {
+            return lifecycle.startDraining()
+                    .thenRun(() -> {
+                        lifecycle.drainComplete();
+                        onVirtualClusterStopped.accept(clusterName, Optional.empty());
+                    });
+        }
+        else if (state instanceof VirtualClusterLifecycleState.Draining) {
+            // Pre-existing drain (e.g. concurrent shutdown or hot-reload) — join it rather
+            // than starting a new one.
+            return lifecycle.drainFuture()
+                    .thenRun(() -> {
+                        lifecycle.drainComplete();
+                        onVirtualClusterStopped.accept(clusterName, Optional.empty());
+                    });
+        }
+        else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
+            lifecycle.stop();
+            onVirtualClusterStopped.accept(clusterName, Optional.of(failed.cause()));
+            return CompletableFuture.completedFuture(null);
+        }
+        else if (state instanceof VirtualClusterLifecycleState.Stopped) {
+            // Already dead, let sleeping dogs lie.
+            return CompletableFuture.completedFuture(null);
+        }
+        else {
+            // Initializing — transition to Stopped via the dedicated stop() method.
+            lifecycle.stop();
+            onVirtualClusterStopped.accept(clusterName, Optional.empty());
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     /**
@@ -179,23 +206,21 @@ public class VirtualClusterRegistry {
     }
 
     /**
-     * Drives an existing virtual cluster through {@code SERVING → DRAINING → STOPPED} and
-     * deregisters its gateways. Invoked by {@code ConfigurationReloadOrchestrator} for clusters
-     * present in the running configuration but absent in the submitted one.
+     * Drives an existing virtual cluster through {@code SERVING → DRAINING → STOPPED}.
+     * Invoked by {@code ConfigurationReloadOrchestrator} for clusters present in the running
+     * configuration but absent in the submitted one.
      *
      * @param clusterName the virtual cluster to remove; must name an existing cluster
-     * @return a future that completes when the removal is finished (currently completes
-     *         immediately because no work is done)
+     * @return a future that completes when the cluster has reached {@code Stopped}
+     * @throws IllegalArgumentException if {@code clusterName} does not name a registered cluster
      */
     public CompletableFuture<Void> removeVirtualCluster(String clusterName) {
-        // TODO: implement SERVING -> DRAINING -> STOPPED transition + gateway deregistration
-        // in the follow-up PR. This no-op exists so the orchestrator can be reviewed and
-        // tested for its pipeline structure ahead of the lifecycle work.
-        LOGGER.atWarn()
+        var lifecycle = requireKnownCluster(clusterName);
+        LOGGER.atInfo()
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("operation", "removeVirtualCluster")
-                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
-        return CompletableFuture.completedFuture(null);
+                .log("reconfigure: removing virtual cluster");
+        return shutdownCluster(clusterName, lifecycle);
     }
 
     /**
