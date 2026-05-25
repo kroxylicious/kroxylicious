@@ -6,6 +6,7 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.internal.routing.RoutingEvent;
+import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactoryTestSupport;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.tester.ManagementClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -813,6 +815,8 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
         var config = topicRouterConfig(clusterA, clusterB, 1, Duration.ofMillis(500))
                 .withNewManagement().withNewEndpoints().withNewPrometheus().endPrometheus().endEndpoints().endManagement();
 
+        var clock = new MutableClock(Instant.now());
+        TopicPartitionRouterFactoryTestSupport.setClockOverride(clock);
         try (var tester = kroxyliciousTester(config);
                 var mgmt = tester.getManagementClient()) {
             produceOneRecord(tester, topicA, "val-a");
@@ -836,8 +840,8 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                 assertActiveSessionsEquals(mgmt, 1.0);
                 assertPartitionsCachedEquals(mgmt, 1.0);
 
-                // Wait for A's session to age past minEviction into the evictable tree
-                Thread.sleep(600);
+                // Advance clock past minEviction so A's session enters the evictable tree
+                clock.advance(Duration.ofMillis(600));
 
                 // Touch A's session so it's not stale
                 var incA = buildFetchRequest(topicA);
@@ -882,6 +886,9 @@ class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
                         .as("evicted session should return FETCH_SESSION_ID_NOT_FOUND")
                         .isEqualTo(Errors.FETCH_SESSION_ID_NOT_FOUND.code());
             }
+        }
+        finally {
+            TopicPartitionRouterFactoryTestSupport.clearClockOverride();
         }
     }
 
