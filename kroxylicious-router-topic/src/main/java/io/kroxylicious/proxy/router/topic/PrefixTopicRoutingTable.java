@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.routing.topic;
+package io.kroxylicious.proxy.router.topic;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -43,7 +43,7 @@ public class PrefixTopicRoutingTable implements TopicRoutingTable {
     }
 
     /**
-     * Creates a new routing table with prefix matching only.
+     * Creates a new router table with prefix matching only.
      *
      * @param prefixToRoute map from topic name prefix to route name
      * @param defaultRoute route for topics matching no prefix, or null to reject them
@@ -55,7 +55,7 @@ public class PrefixTopicRoutingTable implements TopicRoutingTable {
     }
 
     /**
-     * Creates a new routing table with both explicit topic names and prefix matching.
+     * Creates a new router table with both explicit topic names and prefix matching.
      * Explicit names take precedence over prefix matches.
      *
      * @param prefixToRoute map from topic name prefix to route name

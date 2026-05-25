@@ -57,9 +57,9 @@ import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory;
-import io.kroxylicious.proxy.routing.topic.config.RouteConfig;
-import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
+import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory;
+import io.kroxylicious.proxy.router.topic.config.RouteConfig;
+import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -74,7 +74,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for consumer group routing through the topic-partition
+ * Integration tests for consumer group router through the topic-partition
  * router using subject-based consumer group route mapping and the new
  * consumer group protocol (KIP-848).
  */
@@ -301,7 +301,7 @@ class ConsumerGroupRoutingIT {
      * Sweeps all supported CONSUMER_GROUP_HEARTBEAT versions via the raw
      * protocol client. Authenticates as "bob" (mapped to route-b), sends
      * a heartbeat with memberEpoch=0 (join), and verifies a valid response
-     * and correct routing.
+     * and correct router.
      */
     @ParameterizedTest
     @MethodSource("consumerGroupHeartbeatVersions")
@@ -357,7 +357,7 @@ class ConsumerGroupRoutingIT {
 
     /**
      * Sweeps FIND_COORDINATOR versions (up to the capped maximum) for
-     * keyType=0 (consumer group). Verifies routing to the mapped route.
+     * keyType=0 (consumer group). Verifies router to the mapped route.
      */
     @ParameterizedTest
     @MethodSource("findCoordinatorVersions")

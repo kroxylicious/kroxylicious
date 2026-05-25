@@ -32,7 +32,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.internal.routing.RoutingEvent;
-import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactoryTestSupport;
+import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactoryTestSupport;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.ManagementClient;
@@ -44,7 +44,7 @@ import static io.kroxylicious.testing.integration.tester.SimpleMetricAssert.asse
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for FETCH routing through the topic-partition router.
+ * Integration tests for FETCH router through the topic-partition router.
  */
 class FetchRoutingIT extends TopicPartitionRoutingBaseIT {
 
