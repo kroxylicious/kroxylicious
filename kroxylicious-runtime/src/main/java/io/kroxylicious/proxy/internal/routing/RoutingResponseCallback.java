@@ -6,7 +6,7 @@
 package io.kroxylicious.proxy.internal.routing;
 
 /**
- * Callback for receiving responses from backend servers when routing is active.
+ * Callback for receiving responses from backend servers when router is active.
  */
 @FunctionalInterface
 public interface RoutingResponseCallback {
