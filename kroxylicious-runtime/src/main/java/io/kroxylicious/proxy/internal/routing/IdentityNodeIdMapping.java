@@ -17,6 +17,11 @@ public record IdentityNodeIdMapping(String routeName) implements NodeIdMapping {
     }
 
     @Override
+    public int fromVirtual(String route, int virtualNodeId) {
+        return virtualNodeId;
+    }
+
+    @Override
     public RouteAndNode fromVirtual(int virtualNodeId) {
         return new RouteAndNode(routeName, virtualNodeId);
     }
