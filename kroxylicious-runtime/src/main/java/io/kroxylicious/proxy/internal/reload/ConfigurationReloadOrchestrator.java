@@ -57,6 +57,9 @@ public class ConfigurationReloadOrchestrator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationReloadOrchestrator.class);
 
+    private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    private static final String LOG_KEY_ERROR = "error";
+
     private final ReentrantLock reconfigureLock = new ReentrantLock();
     private final List<ChangeDetector> detectors;
     private final StaticSectionDiffer staticSectionDiffer;
@@ -204,7 +207,7 @@ public class ConfigurationReloadOrchestrator {
         catch (RuntimeException e) {
             LOGGER.atError()
                     .setCause(e)
-                    .addKeyValue("error", e.getMessage())
+                    .addKeyValue(LOG_KEY_ERROR, e.getMessage())
                     .log("reconfigure failed");
             return CompletableFuture.failedFuture(e);
         }
@@ -231,8 +234,8 @@ public class ConfigurationReloadOrchestrator {
             Throwable cause = unwrap(e);
             LOGGER.atWarn()
                     .setCause(cause)
-                    .addKeyValue("virtualCluster", clusterName)
-                    .addKeyValue("error", cause.getMessage())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                    .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                     .log("reconfigure: failed to remove virtual cluster");
             errors.add(new ReconfigureError(clusterName, cause));
         }
@@ -261,8 +264,8 @@ public class ConfigurationReloadOrchestrator {
             Throwable cause = unwrap(e);
             LOGGER.atWarn()
                     .setCause(cause)
-                    .addKeyValue("virtualCluster", clusterName)
-                    .addKeyValue("error", cause.getMessage())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                    .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                     .log("reconfigure: failed to create lifecycle for virtual cluster");
             errors.add(new ReconfigureError(clusterName, cause));
         }
@@ -287,8 +290,8 @@ public class ConfigurationReloadOrchestrator {
             Throwable cause = unwrap(bindError);
             LOGGER.atWarn()
                     .setCause(cause)
-                    .addKeyValue("virtualCluster", clusterName)
-                    .addKeyValue("error", cause.getMessage())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                    .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                     .log("reconfigure: gateway registration failed; rolling back");
             virtualClusterRegistry.initializationFailed(clusterName, cause);
             for (var g : gateways) {
