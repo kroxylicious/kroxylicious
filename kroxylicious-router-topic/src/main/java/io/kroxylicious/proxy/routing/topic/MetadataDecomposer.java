@@ -32,8 +32,8 @@ class MetadataDecomposer {
      * <ul>
      *   <li>{@code topics() == null} (all-topics): one entry per route,
      *       each receiving the full request</li>
-     *   <li>{@code topics()} empty (broker-info-only): single entry for
-     *       the default route</li>
+     *   <li>{@code topics()} empty (broker-info-only): one entry per route
+     *       so that broker addresses from all clusters are discovered</li>
      *   <li>specific topics: grouped by {@code table.routeForTopic()}</li>
      * </ul>
      *
@@ -52,7 +52,9 @@ class MetadataDecomposer {
         }
 
         if (request.topics().isEmpty()) {
-            result.put(defaultRoute, request.duplicate());
+            for (String route : table.allRoutes()) {
+                result.put(route, request.duplicate());
+            }
             return result;
         }
 
