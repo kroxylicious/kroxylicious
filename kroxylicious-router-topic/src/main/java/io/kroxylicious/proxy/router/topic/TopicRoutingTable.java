@@ -3,14 +3,14 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.routing.topic;
+package io.kroxylicious.proxy.router.topic;
 
 import java.util.Set;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Maps topic names to route names for topic-based routing.
+ * Maps topic names to route names for topic-based router.
  */
 public interface TopicRoutingTable {
 

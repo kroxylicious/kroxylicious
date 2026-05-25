@@ -28,7 +28,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for METADATA routing through the topic-partition router.
+ * Integration tests for METADATA router through the topic-partition router.
  */
 class MetadataRoutingIT extends TopicPartitionRoutingBaseIT {
 
