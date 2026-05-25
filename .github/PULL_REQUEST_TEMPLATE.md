@@ -21,7 +21,7 @@ The checklist is used to help Committers judge a PR's readiness for merge.
 Contributors: please check off items you consider done.
 
 - [ ] New tests written (where applicable).
-- [ ] User facing documentation written/updated (where applicable).
+- [ ] If making a user-facing change, documentation is provided, or if the intent is to provide documentation in a follow up PR, an issue is raised tracking the need for the documentation update. Link the to issue in this checklist. 
 - [ ] Existing unit/integration/system tests passing.
 - [ ] Any Sonarcloud warnings are addressed (or suppressed with `@SuppressWarnings` and a justifying comment).
 - [ ] PR references related GitHub issue(s) so they are closed on merging.
