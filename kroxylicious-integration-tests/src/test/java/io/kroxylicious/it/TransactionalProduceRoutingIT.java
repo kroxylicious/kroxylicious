@@ -65,9 +65,9 @@ import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.routing.topic.TopicPartitionRouterFactory;
-import io.kroxylicious.proxy.routing.topic.config.RouteConfig;
-import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
+import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory;
+import io.kroxylicious.proxy.router.topic.config.RouteConfig;
+import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
@@ -82,7 +82,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for transactional produce routing through the topic-partition router
+ * Integration tests for transactional produce router through the topic-partition router
  * using subject-based transaction route mapping.
  */
 @ExtendWith(KafkaClusterExtension.class)
@@ -352,7 +352,7 @@ class TransactionalProduceRoutingIT {
     /**
      * Sweeps FIND_COORDINATOR versions (up to the capped maximum) for
      * keyType=1 (transaction coordinator). Authenticates as "bob"
-     * (mapped to route-b) and verifies routing to route-b.
+     * (mapped to route-b) and verifies router to route-b.
      */
     @ParameterizedTest
     @MethodSource("findCoordinatorVersions")
@@ -445,7 +445,7 @@ class TransactionalProduceRoutingIT {
 
     /**
      * Sweeps TXN_OFFSET_COMMIT versions. The request will fail (no active
-     * transaction) but the routing should direct to route-b for bob.
+     * transaction) but the router should direct to route-b for bob.
      */
     @ParameterizedTest
     @MethodSource("txnOffsetCommitVersions")
