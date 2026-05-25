@@ -271,6 +271,68 @@ class TopicPartitionRouterIT {
         assertThat(records.get(0).value()).isEqualTo("val");
     }
 
+    // --- Phase 3: idempotent produce ---
+
+    @Test
+    void shouldProduceWithIdempotenceToMultipleRoutes() throws Exception {
+        String topicA = "a.idempotent";
+        String topicB = "b.idempotent";
+        createTopic(topicA, clusterA);
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(
+                        "enable.idempotence", true,
+                        "retries", 3,
+                        "batch.size", 0,
+                        "linger.ms", 0))) {
+            producer.send(new ProducerRecord<>(topicA, "key-a", "val-a"))
+                    .get(10, TimeUnit.SECONDS);
+            producer.send(new ProducerRecord<>(topicB, "key-b", "val-b"))
+                    .get(10, TimeUnit.SECONDS);
+            producer.send(new ProducerRecord<>(topicA, "key-a2", "val-a2"))
+                    .get(10, TimeUnit.SECONDS);
+        }
+
+        var recordsA = consumeDirectly(clusterA, topicA);
+        var recordsB = consumeDirectly(clusterB, topicB);
+
+        assertThat(recordsA).hasSize(2);
+        assertThat(recordsA).extracting(ConsumerRecord::value)
+                .containsExactlyInAnyOrder("val-a", "val-a2");
+
+        assertThat(recordsB).hasSize(1);
+        assertThat(recordsB).extracting(ConsumerRecord::value)
+                .containsExactly("val-b");
+    }
+
+    @Test
+    void shouldProduceWithIdempotenceToNonDefaultRoute() throws Exception {
+        String topicB = "b.idem-nondefault";
+        createTopic(topicB, clusterB);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(
+                        "enable.idempotence", true,
+                        "retries", 3,
+                        "batch.size", 0,
+                        "linger.ms", 0))) {
+            for (int i = 0; i < 5; i++) {
+                producer.send(new ProducerRecord<>(topicB, "key-" + i, "val-" + i))
+                        .get(10, TimeUnit.SECONDS);
+            }
+        }
+
+        var records = consumeDirectly(clusterB, topicB);
+        assertThat(records).hasSize(5);
+        assertThat(records).extracting(ConsumerRecord::value)
+                .containsExactlyInAnyOrder("val-0", "val-1", "val-2", "val-3", "val-4");
+    }
+
+    // --- Fault injection ---
+
     @Test
     void shouldDisconnectClientWhenFaultInjected() throws Exception {
         String topicA = "a.fault";
