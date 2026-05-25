@@ -49,6 +49,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
+    private final NodeIdMapping nodeIdMapping;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
@@ -66,6 +67,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
                                  ClientConnectionStateMachine ccsm,
+                                 NodeIdMapping nodeIdMapping,
                                  MeterProvider<Counter> routingRequestsCounter,
                                  MeterProvider<Counter> routingErrorsCounter,
                                  MeterProvider<Timer> routingRequestDurationTimer,
@@ -74,6 +76,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         this.routes = routes;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
+        this.nodeIdMapping = nodeIdMapping;
         this.routingRequestsCounter = routingRequestsCounter;
         this.routingErrorsCounter = routingErrorsCounter;
         this.routingRequestDurationTimer = routingRequestDurationTimer;
@@ -194,6 +197,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 pendingResponse.timerSample().stop(routingRequestDurationTimer.withTags(
                         Metrics.ROUTE_LABEL, pendingResponse.route(),
                         Metrics.API_KEY_LABEL, pendingResponse.apiKey().name()));
+                NodeIdResponseTranslator.translate(
+                        frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
                 Response response = new ResponseImpl(
                         (ResponseHeaderData) frame.header(),
                         frame.body());
