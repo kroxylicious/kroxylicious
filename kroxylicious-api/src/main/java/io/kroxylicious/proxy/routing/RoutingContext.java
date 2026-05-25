@@ -39,6 +39,25 @@ public interface RoutingContext {
                                           ApiMessage request);
 
     /**
+     * Sends a request to a specific broker identified by its virtual node ID.
+     *
+     * <p>The runtime resolves the virtual node ID to the originating route
+     * and upstream broker address. The returned stage completes when the
+     * broker produces a response.</p>
+     *
+     * @param virtualNodeId the virtual node ID of the target broker
+     * @param header the request header
+     * @param request the request body
+     * @return a stage that completes with the response from the broker
+     * @throws IllegalStateException if the upstream address for the node is
+     *         not yet known (metadata not yet reconciled)
+     */
+    CompletionStage<Response> sendRequestToNode(
+                                                int virtualNodeId,
+                                                RequestHeaderData header,
+                                                ApiMessage request);
+
+    /**
      * Delivers a response to the client.
      *
      * <p>The runtime automatically rewrites the response header's

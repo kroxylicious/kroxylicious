@@ -47,6 +47,7 @@ class RoutingContextImplTest {
     private SimpleMeterRegistry meterRegistry;
     private AtomicInteger pendingResponseCount;
     private ResponseSequencer responseSequencer;
+    private NodeIdMapping nodeIdMapping;
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
 
     @BeforeEach
@@ -60,6 +61,7 @@ class RoutingContextImplTest {
         meterRegistry = new SimpleMeterRegistry();
         pendingResponseCount = new AtomicInteger();
         responseSequencer = new ResponseSequencer(channel);
+        nodeIdMapping = new IdentityNodeIdMapping("cluster-route");
     }
 
     private IntSupplier routingIdAllocator() {
@@ -78,6 +80,11 @@ class RoutingContextImplTest {
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
                 },
+                (virtualNodeId, routeName, msg) -> {
+                    forwardedRoute.set(routeName);
+                    forwardedMsg.set(msg);
+                },
+                nodeIdMapping,
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
@@ -212,6 +219,8 @@ class RoutingContextImplTest {
                 Subject.anonymous(),
                 routes,
                 (routeName, msg) -> forwardedFrames.add(msg),
+                (virtualNodeId, routeName, msg) -> forwardedFrames.add(msg),
+                nodeIdMapping,
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
@@ -233,5 +242,79 @@ class RoutingContextImplTest {
         assertThat(pendingResponseCount.get()).isEqualTo(2);
         assertThat(futureA.toCompletableFuture()).isNotCompleted();
         assertThat(futureB.toCompletableFuture()).isNotCompleted();
+    }
+
+    @Test
+    void sendRequestToNodeShouldForwardToCorrectRoute() {
+        var nodeForwardedId = new AtomicReference<Integer>();
+        var nodeForwardedRoute = new AtomicReference<String>();
+        var nodeForwardedMsg = new AtomicReference<Object>();
+
+        var ctx = new RoutingContextImpl(
+                CORRELATION_ID,
+                API_VERSION,
+                channel,
+                SESSION_ID,
+                Subject.anonymous(),
+                routes,
+                (routeName, msg) -> {
+                },
+                (virtualNodeId, routeName, msg) -> {
+                    nodeForwardedId.set(virtualNodeId);
+                    nodeForwardedRoute.set(routeName);
+                    nodeForwardedMsg.set(msg);
+                },
+                nodeIdMapping,
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount,
+                responseSequencer);
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(org.apache.kafka.common.protocol.ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+        var future = ctx.sendRequestToNode(0, header, new FetchRequestData());
+
+        assertThat(future.toCompletableFuture()).isNotCompleted();
+        assertThat(nodeForwardedId.get()).isEqualTo(0);
+        assertThat(nodeForwardedRoute.get()).isEqualTo("cluster-route");
+        assertThat(nodeForwardedMsg.get()).isInstanceOf(DecodedRequestFrame.class);
+        assertThat(pendingResponseCount.get()).isEqualTo(1);
+    }
+
+    @Test
+    void sendRequestToNodeShouldFailWhenForwarderThrows() {
+        var ctx = new RoutingContextImpl(
+                CORRELATION_ID,
+                API_VERSION,
+                channel,
+                SESSION_ID,
+                Subject.anonymous(),
+                routes,
+                (routeName, msg) -> {
+                },
+                (virtualNodeId, routeName, msg) -> {
+                    throw new IllegalStateException("Upstream address not yet known");
+                },
+                nodeIdMapping,
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount,
+                responseSequencer);
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(org.apache.kafka.common.protocol.ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+        var future = ctx.sendRequestToNode(0, header, new FetchRequestData());
+
+        assertThat(future.toCompletableFuture())
+                .isCompletedExceptionally();
+        assertThat(pendingResponseCount.get())
+                .as("pending response should be cleaned up on failure")
+                .isZero();
     }
 }

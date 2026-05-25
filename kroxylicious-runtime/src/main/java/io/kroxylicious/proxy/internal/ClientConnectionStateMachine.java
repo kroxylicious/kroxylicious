@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
@@ -213,6 +214,9 @@ public class ClientConnectionStateMachine {
     private NodeIdMapping nodeIdMapping;
 
     @Nullable
+    private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
+
+    @Nullable
     private Map<String, HostPort> routeTargets;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
@@ -338,6 +342,10 @@ public class ClientConnectionStateMachine {
 
     void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
         this.nodeIdMapping = nodeIdMapping;
+    }
+
+    void setUpstreamAddressResolver(@Nullable Function<Integer, Optional<HostPort>> resolver) {
+        this.upstreamAddressResolver = resolver;
     }
 
     @Nullable
@@ -922,6 +930,42 @@ public class ClientConnectionStateMachine {
         else {
             illegalState("forwardToRoute in unexpected state");
         }
+    }
+
+    /**
+     * Forward a message to the backend broker identified by the virtual node ID.
+     * Creates a new server connection if one does not already exist for the
+     * resolved upstream address.
+     */
+    public void forwardToNode(int virtualNodeId, String routeName, Object msg) {
+        if (!(state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining)) {
+            illegalState("forwardToNode in unexpected state");
+            return;
+        }
+        if (upstreamAddressResolver == null) {
+            throw new IllegalStateException("No upstream address resolver configured");
+        }
+        Optional<HostPort> resolved = upstreamAddressResolver.apply(virtualNodeId);
+        if (resolved.isEmpty()) {
+            throw new IllegalStateException(
+                    "Upstream address not yet known for virtual node ID " + virtualNodeId);
+        }
+        HostPort target = resolved.get();
+        ServerConnectionStateMachine scsm = serverConnections.get(target);
+        if (scsm == null) {
+            proxyToServerConnectionCounter.increment();
+            scsm = createServerConnection(target);
+            serverConnections.put(target, scsm);
+            Channel clientChannel = Objects.requireNonNull(
+                    Objects.requireNonNull(frontendHandler).clientChannel());
+            scsm.connect(clientChannel);
+        }
+        scsm.sendRequest(msg);
+        log(Level.TRACE)
+                .addKeyValue("route", routeName)
+                .addKeyValue("virtualNodeId", virtualNodeId)
+                .addKeyValue("routeTarget", target)
+                .log("Request forwarded to specific node");
     }
 
     @VisibleForTesting
