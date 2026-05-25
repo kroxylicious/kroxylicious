@@ -5,8 +5,10 @@
  */
 package io.kroxylicious.proxy.routing.topic;
 
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,10 +33,21 @@ public class TopicPartitionRouterFactory
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRouterFactory.class);
 
+    private static final AtomicReference<Clock> clockOverride = new AtomicReference<>();
+
+    static void setClockOverride(Clock clock) {
+        clockOverride.set(clock);
+    }
+
+    static void clearClockOverride() {
+        clockOverride.set(null);
+    }
+
     record InitData(PrefixTopicRoutingTable routingTable,
                     @Nullable String defaultRoute,
                     ProducerIdManager producerIdManager,
-                    FetchSessionCache fetchSessionCache) {}
+                    FetchSessionCache fetchSessionCache,
+                    Clock clock) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
@@ -84,10 +97,16 @@ public class TopicPartitionRouterFactory
                 .addKeyValue("minFetchSessionEvictionMs", evictionMs)
                 .log("Topic routing table initialised");
 
+        Clock clock = clockOverride.get();
+        if (clock == null) {
+            clock = Clock.systemUTC();
+        }
+
         return new InitData(routingTable, config.defaultRoute(),
                 new ProducerIdManager(ttl),
                 new FetchSessionCache(maxSlots, evictionMs,
-                        context.virtualClusterName(), context.routerName()));
+                        context.virtualClusterName(), context.routerName()),
+                clock);
     }
 
     @Override
@@ -97,7 +116,8 @@ public class TopicPartitionRouterFactory
                 initData.routingTable(),
                 initData.defaultRoute(),
                 initData.producerIdManager(),
-                initData.fetchSessionCache());
+                initData.fetchSessionCache(),
+                initData.clock());
     }
 
     @Override

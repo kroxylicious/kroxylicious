@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.routing.topic;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -36,6 +37,7 @@ class FetchSessionManager {
     static final short MIN_SESSION_VERSION = 7;
 
     private final FetchSessionCache cache;
+    private final Clock clock;
 
     private int clientSessionId;
     private int clientNextEpoch;
@@ -45,8 +47,10 @@ class FetchSessionManager {
     private final Map<String, ServerSession> serverSessions = new HashMap<>();
     private short lastApiVersion = -1;
 
-    FetchSessionManager(FetchSessionCache cache) {
+    FetchSessionManager(FetchSessionCache cache,
+                        Clock clock) {
         this.cache = cache;
+        this.clock = clock;
     }
 
     // --- Client-side session management ---
@@ -109,7 +113,7 @@ class FetchSessionManager {
 
         clientNextEpoch = epoch + 1;
         applyIncrementalChanges(request);
-        cache.touch(clientSessionId, clientPartitions.size(), System.currentTimeMillis());
+        cache.touch(clientSessionId, clientPartitions.size(), clock.millis());
         LOGGER.atTrace()
                 .addKeyValue("sessionId", clientSessionId)
                 .addKeyValue("epoch", epoch)
@@ -121,7 +125,7 @@ class FetchSessionManager {
     private ClientRequestResult.FullFetch createClientSession(FetchRequestData request) {
         clearClientSession();
         populateClientPartitions(request);
-        int id = cache.maybeCreateSession(clientPartitions.size(), System.currentTimeMillis());
+        int id = cache.maybeCreateSession(clientPartitions.size(), clock.millis());
         if (id != 0) {
             clientSessionId = id;
             clientNextEpoch = 1;
