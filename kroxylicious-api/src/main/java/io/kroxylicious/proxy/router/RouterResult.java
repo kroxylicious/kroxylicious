@@ -7,17 +7,29 @@
 package io.kroxylicious.proxy.router;
 
 /**
- * Marker for the completion of a router decision. The router uses
- * {@link RouterContext#sendResponse(Response)} to deliver the response
- * to the client; this type simply signals that the router has finished
- * processing.
+ * The outcome of {@link Router#onRequest} processing. Encodes the result
+ * as a value rather than a side-effect on the context.
  */
-public interface RouterResult {
+public sealed interface RouterResult {
 
     /**
-     * @return a result indicating that router completed normally
+     * The router has produced a response for the client. The runtime delivers
+     * the response, automatically rewriting the correlation ID to match the
+     * client's original request.
+     *
+     * @param response the response to deliver to the client
      */
-    static RouterResult completed() {
-        return CompletedRouterResult.INSTANCE;
-    }
+    record Completed(Response response) implements RouterResult {}
+
+    /**
+     * The router has finished processing but there is no response to deliver.
+     * This is the correct result for fire-and-forget requests (e.g.
+     * {@code PRODUCE} with {@code acks=0}).
+     */
+    record CompletedNoResponse() implements RouterResult {}
+
+    /**
+     * The router requests that the client connection be closed.
+     */
+    record Disconnect() implements RouterResult {}
 }

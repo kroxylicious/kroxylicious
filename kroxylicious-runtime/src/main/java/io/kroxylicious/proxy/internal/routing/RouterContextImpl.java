@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +29,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
@@ -37,15 +39,17 @@ class RouterContextImpl implements RouterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterContextImpl.class);
 
+    private static final int BOOTSTRAP_TARGET_NODE_ID = -1;
+
     private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
     private final short apiVersion;
     private final String sessionId;
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
-    private final RequestForwarder requestForwarder;
     private final NodeForwarder nodeForwarder;
     private final NodeIdMapping nodeIdMapping;
+    private final Map<String, Integer> bootstrapVirtualNodeIds;
     private final IntSupplier routingCorrelationIdAllocator;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
@@ -54,16 +58,6 @@ class RouterContextImpl implements RouterContext {
     private final Channel clientChannel;
     private final ResponseSequencer responseSequencer;
     private final long sequenceNumber;
-
-    /**
-     * Callback interface for forwarding requests to the backend. The
-     * {@link RouterDispatchHandler} provides an implementation that
-     * delegates to the {@link io.kroxylicious.proxy.internal.ClientConnectionStateMachine}.
-     */
-    @FunctionalInterface
-    interface RequestForwarder {
-        void forward(String routeName, Object msg);
-    }
 
     /**
      * Callback interface for forwarding requests to a specific broker
@@ -79,9 +73,9 @@ class RouterContextImpl implements RouterContext {
                       String sessionId,
                       Subject subject,
                       Map<String, RouteDescriptor> routes,
-                      RequestForwarder requestForwarder,
                       NodeForwarder nodeForwarder,
                       NodeIdMapping nodeIdMapping,
+                      Map<String, Integer> bootstrapVirtualNodeIds,
                       IntSupplier routingCorrelationIdAllocator,
                       MeterProvider<Counter> routingRequestsCounter,
                       MeterProvider<Counter> routingErrorsCounter,
@@ -95,9 +89,9 @@ class RouterContextImpl implements RouterContext {
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
         this.routes = Objects.requireNonNull(routes);
-        this.requestForwarder = Objects.requireNonNull(requestForwarder);
         this.nodeForwarder = Objects.requireNonNull(nodeForwarder);
         this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
+        this.bootstrapVirtualNodeIds = Objects.requireNonNull(bootstrapVirtualNodeIds);
         this.routingCorrelationIdAllocator = Objects.requireNonNull(routingCorrelationIdAllocator);
         this.routingRequestsCounter = Objects.requireNonNull(routingRequestsCounter);
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
@@ -108,10 +102,20 @@ class RouterContextImpl implements RouterContext {
     }
 
     @Override
-    public CompletionStage<Response> sendRequest(
-                                                 String route,
-                                                 RequestHeaderData header,
-                                                 ApiMessage request) {
+    public int bootstrapNodeId(String route) {
+        Integer id = bootstrapVirtualNodeIds.get(route);
+        if (id == null) {
+            throw new IllegalArgumentException("Unknown route: " + route);
+        }
+        return id;
+    }
+
+    @Override
+    public CompletionStage<Response> sendRequestToNode(
+                                                       String route,
+                                                       int virtualNodeId,
+                                                       RequestHeaderData header,
+                                                       ApiMessage request) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
             routingErrorsCounter.withTags(
@@ -155,7 +159,7 @@ class RouterContextImpl implements RouterContext {
         }
 
         if (!frame.hasResponse()) {
-            requestForwarder.forward(route, frame);
+            forwardToNode(virtualNodeId, route, frame);
             routingRequestsCounter.withTags(
                     Metrics.ROUTE_LABEL, route,
                     Metrics.ROUTING_MODE_LABEL, "dynamic",
@@ -163,9 +167,10 @@ class RouterContextImpl implements RouterContext {
             LOGGER.atTrace()
                     .addKeyValue("sessionId", sessionId)
                     .addKeyValue("route", route)
+                    .addKeyValue("virtualNodeId", virtualNodeId)
                     .addKeyValue("clientCorrelationId", clientCorrelationId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
-                    .log("Fire-and-forget request sent to route (no response expected)");
+                    .log("Fire-and-forget request sent to node (no response expected)");
             return CompletableFuture.completedFuture(null);
         }
 
@@ -177,79 +182,8 @@ class RouterContextImpl implements RouterContext {
                 clientChannel, routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();
 
-        requestForwarder.forward(route, frame);
-        routingRequestsCounter.withTags(
-                Metrics.ROUTE_LABEL, route,
-                Metrics.ROUTING_MODE_LABEL, "dynamic",
-                Metrics.API_KEY_LABEL, apiKey.name()).increment();
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
-                .addKeyValue("apiVersion", requestApiVersion)
-                .log("Request sent to route");
-        if (listener != null) {
-            future.whenComplete((resp, error) -> {
-                if (resp != null) {
-                    listener.accept(new RoutingEvent.Response(
-                            sessionId, route, routingCorrelationId, apiKey,
-                            resp.header(), resp.body()));
-                }
-            });
-        }
-        return future;
-    }
-
-    @Override
-    public CompletionStage<Response> sendRequestToNode(
-                                                       int virtualNodeId,
-                                                       RequestHeaderData header,
-                                                       ApiMessage request) {
-        NodeIdMapping.RouteAndNode resolved = nodeIdMapping.fromVirtual(virtualNodeId);
-        String route = resolved.route();
-
-        RouteDescriptor rd = routes.get(route);
-        if (rd == null || !rd.targetsCluster()) {
-            routingErrorsCounter.withTags(
-                    Metrics.ERROR_TYPE_LABEL, "invalid_virtual_node").increment();
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("virtualNodeId", virtualNodeId)
-                    .addKeyValue("route", route)
-                    .log("Virtual node ID resolved to invalid route");
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Virtual node " + virtualNodeId
-                            + " resolved to invalid route: " + route));
-        }
-
-        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
-        short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
-        var frame = new DecodedRequestFrame<>(
-                requestApiVersion,
-                routingCorrelationId,
-                true,
-                header,
-                request);
-
-        var listener = RoutingEvent.EVENT_LISTENER.get();
-        if (listener != null) {
-            listener.accept(new RoutingEvent.Request(
-                    sessionId, route, clientCorrelationId, routingCorrelationId,
-                    apiKey, requestApiVersion, header, request));
-        }
-
-        CompletableFuture<Response> future = new CompletableFuture<>();
-        Timer.Sample timerSample = Timer.start();
-        var pendingResponse = new RouterDispatchHandler.PendingResponse(
-                future, timerSample, route, apiKey);
-        RouterDispatchHandler.registerPendingResponse(
-                clientChannel, routingCorrelationId, pendingResponse);
-        pendingResponseCount.incrementAndGet();
-
         try {
-            nodeForwarder.forward(virtualNodeId, route, frame);
+            forwardToNode(virtualNodeId, route, frame);
         }
         catch (Exception e) {
             RouterDispatchHandler.deregisterPendingResponse(
@@ -292,9 +226,16 @@ class RouterContextImpl implements RouterContext {
         return future;
     }
 
-    @Override
-    public void sendResponse(Response response) {
-        // DecodedFrame.encode() writes header.correlationId() to the wire, not frame.correlationId
+    private void forwardToNode(int virtualNodeId, String route, DecodedRequestFrame<?> frame) {
+        nodeForwarder.forward(virtualNodeId, route, frame);
+    }
+
+    /**
+     * Submits a response to the client via the response sequencer.
+     * Called by {@link RouterDispatchHandler} when the router returns
+     * {@link io.kroxylicious.proxy.router.RouterResult.Completed}.
+     */
+    void submitResponse(Response response) {
         response.header().setCorrelationId(clientCorrelationId);
         var responseFrame = clientFrame.responseFrame(response.header(), response.body());
         responseSequencer.submit(sequenceNumber, responseFrame);
@@ -305,8 +246,11 @@ class RouterContextImpl implements RouterContext {
                 .log("Response submitted to sequencer");
     }
 
-    @Override
-    public void disconnect() {
+    /**
+     * Closes the client channel. Called by {@link RouterDispatchHandler}
+     * when the router returns {@link io.kroxylicious.proxy.router.RouterResult.Disconnect}.
+     */
+    void disconnectClient() {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", sessionId)
                 .log("Router requested client disconnect");
@@ -321,5 +265,28 @@ class RouterContextImpl implements RouterContext {
     @Override
     public Subject authenticatedSubject() {
         return subject;
+    }
+
+    /**
+     * Computes bootstrap virtual node IDs for all cluster-targeting routes.
+     * These are registered in the node address map so that
+     * {@code forwardToNode} can resolve them.
+     */
+    static Map<String, Integer> computeBootstrapNodeIds(
+                                                        Map<String, RouteDescriptor> routes,
+                                                        NodeIdMapping nodeIdMapping,
+                                                        Map<Integer, HostPort> nodeAddresses) {
+        var result = new HashMap<String, Integer>();
+        for (var entry : routes.entrySet()) {
+            String routeName = entry.getKey();
+            RouteDescriptor rd = entry.getValue();
+            if (rd.targetsCluster()) {
+                int virtualId = nodeIdMapping.toVirtual(routeName, BOOTSTRAP_TARGET_NODE_ID);
+                var bootstrapAddr = rd.targetCluster().bootstrapServer();
+                nodeAddresses.put(virtualId, bootstrapAddr);
+                result.put(routeName, virtualId);
+            }
+        }
+        return Map.copyOf(result);
     }
 }

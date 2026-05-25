@@ -21,7 +21,20 @@ public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNo
     int toVirtual(String route, int targetNodeId);
 
     /**
+     * Translates a virtual node ID back to its target-cluster node ID,
+     * given the route. The route is always supplied by the router via
+     * {@link io.kroxylicious.proxy.router.RouterContext#sendRequestToNode}.
+     *
+     * @param route the route name
+     * @param virtualNodeId the virtual node ID
+     * @return the target-cluster node ID
+     */
+    int fromVirtual(String route, int virtualNodeId);
+
+    /**
      * Translates a virtual node ID back to its route and target-cluster node ID.
+     * Only works for dedicated (one-to-one) mappings where the route can be
+     * recovered from the virtual node ID alone.
      *
      * @param virtualNodeId the virtual node ID
      * @return the route name and target node ID
