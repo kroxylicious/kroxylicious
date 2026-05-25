@@ -138,9 +138,10 @@ class RoutingContextImpl implements RoutingContext {
         }
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
         var frame = new DecodedRequestFrame<>(
-                apiVersion,
+                requestApiVersion,
                 routingCorrelationId,
                 true,
                 header,
@@ -150,7 +151,7 @@ class RoutingContextImpl implements RoutingContext {
         if (listener != null) {
             listener.accept(new RoutingEvent.Request(
                     sessionId, route, clientCorrelationId, routingCorrelationId,
-                    apiKey, apiVersion, header, request));
+                    apiKey, requestApiVersion, header, request));
         }
 
         if (!frame.hasResponse()) {
@@ -186,7 +187,7 @@ class RoutingContextImpl implements RoutingContext {
                 .addKeyValue("route", route)
                 .addKeyValue("clientCorrelationId", clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
-                .addKeyValue("apiVersion", apiVersion)
+                .addKeyValue("apiVersion", requestApiVersion)
                 .log("Request sent to route");
         if (listener != null) {
             future.whenComplete((resp, error) -> {
@@ -223,9 +224,10 @@ class RoutingContextImpl implements RoutingContext {
         }
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
         var frame = new DecodedRequestFrame<>(
-                apiVersion,
+                requestApiVersion,
                 routingCorrelationId,
                 true,
                 header,
@@ -235,7 +237,7 @@ class RoutingContextImpl implements RoutingContext {
         if (listener != null) {
             listener.accept(new RoutingEvent.Request(
                     sessionId, route, clientCorrelationId, routingCorrelationId,
-                    apiKey, apiVersion, header, request));
+                    apiKey, requestApiVersion, header, request));
         }
 
         CompletableFuture<Response> future = new CompletableFuture<>();
