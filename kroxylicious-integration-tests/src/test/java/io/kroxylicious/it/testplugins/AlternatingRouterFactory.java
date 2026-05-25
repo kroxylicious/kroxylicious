@@ -21,9 +21,9 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResult;
 
 /**
@@ -74,11 +74,11 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResult> onClientRequest(
-                                                                  short apiVersion,
-                                                                  ApiKeys apiKey,
-                                                                  RequestHeaderData header,
-                                                                  ApiMessage request,
-                                                                  RouterContext routerContext) {
+                                                                 short apiVersion,
+                                                                 ApiKeys apiKey,
+                                                                 RequestHeaderData header,
+                                                                 ApiMessage request,
+                                                                 RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
                     return routerContext.sendRequest(routeA, header, request)
                             .thenApply(response -> {

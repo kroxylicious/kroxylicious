@@ -18,9 +18,9 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResult;
 
 /**
@@ -50,11 +50,11 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResult> onClientRequest(
-                                                                  short apiVersion,
-                                                                  ApiKeys apiKey,
-                                                                  RequestHeaderData header,
-                                                                  ApiMessage request,
-                                                                  RouterContext routerContext) {
+                                                                 short apiVersion,
+                                                                 ApiKeys apiKey,
+                                                                 RequestHeaderData header,
+                                                                 ApiMessage request,
+                                                                 RouterContext routerContext) {
                 return routerContext.sendRequest(route, header, request)
                         .thenApply(response -> {
                             routerContext.sendResponse(response);
