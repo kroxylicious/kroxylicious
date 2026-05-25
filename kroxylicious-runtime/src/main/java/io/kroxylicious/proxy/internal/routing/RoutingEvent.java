@@ -46,7 +46,7 @@ public sealed interface RoutingEvent {
     ApiKeys apiKey();
 
     /**
-     * A request sent to a named route via {@link RoutingContextImpl#sendRequest}.
+     * A request sent to a named route via {@link RouterContextImpl#sendRequest}.
      */
     record Request(
                    String sessionId,

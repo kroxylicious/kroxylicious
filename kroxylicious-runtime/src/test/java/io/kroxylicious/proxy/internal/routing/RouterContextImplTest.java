@@ -31,7 +31,7 @@ import io.kroxylicious.proxy.router.Response;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class RoutingContextImplTest {
+class RouterContextImplTest {
 
     private static final TargetCluster TARGET = new TargetCluster("localhost:9092", Optional.empty());
     private static final int CORRELATION_ID = 7;
@@ -76,8 +76,8 @@ class RoutingContextImplTest {
                 new FetchRequestData());
     }
 
-    private RoutingContextImpl createContext() {
-        return new RoutingContextImpl(
+    private RouterContextImpl createContext() {
+        return new RouterContextImpl(
                 clientFrame(),
                 channel,
                 SESSION_ID,
@@ -205,7 +205,7 @@ class RoutingContextImplTest {
         var ctx = createContext();
 
         List<Object> forwardedFrames = new java.util.ArrayList<>();
-        var fanOutCtx = new RoutingContextImpl(
+        var fanOutCtx = new RouterContextImpl(
                 clientFrame(),
                 channel,
                 SESSION_ID,
@@ -243,7 +243,7 @@ class RoutingContextImplTest {
         var nodeForwardedRoute = new AtomicReference<String>();
         var nodeForwardedMsg = new AtomicReference<Object>();
 
-        var ctx = new RoutingContextImpl(
+        var ctx = new RouterContextImpl(
                 clientFrame(),
                 channel,
                 SESSION_ID,
@@ -278,7 +278,7 @@ class RoutingContextImplTest {
 
     @Test
     void sendRequestToNodeShouldFailWhenForwarderThrows() {
-        var ctx = new RoutingContextImpl(
+        var ctx = new RouterContextImpl(
                 clientFrame(),
                 channel,
                 SESSION_ID,
