@@ -34,7 +34,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests verifying that routing via a pass-through router
+ * Integration tests verifying that router via a pass-through router
  * works identically to the direct target-cluster path.
  */
 @ExtendWith(KafkaClusterExtension.class)
@@ -74,7 +74,7 @@ class RoutingPassThroughIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer();
                 var consumer = tester.consumer(
-                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "routing-test",
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "router-test",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
 
             producer.send(new ProducerRecord<>(topic.name(), "key", "value"))

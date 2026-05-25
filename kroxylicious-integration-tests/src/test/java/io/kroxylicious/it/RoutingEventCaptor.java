@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.internal.routing.RoutingEvent;
 
 /**
  * Test utility that captures {@link RoutingEvent}s as requests flow
- * through the routing layer. Implements {@link AutoCloseable} so
+ * through the router layer. Implements {@link AutoCloseable} so
  * tests can use try-with-resources.
  */
 public class RoutingEventCaptor implements AutoCloseable {
@@ -26,7 +26,7 @@ public class RoutingEventCaptor implements AutoCloseable {
 
     /**
      * Installs a global event listener and returns a captor that
-     * collects all routing events until {@link #close()} is called.
+     * collects all router events until {@link #close()} is called.
      */
     public static RoutingEventCaptor install() {
         var captor = new RoutingEventCaptor();
