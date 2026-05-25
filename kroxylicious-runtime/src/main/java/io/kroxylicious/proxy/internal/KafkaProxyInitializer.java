@@ -299,6 +299,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     nodeIdMapping,
                     routingRequestsCounter, routingErrorsCounter,
                     routingRequestDurationTimer, pendingResponseCount);
+            clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }
