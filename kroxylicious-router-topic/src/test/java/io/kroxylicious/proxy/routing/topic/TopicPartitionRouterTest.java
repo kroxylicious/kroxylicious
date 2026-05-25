@@ -17,9 +17,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.compress.Compression;
+import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.DescribeClusterRequestData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
+import org.apache.kafka.common.message.EndTxnRequestData;
+import org.apache.kafka.common.message.EndTxnResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchRequestData.FetchPartition;
 import org.apache.kafka.common.message.FetchRequestData.FetchTopic;
@@ -543,18 +547,28 @@ class TopicPartitionRouterTest {
     }
 
     @Test
-    void shouldRouteBrokerOnlyMetadataToDefaultRoute() {
+    void shouldFanOutBrokerOnlyMetadataToAllRoutes() {
         var request = new MetadataRequestData();
         var defaultResp = metadataResponse(
                 List.of(broker(0, "host-default", 9092)),
                 List.of());
         defaultResp.setClusterId("default-cluster");
+        var respA = metadataResponse(
+                List.of(broker(1, "host-a", 9092)),
+                List.of());
+        respA.setClusterId("cluster-a-id");
+        var respB = metadataResponse(
+                List.of(broker(2, "host-b", 9092)),
+                List.of());
+        respB.setClusterId("cluster-b-id");
 
-        var ctx = new CapturingRoutingContext(Map.of("default-route", defaultResp));
+        var ctx = new CapturingRoutingContext(
+                Map.of("default-route", defaultResp, "cluster-a", respA, "cluster-b", respB));
         router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
 
-        assertThat(ctx.sentRequests()).hasSize(1);
-        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
+        assertThat(ctx.sentRequests()).hasSize(3);
+        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
+                .containsExactlyInAnyOrder("default-route", "cluster-a", "cluster-b");
     }
 
     @Test
@@ -901,6 +915,303 @@ class TopicPartitionRouterTest {
         twoRouteRouter.close();
     }
 
+    // --- ADD_PARTITIONS_TO_TXN ---
+
+    @Test
+    void shouldRouteAddPartitionsToTxnToSingleRoute() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var request = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk");
+        var backendResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(
+                findCoordinatorResponses())
+                .withNodeResponses(Map.of(1, backendResp));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentNodeRequests()).hasSize(1);
+        assertThat(ctx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(1);
+        assertThat(ctx.sentResponseBody())
+                .isInstanceOf(AddPartitionsToTxnResponseData.class);
+    }
+
+    @Test
+    void shouldRejectCrossRouteAddPartitionsToTxn() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var request = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk", "logs.app");
+        var ctx = new CapturingRoutingContext(Map.of());
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).isEmpty();
+        assertThat(ctx.sentNodeRequests()).isEmpty();
+        var response = (AddPartitionsToTxnResponseData) ctx.sentResponseBody();
+        for (var tr : response.resultsByTopicV3AndBelow()) {
+            for (var pr : tr.resultsByPartition()) {
+                assertThat(pr.partitionErrorCode())
+                        .isEqualTo(Errors.INVALID_TXN_STATE.code());
+            }
+        }
+    }
+
+    @Test
+    void shouldRejectAddPartitionsToTxnWhenActiveTransactionOnDifferentRoute() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var firstRequest = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk");
+        var backendResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
+        var ctx1 = new CapturingRoutingContext(
+                findCoordinatorResponses())
+                .withNodeResponses(Map.of(1, backendResp));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), firstRequest, ctx1);
+
+        var secondRequest = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "logs.app");
+        var ctx2 = new CapturingRoutingContext(Map.of());
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), secondRequest, ctx2);
+
+        var response = (AddPartitionsToTxnResponseData) ctx2.sentResponseBody();
+        for (var tr : response.resultsByTopicV3AndBelow()) {
+            for (var pr : tr.resultsByPartition()) {
+                assertThat(pr.partitionErrorCode())
+                        .isEqualTo(Errors.INVALID_TXN_STATE.code());
+            }
+        }
+    }
+
+    @Test
+    void shouldRewriteProducerIdInAddPartitionsToTxn() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var request = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk");
+        var backendResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
+        var ctx = new CapturingRoutingContext(
+                findCoordinatorResponses())
+                .withNodeResponses(Map.of(1, backendResp));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), request, ctx);
+
+        var sentReq = (AddPartitionsToTxnRequestData) ctx.sentNodeRequests()
+                .get(0).body();
+        assertThat(sentReq.v3AndBelowProducerId()).isEqualTo(100L);
+        assertThat(sentReq.v3AndBelowProducerEpoch()).isEqualTo((short) 0);
+    }
+
+    @Test
+    void shouldReturnUnknownProducerIdWhenMappingMissingForAddPartitionsToTxn() {
+        var request = addPartitionsToTxnRequest("my-txn-id", 999L, (short) 0,
+                "orders.uk");
+        var ctx = new CapturingRoutingContext(Map.of());
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), request, ctx);
+
+        var response = (AddPartitionsToTxnResponseData) ctx.sentResponseBody();
+        for (var tr : response.resultsByTopicV3AndBelow()) {
+            for (var pr : tr.resultsByPartition()) {
+                assertThat(pr.partitionErrorCode())
+                        .isEqualTo(Errors.UNKNOWN_PRODUCER_ID.code());
+            }
+        }
+    }
+
+    // --- END_TXN ---
+
+    @Test
+    void shouldRouteEndTxnToActiveTransactionRoute() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var addReq = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk");
+        var addResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
+        var addCtx = new CapturingRoutingContext(
+                findCoordinatorResponses())
+                .withNodeResponses(Map.of(1, addResp));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), addReq, addCtx);
+
+        var endReq = new EndTxnRequestData()
+                .setTransactionalId("my-txn-id")
+                .setProducerId(300L)
+                .setProducerEpoch((short) 0)
+                .setCommitted(true);
+        var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
+
+        var endCtx = new CapturingRoutingContext(Map.of())
+                .withNodeResponses(Map.of(1, endResp));
+        router.onClientRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, endCtx);
+
+        assertThat(endCtx.sentNodeRequests()).hasSize(1);
+        assertThat(endCtx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(1);
+        assertThat(endCtx.sentResponseBody())
+                .isInstanceOf(EndTxnResponseData.class);
+    }
+
+    @Test
+    void shouldClearActiveTransactionRouteOnEndTxn() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var addReq = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk");
+        var addResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
+        var addCtx = new CapturingRoutingContext(
+                findCoordinatorResponses())
+                .withNodeResponses(Map.of(1, addResp));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), addReq, addCtx);
+
+        var endReq = new EndTxnRequestData()
+                .setTransactionalId("my-txn-id")
+                .setProducerId(300L)
+                .setProducerEpoch((short) 0)
+                .setCommitted(true);
+        var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
+        var endCtx = new CapturingRoutingContext(Map.of())
+                .withNodeResponses(Map.of(1, endResp));
+        router.onClientRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, endCtx);
+
+        var addReq2 = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "logs.app");
+        var addResp2 = addPartitionsToTxnResponse("logs.app", 0, Errors.NONE);
+        var addCtx2 = new CapturingRoutingContext(Map.of())
+                .withNodeResponses(Map.of(2, addResp2));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), addReq2, addCtx2);
+
+        assertThat(addCtx2.sentNodeRequests()).hasSize(1);
+        assertThat(addCtx2.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(2);
+    }
+
+    @Test
+    void shouldRewriteProducerIdInEndTxn() {
+        setupTransactionalProducer("my-txn-id", 300L);
+
+        var addReq = addPartitionsToTxnRequest("my-txn-id", 300L, (short) 0,
+                "orders.uk");
+        var addResp = addPartitionsToTxnResponse("orders.uk", 0, Errors.NONE);
+        var addCtx = new CapturingRoutingContext(
+                findCoordinatorResponses())
+                .withNodeResponses(Map.of(1, addResp));
+        router.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), addReq, addCtx);
+
+        var endReq = new EndTxnRequestData()
+                .setTransactionalId("my-txn-id")
+                .setProducerId(300L)
+                .setProducerEpoch((short) 0)
+                .setCommitted(true);
+        var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
+        var endCtx = new CapturingRoutingContext(Map.of())
+                .withNodeResponses(Map.of(1, endResp));
+        router.onClientRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, endCtx);
+
+        var sentReq = (EndTxnRequestData) endCtx.sentNodeRequests().get(0).body();
+        assertThat(sentReq.producerId()).isEqualTo(100L);
+        assertThat(sentReq.producerEpoch()).isEqualTo((short) 0);
+    }
+
+    @Test
+    void shouldFallBackToDefaultRouteForEndTxnWithoutActiveTransaction() {
+        var endReq = new EndTxnRequestData()
+                .setTransactionalId("my-txn-id")
+                .setProducerId(300L)
+                .setProducerEpoch((short) 0)
+                .setCommitted(true);
+        var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
+
+        var ctx = new CapturingRoutingContext(Map.of("default-route", endResp));
+        router.onClientRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
+    }
+
+    // --- transaction helpers ---
+
+    private void setupTransactionalProducer(String transactionalId,
+                                            long clientProducerId) {
+        var initReq = new InitProducerIdRequestData()
+                .setTransactionalId(transactionalId)
+                .setTransactionTimeoutMs(60000);
+
+        var findCoordRespA = findCoordinatorResponse(1);
+        var findCoordRespB = findCoordinatorResponse(2);
+        var findCoordRespDefault = findCoordinatorResponse(0);
+        var initRespA = initProducerIdResponse(100L, (short) 0);
+        var initRespB = initProducerIdResponse(200L, (short) 0);
+        var initRespDefault = initProducerIdResponse(clientProducerId, (short) 0);
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-a", findCoordRespA,
+                        "cluster-b", findCoordRespB,
+                        "default-route", findCoordRespDefault))
+                .withNodeResponses(Map.of(
+                        0, initRespDefault,
+                        1, initRespA,
+                        2, initRespB));
+        router.onClientRequest((short) 5, ApiKeys.INIT_PRODUCER_ID,
+                new RequestHeaderData(), initReq, ctx);
+    }
+
+    private static Map<String, FindCoordinatorResponseData> findCoordinatorResponses() {
+        return Map.of(
+                "cluster-a", findCoordinatorResponse(1),
+                "cluster-b", findCoordinatorResponse(2),
+                "default-route", findCoordinatorResponse(0));
+    }
+
+    private static FindCoordinatorResponseData findCoordinatorResponse(int nodeId) {
+        return new FindCoordinatorResponseData()
+                .setErrorCode(Errors.NONE.code())
+                .setNodeId(nodeId)
+                .setHost("localhost")
+                .setPort(9092);
+    }
+
+    private static AddPartitionsToTxnRequestData addPartitionsToTxnRequest(
+                                                                           String transactionalId,
+                                                                           long producerId,
+                                                                           short producerEpoch,
+                                                                           String... topicNames) {
+        var request = new AddPartitionsToTxnRequestData()
+                .setV3AndBelowTransactionalId(transactionalId)
+                .setV3AndBelowProducerId(producerId)
+                .setV3AndBelowProducerEpoch(producerEpoch);
+        for (String name : topicNames) {
+            var topic = new AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic()
+                    .setName(name);
+            topic.partitions().add(0);
+            request.v3AndBelowTopics().add(topic);
+        }
+        return request;
+    }
+
+    private static AddPartitionsToTxnResponseData addPartitionsToTxnResponse(
+                                                                             String topicName,
+                                                                             int partition,
+                                                                             Errors error) {
+        var response = new AddPartitionsToTxnResponseData();
+        var topicResult = new AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResult()
+                .setName(topicName);
+        topicResult.resultsByPartition().add(
+                new AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResult()
+                        .setPartitionIndex(partition)
+                        .setPartitionErrorCode(error.code()));
+        response.resultsByTopicV3AndBelow().add(topicResult);
+        return response;
+    }
+
     // --- helpers ---
 
     private static DescribeClusterResponseData describeClusterResponse(String clusterId,
@@ -1145,11 +1456,18 @@ class TopicPartitionRouterTest {
      * the response. Supports per-route backend responses for
      * fan-out testing.
      */
+    record SentNodeRequest(int virtualNodeId,
+                           String route,
+                           RequestHeaderData header,
+                           ApiMessage body) {}
+
     static class CapturingRoutingContext implements RoutingContext {
 
         private final Map<String, ApiMessage> backendResponses;
         private final List<SentRequest> sentRequests = new ArrayList<>();
+        private final List<SentNodeRequest> sentNodeRequests = new ArrayList<>();
         private ApiMessage sentResponseBody;
+        private Map<Integer, ApiMessage> nodeResponses = Map.of();
 
         CapturingRoutingContext(ApiMessage singleBackendResponse) {
             this.backendResponses = null;
@@ -1163,8 +1481,17 @@ class TopicPartitionRouterTest {
 
         private final ApiMessage backendResponses_single;
 
+        CapturingRoutingContext withNodeResponses(Map<Integer, ? extends ApiMessage> nodeResponses) {
+            this.nodeResponses = new HashMap<>(nodeResponses);
+            return this;
+        }
+
         List<SentRequest> sentRequests() {
             return sentRequests;
+        }
+
+        List<SentNodeRequest> sentNodeRequests() {
+            return sentNodeRequests;
         }
 
         ApiMessage sentResponseBody() {
@@ -1195,7 +1522,13 @@ class TopicPartitionRouterTest {
         public CompletionStage<Response> sendRequestToNode(int virtualNodeId,
                                                            RequestHeaderData header,
                                                            ApiMessage request) {
-            throw new UnsupportedOperationException("sendRequestToNode not supported in test");
+            sentNodeRequests.add(new SentNodeRequest(virtualNodeId, "", header, request));
+            ApiMessage body = nodeResponses.get(virtualNodeId);
+            if (body == null) {
+                body = new ProduceResponseData();
+            }
+            Response response = new SimpleResponse(new ResponseHeaderData(), body);
+            return CompletableFuture.completedFuture(response);
         }
 
         @Override

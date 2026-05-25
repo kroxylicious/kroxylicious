@@ -15,6 +15,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
+import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResult;
+import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResult;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
 import org.apache.kafka.common.message.CreatePartitionsResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -24,8 +28,12 @@ import org.apache.kafka.common.message.DeleteRecordsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
+import org.apache.kafka.common.message.EndTxnRequestData;
+import org.apache.kafka.common.message.EndTxnResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
@@ -58,6 +66,8 @@ import io.kroxylicious.proxy.routing.Router;
 import io.kroxylicious.proxy.routing.RoutingContext;
 import io.kroxylicious.proxy.routing.RoutingResult;
 import io.kroxylicious.proxy.routing.topic.ProducerIdManager.ProducerIdEpoch;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Routes Kafka requests to backend clusters based on topic name
@@ -115,6 +125,12 @@ class TopicPartitionRouter implements Router {
     private final ProducerIdManager producerIdManager;
     private final FetchSessionManager fetchSessionManager;
     private final Counter rejectedAssignmentsCounter;
+
+    private final Map<String, Integer> transactionCoordinators = new HashMap<>();
+    @Nullable
+    private String activeTransactionRoute;
+
+    private static final short FIND_COORDINATOR_API_VERSION = 3;
 
     /**
      * @param routingTable determines which route owns each topic
@@ -196,6 +212,13 @@ class TopicPartitionRouter implements Router {
         }
         if (apiKey == ApiKeys.DELETE_RECORDS) {
             return handleDeleteRecords(header, (DeleteRecordsRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.ADD_PARTITIONS_TO_TXN) {
+            return handleAddPartitionsToTxn(header,
+                    (AddPartitionsToTxnRequestData) request, context);
+        }
+        if (apiKey == ApiKeys.END_TXN) {
+            return handleEndTxn(header, (EndTxnRequestData) request, context);
         }
         if (apiKey == ApiKeys.FIND_COORDINATOR) {
             return handleFindCoordinator(header, request, context);
@@ -307,6 +330,8 @@ class TopicPartitionRouter implements Router {
                                                                 InitProducerIdRequestData request,
                                                                 RoutingContext context) {
         Set<String> allRoutes = routingTable.allRoutes();
+        boolean isTransactional = request.transactionalId() != null
+                && !request.transactionalId().isEmpty();
 
         if (allRoutes.size() == 1) {
             return context.sendRequest(defaultRoute, header, request)
@@ -316,6 +341,19 @@ class TopicPartitionRouter implements Router {
                     });
         }
 
+        if (isTransactional) {
+            return discoverCoordinatorsAndInitProducerId(
+                    header, request, allRoutes, context);
+        }
+
+        return fanOutInitProducerId(header, request, allRoutes, context);
+    }
+
+    private CompletionStage<RoutingResult> fanOutInitProducerId(
+                                                                RequestHeaderData header,
+                                                                InitProducerIdRequestData request,
+                                                                Set<String> allRoutes,
+                                                                RoutingContext context) {
         Map<String, CompletionStage<Response>> futures = new HashMap<>();
         for (String route : allRoutes) {
             InitProducerIdRequestData routeRequest = rewriteInitProducerIdRequest(request, route);
@@ -357,6 +395,152 @@ class TopicPartitionRouter implements Router {
 
             var responseHeader = new ResponseHeaderData().setCorrelationId(0);
             context.sendResponse(new SimpleResponse(responseHeader, defaultResponse));
+            return RoutingResult.completed();
+        });
+    }
+
+    private CompletionStage<RoutingResult> discoverCoordinatorsAndInitProducerId(
+                                                                                 RequestHeaderData header,
+                                                                                 InitProducerIdRequestData request,
+                                                                                 Set<String> allRoutes,
+                                                                                 RoutingContext context) {
+        Map<String, CompletionStage<Response>> metadataFutures = new HashMap<>();
+        for (String route : allRoutes) {
+            var mdHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.METADATA.id)
+                    .setRequestApiVersion((short) 9);
+            var mdReq = new MetadataRequestData();
+            metadataFutures.put(route, context.sendRequest(route, mdHeader, mdReq));
+        }
+
+        return collectAll(metadataFutures).thenCompose(metadataResponses -> {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("routeCount", metadataResponses.size())
+                    .log("Broker discovery completed before coordinator lookup");
+
+            return doDiscoverCoordinatorsAndInitProducerId(
+                    header, request, allRoutes, context);
+        });
+    }
+
+    private CompletionStage<RoutingResult> doDiscoverCoordinatorsAndInitProducerId(
+                                                                                   RequestHeaderData header,
+                                                                                   InitProducerIdRequestData request,
+                                                                                   Set<String> allRoutes,
+                                                                                   RoutingContext context) {
+        Map<String, CompletionStage<Response>> coordFutures = new HashMap<>();
+        for (String route : allRoutes) {
+            var findCoordHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.FIND_COORDINATOR.id)
+                    .setRequestApiVersion(FIND_COORDINATOR_API_VERSION);
+            var findCoordReq = new FindCoordinatorRequestData()
+                    .setKey(request.transactionalId())
+                    .setKeyType((byte) 1);
+            coordFutures.put(route,
+                    context.sendRequest(route, findCoordHeader, findCoordReq));
+        }
+
+        return collectAll(coordFutures).thenCompose(coordResponses -> {
+            for (var entry : coordResponses.entrySet()) {
+                var resp = (FindCoordinatorResponseData) entry.getValue().body();
+                if (resp.errorCode() != Errors.NONE.code()) {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", entry.getKey())
+                            .addKeyValue("errorCode", Errors.forCode(resp.errorCode()))
+                            .log("FIND_COORDINATOR failed during transactional INIT_PRODUCER_ID");
+                    sendSyntheticResponse(context,
+                            new InitProducerIdResponseData()
+                                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                    return CompletableFuture.completedFuture(RoutingResult.completed());
+                }
+                transactionCoordinators.put(entry.getKey(), resp.nodeId());
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("route", entry.getKey())
+                        .addKeyValue("coordinatorNodeId", resp.nodeId())
+                        .addKeyValue("transactionalId", request.transactionalId())
+                        .log("Discovered transaction coordinator");
+            }
+
+            Map<String, CompletionStage<Response>> initFutures = new HashMap<>();
+            for (String route : allRoutes) {
+                int coordinatorNodeId = transactionCoordinators.get(route);
+                InitProducerIdRequestData routeRequest = rewriteInitProducerIdRequest(request, route);
+                var initHeader = new RequestHeaderData()
+                        .setRequestApiKey(ApiKeys.INIT_PRODUCER_ID.id)
+                        .setRequestApiVersion(header.requestApiVersion());
+                initFutures.put(route, context.sendRequestToNode(
+                        coordinatorNodeId, initHeader, routeRequest));
+            }
+
+            return collectAll(initFutures).thenApply(initResponses -> {
+                Map<String, ProducerIdEpoch> routeMapping = new HashMap<>();
+                InitProducerIdResponseData defaultResponse = null;
+
+                for (var entry : initResponses.entrySet()) {
+                    var resp = (InitProducerIdResponseData) entry.getValue().body();
+                    if (resp.errorCode() != Errors.NONE.code()) {
+                        LOGGER.atDebug()
+                                .addKeyValue("sessionId", context.sessionId())
+                                .addKeyValue("route", entry.getKey())
+                                .addKeyValue("errorCode", Errors.forCode(resp.errorCode()))
+                                .log("Transactional INIT_PRODUCER_ID failed on route");
+                        context.sendResponse(entry.getValue());
+                        return RoutingResult.completed();
+                    }
+                    routeMapping.put(entry.getKey(),
+                            new ProducerIdEpoch(resp.producerId(), resp.producerEpoch()));
+                    if (entry.getKey().equals(defaultRoute)) {
+                        defaultResponse = resp;
+                    }
+                }
+
+                if (defaultResponse == null) {
+                    defaultResponse = (InitProducerIdResponseData) initResponses
+                            .values().iterator().next().body();
+                }
+                producerIdManager.put(defaultResponse.producerId(), routeMapping);
+
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("clientProducerId", defaultResponse.producerId())
+                        .addKeyValue("routeCount", routeMapping.size())
+                        .addKeyValue("transactionalId", request.transactionalId())
+                        .log("Transactional producer ID mapping established");
+
+                var responseHeader = new ResponseHeaderData().setCorrelationId(0);
+                context.sendResponse(
+                        new SimpleResponse(responseHeader, defaultResponse));
+                return RoutingResult.completed();
+            }).exceptionally(ex -> {
+                LOGGER.atWarn()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("transactionalId", request.transactionalId())
+                        .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                        .addKeyValue("error", ex.getMessage())
+                        .log(LOGGER.isDebugEnabled()
+                                ? "Transactional INIT_PRODUCER_ID failed"
+                                : "Transactional INIT_PRODUCER_ID failed, increase log level to DEBUG for stacktrace");
+                sendSyntheticResponse(context,
+                        new InitProducerIdResponseData()
+                                .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                return RoutingResult.completed();
+            });
+        }).exceptionally(ex -> {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("transactionalId", request.transactionalId())
+                    .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                    .addKeyValue("error", ex.getMessage())
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Coordinator discovery failed during transactional INIT_PRODUCER_ID"
+                            : "Coordinator discovery failed during transactional INIT_PRODUCER_ID, "
+                                    + "increase log level to DEBUG for stacktrace");
+            sendSyntheticResponse(context,
+                    new InitProducerIdResponseData()
+                            .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
             return RoutingResult.completed();
         });
     }
@@ -910,6 +1094,241 @@ class TopicPartitionRouter implements Router {
             sendSyntheticResponse(context, merged);
             return RoutingResult.completed();
         });
+    }
+
+    private CompletionStage<RoutingResult> handleAddPartitionsToTxn(
+                                                                    RequestHeaderData header,
+                                                                    AddPartitionsToTxnRequestData request,
+                                                                    RoutingContext context) {
+        var topics = request.v3AndBelowTopics();
+        Map<String, List<AddPartitionsToTxnRequestData.AddPartitionsToTxnTopic>> routeTopics = new HashMap<>();
+        var errorTopics = new java.util.ArrayList<AddPartitionsToTxnTopicResult>();
+
+        for (var topic : topics) {
+            String route = routingTable.routeForTopic(topic.name());
+            if (route == null) {
+                var topicResult = new AddPartitionsToTxnTopicResult().setName(topic.name());
+                for (int partition : topic.partitions()) {
+                    topicResult.resultsByPartition().add(
+                            new AddPartitionsToTxnPartitionResult()
+                                    .setPartitionIndex(partition)
+                                    .setPartitionErrorCode(
+                                            Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+                }
+                errorTopics.add(topicResult);
+            }
+            else {
+                routeTopics.computeIfAbsent(route, k -> new java.util.ArrayList<>())
+                        .add(topic);
+            }
+        }
+
+        if (routeTopics.size() > 1) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("routes", routeTopics.keySet())
+                    .log("Cross-route transaction rejected");
+            sendSyntheticResponse(context,
+                    allPartitionsError(request, Errors.INVALID_TXN_STATE));
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        if (routeTopics.isEmpty()) {
+            var response = new AddPartitionsToTxnResponseData();
+            response.resultsByTopicV3AndBelow().addAll(errorTopics);
+            sendSyntheticResponse(context, response);
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        String route = routeTopics.keySet().iterator().next();
+
+        if (activeTransactionRoute != null && !activeTransactionRoute.equals(route)) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("activeRoute", activeTransactionRoute)
+                    .addKeyValue("requestedRoute", route)
+                    .log("ADD_PARTITIONS_TO_TXN targets different route than active transaction");
+            sendSyntheticResponse(context,
+                    allPartitionsError(request, Errors.INVALID_TXN_STATE));
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        activeTransactionRoute = route;
+
+        long clientPid = request.v3AndBelowProducerId();
+        if (!route.equals(defaultRoute)) {
+            Map<String, ProducerIdEpoch> mapping = producerIdManager.get(clientPid);
+            if (mapping == null) {
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("clientProducerId", clientPid)
+                        .log("Producer ID mapping not found for ADD_PARTITIONS_TO_TXN");
+                sendSyntheticResponse(context,
+                        allPartitionsError(request, Errors.UNKNOWN_PRODUCER_ID));
+                return CompletableFuture.completedFuture(RoutingResult.completed());
+            }
+            ProducerIdEpoch routeIds = mapping.get(route);
+            if (routeIds == null) {
+                sendSyntheticResponse(context,
+                        allPartitionsError(request, Errors.UNKNOWN_PRODUCER_ID));
+                return CompletableFuture.completedFuture(RoutingResult.completed());
+            }
+            request.setV3AndBelowProducerId(routeIds.producerId());
+            request.setV3AndBelowProducerEpoch(routeIds.producerEpoch());
+        }
+
+        Integer coordinatorNodeId = transactionCoordinators.get(route);
+        if (coordinatorNodeId == null) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .addKeyValue("route", route)
+                    .log("No cached coordinator for route during ADD_PARTITIONS_TO_TXN");
+            sendSyntheticResponse(context,
+                    allPartitionsError(request, Errors.COORDINATOR_NOT_AVAILABLE));
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", route)
+                .addKeyValue("transactionalId", request.v3AndBelowTransactionalId())
+                .log("ADD_PARTITIONS_TO_TXN routed to transaction coordinator");
+
+        List<AddPartitionsToTxnTopicResult> capturedErrors = errorTopics;
+        return context.sendRequestToNode(coordinatorNodeId, header, request)
+                .thenApply(response -> {
+                    if (!capturedErrors.isEmpty()) {
+                        var body = (AddPartitionsToTxnResponseData) response.body();
+                        body.resultsByTopicV3AndBelow().addAll(capturedErrors);
+                        sendSyntheticResponse(context, body);
+                    }
+                    else {
+                        context.sendResponse(response);
+                    }
+                    return RoutingResult.completed();
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", route)
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "ADD_PARTITIONS_TO_TXN forwarding failed"
+                                    : "ADD_PARTITIONS_TO_TXN forwarding failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    sendSyntheticResponse(context,
+                            allPartitionsError(request, Errors.COORDINATOR_NOT_AVAILABLE));
+                    return RoutingResult.completed();
+                });
+    }
+
+    private static AddPartitionsToTxnResponseData allPartitionsError(
+                                                                     AddPartitionsToTxnRequestData request,
+                                                                     Errors error) {
+        var response = new AddPartitionsToTxnResponseData();
+        for (var topic : request.v3AndBelowTopics()) {
+            var topicResult = new AddPartitionsToTxnTopicResult().setName(topic.name());
+            for (int partition : topic.partitions()) {
+                topicResult.resultsByPartition().add(
+                        new AddPartitionsToTxnPartitionResult()
+                                .setPartitionIndex(partition)
+                                .setPartitionErrorCode(error.code()));
+            }
+            response.resultsByTopicV3AndBelow().add(topicResult);
+        }
+        return response;
+    }
+
+    private CompletionStage<RoutingResult> handleEndTxn(
+                                                        RequestHeaderData header,
+                                                        EndTxnRequestData request,
+                                                        RoutingContext context) {
+        String route = activeTransactionRoute != null
+                ? activeTransactionRoute
+                : defaultRoute;
+
+        Integer coordinatorNodeId = transactionCoordinators.get(route);
+        if (coordinatorNodeId == null) {
+            return context.sendRequest(route, header, request)
+                    .thenApply(response -> {
+                        activeTransactionRoute = null;
+                        context.sendResponse(response);
+                        return RoutingResult.completed();
+                    });
+        }
+
+        long clientPid = request.producerId();
+        short clientEpoch = request.producerEpoch();
+        short preRewriteRouteEpoch = -1;
+
+        if (!route.equals(defaultRoute)) {
+            Map<String, ProducerIdEpoch> mapping = producerIdManager.get(clientPid);
+            if (mapping != null) {
+                ProducerIdEpoch routeIds = mapping.get(route);
+                if (routeIds != null) {
+                    preRewriteRouteEpoch = routeIds.producerEpoch();
+                    request.setProducerId(routeIds.producerId());
+                    request.setProducerEpoch(routeIds.producerEpoch());
+                }
+            }
+        }
+
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("route", route)
+                .addKeyValue("coordinatorNodeId", coordinatorNodeId)
+                .addKeyValue("transactionalId", request.transactionalId())
+                .addKeyValue("committed", request.committed())
+                .log("END_TXN routed to transaction coordinator");
+
+        short capturedPreRewriteEpoch = preRewriteRouteEpoch;
+        return context.sendRequestToNode(coordinatorNodeId, header, request)
+                .thenApply(response -> {
+                    var endTxnResp = (EndTxnResponseData) response.body();
+
+                    if (endTxnResp.producerId() != -1
+                            && !route.equals(defaultRoute)) {
+                        producerIdManager.updateRouteEpoch(clientPid, route,
+                                new ProducerIdEpoch(
+                                        endTxnResp.producerId(),
+                                        endTxnResp.producerEpoch()));
+
+                        short newClientEpoch = capturedPreRewriteEpoch >= 0
+                                ? (short) (clientEpoch
+                                        + (endTxnResp.producerEpoch()
+                                                - capturedPreRewriteEpoch))
+                                : clientEpoch;
+                        endTxnResp.setProducerId(clientPid);
+                        endTxnResp.setProducerEpoch(newClientEpoch);
+
+                        LOGGER.atDebug()
+                                .addKeyValue("sessionId", context.sessionId())
+                                .addKeyValue("route", route)
+                                .addKeyValue("clientEpoch", newClientEpoch)
+                                .addKeyValue("routeEpoch",
+                                        endTxnResp.producerEpoch())
+                                .log("END_TXN epoch bump rewritten");
+                    }
+
+                    activeTransactionRoute = null;
+                    context.sendResponse(response);
+                    return RoutingResult.completed();
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", route)
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "END_TXN forwarding failed"
+                                    : "END_TXN forwarding failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    activeTransactionRoute = null;
+                    sendSyntheticResponse(context,
+                            new EndTxnResponseData()
+                                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                    return RoutingResult.completed();
+                });
     }
 
     private CompletionStage<RoutingResult> handleFindCoordinator(

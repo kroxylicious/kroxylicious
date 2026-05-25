@@ -65,13 +65,15 @@ class MetadataDecomposerTest {
     }
 
     @Test
-    void shouldSendEmptyTopicsRequestToDefaultRoute() {
+    void shouldSendEmptyTopicsRequestToAllRoutes() {
         var request = new MetadataRequestData();
 
         var parts = decomposer.decompose(request, table, DEFAULT_ROUTE);
 
-        assertThat(parts).containsOnlyKeys(DEFAULT_ROUTE);
-        assertThat(parts.get(DEFAULT_ROUTE).topics()).isEmpty();
+        assertThat(parts).containsOnlyKeys("route-a", "route-b");
+        for (var sub : parts.values()) {
+            assertThat(sub.topics()).isEmpty();
+        }
     }
 
     @Test
