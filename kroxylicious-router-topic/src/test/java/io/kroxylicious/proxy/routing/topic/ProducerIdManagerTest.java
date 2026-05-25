@@ -111,6 +111,32 @@ class ProducerIdManagerTest {
     }
 
     @Test
+    void updateRouteEpochShouldUpdateSpecificRoute() {
+        var manager = createManager();
+        manager.put(1L, new java.util.HashMap<>(sampleMapping()));
+
+        manager.updateRouteEpoch(1L, "route-a",
+                new ProducerIdEpoch(100L, (short) 5));
+
+        var result = manager.get(1L);
+        assertThat(result).isNotNull();
+        assertThat(result.get("route-a"))
+                .isEqualTo(new ProducerIdEpoch(100L, (short) 5));
+        assertThat(result.get("route-b"))
+                .isEqualTo(new ProducerIdEpoch(200L, (short) 0));
+    }
+
+    @Test
+    void updateRouteEpochShouldNoopForUnknownPid() {
+        var manager = createManager();
+
+        manager.updateRouteEpoch(999L, "route-a",
+                new ProducerIdEpoch(100L, (short) 1));
+
+        assertThat(manager.get(999L)).isNull();
+    }
+
+    @Test
     void shouldReportSize() {
         var manager = createManager();
         assertThat(manager.size()).isEqualTo(0);
