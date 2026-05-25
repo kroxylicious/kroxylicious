@@ -73,7 +73,7 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
 
         return new Router() {
             @Override
-            public CompletionStage<RouterResult> onClientRequest(
+            public CompletionStage<RouterResult> onRequest(
                                                                  short apiVersion,
                                                                  ApiKeys apiKey,
                                                                  RequestHeaderData header,

@@ -49,7 +49,7 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
         return new Router() {
             @Override
-            public CompletionStage<RouterResult> onClientRequest(
+            public CompletionStage<RouterResult> onRequest(
                                                                  short apiVersion,
                                                                  ApiKeys apiKey,
                                                                  RequestHeaderData header,

@@ -41,7 +41,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Sits at the end of the VC-level filter chain (replacing
  * {@link io.kroxylicious.proxy.internal.FilterChainCompletionHandler}) when a
  * virtual cluster uses a router. Unwraps incoming
- * {@link DecodedRequestFrame}s and invokes {@link Router#onClientRequest}.
+ * {@link DecodedRequestFrame}s and invokes {@link Router#onRequest}.
  */
 public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implements RoutingResponseCallback {
 
@@ -166,7 +166,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 pendingResponseCount,
                 responseSequencer);
 
-        router.onClientRequest(
+        router.onRequest(
                 apiVersion,
                 apiKey,
                 frame.header(),

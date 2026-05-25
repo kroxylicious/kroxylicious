@@ -54,7 +54,7 @@ class DelegatingDecodePredicate implements DecodePredicate {
 
     /**
      * Sets the API keys for which the router requires decoded frames.
-     * These are the dynamically-routed keys that need {@code onClientRequest}.
+     * These are the dynamically-routed keys that need {@code onRequest}.
      */
     void setRouterDecodingRequirements(@Nullable Set<ApiKeys> dynamicallyRoutedKeys) {
         this.routerRequiresDecoding = dynamicallyRoutedKeys;
