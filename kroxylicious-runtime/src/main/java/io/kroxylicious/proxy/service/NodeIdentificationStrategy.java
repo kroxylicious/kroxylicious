@@ -22,7 +22,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * a strategy using TLS with SNI to identify the gateway and broker could share that port with
  * other gateways that want to use TLS and SNI.
  * The strategy also controls how we advertise the broker addresses to the clients, so that we can do
- * things like set a different advertised port, in case there is routing technology between the client
+ * things like set a different advertised port, in case there is router technology between the client
  * and proxy.
  */
 public interface NodeIdentificationStrategy {

@@ -194,7 +194,7 @@ public class ClientConnectionStateMachine {
     /**
      * Server connection state machines, keyed by remote address. Populated when the first client
      * request triggers backend connection setup (transition to {@link Forwarding}). Currently
-     * contains at most one entry; routing will add more.
+     * contains at most one entry; router will add more.
      */
     @VisibleForTesting
     final Map<HostPort, ServerConnectionStateMachine> serverConnections = new HashMap<>();
@@ -905,13 +905,13 @@ public class ClientConnectionStateMachine {
                 .addKeyValue("routeCount", routeTargets.size())
                 .addKeyValue("backendCount", serverConnections.size())
                 .addKeyValue("routeTargets", () -> routeTargets.toString())
-                .log("Upstream connections initiated for routing VC");
+                .log("Upstream connections initiated for router VC");
     }
 
     /**
      * Forward a message to the backend connection for the named route.
      * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
-     * for both static and dynamic routing paths.
+     * for both static and dynamic router paths.
      */
     public void forwardToRoute(String routeName, Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
