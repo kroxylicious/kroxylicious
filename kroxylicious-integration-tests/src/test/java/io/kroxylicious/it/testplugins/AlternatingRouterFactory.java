@@ -20,11 +20,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.routing.Router;
-import io.kroxylicious.proxy.routing.RouterFactory;
-import io.kroxylicious.proxy.routing.RouterFactoryContext;
-import io.kroxylicious.proxy.routing.RoutingContext;
-import io.kroxylicious.proxy.routing.RoutingResult;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterFactory;
+import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.router.RoutingContext;
+import io.kroxylicious.proxy.router.RoutingResult;
 
 /**
  * A router that alternates PRODUCE requests between two routes in
@@ -39,7 +39,7 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
     private static final Logger LOGGER = LoggerFactory.getLogger(AlternatingRouterFactory.class);
 
     // PRODUCE v13 replaces topic names with topic IDs (KIP-516).
-    // When routing between independent clusters the IDs differ, so
+    // When router between independent clusters the IDs differ, so
     // we cap at v12 to keep name-based addressing.
     private static final short MAX_PRODUCE_VERSION = 12;
 
