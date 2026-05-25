@@ -22,6 +22,9 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +36,7 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
@@ -42,7 +46,9 @@ import io.kroxylicious.proxy.routing.topic.config.TopicPartitionRouterConfig;
 import io.kroxylicious.proxy.routing.topic.config.TopicRoute;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.client.KafkaClient;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
@@ -59,7 +65,9 @@ abstract class TopicPartitionRoutingBaseIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRoutingBaseIT.class);
 
+    @BrokerCluster(numBrokers = 3)
     static KafkaCluster clusterA;
+    @BrokerCluster(numBrokers = 3)
     static KafkaCluster clusterB;
 
     RoutingEventCaptor routingCaptor;
@@ -149,7 +157,11 @@ abstract class TopicPartitionRoutingBaseIT {
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
                 .withRouter("topic-router")
-                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192")
+                        .editPortIdentifiesNode()
+                        .addToNodeIdRanges(new NamedRange("brokers", 0, 5))
+                        .endPortIdentifiesNode()
+                        .build())
                 .build();
 
         return baseConfigurationBuilder()
@@ -166,6 +178,64 @@ abstract class TopicPartitionRoutingBaseIT {
                 new ApiVersionsRequestData()
                         .setClientSoftwareName("test")
                         .setClientSoftwareVersion("1.0")));
+    }
+
+    /**
+     * Fetches metadata for the given topics via the proxy, returning the full response
+     * including broker addresses (rewritten by BrokerAddressFilter to proxy addresses).
+     */
+    static MetadataResponseData fetchMetadata(KafkaClient client,
+                                              String... topicNames) {
+        var request = new MetadataRequestData();
+        for (var name : topicNames) {
+            request.topics().add(new MetadataRequestData.MetadataRequestTopic().setName(name));
+        }
+        var response = client.getSync(new Request(
+                ApiKeys.METADATA, ApiKeys.METADATA.latestVersion(), "test-client", request));
+        return (MetadataResponseData) response.payload().message();
+    }
+
+    /**
+     * Returns the proxy address (host:port) of the leader for the given topic partition,
+     * as advertised in a metadata response from the proxy.
+     */
+    static String leaderAddress(MetadataResponseData metadata,
+                                String topicName,
+                                int partitionIndex) {
+        for (var topic : metadata.topics()) {
+            if (topic.name().equals(topicName)) {
+                for (var partition : topic.partitions()) {
+                    if (partition.partitionIndex() == partitionIndex) {
+                        int leaderId = partition.leaderId();
+                        for (var broker : metadata.brokers()) {
+                            if (broker.nodeId() == leaderId) {
+                                return broker.host() + ":" + broker.port();
+                            }
+                        }
+                        throw new IllegalStateException(
+                                "Leader " + leaderId + " for " + topicName + "-" + partitionIndex
+                                        + " not found in broker list");
+                    }
+                }
+                throw new IllegalStateException(
+                        "Partition " + partitionIndex + " not found for topic " + topicName);
+            }
+        }
+        throw new IllegalStateException("Topic " + topicName + " not found in metadata response");
+    }
+
+    /**
+     * Opens a simple test client connected to the leader for the given topic partition.
+     * Performs API version negotiation before returning.
+     */
+    static KafkaClient clientForLeader(KroxyliciousTester tester,
+                                       MetadataResponseData metadata,
+                                       String topicName,
+                                       int partitionIndex) {
+        String address = leaderAddress(metadata, topicName, partitionIndex);
+        var client = tester.simpleTestClient(address, false);
+        negotiateApiVersions(client);
+        return client;
     }
 
     List<ConsumerRecord<String, String>> consumeDirectly(KafkaCluster cluster,
