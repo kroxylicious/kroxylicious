@@ -86,12 +86,12 @@ public interface Router {
      * @param context the router context for sending requests and responses
      * @return a stage that completes when the router decision is fully handled
      */
-    CompletionStage<RouterResult> onClientRequest(
-                                                  short apiVersion,
-                                                  ApiKeys apiKey,
-                                                  RequestHeaderData header,
-                                                  ApiMessage request,
-                                                  RouterContext context);
+    CompletionStage<RouterResult> onRequest(
+                                            short apiVersion,
+                                            ApiKeys apiKey,
+                                            RequestHeaderData header,
+                                            ApiMessage request,
+                                            RouterContext context);
 
     /**
      * Called by the runtime when the client connection is torn down.
@@ -100,7 +100,7 @@ public interface Router {
      * (e.g. reclaim cache slots).</p>
      *
      * <p>Guaranteed to be called on the same event loop thread as
-     * {@link #onClientRequest}. Called at most once per router instance.</p>
+     * {@link #onRequest}. Called at most once per router instance.</p>
      */
     default void close() {
     }
@@ -109,9 +109,9 @@ public interface Router {
      * Declares API keys that are always forwarded to a fixed named route
      * without deserialisation. For these API keys the runtime forwards
      * frames directly (opaque or decoded) without calling
-     * {@link #onClientRequest}. API keys absent from this map are
+     * {@link #onRequest}. API keys absent from this map are
      * considered dynamically routed and will be decoded so that
-     * {@code onClientRequest} can inspect them.
+     * {@code onRequest} can inspect them.
      *
      * @return a map from API key to route name; empty means all API keys
      *         are dynamically routed (the default)

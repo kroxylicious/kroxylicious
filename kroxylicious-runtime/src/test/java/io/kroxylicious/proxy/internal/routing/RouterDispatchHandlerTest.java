@@ -89,7 +89,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldInvokeRouterOnDecodedRequestFrame() {
         stubCcsmForRouting();
-        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
+        when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
         var handler = createHandler(Map.of());
@@ -101,7 +101,7 @@ class RouterDispatchHandlerTest {
 
         channel.writeInbound(frame);
 
-        verify(router).onClientRequest(
+        verify(router).onRequest(
                 anyShort(),
                 any(ApiKeys.class),
                 any(),
@@ -123,7 +123,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldCloseChannelWhenRouterReturnsFailed() {
         stubCcsmForRouting();
-        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
+        when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("router error")));
 
         var handler = createHandler(Map.of());
@@ -193,7 +193,7 @@ class RouterDispatchHandlerTest {
             var reqBody = new FetchRequestData();
             ctx.sendRequest("default", reqHeader, reqBody);
             return CompletableFuture.completedFuture(null);
-        }).when(router).onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
+        }).when(router).onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
 
         doAnswer(invocation -> {
             forwardedRoute.set(invocation.getArgument(0));
@@ -354,7 +354,7 @@ class RouterDispatchHandlerTest {
     @Test
     void shouldIncrementErrorCounterWhenRouterFails() {
         stubCcsmForRouting();
-        when(router.onClientRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
+        when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
 
         var handler = createHandler(Map.of());
