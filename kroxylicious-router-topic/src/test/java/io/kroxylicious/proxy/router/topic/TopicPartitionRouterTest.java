@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.routing.topic;
+package io.kroxylicious.proxy.router.topic;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -79,8 +79,8 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
-import io.kroxylicious.proxy.routing.Response;
-import io.kroxylicious.proxy.routing.RoutingContext;
+import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.router.RoutingContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -1320,7 +1320,7 @@ class TopicPartitionRouterTest {
         cgRouter.close();
     }
 
-    // --- OFFSET_COMMIT with consumer group routing ---
+    // --- OFFSET_COMMIT with consumer group router ---
 
     @Test
     void shouldRouteOffsetCommitToGroupRouteWhenMapped() {

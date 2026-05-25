@@ -30,7 +30,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for DELETE_RECORDS routing through the topic-partition router.
+ * Integration tests for DELETE_RECORDS router through the topic-partition router.
  */
 class DeleteRecordsRoutingIT extends TopicPartitionRoutingBaseIT {
 
@@ -99,7 +99,7 @@ class DeleteRecordsRoutingIT extends TopicPartitionRoutingBaseIT {
             }
         }
 
-        // Verify routing
+        // Verify router
         var deleteRecToA = routingCaptor.requestsToRoute("route-a", ApiKeys.DELETE_RECORDS);
         var deleteRecToB = routingCaptor.requestsToRoute("route-b", ApiKeys.DELETE_RECORDS);
         assertThat(deleteRecToA).as("DELETE_RECORDS should be routed to route-a").isNotEmpty();

@@ -27,7 +27,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for OFFSET_COMMIT routing through the topic-partition router.
+ * Integration tests for OFFSET_COMMIT router through the topic-partition router.
  */
 class OffsetCommitRoutingIT extends TopicPartitionRoutingBaseIT {
 

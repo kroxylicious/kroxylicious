@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.routing.topic;
+package io.kroxylicious.proxy.router.topic;
 
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -18,7 +18,7 @@ import io.kroxylicious.kafka.transform.BatchAwareMemoryRecordsBuilder;
 
 /**
  * Rewrites the producerId and producerEpoch in record batch headers
- * within a {@link ProduceRequestData}. Used when fan-out routing sends
+ * within a {@link ProduceRequestData}. Used when fan-out router sends
  * sub-requests to backends that allocated their own producer IDs.
  */
 final class RecordBatchRewriter {
