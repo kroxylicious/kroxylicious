@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.routing.topic;
 
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,7 +32,7 @@ class FetchSessionManagerTest {
     @BeforeEach
     void setUp() {
         cache = new FetchSessionCache(1000, 0, "testVc", "testRouter");
-        manager = new FetchSessionManager(cache);
+        manager = new FetchSessionManager(cache, Clock.systemUTC());
     }
 
     @Nested
@@ -274,7 +275,7 @@ class FetchSessionManagerTest {
         @Test
         void shouldOperateSessionlessWhenCacheDeclines() {
             var zeroSlotCache = new FetchSessionCache(0, 0, "testVc", "testRouter");
-            var sessionless = new FetchSessionManager(zeroSlotCache);
+            var sessionless = new FetchSessionManager(zeroSlotCache, Clock.systemUTC());
 
             var request = fetchRequest("topic-a");
             request.setSessionId(0);
@@ -317,7 +318,7 @@ class FetchSessionManagerTest {
         @Test
         void shouldReleaseCacheSlotOnSessionClose() {
             var oneSlotCache = new FetchSessionCache(1, 0, "testVc", "testRouter");
-            var mgr = new FetchSessionManager(oneSlotCache);
+            var mgr = new FetchSessionManager(oneSlotCache, Clock.systemUTC());
 
             var create = fetchRequest("topic-a");
             create.setSessionId(0);
