@@ -713,6 +713,58 @@ class EndpointRegistryTest {
                 .hasMessageContaining("No listening channel for endpoint");
     }
 
+    @Test
+    void upstreamAddressShouldReturnReconciledAddress() throws Exception {
+        configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
+        assertThat(regf.isDone()).isTrue();
+
+        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
+        var recf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
+        assertThat(recf.isDone()).isTrue();
+
+        assertThat(endpointRegistry.upstreamAddress(virtualClusterModel1, 0))
+                .hasValue(UPSTREAM_BROKER_0);
+    }
+
+    @Test
+    void upstreamAddressShouldReturnEmptyBeforeReconciliation() throws Exception {
+        configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
+        assertThat(regf.isDone()).isTrue();
+
+        assertThat(endpointRegistry.upstreamAddress(virtualClusterModel1, 0))
+                .isEmpty();
+    }
+
+    @Test
+    void upstreamAddressShouldReturnEmptyForUnknownNodeId() throws Exception {
+        configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
+
+        var regf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
+        assertThat(regf.isDone()).isTrue();
+
+        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
+        var recf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
+        assertThat(recf.isDone()).isTrue();
+
+        assertThat(endpointRegistry.upstreamAddress(virtualClusterModel1, 99))
+                .isEmpty();
+    }
+
+    @Test
+    void upstreamAddressShouldReturnEmptyForUnknownGateway() {
+        assertThat(endpointRegistry.upstreamAddress(virtualClusterModel1, 0))
+                .isEmpty();
+    }
+
     private Channel createMockNettyChannel(int port) {
         var channel = mock(Channel.class);
         var attr = createTestAttribute(EndpointRegistry.CHANNEL_BINDINGS);
