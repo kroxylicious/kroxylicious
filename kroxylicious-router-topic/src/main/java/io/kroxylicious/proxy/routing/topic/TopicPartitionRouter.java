@@ -17,6 +17,8 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
+import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
+import org.apache.kafka.common.message.ProduceResponseData.TopicProduceResponse;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -33,6 +35,7 @@ import io.kroxylicious.proxy.routing.Response;
 import io.kroxylicious.proxy.routing.Router;
 import io.kroxylicious.proxy.routing.RoutingContext;
 import io.kroxylicious.proxy.routing.RoutingResult;
+import io.kroxylicious.proxy.routing.topic.ProducerIdManager.ProducerIdEpoch;
 
 /**
  * Routes Kafka requests to backend clusters based on topic name
@@ -60,19 +63,26 @@ class TopicPartitionRouter implements Router {
             ApiKeys.PRODUCE,
             ApiKeys.INIT_PRODUCER_ID);
 
-    record ProducerIdEpoch(long producerId, short producerEpoch) {}
-
     private final PrefixTopicRoutingTable routingTable;
     private final String defaultRoute;
     private final Map<ApiKeys, String> staticRoutes;
     private final ApiVersionsResponseTransformer versionCapper;
     private final ProduceDecomposer produceDecomposer = ProduceDecomposer.INSTANCE;
-    private final Map<Long, Map<String, ProducerIdEpoch>> producerIdMappings = new HashMap<>();
+    private final ProducerIdManager producerIdManager;
 
+    /**
+     * @param routingTable determines which route owns each topic
+     * @param defaultRoute route used for topics that match no prefix and for non-PRODUCE API keys
+     * @param producerIdManager shared manager for per-route producer ID mappings; must outlive
+     *                          individual connections so that reconnecting producers retain
+     *                          their per-route mappings
+     */
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
-                         String defaultRoute) {
+                         String defaultRoute,
+                         ProducerIdManager producerIdManager) {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
+        this.producerIdManager = producerIdManager;
         this.staticRoutes = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> defaultRoute));
@@ -133,7 +143,13 @@ class TopicPartitionRouter implements Router {
                 request, routingTable);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
                 request, routingTable);
-        rewriteProducerIdsForRoutes(subRequests);
+        if (!rewriteProducerIdsForRoutes(subRequests)) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", context.sessionId())
+                    .log("Producer ID mapping not found, returning UNKNOWN_PRODUCER_ID");
+            sendProduceResponse(context, unknownProducerIdResponse(request));
+            return CompletableFuture.completedFuture(RoutingResult.completed());
+        }
 
         boolean isAcksZero = request.acks() == 0;
 
@@ -238,7 +254,7 @@ class TopicPartitionRouter implements Router {
             if (defaultResponse == null) {
                 defaultResponse = (InitProducerIdResponseData) responses.values().iterator().next().body();
             }
-            producerIdMappings.put(defaultResponse.producerId(), routeMapping);
+            producerIdManager.put(defaultResponse.producerId(), routeMapping);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
@@ -257,7 +273,7 @@ class TopicPartitionRouter implements Router {
         if (original.producerId() == RecordBatch.NO_PRODUCER_ID || route.equals(defaultRoute)) {
             return original;
         }
-        Map<String, ProducerIdEpoch> existing = producerIdMappings.get(original.producerId());
+        Map<String, ProducerIdEpoch> existing = producerIdManager.get(original.producerId());
         if (existing == null) {
             return original;
         }
@@ -272,7 +288,10 @@ class TopicPartitionRouter implements Router {
                 .setProducerEpoch(routeIds.producerEpoch());
     }
 
-    private void rewriteProducerIdsForRoutes(Map<String, ProduceRequestData> subRequests) {
+    /**
+     * @return true if all mappings were found, false if a non-default route had a missing mapping
+     */
+    private boolean rewriteProducerIdsForRoutes(Map<String, ProduceRequestData> subRequests) {
         for (var entry : subRequests.entrySet()) {
             String route = entry.getKey();
             if (route.equals(defaultRoute)) {
@@ -283,15 +302,16 @@ class TopicPartitionRouter implements Router {
             if (clientProducerId == null) {
                 continue;
             }
-            Map<String, ProducerIdEpoch> mapping = producerIdMappings.get(clientProducerId);
+            Map<String, ProducerIdEpoch> mapping = producerIdManager.get(clientProducerId);
             if (mapping == null) {
-                continue;
+                return false;
             }
             ProducerIdEpoch target = mapping.get(route);
             if (target != null) {
                 RecordBatchRewriter.rewriteProducerId(subReq, target.producerId(), target.producerEpoch());
             }
         }
+        return true;
     }
 
     @edu.umd.cs.findbugs.annotations.Nullable
@@ -310,6 +330,21 @@ class TopicPartitionRouter implements Router {
             }
         }
         return null;
+    }
+
+    private static ProduceResponseData unknownProducerIdResponse(ProduceRequestData request) {
+        var response = new ProduceResponseData();
+        for (var td : request.topicData()) {
+            var topicResponse = new TopicProduceResponse().setName(td.name());
+            for (var pd : td.partitionData()) {
+                topicResponse.partitionResponses().add(
+                        new PartitionProduceResponse()
+                                .setIndex(pd.index())
+                                .setErrorCode(Errors.UNKNOWN_PRODUCER_ID.code()));
+            }
+            response.responses().add(topicResponse);
+        }
+        return response;
     }
 
     private ProduceResponseData mergeWithErrors(Map<String, ProduceResponseData> routeResponses,
