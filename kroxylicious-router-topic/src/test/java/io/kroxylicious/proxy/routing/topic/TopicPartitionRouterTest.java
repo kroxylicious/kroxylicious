@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.routing.topic;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +14,10 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.InitProducerIdRequestData;
+import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
@@ -24,6 +29,12 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.SimpleRecord;
+import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +63,7 @@ class TopicPartitionRouterTest {
 
         assertThat(routes).doesNotContainKey(ApiKeys.API_VERSIONS);
         assertThat(routes).doesNotContainKey(ApiKeys.PRODUCE);
+        assertThat(routes).doesNotContainKey(ApiKeys.INIT_PRODUCER_ID);
     }
 
     @Test
@@ -199,7 +211,248 @@ class TopicPartitionRouterTest {
         assertThat(ctx.sentResponseBody()).isNotNull();
     }
 
+    // --- INIT_PRODUCER_ID ---
+
+    @Test
+    void shouldFanOutInitProducerIdToAllRoutes() {
+        var request = new InitProducerIdRequestData()
+                .setTransactionTimeoutMs(60000);
+        var respA = initProducerIdResponse(100L, (short) 0);
+        var respB = initProducerIdResponse(200L, (short) 0);
+        var respDefault = initProducerIdResponse(300L, (short) 0);
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-a", respA, "cluster-b", respB, "default-route", respDefault));
+        router.onClientRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(3);
+        assertThat(ctx.sentRequests()).extracting(SentRequest::route)
+                .containsExactlyInAnyOrder("cluster-a", "cluster-b", "default-route");
+        var response = (InitProducerIdResponseData) ctx.sentResponseBody();
+        assertThat(response.producerId()).isEqualTo(300L);
+    }
+
+    @Test
+    void shouldReturnErrorIfAnyRouteFailsInitProducerId() {
+        var request = new InitProducerIdRequestData()
+                .setTransactionTimeoutMs(60000);
+        var respA = initProducerIdResponse(100L, (short) 0);
+        var respFail = new InitProducerIdResponseData()
+                .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code())
+                .setProducerId(-1L)
+                .setProducerEpoch((short) -1);
+        var respDefault = initProducerIdResponse(300L, (short) 0);
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-a", respA, "cluster-b", respFail, "default-route", respDefault));
+        router.onClientRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+
+        var response = (InitProducerIdResponseData) ctx.sentResponseBody();
+        assertThat(response.errorCode()).isEqualTo(Errors.COORDINATOR_NOT_AVAILABLE.code());
+    }
+
+    @Test
+    void shouldPassThroughInitProducerIdWithSingleRoute() {
+        var singleRouteTable = PrefixTopicRoutingTable.create(
+                Map.of("orders.", "only-route"), null);
+        var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route");
+
+        var request = new InitProducerIdRequestData()
+                .setTransactionTimeoutMs(60000);
+        var resp = initProducerIdResponse(42L, (short) 0);
+
+        var ctx = new CapturingRoutingContext(Map.of("only-route", resp));
+        singleRouter.onClientRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(1);
+        assertThat(ctx.sentRequests().get(0).route()).isEqualTo("only-route");
+        var response = (InitProducerIdResponseData) ctx.sentResponseBody();
+        assertThat(response.producerId()).isEqualTo(42L);
+    }
+
+    @Test
+    void shouldRewriteInitProducerIdOnReinit() {
+        var request = new InitProducerIdRequestData()
+                .setTransactionTimeoutMs(60000);
+        var respA = initProducerIdResponse(100L, (short) 0);
+        var respB = initProducerIdResponse(200L, (short) 0);
+        var respDefault = initProducerIdResponse(300L, (short) 0);
+
+        var ctx = new CapturingRoutingContext(
+                Map.of("cluster-a", respA, "cluster-b", respB, "default-route", respDefault));
+        router.onClientRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+
+        var reinitRequest = new InitProducerIdRequestData()
+                .setTransactionTimeoutMs(60000)
+                .setProducerId(300L)
+                .setProducerEpoch((short) 0);
+        var reinitRespA = initProducerIdResponse(100L, (short) 1);
+        var reinitRespB = initProducerIdResponse(200L, (short) 1);
+        var reinitRespDefault = initProducerIdResponse(300L, (short) 1);
+
+        var ctx2 = new CapturingRoutingContext(
+                Map.of("cluster-a", reinitRespA, "cluster-b", reinitRespB, "default-route", reinitRespDefault));
+        router.onClientRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), reinitRequest, ctx2);
+
+        for (var sent : ctx2.sentRequests()) {
+            var body = (InitProducerIdRequestData) sent.body();
+            if (sent.route().equals("cluster-a")) {
+                assertThat(body.producerId()).isEqualTo(100L);
+            }
+            else if (sent.route().equals("cluster-b")) {
+                assertThat(body.producerId()).isEqualTo(200L);
+            }
+            else {
+                assertThat(body.producerId()).isEqualTo(300L);
+            }
+        }
+    }
+
+    // --- idempotent produce ---
+
+    @Test
+    void shouldNotRewriteProducerIdForDefaultRoute() {
+        setupProducerIdMapping(300L, Map.of(
+                "default-route", new TopicPartitionRouter.ProducerIdEpoch(300L, (short) 0),
+                "cluster-a", new TopicPartitionRouter.ProducerIdEpoch(100L, (short) 0),
+                "cluster-b", new TopicPartitionRouter.ProducerIdEpoch(200L, (short) 0)));
+
+        var request = idempotentProduceRequest(300L, (short) 0, "unknown.topic");
+        var resp = produceResponse("unknown.topic", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("default-route", resp));
+        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+
+        var sent = ctx.sentRequests().get(0);
+        assertThat(sent.route()).isEqualTo("default-route");
+        var sentReq = (ProduceRequestData) sent.body();
+        var records = (MemoryRecords) sentReq.topicData().iterator().next()
+                .partitionData().iterator().next().records();
+        var batch = records.batches().iterator().next();
+        assertThat(batch.producerId()).isEqualTo(300L);
+    }
+
+    @Test
+    void shouldRewriteProducerIdForNonDefaultRoute() {
+        setupProducerIdMapping(300L, Map.of(
+                "default-route", new TopicPartitionRouter.ProducerIdEpoch(300L, (short) 0),
+                "cluster-a", new TopicPartitionRouter.ProducerIdEpoch(100L, (short) 0),
+                "cluster-b", new TopicPartitionRouter.ProducerIdEpoch(200L, (short) 0)));
+
+        var request = idempotentProduceRequest(300L, (short) 0, "orders.uk");
+        var resp = produceResponse("orders.uk", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", resp));
+        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+
+        var sent = ctx.sentRequests().get(0);
+        assertThat(sent.route()).isEqualTo("cluster-a");
+        var sentReq = (ProduceRequestData) sent.body();
+        var records = (MemoryRecords) sentReq.topicData().iterator().next()
+                .partitionData().iterator().next().records();
+        var batch = records.batches().iterator().next();
+        assertThat(batch.producerId()).isEqualTo(100L);
+    }
+
+    @Test
+    void shouldRewriteOnlyNonDefaultRoutesInFanOut() {
+        setupProducerIdMapping(300L, Map.of(
+                "default-route", new TopicPartitionRouter.ProducerIdEpoch(300L, (short) 0),
+                "cluster-a", new TopicPartitionRouter.ProducerIdEpoch(100L, (short) 0),
+                "cluster-b", new TopicPartitionRouter.ProducerIdEpoch(200L, (short) 0)));
+
+        var request = idempotentProduceRequest(300L, (short) 0, "orders.uk", "logs.app");
+        var respA = produceResponse("orders.uk", 0, Errors.NONE);
+        var respB = produceResponse("logs.app", 0, Errors.NONE);
+
+        var ctx = new CapturingRoutingContext(Map.of("cluster-a", respA, "cluster-b", respB));
+        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+
+        assertThat(ctx.sentRequests()).hasSize(2);
+        for (var sent : ctx.sentRequests()) {
+            var sentReq = (ProduceRequestData) sent.body();
+            var records = (MemoryRecords) sentReq.topicData().iterator().next()
+                    .partitionData().iterator().next().records();
+            var batch = records.batches().iterator().next();
+            if (sent.route().equals("cluster-a")) {
+                assertThat(batch.producerId()).isEqualTo(100L);
+            }
+            else if (sent.route().equals("cluster-b")) {
+                assertThat(batch.producerId()).isEqualTo(200L);
+            }
+        }
+    }
+
+    private void setupProducerIdMapping(long clientProducerId,
+                                        Map<String, TopicPartitionRouter.ProducerIdEpoch> mapping) {
+        // Use INIT_PRODUCER_ID to establish mappings
+        var request = new InitProducerIdRequestData()
+                .setTransactionTimeoutMs(60000);
+        Map<String, ApiMessage> responses = new HashMap<>();
+        for (var entry : mapping.entrySet()) {
+            responses.put(entry.getKey(),
+                    initProducerIdResponse(entry.getValue().producerId(), entry.getValue().producerEpoch()));
+        }
+        var ctx = new CapturingRoutingContext(responses);
+        router.onClientRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+    }
+
     // --- helpers ---
+
+    private static InitProducerIdResponseData initProducerIdResponse(long producerId,
+                                                                     short producerEpoch) {
+        return new InitProducerIdResponseData()
+                .setProducerId(producerId)
+                .setProducerEpoch(producerEpoch)
+                .setErrorCode(Errors.NONE.code());
+    }
+
+    private static ProduceRequestData idempotentProduceRequest(long producerId,
+                                                               short producerEpoch,
+                                                               String... topicNames) {
+        var request = new ProduceRequestData();
+        request.setAcks((short) -1);
+        request.setTimeoutMs(30000);
+        for (var name : topicNames) {
+            var td = new TopicProduceData().setName(name);
+            td.partitionData().add(new PartitionProduceData()
+                    .setIndex(0)
+                    .setRecords(buildIdempotentRecords(producerId, producerEpoch, 0)));
+            request.topicData().add(td);
+        }
+        return request;
+    }
+
+    private static MemoryRecords buildIdempotentRecords(long producerId,
+                                                        short producerEpoch,
+                                                        int baseSequence) {
+        var buf = ByteBuffer.allocate(1024);
+        var builder = new MemoryRecordsBuilder(
+                new ByteBufferOutputStream(buf),
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                0L,
+                RecordBatch.NO_TIMESTAMP,
+                producerId,
+                producerEpoch,
+                baseSequence,
+                false,
+                false,
+                RecordBatch.NO_PARTITION_LEADER_EPOCH,
+                1024);
+        builder.append(new SimpleRecord(
+                System.currentTimeMillis(),
+                "key".getBytes(StandardCharsets.UTF_8),
+                "value".getBytes(StandardCharsets.UTF_8)));
+        return builder.build();
+    }
 
     private static ApiVersionsResponseData apiVersionsResponse() {
         var data = new ApiVersionsResponseData();
