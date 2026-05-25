@@ -17,7 +17,6 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -46,17 +45,13 @@ class ServerConnectionStateMachine {
     private final KafkaProxyBackendHandler backendHandler;
     private final boolean upstreamRequiresTls;
 
-    @VisibleForTesting
     int serverMessagesInFlightCount;
 
-    @VisibleForTesting
-    boolean serverReadsBlocked;
+    private boolean serverReadsBlocked;
 
-    @VisibleForTesting
     @Nullable
-    Timer.Sample serverBackpressureTimer;
+    private Timer.Sample serverBackpressureTimer;
 
-    private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
     private final Timer serverToProxyBackpressureMeter;
     private final ActivationToken proxyToServerConnectionToken;
@@ -73,7 +68,6 @@ class ServerConnectionStateMachine {
         this.upstreamRequiresTls = upstreamRequiresTls;
         this.ccsm = Objects.requireNonNull(ccsm);
         this.backendHandler = new KafkaProxyBackendHandler(this);
-        this.proxyToServerConnectionCounter = proxyToServerConnectionCounter;
         this.proxyToServerErrorCounter = proxyToServerErrorCounter;
         this.serverToProxyBackpressureMeter = serverToProxyBackpressureMeter;
         this.proxyToServerConnectionToken = proxyToServerConnectionToken;

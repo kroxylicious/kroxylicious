@@ -313,7 +313,8 @@ public class KafkaProxyFrontendHandler
         if (clientChannelStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
             filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
         }
-        filterAndInvokers.addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", clientChannelStateMachine.virtualCluster().getTopicNameCacheFilter()));
+        filterAndInvokers
+                .addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", clientChannelStateMachine.virtualCluster().getTopicNameCacheFilter()));
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(clientChannelStateMachine.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
@@ -412,7 +413,7 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                clientChannelStateMachine.onServerConnectionException(future.cause());
+                clientChannelStateMachine.notifyServerConnectionException(future.cause());
             }
         });
     }
@@ -437,7 +438,7 @@ public class KafkaProxyFrontendHandler
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .log("Error invoking TLS credential supplier{}",
                             LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-            clientChannelStateMachine.onServerConnectionException(e);
+            clientChannelStateMachine.notifyServerConnectionException(e);
         }
     }
 
@@ -456,7 +457,7 @@ public class KafkaProxyFrontendHandler
             return;
         }
         if (credentials == null) {
-            clientChannelStateMachine.onServerConnectionException(new IllegalStateException("TLS credential supplier returned null"));
+            clientChannelStateMachine.notifyServerConnectionException(new IllegalStateException("TLS credential supplier returned null"));
             return;
         }
         applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
@@ -469,7 +470,7 @@ public class KafkaProxyFrontendHandler
                 .setCause(LOGGER.isDebugEnabled() ? throwable : null)
                 .log("TLS credential supplier failed{}",
                         LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-        clientChannelStateMachine.onServerConnectionException(new IllegalStateException("Failed to obtain TLS credentials", throwable));
+        clientChannelStateMachine.notifyServerConnectionException(new IllegalStateException("Failed to obtain TLS credentials", throwable));
     }
 
     /**
@@ -515,7 +516,7 @@ public class KafkaProxyFrontendHandler
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .log("Error applying TLS credentials to channel{}",
                             LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-            clientChannelStateMachine.onServerConnectionException(e);
+            clientChannelStateMachine.notifyServerConnectionException(e);
         }
     }
 

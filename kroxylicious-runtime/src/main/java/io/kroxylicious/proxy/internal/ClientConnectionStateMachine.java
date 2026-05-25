@@ -673,6 +673,14 @@ public class ClientConnectionStateMachine {
     }
 
     /**
+     * Temporary mechanism to route exception to SCSM
+     * TODO remove once KafkaProxyFrontendHandler is no longer responsible for backend connection work.
+     */
+    void notifyServerConnectionException(@Nullable Throwable cause) {
+        Objects.requireNonNull(serverConnectionStateMachine).onServerException(cause);
+    }
+
+    /**
      * Callback from {@link ServerConnectionStateMachine} when something exceptional and
      * un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
