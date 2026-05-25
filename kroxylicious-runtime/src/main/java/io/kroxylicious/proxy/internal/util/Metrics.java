@@ -239,7 +239,7 @@ public class Metrics {
                                                                 @Nullable Integer nodeId) {
         return Counter
                 .builder(ROUTING_REQUESTS_BASE_METER_NAME)
-                .description("Count of requests dispatched via routing.")
+                .description("Count of requests dispatched via router.")
                 .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
                 .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
                 .withRegistry(globalRegistry);
@@ -249,7 +249,7 @@ public class Metrics {
                                                               @Nullable Integer nodeId) {
         return Counter
                 .builder(ROUTING_ERRORS_BASE_METER_NAME)
-                .description("Count of routing errors.")
+                .description("Count of router errors.")
                 .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
                 .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
                 .withRegistry(globalRegistry);
@@ -270,7 +270,7 @@ public class Metrics {
                                                      AtomicInteger pendingCount) {
         return Gauge.builder(ROUTING_PENDING_RESPONSES_BASE_METER_NAME, pendingCount, AtomicInteger::get)
                 .strongReference(true)
-                .description("Number of currently pending routing responses.")
+                .description("Number of currently pending router responses.")
                 .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
                 .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
                 .register(globalRegistry);

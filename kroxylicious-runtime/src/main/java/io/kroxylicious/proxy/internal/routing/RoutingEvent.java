@@ -21,16 +21,16 @@ import org.apache.kafka.common.record.RecordBatch;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Events captured at the routing layer as requests are sent to routes
+ * Events captured at the router layer as requests are sent to routes
  * and responses return. Used by integration tests for white-box
- * verification of routing behaviour.
+ * verification of router behaviour.
  */
 public sealed interface RoutingEvent {
 
     AtomicReference<Consumer<RoutingEvent>> EVENT_LISTENER = new AtomicReference<>();
 
     /**
-     * Installs a listener that receives routing events. Intended for
+     * Installs a listener that receives router events. Intended for
      * integration tests — production code should never call this.
      */
     static void setEventListener(@Nullable Consumer<RoutingEvent> listener) {
