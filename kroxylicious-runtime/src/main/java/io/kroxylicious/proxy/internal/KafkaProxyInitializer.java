@@ -45,6 +45,9 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -287,8 +290,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
             var pendingResponseCount = new AtomicInteger();
             Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
+            var routeNames = routeDescriptors.keySet().stream().sorted().toList();
+            NodeIdMapping nodeIdMapping = routeNames.size() > 1
+                    ? new BijectiveNodeIdMapping(routeNames)
+                    : new IdentityNodeIdMapping(routeNames.iterator().next());
             var dispatchHandler = new RouterDispatchHandler(
                     router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
+                    nodeIdMapping,
                     routingRequestsCounter, routingErrorsCounter,
                     routingRequestDurationTimer, pendingResponseCount);
             clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);

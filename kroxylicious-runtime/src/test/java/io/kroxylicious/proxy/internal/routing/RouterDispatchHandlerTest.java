@@ -74,6 +74,7 @@ class RouterDispatchHandlerTest {
     private RouterDispatchHandler createHandler(Map<ApiKeys, String> staticRoutes) {
         return new RouterDispatchHandler(
                 router, routes, staticRoutes, ccsm,
+                new IdentityNodeIdMapping("default"),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
