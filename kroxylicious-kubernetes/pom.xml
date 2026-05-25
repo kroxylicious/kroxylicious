@@ -50,7 +50,6 @@
                                     </excludes>
                                     <includes combine.children="append">
                                         <include>io.kroxylicious:kroxylicious-api</include>
-                                        <include>io.kroxylicious:kroxylicious-cluster-inmemory</include>
                                         <include>io.kroxylicious:kroxylicious-runtime</include>
                                         <include>io.kroxylicious:kroxylicious-cluster-inmemory</include>
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
