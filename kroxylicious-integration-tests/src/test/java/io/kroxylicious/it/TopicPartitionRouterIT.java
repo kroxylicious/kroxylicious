@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.AdminClient;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.FaultInjectionFilterFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
@@ -51,6 +53,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Integration tests for {@link TopicPartitionRouterFactory}.
@@ -84,8 +87,13 @@ class TopicPartitionRouterIT {
     }
 
     private ConfigurationBuilder topicRouterConfig() {
-        var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
-        var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+        return topicRouterConfig(clusterA, clusterB);
+    }
+
+    private ConfigurationBuilder topicRouterConfig(KafkaCluster a,
+                                                   KafkaCluster b) {
+        var targetA = new TargetClusterDefinition("cluster-a", a.getBootstrapServers(), null);
+        var targetB = new TargetClusterDefinition("cluster-b", b.getBootstrapServers(), null);
 
         var routeA = new RouteDefinition("route-a", null, "cluster-a", null);
         var routeB = new RouteDefinition("route-b", null, "cluster-b", null);
@@ -261,6 +269,44 @@ class TopicPartitionRouterIT {
         var records = consumeDirectly(clusterA, topic);
         assertThat(records).hasSize(1);
         assertThat(records.get(0).value()).isEqualTo("val");
+    }
+
+    @Test
+    void shouldDisconnectClientWhenFaultInjected() throws Exception {
+        String topicA = "a.fault";
+        createTopic(topicA, clusterA);
+
+        FaultInjectionFilterFactory.reset();
+        var config = topicRouterConfig()
+                .addNewFilterDefinition(
+                        "fault",
+                        FaultInjectionFilterFactory.class.getName(),
+                        null)
+                .addToDefaultFilters("fault");
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(
+                        "enable.idempotence", false,
+                        "retries", 0,
+                        "batch.size", 0,
+                        "linger.ms", 0,
+                        "request.timeout.ms", 5000,
+                        "delivery.timeout.ms", 10000))) {
+
+            producer.send(new ProducerRecord<>(topicA, "before", "ok"))
+                    .get(10, TimeUnit.SECONDS);
+
+            var records = consumeDirectly(clusterA, topicA);
+            assertThat(records).hasSize(1);
+            assertThat(records.get(0).value()).isEqualTo("ok");
+
+            FaultInjectionFilterFactory.latestHandle().closeOnNextRequest();
+
+            assertThat(catchThrowable(() -> producer.send(new ProducerRecord<>(topicA, "after", "should-fail"))
+                    .get(10, TimeUnit.SECONDS)))
+                    .as("produce should fail after fault injection")
+                    .isInstanceOf(ExecutionException.class);
+        }
     }
 
     private List<ConsumerRecord<String, String>> consumeDirectly(KafkaCluster cluster,
