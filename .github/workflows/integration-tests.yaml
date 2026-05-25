@@ -218,22 +218,16 @@ jobs:
 
           # Extract operator dist ZIP if this is an operator test
           if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
-            mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target
+            mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target/packaged
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator-dist/${KROXYLICIOUS_VERSION}/kroxylicious-operator-dist-${KROXYLICIOUS_VERSION}.zip" \
-              -d kroxylicious-kubernetes/kroxylicious-operator/target/
-            # Rename extracted dir to 'packaged' (ZIP contains kroxylicious-operator-VERSION/)
-            mv kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-${KROXYLICIOUS_VERSION} \
-               kroxylicious-kubernetes/kroxylicious-operator/target/packaged
+              -d kroxylicious-kubernetes/kroxylicious-operator/target/packaged/
           fi
 
           # Extract admission dist ZIP if this is an admission test
           if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
-            mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target
+            mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target/packaged
             unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission-dist/${KROXYLICIOUS_VERSION}/kroxylicious-admission-dist-${KROXYLICIOUS_VERSION}.zip" \
-              -d kroxylicious-kubernetes/kroxylicious-admission/target/
-            # Rename extracted dir to 'packaged' (ZIP contains kroxylicious-admission-VERSION/)
-            mv kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-${KROXYLICIOUS_VERSION} \
-               kroxylicious-kubernetes/kroxylicious-admission/target/packaged
+              -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
           fi
       - name: 'Run integration tests'
         env:
