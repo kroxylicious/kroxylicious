@@ -28,7 +28,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kro
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for CREATE_TOPICS routing through the topic-partition router.
+ * Integration tests for CREATE_TOPICS router through the topic-partition router.
  */
 class CreateTopicsRoutingIT extends TopicPartitionRoutingBaseIT {
 
@@ -80,7 +80,7 @@ class CreateTopicsRoutingIT extends TopicPartitionRoutingBaseIT {
             assertThat(names).doesNotContain(topicA);
         }
 
-        // Verify routing
+        // Verify router
         var createToA = routingCaptor.requestsToRoute("route-a", ApiKeys.CREATE_TOPICS);
         var createToB = routingCaptor.requestsToRoute("route-b", ApiKeys.CREATE_TOPICS);
         assertThat(createToA).as("CREATE_TOPICS should be routed to route-a").isNotEmpty();
