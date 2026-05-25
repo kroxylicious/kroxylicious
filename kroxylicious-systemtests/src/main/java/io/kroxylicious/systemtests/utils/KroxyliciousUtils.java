@@ -38,8 +38,8 @@ public class KroxyliciousUtils {
                 .map(ListenerStatus::getCertificates)
                 .findFirst().orElseThrow();
 
-        resourceManager.createResourceFromBuilder(KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT,
-                cert.get(0)));
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace,
+                Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT, cert.get(0)));
         //@formatter:off
         return new TlsBuilder()
                 .withTrustAnchorRef(buildTrustAnchorRef())

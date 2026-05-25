@@ -146,7 +146,7 @@ public class AdmissionWebhook {
                 .endSpec()
                 .build();
 
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 new IssuerBuilder(issuer));
 
         var certificate = new CertificateBuilder()
@@ -174,7 +174,7 @@ public class AdmissionWebhook {
                 .endSpec()
                 .build();
 
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 new CertificateBuilder(certificate));
 
         waitForCertificateReady();

@@ -60,9 +60,6 @@ import io.kroxylicious.systemtests.k8s.KubeClient;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.utils.KroxyliciousUtils;
 import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
@@ -86,30 +83,20 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
     private final String kafkaClusterName = PREFIX + "-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
-    private KroxyliciousBuilder defaultKroxylicious(String namespace, String clusterName) {
-        return new KroxyliciousBuilder()
-                .withNamespace(namespace)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
-                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
-                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build());
-    }
-
     private void deployPortIdentifiesNodeWithNoFilters(String namespace, String clusterName) {
-        kroxylicious = defaultKroxylicious(namespace, clusterName).build();
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1).build();
         kroxylicious.createOrUpdateResources();
     }
 
     private void deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(String namespace, String clusterName, Tls tls) {
         resourceManager.createOrUpdateResourceFromBuilderWithWait(
                 KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT, tls));
-        kroxylicious = defaultKroxylicious(namespace, clusterName).withDownstreamTls(tls).build();
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1).withDownstreamTls(tls).build();
         kroxylicious.createOrUpdateResources();
     }
 
     private void deployPortIdentifiesNodeWithFilters(String namespace, String clusterName, List<String> filterNames) {
-        kroxylicious = defaultKroxylicious(namespace, clusterName)
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
                 .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
                         Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames).build())
                 .build();

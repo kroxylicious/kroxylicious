@@ -299,7 +299,7 @@ class AdmissionWebhookST extends AbstractSystemTests {
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(KAFKA_DEFAULT_NAMESPACE, KAFKA_CLUSTER_NAME);
         if (kafkaPods.isEmpty()) {
             LOGGER.atInfo().addKeyValue("namespace", namespace).log("Deploying Kafka cluster");
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(KAFKA_DEFAULT_NAMESPACE, KAFKA_CLUSTER_NAME, 1),
                     KafkaTemplates.defaultKafka(KAFKA_DEFAULT_NAMESPACE, KAFKA_CLUSTER_NAME, 1));
         }

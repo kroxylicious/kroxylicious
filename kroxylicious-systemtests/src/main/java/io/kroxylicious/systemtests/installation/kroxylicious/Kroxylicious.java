@@ -34,6 +34,8 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -45,24 +47,24 @@ public class Kroxylicious {
     private List<KafkaProtocolFilter> kafkaProtocolFilters = new ArrayList<>();
     private KafkaService kafkaService;
     private VirtualKafkaCluster virtualKafkaCluster;
-    private Tls tls;
-    private Tls downstreamTls;
+    private @Nullable final Tls tls;
+    private @Nullable final Tls downstreamTls;
     private final ResourceManager resourceManager = ResourceManager.getInstance();
-    private String namespace;
+    private @Nullable final String namespace;
 
-    public void setNamespace(String namespace) {
+    public Kroxylicious(@Nullable String namespace, @Nullable Tls tls, @Nullable Tls downstreamTls, List<KafkaProtocolFilter> kafkaProtocolFilters, KafkaProxy kafkaProxy,
+                        KafkaProxyIngress kafkaProxyIngress, KafkaService kafkaService, VirtualKafkaCluster virtualKafkaCluster) {
         this.namespace = namespace;
-    }
-
-    public void setTls(Tls tls) {
         this.tls = tls;
-    }
-
-    public void setDownstreamTls(Tls downstreamTls) {
         this.downstreamTls = downstreamTls;
+        setKafkaProtocolFilters(kafkaProtocolFilters);
+        setKafkaProxy(kafkaProxy);
+        setKafkaProxyIngress(kafkaProxyIngress);
+        setKafkaService(kafkaService);
+        setVirtualKafkaCluster(virtualKafkaCluster);
     }
 
-    public void setKafkaProxyIngress(KafkaProxyIngress kafkaProxyIngress) {
+    private void setKafkaProxyIngress(KafkaProxyIngress kafkaProxyIngress) {
         if (namespace != null) {
             kafkaProxyIngress = kafkaProxyIngress.edit().editMetadata().withNamespace(namespace).endMetadata().build();
         }
@@ -72,14 +74,14 @@ public class Kroxylicious {
         this.kafkaProxyIngress = kafkaProxyIngress;
     }
 
-    public void setKafkaProxy(KafkaProxy kafkaProxy) {
+    private void setKafkaProxy(KafkaProxy kafkaProxy) {
         if (namespace != null) {
             kafkaProxy = kafkaProxy.edit().editMetadata().withNamespace(namespace).endMetadata().build();
         }
         this.kafkaProxy = kafkaProxy;
     }
 
-    public void setKafkaProtocolFilters(List<KafkaProtocolFilter> kafkaProtocolFilters) {
+    private void setKafkaProtocolFilters(List<KafkaProtocolFilter> kafkaProtocolFilters) {
         if (namespace != null) {
             kafkaProtocolFilters.forEach(
                     kafkaProtocolFilter -> this.kafkaProtocolFilters.add(kafkaProtocolFilter.edit().editMetadata().withNamespace(namespace).endMetadata().build()));
@@ -89,7 +91,7 @@ public class Kroxylicious {
         }
     }
 
-    public void setKafkaService(KafkaService kafkaService) {
+    private void setKafkaService(KafkaService kafkaService) {
         if (namespace != null) {
             kafkaService = kafkaService.edit().editMetadata().withNamespace(namespace).endMetadata().build();
         }
@@ -103,7 +105,7 @@ public class Kroxylicious {
         this.kafkaService = kafkaService;
     }
 
-    public void setVirtualKafkaCluster(VirtualKafkaCluster virtualKafkaCluster) {
+    private void setVirtualKafkaCluster(VirtualKafkaCluster virtualKafkaCluster) {
         if (namespace != null) {
             virtualKafkaCluster = virtualKafkaCluster.edit().editMetadata().withNamespace(namespace).endMetadata().build();
         }

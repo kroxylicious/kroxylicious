@@ -73,12 +73,12 @@ public class LowkeyVault implements AzureKmsClient {
         }
         LOGGER.info("Deploy LowKey Vault in {} namespace", deploymentNamespace);
         NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(LowkeyVaultTemplates.defaultLowkeyVaultNodePortService(deploymentNamespace));
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(LowkeyVaultTemplates.defaultLowkeyVaultClusterIPService(deploymentNamespace));
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(LowkeyVaultTemplates.defaultLowkeyVaultNodePortService(deploymentNamespace));
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(LowkeyVaultTemplates.defaultLowkeyVaultClusterIPService(deploymentNamespace));
 
         DeploymentUtils.copySecretInToNamespace(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME);
 
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 LowkeyVaultTemplates.defaultLowkeyVaultDeployment(LOWKEY_VAULT_IMAGE, deploymentNamespace, getEndpointAuthority()));
     }
 
@@ -130,10 +130,10 @@ public class LowkeyVault implements AzureKmsClient {
         }
 
         String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 KroxyliciousSecretTemplates.createCertificateSecret(Constants.KEYSTORE_SECRET_NAME, defaultNamespace, Constants.KEYSTORE_FILE_NAME,
                         keystorePath.toAbsolutePath().toString(), password));
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
                 KroxyliciousSecretTemplates.createCertificateSecret(Constants.TRUSTSTORE_SECRET_NAME, defaultNamespace, Constants.TRUSTSTORE_FILE_NAME,
                         keystorePath.toAbsolutePath().toString(), password));
     }

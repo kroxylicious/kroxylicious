@@ -35,9 +35,6 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperato
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
@@ -67,7 +64,7 @@ class EntityIsolationST extends AbstractSystemTests {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
             int kafkaReplicas = 1;
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
                     KafkaTemplates.kafkaWithAuthentication(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
         }
@@ -98,11 +95,7 @@ class EntityIsolationST extends AbstractSystemTests {
     private void deployPortIdentifiesNodeWithEntityIsolationFilterWithPrincipalEntityNameMapper(Map<String, String> usernamePasswords,
                                                                                                 Set<EntityIsolation.EntityType> entityTypes) {
         KafkaUtils.createKafkaUsers(clusterName, usernamePasswords);
-        kroxylicious = new KroxyliciousBuilder()
-                .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
-                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates.kroxyliciousSaslInspectorFilter(Constants.KROXYLICIOUS_NAMESPACE).build())
                 .addKafkaProtocolFilter(KroxyliciousFilterTemplates
                         .kroxyliciousEntityIsolationFilter(Constants.KROXYLICIOUS_NAMESPACE, entityTypes, PrincipalEntityNameMapperService.class).build())

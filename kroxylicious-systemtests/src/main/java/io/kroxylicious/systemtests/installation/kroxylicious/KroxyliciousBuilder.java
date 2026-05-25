@@ -15,6 +15,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 
 public class KroxyliciousBuilder {
     private KafkaProxy kafkaProxy;
@@ -131,15 +136,30 @@ public class KroxyliciousBuilder {
      * @return the builder
      */
     public Kroxylicious build() {
-        Kroxylicious buildable = new Kroxylicious();
-        buildable.setNamespace(this.namespace);
-        buildable.setTls(this.tls);
-        buildable.setDownstreamTls(this.downstreamTls);
-        buildable.setKafkaProtocolFilters(this.kafkaProtocolFilters);
-        buildable.setKafkaProxy(this.kafkaProxy);
-        buildable.setKafkaProxyIngress(this.kafkaProxyIngress);
-        buildable.setKafkaService(this.kafkaService);
-        buildable.setVirtualKafkaCluster(this.virtualKafkaCluster);
-        return buildable;
+        return new Kroxylicious(this.namespace,
+                this.tls,
+                this.downstreamTls,
+                this.kafkaProtocolFilters,
+                this.kafkaProxy,
+                this.kafkaProxyIngress,
+                this.kafkaService,
+                this.virtualKafkaCluster);
+    }
+
+    /**
+     * Single Node Base builder
+     * @param namespace the namespace
+     * @param clusterName the name of the cluster
+     * @param replicas the number of replicas
+     * @return the Kroxylicious builder
+     */
+    public static KroxyliciousBuilder singleNodeBaseBuilder(String namespace, String clusterName, int replicas) {
+        return new KroxyliciousBuilder()
+                .withNamespace(namespace)
+                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(replicas).build())
+                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
+                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
+                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build());
     }
 }

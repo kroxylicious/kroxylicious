@@ -30,10 +30,6 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperato
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.metrics.ScraperTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
@@ -196,7 +192,7 @@ class MetricsST extends AbstractSystemTests {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
             int kafkaReplicas = 1;
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
                     KafkaTemplates.defaultKafka(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
         }
@@ -214,7 +210,7 @@ class MetricsST extends AbstractSystemTests {
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
         final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
-        resourceManager.createResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
         cluster.setNamespace(namespace);
 
         LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stabilize before collecting metrics.")
@@ -224,14 +220,7 @@ class MetricsST extends AbstractSystemTests {
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
 
-        Kroxylicious kroxylicious = new KroxyliciousBuilder()
-                .withNamespace(namespace)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
-                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
-                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
-                .build();
+        Kroxylicious kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1).build();
         kroxylicious.createOrUpdateResources();
         bootstrap = kroxylicious.getBootstrap(namespace, clusterName);
         kroxyliciousCollector = new MetricsCollector.Builder()

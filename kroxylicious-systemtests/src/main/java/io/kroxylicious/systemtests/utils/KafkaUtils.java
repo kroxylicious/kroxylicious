@@ -234,7 +234,7 @@ public class KafkaUtils {
         String passwordSecretSuffix = "-password";
         usernamePassword.forEach((user, password) -> {
             String secretName = user + passwordSecretSuffix;
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KroxyliciousSecretTemplates.createPasswordSecret(Constants.KAFKA_DEFAULT_NAMESPACE, secretName, password),
                     KafkaUserTemplates.kafkaUserWithSecret(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, user, secretName));
         });

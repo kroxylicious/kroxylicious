@@ -28,10 +28,6 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import io.kroxylicious.systemtests.utils.KroxyliciousUtils;
@@ -52,14 +48,7 @@ class KroxyliciousST extends AbstractSystemTests {
     private KroxyliciousOperator kroxyliciousOperator;
 
     private void deployPortIdentifiesNodeWithNoFilters(int replicas) {
-        kroxylicious = new KroxyliciousBuilder()
-                .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(replicas).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
-                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
-                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
-                .build();
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, replicas).build();
         kroxylicious.createOrUpdateResources();
     }
 
@@ -94,14 +83,8 @@ class KroxyliciousST extends AbstractSystemTests {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         Tls tls = KroxyliciousUtils.createCertificateConfigMapFromListener(Constants.KROXYLICIOUS_NAMESPACE);
-        kroxylicious = new KroxyliciousBuilder()
-                .withNamespace(Constants.KROXYLICIOUS_NAMESPACE)
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(Constants.KROXYLICIOUS_NAMESPACE, clusterName, 1)
                 .withTls(tls)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
-                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
-                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
                 .build();
         kroxylicious.createOrUpdateResources();
         String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
@@ -118,14 +101,7 @@ class KroxyliciousST extends AbstractSystemTests {
         LOGGER.atInfo().setMessage("Given another Kroxylicious service in {} namespace with {} replicas").addArgument(newNamespace).addArgument(1).log();
         NamespaceUtils.createNamespaceAndPrepare(newNamespace);
 
-        Kroxylicious kroxylicious2 = new KroxyliciousBuilder()
-                .withNamespace(newNamespace)
-                .withKafkaProxy(KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(1).build())
-                .withKafkaProxyIngress(KroxyliciousKafkaProxyIngressTemplates.kafkaProxyIngressClusterIpCR().build())
-                .withKafkaService(KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(clusterName).build())
-                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(clusterName,
-                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).build())
-                .build();
+        Kroxylicious kroxylicious2 = KroxyliciousBuilder.singleNodeBaseBuilder(newNamespace, clusterName, 1).build();
         kroxylicious2.createOrUpdateResources();
 
         String bootstrap = kroxylicious.getBootstrap(Constants.KROXYLICIOUS_NAMESPACE, clusterName);
@@ -306,7 +282,7 @@ class KroxyliciousST extends AbstractSystemTests {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
             int kafkaReplicas = 1;
-            resourceManager.createResourceFromBuilderWithWait(
+            resourceManager.createOrUpdateResourceFromBuilderWithWait(
                     KafkaNodePoolTemplates.poolWithDualRoleAndPersistentStorage(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas),
                     KafkaTemplates.defaultKafka(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, kafkaReplicas));
         }
