@@ -217,7 +217,7 @@ class TopicPartitionRouter implements Router {
      * Node IDs are virtual (translated by {@code NodeIdResponseTranslator} before the
      * router sees them). Updated from every METADATA response that passes through
      * the router. Plain {@code HashMap} because the router executes on a single
-     * Netty event loop thread (see {@link Router#onClientRequest} threading contract).
+     * Netty event loop thread (see {@link Router#onRequest} threading contract).
      */
     private final Map<String, Map<Integer, Integer>> partitionLeaders = new HashMap<>();
     @Nullable
@@ -270,12 +270,12 @@ class TopicPartitionRouter implements Router {
     }
 
     @Override
-    public CompletionStage<RouterResult> onClientRequest(
-                                                         short apiVersion,
-                                                         ApiKeys apiKey,
-                                                         RequestHeaderData header,
-                                                         ApiMessage request,
-                                                         RouterContext context) {
+    public CompletionStage<RouterResult> onRequest(
+                                                   short apiVersion,
+                                                   ApiKeys apiKey,
+                                                   RequestHeaderData header,
+                                                   ApiMessage request,
+                                                   RouterContext context) {
         // Subject-routed users have coordinator-bound operations forwarded to their
         // assigned route. Topic-addressed ops (PRODUCE, FETCH, etc.) still go through
         // the normal handlers for leader-based router. METADATA and admin ops fan out.
