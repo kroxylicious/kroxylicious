@@ -81,6 +81,7 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.router.RouterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -110,8 +111,10 @@ class TopicPartitionRouterTest {
         request.setSessionId(0);
         request.setSessionEpoch(0);
         var backendResp = fetchResponse("orders.uk", 0, Errors.NONE);
-        var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp));
-        closeable.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+        primeLeaderCache(closeable, 1, "orders.uk");
+        var ctx = new CapturingRouterContext(Map.of())
+                .withNodeResponses(Map.of(1, backendResp));
+        ctx.captureResult(closeable.onRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
         assertThat(cache.size()).isEqualTo(1);
 
         closeable.close();
@@ -152,8 +155,8 @@ class TopicPartitionRouterTest {
         setMaxVersion(responseData, ApiKeys.PRODUCE, (short) 13);
 
         var ctx = new CapturingRouterContext(responseData);
-        router.onClientRequest(
-                (short) 3, ApiKeys.API_VERSIONS, new RequestHeaderData(), responseData, ctx);
+        ctx.captureResult(router.onRequest(
+                (short) 3, ApiKeys.API_VERSIONS, new RequestHeaderData(), responseData, ctx).toCompletableFuture().join());
 
         assertThat(findMaxVersion((ApiVersionsResponseData) ctx.sentResponseBody(), ApiKeys.PRODUCE))
                 .isEqualTo((short) 12);
@@ -165,7 +168,7 @@ class TopicPartitionRouterTest {
         setMaxVersion(responseData, ApiKeys.FETCH, (short) 16);
 
         var ctx = new CapturingRouterContext(responseData);
-        router.onClientRequest((short) 3, ApiKeys.API_VERSIONS, new RequestHeaderData(), responseData, ctx);
+        ctx.captureResult(router.onRequest((short) 3, ApiKeys.API_VERSIONS, new RequestHeaderData(), responseData, ctx).toCompletableFuture().join());
 
         assertThat(findMaxVersion((ApiVersionsResponseData) ctx.sentResponseBody(), ApiKeys.FETCH))
                 .isEqualTo((short) 12);
@@ -177,7 +180,7 @@ class TopicPartitionRouterTest {
         setMaxVersion(responseData, ApiKeys.PRODUCE, (short) 10);
 
         var ctx = new CapturingRouterContext(responseData);
-        router.onClientRequest((short) 3, ApiKeys.API_VERSIONS, new RequestHeaderData(), responseData, ctx);
+        ctx.captureResult(router.onRequest((short) 3, ApiKeys.API_VERSIONS, new RequestHeaderData(), responseData, ctx).toCompletableFuture().join());
 
         assertThat(findMaxVersion((ApiVersionsResponseData) ctx.sentResponseBody(), ApiKeys.PRODUCE))
                 .isEqualTo((short) 10);
@@ -193,7 +196,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(router, 1, "orders.uk");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(1, backendResp));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(1);
         assertThat(ctx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(1);
@@ -210,7 +213,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(router, 2, "logs.app");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(1, respA, 2, respB));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(2);
         assertThat(ctx.sentNodeRequests()).extracting(SentNodeRequest::virtualNodeId)
@@ -229,7 +232,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(router, 0, "unknown.topic");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(0, defaultResp));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(1);
         assertThat(ctx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(0);
@@ -248,7 +251,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(noDefaultRouter, 1, "orders.uk");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(1, respA));
-        noDefaultRouter.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(noDefaultRouter.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (ProduceResponseData) ctx.sentResponseBody();
         assertThat(merged.responses()).hasSize(2);
@@ -273,7 +276,7 @@ class TopicPartitionRouterTest {
         request.setAcks((short) 0);
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", new ProduceResponseData()));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentResponseBody()).isNotNull();
@@ -285,7 +288,7 @@ class TopicPartitionRouterTest {
         request.setAcks((short) 0);
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", new ProduceResponseData(), "cluster-b", new ProduceResponseData()));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(2);
         assertThat(ctx.sentResponseBody()).isNotNull();
@@ -303,8 +306,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(
                 Map.of("cluster-a", respA, "cluster-b", respB, "default-route", respDefault));
-        router.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(3);
         assertThat(ctx.sentRequests()).extracting(SentRequest::route)
@@ -326,8 +329,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(
                 Map.of("cluster-a", respA, "cluster-b", respFail, "default-route", respDefault));
-        router.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var response = (InitProducerIdResponseData) ctx.sentResponseBody();
         assertThat(response.errorCode()).isEqualTo(Errors.COORDINATOR_NOT_AVAILABLE.code());
@@ -345,8 +348,8 @@ class TopicPartitionRouterTest {
         var resp = initProducerIdResponse(42L, (short) 0);
 
         var ctx = new CapturingRouterContext(Map.of("only-route", resp));
-        singleRouter.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(singleRouter.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("only-route");
@@ -364,8 +367,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(
                 Map.of("cluster-a", respA, "cluster-b", respB, "default-route", respDefault));
-        router.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var reinitRequest = new InitProducerIdRequestData()
                 .setTransactionTimeoutMs(60000)
@@ -377,8 +380,8 @@ class TopicPartitionRouterTest {
 
         var ctx2 = new CapturingRouterContext(
                 Map.of("cluster-a", reinitRespA, "cluster-b", reinitRespB, "default-route", reinitRespDefault));
-        router.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), reinitRequest, ctx2);
+        ctx2.captureResult(router.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), reinitRequest, ctx2).toCompletableFuture().join());
 
         for (var sent : ctx2.sentRequests()) {
             var body = (InitProducerIdRequestData) sent.body();
@@ -405,8 +408,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", initResp))
                 .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(txnRouter.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -434,8 +437,8 @@ class TopicPartitionRouterTest {
                 return Subject.anonymous();
             }
         };
-        txnRouter.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(txnRouter.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var response = (InitProducerIdResponseData) ctx.sentResponseBody();
         assertThat(response).isNotNull();
@@ -458,7 +461,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(router, 0, "unknown.topic");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(0, resp));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var sent = ctx.sentNodeRequests().get(0);
         var sentReq = (ProduceRequestData) sent.body();
@@ -481,7 +484,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(router, 1, "orders.uk");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(1, resp));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var sent = ctx.sentNodeRequests().get(0);
         var sentReq = (ProduceRequestData) sent.body();
@@ -506,7 +509,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(router, 2, "logs.app");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(1, respA, 2, respB));
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(2);
         for (var sent : ctx.sentNodeRequests()) {
@@ -528,7 +531,7 @@ class TopicPartitionRouterTest {
         var request = idempotentProduceRequest(999L, (short) 0, "orders.uk", "logs.app");
 
         var ctx = new CapturingRouterContext(Map.of());
-        router.onClientRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.PRODUCE, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).as("no requests should be forwarded").isEmpty();
         var response = (ProduceResponseData) ctx.sentResponseBody();
@@ -551,8 +554,8 @@ class TopicPartitionRouterTest {
                     initProducerIdResponse(entry.getValue().producerId(), entry.getValue().producerEpoch()));
         }
         var ctx = new CapturingRouterContext(responses);
-        router.onClientRequest(
-                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest(
+                (short) 5, ApiKeys.INIT_PRODUCER_ID, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
     }
 
     // --- METADATA ---
@@ -565,7 +568,7 @@ class TopicPartitionRouterTest {
                 List.of(topicMetadata("orders.uk", 0)));
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp));
-        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -583,7 +586,7 @@ class TopicPartitionRouterTest {
                 List.of(topicMetadata("logs.app", 1)));
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", respA, "cluster-b", respB));
-        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(2);
         assertThat(ctx.sentRequests()).extracting(SentRequest::route)
@@ -607,7 +610,7 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(
                 Map.of("cluster-a", respA, "cluster-b", respB, "default-route", respA));
-        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSizeGreaterThanOrEqualTo(2);
         assertThat(ctx.sentResponseBody()).isInstanceOf(MetadataResponseData.class);
@@ -631,7 +634,7 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(
                 Map.of("default-route", defaultResp, "cluster-a", respA, "cluster-b", respB));
-        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(3);
         assertThat(ctx.sentRequests()).extracting(SentRequest::route)
@@ -650,7 +653,7 @@ class TopicPartitionRouterTest {
                 List.of(topicMetadata("logs.app", 2)));
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", respA, "cluster-b", respB));
-        router.onClientRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.METADATA, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (MetadataResponseData) ctx.sentResponseBody();
         assertThat(merged.brokers()).hasSize(3);
@@ -671,7 +674,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, backendResp));
-        router.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(1);
         var sentReq = (FetchRequestData) ctx.sentNodeRequests().get(0).body();
@@ -692,7 +695,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, respA, 2, respB));
-        router.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(2);
         assertThat(ctx.sentNodeRequests()).extracting(SentNodeRequest::virtualNodeId)
@@ -729,7 +732,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, respA));
-        noDefaultRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(noDefaultRouter.onRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (FetchResponseData) ctx.sentResponseBody();
         assertThat(merged.responses()).hasSize(2);
@@ -765,7 +768,7 @@ class TopicPartitionRouterTest {
         var ctx1 = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, resp1, 2, resp2));
-        sessionRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request1, ctx1);
+        ctx1.captureResult(sessionRouter.onRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request1, ctx1).toCompletableFuture().join());
 
         assertThat(ctx1.sentNodeRequests()).hasSize(2);
         for (var sent : ctx1.sentNodeRequests()) {
@@ -782,7 +785,7 @@ class TopicPartitionRouterTest {
         var ctx2 = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, resp1, 2, resp2));
-        sessionRouter.onClientRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request2, ctx2);
+        ctx2.captureResult(sessionRouter.onRequest((short) 12, ApiKeys.FETCH, new RequestHeaderData(), request2, ctx2).toCompletableFuture().join());
 
         assertThat(ctx2.sentNodeRequests()).hasSize(2);
         for (var sent : ctx2.sentNodeRequests()) {
@@ -806,7 +809,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, backendResp));
-        router.onClientRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(1);
         var sentReq = (ListOffsetsRequestData) ctx.sentNodeRequests().get(0).body();
@@ -825,7 +828,7 @@ class TopicPartitionRouterTest {
         // Prime leader cache for both routes
         primeLeaderCache(router, 1, "orders.uk");
         primeLeaderCache(router, 2, "logs.app");
-        router.onClientRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(2);
         assertThat(ctx.sentNodeRequests()).extracting(SentNodeRequest::virtualNodeId)
@@ -859,7 +862,7 @@ class TopicPartitionRouterTest {
         primeLeaderCache(noDefaultRouter, 1, "orders.uk");
         var ctx = new CapturingRouterContext(Map.of())
                 .withNodeResponses(Map.of(1, respA));
-        noDefaultRouter.onClientRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(noDefaultRouter.onRequest((short) 7, ApiKeys.LIST_OFFSETS, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (ListOffsetsResponseData) ctx.sentResponseBody();
         assertThat(merged.topics()).hasSize(2);
@@ -880,7 +883,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1))
                 .withNodeResponses(Map.of(1, backendResp));
-        router.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(1);
         assertThat(ctx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(1);
@@ -899,7 +902,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1, "cluster-b", 2))
                 .withNodeResponses(Map.of(1, respA, 2, respB));
-        router.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentNodeRequests()).hasSize(2);
         assertThat(ctx.sentNodeRequests()).extracting(SentNodeRequest::virtualNodeId)
@@ -935,7 +938,7 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1))
                 .withNodeResponses(Map.of(1, respA));
-        noDefaultRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(noDefaultRouter.onRequest((short) 9, ApiKeys.OFFSET_COMMIT, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (OffsetCommitResponseData) ctx.sentResponseBody();
         assertThat(merged.topics()).hasSize(2);
@@ -960,8 +963,8 @@ class TopicPartitionRouterTest {
                 .setPort(9092);
 
         var ctx = new CapturingRouterContext(Map.of("default-route", backendResp));
-        router.onClientRequest(
-                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(router.onRequest(
+                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
@@ -983,8 +986,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp))
                 .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest(
-                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(txnRouter.onRequest(
+                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -1005,8 +1008,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp))
                 .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest(
-                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(txnRouter.onRequest(
+                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -1026,8 +1029,8 @@ class TopicPartitionRouterTest {
                 .setPort(9092);
 
         var ctx = new CapturingRouterContext(Map.of("default-route", backendResp));
-        txnRouter.onClientRequest(
-                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(txnRouter.onRequest(
+                (short) 3, ApiKeys.FIND_COORDINATOR, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
@@ -1056,8 +1059,8 @@ class TopicPartitionRouterTest {
         respB.brokers().add(describeClusterBroker(2, "hostB-0", 9092));
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", respA, "cluster-b", respB));
-        twoRouteRouter.onClientRequest(
-                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(twoRouteRouter.onRequest(
+                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (DescribeClusterResponseData) ctx.sentResponseBody();
         assertThat(merged.brokers()).hasSize(3);
@@ -1088,8 +1091,8 @@ class TopicPartitionRouterTest {
         respOther.brokers().add(describeClusterBroker(1, "host1", 9092));
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", respDefault, "cluster-b", respOther));
-        twoRouteRouter.onClientRequest(
-                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(twoRouteRouter.onRequest(
+                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (DescribeClusterResponseData) ctx.sentResponseBody();
         assertThat(merged.clusterId()).isEqualTo("default-cluster");
@@ -1116,8 +1119,8 @@ class TopicPartitionRouterTest {
         respB.brokers().add(describeClusterBroker(1, "h1", 9092));
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", respA, "cluster-b", respB));
-        twoRouteRouter.onClientRequest(
-                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx);
+        ctx.captureResult(twoRouteRouter.onRequest(
+                (short) 0, ApiKeys.DESCRIBE_CLUSTER, new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         var merged = (DescribeClusterResponseData) ctx.sentResponseBody();
         assertThat(merged.throttleTimeMs()).isEqualTo(300);
@@ -1137,8 +1140,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp))
                 .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
-                new RequestHeaderData(), request, ctx);
+        ctx.captureResult(txnRouter.onRequest((short) 3, ApiKeys.ADD_PARTITIONS_TO_TXN,
+                new RequestHeaderData(), request, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -1162,8 +1165,8 @@ class TopicPartitionRouterTest {
 
         var endCtx = new CapturingRouterContext(Map.of("cluster-a", endResp))
                 .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest((short) 3, ApiKeys.END_TXN,
-                new RequestHeaderData(), endReq, endCtx);
+        endCtx.captureResult(txnRouter.onRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, endCtx).toCompletableFuture().join());
 
         assertThat(endCtx.sentRequests()).hasSize(1);
         assertThat(endCtx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -1182,8 +1185,8 @@ class TopicPartitionRouterTest {
         var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
 
         var ctx = new CapturingRouterContext(Map.of("default-route", endResp));
-        router.onClientRequest((short) 3, ApiKeys.END_TXN,
-                new RequestHeaderData(), endReq, ctx);
+        ctx.captureResult(router.onRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
@@ -1201,8 +1204,8 @@ class TopicPartitionRouterTest {
         var endResp = new EndTxnResponseData().setErrorCode(Errors.NONE.code());
         var endCtx = new CapturingRouterContext(Map.of("cluster-b", endResp))
                 .withSubject(TXN_SUBJECT);
-        txnRouter.onClientRequest((short) 3, ApiKeys.END_TXN,
-                new RequestHeaderData(), endReq, endCtx);
+        endCtx.captureResult(txnRouter.onRequest((short) 3, ApiKeys.END_TXN,
+                new RequestHeaderData(), endReq, endCtx).toCompletableFuture().join());
 
         assertThat(endCtx.sentRequests()).hasSize(1);
         assertThat(endCtx.sentRequests().get(0).route()).isEqualTo("cluster-b");
@@ -1229,8 +1232,8 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of("cluster-b", heartbeatResp))
                 .withSubject(CG_SUBJECT);
 
-        cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
-                new RequestHeaderData(), heartbeatReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                new RequestHeaderData(), heartbeatReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
@@ -1256,8 +1259,8 @@ class TopicPartitionRouterTest {
                 "default-route", heartbeatResp, cgRouter);
         ctx.withSubject(new Subject(new User("unmapped-user")));
 
-        cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
-                new RequestHeaderData(), heartbeatReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 0, ApiKeys.CONSUMER_GROUP_HEARTBEAT,
+                new RequestHeaderData(), heartbeatReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentResponseBody()).isNotNull();
         cgRouter.close();
@@ -1275,8 +1278,8 @@ class TopicPartitionRouterTest {
                 Map.of("cluster-b", new org.apache.kafka.common.message.ConsumerGroupDescribeResponseData()))
                 .withSubject(CG_SUBJECT);
 
-        cgRouter.onClientRequest((short) 0, ApiKeys.CONSUMER_GROUP_DESCRIBE,
-                new RequestHeaderData(), describeReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 0, ApiKeys.CONSUMER_GROUP_DESCRIBE,
+                new RequestHeaderData(), describeReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
         cgRouter.close();
@@ -1295,8 +1298,8 @@ class TopicPartitionRouterTest {
                 Map.of("cluster-b", new FindCoordinatorResponseData()))
                 .withSubject(CG_SUBJECT);
 
-        cgRouter.onClientRequest((short) 3, ApiKeys.FIND_COORDINATOR,
-                new RequestHeaderData(), findCoordReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 3, ApiKeys.FIND_COORDINATOR,
+                new RequestHeaderData(), findCoordReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
         cgRouter.close();
@@ -1313,8 +1316,8 @@ class TopicPartitionRouterTest {
                 Map.of("default-route", new FindCoordinatorResponseData()))
                 .withSubject(new Subject(new User("unmapped-user")));
 
-        cgRouter.onClientRequest((short) 3, ApiKeys.FIND_COORDINATOR,
-                new RequestHeaderData(), findCoordReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 3, ApiKeys.FIND_COORDINATOR,
+                new RequestHeaderData(), findCoordReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("default-route");
         cgRouter.close();
@@ -1348,8 +1351,8 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp))
                 .withSubject(CG_SUBJECT);
 
-        cgRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT,
-                new RequestHeaderData(), commitReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 9, ApiKeys.OFFSET_COMMIT,
+                new RequestHeaderData(), commitReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
         cgRouter.close();
@@ -1374,8 +1377,8 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of("cluster-a", backendResp))
                 .withSubject(CG_SUBJECT);
 
-        cgRouter.onClientRequest((short) 9, ApiKeys.OFFSET_COMMIT,
-                new RequestHeaderData(), commitReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 9, ApiKeys.OFFSET_COMMIT,
+                new RequestHeaderData(), commitReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests()).hasSize(1);
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-a");
@@ -1399,8 +1402,8 @@ class TopicPartitionRouterTest {
         var ctx = new CapturingRouterContext(Map.of("cluster-b", backendResp))
                 .withSubject(CG_SUBJECT);
 
-        cgRouter.onClientRequest((short) 7, ApiKeys.OFFSET_FETCH,
-                new RequestHeaderData(), fetchReq, ctx);
+        ctx.captureResult(cgRouter.onRequest((short) 7, ApiKeys.OFFSET_FETCH,
+                new RequestHeaderData(), fetchReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentRequests().get(0).route()).isEqualTo("cluster-b");
         cgRouter.close();
@@ -1428,8 +1431,8 @@ class TopicPartitionRouterTest {
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1, "cluster-b", 2))
                 .withNodeResponses(Map.of(1, respA, 2, respB));
 
-        router.onClientRequest((short) 7, ApiKeys.OFFSET_FETCH,
-                new RequestHeaderData(), fetchReq, ctx);
+        ctx.captureResult(router.onRequest((short) 7, ApiKeys.OFFSET_FETCH,
+                new RequestHeaderData(), fetchReq, ctx).toCompletableFuture().join());
 
         assertThat(ctx.sentResponseBody).isNotNull();
         var resp = (org.apache.kafka.common.message.OffsetFetchResponseData) ctx.sentResponseBody;
@@ -1478,8 +1481,8 @@ class TopicPartitionRouterTest {
 
         var ctx = new SingleRouteInitCapturingContext(route, coordinatorNodeId,
                 findCoordResp, initResp);
-        txnRouter.onClientRequest((short) 5, ApiKeys.INIT_PRODUCER_ID,
-                new RequestHeaderData(), initReq, ctx);
+        ctx.captureResult(txnRouter.onRequest((short) 5, ApiKeys.INIT_PRODUCER_ID,
+                new RequestHeaderData(), initReq, ctx).toCompletableFuture().join());
     }
 
     private static FindCoordinatorResponseData findCoordinatorResponse(int nodeId) {
@@ -1848,6 +1851,12 @@ class TopicPartitionRouterTest {
             return sentResponseBody;
         }
 
+        void captureResult(RouterResult result) {
+            if (result instanceof RouterResult.Completed c) {
+                sentResponseBody = c.response().body();
+            }
+        }
+
         private MetadataResponseData defaultMetadataResponse = emptyMetadataResponse();
         private Map<String, Integer> findCoordinatorNodeIds = Map.of();
 
@@ -1862,71 +1871,64 @@ class TopicPartitionRouterTest {
         }
 
         @Override
-        public CompletionStage<Response> sendRequest(String route,
-                                                     RequestHeaderData header,
-                                                     ApiMessage request) {
-            sentRequests.add(new SentRequest(route, header, request));
-            if (request instanceof MetadataRequestData) {
-                // Use route-specific response if available, otherwise fall back to default
-                ApiMessage routeResponse = backendResponses != null ? backendResponses.get(route) : null;
-                if (routeResponse instanceof MetadataResponseData md) {
-                    Response response = new SimpleResponse(new ResponseHeaderData(), md);
-                    return CompletableFuture.completedFuture(response);
-                }
-                Response response = new SimpleResponse(new ResponseHeaderData(), defaultMetadataResponse);
-                return CompletableFuture.completedFuture(response);
-            }
-            if (request instanceof FindCoordinatorRequestData) {
-                // Use route-specific response if available, otherwise synthesize from nodeId map
-                ApiMessage routeResponse = backendResponses != null ? backendResponses.get(route) : null;
-                if (routeResponse instanceof FindCoordinatorResponseData fc) {
-                    Response response = new SimpleResponse(new ResponseHeaderData(), fc);
-                    return CompletableFuture.completedFuture(response);
-                }
-                Integer nodeId = findCoordinatorNodeIds.get(route);
-                var findCoordResp = new FindCoordinatorResponseData()
-                        .setErrorCode(Errors.NONE.code())
-                        .setNodeId(nodeId != null ? nodeId : 0)
-                        .setHost("localhost")
-                        .setPort(9092);
-                Response response = new SimpleResponse(new ResponseHeaderData(), findCoordResp);
-                return CompletableFuture.completedFuture(response);
-            }
-            ApiMessage body;
-            if (backendResponses != null) {
-                body = backendResponses.get(route);
-            }
-            else {
-                body = backendResponses_single;
-            }
-            if (body == null) {
-                body = new ProduceResponseData();
-            }
-            ApiMessage finalBody = body;
-            Response response = new SimpleResponse(new ResponseHeaderData(), finalBody);
-            return CompletableFuture.completedFuture(response);
+        public int bootstrapNodeId(String route) {
+            return Integer.MIN_VALUE;
         }
 
         @Override
-        public CompletionStage<Response> sendRequestToNode(int virtualNodeId,
+        public CompletionStage<Response> sendRequestToNode(String route,
+                                                           int virtualNodeId,
                                                            RequestHeaderData header,
                                                            ApiMessage request) {
-            sentNodeRequests.add(new SentNodeRequest(virtualNodeId, "", header, request));
-            ApiMessage body = nodeResponses.get(virtualNodeId);
-            if (body == null) {
-                body = new ProduceResponseData();
+            if (virtualNodeId == bootstrapNodeId(route)) {
+                sentRequests.add(new SentRequest(route, header, request));
+                if (request instanceof MetadataRequestData) {
+                    ApiMessage routeResponse = backendResponses != null ? backendResponses.get(route) : null;
+                    if (routeResponse instanceof MetadataResponseData md) {
+                        Response response = new SimpleResponse(new ResponseHeaderData(), md);
+                        return CompletableFuture.completedFuture(response);
+                    }
+                    Response response = new SimpleResponse(new ResponseHeaderData(), defaultMetadataResponse);
+                    return CompletableFuture.completedFuture(response);
+                }
+                if (request instanceof FindCoordinatorRequestData) {
+                    ApiMessage routeResponse = backendResponses != null ? backendResponses.get(route) : null;
+                    if (routeResponse instanceof FindCoordinatorResponseData fc) {
+                        Response response = new SimpleResponse(new ResponseHeaderData(), fc);
+                        return CompletableFuture.completedFuture(response);
+                    }
+                    Integer nodeId = findCoordinatorNodeIds.get(route);
+                    var findCoordResp = new FindCoordinatorResponseData()
+                            .setErrorCode(Errors.NONE.code())
+                            .setNodeId(nodeId != null ? nodeId : 0)
+                            .setHost("localhost")
+                            .setPort(9092);
+                    Response response = new SimpleResponse(new ResponseHeaderData(), findCoordResp);
+                    return CompletableFuture.completedFuture(response);
+                }
+                ApiMessage body;
+                if (backendResponses != null) {
+                    body = backendResponses.get(route);
+                }
+                else {
+                    body = backendResponses_single;
+                }
+                if (body == null) {
+                    body = new ProduceResponseData();
+                }
+                ApiMessage finalBody = body;
+                Response response = new SimpleResponse(new ResponseHeaderData(), finalBody);
+                return CompletableFuture.completedFuture(response);
             }
-            Response response = new SimpleResponse(new ResponseHeaderData(), body);
-            return CompletableFuture.completedFuture(response);
-        }
-
-        @Override
-        public void sendResponse(Response response) {
-            sentResponseBody = response.body();
-        }
-
-        @Override
-        public void disconnect() {
+            else {
+                sentNodeRequests.add(new SentNodeRequest(virtualNodeId, route, header, request));
+                ApiMessage body = nodeResponses.get(virtualNodeId);
+                if (body == null) {
+                    body = new ProduceResponseData();
+                }
+                Response response = new SimpleResponse(new ResponseHeaderData(), body);
+                return CompletableFuture.completedFuture(response);
+            }
         }
 
         @Override
@@ -1958,6 +1960,12 @@ class TopicPartitionRouterTest {
             return sentResponseBody;
         }
 
+        void captureResult(RouterResult result) {
+            if (result instanceof RouterResult.Completed c) {
+                sentResponseBody = c.response().body();
+            }
+        }
+
         SingleRouteInitCapturingContext(String route,
                                         int coordinatorNodeId,
                                         FindCoordinatorResponseData findCoordResp,
@@ -1983,39 +1991,34 @@ class TopicPartitionRouterTest {
         }
 
         @Override
-        public CompletionStage<Response> sendRequest(String route,
-                                                     RequestHeaderData header,
-                                                     ApiMessage request) {
-            sendRequestCount++;
-            ApiMessage body;
-            if (request instanceof MetadataRequestData) {
-                body = new MetadataResponseData();
-            }
-            else if (request instanceof FindCoordinatorRequestData) {
-                body = findCoordResp;
-            }
-            else {
-                body = new ProduceResponseData();
-            }
-            return CompletableFuture.completedFuture(
-                    new SimpleResponse(new ResponseHeaderData(), body));
+        public int bootstrapNodeId(String route) {
+            return Integer.MIN_VALUE;
         }
 
         @Override
-        public CompletionStage<Response> sendRequestToNode(int virtualNodeId,
+        public CompletionStage<Response> sendRequestToNode(String route,
+                                                           int virtualNodeId,
                                                            RequestHeaderData header,
                                                            ApiMessage request) {
-            return CompletableFuture.completedFuture(
-                    new SimpleResponse(new ResponseHeaderData(), nodeResponse));
-        }
-
-        @Override
-        public void sendResponse(Response response) {
-            sentResponseBody = response.body();
-        }
-
-        @Override
-        public void disconnect() {
+            if (virtualNodeId == bootstrapNodeId(route)) {
+                sendRequestCount++;
+                ApiMessage body;
+                if (request instanceof MetadataRequestData) {
+                    body = new MetadataResponseData();
+                }
+                else if (request instanceof FindCoordinatorRequestData) {
+                    body = findCoordResp;
+                }
+                else {
+                    body = new ProduceResponseData();
+                }
+                return CompletableFuture.completedFuture(
+                        new SimpleResponse(new ResponseHeaderData(), body));
+            }
+            else {
+                return CompletableFuture.completedFuture(
+                        new SimpleResponse(new ResponseHeaderData(), nodeResponse));
+            }
         }
 
         @Override
