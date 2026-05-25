@@ -92,7 +92,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     ChannelHandlerContext clientCtx;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
-    ClientConnectionStateMachine clientChannelStateMachine;
+    ClientConnectionStateMachine clientConnectionStateMachine;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
     TransportSubjectBuilder subjectBuilder;
@@ -107,8 +107,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
-        when(clientChannelStateMachine.endpointBinding()).thenReturn(endpointBinding);
-        when(clientChannelStateMachine.virtualCluster()).thenReturn(virtualCluster);
+        when(clientConnectionStateMachine.endpointBinding()).thenReturn(endpointBinding);
+        when(clientConnectionStateMachine.virtualCluster()).thenReturn(virtualCluster);
         // Make the executor run tasks synchronously
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(0);
@@ -125,7 +125,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                clientChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.empty());
 
         TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, CLUSTER_NAME);
@@ -141,7 +141,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
 
         // Then
-        verify(clientChannelStateMachine).onClientActive(handler);
+        verify(clientConnectionStateMachine).onClientActive(handler);
     }
 
     @Test
@@ -160,7 +160,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelRead(clientCtx, msg);
 
         // Then
-        verify(clientChannelStateMachine).onClientRequest(msg);
+        verify(clientConnectionStateMachine).onClientRequest(msg);
     }
 
     @Test
@@ -175,7 +175,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelWritabilityChanged(clientCtx);
 
         // Then
-        verify(clientChannelStateMachine).onClientUnwritable();
+        verify(clientConnectionStateMachine).onClientUnwritable();
     }
 
     @Test
@@ -190,7 +190,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelWritabilityChanged(clientCtx);
 
         // Then
-        verify(clientChannelStateMachine).onClientWritable();
+        verify(clientConnectionStateMachine).onClientWritable();
     }
 
     @Test
@@ -260,7 +260,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                clientChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -290,7 +290,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
                 new DefaultSubjectBuilder(List.of()),
-                clientChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.of(NETTY_SETTINGS));
         handler.channelActive(clientCtx);
         when(clientCtx.pipeline()).thenReturn(channelPipeline);
@@ -347,7 +347,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
                 subjectBuilder,
-                clientChannelStateMachine,
+                clientConnectionStateMachine,
                 Optional.empty());
 
         // When
@@ -387,7 +387,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         method.invoke(handler, remote, channel, pipeline);
 
         // Then
-        verify(clientChannelStateMachine).notifyServerConnectionException(failure);
+        verify(clientConnectionStateMachine).notifyServerConnectionException(failure);
     }
 
     @Test
@@ -410,7 +410,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
+        verify(clientConnectionStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -436,7 +436,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
+        verify(clientConnectionStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to obtain TLS credentials")
@@ -455,7 +455,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
+        verify(clientConnectionStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("TLS credential supplier returned null");
@@ -474,7 +474,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
+        verify(clientConnectionStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -493,7 +493,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then - should report error to state machine
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(clientChannelStateMachine).notifyServerConnectionException(captor.capture());
+        verify(clientConnectionStateMachine).notifyServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -518,7 +518,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // Then - SSL handler should be added to pipeline
         assertThat(channel.pipeline().get("ssl")).isNotNull();
-        verify(clientChannelStateMachine, never()).notifyServerConnectionException(any());
+        verify(clientConnectionStateMachine, never()).notifyServerConnectionException(any());
 
         channel.close();
     }

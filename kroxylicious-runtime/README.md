@@ -18,7 +18,7 @@ The runtime implements the Netty-based proxy engine that routes Kafka protocol m
 
 **`ResponseOrderer`**: Ensures responses are delivered to clients in request order, even when processed asynchronously.
 
-**`ProxyChannelStateMachine`**: Manages connection state and backpressure propagation between client and broker.
+**`ClientConnectionStateMachine`**: Manages connection state and backpressure propagation between client and broker.
 
 ## ResponseOrderer and Kafka Pipelining
 
@@ -68,7 +68,7 @@ The handler performs two flushes to prevent race conditions:
 
 **Critical file:** `src/main/java/io/kroxylicious/proxy/internal/FilterHandler.java`
 
-## ProxyChannelStateMachine
+## ClientConnectionStateMachine
 
 **State Transitions:**
 
@@ -98,7 +98,7 @@ if (backendChannel.isWritable()) {
 }
 ```
 
-**Critical file:** `src/main/java/io/kroxylicious/proxy/internal/ProxyChannelStateMachine.java`
+**Critical file:** `src/main/java/io/kroxylicious/proxy/internal/ClientConnectionStateMachine.java`
 
 ## Codec Generation
 

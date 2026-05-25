@@ -23,14 +23,14 @@ import static java.util.Objects.requireNonNull;
  * </p>
  */
 class FilterChainCompletionHandler extends ChannelInboundHandlerAdapter {
-    private final ClientConnectionStateMachine clientChannelStateMachine;
+    private final ClientConnectionStateMachine clientConnectionStateMachine;
 
-    FilterChainCompletionHandler(ClientConnectionStateMachine clientChannelStateMachine) {
-        this.clientChannelStateMachine = requireNonNull(clientChannelStateMachine);
+    FilterChainCompletionHandler(ClientConnectionStateMachine clientConnectionStateMachine) {
+        this.clientConnectionStateMachine = requireNonNull(clientConnectionStateMachine);
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        clientChannelStateMachine.onClientFilterChainComplete(msg);
+        clientConnectionStateMachine.onClientFilterChainComplete(msg);
     }
 }

@@ -73,7 +73,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final @Nullable String sniHostname;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
-    private final ClientConnectionStateMachine clientChannelStateMachine;
+    private final ClientConnectionStateMachine clientConnectionStateMachine;
 
     /** Chains response processing to preserve ordering when filters defer work asynchronously. */
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
@@ -93,12 +93,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                          long timeoutMs,
                          @Nullable String sniHostname,
                          Channel inboundChannel,
-                         ClientConnectionStateMachine clientChannelStateMachine) {
+                         ClientConnectionStateMachine clientConnectionStateMachine) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.inboundChannel = inboundChannel;
-        this.clientChannelStateMachine = clientChannelStateMachine;
+        this.clientConnectionStateMachine = clientConnectionStateMachine;
     }
 
     @Override
@@ -258,7 +258,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("localAddress",
                             ctx.channel().localAddress().toString());
         }
-        return builder.addKeyValue("sessionId", clientChannelStateMachine.sessionId())
+        return builder.addKeyValue("sessionId", clientConnectionStateMachine.sessionId())
                 .addKeyValue("filter", filterDescriptor());
     }
 
@@ -622,7 +622,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Subject authenticatedSubject() {
-            return clientChannelStateMachine.authenticatedSubject();
+            return clientConnectionStateMachine.authenticatedSubject();
         }
 
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
@@ -636,7 +636,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public String sessionId() {
-            return clientChannelStateMachine.sessionId();
+            return clientConnectionStateMachine.sessionId();
         }
 
         @Override
@@ -654,12 +654,12 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public String getVirtualClusterName() {
-            return clientChannelStateMachine.clusterName();
+            return clientConnectionStateMachine.clusterName();
         }
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
-            return clientChannelStateMachine.clientTlsContext();
+            return clientConnectionStateMachine.clientTlsContext();
         }
 
         @Override
@@ -670,10 +670,10 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addKeyValue("subject", subject)
                     .log("Filter announces client has passed SASL authentication");
 
-            clientChannelStateMachine.onSessionSaslAuthenticated();
+            clientConnectionStateMachine.onSessionSaslAuthenticated();
 
             // dispatch principal injection
-            clientChannelStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
+            clientConnectionStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
         }
 
         @Override
@@ -687,12 +687,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
                     .log("Filter announces client has failed SASL authentication" +
                             (LOGGER.isDebugEnabled() ? "" : ", increase log level to DEBUG for stacktrace"));
-            clientChannelStateMachine.clientSaslAuthenticationFailure();
+            clientConnectionStateMachine.clientSaslAuthenticationFailure();
         }
 
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
-            return clientChannelStateMachine.clientSaslContext();
+            return clientConnectionStateMachine.clientSaslContext();
         }
 
         @Override

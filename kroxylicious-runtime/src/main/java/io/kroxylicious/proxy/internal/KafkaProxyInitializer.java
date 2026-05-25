@@ -211,16 +211,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var clusterName = virtualCluster.getClusterName();
 
         TransportSubjectBuilder subjectBuilder = virtualCluster.subjectBuilder(pfr);
-        ClientConnectionStateMachine clientChannelStateMachine = new ClientConnectionStateMachine(binding, subjectBuilder, kafkaSession);
-        if (!virtualClusterRegistry.registerConnection(clusterName, clientChannelStateMachine)) {
+        ClientConnectionStateMachine clientConnectionStateMachine = new ClientConnectionStateMachine(binding, subjectBuilder, kafkaSession);
+        if (!virtualClusterRegistry.registerConnection(clusterName, clientConnectionStateMachine)) {
             rejectConnection(ch, clusterName);
             return;
         }
-        ch.closeFuture().addListener(f -> virtualClusterRegistry.deregisterConnection(clusterName, clientChannelStateMachine));
-        addHandlers(ch, binding, subjectBuilder, clientChannelStateMachine);
+        ch.closeFuture().addListener(f -> virtualClusterRegistry.deregisterConnection(clusterName, clientConnectionStateMachine));
+        addHandlers(ch, binding, subjectBuilder, clientConnectionStateMachine);
     }
 
-    private void addHandlers(Channel ch, EndpointBinding binding, TransportSubjectBuilder subjectBuilder, ClientConnectionStateMachine clientChannelStateMachine) {
+    private void addHandlers(Channel ch, EndpointBinding binding, TransportSubjectBuilder subjectBuilder, ClientConnectionStateMachine clientConnectionStateMachine) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
 
@@ -252,12 +252,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 apiVersionsService,
                 dp,
                 subjectBuilder,
-                clientChannelStateMachine,
+                clientConnectionStateMachine,
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
         // Filter Handlers will be installed at this point in the pipeline by KafkaProxyFrontendHandler when the client channel fires channelActive()
-        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(clientChannelStateMachine));
+        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(clientConnectionStateMachine));
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()

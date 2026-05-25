@@ -101,7 +101,7 @@ class ClientConnectionStateMachineTest {
             List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
-    private ClientConnectionStateMachine clientChannelStateMachine;
+    private ClientConnectionStateMachine clientConnectionStateMachine;
 
     @Mock
     private EndpointBinding endpointBinding;
@@ -122,7 +122,7 @@ class ClientConnectionStateMachineTest {
         when(endpointBinding.nodeId()).thenReturn(null);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
-        clientChannelStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
+        clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING));
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
@@ -144,7 +144,7 @@ class ClientConnectionStateMachineTest {
         // Given
 
         // When
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connections").counter())
@@ -161,7 +161,7 @@ class ClientConnectionStateMachineTest {
         givenState.run();
 
         // When
-        clientChannelStateMachine.onClientException(failure);
+        clientConnectionStateMachine.onClientException(failure);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_errors").counter())
@@ -178,10 +178,10 @@ class ClientConnectionStateMachineTest {
         givenState.run();
 
         // When
-        clientChannelStateMachine.onServerConnectionException(failure);
+        clientConnectionStateMachine.onServerConnectionException(failure);
 
         // Then — server error counting is now the SCSM's concern; CCSM just transitions to Closed
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
     }
 
     @Test
@@ -190,7 +190,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInSelectingServer();
 
         // When
-        clientChannelStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"));
+        clientConnectionStateMachine.onInitiateConnect(HostPort.parse("localhost:9090"));
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
@@ -206,20 +206,20 @@ class ClientConnectionStateMachineTest {
         stateMachineInConnecting();
 
         // When
-        clientChannelStateMachine.onServerConnectionException(failure);
+        clientConnectionStateMachine.onServerConnectionException(failure);
 
         // Then — server error counting is now the SCSM's concern; CCSM just transitions to Closed
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
     }
 
     @Test
     void shouldBlockClientReads() {
         // Given
         stateMachineInClientActive();
-        clientChannelStateMachine.onServerUnwritable();
+        clientConnectionStateMachine.onServerUnwritable();
 
         // When
-        clientChannelStateMachine.onServerUnwritable();
+        clientConnectionStateMachine.onServerUnwritable();
 
         // Then
         verify(frontendHandler, times(1)).applyBackpressure();
@@ -229,11 +229,11 @@ class ClientConnectionStateMachineTest {
     void shouldUnblockClientReads() {
         // Given
         stateMachineInClientActive();
-        clientChannelStateMachine.clientReadsBlocked = true;
-        clientChannelStateMachine.onServerWritable();
+        clientConnectionStateMachine.clientReadsBlocked = true;
+        clientConnectionStateMachine.onServerWritable();
 
         // When
-        clientChannelStateMachine.onServerWritable();
+        clientConnectionStateMachine.onServerWritable();
 
         // Then
         verify(frontendHandler, times(1)).relieveBackpressure();
@@ -243,10 +243,10 @@ class ClientConnectionStateMachineTest {
     void shouldBlockServerReads() {
         // Given
         stateMachineInForwarding();
-        clientChannelStateMachine.onClientUnwritable();
+        clientConnectionStateMachine.onClientUnwritable();
 
         // When
-        clientChannelStateMachine.onClientUnwritable();
+        clientConnectionStateMachine.onClientUnwritable();
 
         // Then — CCSM delegates every call; idempotency is the SCSM's concern
         verify(serverConnectionStateMachine, times(2)).applyBackpressure();
@@ -261,17 +261,17 @@ class ClientConnectionStateMachineTest {
         useDownstreamSsl();
 
         // When
-        clientChannelStateMachine.onClientException(cause);
+        clientConnectionStateMachine.onClientException(cause);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
         verify(frontendHandler).inClosed(ArgumentMatchers.notNull(UnknownServerException.class));
     }
 
     private void useDownstreamSsl() {
         SslContext mock = mock(SslContext.class);
-        when(clientChannelStateMachine.endpointGateway().getDownstreamSslContext()).thenReturn(Optional.of(mock));
+        when(clientConnectionStateMachine.endpointGateway().getDownstreamSslContext()).thenReturn(Optional.of(mock));
     }
 
     @Test
@@ -282,10 +282,10 @@ class ClientConnectionStateMachineTest {
         useDownstreamSsl();
 
         // When
-        clientChannelStateMachine.onClientException(cause);
+        clientConnectionStateMachine.onClientException(cause);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
         verify(frontendHandler).inClosed(ArgumentMatchers.notNull(InvalidRequestException.class));
     }
@@ -297,10 +297,10 @@ class ClientConnectionStateMachineTest {
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
-        clientChannelStateMachine.onServerConnectionException(cause);
+        clientConnectionStateMachine.onServerConnectionException(cause);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(serverConnectionStateMachine).close();
         verify(frontendHandler).inClosed(cause);
     }
@@ -311,7 +311,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInForwarding();
 
         // When
-        clientChannelStateMachine.onClientWritable();
+        clientConnectionStateMachine.onClientWritable();
 
         // Then
         verify(serverConnectionStateMachine).relieveBackpressure();
@@ -322,24 +322,24 @@ class ClientConnectionStateMachineTest {
         // Given
 
         // When
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.ClientActive.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.ClientActive.class);
         verify(frontendHandler, times(1)).inClientActive();
     }
 
     @Test
     void onClientActiveShouldTransitionToHaProxyWhenContextPresentInSession() {
         // Given - HaProxy context stored in KafkaSession (by HaProxyMessageHandler before CCSM was created)
-        clientChannelStateMachine.kafkaSession().setHaProxyContext(HA_PROXY_CONTEXT);
+        clientConnectionStateMachine.kafkaSession().setHaProxyContext(HA_PROXY_CONTEXT);
 
         // When
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
 
         // Then - state machine transitions through ClientActive → HaProxy
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
-        assertThat(clientChannelStateMachine.kafkaSession().haProxyContext()).isNotNull();
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
+        assertThat(clientConnectionStateMachine.kafkaSession().haProxyContext()).isNotNull();
         verify(frontendHandler).inClientActive();
     }
 
@@ -350,10 +350,10 @@ class ClientConnectionStateMachineTest {
         var msg = metadataRequest();
 
         // When
-        clientChannelStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onClientRequest(msg);
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.SelectingServer.class);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
@@ -367,10 +367,10 @@ class ClientConnectionStateMachineTest {
         var msg = apiVersionsRequest();
 
         // When
-        clientChannelStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onClientRequest(msg);
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.SelectingServer.class);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
@@ -383,10 +383,10 @@ class ClientConnectionStateMachineTest {
         stateMachineInHaProxy();
 
         // When - an unexpected (non-Kafka) message arrives
-        clientChannelStateMachine.onClientRequest(new Object());
+        clientConnectionStateMachine.onClientRequest(new Object());
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
     }
@@ -398,10 +398,10 @@ class ClientConnectionStateMachineTest {
         var msg = metadataRequest();
 
         // When
-        clientChannelStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onClientRequest(msg);
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.SelectingServer.class);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
@@ -415,11 +415,11 @@ class ClientConnectionStateMachineTest {
         var msg = apiVersionsRequest();
 
         // When
-        clientChannelStateMachine.onClientRequest(
+        clientConnectionStateMachine.onClientRequest(
                 msg);
 
         // Then
-        var stateAssert = assertThat(clientChannelStateMachine.state())
+        var stateAssert = assertThat(clientConnectionStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(SelectingServer.class));
         stateAssert
                 .extracting(SelectingServer::clientSoftwareName).isEqualTo("mykafkalib");
@@ -439,13 +439,13 @@ class ClientConnectionStateMachineTest {
         Mockito.lenient().doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
 
         // When
-        clientChannelStateMachine.onInitiateConnect(brokerAddress);
+        clientConnectionStateMachine.onInitiateConnect(brokerAddress);
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Connecting.class);
         verify(frontendHandler).inConnecting(eq(brokerAddress), notNull(KafkaProxyBackendHandler.class));
-        assertThat(clientChannelStateMachine).extracting("serverConnectionStateMachine").isNotNull();
+        assertThat(clientConnectionStateMachine).extracting("serverConnectionStateMachine").isNotNull();
     }
 
     @Test
@@ -455,13 +455,13 @@ class ClientConnectionStateMachineTest {
         stateMachineInClientActive();
 
         // When
-        clientChannelStateMachine.onInitiateConnect(brokerAddress);
+        clientConnectionStateMachine.onInitiateConnect(brokerAddress);
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
-        assertThat(clientChannelStateMachine).extracting("serverConnectionStateMachine").isNull();
+        assertThat(clientConnectionStateMachine).extracting("serverConnectionStateMachine").isNull();
     }
 
     @Test
@@ -470,10 +470,10 @@ class ClientConnectionStateMachineTest {
         stateMachineInConnecting();
 
         // When
-        clientChannelStateMachine.onInitiateConnect(BROKER_ADDRESS);
+        clientConnectionStateMachine.onInitiateConnect(BROKER_ADDRESS);
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
         verify(serverConnectionStateMachine).close();
@@ -483,7 +483,7 @@ class ClientConnectionStateMachineTest {
     void inConnectingShouldTransitionWhenOnServerActiveCalled() {
         // Given
         int waitingForOneEvent = 1;
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 serverConnectionStateMachine,
@@ -491,10 +491,10 @@ class ClientConnectionStateMachineTest {
                 waitingForOneEvent);
 
         // When
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
 
         verify(frontendHandler).unblockClient();
         verifyNoInteractions(serverConnectionStateMachine);
@@ -504,7 +504,7 @@ class ClientConnectionStateMachineTest {
     void onServerActiveDoesNotUnblockClientIfWaitingForTransportSubject() {
         // Given
         int waitingForTwoEvents = 2;
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 serverConnectionStateMachine,
@@ -512,10 +512,10 @@ class ClientConnectionStateMachineTest {
                 waitingForTwoEvents);
 
         // When
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
 
         verifyNoInteractions(frontendHandler);
         verifyNoInteractions(serverConnectionStateMachine);
@@ -528,11 +528,11 @@ class ClientConnectionStateMachineTest {
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        clientChannelStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onClientRequest(msg);
 
         // Then
         verify(frontendHandler).bufferMsg(msg);
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Connecting.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Connecting.class);
     }
 
     @Test
@@ -541,10 +541,10 @@ class ClientConnectionStateMachineTest {
         stateMachineInClientActive();
 
         // When
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         // Then
-        assertThat(clientChannelStateMachine.state())
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
     }
@@ -557,10 +557,10 @@ class ClientConnectionStateMachineTest {
         var msg = metadataRequest();
 
         // When
-        clientChannelStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onClientRequest(msg);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isSameAs(forwarding);
+        assertThat(clientConnectionStateMachine.state()).isSameAs(forwarding);
         verify(frontendHandler).admitToFilterChain(msg);
         verifyNoInteractions(serverCtx);
     }
@@ -573,10 +573,10 @@ class ClientConnectionStateMachineTest {
         var msg = metadataResponse();
 
         // When
-        clientChannelStateMachine.onResponseFromServer(msg);
+        clientConnectionStateMachine.onResponseFromServer(msg);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isSameAs(forwarding);
+        assertThat(clientConnectionStateMachine.state()).isSameAs(forwarding);
         verify(frontendHandler).forwardToClient(msg);
         verifyNoInteractions(serverCtx);
         verifyNoInteractions(serverConnectionStateMachine);
@@ -586,14 +586,14 @@ class ClientConnectionStateMachineTest {
     void inForwardingShouldTransitionToClosedOnServerInactive() {
         // Given
         stateMachineInForwarding();
-        doAnswer(invocation -> assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler).inClosed(null);
+        doAnswer(invocation -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler).inClosed(null);
         doNothing().when(serverConnectionStateMachine).close();
 
         // When
-        clientChannelStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
+        clientConnectionStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
         verify(serverConnectionStateMachine).close();
     }
@@ -602,13 +602,13 @@ class ClientConnectionStateMachineTest {
     void inForwardingShouldTransitionToClosedOnClientInactive() {
         // Given
         stateMachineInForwarding();
-        doAnswer(invocation -> assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler).inClosed(null);
+        doAnswer(invocation -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler).inClosed(null);
 
         // When
-        clientChannelStateMachine.onClientInactive();
+        clientConnectionStateMachine.onClientInactive();
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
         verify(serverConnectionStateMachine).close();
     }
@@ -617,14 +617,14 @@ class ClientConnectionStateMachineTest {
     void inForwardingShouldTransitionToClosedOnClientIdle() {
         // Given
         stateMachineInForwarding();
-        doAnswer(invocation -> assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler).inClosed(null);
+        doAnswer(invocation -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler).inClosed(null);
 
         // When
-        clientChannelStateMachine.onClientIdle();
+        clientConnectionStateMachine.onClientIdle();
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
-        assertThat(clientChannelStateMachine.kafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.kafkaSession().currentState()).isEqualTo(KafkaSessionState.TERMINATING);
         verify(frontendHandler).inClosed(null);
         verify(serverConnectionStateMachine).close();
     }
@@ -635,7 +635,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInClosed();
 
         // When
-        clientChannelStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
+        clientConnectionStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
 
         // Then
         verifyNoInteractions(frontendHandler, serverConnectionStateMachine);
@@ -649,10 +649,10 @@ class ClientConnectionStateMachineTest {
         doNothing().when(serverConnectionStateMachine).close();
 
         // When
-        clientChannelStateMachine.onServerConnectionException(illegalStateException);
+        clientConnectionStateMachine.onServerConnectionException(illegalStateException);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(illegalStateException);
         verify(serverConnectionStateMachine).close();
     }
@@ -664,7 +664,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInForwarding();
         final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
-        doAnswer(invocation -> assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler)
+        doAnswer(invocation -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class)).when(frontendHandler)
                 .inClosed(expectedException);
         doNothing().when(serverConnectionStateMachine).close();
         if (tlsEnabled) {
@@ -672,10 +672,10 @@ class ClientConnectionStateMachineTest {
         }
 
         // When
-        clientChannelStateMachine.onClientException(illegalStateException);
+        clientConnectionStateMachine.onClientException(illegalStateException);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(expectedException);
         verify(serverConnectionStateMachine).close();
     }
@@ -686,7 +686,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInSelectingServer();
 
         // When
-        final SelectingServer actualSelectingServer = clientChannelStateMachine.enforceInSelectingServer("wibble");
+        final SelectingServer actualSelectingServer = clientConnectionStateMachine.enforceInSelectingServer("wibble");
 
         // Then
         assertThat(actualSelectingServer).isNotNull();
@@ -699,7 +699,7 @@ class ClientConnectionStateMachineTest {
         givenState.run();
 
         // When
-        assertThatThrownBy(() -> clientChannelStateMachine.enforceInSelectingServer("wibble"))
+        assertThatThrownBy(() -> clientConnectionStateMachine.enforceInSelectingServer("wibble"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageEndingWith("wibble");
 
@@ -713,7 +713,7 @@ class ClientConnectionStateMachineTest {
         givenState.run();
 
         // When
-        clientChannelStateMachine.onClientUnwritable();
+        clientConnectionStateMachine.onClientUnwritable();
 
         // Then
         verify(serverConnectionStateMachine).applyBackpressure();
@@ -726,7 +726,7 @@ class ClientConnectionStateMachineTest {
         givenState.run();
 
         // When
-        clientChannelStateMachine.onClientWritable();
+        clientConnectionStateMachine.onClientWritable();
 
         // Then
         verify(serverConnectionStateMachine).relieveBackpressure();
@@ -739,10 +739,10 @@ class ClientConnectionStateMachineTest {
         givenState.run();
 
         // When
-        clientChannelStateMachine.onServerUnwritable();
+        clientConnectionStateMachine.onServerUnwritable();
 
         // Then
-        assertThat(clientChannelStateMachine.clientToProxyBackpressureTimer)
+        assertThat(clientConnectionStateMachine.clientToProxyBackpressureTimer)
                 .isInstanceOf(Timer.Sample.class);
     }
 
@@ -751,10 +751,10 @@ class ClientConnectionStateMachineTest {
     void shouldStopClientTimerWhenServerIsWritable(Runnable givenState) {
         // Given
         givenState.run();
-        clientChannelStateMachine.onServerUnwritable();
+        clientConnectionStateMachine.onServerUnwritable();
 
         // When
-        clientChannelStateMachine.onServerWritable();
+        clientConnectionStateMachine.onServerWritable();
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_reads_paused").timer())
@@ -762,7 +762,7 @@ class ClientConnectionStateMachineTest {
                 .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
                 // Count is incremented when the timer is stopped
                 );
-        assertThat(clientChannelStateMachine.clientToProxyBackpressureTimer).isNull();
+        assertThat(clientConnectionStateMachine.clientToProxyBackpressureTimer).isNull();
     }
 
     @Test
@@ -771,7 +771,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInForwarding();
 
         // When
-        clientChannelStateMachine.onSessionSaslAuthenticated();
+        clientConnectionStateMachine.onSessionSaslAuthenticated();
 
         // Then
         verify(frontendHandler).onSessionAuthenticated();
@@ -816,7 +816,7 @@ class ClientConnectionStateMachineTest {
     }
 
     private void stateMachineInClientActive() {
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.ClientActive(),
                 frontendHandler,
                 null,
@@ -825,7 +825,7 @@ class ClientConnectionStateMachineTest {
     }
 
     private void stateMachineInHaProxy() {
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.HaProxy(),
                 frontendHandler,
                 null,
@@ -834,7 +834,7 @@ class ClientConnectionStateMachineTest {
     }
 
     private void stateMachineInSelectingServer() {
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.SelectingServer(null, null),
                 frontendHandler,
                 null,
@@ -843,7 +843,7 @@ class ClientConnectionStateMachineTest {
     }
 
     private void stateMachineInConnecting() {
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Connecting(null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 serverConnectionStateMachine,
@@ -853,7 +853,7 @@ class ClientConnectionStateMachineTest {
 
     private ClientConnectionState.Forwarding stateMachineInForwarding() {
         var forwarding = new ClientConnectionState.Forwarding(null, null);
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 forwarding,
                 frontendHandler,
                 serverConnectionStateMachine,
@@ -863,7 +863,7 @@ class ClientConnectionStateMachineTest {
     }
 
     private void stateMachineInClosed() {
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Closed(),
                 frontendHandler,
                 serverConnectionStateMachine,
@@ -905,7 +905,7 @@ class ClientConnectionStateMachineTest {
         int initialCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
 
         // Then
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -918,23 +918,23 @@ class ClientConnectionStateMachineTest {
         stateMachineInConnecting();
 
         // When
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
     }
 
     @Test
     void shouldDecrementActiveConnectionsOnClosed() {
         // Given - establish both client and server connections
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
         stateMachineInConnecting();
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
-        clientChannelStateMachine.onClientInactive();
+        clientConnectionStateMachine.onClientInactive();
 
         // Then — server connection metric is now the SCSM's concern
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -945,14 +945,14 @@ class ClientConnectionStateMachineTest {
     @Test
     void shouldDecrementActiveConnectionsOnServerInactive() {
         // Given - establish both client and server connections
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
         stateMachineInConnecting();
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
-        clientChannelStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
+        clientConnectionStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
 
         // Then — server connection metric is now the SCSM's concern
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -962,11 +962,11 @@ class ClientConnectionStateMachineTest {
     @Test
     void shouldDecrementActiveConnectionsOnClientException() {
         // Given - establish client connection
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
-        clientChannelStateMachine.onClientException(new RuntimeException("test exception"));
+        clientConnectionStateMachine.onClientException(new RuntimeException("test exception"));
 
         // Then
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -976,14 +976,14 @@ class ClientConnectionStateMachineTest {
     @Test
     void shouldDecrementActiveConnectionsOnServerException() {
         // Given - establish both client and server connections
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
         stateMachineInConnecting();
-        clientChannelStateMachine.onServerConnectionActive();
+        clientConnectionStateMachine.onServerConnectionActive();
 
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
 
         // When
-        clientChannelStateMachine.onServerConnectionException(new RuntimeException("test exception"));
+        clientConnectionStateMachine.onServerConnectionException(new RuntimeException("test exception"));
 
         // Then — server connection metric is now the SCSM's concern
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -994,12 +994,12 @@ class ClientConnectionStateMachineTest {
     @Test
     void shouldOnlyDecrementClientConnectionsWhenNotInForwardingState() {
         // Given - establish client connection but not server connection
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
         int initialClientCount = getVirtualNodeClientToProxyActiveConnections();
         int initialServerCount = getVirtualNodeProxyToServerActiveConnections();
 
         // When - close while not in forwarding state
-        clientChannelStateMachine.onClientInactive();
+        clientConnectionStateMachine.onClientInactive();
 
         // Then - only client connections decremented
         assertThat(getVirtualNodeClientToProxyActiveConnections())
@@ -1015,7 +1015,7 @@ class ClientConnectionStateMachineTest {
         Object msg = new Object();
 
         // When
-        clientChannelStateMachine.onClientFilterChainComplete(msg);
+        clientConnectionStateMachine.onClientFilterChainComplete(msg);
 
         // Then
         verify(serverConnectionStateMachine).sendRequest(msg);
@@ -1028,10 +1028,10 @@ class ClientConnectionStateMachineTest {
         Object msg = new Object();
 
         // When
-        clientChannelStateMachine.onClientFilterChainComplete(msg);
+        clientConnectionStateMachine.onClientFilterChainComplete(msg);
 
         // Then
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         verify(frontendHandler).inClosed(null);
     }
 
@@ -1041,7 +1041,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInForwarding();
 
         // When
-        clientChannelStateMachine.onServerReadComplete();
+        clientConnectionStateMachine.onServerReadComplete();
 
         // Then
         verify(frontendHandler).flushToClient();
@@ -1058,7 +1058,7 @@ class ClientConnectionStateMachineTest {
     @Test
     void onClientTlsHandshakeSuccessPassesExecutorToSubjectManager() {
         // Given
-        clientChannelStateMachine.onClientActive(frontendHandler);
+        clientConnectionStateMachine.onClientActive(frontendHandler);
         SSLSession sslSession = mock(SSLSession.class);
         AtomicBoolean executorUsed = new AtomicBoolean(false);
         when(frontendHandler.eventLoopExecutor()).thenReturn(command -> {
@@ -1067,7 +1067,7 @@ class ClientConnectionStateMachineTest {
         });
 
         // When
-        clientChannelStateMachine.onClientTlsHandshakeSuccess(sslSession);
+        clientConnectionStateMachine.onClientTlsHandshakeSuccess(sslSession);
 
         // Then - verify the executor was actually used, proving the new parameter is passed through correctly
         assertThat(executorUsed).isTrue();
@@ -1082,7 +1082,7 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
 
             // When
-            clientChannelStateMachine.onClientIdle();
+            clientConnectionStateMachine.onClientIdle();
 
             // Then
             assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
@@ -1100,7 +1100,7 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
 
             // When
-            clientChannelStateMachine.onClientInactive();
+            clientConnectionStateMachine.onClientInactive();
 
             // Then
             assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
@@ -1118,7 +1118,7 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
 
             // When
-            clientChannelStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
+            clientConnectionStateMachine.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
 
             // Then
             assertThat(Metrics.globalRegistry.find("kroxylicious_client_to_proxy_disconnects")
@@ -1136,8 +1136,8 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
 
             // When - idle timeout followed by client inactive
-            clientChannelStateMachine.onClientIdle();
-            clientChannelStateMachine.onClientInactive();
+            clientConnectionStateMachine.onClientIdle();
+            clientConnectionStateMachine.onClientInactive();
 
             // Then - should only count once for idle, not again for client_closed
             assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
@@ -1158,7 +1158,7 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
 
             // When - error causes disconnect
-            clientChannelStateMachine.onClientException(new RuntimeException("test error"));
+            clientConnectionStateMachine.onClientException(new RuntimeException("test error"));
 
             // Then - client_closed disconnect counter should not be incremented
             assertThat(simpleMeterRegistry.counter("kroxylicious_client_to_proxy_disconnects",
@@ -1218,12 +1218,12 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
 
             // When
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — the immediate-fire path runs through onDrainCompleted → toClosed,
             // so the future completes and the state ends up at Closed
             assertThat(closedFuture).isCompleted();
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             // The drain-completed metric was incremented (proves DisconnectCause routing)
             assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
                     .tag("cause", "drain_completed").counter().count()).isEqualTo(1.0);
@@ -1238,10 +1238,10 @@ class ClientConnectionStateMachineTest {
             bumpClientInFlightCount();
 
             // When
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — state is Draining, autoRead disabled, future still pending
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             assertThat(closedFuture).isNotCompleted();
             verify(frontendHandler).applyBackpressure();
             // Timer was scheduled but not yet cancelled
@@ -1252,15 +1252,15 @@ class ClientConnectionStateMachineTest {
         @Test
         void drainWhenStateIsNotForwardingStillCompletesFuture() {
             // Given — CCSM stuck in HaProxy state (not Forwarding)
-            clientChannelStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, null, TEST_KAFKA_SESSION, -1);
+            clientConnectionStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, null, TEST_KAFKA_SESSION, -1);
 
             // When
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — the reject path in onDraining still fires the onDrained policy so DC
             // (or any caller awaiting the future) doesn't hang waiting for a drain that never starts
             assertThat(closedFuture).isCompleted();
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
             // No autoRead change because we never entered Draining
             verify(frontendHandler, never()).applyBackpressure();
         }
@@ -1272,15 +1272,15 @@ class ClientConnectionStateMachineTest {
             // Given — Forwarding with one in-flight, then drain begins (state goes Draining)
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
 
             // When — server delivers a response, decrementing client-in-flight to 0
-            clientChannelStateMachine.onResponseFromServer(new Object());
+            clientConnectionStateMachine.onResponseFromServer(new Object());
 
             // Then — drain policy fired, state advanced to Closed (via onDrainCompleted → toClosed)
             assertThat(closedFuture).isCompleted();
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             verify(scheduledFuture).cancel(false);
         }
 
@@ -1290,15 +1290,15 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
             bumpClientInFlightCount();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
 
             // When — server delivers ONE response (client-in-flight goes 2 → 1, still > 0)
-            clientChannelStateMachine.onResponseFromServer(new Object());
+            clientConnectionStateMachine.onResponseFromServer(new Object());
 
             // Then — still draining, future not yet completed (the "still waiting" branch ran)
             assertThat(closedFuture).isNotCompleted();
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
 
         // --- onClientRequest Draining drop branch ---
@@ -1310,20 +1310,20 @@ class ClientConnectionStateMachineTest {
             // drop+compensate path
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
 
             // When — a buffered request frame arrives at onClientRequest while in Draining
             var lateFrame = makeRequestFrame();
-            clientChannelStateMachine.onClientRequest(lateFrame);
+            clientConnectionStateMachine.onClientRequest(lateFrame);
 
             // Then — frame released; the in-flight request still pending so drain still active
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             assertThat(closedFuture).isNotCompleted();
 
             // Now deliver the response for the original in-flight; counter goes 1 → 0 → policy fires
-            clientChannelStateMachine.onResponseFromServer(new Object());
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            clientConnectionStateMachine.onResponseFromServer(new Object());
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(closedFuture).isCompleted();
         }
 
@@ -1332,14 +1332,14 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with one in-flight
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // When — a non-RequestFrame (e.g. a control object) arrives in Draining
             Object nonFrame = new Object();
-            clientChannelStateMachine.onClientRequest(nonFrame);
+            clientConnectionStateMachine.onClientRequest(nonFrame);
 
             // Then — released without compensating the counter; drain still pending
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             assertThat(closedFuture).isNotCompleted();
         }
 
@@ -1350,17 +1350,17 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work pending
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             assertThat(closedFuture).isNotCompleted();
 
             // When — the client connection drops mid-drain (e.g. peer disconnect → exception)
-            clientChannelStateMachine.onClientException(new RuntimeException("client gone"));
+            clientConnectionStateMachine.onClientException(new RuntimeException("client gone"));
 
             // Then — toClosed's orphan-close path captured the pendingDrainCallback and ran it
             // on the way out, so the per-connection future still completes and the timer is
             // cancelled even though the drain didn't finish naturally
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(closedFuture).isCompleted();
             verify(scheduledFuture).cancel(false);
         }
@@ -1375,18 +1375,18 @@ class ClientConnectionStateMachineTest {
 
             // Capture the scheduled timer task so we can fire it manually
             ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
             Runnable timerTask = timerCaptor.getValue();
 
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
             assertThat(closedFuture).isNotCompleted();
 
             // When — the timer fires (simulating timeout elapse)
             timerTask.run();
 
             // Then — state forced to Closed with DRAIN_TIMEOUT cause
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(closedFuture).isCompleted();
             assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
                     .tag("cause", "drain_timeout").counter().count()).isEqualTo(1.0);
@@ -1398,10 +1398,10 @@ class ClientConnectionStateMachineTest {
             stateMachineInForwarding();
             bumpClientInFlightCount();
             ArgumentCaptor<Runnable> timerCaptor = ArgumentCaptor.forClass(Runnable.class);
-            CompletableFuture<Void> closedFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             verify(eventLoop).schedule(timerCaptor.capture(), anyLong(), any(TimeUnit.class));
-            clientChannelStateMachine.onResponseFromServer(new Object());
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            clientConnectionStateMachine.onResponseFromServer(new Object());
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(closedFuture).isCompleted();
             double drainCompletedBefore = Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
                     .tag("cause", "drain_completed").counter().count();
@@ -1410,7 +1410,7 @@ class ClientConnectionStateMachineTest {
             timerCaptor.getValue().run();
 
             // Then — no-op: state stays Closed, DRAIN_COMPLETED metric unchanged
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
                     .tag("cause", "drain_completed").counter().count()).isEqualTo(drainCompletedBefore);
         }
@@ -1422,10 +1422,10 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work pending
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // When — drain() called again while already draining
-            CompletableFuture<Void> secondFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> secondFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
             // Then — only one timer scheduled in total (from the first drain call), second future pending
             verify(eventLoop, times(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
@@ -1437,16 +1437,16 @@ class ClientConnectionStateMachineTest {
             // Given — drain in progress with in-flight work, second drain() already called
             stateMachineInForwarding();
             bumpClientInFlightCount();
-            clientChannelStateMachine.drain(DRAIN_TIMEOUT);
-            CompletableFuture<Void> secondFuture = clientChannelStateMachine.drain(DRAIN_TIMEOUT);
+            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            CompletableFuture<Void> secondFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(secondFuture).isNotCompleted();
 
             // When — the in-flight response arrives, completing the drain naturally
-            clientChannelStateMachine.onResponseFromServer(new Object());
+            clientConnectionStateMachine.onResponseFromServer(new Object());
 
             // Then — the second future completes along with the connection closing
             assertThat(secondFuture).isCompleted();
-            assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         }
 
         /**
@@ -1455,10 +1455,10 @@ class ClientConnectionStateMachineTest {
          * mocked as a no-op, so this is purely a counter-bumping action.
          */
         private void bumpClientInFlightCount() {
-            if (!(clientChannelStateMachine.state() instanceof ClientConnectionState.Forwarding)) {
+            if (!(clientConnectionStateMachine.state() instanceof ClientConnectionState.Forwarding)) {
                 stateMachineInForwarding();
             }
-            clientChannelStateMachine.onClientRequest(makeRequestFrame());
+            clientConnectionStateMachine.onClientRequest(makeRequestFrame());
         }
 
         private DecodedRequestFrame<ApiVersionsRequestData> makeRequestFrame() {

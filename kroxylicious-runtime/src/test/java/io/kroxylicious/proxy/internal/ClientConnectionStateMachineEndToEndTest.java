@@ -105,7 +105,7 @@ class ClientConnectionStateMachineEndToEndTest {
     private KafkaProxyBackendHandler backendHandler;
     private boolean activateOutboundChannelAutomatically = true;
 
-    ClientConnectionStateMachine clientChannelStateMachine(EndpointBinding binding) {
+    ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding binding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         return new ClientConnectionStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession);
     }
@@ -123,59 +123,59 @@ class ClientConnectionStateMachineEndToEndTest {
     @Test
     void toClientActive() {
         // Given
-        ClientConnectionStateMachine clientChannelStateMachine = buildFrontendHandler(false);
-        assertThat(clientChannelStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Startup.class);
+        ClientConnectionStateMachine clientConnectionStateMachine = buildFrontendHandler(false);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Startup.class);
         activateOutboundChannelAutomatically = false;
 
         // When
-        hClientConnect(clientChannelStateMachine, handler);
+        hClientConnect(clientConnectionStateMachine, handler);
 
         // Then
         inboundChannel.checkException();
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertThat(clientChannelStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
     }
 
     @ParameterizedTest
     @MethodSource("clientException")
     void toClientActiveThenException(Throwable clientException) {
         // Given
-        var clientChannelStateMachine = buildHandlerInClientActiveState(false);
+        var clientConnectionStateMachine = buildHandlerInClientActiveState(false);
 
         // When
         handler.exceptionCaught(inboundCtx, clientException);
 
         // Then
         inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse(clientChannelStateMachine);
+        assertClientConnectionClosedWithNoResponse(clientConnectionStateMachine);
     }
 
     @Test
     void toClientActiveThenUnexpectedMessage() {
         // Given
-        var clientChannelStateMachine = buildHandlerInClientActiveState(false);
+        var clientConnectionStateMachine = buildHandlerInClientActiveState(false);
 
         // When
         inboundChannel.writeInbound("unexpected");
 
         // Then
         inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse(clientChannelStateMachine);
+        assertClientConnectionClosedWithNoResponse(clientConnectionStateMachine);
     }
 
     @Test
     void toClientActiveThenInactive() {
         // Given
-        var clientChannelStateMachine = buildHandlerInClientActiveState(false);
+        var clientConnectionStateMachine = buildHandlerInClientActiveState(false);
 
         // When
         inboundChannel.close();
 
         // Then
         inboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse(clientChannelStateMachine);
+        assertClientConnectionClosedWithNoResponse(clientConnectionStateMachine);
     }
 
     @ParameterizedTest
@@ -187,10 +187,10 @@ class ClientConnectionStateMachineEndToEndTest {
         // Given
         // Keeps the statemachine from automatically progressing so we can assert intermediate state
         activateOutboundChannelAutomatically = false;
-        var clientChannelStateMachine = buildHandlerInClientActiveState(sni);
+        var clientConnectionStateMachine = buildHandlerInClientActiveState(sni);
 
         if (haProxy) {
-            clientChannelStateMachine.forceState(
+            clientConnectionStateMachine.forceState(
                     new ClientConnectionState.HaProxy(),
                     handler,
                     null,
@@ -215,19 +215,19 @@ class ClientConnectionStateMachineEndToEndTest {
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertHandlerInConnectingState(clientChannelStateMachine, List.of(firstMessage));
+        assertHandlerInConnectingState(clientConnectionStateMachine, List.of(firstMessage));
     }
 
     private ClientConnectionStateMachine buildHandlerInClientActiveState(boolean sni) {
-        var clientChannelStateMachine = buildFrontendHandler(false);
+        var clientConnectionStateMachine = buildFrontendHandler(false);
         activateOutboundChannelAutomatically = false;
 
-        hClientConnect(clientChannelStateMachine, handler);
-        assertThat(clientChannelStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
+        hClientConnect(clientConnectionStateMachine, handler);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
-        return clientChannelStateMachine;
+        return clientConnectionStateMachine;
     }
 
     @ParameterizedTest
@@ -238,7 +238,7 @@ class ClientConnectionStateMachineEndToEndTest {
                                                   ApiKeys firstMessage) {
         // Given
         activateOutboundChannelAutomatically = false;
-        var clientChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
+        var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         firstRequest(firstMessage);
 
         // When
@@ -251,7 +251,7 @@ class ClientConnectionStateMachineEndToEndTest {
                 .describedAs("Buffered request should be forwarded to server")
                 .isNotNull();
 
-        assertProxyActive(clientChannelStateMachine);
+        assertProxyActive(clientConnectionStateMachine);
         assertThat(handler.bufferedMsgs).isNull();
     }
 
@@ -264,7 +264,7 @@ class ClientConnectionStateMachineEndToEndTest {
                                                    Throwable serverException) {
         // Given
         activateOutboundChannelAutomatically = false;
-        var clientChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
+        var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
 
         // When
@@ -276,7 +276,7 @@ class ClientConnectionStateMachineEndToEndTest {
 
         assertNextClientResponseIsErrorFor(requestFrame);
         assertNoMoreResponses();
-        assertEverythingClosed(clientChannelStateMachine);
+        assertEverythingClosed(clientConnectionStateMachine);
     }
 
     private void assertNoMoreResponses() {
@@ -290,7 +290,7 @@ class ClientConnectionStateMachineEndToEndTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
-        var clientChannelStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
+        var clientConnectionStateMachine = buildHandlerInConnectingState(sni, false, firstMessage);
         firstRequest(firstMessage);
 
         // When
@@ -299,7 +299,7 @@ class ClientConnectionStateMachineEndToEndTest {
         // Then
         inboundChannel.checkException();
         outboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse(clientChannelStateMachine);
+        assertClientConnectionClosedWithNoResponse(clientConnectionStateMachine);
     }
 
     @ParameterizedTest
@@ -309,7 +309,7 @@ class ClientConnectionStateMachineEndToEndTest {
                                                 boolean haProxy,
                                                 ApiKeys firstMessage) {
         // Given
-        var clientChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
+        var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         var firstRequest = firstRequest(firstMessage);
 
         // When
@@ -318,7 +318,7 @@ class ClientConnectionStateMachineEndToEndTest {
         // Then
         inboundChannel.checkException();
 
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Connecting.class);
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Connecting.class);
 
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedRequestFrame.class))
@@ -337,7 +337,7 @@ class ClientConnectionStateMachineEndToEndTest {
                           boolean haProxy,
                           ApiKeys firstMessage) {
         // Given
-        var clientChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
+        var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         final DecodedRequestFrame<ApiMessage> requestFrame = firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
@@ -354,7 +354,7 @@ class ClientConnectionStateMachineEndToEndTest {
                 .describedAs("Client autoread should be off while connecting to server")
                 .isFalse();
 
-        assertEverythingClosed(clientChannelStateMachine);
+        assertEverythingClosed(clientConnectionStateMachine);
     }
 
     @ParameterizedTest
@@ -364,7 +364,7 @@ class ClientConnectionStateMachineEndToEndTest {
                              boolean haProxy,
                              ApiKeys firstMessage) {
         // Given
-        var clientChannelStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
+        var clientConnectionStateMachine = buildHandlerInConnectingState(sni, true, firstMessage);
         firstRequest(firstMessage);
         outboundChannel.pipeline().fireChannelActive();
 
@@ -374,11 +374,11 @@ class ClientConnectionStateMachineEndToEndTest {
         // Then
         inboundChannel.checkException();
 
-        assertProxyActive(clientChannelStateMachine);
+        assertProxyActive(clientConnectionStateMachine);
     }
 
-    private void assertProxyActive(ClientConnectionStateMachine clientChannelStateMachine) {
-        assertThat(clientChannelStateMachine.state())
+    private void assertProxyActive(ClientConnectionStateMachine clientConnectionStateMachine) {
+        assertThat(clientConnectionStateMachine.state())
                 .isInstanceOf(ClientConnectionState.Forwarding.class);
 
         assertThat(inboundChannel.config().isAutoRead())
@@ -438,7 +438,7 @@ class ClientConnectionStateMachineEndToEndTest {
     }
 
     private KafkaProxyFrontendHandler handler(
-                                              ClientConnectionStateMachine clientChannelStateMachine,
+                                              ClientConnectionStateMachine clientConnectionStateMachine,
                                               DelegatingDecodePredicate dp) {
         var pfr = mock(PluginFactoryRegistry.class);
         return new KafkaProxyFrontendHandler(pfr,
@@ -448,7 +448,7 @@ class ClientConnectionStateMachineEndToEndTest {
                 new ApiVersionsServiceImpl(),
                 dp,
                 new DefaultSubjectBuilder(List.of()),
-                clientChannelStateMachine, Optional.empty()) {
+                clientConnectionStateMachine, Optional.empty()) {
             @NonNull
             @Override
             Bootstrap configureBootstrap(@NonNull KafkaProxyBackendHandler capturedBackendHandler, @NonNull Channel inboundChannel) {
@@ -503,14 +503,14 @@ class ClientConnectionStateMachineEndToEndTest {
         }
         when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
         when(virtualClusterModel.getClusterName()).thenReturn("RandomCluster");
-        var clientChannelStateMachine = clientChannelStateMachine(endpointBinding);
+        var clientConnectionStateMachine = clientConnectionStateMachine(endpointBinding);
 
-        this.handler = handler(clientChannelStateMachine, dp);
+        this.handler = handler(clientConnectionStateMachine, dp);
         this.inboundCtx = mock(ChannelHandlerContext.class);
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());
         when(inboundCtx.handler()).thenReturn(handler);
-        return clientChannelStateMachine;
+        return clientConnectionStateMachine;
     }
 
     private void newOutboundChannel() {
@@ -526,15 +526,15 @@ class ClientConnectionStateMachineEndToEndTest {
 
     // transitions from each state
     // each of the events that can happen in that state
-    private void hClientConnect(ClientConnectionStateMachine clientChannelStateMachine, KafkaProxyFrontendHandler handler) {
+    private void hClientConnect(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler) {
         final ChannelPipeline pipeline = inboundChannel.pipeline();
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
-            pipeline.addLast(new FilterChainCompletionHandler(clientChannelStateMachine));
+            pipeline.addLast(new FilterChainCompletionHandler(clientConnectionStateMachine));
         }
-        assertThat(clientChannelStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Startup.class);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Startup.class);
         pipeline.fireChannelActive();
-        assertThat(clientChannelStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
     }
 
     private void assertNoClientResponses() {
@@ -547,14 +547,14 @@ class ClientConnectionStateMachineEndToEndTest {
         }
     }
 
-    private void assertClientConnectionClosedWithNoResponse(ClientConnectionStateMachine clientChannelStateMachine) {
+    private void assertClientConnectionClosedWithNoResponse(ClientConnectionStateMachine clientConnectionStateMachine) {
         assertNoClientResponses();
 
         assertThat(inboundChannel.isOpen())
                 .describedAs("Connection to client is closed")
                 .isFalse();
 
-        assertEverythingClosed(clientChannelStateMachine);
+        assertEverythingClosed(clientConnectionStateMachine);
     }
 
     private <T extends ApiMessage> void assertClientResponse(int expectedCorrId,
@@ -611,9 +611,9 @@ class ClientConnectionStateMachineEndToEndTest {
     }
 
     private void assertHandlerInConnectingState(
-                                                ClientConnectionStateMachine clientChannelStateMachine,
+                                                ClientConnectionStateMachine clientConnectionStateMachine,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
-        var stateAssert = assertThat(clientChannelStateMachine.state())
+        var stateAssert = assertThat(clientConnectionStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ClientConnectionState.Connecting.class));
         stateAssert.extracting(ClientConnectionState.Connecting::clientSoftwareName)
                 .isEqualTo(expectedBufferedRequestTypes.contains(ApiKeys.API_VERSIONS) ? CLIENT_SOFTWARE_NAME : null);
@@ -695,16 +695,16 @@ class ClientConnectionStateMachineEndToEndTest {
                                                                        boolean sni,
                                                                        boolean tlsConfigured,
                                                                        ApiKeys firstMessage) {
-        var clientChannelStateMachine = buildFrontendHandler(tlsConfigured);
+        var clientConnectionStateMachine = buildFrontendHandler(tlsConfigured);
 
-        hClientConnect(clientChannelStateMachine, handler);
+        hClientConnect(clientConnectionStateMachine, handler);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
         // the CCSM unblocks the client after the backend is active and transport subject is asynchronously created
         // here we force it to wait for a single event before unblocking.
         int waitingForOneEvent = 1;
-        clientChannelStateMachine.forceState(
+        clientConnectionStateMachine.forceState(
                 new ClientConnectionState.SelectingServer(
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                         firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
@@ -714,7 +714,7 @@ class ClientConnectionStateMachineEndToEndTest {
 
         inboundChannel.config().setAutoRead(false);
 
-        return clientChannelStateMachine;
+        return clientConnectionStateMachine;
     }
 
     @NonNull
@@ -753,8 +753,8 @@ class ClientConnectionStateMachineEndToEndTest {
         }
     }
 
-    private void assertEverythingClosed(ClientConnectionStateMachine clientChannelStateMachine) {
-        assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    private void assertEverythingClosed(ClientConnectionStateMachine clientConnectionStateMachine) {
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         if (outboundChannel != null) {
             await("outboundClosed").atMost(BACKGROUND_TASK_TIMEOUT).untilTrue(outboundClosed);
             assertThat(outboundChannel.isActive()).isFalse();
@@ -764,7 +764,7 @@ class ClientConnectionStateMachineEndToEndTest {
         assertThat(inboundChannel.isOpen()).isFalse();
 
         await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
-                .untilAsserted(() -> assertThat(clientChannelStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class));
+                .untilAsserted(() -> assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class));
     }
 
     /**
@@ -782,10 +782,10 @@ class ClientConnectionStateMachineEndToEndTest {
     @Test
     void shouldMaintainCorrectHandlerOrderingAfterFiltersInstalled() {
         // Given - Build handler which will install filters during ClientActive transition
-        var clientChannelStateMachine = buildFrontendHandler(false);
+        var clientConnectionStateMachine = buildFrontendHandler(false);
 
         // When - Transition to ClientActive state (this installs filters in the pipeline)
-        hClientConnect(clientChannelStateMachine, handler);
+        hClientConnect(clientConnectionStateMachine, handler);
 
         // Then - Verify the pipeline ordering
         ChannelPipeline pipeline = inboundChannel.pipeline();

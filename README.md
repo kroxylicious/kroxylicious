@@ -105,7 +105,8 @@ The proxy must maintain Kafka protocol semantics and guarantees:
 **Key Implementation Files:**
 - `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/ResponseOrderer.java`
 - `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/FilterHandler.java`
-- `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/ProxyChannelStateMachine.java`
+- `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/ClientConnectionStateMachine.java`
+- `kroxylicious-runtime/src/main/java/io/kroxylicious/proxy/internal/ServerConnectionStateMachine.java`
 - `kroxylicious-api/src/main/java/io/kroxylicious/proxy/package-info.java`
 
 ## User Personas
