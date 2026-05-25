@@ -49,6 +49,9 @@ class ProduceDecomposer implements RequestDecomposer<ProduceRequestData, Produce
             for (var tr : resp.responses()) {
                 merged.responses().add(tr.duplicate());
             }
+            for (var ne : resp.nodeEndpoints()) {
+                merged.nodeEndpoints().add(ne.duplicate());
+            }
             maxThrottle = Math.max(maxThrottle, resp.throttleTimeMs());
         }
         merged.setThrottleTimeMs(maxThrottle);
