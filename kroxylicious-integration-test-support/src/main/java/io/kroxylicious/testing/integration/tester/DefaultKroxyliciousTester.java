@@ -59,7 +59,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<KroxyliciousTesterBuilder.TrustStoreConfiguration> trustStoreConfiguration;
 
-    private final Configuration kroxyliciousConfig;
+    // Volatile because reconfigure() updates this from the caller's thread while client-
+    // building helpers (createTopic, producer, etc.) may read it from any thread. The field
+    // is mutated only after a successful KafkaProxy.reconfigure() so the tester's view of
+    // the running configuration mirrors the proxy's currentConfiguration.
+    private volatile Configuration kroxyliciousConfig;
 
     private final Map<GatewayId, KroxyliciousClients> clients;
     private final Map<String, Set<String>> topicsPerVirtualCluster;
@@ -311,7 +315,15 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             throw new UnsupportedOperationException(
                     "reconfigure() requires a KafkaProxy-backed tester; this tester's proxy is " + proxy.getClass().getName());
         }
-        return kp.reconfigure(newConfig);
+        // On success, advance the tester's view of the running configuration so subsequent
+        // client-building helpers (createTopic, producer(vc), consumer(vc)) can find VCs
+        // that the reconfigure added. Mirror the orchestrator's currentConfiguration update
+        // semantics: advance on any non-exceptional completion, including partial-error
+        // results, because the configuration intent has been committed.
+        return kp.reconfigure(newConfig).thenApply(result -> {
+            this.kroxyliciousConfig = newConfig;
+            return result;
+        });
     }
 
     @Override
