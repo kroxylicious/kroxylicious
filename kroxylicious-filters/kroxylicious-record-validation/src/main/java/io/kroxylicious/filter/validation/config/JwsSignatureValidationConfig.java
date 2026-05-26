@@ -33,7 +33,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Configuration for validating a {@link org.apache.kafka.common.record.Record} contains a valid {@link org.jose4j.jws.JsonWebSignature} Signature.
+ * Configuration for validating a {@link org.apache.kafka.common.record.internal.Record} contains a valid {@link org.jose4j.jws.JsonWebSignature} Signature.
  */
 public class JwsSignatureValidationConfig {
     private final JsonWebKeySet trustedJsonWebKeySet;

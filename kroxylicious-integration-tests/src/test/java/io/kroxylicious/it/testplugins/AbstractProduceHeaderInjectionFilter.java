@@ -16,9 +16,9 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.MemoryRecords;
+import org.apache.kafka.common.record.internal.Record;
+import org.apache.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kafka.transform.RecordTransform;
@@ -61,34 +61,34 @@ public abstract class AbstractProduceHeaderInjectionFilter implements ProduceReq
                                     }
 
                                     @Override
-                                    public void init(@Nullable Void state, org.apache.kafka.common.record.Record record) {
+                                    public void init(@Nullable Void state, org.apache.kafka.common.record.internal.Record record) {
                                         // nothing to do
                                     }
 
                                     @Override
-                                    public void resetAfterTransform(Void state, org.apache.kafka.common.record.Record record) {
+                                    public void resetAfterTransform(Void state, org.apache.kafka.common.record.internal.Record record) {
                                         // nothing to do
                                     }
 
                                     @Override
-                                    public long transformOffset(org.apache.kafka.common.record.Record record) {
+                                    public long transformOffset(org.apache.kafka.common.record.internal.Record record) {
                                         return record.offset();
                                     }
 
                                     @Override
-                                    public long transformTimestamp(org.apache.kafka.common.record.Record record) {
+                                    public long transformTimestamp(org.apache.kafka.common.record.internal.Record record) {
                                         return record.timestamp();
                                     }
 
                                     @Nullable
                                     @Override
-                                    public ByteBuffer transformKey(org.apache.kafka.common.record.Record record) {
+                                    public ByteBuffer transformKey(org.apache.kafka.common.record.internal.Record record) {
                                         return record.key();
                                     }
 
                                     @Nullable
                                     @Override
-                                    public ByteBuffer transformValue(org.apache.kafka.common.record.Record record) {
+                                    public ByteBuffer transformValue(org.apache.kafka.common.record.internal.Record record) {
                                         return record.value();
                                     }
 

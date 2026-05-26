@@ -6,13 +6,13 @@
 package io.kroxylicious.proxy.internal.util;
 
 import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
-import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.record.internal.MemoryRecordsBuilder;
+import org.apache.kafka.common.record.internal.RecordBatch;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 /**
- * This introduces additional factory builder methods for {@link org.apache.kafka.common.record.MemoryRecords} that
+ * This introduces additional factory builder methods for {@link org.apache.kafka.common.record.internal.MemoryRecords} that
  * accepts {@link ByteBufOutputStream}<br>
  *
  */

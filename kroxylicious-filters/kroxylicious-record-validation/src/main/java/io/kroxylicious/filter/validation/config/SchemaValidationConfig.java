@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
+ * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.internal.Record} is valid using the schema in Apicurio Registry.
  * @param apicurioRegistryUrl apicurio registry url
  * @param apicurioId schema identifier - interpreted as contentId for V3 (default) or globalId for V2
  * @param wireFormatVersion wire format version (defaults to V3 if null)

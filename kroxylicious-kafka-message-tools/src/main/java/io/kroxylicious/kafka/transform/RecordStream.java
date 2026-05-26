@@ -14,16 +14,16 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 /**
- * <p>An API for manipulating batches of {@link org.apache.kafka.common.record.Record}s.
+ * <p>An API for manipulating batches of {@link org.apache.kafka.common.record.internal.Record}s.
  * This is loosely inspired by {@code java.util.stream.Stream},
- * but more sympathetic to Kafka's {@link org.apache.kafka.common.record.RecordBatch}
- * and {@link org.apache.kafka.common.record.Record} APIs.</p>
+ * but more sympathetic to Kafka's {@link org.apache.kafka.common.record.internal.RecordBatch}
+ * and {@link org.apache.kafka.common.record.internal.Record} APIs.</p>
  *
- * <p>Conceptually a {@code RecordStream} is an ordered sequence of {@link org.apache.kafka.common.record.RecordBatch}es
+ * <p>Conceptually a {@code RecordStream} is an ordered sequence of {@link org.apache.kafka.common.record.internal.RecordBatch}es
  * with the ability to associate some state with records.</p>
  *
  * <h2>Map-like operations</h2>
