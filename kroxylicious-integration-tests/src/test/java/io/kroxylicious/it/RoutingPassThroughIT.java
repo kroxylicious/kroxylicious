@@ -22,7 +22,7 @@ import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetClusterDefinition;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -46,7 +46,7 @@ class RoutingPassThroughIT {
     private static final String TARGET_CLUSTER_NAME = "backing";
 
     private ConfigurationBuilder routingConfig(KafkaCluster cluster) {
-        var targetCluster = new TargetClusterDefinition(TARGET_CLUSTER_NAME,
+        var targetCluster = new ClusterDefinition(TARGET_CLUSTER_NAME,
                 cluster.getBootstrapServers(), null);
 
         var route = new RouteDefinition(ROUTE_NAME, null, new RouteDefinition.Target(TARGET_CLUSTER_NAME, null));
