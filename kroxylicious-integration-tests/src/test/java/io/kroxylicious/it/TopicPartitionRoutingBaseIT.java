@@ -156,7 +156,7 @@ abstract class TopicPartitionRoutingBaseIT {
 
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
-                .withRouter("topic-router")
+                .withTarget(new RouteDefinition.Target(null, "topic-router"))
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192")
                         .editPortIdentifiesNode()
                         .addToNodeIdRanges(new NamedRange("brokers", 0, 5))
@@ -165,7 +165,7 @@ abstract class TopicPartitionRoutingBaseIT {
                 .build();
 
         return baseConfigurationBuilder()
-                .addToTargetClusters(targetA, targetB)
+                .addToClusterDefinitions(targetA, targetB)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
     }

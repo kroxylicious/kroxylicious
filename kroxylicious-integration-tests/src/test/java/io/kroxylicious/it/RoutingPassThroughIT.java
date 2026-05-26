@@ -57,12 +57,12 @@ class RoutingPassThroughIT {
 
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
-                .withRouter(ROUTER_NAME)
+                .withTarget(new RouteDefinition.Target(null, ROUTER_NAME))
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
                 .build();
 
         return baseConfigurationBuilder()
-                .addToTargetClusters(targetCluster)
+                .addToClusterDefinitions(targetCluster)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
     }
