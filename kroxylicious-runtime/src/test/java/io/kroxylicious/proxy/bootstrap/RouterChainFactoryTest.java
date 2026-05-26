@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RouterChainFactoryTest {
 
     private static final List<RouteDefinition> DUMMY_ROUTES = List.of(
-            new RouteDefinition("route1", null, "someCluster", null));
+            new RouteDefinition("route1", null, new RouteDefinition.Target("someCluster", null)));
 
     private static final String VC_NAME = "testVc";
 
@@ -110,7 +110,7 @@ class RouterChainFactoryTest {
                         closeOrder.add("second");
                     }
                 });
-        var routes1 = List.of(new RouteDefinition("r", null, null, "r2"));
+        var routes1 = List.of(new RouteDefinition("r", null, new RouteDefinition.Target(null, "r2")));
         var rd1 = new RouterDefinition("r1", "factory-0", null, routes1);
         var rd2 = new RouterDefinition("r2", "factory-1", null, DUMMY_ROUTES);
         var vc = testVc(VC_NAME, "r1");
@@ -161,7 +161,7 @@ class RouterChainFactoryTest {
                 }
         };
         var pfr = testPfrWithMultiple(factories);
-        var routes1 = List.of(new RouteDefinition("r", null, null, "r2"));
+        var routes1 = List.of(new RouteDefinition("r", null, new RouteDefinition.Target(null, "r2")));
         var rd1 = new RouterDefinition("r1", "factory-0", null, routes1);
         var rd2 = new RouterDefinition("r2", "factory-1", null, DUMMY_ROUTES);
         var vc = testVc(VC_NAME, "r1");
@@ -237,7 +237,7 @@ class RouterChainFactoryTest {
                 return super.initialize(context, config);
             }
         });
-        var routes1 = List.of(new RouteDefinition("toChild", null, null, "child"));
+        var routes1 = List.of(new RouteDefinition("toChild", null, new RouteDefinition.Target(null, "child")));
         var rdParent = new RouterDefinition("parent", TestRouterFactory.class.getName(), null, routes1);
         var rdChild = new RouterDefinition("child", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
         var vc = testVc(VC_NAME, "parent");

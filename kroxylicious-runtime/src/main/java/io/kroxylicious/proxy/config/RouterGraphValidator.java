@@ -42,10 +42,10 @@ class RouterGraphValidator {
                                            Set<String> targetClusterNames) {
         for (var router : routerDefinitions) {
             for (var route : router.routes()) {
-                if (route.targetCluster() != null && !targetClusterNames.contains(route.targetCluster())) {
+                if (route.cluster() != null && !targetClusterNames.contains(route.cluster())) {
                     throw new IllegalConfigurationException(
                             "Route '" + route.name() + "' in router '" + router.name()
-                                    + "' references unknown target cluster '" + route.targetCluster() + "'");
+                                    + "' references unknown cluster '" + route.cluster() + "'");
                 }
                 if (route.router() != null && !routersByName.containsKey(route.router())) {
                     throw new IllegalConfigurationException(
