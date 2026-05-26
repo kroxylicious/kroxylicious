@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +23,7 @@ class BijectiveNodeIdMappingTest {
 
     @Test
     void shouldRoundTripTwoRoutes() {
-        var mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B));
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
         for (int t = 0; t <= 100; t++) {
             for (String route : List.of(ROUTE_A, ROUTE_B)) {
                 int v = mapping.toVirtual(route, t);
@@ -34,7 +35,7 @@ class BijectiveNodeIdMappingTest {
 
     @Test
     void shouldRoundTripThreeRoutes() {
-        var mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B, ROUTE_C));
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1, ROUTE_C, 2), 3);
         for (int t = 0; t <= 50; t++) {
             for (String route : List.of(ROUTE_A, ROUTE_B, ROUTE_C)) {
                 int v = mapping.toVirtual(route, t);
@@ -46,7 +47,7 @@ class BijectiveNodeIdMappingTest {
 
     @Test
     void shouldAssignInterleavedVirtualIds() {
-        var mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B));
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
         assertThat(mapping.toVirtual(ROUTE_A, 0)).isEqualTo(0);
         assertThat(mapping.toVirtual(ROUTE_B, 0)).isEqualTo(1);
         assertThat(mapping.toVirtual(ROUTE_A, 1)).isEqualTo(2);
@@ -57,7 +58,7 @@ class BijectiveNodeIdMappingTest {
 
     @Test
     void shouldProduceUniqueVirtualIds() {
-        var mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B, ROUTE_C));
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1, ROUTE_C, 2), 3);
         var virtualIds = new java.util.HashSet<Integer>();
         for (int t = 0; t < 10; t++) {
             for (String route : List.of(ROUTE_A, ROUTE_B, ROUTE_C)) {
@@ -68,21 +69,44 @@ class BijectiveNodeIdMappingTest {
 
     @Test
     void shouldRejectUnknownRoute() {
-        var mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B));
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
         assertThatThrownBy(() -> mapping.toVirtual("unknown", 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void shouldRejectSingleRoute() {
-        assertThatThrownBy(() -> new BijectiveNodeIdMapping(List.of(ROUTE_A)))
+    void shouldRejectTotalRoutesLessThanTwo() {
+        assertThatThrownBy(() -> new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0), 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
+    void shouldRejectIdOutOfRange() {
+        assertThatThrownBy(() -> new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 5), 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("outside the valid range");
+    }
+
+    @Test
     void shouldHandleTargetNodeIdZero() {
-        var mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B));
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
         assertThat(mapping.toVirtual(ROUTE_A, 0)).isEqualTo(0);
         assertThat(mapping.fromVirtual(0)).isEqualTo(new RouteAndNode(ROUTE_A, 0));
+    }
+
+    @Test
+    void shouldThrowOnOverflow() {
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
+        assertThatThrownBy(() -> mapping.toVirtual(ROUTE_A, Integer.MAX_VALUE))
+                .isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
+    void shouldSupportNonContiguousIds() {
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 2), 3);
+        assertThat(mapping.toVirtual(ROUTE_A, 0)).isEqualTo(0);
+        assertThat(mapping.toVirtual(ROUTE_B, 0)).isEqualTo(2);
+        assertThat(mapping.toVirtual(ROUTE_A, 1)).isEqualTo(3);
+        assertThat(mapping.toVirtual(ROUTE_B, 1)).isEqualTo(5);
     }
 }
