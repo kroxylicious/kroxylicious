@@ -79,8 +79,8 @@ class RoutingMultiBackendIT {
         var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
         var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
-        var routeA = new RouteDefinition("route-a", null, "cluster-a", null);
-        var routeB = new RouteDefinition("route-b", null, "cluster-b", null);
+        var routeA = new RouteDefinition("route-a", null, new RouteDefinition.Target("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", null, new RouteDefinition.Target("cluster-b", null));
 
         var routerConfig = new AlternatingRouterFactory.Config("route-a", "route-b", BATCH_SIZE);
         var routerDef = new RouterDefinition("alternating",
