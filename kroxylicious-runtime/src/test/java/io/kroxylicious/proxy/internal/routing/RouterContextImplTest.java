@@ -52,8 +52,8 @@ class RouterContextImplTest {
     void setUp() {
         channel = new EmbeddedChannel();
         routes = Map.of(
-                "cluster-route", new RouteDescriptor("cluster-route", TARGET, null, List.of()),
-                "router-route", new RouteDescriptor("router-route", null, "nested", List.of()));
+                "cluster-route", new RouteDescriptor("cluster-route", 0, TARGET, null, List.of()),
+                "router-route", new RouteDescriptor("router-route", 1, null, "nested", List.of()));
         forwardedRoute = new AtomicReference<>();
         forwardedMsg = new AtomicReference<>();
         meterRegistry = new SimpleMeterRegistry();
