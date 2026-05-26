@@ -17,12 +17,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Runtime representation of a resolved route within a router.
  *
  * @param name the route name
+ * @param id numeric identifier used in the virtual node ID mapping formula
  * @param targetCluster the target cluster for this route, or null if targeting a nested router
  * @param routerName the name of a nested router to forward to, or null if targeting a cluster
  * @param filters per-route filter definitions (may be empty)
  */
 public record RouteDescriptor(
                               String name,
+                              int id,
                               @Nullable TargetCluster targetCluster,
                               @Nullable String routerName,
                               List<NamedFilterDefinition> filters) {

@@ -266,7 +266,7 @@ public record Configuration(
                             List<NamedFilterDefinition> routeFilters = route.filters() != null
                                     ? resolveFilterNames(filterDefinitionsByName, route.filters())
                                     : List.of();
-                            return new RouteDescriptor(route.name(), tc, route.router(), routeFilters);
+                            return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
                         }));
     }
 

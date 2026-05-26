@@ -17,11 +17,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A route within a router definition.
  *
  * @param name unique name within the enclosing router
+ * @param id numeric identifier for this route, used in the virtual node ID mapping formula
  * @param filters optional list of filter names applied to requests on this route
  * @param target the route's target (a cluster or another router)
  */
 public record RouteDefinition(
                               @JsonProperty(required = true) String name,
+                              @JsonProperty(required = true) int id,
                               @Nullable List<String> filters,
                               @JsonProperty(required = true) Target target) {
 
@@ -29,6 +31,10 @@ public record RouteDefinition(
     public RouteDefinition {
         Objects.requireNonNull(name, "'name' is required in a route definition");
         Objects.requireNonNull(target, "'target' is required in route '" + name + "'");
+        if (id < 0) {
+            throw new IllegalConfigurationException(
+                    "Route '" + name + "' has invalid id " + id + ": must be >= 0");
+        }
     }
 
     /**

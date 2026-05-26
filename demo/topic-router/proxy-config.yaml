@@ -46,9 +46,11 @@ routerDefinitions:
             - bob
     routes:
       - name: route-a
+        id: 0
         target:
           cluster: cluster-a
       - name: route-b
+        id: 1
         target:
           cluster: cluster-b
 virtualClusters:
