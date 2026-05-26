@@ -610,7 +610,7 @@ class ConfigParserTest {
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
-                .hasMessageContaining("must specify exactly one of 'targetCluster', 'namedTargetCluster', or 'router'");
+                .hasMessageContaining("must specify exactly one of 'targetCluster' or 'target'");
     }
 
     @Test

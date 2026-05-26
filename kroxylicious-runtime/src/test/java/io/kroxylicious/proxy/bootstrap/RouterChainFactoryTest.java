@@ -270,7 +270,7 @@ class RouterChainFactoryTest {
         var gateway = new VirtualClusterGateway("gw",
                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
                 null, Optional.empty());
-        return new VirtualCluster(name, null, null, router,
+        return new VirtualCluster(name, null, new RouteDefinition.Target(null, router),
                 List.of(gateway), false, false, null, null, null, null);
     }
 
