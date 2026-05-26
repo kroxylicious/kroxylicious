@@ -53,7 +53,8 @@ routerDefinitions:
           cluster: cluster-b
 virtualClusters:
   - name: demo
-    router: topic-router
+    target:
+      router: topic-router
     gateways:
       - name: host
         portIdentifiesNode:
