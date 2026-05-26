@@ -15,12 +15,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RouterGraphValidatorTest {
 
-    private static RouteDefinition clusterRoute(String name, String cluster) {
-        return new RouteDefinition(name, null, new RouteDefinition.Target(cluster, null));
+    private static RouteDefinition clusterRoute(String name, int id, String cluster) {
+        return new RouteDefinition(name, id, null, new RouteDefinition.Target(cluster, null));
     }
 
-    private static RouteDefinition routerRoute(String name, String router) {
-        return new RouteDefinition(name, null, new RouteDefinition.Target(null, router));
+    private static RouteDefinition routerRoute(String name, int id, String router) {
+        return new RouteDefinition(name, id, null, new RouteDefinition.Target(null, router));
     }
 
     private static RouterDefinition router(String name, RouteDefinition... routes) {
@@ -29,7 +29,7 @@ class RouterGraphValidatorTest {
 
     @Test
     void shouldAcceptSingleRouterWithClusterRoute() {
-        var routers = List.of(router("r1", clusterRoute("foo", "c1")));
+        var routers = List.of(router("r1", clusterRoute("foo", 0, "c1")));
         assertThatCode(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
                 .doesNotThrowAnyException();
     }
@@ -37,8 +37,8 @@ class RouterGraphValidatorTest {
     @Test
     void shouldAcceptLinearChain() {
         var routers = List.of(
-                router("r1", routerRoute("next", "r2")),
-                router("r2", clusterRoute("foo", "c1")));
+                router("r1", routerRoute("next", 0, "r2")),
+                router("r2", clusterRoute("foo", 0, "c1")));
         assertThatCode(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
                 .doesNotThrowAnyException();
     }
@@ -46,16 +46,16 @@ class RouterGraphValidatorTest {
     @Test
     void shouldAcceptDiamondDag() {
         var routers = List.of(
-                router("r1", routerRoute("left", "r2"), routerRoute("right", "r3")),
-                router("r2", clusterRoute("foo", "c1")),
-                router("r3", clusterRoute("bar", "c1")));
+                router("r1", routerRoute("left", 0, "r2"), routerRoute("right", 1, "r3")),
+                router("r2", clusterRoute("foo", 0, "c1")),
+                router("r3", clusterRoute("bar", 0, "c1")));
         assertThatCode(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
                 .doesNotThrowAnyException();
     }
 
     @Test
     void shouldRejectSelfCycle() {
-        var routers = List.of(router("r1", routerRoute("loop", "r1")));
+        var routers = List.of(router("r1", routerRoute("loop", 0, "r1")));
         assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of()))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("cycle")
@@ -65,8 +65,8 @@ class RouterGraphValidatorTest {
     @Test
     void shouldRejectSimpleCycle() {
         var routers = List.of(
-                router("r1", routerRoute("next", "r2")),
-                router("r2", routerRoute("back", "r1")));
+                router("r1", routerRoute("next", 0, "r2")),
+                router("r2", routerRoute("back", 0, "r1")));
         assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of()))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("cycle")
@@ -77,9 +77,9 @@ class RouterGraphValidatorTest {
     @Test
     void shouldRejectThreeNodeCycle() {
         var routers = List.of(
-                router("r1", routerRoute("next", "r2")),
-                router("r2", routerRoute("next", "r3")),
-                router("r3", routerRoute("back", "r1")));
+                router("r1", routerRoute("next", 0, "r2")),
+                router("r2", routerRoute("next", 0, "r3")),
+                router("r3", routerRoute("back", 0, "r1")));
         assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of()))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("cycle");
@@ -87,7 +87,7 @@ class RouterGraphValidatorTest {
 
     @Test
     void shouldRejectDanglingClusterReference() {
-        var routers = List.of(router("r1", clusterRoute("foo", "nonexistent")));
+        var routers = List.of(router("r1", clusterRoute("foo", 0, "nonexistent")));
         assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("unknown cluster")
@@ -96,7 +96,7 @@ class RouterGraphValidatorTest {
 
     @Test
     void shouldRejectDanglingRouterReference() {
-        var routers = List.of(router("r1", routerRoute("next", "nonexistent")));
+        var routers = List.of(router("r1", routerRoute("next", 0, "nonexistent")));
         assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of()))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("unknown router")
