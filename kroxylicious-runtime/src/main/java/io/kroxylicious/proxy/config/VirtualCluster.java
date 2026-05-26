@@ -20,9 +20,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A virtual cluster.
  *
  * @param name virtual cluster name
- * @param targetCluster inline target cluster (mutually exclusive with {@code namedTargetCluster} and {@code router})
- * @param namedTargetCluster reference to a named target cluster (mutually exclusive with {@code targetCluster} and {@code router})
- * @param router reference to a named router (mutually exclusive with {@code targetCluster} and {@code namedTargetCluster})
+ * @param targetCluster deprecated inline target cluster (mutually exclusive with {@code target})
+ * @param target reference to a named cluster or router (mutually exclusive with {@code targetCluster})
  * @param gateways virtual cluster gateways
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
@@ -30,20 +29,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param subjectBuilder subject builder configuration (optional)
  * @param topicNameCache topic-name cache configuration (optional)
  * @param drainTimeout maximum time to wait for in-flight requests to complete during
- *                     graceful connection draining for this cluster. Must be strictly
- *                     less than the Netty shutdown timeout (configured via
- *                     {@code network.proxy.shutdownTimeout}, default 15 s) — otherwise
- *                     Netty's force-close runs first and the per-connection drain timer
- *                     never fires. {@code null} means "use the proxy's default" — the
- *                     resolved value is supplied at the use site by
- *                     {@link #effectiveDrainTimeout()}. The default is currently 10 s
- *                     and may evolve in future proxy versions.
+ *                     graceful connection draining for this cluster
  */
-@SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
+@SuppressWarnings("java:S1123")
 public record VirtualCluster(@JsonProperty(required = true) String name,
-                             @Nullable TargetCluster targetCluster,
-                             @Nullable String namedTargetCluster,
-                             @Nullable String router,
+                             @Deprecated @Nullable TargetCluster targetCluster,
+                             @Nullable RouteDefinition.Target target,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,
@@ -55,7 +46,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
     private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
-    @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
+    @SuppressWarnings("java:S2789")
     public VirtualCluster {
         Objects.requireNonNull(name);
         if (!isDnsLabel(name)) {
@@ -63,7 +54,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                     "Virtual cluster name '" + name + "' is invalid. It must be less than 64 characters long and match pattern " + DNS_LABEL_PATTERN.pattern()
                             + " (case insensitive)");
         }
-        validateReceiverExclusivity(name, targetCluster, namedTargetCluster, router);
+        validateTargetExclusivity(name, targetCluster, target);
         if (gateways == null || gateways.isEmpty()) {
             throw new IllegalConfigurationException("no gateways configured for virtual cluster '" + name + "'");
         }
@@ -83,26 +74,35 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                           boolean logNetwork,
                           boolean logFrames,
                           @Nullable List<String> filters) {
-        this(name, targetCluster, null, null, gateways, logNetwork, logFrames, filters, null, null, null);
+        this(name, targetCluster, null, gateways, logNetwork, logFrames, filters, null, null, null);
     }
 
-    private static void validateReceiverExclusivity(String name,
-                                                    @Nullable TargetCluster targetCluster,
-                                                    @Nullable String namedTargetCluster,
-                                                    @Nullable String router) {
-        int count = 0;
-        if (targetCluster != null) {
-            count++;
-        }
-        if (namedTargetCluster != null) {
-            count++;
-        }
-        if (router != null) {
-            count++;
-        }
-        if (count != 1) {
+    /**
+     * @return the name of the target router, or {@code null}
+     */
+    @Nullable
+    public String router() {
+        return target != null ? target.router() : null;
+    }
+
+    /**
+     * @return the name of the target cluster (from {@code target}), or {@code null}
+     */
+    @Nullable
+    public String namedTargetCluster() {
+        return target != null ? target.cluster() : null;
+    }
+
+    private static void validateTargetExclusivity(String name,
+                                                  @Nullable TargetCluster targetCluster,
+                                                  @Nullable RouteDefinition.Target target) {
+        if (targetCluster != null && target != null) {
             throw new IllegalConfigurationException(
-                    "Virtual cluster '" + name + "' must specify exactly one of 'targetCluster', 'namedTargetCluster', or 'router'");
+                    "Virtual cluster '" + name + "' must specify exactly one of 'targetCluster' or 'target'");
+        }
+        if (targetCluster == null && target == null) {
+            throw new IllegalConfigurationException(
+                    "Virtual cluster '" + name + "' must specify exactly one of 'targetCluster' or 'target'");
         }
     }
 
@@ -133,29 +133,10 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return topicNameCache == null ? CacheConfiguration.DEFAULT : topicNameCache;
     }
 
-    /**
-     * Resolves the {@code drainTimeout} for this virtual cluster, applying the proxy's
-     * default when the field is {@code null}. Used at the construction site of
-     * {@link io.kroxylicious.proxy.model.VirtualClusterModel} so that the raw record
-     * component remains nullable (preserving Jackson round-trip fidelity), while the
-     * runtime always sees a resolved {@link Duration}.
-     */
     Duration effectiveDrainTimeout() {
         return drainTimeout == null ? DEFAULT_DRAIN_TIMEOUT : drainTimeout;
     }
 
-    /**
-     * Returns {@code true} if this cluster's deployment-time configuration is semantically
-     * identical to {@code other}'s. Used by the configuration change-detection pipeline
-     * (see {@code VirtualClusterChangeDetector}) to decide whether a virtual cluster needs
-     * to be restarted across a {@code reconfigure()}.
-     *
-     * <p>Implementation uses the record's auto-generated {@link #equals(Object)} after
-     * canonicalising gateway order &mdash; {@code gateways} is a name-keyed semantic set,
-     * so reordering YAML entries is a no-op and must not produce a false positive. All
-     * other components (including any added in the future) are compared by the record's
-     * auto-equals, so this method extends automatically.
-     */
     public boolean sameAs(@Nullable VirtualCluster other) {
         if (this == other) {
             return true;
@@ -166,11 +147,6 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return this.canonical().equals(other.canonical());
     }
 
-    /**
-     * Returns an equivalent {@link VirtualCluster} with gateways sorted by name. Used only
-     * as an internal helper of {@link #sameAs(VirtualCluster)} to normalise the one
-     * order-insensitive component before the record's auto-equals does the rest.
-     */
     private VirtualCluster canonical() {
         List<VirtualClusterGateway> sortedGateways = gateways.stream()
                 .sorted(java.util.Comparator.comparing(VirtualClusterGateway::name))
@@ -178,8 +154,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return new VirtualCluster(
                 name,
                 targetCluster,
-                namedTargetCluster,
-                router,
+                target,
                 sortedGateways,
                 logNetwork,
                 logFrames,

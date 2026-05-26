@@ -145,7 +145,7 @@ class VirtualClusterTest {
         // Given — VirtualCluster constructed with an explicit drainTimeout
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
         var explicitTimeout = Duration.ofSeconds(45);
-        var vc = new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS, null, null, explicitTimeout);
+        var vc = new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, explicitTimeout);
 
         // When
         var resolved = vc.effectiveDrainTimeout();
@@ -161,7 +161,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS, null, null, Duration.ZERO))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, Duration.ZERO))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
     }
@@ -172,7 +172,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS, null, null, Duration.ofSeconds(-5)))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, Duration.ofSeconds(-5)))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
     }
@@ -183,7 +183,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then — happy path: a positive explicit drainTimeout passes validation
-        assertThatCode(() -> new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS, null, null, Duration.ofMillis(1)))
+        assertThatCode(() -> new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, Duration.ofMillis(1)))
                 .doesNotThrowAnyException();
     }
 }
