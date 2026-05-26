@@ -260,8 +260,8 @@ public record Configuration(
                 .collect(Collectors.toMap(
                         RouteDefinition::name,
                         route -> {
-                            TargetCluster tc = route.targetCluster() != null
-                                    ? resolveNamedTargetCluster(route.targetCluster())
+                            TargetCluster tc = route.cluster() != null
+                                    ? resolveNamedTargetCluster(route.cluster())
                                     : null;
                             List<NamedFilterDefinition> routeFilters = route.filters() != null
                                     ? resolveFilterNames(filterDefinitionsByName, route.filters())
@@ -299,9 +299,9 @@ public record Configuration(
                 .filter(rd -> rd.name().equals(virtualCluster.router()))
                 .findFirst()
                 .flatMap(rd -> rd.routes().stream()
-                        .filter(route -> route.targetCluster() != null)
+                        .filter(route -> route.cluster() != null)
                         .findFirst()
-                        .map(route -> resolveNamedTargetCluster(route.targetCluster())))
+                        .map(route -> resolveNamedTargetCluster(route.cluster())))
                 .orElse(null);
     }
 
