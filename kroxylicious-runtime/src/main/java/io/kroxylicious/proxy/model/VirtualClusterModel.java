@@ -88,8 +88,6 @@ public class VirtualClusterModel {
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
     private final @Nullable String routerName;
     private final @Nullable Map<String, RouteDescriptor> routeDescriptors;
-    private final @Nullable Map<String, Integer> allRouteIds;
-    private final @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
 
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
@@ -98,7 +96,7 @@ public class VirtualClusterModel {
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
         this(clusterName, targetCluster, logNetwork, logFrames, filters,
-                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null, null, null, null, null);
+                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
@@ -110,7 +108,7 @@ public class VirtualClusterModel {
                                @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
                                Duration drainTimeout) {
         this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
-                transportSubjectBuilderConfig, drainTimeout, null, null, null, null, null);
+                transportSubjectBuilderConfig, drainTimeout, null, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
@@ -123,7 +121,7 @@ public class VirtualClusterModel {
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
         this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
-                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, null, null, null, null);
+                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
@@ -136,9 +134,7 @@ public class VirtualClusterModel {
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry,
                                @Nullable String routerName,
-                               @Nullable Map<String, RouteDescriptor> routeDescriptors,
-                               @Nullable Map<String, Integer> allRouteIds,
-                               @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors) {
+                               @Nullable Map<String, RouteDescriptor> routeDescriptors) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
@@ -149,8 +145,6 @@ public class VirtualClusterModel {
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
         this.routerName = routerName;
         this.routeDescriptors = routeDescriptors;
-        this.allRouteIds = allRouteIds;
-        this.allRouteDescriptors = allRouteDescriptors;
 
         if (pluginFactoryRegistry != null && targetCluster != null) {
             TlsCredentialSupplierConfig definition = targetCluster.tls()
@@ -185,22 +179,6 @@ public class VirtualClusterModel {
     @Nullable
     public Map<String, RouteDescriptor> routeDescriptors() {
         return routeDescriptors;
-    }
-
-    /**
-     * @return all route IDs across the entire router graph, or {@code null} if this VC does not use a router
-     */
-    @Nullable
-    public Map<String, Integer> allRouteIds() {
-        return allRouteIds;
-    }
-
-    /**
-     * @return all route descriptors keyed by router name, or {@code null} if this VC does not use a router
-     */
-    @Nullable
-    public Map<String, Map<String, RouteDescriptor>> allRouteDescriptors() {
-        return allRouteDescriptors;
     }
 
     public void logVirtualClusterSummary() {
