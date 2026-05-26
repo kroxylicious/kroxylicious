@@ -12,11 +12,66 @@ For information on modifying or extending the benchmark infrastructure, see [DEV
 
 - Kubernetes cluster with `kubectl` configured
   - Smoke / local validation: 4 CPU, 8 GB RAM (single-node minikube/kind is fine)
-  - Full benchmark run: 8 CPU, 16 GB RAM across the cluster (3 brokers + 3 OMB workers)
+  - Full benchmark run: see [Cluster topology](#cluster-topology) below
 - `helm` 3.0+
 - `gh` (GitHub CLI) — for downloading the Kroxylicious operator release
 - `jbang` — for result comparison scripts ([install](https://www.jbang.dev/download/))
 - `mvn` — for generating JBang source filters
+
+## Cluster topology
+
+These benchmarks model a **centralised proxy tier** — a dedicated set of proxy nodes
+sitting between clients and Kafka brokers. The topology is intentionally strict to produce
+repeatable, comparable numbers: if pods share nodes, the measured overhead changes depending
+on what the scheduler happened to co-locate, making results non-reproducible across runs or
+clusters.
+
+> **Note on other deployment patterns.** Co-locating the proxy with brokers or clients
+> (e.g. a sidecar deployed alongside each broker as a reverse proxy) is a valid and
+> potentially more efficient architecture. In that pattern, pod-to-pod traffic never
+> crosses the physical network, which is a feature not a flaw. These benchmarks do not
+> measure that pattern — they measure the cost of a dedicated proxy hop.
+
+### Recommended node layout
+
+Each process class should be isolated to its own node(s). Mixing classes onto shared
+nodes changes the measured network path and introduces CPU and memory contention that
+varies unpredictably between runs.
+
+| Role | Nodes | Notes |
+|---|---|---|
+| Kafka brokers | 3 | One per node; required for RF=3 |
+| OMB workers | 2–3 | One per node; dedicated nodes separate from brokers and proxy |
+| Proxy | 1 | Dedicated node; separate from brokers and workers |
+
+**Total: 6 nodes** for a fully isolated run matching the recommended layout.
+
+A 4-node cluster (brokers on 3 nodes, proxy + workers sharing 1) is the practical minimum
+but workers will share a node and may interfere with each other under load.
+
+The proxy node must have enough allocatable CPU to satisfy the largest proxy CPU request
+in your sweep. For the blog coefficient sweep (`run-coefficient-sweep.sh`) that is 4000m,
+so size the proxy node to match whatever core count your deployment is targeting.
+
+### Enforcement
+
+The benchmark scripts enforce this topology automatically via pod anti-affinity rules:
+
+- **Kafka brokers** — hard anti-affinity against each other (one per node, enforced by Strimzi)
+- **OMB workers** — hard anti-affinity against broker and proxy nodes; soft anti-affinity
+  against each other (spread across worker nodes where possible)
+- **Proxy** — hard anti-affinity against broker and worker nodes, applied as a strategic-merge
+  patch to the proxy Deployment by `run-benchmark.sh` on every run
+
+If the cluster lacks a node that satisfies the proxy's anti-affinity rules, the proxy pod
+goes **Pending** rather than silently producing results on a co-located node. This is
+intentional — Pending is a visible signal to add capacity.
+
+Use `--skip-proxy-isolation` on `run-benchmark.sh` to bypass the proxy patch if you
+deliberately want to measure co-located behaviour.
+
+Single-node clusters (minikube, kind) are fine for smoke testing and verifying deployment
+but will not produce representative numbers.
 
 ## Quick Start
 
@@ -203,17 +258,6 @@ METRICS_INTERVAL=10 ./scripts/run-benchmark.sh proxy-no-filters 1topic-1kb ./res
 ```
 
 ## Troubleshooting
-
-### Leaving infrastructure running for post-failure inspection
-
-Pass `--skip-teardown` to `run-benchmark.sh` to prevent the script from tearing down
-infrastructure on exit, whether it succeeds or fails:
-
-```bash
-./scripts/run-benchmark.sh --skip-teardown baseline 1topic-1kb ./results/baseline/
-```
-
-The script will print the teardown commands to run manually when you are done inspecting.
 
 ### Leaving infrastructure running for post-failure inspection
 
