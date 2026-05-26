@@ -26,6 +26,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.AttributeKey;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -60,6 +61,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
+    @Nullable
+    private final RouterChainFactory routerChainFactory;
+    private final Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
+    private final String virtualClusterName;
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
     @Nullable
     private ResponseSequencer responseSequencer;
@@ -77,7 +82,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                  MeterProvider<Counter> routingRequestsCounter,
                                  MeterProvider<Counter> routingErrorsCounter,
                                  MeterProvider<Timer> routingRequestDurationTimer,
-                                 AtomicInteger pendingResponseCount) {
+                                 AtomicInteger pendingResponseCount,
+                                 @Nullable RouterChainFactory routerChainFactory,
+                                 Map<String, Map<String, RouteDescriptor>> allRouteDescriptors,
+                                 String virtualClusterName) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
@@ -87,6 +95,9 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         this.routingErrorsCounter = routingErrorsCounter;
         this.routingRequestDurationTimer = routingRequestDurationTimer;
         this.pendingResponseCount = pendingResponseCount;
+        this.routerChainFactory = routerChainFactory;
+        this.allRouteDescriptors = allRouteDescriptors;
+        this.virtualClusterName = virtualClusterName;
     }
 
     @Override

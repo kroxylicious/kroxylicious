@@ -109,6 +109,7 @@ public class VirtualClusterModel implements AutoCloseable {
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
     private final @Nullable String routerName;
     private final @Nullable Map<String, RouteDescriptor> routeDescriptors;
+    private final @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -163,6 +164,22 @@ public class VirtualClusterModel implements AutoCloseable {
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry,
                                @Nullable String routerName,
                                @Nullable Map<String, RouteDescriptor> routeDescriptors) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
+                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, routerName, routeDescriptors, null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               @Nullable TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               CacheConfiguration topicNameCacheConfig,
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
+                               Duration drainTimeout,
+                               @Nullable PluginFactoryRegistry pluginFactoryRegistry,
+                               @Nullable String routerName,
+                               @Nullable Map<String, RouteDescriptor> routeDescriptors,
+                               @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
@@ -173,6 +190,7 @@ public class VirtualClusterModel implements AutoCloseable {
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
         this.routerName = routerName;
         this.routeDescriptors = routeDescriptors;
+        this.allRouteDescriptors = allRouteDescriptors;
 
         if (pluginFactoryRegistry != null && targetCluster != null) {
             TlsCredentialSupplierConfig definition = targetCluster.tls()
@@ -223,6 +241,14 @@ public class VirtualClusterModel implements AutoCloseable {
     @Nullable
     public Map<String, RouteDescriptor> routeDescriptors() {
         return routeDescriptors;
+    }
+
+    /**
+     * @return route descriptors for all routers in the graph, or {@code null} if this VC does not use a router
+     */
+    @Nullable
+    public Map<String, Map<String, RouteDescriptor>> allRouteDescriptors() {
+        return allRouteDescriptors;
     }
 
     public void logVirtualClusterSummary() {
