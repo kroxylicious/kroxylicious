@@ -89,12 +89,12 @@ class RoutingMultiBackendIT {
 
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
-                .withRouter("alternating")
+                .withTarget(new RouteTarget(null, "alternating"))
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
                 .build();
 
         return baseConfigurationBuilder()
-                .addToTargetClusters(targetA, targetB)
+                .addToClusterDefinitions(targetA, targetB)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
     }
