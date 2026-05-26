@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -223,6 +224,8 @@ public record Configuration(
         TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster);
         Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
                 virtualCluster, filterDefinitionsByName);
+        Map<String, Map<String, RouteDescriptor>> allRouteDescriptors = resolveAllRouteDescriptors(
+                virtualCluster.router(), filterDefinitionsByName);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 resolvedTargetCluster,
@@ -234,7 +237,8 @@ public record Configuration(
                 virtualCluster.effectiveDrainTimeout(),
                 pfr,
                 virtualCluster.router(),
-                routeDescriptors);
+                routeDescriptors,
+                allRouteDescriptors);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
@@ -268,6 +272,51 @@ public record Configuration(
                                     : List.of();
                             return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
                         }));
+    }
+
+    @Nullable
+    private Map<String, Map<String, RouteDescriptor>> resolveAllRouteDescriptors(
+                                                                                 @Nullable String topLevelRouterName,
+                                                                                 Map<String, NamedFilterDefinition> filterDefinitionsByName) {
+        if (topLevelRouterName == null || routerDefinitions == null) {
+            return null;
+        }
+        Map<String, RouterDefinition> routersByName = routerDefinitions.stream()
+                .collect(Collectors.toMap(RouterDefinition::name, r -> r));
+        Map<String, Map<String, RouteDescriptor>> result = new HashMap<>();
+        resolveRouterGraph(topLevelRouterName, routersByName, filterDefinitionsByName, result);
+        return Map.copyOf(result);
+    }
+
+    private void resolveRouterGraph(String routerName,
+                                    Map<String, RouterDefinition> routersByName,
+                                    Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                    Map<String, Map<String, RouteDescriptor>> result) {
+        if (result.containsKey(routerName)) {
+            return;
+        }
+        RouterDefinition rd = routersByName.get(routerName);
+        if (rd == null) {
+            return;
+        }
+        Map<String, RouteDescriptor> descriptors = rd.routes().stream()
+                .collect(Collectors.toMap(
+                        RouteDefinition::name,
+                        route -> {
+                            TargetCluster tc = route.cluster() != null
+                                    ? resolveNamedTargetCluster(route.cluster())
+                                    : null;
+                            List<NamedFilterDefinition> routeFilters = route.filters() != null
+                                    ? resolveFilterNames(filterDefinitionsByName, route.filters())
+                                    : List.of();
+                            return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
+                        }));
+        result.put(routerName, descriptors);
+        for (var route : rd.routes()) {
+            if (route.router() != null) {
+                resolveRouterGraph(route.router(), routersByName, filterDefinitionsByName, result);
+            }
+        }
     }
 
     @Nullable

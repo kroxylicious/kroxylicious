@@ -5,14 +5,16 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntUnaryOperator;
+import java.util.stream.Collectors;
 
-import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
@@ -26,6 +28,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.AttributeKey;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -61,6 +64,13 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
+    @Nullable
+    private final RouterChainFactory routerChainFactory;
+    @Nullable
+    private final Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
+    @Nullable
+    private final String virtualClusterName;
+    private final Map<String, Router> nestedRouters = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
     @Nullable
     private ResponseSequencer responseSequencer;
@@ -68,7 +78,19 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     record PendingResponse(CompletableFuture<Response> future,
                            Timer.Sample timerSample,
                            String route,
-                           ApiKeys apiKey) {}
+                           ApiKeys apiKey,
+                           NodeIdMapping nodeIdMapping,
+                           MetadataAddressCacher metadataAddressCacher) {}
+
+    /**
+     * Caches broker addresses from a METADATA response before node ID translation.
+     * The implementation is responsible for mapping target node IDs to the
+     * appropriate virtual IDs for the CCSM address resolver.
+     */
+    @FunctionalInterface
+    interface MetadataAddressCacher {
+        void cacheIfMetadata(Object responseBody);
+    }
 
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
@@ -78,7 +100,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                  MeterProvider<Counter> routingRequestsCounter,
                                  MeterProvider<Counter> routingErrorsCounter,
                                  MeterProvider<Timer> routingRequestDurationTimer,
-                                 AtomicInteger pendingResponseCount) {
+                                 AtomicInteger pendingResponseCount,
+                                 @Nullable RouterChainFactory routerChainFactory,
+                                 @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors,
+                                 @Nullable String virtualClusterName) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
@@ -88,12 +113,30 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         this.routingErrorsCounter = routingErrorsCounter;
         this.routingRequestDurationTimer = routingRequestDurationTimer;
         this.pendingResponseCount = pendingResponseCount;
+        this.routerChainFactory = routerChainFactory;
+        this.allRouteDescriptors = allRouteDescriptors;
+        this.virtualClusterName = virtualClusterName;
         this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
-                routes, nodeIdMapping, routerNodeAddresses);
+                routes, nodeIdMapping, routerNodeAddresses, IntUnaryOperator.identity());
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
+        var toClose = new ArrayList<>(nestedRouters.values());
+        nestedRouters.clear();
+        for (var nested : toClose) {
+            try {
+                nested.close();
+            }
+            catch (RuntimeException e) {
+                LOGGER.atWarn()
+                        .setCause(LOGGER.isDebugEnabled() ? e : null)
+                        .addKeyValue("error", e.getMessage())
+                        .log(LOGGER.isDebugEnabled()
+                                ? "Failed to close nested router"
+                                : "Failed to close nested router, increase log level to DEBUG for stacktrace");
+            }
+        }
         router.close();
     }
 
@@ -169,7 +212,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 routingErrorsCounter,
                 routingRequestDurationTimer,
                 pendingResponseCount,
-                responseSequencer);
+                responseSequencer,
+                routerNodeAddresses,
+                IntUnaryOperator.identity(),
+                hasNestedRouters() ? this::getOrCreateNestedRouterState : null);
 
         router.onRequest(
                 apiVersion,
@@ -224,6 +270,56 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         }
     }
 
+    private boolean hasNestedRouters() {
+        return routerChainFactory != null
+                && allRouteDescriptors != null
+                && routes.values().stream().anyMatch(RouteDescriptor::targetsRouter);
+    }
+
+    private RouterContextImpl.NestedRouterState getOrCreateNestedRouterState(
+                                                                             String routerName,
+                                                                             String outerRouteName) {
+        String cacheKey = outerRouteName + ":" + routerName;
+        Router nested = nestedRouters.computeIfAbsent(cacheKey, k -> routerChainFactory.createRouter(routerName, virtualClusterName));
+
+        Map<String, RouteDescriptor> nestedRoutes = allRouteDescriptors.get(routerName);
+        if (nestedRoutes == null) {
+            throw new IllegalStateException(
+                    "No route descriptors for nested router: " + routerName);
+        }
+
+        var nestedRouteIds = nestedRoutes.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().id()));
+        NodeIdMapping nestedNodeIdMapping = nestedRouteIds.size() > 1
+                ? new BijectiveNodeIdMapping(nestedRouteIds, nestedRouteIds.size())
+                : new IdentityNodeIdMapping(nestedRouteIds.keySet().iterator().next());
+
+        IntUnaryOperator nestedTranslator = nestedVirtual -> nodeIdMapping.toVirtual(outerRouteName, nestedVirtual);
+
+        var nestedBootstrapIds = RouterContextImpl.computeBootstrapNodeIds(
+                nestedRoutes, nestedNodeIdMapping, routerNodeAddresses, nestedTranslator);
+
+        boolean hasDeepNested = nestedRoutes.values().stream()
+                .anyMatch(RouteDescriptor::targetsRouter);
+        RouterContextImpl.NestedRouterProvider childProvider = hasDeepNested
+                ? this::getOrCreateDeepNestedRouterState
+                : null;
+
+        return new RouterContextImpl.NestedRouterState(
+                nested, nestedRoutes, nestedNodeIdMapping,
+                nestedBootstrapIds, nestedTranslator, childProvider);
+    }
+
+    private RouterContextImpl.NestedRouterState getOrCreateDeepNestedRouterState(
+                                                                                 String routerName,
+                                                                                 String outerRouteName) {
+        // Deep nesting is not yet supported; this placeholder fails clearly
+        throw new UnsupportedOperationException(
+                "Routing depth > 2 is not yet supported (router: " + routerName + ")");
+    }
+
     @Override
     public boolean onResponse(Object msg) {
         if (msg instanceof DecodedResponseFrame<?> frame) {
@@ -240,9 +336,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 pendingResponse.timerSample().stop(routingRequestDurationTimer.withTags(
                         Metrics.ROUTE_LABEL, pendingResponse.route(),
                         Metrics.API_KEY_LABEL, pendingResponse.apiKey().name()));
+                pendingResponse.metadataAddressCacher().cacheIfMetadata(frame.body());
                 NodeIdResponseTranslator.translate(
-                        frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
-                cacheNodeAddressesIfMetadata(frame.body());
+                        frame.body(), frame.apiVersion(),
+                        pendingResponse.nodeIdMapping(), pendingResponse.route());
                 Response response = new ResponseImpl(
                         (ResponseHeaderData) frame.header(),
                         frame.body());
@@ -284,17 +381,4 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         return map;
     }
 
-    private void cacheNodeAddressesIfMetadata(Object body) {
-        if (body instanceof MetadataResponseData md) {
-            for (var broker : md.brokers()) {
-                routerNodeAddresses.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
-            }
-            if (!md.brokers().isEmpty()) {
-                LOGGER.atDebug()
-                        .addKeyValue("sessionId", ccsm.sessionId())
-                        .addKeyValue("brokerCount", md.brokers().size())
-                        .log("Cached upstream node addresses from internal METADATA response");
-            }
-        }
-    }
 }

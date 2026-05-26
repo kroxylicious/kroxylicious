@@ -71,6 +71,13 @@ class RouterDispatchHandlerTest {
         pendingResponseCount = new AtomicInteger();
     }
 
+    private static RouterDispatchHandler.PendingResponse testPendingResponse(CompletableFuture<Response> future) {
+        return new RouterDispatchHandler.PendingResponse(
+                future, Timer.start(), "default", ApiKeys.FETCH,
+                new IdentityNodeIdMapping("default"), body -> {
+                });
+    }
+
     private RouterDispatchHandler createHandler(Map<ApiKeys, String> staticRoutes) {
         return new RouterDispatchHandler(
                 router, routes, staticRoutes, ccsm,
@@ -78,7 +85,8 @@ class RouterDispatchHandlerTest {
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount);
+                pendingResponseCount,
+                null, null, null);
     }
 
     private void stubCcsmForRouting() {
@@ -148,8 +156,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.clientChannel()).thenReturn(channel);
 
         CompletableFuture<Response> future = new CompletableFuture<>();
-        var pending = new RouterDispatchHandler.PendingResponse(
-                future, Timer.start(), "default", ApiKeys.FETCH);
+        var pending = testPendingResponse(future);
         RouterDispatchHandler.registerPendingResponse(channel, ROUTING_CORRELATION_ID, pending);
         pendingResponseCount.incrementAndGet();
 
@@ -230,9 +237,9 @@ class RouterDispatchHandlerTest {
         CompletableFuture<Response> future2 = new CompletableFuture<>();
 
         RouterDispatchHandler.registerPendingResponse(channel, routingId1,
-                new RouterDispatchHandler.PendingResponse(future1, Timer.start(), "default", ApiKeys.FETCH));
+                testPendingResponse(future1));
         RouterDispatchHandler.registerPendingResponse(channel, routingId2,
-                new RouterDispatchHandler.PendingResponse(future2, Timer.start(), "default", ApiKeys.FETCH));
+                testPendingResponse(future2));
 
         when(ccsm.clientChannel()).thenReturn(channel);
 
@@ -287,8 +294,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.clientChannel()).thenReturn(channel);
 
         CompletableFuture<Response> future = new CompletableFuture<>();
-        var pending = new RouterDispatchHandler.PendingResponse(
-                future, Timer.start(), "default", ApiKeys.FETCH);
+        var pending = testPendingResponse(future);
         RouterDispatchHandler.registerPendingResponse(channel, ROUTING_CORRELATION_ID, pending);
 
         var responseHeader = new ResponseHeaderData().setCorrelationId(ROUTING_CORRELATION_ID);

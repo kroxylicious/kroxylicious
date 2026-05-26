@@ -5,12 +5,14 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
+import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
@@ -30,6 +32,7 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,6 +54,7 @@ class RouterContextImplTest {
     private ResponseSequencer responseSequencer;
     private NodeIdMapping nodeIdMapping;
     private Map<String, Integer> bootstrapVirtualNodeIds;
+    private Map<Integer, HostPort> sharedNodeAddresses;
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
 
     @BeforeEach
@@ -67,6 +71,7 @@ class RouterContextImplTest {
         responseSequencer = new ResponseSequencer(channel);
         nodeIdMapping = new IdentityNodeIdMapping("cluster-route");
         bootstrapVirtualNodeIds = Map.of("cluster-route", -1);
+        sharedNodeAddresses = new HashMap<>();
     }
 
     private IntSupplier routingIdAllocator() {
@@ -106,7 +111,10 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
-                responseSequencer);
+                responseSequencer,
+                sharedNodeAddresses,
+                IntUnaryOperator.identity(),
+                null);
     }
 
     @Test
@@ -125,6 +133,21 @@ class RouterContextImplTest {
     void shouldReturnBootstrapNodeId() {
         var ctx = createContext();
         assertThat(ctx.bootstrapNodeId("cluster-route")).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldReturnBootstrapNodeIdForRouterTargetingRoute() {
+        var routesWithRouter = Map.of(
+                "cluster-route", new RouteDescriptor("cluster-route", 0, TARGET, null, List.of()),
+                "router-route", new RouteDescriptor("router-route", 1, null, "nested", List.of()));
+        var mapping = new BijectiveNodeIdMapping(Map.of("cluster-route", 0, "router-route", 1), 2);
+        var nodeAddresses = new HashMap<Integer, HostPort>();
+        var bootstrapIds = RouterContextImpl.computeBootstrapNodeIds(
+                routesWithRouter, mapping, nodeAddresses, IntUnaryOperator.identity());
+
+        assertThat(bootstrapIds).containsKey("router-route");
+        assertThat(nodeAddresses).as("router-targeting routes should not register addresses")
+                .doesNotContainKey(bootstrapIds.get("router-route"));
     }
 
     @Test
@@ -170,15 +193,17 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldFailForNestedRouterRoute() {
+    void shouldFailForNestedRouterRouteWithoutProvider() {
         var ctx = createContext();
-        var future = ctx.sendRequestToNode("router-route", 0, new RequestHeaderData(), new FetchRequestData());
+        var future = ctx.sendRequestToNode("router-route", 0,
+                new RequestHeaderData().setRequestApiKey(ApiKeys.FETCH.id).setRequestApiVersion(API_VERSION),
+                new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally()
                 .hasFailedWithThrowableThat()
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("nested routers");
+                .hasMessageContaining("Nested routing is not configured");
     }
 
     @Test
@@ -264,7 +289,10 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
-                responseSequencer);
+                responseSequencer,
+                sharedNodeAddresses,
+                IntUnaryOperator.identity(),
+                null);
 
         var headerA = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
@@ -310,7 +338,10 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
-                responseSequencer);
+                responseSequencer,
+                sharedNodeAddresses,
+                IntUnaryOperator.identity(),
+                null);
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
