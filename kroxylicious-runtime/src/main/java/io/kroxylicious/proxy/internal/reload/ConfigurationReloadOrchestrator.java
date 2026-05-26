@@ -192,7 +192,8 @@ public class ConfigurationReloadOrchestrator {
             // 7. Per-VC add. SEQUENTIAL, after removes. Same error-accumulation contract:
             // a failed add does not prevent subsequent adds from being attempted. Adds run
             // after removes so that endpoint conflicts produced by swap-style edits resolve
-            // in the right order.
+            // in the right order. addCluster() asserts model non-null with a clear diagnostic
+            // for the most likely contract violation (a buggy ChangeDetector).
             if (!changeResult.clustersToAdd().isEmpty()) {
                 var newModelsByName = resolveModelsByName(newConfig);
                 for (String name : changeResult.clustersToAdd()) {
@@ -244,6 +245,9 @@ public class ConfigurationReloadOrchestrator {
     /**
      * Attempt to add a single virtual cluster:
      * <ol>
+     *   <li>Validate {@code newModel} is non-null — this is the canonical place to surface
+     *       a {@link io.kroxylicious.proxy.internal.reload.ChangeDetector} contract violation
+     *       (a name reported as "to add" with no matching model in the submitted config).</li>
      *   <li>Ask the registry to create the lifecycle in {@code INITIALIZING}.</li>
      *   <li>Bind each gateway via {@link EndpointRegistry#registerVirtualCluster}.</li>
      *   <li>On success, transition the lifecycle to {@code SERVING} via
@@ -254,6 +258,12 @@ public class ConfigurationReloadOrchestrator {
      * </ol>
      */
     private void addCluster(String clusterName, VirtualClusterModel newModel, List<ReconfigureError> errors) {
+        if (newModel == null) {
+            throw new IllegalStateException(
+                    "addCluster called with null model for cluster '" + clusterName
+                            + "'; this indicates a ChangeDetector contract violation"
+                            + " (cluster reported as added but absent from the submitted configuration)");
+        }
         try {
             // Step 1: pure bookkeeping — creates the lifecycle in INITIALIZING.
             virtualClusterRegistry.addVirtualCluster(newModel).join();
@@ -294,8 +304,20 @@ public class ConfigurationReloadOrchestrator {
                     .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                     .log("reconfigure: gateway registration failed; rolling back");
             virtualClusterRegistry.initializationFailed(clusterName, cause);
+
+            // Best-effort rollback. Fire-and-forget per gateway, but attach an exceptionally
+            // handler so a deregister failure surfaces in operator-visible logs — without
+            // logging silently, a stuck port binding after a failed add would be invisible.
             for (var g : gateways) {
-                endpointRegistry.deregisterVirtualCluster(g);
+                endpointRegistry.deregisterVirtualCluster(g)
+                        .exceptionally(ex -> {
+                            LOGGER.atWarn()
+                                    .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                                    .addKeyValue(LOG_KEY_ERROR, ex.getMessage())
+                                    .log("reconfigure: rollback deregister failed; gateway binding may remain active");
+                            return null;
+                        });
             }
             errors.add(new ReconfigureError(clusterName, cause));
             return;
