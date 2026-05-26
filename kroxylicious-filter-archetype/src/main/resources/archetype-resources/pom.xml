@@ -26,6 +26,7 @@
         <maven.compiler.testRelease>${java.version}</maven.compiler.testRelease>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.failsafe.version>@maven.failsafe.version@</maven.failsafe.version>
+        <maven.surefire.version>@maven.surefire.version@</maven.surefire.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
@@ -87,6 +88,12 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-integration-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Provides MockFilterContext, the Kroxylicious-supplied emulation of FilterContext used by the unit tests -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- SampleFilterIT uses the config classes from runtime -->
@@ -161,8 +168,13 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.4</version>
+                <version>${maven.failsafe.version}</version>
                 <configuration>
                     <skipTests>${skipITs}</skipTests>
                     <environmentVariables>

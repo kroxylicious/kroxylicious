@@ -54,6 +54,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-filter-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-api</artifactId>
             <scope>test</scope>
@@ -148,6 +153,9 @@
                                         </ignoredUnusedDeclaredDependency>
                                         <ignoredUnusedDeclaredDependency>
                                             io.kroxylicious:kroxylicious-integration-test-support
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>
+                                            io.kroxylicious:kroxylicious-filter-test-support
                                         </ignoredUnusedDeclaredDependency>
                                         <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-api
                                         </ignoredUnusedDeclaredDependency>

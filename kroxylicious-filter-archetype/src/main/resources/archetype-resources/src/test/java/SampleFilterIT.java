@@ -69,11 +69,13 @@ class SampleFilterIT {
                     new ProducerRecord<>(topic.name(), "This is foo!");
             assertThat(producer.send(producerRecord)).succeedsWithin(TIMEOUT);
             consumer.subscribe(List.of(topic.name()));
+            // The filter also prefixes the value with the topic name (e.g. "[<topic-name>] This is bar!"),
+            // demonstrating the topic-id-to-name lookup pattern.
             assertThat(consumer.poll(TIMEOUT).records(topic.name()))
                     .singleElement()
                     .extracting(ConsumerRecord::value)
                     .extracting(String::new)
-                    .isEqualTo("This is bar!");
+                    .isEqualTo("[" + topic.name() + "] This is bar!");
         }
     }
 
@@ -94,11 +96,13 @@ class SampleFilterIT {
                     new ProducerRecord<>(topic.name(), "This is foo!");
             assertThat(producer.send(producerRecord)).succeedsWithin(TIMEOUT);
             consumer.subscribe(List.of(topic.name()));
+            // The filter also prefixes the value with the topic name (e.g. "[<topic-name>] This is bar!"),
+            // demonstrating the topic-id-to-name lookup pattern.
             assertThat(consumer.poll(TIMEOUT).records(topic.name()))
                     .singleElement()
                     .extracting(ConsumerRecord::value)
                     .extracting(String::new)
-                    .isEqualTo("This is bar!");
+                    .isEqualTo("[" + topic.name() + "] This is bar!");
         }
     }
 }
