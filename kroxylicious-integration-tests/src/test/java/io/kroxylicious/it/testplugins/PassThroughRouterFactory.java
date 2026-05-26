@@ -7,7 +7,6 @@ package io.kroxylicious.it.testplugins;
 
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 

@@ -47,6 +47,7 @@ class RouterContextImpl implements RouterContext {
     private final String sessionId;
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
+    private final RouteForwarder routeForwarder;
     private final NodeForwarder nodeForwarder;
     private final NodeIdMapping nodeIdMapping;
     private final Map<String, Integer> bootstrapVirtualNodeIds;
@@ -58,6 +59,14 @@ class RouterContextImpl implements RouterContext {
     private final Channel clientChannel;
     private final ResponseSequencer responseSequencer;
     private final long sequenceNumber;
+
+    /**
+     * Callback interface for forwarding requests to a route's bootstrap server.
+     */
+    @FunctionalInterface
+    interface RouteForwarder {
+        void forward(String routeName, Object msg);
+    }
 
     /**
      * Callback interface for forwarding requests to a specific broker
@@ -73,6 +82,7 @@ class RouterContextImpl implements RouterContext {
                       String sessionId,
                       Subject subject,
                       Map<String, RouteDescriptor> routes,
+                      RouteForwarder routeForwarder,
                       NodeForwarder nodeForwarder,
                       NodeIdMapping nodeIdMapping,
                       Map<String, Integer> bootstrapVirtualNodeIds,
@@ -89,6 +99,7 @@ class RouterContextImpl implements RouterContext {
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
         this.routes = Objects.requireNonNull(routes);
+        this.routeForwarder = Objects.requireNonNull(routeForwarder);
         this.nodeForwarder = Objects.requireNonNull(nodeForwarder);
         this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
         this.bootstrapVirtualNodeIds = Objects.requireNonNull(bootstrapVirtualNodeIds);
@@ -227,7 +238,13 @@ class RouterContextImpl implements RouterContext {
     }
 
     private void forwardToNode(int virtualNodeId, String route, DecodedRequestFrame<?> frame) {
-        nodeForwarder.forward(virtualNodeId, route, frame);
+        Integer bootstrapId = bootstrapVirtualNodeIds.get(route);
+        if (bootstrapId != null && bootstrapId == virtualNodeId) {
+            routeForwarder.forward(route, frame);
+        }
+        else {
+            nodeForwarder.forward(virtualNodeId, route, frame);
+        }
     }
 
     /**
