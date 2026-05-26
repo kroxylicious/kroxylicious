@@ -122,6 +122,8 @@ The Kafka wire protocol is versioned per API key. Each request type (PRODUCE, FE
 - The proxy preserves the client's original `apiVersion` when creating `DecodedRequestFrame` for the backend (`RoutingContextImpl` line 81). The backend encoder serialises at that version. There is no automatic version translation between client and backend.
 - The Kafka producer's default configuration (`enable.idempotence=true` in Kafka 3.0+) can cause retries that appear as additional requests to the proxy. Tests that count requests per API key should disable idempotence and retries, and set `batch.size=0` to ensure one PRODUCE request per record.
 - Pre-v7 FETCH requests cannot carry session fields on the wire, so server-side sessions are structurally impossible for pre-v7 clients regardless of proxy logic.
+- **Nested routers** (a route targeting another router) are supported. Each level has its own `NodeIdMapping`. Virtual node IDs are translated between levels: `outerVirtual = outerMapping.toVirtual(outerRoute, nestedVirtual)`. This composition guarantees no collisions with the outer level's IDs. The CCSM address resolver sees only outermost virtual IDs; each router level sees its own virtual space in responses. The translation happens in the nested level's forwarder callbacks and `MetadataAddressCacher`.
+- **METADATA must be statically routed** when a router sends PRODUCE to multiple independent clusters. `BrokerAddressFilter` only translates addresses for responses on the static/filter path, not the dynamic `PendingResponse` path. Routers that need client-addressable brokers from METADATA should declare METADATA as a static route to a fixed default route.
 
 ## End User Documentation
 
