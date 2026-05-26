@@ -49,7 +49,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
         "development", "network", "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
-                            @Nullable List<TargetClusterDefinition> clusterDefinitions,
+                            @Nullable List<ClusterDefinition> clusterDefinitions,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @Nullable List<RouterDefinition> routerDefinitions,
@@ -73,7 +73,7 @@ public record Configuration(
         }
 
         validateNoDuplicatedClusterNames(virtualClusters);
-        Set<String> targetClusterNames = validateTargetClusterDefinitions(clusterDefinitions);
+        Set<String> targetClusterNames = validateClusterDefinitions(clusterDefinitions);
 
         // Enforce post condition: filterDefinitions have a unique name
         Set<String> filterDefsByName = Set.of();
@@ -127,11 +127,11 @@ public record Configuration(
         }
     }
 
-    private static Set<String> validateTargetClusterDefinitions(@Nullable List<TargetClusterDefinition> clusterDefinitions) {
+    private static Set<String> validateClusterDefinitions(@Nullable List<ClusterDefinition> clusterDefinitions) {
         if (clusterDefinitions == null || clusterDefinitions.isEmpty()) {
             return Set.of();
         }
-        var names = clusterDefinitions.stream().map(TargetClusterDefinition::name).toList();
+        var names = clusterDefinitions.stream().map(ClusterDefinition::name).toList();
         var duplicates = names.stream()
                 .filter(n -> Collections.frequency(names, n) > 1)
                 .collect(Collectors.toSet());
@@ -310,7 +310,7 @@ public record Configuration(
         return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
                 .filter(tc -> tc.name().equals(name))
                 .findFirst()
-                .map(TargetClusterDefinition::toTargetCluster)
+                .map(ClusterDefinition::toTargetCluster)
                 .orElse(null);
     }
 
