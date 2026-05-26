@@ -12,10 +12,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Validates that router definitions form a directed acyclic graph (DAG).
  */
 class RouterGraphValidator {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RouterGraphValidator.class);
+
+    static final int MAX_SAFE_TARGET_NODE_ID = 100_000;
 
     private RouterGraphValidator() {
     }
@@ -34,6 +41,7 @@ class RouterGraphValidator {
                 .collect(Collectors.toMap(RouterDefinition::name, r -> r));
 
         validateReferences(routerDefinitions, routersByName, targetClusterNames);
+        validateRouteIds(routerDefinitions);
         detectCycles(routerDefinitions, routersByName);
     }
 
@@ -51,6 +59,35 @@ class RouterGraphValidator {
                     throw new IllegalConfigurationException(
                             "Route '" + route.name() + "' in router '" + router.name()
                                     + "' references unknown router '" + route.router() + "'");
+                }
+            }
+        }
+    }
+
+    private static void validateRouteIds(List<RouterDefinition> routerDefinitions) {
+        for (var router : routerDefinitions) {
+            int routeCount = router.routes().size();
+            Set<Integer> seen = new HashSet<>();
+            for (var route : router.routes()) {
+                if (route.id() >= routeCount) {
+                    throw new IllegalConfigurationException(
+                            "Route '" + route.name() + "' in router '" + router.name()
+                                    + "' has id " + route.id()
+                                    + " which is outside the valid range [0, " + routeCount + ")");
+                }
+                if (!seen.add(route.id())) {
+                    throw new IllegalConfigurationException(
+                            "Router '" + router.name()
+                                    + "' has duplicate route id " + route.id());
+                }
+            }
+            if (routeCount >= 2) {
+                long maxVirtual = (long) routeCount * MAX_SAFE_TARGET_NODE_ID;
+                if (maxVirtual > Integer.MAX_VALUE) {
+                    throw new IllegalConfigurationException(
+                            "Router '" + router.name() + "' has " + routeCount
+                                    + " routes which risks integer overflow in virtual node ID mapping"
+                                    + " for target node IDs up to " + MAX_SAFE_TARGET_NODE_ID);
                 }
             }
         }

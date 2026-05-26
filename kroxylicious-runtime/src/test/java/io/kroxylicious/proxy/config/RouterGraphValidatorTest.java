@@ -102,4 +102,48 @@ class RouterGraphValidatorTest {
                 .hasMessageContaining("unknown router")
                 .hasMessageContaining("nonexistent");
     }
+
+    @Test
+    void shouldRejectDuplicateRouteIds() {
+        var routers = List.of(router("r1",
+                clusterRoute("foo", 0, "c1"),
+                clusterRoute("bar", 0, "c1")));
+        assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("duplicate route id")
+                .hasMessageContaining("0");
+    }
+
+    @Test
+    void shouldRejectRouteIdOutOfRange() {
+        var routers = List.of(router("r1",
+                clusterRoute("foo", 0, "c1"),
+                clusterRoute("bar", 5, "c1")));
+        assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("outside the valid range")
+                .hasMessageContaining("[0, 2)");
+    }
+
+    @Test
+    void shouldRejectOverflowProneRouteCount() {
+        int routeCount = RouterGraphValidator.MAX_SAFE_TARGET_NODE_ID + 1;
+        RouteDefinition[] routes = new RouteDefinition[routeCount];
+        for (int i = 0; i < routeCount; i++) {
+            routes[i] = clusterRoute("r" + i, i, "c1");
+        }
+        var routers = List.of(router("r1", routes));
+        assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("overflow");
+    }
+
+    @Test
+    void shouldAcceptValidRouteIds() {
+        var routers = List.of(router("r1",
+                clusterRoute("foo", 0, "c1"),
+                clusterRoute("bar", 1, "c1")));
+        assertThatCode(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
+                .doesNotThrowAnyException();
+    }
 }
