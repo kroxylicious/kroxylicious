@@ -30,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>
  * Thread-safe: state transitions and connection registration share the same monitor,
  * so the state transition → connection snapshot sequence in {@link #startDraining()}
- * is atomic with respect to {@link #registerConnection(ProxyChannelStateMachine)}.
+ * is atomic with respect to {@link #registerConnection(ClientConnectionStateMachine)}.
  * This closes the TOCTOU window where a connection could be registered after the
  * drain snapshot is taken and therefore missed by graceful drain.
  * </p>
@@ -42,7 +42,7 @@ public class VirtualClusterLifecycle {
     private final String clusterName;
     private final Duration drainTimeout;
     private VirtualClusterLifecycleState state = new Initializing();
-    private final Set<ProxyChannelStateMachine> activeConnections = new HashSet<>();
+    private final Set<ClientConnectionStateMachine> activeConnections = new HashSet<>();
     @Nullable
     private CompletableFuture<Void> drainFuture;
 
@@ -83,7 +83,7 @@ public class VirtualClusterLifecycle {
      * @return future that completes when all connections have closed
      */
     public CompletableFuture<Void> startDraining() {
-        List<ProxyChannelStateMachine> snapshot;
+        List<ClientConnectionStateMachine> snapshot;
         synchronized (this) {
             transition(current -> {
                 if (current instanceof Serving s) {
@@ -94,7 +94,7 @@ public class VirtualClusterLifecycle {
             snapshot = List.copyOf(activeConnections);
         }
         var closeFutures = snapshot.stream()
-                .map(pcsm -> pcsm.drain(drainTimeout))
+                .map(ccsm -> ccsm.drain(drainTimeout))
                 .toArray(CompletableFuture[]::new);
         drainFuture = CompletableFuture.allOf(closeFutures);
         return drainFuture;
@@ -143,19 +143,19 @@ public class VirtualClusterLifecycle {
         return clusterName;
     }
 
-    public synchronized boolean registerConnection(ProxyChannelStateMachine pcsm) {
+    public synchronized boolean registerConnection(ClientConnectionStateMachine ccsm) {
         if (!(state instanceof Serving)) {
             return false;
         }
-        activeConnections.add(pcsm);
+        activeConnections.add(ccsm);
         return true;
     }
 
-    public synchronized void deregisterConnection(ProxyChannelStateMachine pcsm) {
-        activeConnections.remove(pcsm);
+    public synchronized void deregisterConnection(ClientConnectionStateMachine ccsm) {
+        activeConnections.remove(ccsm);
     }
 
-    public Set<ProxyChannelStateMachine> activeConnections() {
+    public Set<ClientConnectionStateMachine> activeConnections() {
         return Set.copyOf(activeConnections);
     }
 

@@ -268,14 +268,14 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.initializationSucceeded(CLUSTER_B);
 
-        var pcsmA = mock(ProxyChannelStateMachine.class);
-        when(pcsmA.drain(any())).thenReturn(pendingDrainA);
+        var ccsmA = mock(ClientConnectionStateMachine.class);
+        when(ccsmA.drain(any())).thenReturn(pendingDrainA);
 
-        var pcsmB = mock(ProxyChannelStateMachine.class);
-        when(pcsmB.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
+        var ccsmB = mock(ClientConnectionStateMachine.class);
+        when(ccsmB.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-        vcc.registerConnection(CLUSTER_A, pcsmA);
-        vcc.registerConnection(CLUSTER_B, pcsmB);
+        vcc.registerConnection(CLUSTER_A, ccsmA);
+        vcc.registerConnection(CLUSTER_B, ccsmB);
 
         // shutdownAllClusters() blocks, so run it asynchronously
         var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
@@ -283,7 +283,7 @@ class VirtualClusterRegistryTest {
         // then — B must be called even while A is still draining
         Awaitility.await("cluster-b drain should start while cluster-a is still draining")
                 .atMost(5, TimeUnit.SECONDS)
-                .untilAsserted(() -> verify(pcsmB).drain(any()));
+                .untilAsserted(() -> verify(ccsmB).drain(any()));
 
         pendingDrainA.complete(null);
         assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
@@ -293,10 +293,10 @@ class VirtualClusterRegistryTest {
     void shouldKeepServingClusterInDrainingWhileConnectionIsPending() {
         // given
         var pendingDrain = new CompletableFuture<Void>();
-        var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.drain(any())).thenReturn(pendingDrain);
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.drain(any())).thenReturn(pendingDrain);
         vcc.initializationSucceeded(CLUSTER_A);
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        vcc.registerConnection(CLUSTER_A, ccsm);
 
         // shutdownAllClusters() blocks, so run it asynchronously
         var shutdown = CompletableFuture.runAsync(() -> vcc.shutdownAllClusters());
@@ -408,9 +408,9 @@ class VirtualClusterRegistryTest {
         vcc.initializationSucceeded(CLUSTER_A);
 
         var pendingDrain = new CompletableFuture<Void>();
-        var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.drain(any())).thenReturn(pendingDrain);
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.drain(any())).thenReturn(pendingDrain);
+        vcc.registerConnection(CLUSTER_A, ccsm);
         requireLifecycle(CLUSTER_A).startDraining();
 
         // shutdownAllClusters() blocks, so run it asynchronously
@@ -530,24 +530,24 @@ class VirtualClusterRegistryTest {
     void shouldTrackRegisteredConnectionForCluster() {
         // given
         vcc.initializationSucceeded(CLUSTER_A);
-        var pcsm = mock(ProxyChannelStateMachine.class);
+        var ccsm = mock(ClientConnectionStateMachine.class);
 
         // when
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        vcc.registerConnection(CLUSTER_A, ccsm);
 
         // then
-        assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEqualTo(Set.of(pcsm));
+        assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEqualTo(Set.of(ccsm));
     }
 
     @Test
     void shouldRemoveConnectionOnDeregister() {
         // given
         vcc.initializationSucceeded(CLUSTER_A);
-        var pcsm = mock(ProxyChannelStateMachine.class);
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        vcc.registerConnection(CLUSTER_A, ccsm);
 
         // when
-        vcc.deregisterConnection(CLUSTER_A, pcsm);
+        vcc.deregisterConnection(CLUSTER_A, ccsm);
 
         // then
         assertThat(vcc.activeConnectionsFor(CLUSTER_A)).isEmpty();
@@ -560,13 +560,13 @@ class VirtualClusterRegistryTest {
 
     @Test
     void shouldThrowForUnknownClusterOnRegisterConnection() {
-        assertThatThrownBy(() -> vcc.registerConnection("nonexistent", mock(ProxyChannelStateMachine.class)))
+        assertThatThrownBy(() -> vcc.registerConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void shouldThrowForUnknownClusterOnDeregisterConnection() {
-        assertThatThrownBy(() -> vcc.deregisterConnection("nonexistent", mock(ProxyChannelStateMachine.class)))
+        assertThatThrownBy(() -> vcc.deregisterConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -581,25 +581,25 @@ class VirtualClusterRegistryTest {
     @Test
     void shouldInitiateCloseOnRegisteredConnectionWhenShuttingDown() {
         // given
-        var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
         vcc.initializationSucceeded(CLUSTER_A);
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        vcc.registerConnection(CLUSTER_A, ccsm);
 
         // when
         vcc.shutdownAllClusters();
 
         // then
-        verify(pcsm).drain(Duration.ofSeconds(30));
+        verify(ccsm).drain(Duration.ofSeconds(30));
     }
 
     @Test
     void shouldTransitionToStoppedAfterConnectionsDrainOnShutdown() {
         // given
-        var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
         vcc.initializationSucceeded(CLUSTER_A);
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        vcc.registerConnection(CLUSTER_A, ccsm);
 
         // when
         vcc.shutdownAllClusters();
@@ -614,10 +614,10 @@ class VirtualClusterRegistryTest {
     @Test
     void shouldFireStoppedCallbackAfterConnectionsDrainOnShutdown() {
         // given
-        var pcsm = mock(ProxyChannelStateMachine.class);
-        when(pcsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.drain(any())).thenReturn(CompletableFuture.completedFuture(null));
         vcc.initializationSucceeded(CLUSTER_A);
-        vcc.registerConnection(CLUSTER_A, pcsm);
+        vcc.registerConnection(CLUSTER_A, ccsm);
 
         // when
         vcc.shutdownAllClusters();

@@ -62,7 +62,7 @@ public abstract class FilterHarness {
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
     private long timeoutMs = 1000L;
-    ProxyChannelStateMachine proxyChannelStateMachine;
+    ClientConnectionStateMachine clientConnectionStateMachine;
 
     /**
      * Sets the timeout for applied to the filters.
@@ -98,12 +98,12 @@ public abstract class FilterHarness {
         when(endpointBinding.endpointGateway()).thenReturn(gw);
 
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        proxyChannelStateMachine = new ProxyChannelStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
-        var forwarding = new ProxyChannelState.Forwarding(null, null);
-        proxyChannelStateMachine.forceState(
+        clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
+        var forwarding = new ClientConnectionState.Forwarding(null, null);
+        clientConnectionStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
-                mock(KafkaProxyBackendHandler.class),
+                mock(ServerConnectionStateMachine.class),
                 kafkaSession,
                 -1);
         var filterHandlers = Arrays.stream(filters)
@@ -113,7 +113,7 @@ public abstract class FilterHarness {
                 })) // reverses order
                 .stream()
                 .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, inboundChannel,
-                        proxyChannelStateMachine))
+                        clientConnectionStateMachine))
 
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(filterHandlers, channelProcessors);
