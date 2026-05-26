@@ -67,7 +67,7 @@ class RouterDispatchHandlerTest {
 
     @BeforeEach
     void setUp() {
-        routes = Map.of("default", new RouteDescriptor("default", TARGET, null, java.util.List.of()));
+        routes = Map.of("default", new RouteDescriptor("default", 0, TARGET, null, java.util.List.of()));
         meterRegistry = new SimpleMeterRegistry();
         pendingResponseCount = new AtomicInteger();
     }
