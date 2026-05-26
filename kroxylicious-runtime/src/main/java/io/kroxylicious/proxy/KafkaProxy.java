@@ -17,7 +17,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -245,13 +247,15 @@ public final class KafkaProxy implements AutoCloseable {
     public CompletableFuture<Void> startup() {
         // The CAS is the primary guard against concurrent startup; the STOPPING/STOPPED
         // check is belt-and-braces since the real concurrency guard is in shutdown().
-        if (!state.compareAndSet(LifecycleState.NEW, LifecycleState.STARTING)) {
-            LifecycleState current = state.get();
+        return transitionTo(LifecycleState.STARTING, this::doStartup, current -> {
             if (current == LifecycleState.STOPPING || current == LifecycleState.STOPPED) {
                 throw new IllegalStateException("KafkaProxy is not restartable");
             }
             return shutdown; // STARTING or STARTED — idempotent
-        }
+        });
+    }
+
+    private CompletableFuture<Void> doStartup() {
         try {
             if (!TESTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
                 String versionStatus = "untested";
@@ -319,8 +323,9 @@ public final class KafkaProxy implements AutoCloseable {
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
-            state.set(LifecycleState.STARTED);
-            return shutdown;
+            return transitionTo(LifecycleState.STARTED, () -> shutdown, lifecycleState -> {
+                throw new LifecycleException("failed to start Kroxylicious lifecycle state");
+            });
         }
         catch (RuntimeException e) {
             STARTUP_SHUTDOWN_LOGGER.atError()
@@ -332,11 +337,54 @@ public final class KafkaProxy implements AutoCloseable {
             // initializationSucceeded is only called after all VCs register successfully (line 263).
             var wrapped = new LifecycleException("Startup completed exceptionally", e);
             virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationFailed(model.getClusterName(), e));
-            state.set(LifecycleState.STOPPING);
             shutdown.completeExceptionally(wrapped); // claim the future before doShutdown() can complete it normally
-            doShutdown();
+            transitionTo(LifecycleState.STOPPING, this::doShutdown, lifecycleState -> {
+            });
             throw wrapped;
         }
+    }
+
+    private void transitionTo(LifecycleState targetState,
+                              Runnable onTransition,
+                              Consumer<LifecycleState> onNoTransition) {
+        this.transitionTo(targetState, () -> {
+            onTransition.run();
+            return null;
+        }, lifecycleState -> {
+            onNoTransition.accept(lifecycleState);
+            return null;
+        });
+    }
+
+    /**
+     *
+     * @param targetState target state
+     * @param onTransition executed if this call transitions to the targetState
+     * @return the last observed state, could be the targetState if successfully transitioned, else last
+     */
+    private <T> T transitionTo(LifecycleState targetState,
+                               Supplier<T> onTransition,
+                               Function<LifecycleState, T> onNoTransition) {
+        boolean transitioned = false;
+        while (!transitioned) {
+            LifecycleState currentState = state.get();
+            if (currentState == targetState) {
+                // something else has already transitioned to this state
+                return onNoTransition.apply(currentState);
+            }
+            boolean validTransition = switch (currentState) {
+                case NEW -> targetState == LifecycleState.STARTING || targetState == LifecycleState.STOPPING;
+                case STARTING -> targetState == LifecycleState.STARTED || targetState == LifecycleState.STOPPING;
+                case STARTED -> targetState == LifecycleState.STOPPING;
+                case STOPPING -> targetState == LifecycleState.STOPPED;
+                case STOPPED -> false;
+            };
+            if (!validTransition) {
+                return onNoTransition.apply(currentState);
+            }
+            transitioned = state.compareAndSet(currentState, targetState);
+        }
+        return onTransition.get();
     }
 
     private static Optional<NettySettings> getNettySettings(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
@@ -442,10 +490,8 @@ public final class KafkaProxy implements AutoCloseable {
      * and safe to call before {@link #startup()} or after already stopped.
      */
     public void shutdown() {
-        if (!state.compareAndSet(LifecycleState.STARTED, LifecycleState.STOPPING)) {
-            return; // no-op in all other states
-        }
-        doShutdown();
+        transitionTo(LifecycleState.STOPPING, this::doShutdown, lifecycleState -> {
+        });
     }
 
     private void doShutdown() {
@@ -500,7 +546,10 @@ public final class KafkaProxy implements AutoCloseable {
         finally {
             // Close virtual cluster models to release TLS credential supplier resources
             virtualClusterModels.forEach(VirtualClusterModel::close);
-            state.set(LifecycleState.STOPPED);
+            transitionTo(LifecycleState.STOPPED, () -> {
+            }, lifecycleState -> {
+                throw new LifecycleException("failed to transition to stopped from state: " + lifecycleState);
+            });
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
