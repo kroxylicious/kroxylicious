@@ -7,6 +7,7 @@ package io.kroxylicious.it.testplugins;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
@@ -50,16 +51,14 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResult> onRequest(
-                                                                 short apiVersion,
-                                                                 ApiKeys apiKey,
-                                                                 RequestHeaderData header,
-                                                                 ApiMessage request,
-                                                                 RouterContext routerContext) {
-                return routerContext.sendRequest(route, header, request)
-                        .thenApply(response -> {
-                            routerContext.sendResponse(response);
-                            return RouterResult.completed();
-                        });
+                                                           short apiVersion,
+                                                           ApiKeys apiKey,
+                                                           RequestHeaderData header,
+                                                           ApiMessage request,
+                                                           RouterContext routerContext) {
+                int nodeId = routerContext.bootstrapNodeId(route);
+                return routerContext.sendRequestToNode(route, nodeId, header, request)
+                        .thenApply(response -> new RouterResult.Completed(response));
             }
 
             @Override

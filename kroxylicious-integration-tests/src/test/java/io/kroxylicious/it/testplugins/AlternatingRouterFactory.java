@@ -74,21 +74,21 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResult> onRequest(
-                                                                 short apiVersion,
-                                                                 ApiKeys apiKey,
-                                                                 RequestHeaderData header,
-                                                                 ApiMessage request,
-                                                                 RouterContext routerContext) {
+                                                           short apiVersion,
+                                                           ApiKeys apiKey,
+                                                           RequestHeaderData header,
+                                                           ApiMessage request,
+                                                           RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    return routerContext.sendRequest(routeA, header, request)
+                    int nodeId = routerContext.bootstrapNodeId(routeA);
+                    return routerContext.sendRequestToNode(routeA, nodeId, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response.body());
                                 LOGGER.atDebug()
                                         .addKeyValue("sessionId", routerContext.sessionId())
                                         .addKeyValue("cappedMaxVersion", MAX_PRODUCE_VERSION)
                                         .log("Capped PRODUCE version in API_VERSIONS response");
-                                routerContext.sendResponse(response);
-                                return RouterResult.completed();
+                                return new RouterResult.Completed(response);
                             });
                 }
 
@@ -100,11 +100,9 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                         .addKeyValue("batchIndex", index)
                         .addKeyValue("batchSize", batchSize)
                         .log("Alternating router chose route based on batch index");
-                return routerContext.sendRequest(route, header, request)
-                        .thenApply(response -> {
-                            routerContext.sendResponse(response);
-                            return RouterResult.completed();
-                        });
+                int nodeId = routerContext.bootstrapNodeId(route);
+                return routerContext.sendRequestToNode(route, nodeId, header, request)
+                        .thenApply(response -> new RouterResult.Completed(response));
             }
 
             @Override
