@@ -39,7 +39,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetClusterDefinition;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory;
 import io.kroxylicious.proxy.router.topic.config.RouteConfig;
@@ -136,8 +136,8 @@ abstract class TopicPartitionRoutingBaseIT {
                                            Duration producerIdTtl,
                                            Integer maxFetchSessionCacheSlots,
                                            Duration minFetchSessionEviction) {
-        var targetA = new TargetClusterDefinition("cluster-a", a.getBootstrapServers(), null);
-        var targetB = new TargetClusterDefinition("cluster-b", b.getBootstrapServers(), null);
+        var targetA = new ClusterDefinition("cluster-a", a.getBootstrapServers(), null);
+        var targetB = new ClusterDefinition("cluster-b", b.getBootstrapServers(), null);
 
         var routeA = new RouteDefinition("route-a", null, new RouteDefinition.Target("cluster-a", null));
         var routeB = new RouteDefinition("route-b", null, new RouteDefinition.Target("cluster-b", null));

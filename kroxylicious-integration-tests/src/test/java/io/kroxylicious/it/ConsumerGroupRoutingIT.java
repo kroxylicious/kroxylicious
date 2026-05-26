@@ -55,7 +55,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetClusterDefinition;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory;
 import io.kroxylicious.proxy.router.topic.config.RouteConfig;
@@ -400,8 +400,8 @@ class ConsumerGroupRoutingIT {
     private ConfigurationBuilder buildConfig(KafkaCluster clusterA,
                                              KafkaCluster clusterB,
                                              Map<String, String> subjectRoutes) {
-        var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
-        var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+        var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
         var routeA = new RouteDefinition("route-a", null, new RouteDefinition.Target("cluster-a", null));
         var routeB = new RouteDefinition("route-b", null, new RouteDefinition.Target("cluster-b", null));
