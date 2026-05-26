@@ -239,10 +239,11 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         working-directory: ${{ steps.parse.outputs.module }}
         run: |
-          # Activate dist profile for KT tests
+          # Activate dist profile and skip flags for KT tests
           if [ "${{ steps.check_k8s.outputs.has_kt_tests }}" = "true" ]; then
             PROFILES="dist,!qa"
-            EXTRA_PROPS="-DskipKTs=false"
+            # Skip default integration-test execution, enable kube-integration-test execution
+            EXTRA_PROPS="-DskipITs=true -DskipKTs=false"
           else
             PROFILES="!qa"
             EXTRA_PROPS=""
