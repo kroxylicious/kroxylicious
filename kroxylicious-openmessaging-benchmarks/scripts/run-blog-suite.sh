@@ -37,7 +37,6 @@ Usage: $(basename "$0") [--cluster-overrides <file>] [--output-dir <dir>]
 
 Options:
   --cluster-overrides <file>  Helm values for cluster-specific settings
-                              (default: fyre-cluster.yaml)
   --output-dir <dir>          Root directory for all results
                               (default: results/blog-suite-<timestamp>)
   -h, --help                  Show this help
@@ -45,7 +44,7 @@ EOF
     exit 1
 }
 
-CLUSTER_OVERRIDES="fyre-cluster.yaml"
+CLUSTER_OVERRIDES=""
 OUTPUT_DIR=""
 
 while [[ $# -gt 0 ]]; do
@@ -67,10 +66,13 @@ exec > >(tee "${OUTPUT_DIR}/suite.log") 2>&1
 echo "=========================================="
 echo "Blog benchmark suite — ${RUN_ID}"
 echo "Results: ${OUTPUT_DIR}"
-echo "Cluster overrides: ${CLUSTER_OVERRIDES}"
+echo "Cluster overrides: ${CLUSTER_OVERRIDES:-none}"
 echo "Started: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "=========================================="
 echo ""
+
+CLUSTER_OVERRIDES_ARG=()
+[[ -n "${CLUSTER_OVERRIDES}" ]] && CLUSTER_OVERRIDES_ARG=(--cluster-overrides "${CLUSTER_OVERRIDES}")
 
 FAILED_STEPS=()
 
@@ -96,7 +98,7 @@ run_step() {
 run_step "post1-multi-topic-latency" \
     scripts/run-all-scenarios.sh \
         baseline proxy-no-filters encryption \
-        --cluster-overrides "${CLUSTER_OVERRIDES}" \
+        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         "${OUTPUT_DIR}/all-scenarios/"
 
 # ---------------------------------------------------------------------------
@@ -107,7 +109,7 @@ run_step "post1-rate-sweep-1core-rf3" \
         --min-rate 8000 --max-rate 22000 --step-percent 5 \
         --scenarios baseline,proxy-no-filters,encryption \
         --workload 1topic-1kb \
-        --cluster-overrides "${CLUSTER_OVERRIDES}" \
+        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         --set kroxylicious.resources.requests.cpu=1000m \
         --set kroxylicious.resources.limits.cpu=1000m \
         --output-dir "${OUTPUT_DIR}/rate-sweep-1core-rf3/"
@@ -121,7 +123,7 @@ run_step "post2-conn-sweep-encryption-1core-1topic" \
         --per-producer-rate 10000 \
         --steps 1,2,4,8,16 \
         --workload 1topic-1kb \
-        --cluster-overrides "${CLUSTER_OVERRIDES}" \
+        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         --set kafka.replicationFactor=1 \
         --set kafka.minInSyncReplicas=1 \
         --set kroxylicious.resources.requests.cpu=1000m \
@@ -134,7 +136,7 @@ run_step "post2-conn-sweep-encryption-4core-1topic" \
         --per-producer-rate 10000 \
         --steps 1,2,4,8,16,32 \
         --workload 1topic-1kb \
-        --cluster-overrides "${CLUSTER_OVERRIDES}" \
+        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         --set kafka.replicationFactor=1 \
         --set kafka.minInSyncReplicas=1 \
         --output-dir "${OUTPUT_DIR}/conn-sweep-encryption-4core-1topic-rf1/"
@@ -145,7 +147,7 @@ run_step "post2-conn-sweep-encryption-4core-10topics" \
         --per-producer-rate 10000 \
         --steps 1,2,4,8,16,32 \
         --workload 10topics-1kb \
-        --cluster-overrides "${CLUSTER_OVERRIDES}" \
+        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         --set kafka.replicationFactor=1 \
         --set kafka.minInSyncReplicas=1 \
         --output-dir "${OUTPUT_DIR}/conn-sweep-encryption-4core-10topics-rf1/"
@@ -156,7 +158,7 @@ run_step "post2-conn-sweep-no-filters-4core-10topics" \
         --per-producer-rate 10000 \
         --steps 1,2,4,8,16,32 \
         --workload 10topics-1kb \
-        --cluster-overrides "${CLUSTER_OVERRIDES}" \
+        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         --set kafka.replicationFactor=1 \
         --set kafka.minInSyncReplicas=1 \
         --output-dir "${OUTPUT_DIR}/conn-sweep-no-filters-4core-10topics-rf1/"

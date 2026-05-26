@@ -50,6 +50,10 @@ spec:
                 operator: In
                 values: ["proxy"]
             topologyKey: kubernetes.io/hostname
+          # Soft rather than hard: worker-to-worker co-location does not affect the measured
+          # proxy path (only broker and proxy co-location does), so packing workers onto
+          # shared nodes is harmless to measurement quality. A hard rule would make workers
+          # unschedulable on smaller clusters without improving result accuracy.
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100
             podAffinityTerm:
