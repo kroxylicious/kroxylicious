@@ -1543,7 +1543,7 @@ class ClientConnectionStateMachineTest {
             };
             routingCcsm.setNodeIdMapping(
                     new io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping(
-                            List.of("route-a", "route-b")));
+                            Map.of("route-a", 0, "route-b", 1), 2));
         }
 
         @Test

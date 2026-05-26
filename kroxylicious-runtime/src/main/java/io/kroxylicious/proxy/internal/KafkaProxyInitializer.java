@@ -284,10 +284,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
             var pendingResponseCount = new AtomicInteger();
             Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
-            var routeNames = routeDescriptors.keySet().stream().sorted().toList();
-            NodeIdMapping nodeIdMapping = routeNames.size() > 1
-                    ? new BijectiveNodeIdMapping(routeNames)
-                    : new IdentityNodeIdMapping(routeNames.iterator().next());
+            var routeIds = routeDescriptors.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> e.getValue().id()));
+            NodeIdMapping nodeIdMapping = routeIds.size() > 1
+                    ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
+                    : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
             var dispatchHandler = new RouterDispatchHandler(
                     router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
                     nodeIdMapping,

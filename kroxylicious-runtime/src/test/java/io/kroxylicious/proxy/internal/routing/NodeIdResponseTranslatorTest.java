@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
@@ -31,7 +32,7 @@ class NodeIdResponseTranslatorTest {
     private static final String ROUTE_A = "route-a";
     private static final String ROUTE_B = "route-b";
 
-    private final NodeIdMapping mapping = new BijectiveNodeIdMapping(List.of(ROUTE_A, ROUTE_B));
+    private final NodeIdMapping mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
 
     @Test
     void shouldTranslateMetadataBrokers() {
