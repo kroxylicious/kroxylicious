@@ -59,11 +59,11 @@ import org.slf4j.LoggerFactory;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.filter.sasl.inspection.SaslInspection;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory;
 import io.kroxylicious.proxy.router.topic.config.RouteConfig;
