@@ -17,7 +17,7 @@
 management:
   endpoints:
     prometheus: {}
-targetClusters:
+clusterDefinitions:
   - name: cluster-a
     bootstrapServers: kafka-a-1:9093
   - name: cluster-b
