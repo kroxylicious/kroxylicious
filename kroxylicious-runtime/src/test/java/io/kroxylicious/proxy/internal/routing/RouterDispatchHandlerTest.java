@@ -199,10 +199,10 @@ class RouterDispatchHandlerTest {
         }).when(router).onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
 
         doAnswer(invocation -> {
-            forwardedRoute.set(invocation.getArgument(1));
-            forwardedMsg.set(invocation.getArgument(2));
+            forwardedRoute.set(invocation.getArgument(0));
+            forwardedMsg.set(invocation.getArgument(1));
             return null;
-        }).when(ccsm).forwardToNode(any(int.class), any(), any());
+        }).when(ccsm).forwardToRoute(any(), any());
 
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);

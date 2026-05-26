@@ -90,6 +90,10 @@ class RouterContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
+                (routeName, msg) -> {
+                    forwardedRoute.set(routeName);
+                    forwardedMsg.set(msg);
+                },
                 (virtualNodeId, routeName, msg) -> {
                     forwardedNodeId.set(virtualNodeId);
                     forwardedRoute.set(routeName);
@@ -251,6 +255,7 @@ class RouterContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
+                (routeName, msg) -> forwardedFrames.add(msg),
                 (virtualNodeId, routeName, msg) -> forwardedFrames.add(msg),
                 nodeIdMapping,
                 bootstrapVirtualNodeIds,
@@ -292,6 +297,9 @@ class RouterContextImplTest {
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
+                (routeName, msg) -> {
+                    throw new IllegalStateException("Upstream address not yet known");
+                },
                 (virtualNodeId, routeName, msg) -> {
                     throw new IllegalStateException("Upstream address not yet known");
                 },

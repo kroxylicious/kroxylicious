@@ -160,6 +160,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
                 routes,
+                (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded),
                 (virtualNodeId, routeName, forwarded) -> ccsm.forwardToNode(virtualNodeId, routeName, forwarded),
                 nodeIdMapping,
                 bootstrapVirtualNodeIds,
