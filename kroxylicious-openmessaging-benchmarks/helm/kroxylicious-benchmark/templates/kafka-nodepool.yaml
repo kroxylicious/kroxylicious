@@ -28,3 +28,12 @@ spec:
       deleteClaim: false
   resources:
 {{ toYaml .Values.kafka.resources | nindent 4 }}
+  template:
+    pod:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/pool-name: kafka-pool
+            topologyKey: kubernetes.io/hostname
