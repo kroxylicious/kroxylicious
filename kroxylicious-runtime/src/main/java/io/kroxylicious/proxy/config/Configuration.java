@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -223,6 +224,9 @@ public record Configuration(
         TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster);
         Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
                 virtualCluster, filterDefinitionsByName);
+        Map<String, Integer> allRouteIds = collectAllRouteIds(virtualCluster);
+        Map<String, Map<String, RouteDescriptor>> allRouteDescriptors = collectAllRouteDescriptors(
+                virtualCluster, filterDefinitionsByName);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 resolvedTargetCluster,
@@ -234,7 +238,9 @@ public record Configuration(
                 virtualCluster.effectiveDrainTimeout(),
                 pfr,
                 virtualCluster.router(),
-                routeDescriptors);
+                routeDescriptors,
+                allRouteIds,
+                allRouteDescriptors);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
@@ -256,6 +262,12 @@ public record Configuration(
         if (rd == null) {
             return null;
         }
+        return resolveRouterRouteDescriptors(rd, filterDefinitionsByName);
+    }
+
+    private Map<String, RouteDescriptor> resolveRouterRouteDescriptors(
+                                                                       RouterDefinition rd,
+                                                                       Map<String, NamedFilterDefinition> filterDefinitionsByName) {
         return rd.routes().stream()
                 .collect(Collectors.toMap(
                         RouteDefinition::name,
@@ -268,6 +280,81 @@ public record Configuration(
                                     : List.of();
                             return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
                         }));
+    }
+
+    /**
+     * Collects all route IDs across the entire router graph reachable from the
+     * given virtual cluster's router. Used to build a global {@code NodeIdMapping}.
+     */
+    @Nullable
+    Map<String, Integer> collectAllRouteIds(VirtualCluster virtualCluster) {
+        if (virtualCluster.router() == null || routerDefinitions == null) {
+            return null;
+        }
+        Map<String, RouterDefinition> routersByName = routerDefinitions.stream()
+                .collect(Collectors.toMap(RouterDefinition::name, r -> r));
+        Map<String, Integer> allRouteIds = new HashMap<>();
+        collectRouteIdsRecursively(virtualCluster.router(), routersByName, allRouteIds, new HashSet<>());
+        return allRouteIds;
+    }
+
+    private void collectRouteIdsRecursively(String routerName,
+                                            Map<String, RouterDefinition> routersByName,
+                                            Map<String, Integer> allRouteIds,
+                                            Set<String> visited) {
+        if (!visited.add(routerName)) {
+            return;
+        }
+        RouterDefinition rd = routersByName.get(routerName);
+        if (rd == null) {
+            return;
+        }
+        for (RouteDefinition route : rd.routes()) {
+            allRouteIds.put(route.name(), route.id());
+            if (route.router() != null) {
+                collectRouteIdsRecursively(route.router(), routersByName, allRouteIds, visited);
+            }
+        }
+    }
+
+    /**
+     * Resolves all route descriptors for all routers in the graph reachable from
+     * the given virtual cluster's router. Keyed by router name.
+     */
+    @Nullable
+    Map<String, Map<String, RouteDescriptor>> collectAllRouteDescriptors(
+                                                                         VirtualCluster virtualCluster,
+                                                                         Map<String, NamedFilterDefinition> filterDefinitionsByName) {
+        if (virtualCluster.router() == null || routerDefinitions == null) {
+            return null;
+        }
+        Map<String, RouterDefinition> routersByName = routerDefinitions.stream()
+                .collect(Collectors.toMap(RouterDefinition::name, r -> r));
+        Map<String, Map<String, RouteDescriptor>> result = new HashMap<>();
+        collectRouteDescriptorsRecursively(virtualCluster.router(), routersByName,
+                filterDefinitionsByName, result, new HashSet<>());
+        return result;
+    }
+
+    private void collectRouteDescriptorsRecursively(String routerName,
+                                                    Map<String, RouterDefinition> routersByName,
+                                                    Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                    Map<String, Map<String, RouteDescriptor>> result,
+                                                    Set<String> visited) {
+        if (!visited.add(routerName)) {
+            return;
+        }
+        RouterDefinition rd = routersByName.get(routerName);
+        if (rd == null) {
+            return;
+        }
+        result.put(routerName, resolveRouterRouteDescriptors(rd, filterDefinitionsByName));
+        for (RouteDefinition route : rd.routes()) {
+            if (route.router() != null) {
+                collectRouteDescriptorsRecursively(route.router(), routersByName,
+                        filterDefinitionsByName, result, visited);
+            }
+        }
     }
 
     @Nullable
