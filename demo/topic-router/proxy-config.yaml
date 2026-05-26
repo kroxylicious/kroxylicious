@@ -46,9 +46,11 @@ routerDefinitions:
             - bob
     routes:
       - name: route-a
-        targetCluster: cluster-a
+        target:
+          cluster: cluster-a
       - name: route-b
-        targetCluster: cluster-b
+        target:
+          cluster: cluster-b
 virtualClusters:
   - name: demo
     router: topic-router
