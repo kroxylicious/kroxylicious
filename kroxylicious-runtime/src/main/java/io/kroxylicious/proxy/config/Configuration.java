@@ -34,7 +34,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br>
  *
  * @param management management configuration
- * @param targetClusters Named target cluster definitions, referenced by routes and virtual clusters.
+ * @param clusterDefinitions Named target cluster definitions, referenced by routes and virtual clusters.
  * @param filterDefinitions A list of named filter definitions (names must be unique)
  * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
  * @param routerDefinitions Named router definitions.
@@ -45,11 +45,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param network Controls aspects of network configuration for the proxy.
  * @param proxyProtocol PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "targetClusters", "filterDefinitions", "defaultFilters", "routerDefinitions", "virtualClusters", "micrometer", "useIoUring",
+@JsonPropertyOrder({ "management", "clusterDefinitions", "filterDefinitions", "defaultFilters", "routerDefinitions", "virtualClusters", "micrometer", "useIoUring",
         "development", "network", "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
-                            @Nullable List<TargetClusterDefinition> targetClusters,
+                            @Nullable List<TargetClusterDefinition> clusterDefinitions,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @Nullable List<RouterDefinition> routerDefinitions,
@@ -73,7 +73,7 @@ public record Configuration(
         }
 
         validateNoDuplicatedClusterNames(virtualClusters);
-        Set<String> targetClusterNames = validateTargetClusterDefinitions(targetClusters);
+        Set<String> targetClusterNames = validateTargetClusterDefinitions(clusterDefinitions);
 
         // Enforce post condition: filterDefinitions have a unique name
         Set<String> filterDefsByName = Set.of();
@@ -127,17 +127,17 @@ public record Configuration(
         }
     }
 
-    private static Set<String> validateTargetClusterDefinitions(@Nullable List<TargetClusterDefinition> targetClusters) {
-        if (targetClusters == null || targetClusters.isEmpty()) {
+    private static Set<String> validateTargetClusterDefinitions(@Nullable List<TargetClusterDefinition> clusterDefinitions) {
+        if (clusterDefinitions == null || clusterDefinitions.isEmpty()) {
             return Set.of();
         }
-        var names = targetClusters.stream().map(TargetClusterDefinition::name).toList();
+        var names = clusterDefinitions.stream().map(TargetClusterDefinition::name).toList();
         var duplicates = names.stream()
                 .filter(n -> Collections.frequency(names, n) > 1)
                 .collect(Collectors.toSet());
         if (!duplicates.isEmpty()) {
             throw new IllegalConfigurationException(
-                    "'targetClusters' contains duplicate names: " + duplicates);
+                    "'clusterDefinitions' contains duplicate names: " + duplicates);
         }
         return new HashSet<>(names);
     }
@@ -276,7 +276,7 @@ public record Configuration(
             return virtualCluster.targetCluster();
         }
         if (virtualCluster.namedTargetCluster() != null) {
-            return Optional.ofNullable(targetClusters).orElse(List.of()).stream()
+            return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
                     .filter(tc -> tc.name().equals(virtualCluster.namedTargetCluster()))
                     .findFirst()
                     .orElseThrow(() -> new IllegalConfigurationException(
@@ -307,7 +307,7 @@ public record Configuration(
 
     @Nullable
     private TargetCluster resolveNamedTargetCluster(String name) {
-        return Optional.ofNullable(targetClusters).orElse(List.of()).stream()
+        return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
                 .filter(tc -> tc.name().equals(name))
                 .findFirst()
                 .map(TargetClusterDefinition::toTargetCluster)
