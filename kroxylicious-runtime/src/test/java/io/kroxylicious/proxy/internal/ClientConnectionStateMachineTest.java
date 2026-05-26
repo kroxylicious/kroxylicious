@@ -1523,7 +1523,7 @@ class ClientConnectionStateMachineTest {
 
             var routingVcm = new VirtualClusterModel(CLUSTER_NAME, null, false, false,
                     List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null,
-                    "topic-router", routeDescriptors, null, null);
+                    "topic-router", routeDescriptors);
 
             var brokerBinding = new io.kroxylicious.proxy.internal.net.BrokerEndpointBinding(
                     endpointGateway, CLUSTER_A_BROKER_1, 2);
