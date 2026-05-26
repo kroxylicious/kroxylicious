@@ -49,7 +49,7 @@ class RoutingPassThroughIT {
         var targetCluster = new ClusterDefinition(TARGET_CLUSTER_NAME,
                 cluster.getBootstrapServers(), null);
 
-        var route = new RouteDefinition(ROUTE_NAME, null, new RouteDefinition.Target(TARGET_CLUSTER_NAME, null));
+        var route = new RouteDefinition(ROUTE_NAME, 0, null, new RouteDefinition.Target(TARGET_CLUSTER_NAME, null));
 
         var routerConfig = new PassThroughRouterFactory.Config(ROUTE_NAME);
         var routerDef = new RouterDefinition(ROUTER_NAME,
