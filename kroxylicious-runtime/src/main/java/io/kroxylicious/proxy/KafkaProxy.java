@@ -335,20 +335,21 @@ public final class KafkaProxy implements AutoCloseable {
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
             CompletableFuture.allOf(
-                            Stream.concat(Stream.of(managementFuture),
-                                            virtualClusterModels.stream()
-                                                    .flatMap(vc -> vc.gateways().values().stream())
-                                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
-                                    .toArray(CompletableFuture[]::new))
+                    Stream.concat(Stream.of(managementFuture),
+                            virtualClusterModels.stream()
+                                    .flatMap(vc -> vc.gateways().values().stream())
+                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
+                            .toArray(CompletableFuture[]::new))
                     .join();
 
             virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationSucceeded(model.getClusterName()));
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
-            return transitionTo(LifecycleState.STARTED, () -> shutdown, lifecycleState -> {
-                throw new LifecycleException("failed to start Kroxylicious lifecycle state");
-            });
+            transitionTo(LifecycleState.STARTED, () -> {}, lifecycleState -> STARTUP_SHUTDOWN_LOGGER.atInfo()
+                    .addKeyValue("state", lifecycleState)
+                    .log("Shutdown initiated concurrently with final startup transition"));
+            return shutdown;
         }
         catch (RuntimeException e) {
             STARTUP_SHUTDOWN_LOGGER.atError()
@@ -631,7 +632,7 @@ public final class KafkaProxy implements AutoCloseable {
      * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
      * @return the actual local port the proxy is listening on
      */
-    @SuppressWarnings("SameParameterValue") //the parameters allow us to call idempotently
+    @SuppressWarnings("SameParameterValue") // the parameters allow us to call idempotently
     @VisibleForTesting
     int listeningPort(@Nullable String bindAddress, int port) {
         return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
