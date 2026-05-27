@@ -277,6 +277,21 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
+        configureRouterDispatch(pipeline, virtualCluster, binding, dp, clientConnectionStateMachine);
+        addLoggingErrorHandler(pipeline);
+
+        LOGGER.atDebug()
+                .addKeyValue("channelId", ch::toString)
+                .addKeyValue("pipeline", pipeline)
+                .log("Initial pipeline");
+    }
+
+    private void configureRouterDispatch(
+                                         ChannelPipeline pipeline,
+                                         VirtualClusterModel virtualCluster,
+                                         EndpointBinding binding,
+                                         DelegatingDecodePredicate dp,
+                                         ClientConnectionStateMachine clientConnectionStateMachine) {
         if (virtualCluster.usesRouter() && routerChainFactory != null) {
             Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
             var routeDescriptors = virtualCluster.routeDescriptors();
@@ -330,12 +345,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             pipeline.addLast("filterChainCompletionHandler",
                     new FilterChainCompletionHandler(clientConnectionStateMachine));
         }
-        addLoggingErrorHandler(pipeline);
-
-        LOGGER.atDebug()
-                .addKeyValue("channelId", ch::toString)
-                .addKeyValue("pipeline", pipeline)
-                .log("Initial pipeline");
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
