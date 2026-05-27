@@ -87,7 +87,7 @@ class RouterDispatchHandlerTest {
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
                 null, null, null,
-                null, null, null);
+                null, null, null, null);
     }
 
     private void stubCcsmForRouting() {

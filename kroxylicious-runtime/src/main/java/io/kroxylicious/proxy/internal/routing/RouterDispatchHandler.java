@@ -83,6 +83,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private final PluginFactoryRegistry pfr;
     @Nullable
     private final String sniHostname;
+    @Nullable
+    private final io.netty.channel.EventLoopGroup routeFilterEventLoopGroup;
     private final Map<String, Router> nestedRouters = new HashMap<>();
     private final Map<RouteDescriptor, CompletionStage<RouteFilterPipeline>> routeFilterPipelines = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
@@ -132,7 +134,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                  @Nullable String virtualClusterName,
                                  @Nullable FilterChainFactory filterChainFactory,
                                  @Nullable PluginFactoryRegistry pfr,
-                                 @Nullable String sniHostname) {
+                                 @Nullable String sniHostname,
+                                 @Nullable io.netty.channel.EventLoopGroup routeFilterEventLoopGroup) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
@@ -148,6 +151,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         this.filterChainFactory = filterChainFactory;
         this.pfr = pfr;
         this.sniHostname = sniHostname;
+        this.routeFilterEventLoopGroup = routeFilterEventLoopGroup;
         this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
                 routes, nodeIdMapping, routerNodeAddresses, IntUnaryOperator.identity());
     }
@@ -156,7 +160,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     CompletionStage<RouteFilterPipeline> getOrCreateRouteFilterPipeline(
                                                                         RouteDescriptor rd,
                                                                         Channel clientChannel) {
-        if (rd.filters().isEmpty() || filterChainFactory == null || pfr == null) {
+        if (rd.filters().isEmpty() || filterChainFactory == null || pfr == null || routeFilterEventLoopGroup == null) {
             return null;
         }
         return routeFilterPipelines.computeIfAbsent(rd, descriptor -> {
@@ -172,6 +176,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 }
             };
             return RouteFilterPipeline.create(
+                    routeFilterEventLoopGroup,
                     clientChannel.eventLoop(), filters, clientChannel, sniHostname, ccsm,
                     rd.name(), () -> nextRoutingCorrelationId++, pendingResponseCount,
                     nodeIdMapping, metadataAddressCacher);

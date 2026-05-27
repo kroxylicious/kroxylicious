@@ -431,7 +431,8 @@ class KafkaProxyInitializerTest {
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
-                vcc);
+                vcc,
+                null);
     }
 
     private void assertErrorHandlerAdded() {

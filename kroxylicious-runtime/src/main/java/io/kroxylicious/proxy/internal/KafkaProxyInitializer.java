@@ -24,6 +24,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
@@ -82,6 +83,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @Nullable
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    @Nullable
+    private final EventLoopGroup routeFilterEventLoopGroup;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
@@ -93,7 +96,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings,
-                                 VirtualClusterRegistry virtualClusterRegistry) {
+                                 VirtualClusterRegistry virtualClusterRegistry,
+                                 @Nullable EventLoopGroup routeFilterEventLoopGroup) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.proxyProtocolMode = proxyProtocolMode;
@@ -106,6 +110,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry);
+        this.routeFilterEventLoopGroup = routeFilterEventLoopGroup;
     }
 
     @Override
@@ -311,7 +316,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     routerChainFactory,
                     virtualCluster.allRouteDescriptors(),
                     virtualCluster.getClusterName(),
-                    filterChainFactory, pfr, extractSniHostname(pipeline));
+                    filterChainFactory, pfr, extractSniHostname(pipeline),
+                    routeFilterEventLoopGroup);
             clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setUpstreamAddressResolver(
                     virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)

@@ -27,6 +27,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoop;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.local.LocalAddress;
 import io.netty.channel.local.LocalChannel;
 import io.netty.channel.local.LocalServerChannel;
@@ -42,16 +43,64 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Manages a per-route filter pipeline backed by Netty's local (in-memory) transport.
- * A local channel pair provides a real Netty pipeline on the client connection's
- * event loop, so {@link FilterHandler} and its {@code InternalFilterContext} work
- * unchanged — including correct handling of deferred filter work.
  *
- * <p>Creation is asynchronous because local channel setup defers child channel
- * creation to the next event loop tick. Use {@link #create} to obtain a
- * {@code CompletionStage} that completes when the pipeline is ready.</p>
+ * <h2>Why local transport?</h2>
  *
- * <p>Lifecycle: one instance per route per client connection. Created lazily
- * on first use, closed when the client connection tears down.</p>
+ * <p>Route-level filters must honour the same API contract as VC-level filters. This
+ * means we need a real Netty {@link io.netty.channel.ChannelPipeline} so that
+ * {@link FilterHandler} and its {@code InternalFilterContext} work unchanged —
+ * including {@code sendRequest()}, deferred (async) filter work, backpressure via
+ * auto-read, and response ordering.</p>
+ *
+ * <h2>Why a separate event loop group?</h2>
+ *
+ * <p>The proxy's client connections use platform-specific I/O transports (epoll on
+ * Linux, kqueue on macOS). These transports' event loops only support channels backed
+ * by OS file descriptors. {@link LocalChannel} and {@link LocalServerChannel} are
+ * purely in-memory and have no fd, so they cannot be registered on an epoll/kqueue
+ * event loop. We therefore create a shared {@link DefaultEventLoopGroup} for the
+ * local transport infrastructure.</p>
+ *
+ * <h2>How filter threading guarantees are preserved</h2>
+ *
+ * <p>The Filter API guarantees that filter methods and their chained computation stages
+ * execute on the connection's event loop thread. Although the local channels run on the
+ * {@link DefaultEventLoopGroup}, we add the {@link FilterHandler} instances to the
+ * pipeline using {@code pipeline.addLast(clientEventLoop, handler)}. This causes Netty
+ * to dispatch all handler callbacks (channelRead, write, etc.) on the client's event
+ * loop rather than the local channel's event loop. As a result, {@code ctx.executor()}
+ * inside each {@link FilterHandler} returns the client connection's event loop, and
+ * deferred work scheduled via {@code thenApplyAsync(..., ctx.executor())} completes on
+ * the correct thread.</p>
+ *
+ * <h2>Lifecycle</h2>
+ *
+ * <p>One instance per route per client connection. Created lazily on first use via
+ * {@link #create}. Creation is asynchronous because {@link ServerBootstrap} defers
+ * bind/connect to the next event loop tick. The returned {@link CompletionStage}
+ * completes once the local channel pair is fully established. The stage is cached by
+ * the caller, so only the first request to a filtered route pays the setup cost.</p>
+ *
+ * <h2>Data flow</h2>
+ *
+ * <pre>
+ * Request path:
+ *   writeRequest() → filterChannel.pipeline().fireChannelRead(frame)
+ *     → FilterHandler-1.channelRead() [on client event loop]
+ *     → FilterHandler-2.channelRead() [on client event loop]
+ *     → RouteFilterCompletionHandler → forwarder callback → CCSM → backend
+ *
+ * Response path:
+ *   writeResponse() → filterChannel.writeAndFlush(frame)
+ *     → FilterHandler-2.write() [on client event loop]
+ *     → FilterHandler-1.write() [on client event loop]
+ *     → exits to peer channel → ResponseCaptureHandler → completes future
+ *
+ * Short-circuit:
+ *   A filter's shortCircuitResponse() writes a response during the request path.
+ *   The response flows outbound through the remaining filters and exits to the
+ *   peer channel, completing the future. The forwarder is never called.
+ * </pre>
  */
 class RouteFilterPipeline implements AutoCloseable {
 
@@ -77,10 +126,16 @@ class RouteFilterPipeline implements AutoCloseable {
 
     /**
      * Creates a route filter pipeline asynchronously. The returned stage completes
-     * on the next event loop tick when the local channel pair is fully established.
+     * once the local channel pair (server + peer) is established and the child
+     * channel's pipeline is populated with {@link FilterHandler} instances.
+     *
+     * <p>The {@code clientEventLoop} parameter is the event loop of the downstream
+     * client connection. Filter handlers are bound to this event loop so that
+     * {@code ctx.executor()} returns it, preserving the filter threading guarantee.</p>
      */
     static CompletionStage<RouteFilterPipeline> create(
-                                                       EventLoop eventLoop,
+                                                       EventLoopGroup localEventLoopGroup,
+                                                       EventLoop clientEventLoop,
                                                        List<FilterAndInvoker> filters,
                                                        Channel inboundChannel,
                                                        @Nullable String sniHostname,
@@ -98,20 +153,40 @@ class RouteFilterPipeline implements AutoCloseable {
         LocalAddress address = new LocalAddress("route-filter-" + UUID.randomUUID());
         CompletableFuture<RouteFilterPipeline> result = new CompletableFuture<>();
 
+        // Captures the child channel created by the server when the peer connects.
+        // We read this in the connect listener rather than relying on a handler's
+        // handlerAdded() callback, which is dispatched to clientEventLoop and may
+        // not have fired by the time the connect future resolves.
+        var childChannelRef = new java.util.concurrent.atomic.AtomicReference<Channel>();
+
+        // The server and peer channels run on localEventLoopGroup (a
+        // DefaultEventLoopGroup) because local transport is incompatible with
+        // platform-specific I/O event loops. The child channel initializer adds
+        // FilterHandlers bound to clientEventLoop so filter code executes on the
+        // connection's thread.
         ServerBootstrap sb = new ServerBootstrap()
-                .group(eventLoop)
+                .group(localEventLoopGroup)
                 .channel(LocalServerChannel.class)
                 .childHandler(new ChannelInitializer<LocalChannel>() {
                     @Override
                     protected void initChannel(LocalChannel ch) {
+                        childChannelRef.set(ch);
                         int i = 0;
                         for (FilterAndInvoker filter : filters) {
+                            // Bind each FilterHandler to the client's event loop.
+                            // This ensures ctx.executor() returns clientEventLoop
+                            // inside the handler, preserving the filter threading
+                            // guarantee for deferred work.
                             ch.pipeline().addLast(
+                                    clientEventLoop,
                                     "route-filter-" + (++i) + "-" + filter.filterName(),
                                     new FilterHandler(filter, FILTER_TIMEOUT_MS, sniHostname,
                                             inboundChannel, ccsm));
                         }
-                        ch.pipeline().addLast("routeFilterCompletionHandler", completionHandler);
+                        ch.pipeline().addLast(
+                                clientEventLoop,
+                                "routeFilterCompletionHandler",
+                                completionHandler);
                     }
                 });
 
@@ -123,7 +198,7 @@ class RouteFilterPipeline implements AutoCloseable {
             Channel serverChannel = ((io.netty.channel.ChannelFuture) bindFuture).channel();
 
             Bootstrap cb = new Bootstrap()
-                    .group(eventLoop)
+                    .group(localEventLoopGroup)
                     .channel(LocalChannel.class)
                     .handler(new ChannelInitializer<LocalChannel>() {
                         @Override
@@ -141,9 +216,7 @@ class RouteFilterPipeline implements AutoCloseable {
                 }
                 Channel peerChannel = ((io.netty.channel.ChannelFuture) connectFuture).channel();
 
-                // The child channel is the server-accepted channel with FilterHandlers.
-                // Find it via the completion handler's pipeline context.
-                Channel filterChannel = completionHandler.channel();
+                Channel filterChannel = childChannelRef.get();
                 if (filterChannel == null) {
                     serverChannel.close();
                     peerChannel.close();
@@ -223,13 +296,16 @@ class RouteFilterPipeline implements AutoCloseable {
 
     @Override
     public void close() {
-        if (peerChannel != null) {
-            peerChannel.close();
-        }
-        if (serverChannel != null) {
-            serverChannel.close();
-        }
+        closeFuture();
+    }
+
+    io.netty.channel.ChannelFuture closeFuture() {
         pendingResponseFutures.clear();
+        io.netty.channel.ChannelFuture last = peerChannel.close();
+        if (serverChannel != null) {
+            last = serverChannel.close();
+        }
+        return last;
     }
 
     /**
