@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
@@ -83,7 +84,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     @Nullable
     private final String sniHostname;
     private final Map<String, Router> nestedRouters = new HashMap<>();
-    private final Map<RouteDescriptor, RouteFilterPipeline> routeFilterPipelines = new HashMap<>();
+    private final Map<RouteDescriptor, CompletionStage<RouteFilterPipeline>> routeFilterPipelines = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
     @Nullable
     private ResponseSequencer responseSequencer;
@@ -152,9 +153,9 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     }
 
     @Nullable
-    RouteFilterPipeline getOrCreateRouteFilterPipeline(
-                                                       RouteDescriptor rd,
-                                                       Channel clientChannel) {
+    CompletionStage<RouteFilterPipeline> getOrCreateRouteFilterPipeline(
+                                                                        RouteDescriptor rd,
+                                                                        Channel clientChannel) {
         if (rd.filters().isEmpty() || filterChainFactory == null || pfr == null) {
             return null;
         }
@@ -170,8 +171,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                     }
                 }
             };
-            return new RouteFilterPipeline(
-                    filters, clientChannel, sniHostname, ccsm,
+            return RouteFilterPipeline.create(
+                    clientChannel.eventLoop(), filters, clientChannel, sniHostname, ccsm,
                     rd.name(), () -> nextRoutingCorrelationId++, pendingResponseCount,
                     nodeIdMapping, metadataAddressCacher);
         });
@@ -179,18 +180,20 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
-        for (var pipeline : routeFilterPipelines.values()) {
-            try {
-                pipeline.close();
-            }
-            catch (RuntimeException e) {
-                LOGGER.atWarn()
-                        .setCause(LOGGER.isDebugEnabled() ? e : null)
-                        .addKeyValue("error", e.getMessage())
-                        .log(LOGGER.isDebugEnabled()
-                                ? "Failed to close route filter pipeline"
-                                : "Failed to close route filter pipeline, increase log level to DEBUG for stacktrace");
-            }
+        for (var stage : routeFilterPipelines.values()) {
+            stage.toCompletableFuture().thenAccept(pipeline -> {
+                try {
+                    pipeline.close();
+                }
+                catch (RuntimeException e) {
+                    LOGGER.atWarn()
+                            .setCause(LOGGER.isDebugEnabled() ? e : null)
+                            .addKeyValue("error", e.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "Failed to close route filter pipeline"
+                                    : "Failed to close route filter pipeline, increase log level to DEBUG for stacktrace");
+                }
+            });
         }
         routeFilterPipelines.clear();
         var toClose = new ArrayList<>(nestedRouters.values());
@@ -225,11 +228,11 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
                 RouteDescriptor rd = routes.get(staticRoute);
-                RouteFilterPipeline pipeline = rd != null
+                CompletionStage<RouteFilterPipeline> pipelineStage = rd != null
                         ? getOrCreateRouteFilterPipeline(rd, ctx.channel())
                         : null;
-                if (pipeline != null && msg instanceof DecodedRequestFrame<?> decoded) {
-                    dispatchStaticWithFilters(ctx, decoded, staticRoute, apiKey, pipeline);
+                if (pipelineStage != null && msg instanceof DecodedRequestFrame<?> decoded) {
+                    dispatchStaticWithFilters(ctx, decoded, staticRoute, apiKey, pipelineStage);
                 }
                 else {
                     ccsm.forwardToRoute(staticRoute, msg);
@@ -265,7 +268,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                            DecodedRequestFrame<?> decoded,
                                            String staticRoute,
                                            ApiKeys apiKey,
-                                           RouteFilterPipeline pipeline) {
+                                           CompletionStage<RouteFilterPipeline> pipelineStage) {
         int clientCorrelationId = decoded.correlationId();
         int routingCorrelationId = nextRoutingCorrelationId++;
         var routedFrame = new DecodedRequestFrame<>(
@@ -284,16 +287,18 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             responseSequencer.submit(sequenceNumber, responseFrame);
         });
 
-        pipeline.writeRequest(routedFrame, future, filtered -> {
-            Timer.Sample timerSample = Timer.start();
-            var pendingResponse = new PendingResponse(
-                    future, timerSample, staticRoute, apiKey,
-                    nodeIdMapping, body -> {
-                    },
-                    null, pipeline);
-            registerPendingResponse(ctx.channel(), routingCorrelationId, pendingResponse);
-            pendingResponseCount.incrementAndGet();
-            ccsm.forwardToRoute(staticRoute, filtered);
+        pipelineStage.thenAccept(pipeline -> {
+            pipeline.writeRequest(routedFrame, future, filtered -> {
+                Timer.Sample timerSample = Timer.start();
+                var pendingResponse = new PendingResponse(
+                        future, timerSample, staticRoute, apiKey,
+                        nodeIdMapping, body -> {
+                        },
+                        null, pipeline);
+                registerPendingResponse(ctx.channel(), routingCorrelationId, pendingResponse);
+                pendingResponseCount.incrementAndGet();
+                ccsm.forwardToRoute(staticRoute, filtered);
+            });
         });
     }
 
