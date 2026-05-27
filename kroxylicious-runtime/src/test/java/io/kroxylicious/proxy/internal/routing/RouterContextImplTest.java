@@ -114,6 +114,7 @@ class RouterContextImplTest {
                 responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity(),
+                null,
                 null);
     }
 
@@ -292,6 +293,7 @@ class RouterContextImplTest {
                 responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity(),
+                null,
                 null);
 
         var headerA = new RequestHeaderData()
@@ -341,6 +343,7 @@ class RouterContextImplTest {
                 responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity(),
+                null,
                 null);
 
         var header = new RequestHeaderData()

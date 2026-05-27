@@ -304,7 +304,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     routingRequestDurationTimer, pendingResponseCount,
                     routerChainFactory,
                     virtualCluster.allRouteDescriptors(),
-                    virtualCluster.getClusterName());
+                    virtualCluster.getClusterName(),
+                    filterChainFactory, pfr, null);
             clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setUpstreamAddressResolver(
                     virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)

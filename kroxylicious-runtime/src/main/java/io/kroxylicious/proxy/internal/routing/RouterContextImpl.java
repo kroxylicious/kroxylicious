@@ -69,6 +69,18 @@ class RouterContextImpl implements RouterContext {
     private final IntUnaryOperator virtualIdTranslator;
     @Nullable
     private final NestedRouterProvider nestedRouterProvider;
+    @Nullable
+    private final RouteFilterPipelineProvider routeFilterPipelineProvider;
+
+    /**
+     * Provides the route filter pipeline for a route descriptor.
+     * Returns null if the route has no filters.
+     */
+    @FunctionalInterface
+    interface RouteFilterPipelineProvider {
+        @Nullable
+        RouteFilterPipeline get(RouteDescriptor rd);
+    }
 
     /**
      * Provides nested router instances and their supporting state,
@@ -124,7 +136,8 @@ class RouterContextImpl implements RouterContext {
                       ResponseSequencer responseSequencer,
                       Map<Integer, HostPort> sharedNodeAddresses,
                       IntUnaryOperator virtualIdTranslator,
-                      @Nullable NestedRouterProvider nestedRouterProvider) {
+                      @Nullable NestedRouterProvider nestedRouterProvider,
+                      @Nullable RouteFilterPipelineProvider routeFilterPipelineProvider) {
         this.clientFrame = Objects.requireNonNull(clientFrame);
         this.clientCorrelationId = clientFrame.correlationId();
         this.apiVersion = clientFrame.apiVersion();
@@ -146,6 +159,7 @@ class RouterContextImpl implements RouterContext {
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
         this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
         this.nestedRouterProvider = nestedRouterProvider;
+        this.routeFilterPipelineProvider = routeFilterPipelineProvider;
     }
 
     @Override
@@ -197,7 +211,7 @@ class RouterContextImpl implements RouterContext {
         }
 
         if (!frame.hasResponse()) {
-            forwardToNode(virtualNodeId, route, frame);
+            forwardOrFilter(virtualNodeId, route, frame, null);
             routingRequestsCounter.withTags(
                     Metrics.ROUTE_LABEL, route,
                     Metrics.ROUTING_MODE_LABEL, "dynamic",
@@ -213,6 +227,56 @@ class RouterContextImpl implements RouterContext {
         }
 
         CompletableFuture<Response> future = new CompletableFuture<>();
+
+        RouteFilterPipeline pipeline = routeFilterPipelineProvider != null
+                ? routeFilterPipelineProvider.get(rd)
+                : null;
+
+        if (pipeline != null) {
+            pipeline.writeRequest(frame, future, filtered -> {
+                registerAndForward(
+                        virtualNodeId, route, apiKey,
+                        (DecodedRequestFrame<?>) filtered, future,
+                        routingCorrelationId);
+            });
+        }
+        else {
+            registerAndForward(
+                    virtualNodeId, route, apiKey,
+                    frame, future,
+                    routingCorrelationId);
+        }
+
+        routingRequestsCounter.withTags(
+                Metrics.ROUTE_LABEL, route,
+                Metrics.ROUTING_MODE_LABEL, "dynamic",
+                Metrics.API_KEY_LABEL, apiKey.name()).increment();
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("route", route)
+                .addKeyValue("virtualNodeId", virtualNodeId)
+                .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .log("Request sent to specific node");
+        if (listener != null) {
+            future.whenComplete((resp, error) -> {
+                if (resp != null) {
+                    listener.accept(new RoutingEvent.Response(
+                            sessionId, route, routingCorrelationId, apiKey,
+                            resp.header(), resp.body()));
+                }
+            });
+        }
+        return future;
+    }
+
+    private void registerAndForward(
+                                    int virtualNodeId,
+                                    String route,
+                                    ApiKeys apiKey,
+                                    DecodedRequestFrame<?> frame,
+                                    CompletableFuture<Response> future,
+                                    int routingCorrelationId) {
         Timer.Sample timerSample = Timer.start();
         var pendingResponse = new RouterDispatchHandler.PendingResponse(
                 future, timerSample, route, apiKey,
@@ -239,30 +303,25 @@ class RouterContextImpl implements RouterContext {
                     .log(LOGGER.isDebugEnabled()
                             ? "Failed to forward request to node"
                             : "Failed to forward request to node, increase log level to DEBUG for stacktrace");
-            return CompletableFuture.failedFuture(e);
+            future.completeExceptionally(e);
         }
+    }
 
-        routingRequestsCounter.withTags(
-                Metrics.ROUTE_LABEL, route,
-                Metrics.ROUTING_MODE_LABEL, "dynamic",
-                Metrics.API_KEY_LABEL, apiKey.name()).increment();
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
-                .addKeyValue("virtualNodeId", virtualNodeId)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
-                .log("Request sent to specific node");
-        if (listener != null) {
-            future.whenComplete((resp, error) -> {
-                if (resp != null) {
-                    listener.accept(new RoutingEvent.Response(
-                            sessionId, route, routingCorrelationId, apiKey,
-                            resp.header(), resp.body()));
-                }
-            });
+    private void forwardOrFilter(
+                                 int virtualNodeId,
+                                 String route,
+                                 DecodedRequestFrame<?> frame,
+                                 @Nullable CompletableFuture<Response> future) {
+        RouteFilterPipeline pipeline = routeFilterPipelineProvider != null
+                ? routeFilterPipelineProvider.get(routes.get(route))
+                : null;
+
+        if (pipeline != null && future != null) {
+            pipeline.writeRequest(frame, future, filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered));
         }
-        return future;
+        else {
+            forwardToNode(virtualNodeId, route, frame);
+        }
     }
 
     private RouterDispatchHandler.MetadataAddressCacher createMetadataAddressCacher(String route) {
@@ -322,7 +381,8 @@ class RouterContextImpl implements RouterContext {
                 responseSequencer,
                 sharedNodeAddresses,
                 nestedTranslator,
-                nested.childProvider());
+                nested.childProvider(),
+                null);
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         LOGGER.atTrace()

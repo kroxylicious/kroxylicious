@@ -86,6 +86,7 @@ class RouterDispatchHandlerTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
+                null, null, null,
                 null, null, null);
     }
 
