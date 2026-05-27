@@ -35,6 +35,7 @@ import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.it.testplugins.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.FixedClientIdFilterFactory;
 import io.kroxylicious.it.testplugins.ForwardingStyle;
+import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.it.testplugins.SaslPlainTermination;
 import io.kroxylicious.proxy.config.ClusterDefinition;
@@ -335,6 +336,56 @@ class RouteFilterIT {
         var records = consumeDirectly(clusterA);
         assertThat(records).extracting(ConsumerRecord::value)
                 .containsExactly("nested-filtered");
+    }
+
+    @Test
+    void staticRouteWithFilterApplied() throws Exception {
+        var stampFilter = new NamedFilterDefinitionBuilder(
+                "stamper",
+                FixedClientIdFilterFactory.class.getName())
+                .withConfig("clientId", "static-route-stamped")
+                .build();
+
+        // PassThroughRouter: all API keys are static, routed to "the-route"
+        var route = new RouteDefinition("the-route", 0,
+                List.of("stamper"),
+                new RouteDefinition.Target("cluster-a", null));
+        var router = new RouterDefinition("passthrough-router",
+                PassThroughRouterFactory.class.getName(),
+                new PassThroughRouterFactory.Config("the-route"),
+                List.of(route));
+
+        var defA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteDefinition.Target(null, "passthrough-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(defA)
+                .addToFilterDefinitions(stampFilter)
+                .addToRouterDefinitions(router)
+                .addToVirtualClusters(vc);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("any-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "static-filtered"))
+                    .get(10, TimeUnit.SECONDS);
+        }
+
+        var records = consumeDirectly(clusterA);
+        assertThat(records).extracting(ConsumerRecord::value)
+                .containsExactly("static-filtered");
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("Requires TLS infrastructure (certificates, keystores) — see AbstractTlsIT for the pattern")
+    void sniHostnameAccessibleFromRouteFilter() {
+        // TODO: configure TLS gateway with SNI, add a route filter that reads
+        // context.sniHostname() and injects it into a PRODUCE record header,
+        // then verify the header value matches the expected SNI hostname.
     }
 
     private static Map<String, Object> saslProducerConfig(String username, String password, String clientId) {
