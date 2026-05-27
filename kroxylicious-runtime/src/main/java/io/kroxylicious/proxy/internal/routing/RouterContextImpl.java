@@ -233,14 +233,14 @@ class RouterContextImpl implements RouterContext {
                 : null;
 
         if (pipelineStage != null) {
-            pipelineStage.thenAccept(pipeline -> {
+            pipelineStage.thenAcceptAsync(pipeline -> {
                 pipeline.writeRequest(frame, future, filtered -> {
                     registerAndForward(
                             virtualNodeId, route, apiKey,
                             (DecodedRequestFrame<?>) filtered, future,
                             routingCorrelationId, pipeline);
                 });
-            });
+            }, clientChannel.eventLoop());
         }
         else {
             registerAndForward(
@@ -320,8 +320,9 @@ class RouterContextImpl implements RouterContext {
                 : null;
 
         if (pipelineStage != null) {
-            pipelineStage.thenAccept(pipeline -> pipeline.writeFireAndForget(frame,
-                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered)));
+            pipelineStage.thenAcceptAsync(pipeline -> pipeline.writeFireAndForget(frame,
+                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered)),
+                    clientChannel.eventLoop());
         }
         else {
             forwardToNode(virtualNodeId, route, frame);

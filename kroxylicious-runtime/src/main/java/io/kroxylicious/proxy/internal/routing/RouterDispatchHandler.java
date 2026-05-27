@@ -292,7 +292,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             responseSequencer.submit(sequenceNumber, responseFrame);
         });
 
-        pipelineStage.thenAccept(pipeline -> {
+        pipelineStage.thenAcceptAsync(pipeline -> {
             pipeline.writeRequest(routedFrame, future, filtered -> {
                 Timer.Sample timerSample = Timer.start();
                 var pendingResponse = new PendingResponse(
@@ -304,7 +304,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 pendingResponseCount.incrementAndGet();
                 ccsm.forwardToRoute(staticRoute, filtered);
             });
-        });
+        }, ctx.channel().eventLoop());
     }
 
     private void dispatchDynamically(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {

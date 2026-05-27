@@ -31,7 +31,6 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.FixedClientIdFilterFactory;
-import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
@@ -100,24 +99,25 @@ class RouteFilterIT {
     @Test
     void multipleRouteFiltersExecuteInDeclarationOrder() throws Exception {
         var firstFilter = new NamedFilterDefinitionBuilder(
-                "first-marker",
-                RequestResponseMarkingFilterFactory.class.getName())
-                .withConfig("name", "first")
-                .withConfig("keysToMark", List.of("PRODUCE"))
-                .withConfig("direction", List.of("REQUEST"))
+                "first-stamper",
+                FixedClientIdFilterFactory.class.getName())
+                .withConfig("clientId", "first-stamp")
                 .build();
 
         var secondFilter = new NamedFilterDefinitionBuilder(
-                "second-marker",
-                RequestResponseMarkingFilterFactory.class.getName())
-                .withConfig("name", "second")
-                .withConfig("keysToMark", List.of("PRODUCE"))
-                .withConfig("direction", List.of("REQUEST"))
+                "second-stamper",
+                FixedClientIdFilterFactory.class.getName())
+                .withConfig("clientId", "second-stamp")
                 .build();
 
         var routeA = new RouteDefinition("route-a", 0,
+<<<<<<< HEAD
                 List.of("first-marker", "second-marker"),
                 new RouteTarget("cluster-a", null));
+=======
+                List.of("first-stamper", "second-stamper"),
+                new RouteTarget("cluster-a", null));
+>>>>>>> 3439a6469 (test(integration-tests): add RouteFilterIT for route filter pipeline)
         var routeB = new RouteDefinition("route-b", 1,
                 null,
                 new RouteTarget("cluster-b", null));
