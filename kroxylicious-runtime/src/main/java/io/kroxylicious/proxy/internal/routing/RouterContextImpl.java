@@ -233,10 +233,6 @@ class RouterContextImpl implements RouterContext {
                 : null;
 
         if (pipelineStage != null) {
-            // The pipeline CompletionStage completes on the local transport's
-            // event loop thread. We must dispatch to the client event loop
-            // so that writeRequest, registerAndForward, and CCSM calls all
-            // execute on the connection's thread.
             pipelineStage.thenAcceptAsync(pipeline -> {
                 pipeline.writeRequest(frame, future, filtered -> {
                     registerAndForward(
