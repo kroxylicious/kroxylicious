@@ -149,11 +149,38 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private enum LifecycleState {
-        NEW,
-        STARTING,
-        STARTED,
-        STOPPING,
-        STOPPED
+        NEW {
+            @Override
+            boolean canTransitionTo(LifecycleState target) {
+                return target == STARTING || target == STOPPING;
+            }
+        },
+        STARTING {
+            @Override
+            boolean canTransitionTo(LifecycleState target) {
+                return target == STARTED || target == STOPPING;
+            }
+        },
+        STARTED {
+            @Override
+            boolean canTransitionTo(LifecycleState target) {
+                return target == STOPPING;
+            }
+        },
+        STOPPING {
+            @Override
+            boolean canTransitionTo(LifecycleState target) {
+                return target == STOPPED;
+            }
+        },
+        STOPPED {
+            @Override
+            boolean canTransitionTo(LifecycleState target) {
+                return false;
+            }
+        };
+
+        abstract boolean canTransitionTo(LifecycleState target);
     }
 
     private final Configuration config;
@@ -372,14 +399,7 @@ public final class KafkaProxy implements AutoCloseable {
                 // something else has already transitioned to this state
                 return onNoTransition.apply(currentState);
             }
-            boolean validTransition = switch (currentState) {
-                case NEW -> targetState == LifecycleState.STARTING || targetState == LifecycleState.STOPPING;
-                case STARTING -> targetState == LifecycleState.STARTED || targetState == LifecycleState.STOPPING;
-                case STARTED -> targetState == LifecycleState.STOPPING;
-                case STOPPING -> targetState == LifecycleState.STOPPED;
-                case STOPPED -> false;
-            };
-            if (!validTransition) {
+            if (!currentState.canTransitionTo(targetState)) {
                 return onNoTransition.apply(currentState);
             }
             transitioned = state.compareAndSet(currentState, targetState);
