@@ -111,7 +111,7 @@ class KafkaProxyTest {
      * Netty shutdown wait that would otherwise accumulate across this test class.
      */
     @Nested
-    class WhenStarted {
+    class RunningProxy {
 
         // Zero quiet period avoids the 2-second default Netty shutdown wait in each test.
         private static final String BASE_CONFIG = """
