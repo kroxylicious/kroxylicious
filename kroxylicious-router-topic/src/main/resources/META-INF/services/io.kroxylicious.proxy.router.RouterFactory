@@ -1,1 +1,1 @@
-io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory
+io.kroxylicious.router.topic.TopicPartitionRouterFactory

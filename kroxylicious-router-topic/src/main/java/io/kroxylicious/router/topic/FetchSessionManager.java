@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.router.topic;
+package io.kroxylicious.router.topic;
 
 import java.time.Clock;
 import java.util.ArrayList;

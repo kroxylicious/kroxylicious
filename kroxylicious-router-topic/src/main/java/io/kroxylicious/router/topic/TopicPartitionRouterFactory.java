@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.router.topic;
+package io.kroxylicious.router.topic;
 
 import java.time.Clock;
 import java.util.LinkedHashMap;
@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
+import io.kroxylicious.router.topic.config.TopicPartitionRouterConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
