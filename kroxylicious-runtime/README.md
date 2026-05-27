@@ -55,6 +55,22 @@ Virtual node IDs from the nested level are translated to the outer level via `ou
 
 Nested `Router` instances are cached per connection in `RouterDispatchHandler` and closed in `handlerRemoved`.
 
+### Per-route filter pipelines
+
+Routes can carry their own filter chain. These filters honour the full Filter API contract — including `sendRequest()`, deferred (async) work, and backpressure — by running in a real Netty pipeline backed by local (in-memory) transport.
+
+**Why local transport?** Platform I/O event loops (epoll, kqueue, io_uring) only support channels with OS file descriptors. `LocalChannel` has no fd, so it cannot be registered on these event loops. A dedicated `DefaultEventLoopGroup` (owned by `KafkaProxy`) provides the event loop for local transport plumbing.
+
+**Threading model.** Filter handlers are added to the local channel's pipeline with `pipeline.addLast(clientEventLoop, handler)`, which causes Netty to dispatch all handler callbacks on the client connection's event loop rather than the local channel's. This preserves the filter threading guarantee: `ctx.executor()` returns the client event loop, and deferred work completes on the correct thread. The `ResponseCaptureHandler` on the peer channel is also bound to `clientEventLoop`.
+
+**Async creation.** `ServerBootstrap` defers bind/connect to the next event loop tick, so pipeline creation returns a `CompletionStage<RouteFilterPipeline>`. The stage is cached per route per connection; only the first request pays the ~1 tick setup cost. Callers must chain with `thenAcceptAsync(callback, clientEventLoop)` because the stage completes on the `DefaultEventLoopGroup` thread.
+
+**Nested routers.** Nested `RouterContextImpl` instances must NOT allocate sequence numbers from the shared `ResponseSequencer`. Nested responses flow back through `dispatchToNestedRouter`'s `thenCompose` chain to the outer context's `submitResponse`, so only the outer context needs a sequence number. A leaked sequence creates a permanent gap that blocks all subsequent responses on the connection. The `ResponseSequencer` includes stall detection that logs a warning after 20 seconds if buffered responses are waiting for a sequence that has not arrived.
+
+Key classes:
+- `RouteFilterPipeline` — manages the local channel pair and request/response correlation
+- `RouteFilterCompletionHandler` — tail handler; forwards filtered requests and handles `InternalRequestFrame` for `sendRequest()`
+
 ### Response handling for routed requests
 
 `PendingResponse` carries a per-response `NodeIdMapping` and `MetadataAddressCacher`. In `onResponse`, addresses are cached **before** `NodeIdResponseTranslator` runs (while node IDs are still target IDs), using the cacher to map to the correct virtual space for the CCSM.
