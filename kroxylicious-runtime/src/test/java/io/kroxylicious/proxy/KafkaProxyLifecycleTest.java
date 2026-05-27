@@ -8,6 +8,8 @@ package io.kroxylicious.proxy;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -316,6 +318,62 @@ class KafkaProxyLifecycleTest {
                 .withThrowableOfType(java.util.concurrent.ExecutionException.class)
                 .withCauseInstanceOf(RuntimeException.class)
                 .withMessageContaining("simulated close failure");
+    }
+
+    @Test
+    void shouldCompleteShutdownWithConcurrentStartup() throws InterruptedException {
+        // Deterministically reproduce the race where shutdown() is called after
+        // initializationSucceeded() (VCs now Serving) but before transitionTo(STARTED).
+        // The proxy is fully initialised at this point; startup() should return the
+        // shutdown future without throwing, and the future should complete normally.
+        var configuration = configParser.parseConfiguration(DEMO1_CONFIG);
+        var models = configuration.virtualClusterModel(configParser);
+
+        var initializationCompleted = new CountDownLatch(1);
+        var allowStartupToComplete = new CountDownLatch(1);
+
+        var blockingRegistry = new VirtualClusterRegistry(models, (name, cause) -> {
+        }) {
+            @Override
+            public void initializationSucceeded(String clusterName) {
+                super.initializationSucceeded(clusterName); // VCs now Serving — race window opens
+                initializationCompleted.countDown();
+                try {
+                    allowStartupToComplete.await();
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+
+        this.proxy = new KafkaProxy(configParser, configuration, Features.defaultFeatures(), blockingRegistry);
+
+        var startupResult = new AtomicReference<CompletableFuture<Void>>();
+        var startupException = new AtomicReference<Throwable>();
+        var startupThread = new Thread(() -> {
+            try {
+                startupResult.set(proxy.startup());
+            }
+            catch (Throwable t) {
+                startupException.set(t);
+            }
+        });
+        startupThread.start();
+
+        // Wait until we are in the race window: VCs are Serving but startup has not yet
+        // attempted the STARTING → STARTED transition.
+        assertThat(initializationCompleted.await(5, TimeUnit.SECONDS)).isTrue();
+
+        // Trigger shutdown from this thread: transitions STARTING → STOPPING → STOPPED.
+        proxy.shutdown();
+
+        // Release the startup thread to resume past initializationSucceeded().
+        allowStartupToComplete.countDown();
+        startupThread.join(5_000);
+
+        assertThat(startupException.get()).isNull();
+        assertThat(startupResult.get()).isCompletedWithValue(null);
     }
 
     @Test
