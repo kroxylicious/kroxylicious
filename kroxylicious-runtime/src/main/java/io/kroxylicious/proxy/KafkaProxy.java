@@ -311,22 +311,7 @@ public final class KafkaProxy implements AutoCloseable {
         // invariant used by shutdown().
         var virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         try {
-            if (!TESTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
-                String versionStatus = "untested";
-                String deprecatedMessage = "";
-
-                if (JRE_FEATURE_VERSION < TESTED_JRE_VERSIONS.first()) {
-                    versionStatus = "deprecated";
-                    deprecatedMessage = " The ability to run Kroxylicious on JRE %s will be removed in a future release.".formatted(JRE_FEATURE_VERSION);
-                }
-
-                STARTUP_SHUTDOWN_LOGGER.atWarn()
-                        .addKeyValue("versionStatus", versionStatus)
-                        .addKeyValue("jreFeatureVersion", JRE_FEATURE_VERSION)
-                        .addKeyValue("testedJreVersion", TESTED_JRE_VERSIONS.first())
-                        .log("Detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs"
-                                + deprecatedMessage);
-            }
+            logJdkInfo();
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is starting");
@@ -395,6 +380,25 @@ public final class KafkaProxy implements AutoCloseable {
             transitionTo(LifecycleState.STOPPING, this::doShutdown, lifecycleState -> {
             });
             throw wrapped;
+        }
+    }
+
+    private static void logJdkInfo() {
+        if (!TESTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
+            String versionStatus = "untested";
+            String deprecatedMessage = "";
+
+            if (JRE_FEATURE_VERSION < TESTED_JRE_VERSIONS.first()) {
+                versionStatus = "deprecated";
+                deprecatedMessage = " The ability to run Kroxylicious on JRE %s will be removed in a future release.".formatted(JRE_FEATURE_VERSION);
+            }
+
+            STARTUP_SHUTDOWN_LOGGER.atWarn()
+                    .addKeyValue("versionStatus", versionStatus)
+                    .addKeyValue("jreFeatureVersion", JRE_FEATURE_VERSION)
+                    .addKeyValue("testedJreVersion", TESTED_JRE_VERSIONS.first())
+                    .log("Detected JRE version, running Kroxylicious is only tested on LTS releases, if you find any issues, please try to re-create them on one of the tested JREs"
+                            + deprecatedMessage);
         }
     }
 
