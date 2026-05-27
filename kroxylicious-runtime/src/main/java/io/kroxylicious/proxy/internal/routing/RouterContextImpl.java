@@ -154,8 +154,8 @@ class RouterContextImpl implements RouterContext {
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
         this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
-        this.responseSequencer = Objects.requireNonNull(responseSequencer);
-        this.sequenceNumber = responseSequencer.allocateSequence();
+        this.responseSequencer = responseSequencer;
+        this.sequenceNumber = responseSequencer != null ? responseSequencer.allocateSequence() : -1;
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
         this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
         this.nestedRouterProvider = nestedRouterProvider;
@@ -383,7 +383,7 @@ class RouterContextImpl implements RouterContext {
                 routingErrorsCounter,
                 routingRequestDurationTimer,
                 pendingResponseCount,
-                responseSequencer,
+                null,
                 sharedNodeAddresses,
                 nestedTranslator,
                 nested.childProvider(),

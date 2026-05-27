@@ -282,7 +282,6 @@ class RouteFilterIT {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("NPE in VirtualClusterModel.usesDynamicTlsCredentials when route filter on nested route — needs investigation")
     void nestedRouterRouteFilterApplied() throws Exception {
         var stampFilter = new NamedFilterDefinitionBuilder(
                 "inner-stamper",
