@@ -233,14 +233,18 @@ class RouterContextImpl implements RouterContext {
                 : null;
 
         if (pipelineStage != null) {
-            pipelineStage.thenAccept(pipeline -> {
+            // The pipeline CompletionStage completes on the local transport's
+            // event loop thread. We must dispatch to the client event loop
+            // so that writeRequest, registerAndForward, and CCSM calls all
+            // execute on the connection's thread.
+            pipelineStage.thenAcceptAsync(pipeline -> {
                 pipeline.writeRequest(frame, future, filtered -> {
                     registerAndForward(
                             virtualNodeId, route, apiKey,
                             (DecodedRequestFrame<?>) filtered, future,
                             routingCorrelationId, pipeline);
                 });
-            });
+            }, clientChannel.eventLoop());
         }
         else {
             registerAndForward(
@@ -320,8 +324,9 @@ class RouterContextImpl implements RouterContext {
                 : null;
 
         if (pipelineStage != null) {
-            pipelineStage.thenAccept(pipeline -> pipeline.writeFireAndForget(frame,
-                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered)));
+            pipelineStage.thenAcceptAsync(pipeline -> pipeline.writeFireAndForget(frame,
+                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered)),
+                    clientChannel.eventLoop());
         }
         else {
             forwardToNode(virtualNodeId, route, frame);

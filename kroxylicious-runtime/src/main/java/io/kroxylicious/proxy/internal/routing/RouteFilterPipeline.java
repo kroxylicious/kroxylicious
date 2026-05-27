@@ -203,7 +203,11 @@ class RouteFilterPipeline implements AutoCloseable {
                     .handler(new ChannelInitializer<LocalChannel>() {
                         @Override
                         protected void initChannel(LocalChannel ch) {
-                            ch.pipeline().addLast("responseCaptureHandler",
+                            // Bind to clientEventLoop so the future completion
+                            // (and all chained router/sequencer work) runs on
+                            // the client connection's thread.
+                            ch.pipeline().addLast(clientEventLoop,
+                                    "responseCaptureHandler",
                                     new ResponseCaptureHandler(result));
                         }
                     });
