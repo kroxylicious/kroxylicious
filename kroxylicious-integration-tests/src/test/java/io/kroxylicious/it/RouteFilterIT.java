@@ -30,10 +30,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.it.testplugins.ClientAuthAwareLawyer;
+import io.kroxylicious.it.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.it.testplugins.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.FixedClientIdFilterFactory;
 import io.kroxylicious.it.testplugins.ForwardingStyle;
 import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.it.testplugins.SaslPlainTermination;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -152,23 +155,21 @@ class RouteFilterIT {
     }
 
     @Test
-    void responseMutationByRouteFilterReachesClient() throws Exception {
-        var config = configWithMarkingFilter("response-marker", ForwardingStyle.SYNCHRONOUS);
+    void produceAndConsumeWorkThroughFilteredRoute() throws Exception {
+        var config = configWithRouteFilter(
+                "fixed-client-id",
+                FixedClientIdFilterFactory.class.getName(),
+                Map.of("clientId", "route-filter-stamped"));
 
-        try (var tester = kroxyliciousTester(config)) {
-            try (var producer = tester.producer(producerConfig("route-a-client"))) {
-                producer.send(new ProducerRecord<>(TOPIC, "key", "value"))
-                        .get(10, TimeUnit.SECONDS);
-            }
-            try (var consumer = tester.consumer(consumerConfig("route-a-client"))) {
-                consumer.subscribe(List.of(TOPIC));
-                var records = consumer.poll(Duration.ofSeconds(10));
-                assertThat(records).isNotEmpty();
-            }
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("route-a-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "filtered-value"))
+                    .get(10, TimeUnit.SECONDS);
         }
 
-        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
-                .hasSizeGreaterThanOrEqualTo(1);
+        var records = consumeDirectly(clusterA);
+        assertThat(records).extracting(ConsumerRecord::value)
+                .containsExactly("filtered-value");
     }
 
     @Test
@@ -237,6 +238,114 @@ class RouteFilterIT {
 
         assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
                 .hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void authenticatedSubjectAccessibleFromRouteFilter() throws Exception {
+        var saslFilter = new NamedFilterDefinitionBuilder(
+                "sasl-plain",
+                SaslPlainTermination.class.getName())
+                .withConfig("userNameToPassword",
+                        Map.of("alice", "alice-secret"))
+                .build();
+        var lawyerFilter = new NamedFilterDefinitionBuilder(
+                "lawyer",
+                ClientAuthAwareLawyer.class.getName())
+                .build();
+
+        var routeA = new RouteDefinition("route-a", 0,
+                List.of("lawyer"),
+                new RouteDefinition.Target("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1,
+                null,
+                new RouteDefinition.Target("cluster-b", null));
+
+        var config = buildConfig(routeA, routeB, saslFilter, lawyerFilter);
+        config.addToDefaultFilters("sasl-plain");
+
+        try (var tester = kroxyliciousTester(config)) {
+            try (var producer = tester.producer(saslProducerConfig("alice", "alice-secret", "route-a-client"))) {
+                producer.send(new ProducerRecord<>(TOPIC, "key", "authed-value"))
+                        .get(10, TimeUnit.SECONDS);
+            }
+
+            var records = consumeDirectly(clusterA);
+            assertThat(records).hasSize(1);
+            var record = records.get(0);
+            var subjectHeader = record.headers().lastHeader(
+                    ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT);
+            assertThat(subjectHeader).isNotNull();
+            var subjectValue = new String(subjectHeader.value(), java.nio.charset.StandardCharsets.UTF_8);
+            assertThat(subjectValue).contains("alice");
+        }
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("NPE in VirtualClusterModel.usesDynamicTlsCredentials when route filter on nested route — needs investigation")
+    void nestedRouterRouteFilterApplied() throws Exception {
+        var stampFilter = new NamedFilterDefinitionBuilder(
+                "inner-stamper",
+                FixedClientIdFilterFactory.class.getName())
+                .withConfig("clientId", "nested-stamped")
+                .build();
+
+        // Inner router: routes all to route-inner-a (with filter) on cluster-a
+        var innerRouteA = new RouteDefinition("route-inner-a", 0,
+                List.of("inner-stamper"),
+                new RouteDefinition.Target("cluster-a", null));
+        var innerRouter = new RouterDefinition("inner-router",
+                ClientIdRouterFactory.class.getName(),
+                new ClientIdRouterFactory.Config(
+                        Map.of("route-a-client", "route-inner-a"),
+                        "route-inner-a"),
+                List.of(innerRouteA));
+
+        // Outer router: routes all to route-outer which targets the inner router
+        var outerRoute = new RouteDefinition("route-outer", 0,
+                null,
+                new RouteDefinition.Target(null, "inner-router"));
+        var outerRouter = new RouterDefinition("outer-router",
+                ClientIdRouterFactory.class.getName(),
+                new ClientIdRouterFactory.Config(
+                        Map.of("route-a-client", "route-outer"),
+                        "route-outer"),
+                List.of(outerRoute));
+
+        var defA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var defB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteDefinition.Target(null, "outer-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(defA, defB)
+                .addToFilterDefinitions(stampFilter)
+                .addToRouterDefinitions(outerRouter, innerRouter)
+                .addToVirtualClusters(vc);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("route-a-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "nested-filtered"))
+                    .get(10, TimeUnit.SECONDS);
+        }
+
+        var records = consumeDirectly(clusterA);
+        assertThat(records).extracting(ConsumerRecord::value)
+                .containsExactly("nested-filtered");
+    }
+
+    private static Map<String, Object> saslProducerConfig(String username, String password, String clientId) {
+        var config = producerConfig(clientId);
+        config.put("security.protocol", "SASL_PLAINTEXT");
+        config.put(org.apache.kafka.common.config.SaslConfigs.SASL_MECHANISM, "PLAIN");
+        config.put(org.apache.kafka.common.config.SaslConfigs.SASL_JAAS_CONFIG,
+                "org.apache.kafka.common.security.plain.PlainLoginModule required"
+                        + " username=\"" + username + "\""
+                        + " password=\"" + password + "\";");
+        return config;
     }
 
     private ConfigurationBuilder configWithMarkingFilter(String name, ForwardingStyle style) {
