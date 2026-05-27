@@ -12,7 +12,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
@@ -51,34 +50,42 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for {@link RouteFilterPipeline}. Because handlers are dispatched to
+ * the client event loop asynchronously, all assertions wait on futures rather
+ * than checking state synchronously.
+ */
 class RouteFilterPipelineTest {
 
     private static final short API_VERSION = 12;
     private static final String ROUTE_NAME = "test-route";
     private static final int CORRELATION_ID = -500;
 
-    private DefaultEventLoopGroup eventLoopGroup;
-    private EventLoop eventLoop;
+    private DefaultEventLoopGroup clientEventLoopGroup;
+    private DefaultEventLoopGroup localEventLoopGroup;
+    private EventLoop clientEventLoop;
     private LocalChannel inboundChannel;
     private ClientConnectionStateMachine ccsm;
     private RouteFilterPipeline pipeline;
 
     @BeforeEach
     void setUp() throws Exception {
-        eventLoopGroup = new DefaultEventLoopGroup(1);
-        eventLoop = eventLoopGroup.next();
+        clientEventLoopGroup = new DefaultEventLoopGroup(1);
+        localEventLoopGroup = new DefaultEventLoopGroup(1);
+        clientEventLoop = clientEventLoopGroup.next();
         inboundChannel = new LocalChannel();
-        eventLoop.register(inboundChannel).sync();
+        localEventLoopGroup.register(inboundChannel).sync();
         ccsm = createCcsm();
     }
 
     @AfterEach
     void tearDown() throws Exception {
         if (pipeline != null) {
-            eventLoop.submit(() -> pipeline.close()).sync();
+            pipeline.closeFuture().sync();
         }
         inboundChannel.close().sync();
-        eventLoopGroup.shutdownGracefully(0, 100, TimeUnit.MILLISECONDS).sync();
+        clientEventLoopGroup.shutdownGracefully(0, 100, TimeUnit.MILLISECONDS).sync();
+        localEventLoopGroup.shutdownGracefully(0, 100, TimeUnit.MILLISECONDS).sync();
     }
 
     @Test
@@ -86,14 +93,15 @@ class RouteFilterPipelineTest {
         var filter = new ClientIdStampingFilter("stamped-client");
         pipeline = createPipeline(filter);
 
-        var future = new CompletableFuture<Response>();
-        var forwarded = new AtomicReference<Object>();
+        var forwardedFuture = new CompletableFuture<Object>();
+        var responseFuture = new CompletableFuture<Response>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        eventLoop.submit(() -> pipeline.writeRequest(frame, future, forwarded::set)).sync();
+        pipeline.writeRequest(frame, responseFuture, forwardedFuture::complete);
 
-        assertThat(forwarded.get()).isInstanceOf(DecodedRequestFrame.class);
-        var forwardedFrame = (DecodedRequestFrame<?>) forwarded.get();
+        var forwarded = forwardedFuture.get(5, TimeUnit.SECONDS);
+        assertThat(forwarded).isInstanceOf(DecodedRequestFrame.class);
+        var forwardedFrame = (DecodedRequestFrame<?>) forwarded;
         assertThat(forwardedFrame.header().clientId()).isEqualTo("stamped-client");
     }
 
@@ -102,21 +110,19 @@ class RouteFilterPipelineTest {
         var filter = new ErrorCodeStampingFilter((short) 42);
         pipeline = createPipeline(filter);
 
-        var future = new CompletableFuture<Response>();
+        var responseFuture = new CompletableFuture<Response>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        eventLoop.submit(() -> {
-            pipeline.writeRequest(frame, future, forwarded -> {
-                pipeline.writeResponse(
-                        new ResponseHeaderData().setCorrelationId(CORRELATION_ID),
-                        new FetchResponseData(),
-                        CORRELATION_ID,
-                        API_VERSION);
-            });
-        }).sync();
+        pipeline.writeRequest(frame, responseFuture, forwarded -> {
+            pipeline.writeResponse(
+                    new ResponseHeaderData().setCorrelationId(CORRELATION_ID),
+                    new FetchResponseData(),
+                    CORRELATION_ID,
+                    API_VERSION);
+        });
 
-        assertThat(future).succeedsWithin(Duration.ofSeconds(5));
-        Response response = future.get();
+        assertThat(responseFuture).succeedsWithin(Duration.ofSeconds(5));
+        Response response = responseFuture.get();
         assertThat(response.body()).isInstanceOf(FetchResponseData.class);
         assertThat(((FetchResponseData) response.body()).errorCode()).isEqualTo((short) 42);
     }
@@ -126,17 +132,17 @@ class RouteFilterPipelineTest {
         var filter = new ShortCircuitFilter();
         pipeline = createPipeline(filter);
 
-        var future = new CompletableFuture<Response>();
-        var forwarded = new AtomicReference<Object>();
+        var responseFuture = new CompletableFuture<Response>();
+        var forwardedFuture = new CompletableFuture<Object>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        eventLoop.submit(() -> pipeline.writeRequest(frame, future, forwarded::set)).sync();
+        pipeline.writeRequest(frame, responseFuture, forwardedFuture::complete);
 
-        assertThat(forwarded.get())
+        assertThat(responseFuture).succeedsWithin(Duration.ofSeconds(5));
+        assertThat(forwardedFuture)
                 .as("Short-circuit should not invoke forwarder")
-                .isNull();
-        assertThat(future).succeedsWithin(Duration.ofSeconds(5));
-        Response response = future.get();
+                .isNotDone();
+        Response response = responseFuture.get();
         assertThat(response.body()).isInstanceOf(FetchResponseData.class);
     }
 
@@ -146,13 +152,14 @@ class RouteFilterPipelineTest {
         var filter2 = new ClientIdStampingFilter("second");
         pipeline = createPipeline(filter1, filter2);
 
-        var future = new CompletableFuture<Response>();
-        var forwarded = new AtomicReference<Object>();
+        var forwardedFuture = new CompletableFuture<Object>();
+        var responseFuture = new CompletableFuture<Response>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        eventLoop.submit(() -> pipeline.writeRequest(frame, future, forwarded::set)).sync();
+        pipeline.writeRequest(frame, responseFuture, forwardedFuture::complete);
 
-        var forwardedFrame = (DecodedRequestFrame<?>) forwarded.get();
+        var forwarded = forwardedFuture.get(5, TimeUnit.SECONDS);
+        var forwardedFrame = (DecodedRequestFrame<?>) forwarded;
         assertThat(forwardedFrame.header().clientId())
                 .as("Last filter in request order wins")
                 .isEqualTo("second");
@@ -168,7 +175,8 @@ class RouteFilterPipelineTest {
         RouterDispatchHandler.MetadataAddressCacher metadataAddressCacher = body -> {
         };
         return RouteFilterPipeline.create(
-                eventLoop,
+                localEventLoopGroup,
+                clientEventLoop,
                 filterAndInvokers,
                 inboundChannel,
                 null,
@@ -206,9 +214,6 @@ class RouteFilterPipelineTest {
                 API_VERSION, correlationId, true, header, new FetchRequestData());
     }
 
-    /**
-     * A filter that stamps its clientId on every FETCH request.
-     */
     static class ClientIdStampingFilter implements FetchRequestFilter {
         private final String clientId;
 
@@ -227,9 +232,6 @@ class RouteFilterPipelineTest {
         }
     }
 
-    /**
-     * A filter that stamps an error code on every FETCH response.
-     */
     static class ErrorCodeStampingFilter implements FetchResponseFilter {
         private final short errorCode;
 
@@ -248,9 +250,6 @@ class RouteFilterPipelineTest {
         }
     }
 
-    /**
-     * A filter that short-circuits every FETCH request with a response.
-     */
     static class ShortCircuitFilter implements FetchRequestFilter {
         @Override
         public CompletionStage<RequestFilterResult> onFetchRequest(
