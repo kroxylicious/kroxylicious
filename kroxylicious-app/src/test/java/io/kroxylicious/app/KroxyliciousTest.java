@@ -39,7 +39,7 @@ import static org.mockito.Mockito.when;
 class KroxyliciousTest {
 
     @Mock
-    KafkaProxy mockProxy = Mockito.mock(KafkaProxy.class);
+    KafkaProxy mockProxy;
     private CommandLine cmd;
     private StringWriter soutWriter;
     private StringWriter serrWriter;
