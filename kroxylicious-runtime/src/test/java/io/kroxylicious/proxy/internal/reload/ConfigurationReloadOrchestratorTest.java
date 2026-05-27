@@ -25,6 +25,9 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
 import io.kroxylicious.proxy.reload.StaticConfigurationChangedException;
 import io.kroxylicious.proxy.service.HostPort;
@@ -33,6 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -82,8 +87,12 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     @Test
-    void clusterAdditionInvokesAddNoOpThenThrows() {
-        // given — old has cluster-a, new has cluster-a + cluster-b → addVirtualCluster is called
+    void shouldTransitionAddedClusterToServing() {
+        // given — old has cluster-a, new has cluster-a + cluster-b. With step 2 of the
+        // staircase, a pure-add reconfigure is supported end-to-end. The orchestrator drives:
+        // 1. vcr.addVirtualCluster(newModel) — bookkeeping (lifecycle in INITIALIZING)
+        // 2. endpointRegistry.registerVirtualCluster — bind every gateway
+        // 3. vcr.initializationSucceeded(name) — transition to SERVING
         var oldConfig = configWith(vc("cluster-a"));
         var newConfig = configWith(vc("cluster-a"), vc("cluster-b"));
         var registry = stubbedRegistry();
@@ -92,13 +101,96 @@ class ConfigurationReloadOrchestratorTest {
         // when
         var future = orchestrator.reconfigure(newConfig);
 
-        // then
-        assertThat(future).isCompletedExceptionally();
-        assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
+        // then — successful with no errors.
+        assertThat(future).isCompletedWithValueMatching(r -> !r.hasErrors());
 
-        verify(registry, never()).addVirtualCluster(any());
+        // Step 1: addVirtualCluster invoked for the new cluster only.
+        var captor = ArgumentCaptor.forClass(VirtualClusterModel.class);
+        verify(registry).addVirtualCluster(captor.capture());
+        assertThat(captor.getValue().getClusterName()).isEqualTo("cluster-b");
+
+        // Step 2: at least one gateway was registered. (cluster-b's vc() helper builds a
+        // single "default" gateway, so we expect exactly one register call for this test.)
+        verify(endpointRegistry).registerVirtualCluster(any(EndpointGateway.class));
+
+        // Step 3: lifecycle transitioned to SERVING.
+        verify(registry).initializationSucceeded("cluster-b");
+
+        // Negative assertions: no remove/replace happened, no rollback deregister fired.
         verify(registry, never()).removeVirtualCluster(anyString());
         verify(registry, never()).replaceVirtualCluster(anyString(), any());
+        verify(registry, never()).initializationFailed(anyString(), any());
+        verify(endpointRegistry, never()).deregisterVirtualCluster(any(EndpointGateway.class));
+    }
+
+    @Test
+    void shouldSurfaceErrorAndRollbackWhenGatewayBindFails() {
+        // given — pure-add reconfigure where endpointRegistry.registerVirtualCluster fails.
+        // The orchestrator must:
+        // - call vcr.addVirtualCluster (bookkeeping always runs first)
+        // - observe the bind failure
+        // - call vcr.initializationFailed to drive the lifecycle Stopped via Failed
+        // - issue a best-effort deregisterVirtualCluster for each gateway (rollback)
+        // - surface a per-cluster ReconfigureError in the result (not an exceptional future)
+        var oldConfig = configWith(vc("cluster-a"));
+        var newConfig = configWith(vc("cluster-a"), vc("cluster-b"));
+        var registry = stubbedRegistry();
+
+        // Override the shared endpointRegistry to fail every register call.
+        var bindFailure = new IllegalStateException("simulated bind failure");
+        when(endpointRegistry.registerVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.failedStage(bindFailure));
+
+        var orchestrator = newOrchestrator(oldConfig, registry);
+
+        // when
+        var future = orchestrator.reconfigure(newConfig);
+
+        // then — completes successfully with one error for cluster-b.
+        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
+                && r.errors().size() == 1
+                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-b")
+                && r.errors().iterator().next().cause() == bindFailure);
+
+        // Verify the orchestrator drove the full rollback sequence.
+        verify(registry).addVirtualCluster(argThat(m -> m != null && "cluster-b".equals(m.getClusterName())));
+        verify(registry).initializationFailed("cluster-b", bindFailure);
+        verify(endpointRegistry).deregisterVirtualCluster(any(EndpointGateway.class));
+        // Critically: initializationSucceeded must NOT have fired.
+        verify(registry, never()).initializationSucceeded("cluster-b");
+    }
+
+    @Test
+    void shouldNotPropagateRollbackDeregisterFailureWhenBindAlsoFailed() {
+        // The bind failed (primary reason the add is being rolled back). The subsequent
+        // deregister rollback ALSO fails. The orchestrator must:
+        // - log the deregister failure (operator-visible) but not propagate it;
+        // - keep the per-cluster ReconfigureError carrying the original bind cause,
+        // not the deregister cause — the deregister is a side-effect, not the trigger.
+        var oldConfig = configWith(vc("cluster-a"));
+        var newConfig = configWith(vc("cluster-a"), vc("cluster-b"));
+        var registry = stubbedRegistry();
+
+        var bindFailure = new IllegalStateException("simulated bind failure");
+        var rollbackFailure = new IllegalStateException("simulated deregister failure during rollback");
+        when(endpointRegistry.registerVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.failedStage(bindFailure));
+        when(endpointRegistry.deregisterVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.failedStage(rollbackFailure));
+
+        var orchestrator = newOrchestrator(oldConfig, registry);
+
+        var future = orchestrator.reconfigure(newConfig);
+
+        // The reconfigure future is still non-exceptional; the ReconfigureError carries the
+        // BIND cause, not the deregister cause.
+        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
+                && r.errors().size() == 1
+                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-b")
+                && r.errors().iterator().next().cause() == bindFailure);
+
+        // Deregister was attempted.
+        verify(endpointRegistry).deregisterVirtualCluster(any(EndpointGateway.class));
     }
 
     @Test
@@ -126,19 +218,21 @@ class ConfigurationReloadOrchestratorTest {
     void lockIsReleasedOnExceptionSoSubsequentCallsCanProceed() {
         // After the first reconfigure throws UnsupportedOperationException, a second call
         // must not be rejected with ConcurrentReconfigureException — the lock should be
-        // released even on exception via the finally block. Use a config with a real
-        // cluster change so the orchestrator reaches the placeholder UOE rather than
-        // the no-op early-return.
-        var oldConfig = configWith(vc("cluster-a"));
-        var newConfig = configWith(vc("cluster-a"), vc("cluster-b"));
-        var registry = stubbedRegistry();
-        var orchestrator = newOrchestrator(oldConfig, registry);
+        // released even on exception via the finally block. Inject a detector that produces
+        // a modify (the only operation still unsupported under step 2) so the orchestrator
+        // reaches the placeholder UOE rather than the no-op early-return.
+        var config = configWith(vc("cluster-a"));
+        var modifyDetector = mock(ChangeDetector.class);
+        when(modifyDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of(), Set.of(), Set.of("cluster-a")));
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, stubbedRegistry(), endpointRegistry, mock(PluginFactoryRegistry.class), List.of(modifyDetector));
 
-        var first = orchestrator.reconfigure(newConfig);
+        var first = orchestrator.reconfigure(config);
         assertThat(first).isCompletedExceptionally();
         assertThatThrownBy(first::join).cause().isInstanceOf(UnsupportedOperationException.class);
 
-        var second = orchestrator.reconfigure(newConfig);
+        var second = orchestrator.reconfigure(config);
         assertThat(second).isCompletedExceptionally();
         // Second call should also throw UOE (not ConcurrentReconfigureException).
         assertThatThrownBy(second::join).cause().isInstanceOf(UnsupportedOperationException.class);
@@ -219,7 +313,7 @@ class ConfigurationReloadOrchestratorTest {
         when(capturingDetector.detect(any())).thenReturn(ChangeResult.EMPTY);
 
         var orchestrator = new ConfigurationReloadOrchestrator(
-                initialConfig, mock(VirtualClusterRegistry.class),
+                initialConfig, mock(VirtualClusterRegistry.class), endpointRegistry,
                 mock(PluginFactoryRegistry.class), List.of(capturingDetector));
 
         orchestrator.reconfigure(firstSubmittedConfig).join();
@@ -247,7 +341,7 @@ class ConfigurationReloadOrchestratorTest {
 
         var registry = stubbedRegistry();
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, registry, mock(PluginFactoryRegistry.class), List.of(customDetector));
+                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(customDetector));
 
         // when
         var future = orchestrator.reconfigure(config);
@@ -263,10 +357,10 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     @Test
-    void mixedReconfigureWithRemoveAndAddIsRejectedUpfront() {
-        // A reconfigure that BOTH removes and adds clusters is a mixed result. Step 1 of the
-        // staircase rejects this upfront with UOE rather than processing the removes and then
-        // throwing for the adds (which would leave the proxy in a partial-state outcome).
+    void shouldExecuteRemovesBeforeAddsInMixedReconfigure() {
+        // A reconfigure that BOTH removes and adds clusters is supported under step 2. Removes
+        // are executed BEFORE adds so swap-style edits (e.g. moving an endpoint between VCs)
+        // resolve cleanly without overlapping binding conflicts.
         var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"));
         var newConfig = configWith(vc("cluster-a"), vc("cluster-c")); // removes cluster-b, adds cluster-c
         var registry = stubbedRegistry();
@@ -274,21 +368,115 @@ class ConfigurationReloadOrchestratorTest {
 
         var future = orchestrator.reconfigure(newConfig);
 
+        assertThat(future).isCompletedWithValueMatching(r -> !r.hasErrors());
+        var inOrder = inOrder(registry);
+        inOrder.verify(registry).removeVirtualCluster("cluster-b");
+        inOrder.verify(registry).addVirtualCluster(argThat(m -> m.getClusterName().equals("cluster-c")));
+        verify(registry, never()).replaceVirtualCluster(anyString(), any());
+    }
+
+    @Test
+    void modifyOnlyReconfigureIsRejectedUpfront() {
+        // A modify-only reconfigure is still unsupported and rejected upfront with UOE
+        // before any per-VC work runs. We inject a detector that produces a clustersToModify
+        // entry because the production detectors require an actual filter/cluster change to
+        // surface a modify; this lets the test focus on the orchestrator's guard behaviour.
+        var config = configWith(vc("cluster-a"));
+        var customDetector = mock(ChangeDetector.class);
+        when(customDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of(),
+                Set.of(),
+                Set.of("cluster-a")));
+
+        var registry = stubbedRegistry();
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(customDetector));
+
+        var future = orchestrator.reconfigure(config);
+
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
-        // No registry methods invoked — rejection happens before the per-VC loop.
         verify(registry, never()).removeVirtualCluster(anyString());
         verify(registry, never()).addVirtualCluster(any());
         verify(registry, never()).replaceVirtualCluster(anyString(), any());
     }
 
     @Test
-    void perClusterRemoveFailureSurfacesAsReconfigureErrorAndOthersStillRun() {
+    void shouldFailFastWhenChangeDetectorReportsAddForClusterMissingFromNewConfig() {
+        // Programming-error guard: if a ChangeDetector lies and reports a cluster as added
+        // when that cluster isn't present in the submitted newConfig's models, the orchestrator
+        // must fail loud (IllegalStateException via addCluster's null-model guard) rather than
+        // NPE deep inside VCR or surface it as a per-cluster ReconfigureError (the cluster
+        // isn't the cause of the failure; the detector contract is). We inject a custom
+        // detector that reports a phantom add.
+        var config = configWith(vc("cluster-a"));
+        var phantomDetector = mock(ChangeDetector.class);
+        when(phantomDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of("phantom-cluster"), // detector lies: this cluster is not in any config
+                Set.of(),
+                Set.of()));
+
+        var registry = stubbedRegistry();
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(phantomDetector));
+
+        var future = orchestrator.reconfigure(config);
+
+        // Future fails with IllegalStateException naming the phantom cluster and pointing
+        // at the ChangeDetector contract as the diagnostic origin.
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::join)
+                .cause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("phantom-cluster")
+                .hasMessageContaining("ChangeDetector contract violation");
+
+        // addCluster's guard fires BEFORE the VCR bookkeeping call, so the registry's
+        // addVirtualCluster method must not have been invoked.
+        verify(registry, never()).addVirtualCluster(any());
+    }
+
+    @Test
+    void shouldContinueAddingClustersAfterPerClusterFailure() {
+        // Two clusters are being added. The registry's addVirtualCluster (bookkeeping) for
+        // one of them returns a failed future; the other returns a completed future.
+        // Required orchestrator behaviour:
+        // - still attempt the second add (failure of one does not abort the loop);
+        // - surface the failure as a per-cluster ReconfigureError in the result;
+        // - return a successful future overall (ReconfigureResult conveys partial failure).
+        var oldConfig = configWith(vc("cluster-a"));
+        var newConfig = configWith(vc("cluster-a"), vc("cluster-b"), vc("cluster-c"));
+
+        var registry = mock(VirtualClusterRegistry.class);
+        var bSpecificFailure = new IllegalStateException("simulated bookkeeping failure on cluster-b");
+        when(registry.addVirtualCluster(argThat(m -> m != null && "cluster-b".equals(m.getClusterName()))))
+                .thenReturn(CompletableFuture.failedFuture(bSpecificFailure));
+        when(registry.addVirtualCluster(argThat(m -> m != null && "cluster-c".equals(m.getClusterName()))))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        var orchestrator = newOrchestrator(oldConfig, registry);
+
+        var future = orchestrator.reconfigure(newConfig);
+
+        // Both adds attempted.
+        verify(registry).addVirtualCluster(argThat(m -> m != null && "cluster-b".equals(m.getClusterName())));
+        verify(registry).addVirtualCluster(argThat(m -> m != null && "cluster-c".equals(m.getClusterName())));
+
+        // Future succeeds (with errors inside the result), not exceptional.
+        assertThat(future).isCompletedWithValueMatching(r -> r.hasErrors()
+                && r.errors().size() == 1
+                && r.errors().iterator().next().humanReadableIdentifier().equals("cluster-b")
+                && r.errors().iterator().next().cause() == bSpecificFailure);
+    }
+
+    @Test
+    void shouldContinueRemovingClustersAfterPerClusterFailure() {
         // Two clusters are being removed. The registry's removeVirtualCluster for one of them
-        // returns a failed future; the other returns a completed future. The orchestrator must:
-        // (a) still attempt the second removal (failure of one does not abort the loop);
-        // (b) surface the failure as a per-cluster ReconfigureError in the result;
-        // (c) return a successful future overall (ReconfigureResult conveys partial failure).
+        // returns a failed future; the other returns a completed future.
+        // Required orchestrator behaviour:
+        // - still attempt the second removal (failure of one does not abort the loop);
+        // - surface the failure as a per-cluster ReconfigureError in the result;
+        // - return a successful future overall (ReconfigureResult conveys partial failure).
         var oldConfig = configWith(vc("cluster-a"), vc("cluster-b"), vc("cluster-c"));
         var newConfig = configWith(vc("cluster-a")); // removes cluster-b AND cluster-c
 
@@ -329,7 +517,7 @@ class ConfigurationReloadOrchestratorTest {
                 ChangeResult.EMPTY);
 
         var orchestrator = new ConfigurationReloadOrchestrator(
-                initialConfig, stubbedRegistry(), mock(PluginFactoryRegistry.class), List.of(capturingDetector));
+                initialConfig, stubbedRegistry(), endpointRegistry, mock(PluginFactoryRegistry.class), List.of(capturingDetector));
 
         orchestrator.reconfigure(afterRemove).join();
         orchestrator.reconfigure(afterRemove).join();
@@ -346,21 +534,37 @@ class ConfigurationReloadOrchestratorTest {
 
     // -------- fixture helpers --------
 
+    /**
+     * A single shared {@link EndpointRegistry} mock per test, stubbed to succeed for every
+     * {@code registerVirtualCluster} call. Tests that need bind failure override this
+     * per-test (see {@link #shouldSurfaceErrorAndRollbackWhenGatewayBindFails()}).
+     */
+    private final EndpointRegistry endpointRegistry = stubbedEndpointRegistry();
+
     private ConfigurationReloadOrchestrator newOrchestrator(Configuration initial, VirtualClusterRegistry registry) {
-        return new ConfigurationReloadOrchestrator(initial, registry, mock(PluginFactoryRegistry.class),
+        return new ConfigurationReloadOrchestrator(initial, registry, endpointRegistry, mock(PluginFactoryRegistry.class),
                 ConfigurationReloadOrchestrator.defaultDetectors());
     }
 
     /**
-     * A {@link VirtualClusterRegistry} mock where the three reconfigure operations are all
-     * stubbed to return a completed future, mirroring the production stub behaviour. Used in
-     * tests that don't need per-call observation of the registry.
+     * A {@link VirtualClusterRegistry} mock where the reconfigure operations are stubbed to
+     * return a completed future, mirroring the production stub behaviour. Used in tests that
+     * don't need per-call observation of the registry.
      */
     private static VirtualClusterRegistry stubbedRegistry() {
         var registry = mock(VirtualClusterRegistry.class);
         when(registry.removeVirtualCluster(anyString())).thenReturn(CompletableFuture.completedFuture(null));
         when(registry.replaceVirtualCluster(anyString(), any())).thenReturn(CompletableFuture.completedFuture(null));
         when(registry.addVirtualCluster(any())).thenReturn(CompletableFuture.completedFuture(null));
+        return registry;
+    }
+
+    private static EndpointRegistry stubbedEndpointRegistry() {
+        var registry = mock(EndpointRegistry.class);
+        when(registry.registerVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.completedStage(null));
+        when(registry.deregisterVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.completedStage(null));
         return registry;
     }
 

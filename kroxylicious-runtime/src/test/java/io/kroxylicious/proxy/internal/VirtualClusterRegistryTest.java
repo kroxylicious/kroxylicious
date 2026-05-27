@@ -718,7 +718,7 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void addVirtualClusterStubReturnsCompletedFutureWithoutCreatingLifecycle() {
+    void addVirtualClusterCreatesLifecycleInInitializing() {
         // given
         var newModel = mockModel(CLUSTER_B);
         assertThat(vcc.lifecycleFor(CLUSTER_B)).isNull();
@@ -726,10 +726,28 @@ class VirtualClusterRegistryTest {
         // when
         var future = vcc.addVirtualCluster(newModel);
 
-        // then
+        // then — future already completed; lifecycle exists in INITIALIZING (orchestrator will
+        // call initializationSucceeded once gateways are bound).
         assertThat(future).isCompleted();
-        // the stub doesn't actually create a lifecycle for the new cluster
-        assertThat(vcc.lifecycleFor(CLUSTER_B)).isNull();
+        assertThat(vcc.lifecycleFor(CLUSTER_B)).isNotNull()
+                .extracting(VirtualClusterLifecycle::state)
+                .isInstanceOf(VirtualClusterLifecycleState.Initializing.class);
+    }
+
+    @Test
+    void addVirtualClusterRejectsDuplicateName() {
+        // CLUSTER_A is already present from setUp
+        var duplicate = mockModel(CLUSTER_A);
+        assertThatThrownBy(() -> vcc.addVirtualCluster(duplicate))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining(CLUSTER_A);
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    @Test
+    void addVirtualClusterRejectsNullModel() {
+        assertThatThrownBy(() -> vcc.addVirtualCluster(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
 }

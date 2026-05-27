@@ -7,10 +7,12 @@ package io.kroxylicious.proxy.internal.reload;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +20,9 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
 import io.kroxylicious.proxy.reload.ReconfigureError;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
@@ -52,10 +57,14 @@ public class ConfigurationReloadOrchestrator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationReloadOrchestrator.class);
 
+    private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
+    private static final String LOG_KEY_ERROR = "error";
+
     private final ReentrantLock reconfigureLock = new ReentrantLock();
     private final List<ChangeDetector> detectors;
     private final StaticSectionDiffer staticSectionDiffer;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    private final EndpointRegistry endpointRegistry;
     private final PluginFactoryRegistry pfr;
 
     /**
@@ -75,6 +84,9 @@ public class ConfigurationReloadOrchestrator {
      *                               drives its {@code removeVirtualCluster} /
      *                               {@code replaceVirtualCluster} / {@code addVirtualCluster}
      *                               methods (currently no-ops; see class-level Javadoc)
+     * @param endpointRegistry       the proxy's endpoint registry; the orchestrator calls
+     *                               {@code registerVirtualCluster} / {@code deregisterVirtualCluster}
+     *                               on it when applying per-VC add/remove operations
      * @param pfr                    plugin factory registry, used by change detectors and
      *                               by filter-chain reconciliation
      * @param detectors              the change-detector pipeline to drive; production wiring
@@ -84,10 +96,12 @@ public class ConfigurationReloadOrchestrator {
      */
     public ConfigurationReloadOrchestrator(Configuration initialConfiguration,
                                            VirtualClusterRegistry virtualClusterRegistry,
+                                           EndpointRegistry endpointRegistry,
                                            PluginFactoryRegistry pfr,
                                            List<ChangeDetector> detectors) {
         this.currentConfiguration = Objects.requireNonNull(initialConfiguration, "initialConfiguration");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
+        this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");
         this.pfr = Objects.requireNonNull(pfr, "pfr");
         this.staticSectionDiffer = new StaticSectionDiffer();
         this.detectors = List.copyOf(Objects.requireNonNull(detectors, "detectors"));
@@ -112,17 +126,16 @@ public class ConfigurationReloadOrchestrator {
      *               submitted configuration produces no changes (a no-op reconfigure);
      *               {@code currentConfiguration} is updated to the submitted value</li>
      *           <li>successfully with a {@link ReconfigureResult} (possibly with per-cluster
-     *               errors) when the submitted configuration removes one or more virtual
-     *               clusters and does not add or modify any; {@code currentConfiguration}
-     *               is updated to the submitted value</li>
+     *               errors) when the submitted configuration only removes and/or adds
+     *               virtual clusters (no modifies); {@code currentConfiguration} is updated
+     *               to the submitted value</li>
      *           <li>exceptionally with {@link StaticConfigurationChangedException} when the
      *               submitted configuration differs from the current one in any static
      *               section</li>
      *           <li>exceptionally with {@link ConcurrentReconfigureException} when another
      *               reconfigure is already in progress</li>
      *           <li>exceptionally with {@link UnsupportedOperationException} when the
-     *               submitted configuration would add or modify any virtual cluster
-     *               (placeholder for follow-up staircase steps)</li>
+     *               submitted configuration would modify any virtual cluster </li>
      *         </ul>
      */
     public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
@@ -157,35 +170,45 @@ public class ConfigurationReloadOrchestrator {
                 return CompletableFuture.completedFuture(ReconfigureResult.of(List.of()));
             }
 
-            // 5. Mixed-reconfigure guard. Submissions that ADD or MODIFY any virtual cluster
-            // would land at the per-VC modify/add placeholders below, which are still no-op
-            // stubs. Rather than partially apply the removes and leave the proxy in a half-
-            // reconciled state, reject the whole submission upfront.
-            if (!changeResult.clustersToModify().isEmpty() || !changeResult.clustersToAdd().isEmpty()) {
+            // 5. Mixed-reconfigure guard. Modify operations would land at the per-VC modify
+            // placeholder below, which is still a no-op stub. Reject submissions that require
+            // any modify rather than partially-applying the adds/removes around it.
+            if (!changeResult.clustersToModify().isEmpty()) {
                 throw new UnsupportedOperationException(
-                        "KafkaProxy.reconfigure() does not yet support add/replace operations. "
+                        "KafkaProxy.reconfigure() does not yet support modify operations. "
                                 + "Pre-flight, concurrency, validation, and change detection have completed; "
                                 + "this reconfigure was rejected because it would have required "
-                                + changeResult.clustersToAdd().size() + " cluster add(s) and "
                                 + changeResult.clustersToModify().size() + " cluster modify operation(s).");
             }
 
-            // 6. Per-VC remove. SEQUENTIAL. Errors are accumulated into
-            // a per-cluster list and surfaced via the ReconfigureResult; a failed cluster
-            // does not prevent subsequent removes from being attempted.
+            // 6. Per-VC remove. SEQUENTIAL. Errors are accumulated into a per-cluster list
+            // and surfaced via the ReconfigureResult; a failed cluster does not prevent
+            // subsequent removes from being attempted.
             var errors = new ArrayList<ReconfigureError>();
             for (String name : changeResult.clustersToRemove()) {
                 removeCluster(name, errors);
             }
 
-            // 7. Commit. currentConfiguration advances to the submitted value
+            // 7. Per-VC add. SEQUENTIAL, after removes. Same error-accumulation contract:
+            // a failed add does not prevent subsequent adds from being attempted. Adds run
+            // after removes so that endpoint conflicts produced by swap-style edits resolve
+            // in the right order. addCluster() asserts model non-null with a clear diagnostic
+            // for the most likely contract violation (a buggy ChangeDetector).
+            if (!changeResult.clustersToAdd().isEmpty()) {
+                var newModelsByName = resolveModelsByName(newConfig);
+                for (String name : changeResult.clustersToAdd()) {
+                    addCluster(name, newModelsByName.get(name), errors);
+                }
+            }
+
+            // 8. Commit. currentConfiguration advances to the submitted value
             this.currentConfiguration = newConfig;
             return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
         }
         catch (RuntimeException e) {
             LOGGER.atError()
                     .setCause(e)
-                    .addKeyValue("error", e.getMessage())
+                    .addKeyValue(LOG_KEY_ERROR, e.getMessage())
                     .log("reconfigure failed");
             return CompletableFuture.failedFuture(e);
         }
@@ -209,15 +232,105 @@ public class ConfigurationReloadOrchestrator {
             virtualClusterRegistry.removeVirtualCluster(clusterName).join();
         }
         catch (RuntimeException e) {
-            Throwable cause = e instanceof CompletionException ce && ce.getCause() != null
-                    ? ce.getCause()
-                    : e;
+            Throwable cause = unwrap(e);
             LOGGER.atWarn()
                     .setCause(cause)
-                    .addKeyValue("virtualCluster", clusterName)
-                    .addKeyValue("error", cause.getMessage())
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                    .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                     .log("reconfigure: failed to remove virtual cluster");
             errors.add(new ReconfigureError(clusterName, cause));
         }
+    }
+
+    /**
+     * Attempt to add a single virtual cluster:
+     * <ol>
+     *   <li>Validate {@code newModel} is non-null — this is the canonical place to surface
+     *       a {@link io.kroxylicious.proxy.internal.reload.ChangeDetector} contract violation
+     *       (a name reported as "to add" with no matching model in the submitted config).</li>
+     *   <li>Ask the registry to create the lifecycle in {@code INITIALIZING}.</li>
+     *   <li>Bind each gateway via {@link EndpointRegistry#registerVirtualCluster}.</li>
+     *   <li>On success, transition the lifecycle to {@code SERVING} via
+     *       {@link VirtualClusterRegistry#initializationSucceeded}.</li>
+     *   <li>On bind failure, transition to {@code STOPPED} via
+     *       {@link VirtualClusterRegistry#initializationFailed} and best-effort deregister each
+     *       gateway to roll back any partial registration.</li>
+     * </ol>
+     */
+    private void addCluster(String clusterName, VirtualClusterModel newModel, List<ReconfigureError> errors) {
+        if (newModel == null) {
+            throw new IllegalStateException(
+                    "addCluster called with null model for cluster '" + clusterName
+                            + "'; this indicates a ChangeDetector contract violation"
+                            + " (cluster reported as added but absent from the submitted configuration)");
+        }
+        try {
+            // Step 1: pure bookkeeping — creates the lifecycle in INITIALIZING.
+            virtualClusterRegistry.addVirtualCluster(newModel).join();
+            // Step 2 (+ rollback on failure): bind gateways and transition the lifecycle.
+            bindGatewaysAndTransitionToServing(clusterName, newModel, errors);
+        }
+        catch (RuntimeException e) {
+            Throwable cause = unwrap(e);
+            LOGGER.atWarn()
+                    .setCause(cause)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                    .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
+                    .log("reconfigure: failed to create lifecycle for virtual cluster");
+            errors.add(new ReconfigureError(clusterName, cause));
+        }
+    }
+
+    /**
+     * Register every gateway for {@code newModel}. On success, transitions the cluster's
+     * lifecycle to {@code SERVING}. On failure, drives the lifecycle to {@code STOPPED}
+     * via {@code FAILED}, issues best-effort deregister for every gateway (some may not
+     * have been registered yet — that's fine, {@code deregisterVirtualCluster} is idempotent),
+     * and adds a {@link ReconfigureError} to {@code errors}.
+     */
+    private void bindGatewaysAndTransitionToServing(String clusterName, VirtualClusterModel newModel, List<ReconfigureError> errors) {
+        List<EndpointGateway> gateways = List.copyOf(newModel.gateways().values());
+        var bindFutures = gateways.stream()
+                .map(g -> endpointRegistry.registerVirtualCluster(g).toCompletableFuture())
+                .toArray(CompletableFuture[]::new);
+        try {
+            CompletableFuture.allOf(bindFutures).join();
+        }
+        catch (RuntimeException bindError) {
+            Throwable cause = unwrap(bindError);
+            LOGGER.atWarn()
+                    .setCause(cause)
+                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                    .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
+                    .log("reconfigure: gateway registration failed; rolling back");
+            virtualClusterRegistry.initializationFailed(clusterName, cause);
+
+            // Best-effort rollback. Fire-and-forget per gateway, but attach an exceptionally
+            // handler so a deregister failure surfaces in operator-visible logs — without
+            // logging silently, a stuck port binding after a failed add would be invisible.
+            for (var g : gateways) {
+                endpointRegistry.deregisterVirtualCluster(g)
+                        .exceptionally(ex -> {
+                            LOGGER.atWarn()
+                                    .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                                    .addKeyValue(LOG_KEY_ERROR, ex.getMessage())
+                                    .log("reconfigure: rollback deregister failed; gateway binding may remain active");
+                            return null;
+                        });
+            }
+            errors.add(new ReconfigureError(clusterName, cause));
+            return;
+        }
+        virtualClusterRegistry.initializationSucceeded(clusterName);
+    }
+
+    private static Throwable unwrap(Throwable t) {
+        return t instanceof CompletionException ce && ce.getCause() != null ? ce.getCause() : t;
+    }
+
+    private Map<String, VirtualClusterModel> resolveModelsByName(Configuration newConfig) {
+        return newConfig.virtualClusterModel(pfr).stream()
+                .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, m -> m));
     }
 }

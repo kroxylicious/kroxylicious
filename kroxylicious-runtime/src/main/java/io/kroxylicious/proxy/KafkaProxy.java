@@ -268,7 +268,7 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
             this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
-                    config, virtualClusterRegistry, pfr,
+                    config, virtualClusterRegistry, endpointRegistry, pfr,
                     ConfigurationReloadOrchestrator.defaultDetectors());
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);

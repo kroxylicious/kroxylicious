@@ -36,6 +36,8 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeystoreManager;
 
+import static io.kroxylicious.it.HotReloadIT.VcSlot.INCOMING;
+import static io.kroxylicious.it.HotReloadIT.VcSlot.OUTGOING;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,70 +49,189 @@ class HotReloadIT extends BaseIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(HotReloadIT.class);
 
-    private static final String VC_KEEP_NAME = "vc-keep";
-    private static final String VC_REMOVE_NAME = "vc-remove";
+    private static final String VC_BASELINE_NAME = "vc-baseline";
+    private static final String VC_OUTGOING_NAME = "vc-outgoing";
+    private static final String VC_INCOMING_NAME = "vc-incoming";
 
     private static final int SHARED_SNI_PORT = KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP.port();
     private static final String SNI_BASE_DOMAIN = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".hotreload");
-    private static final String VC_KEEP_BOOTSTRAP = "bootstrap-keep" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
-    private static final String VC_REMOVE_BOOTSTRAP = "bootstrap-remove" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
-    private static final String VC_KEEP_BROKER_PATTERN = "broker-$(nodeId)-keep" + SNI_BASE_DOMAIN;
-    private static final String VC_REMOVE_BROKER_PATTERN = "broker-$(nodeId)-remove" + SNI_BASE_DOMAIN;
+    private static final String VC_BASELINE_BOOTSTRAP = "bootstrap-baseline" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
+    private static final String VC_OUTGOING_BOOTSTRAP = "bootstrap-outgoing" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
+    private static final String VC_INCOMING_BOOTSTRAP = "bootstrap-incoming" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
+    private static final String VC_BASELINE_BROKER_PATTERN = "broker-$(nodeId)-baseline" + SNI_BASE_DOMAIN;
+    private static final String VC_OUTGOING_BROKER_PATTERN = "broker-$(nodeId)-outgoing" + SNI_BASE_DOMAIN;
+    private static final String VC_INCOMING_BROKER_PATTERN = "broker-$(nodeId)-incoming" + SNI_BASE_DOMAIN;
 
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration PRODUCE_CONSUME_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(5);
 
+    /**
+     * Identifies a non-baseline VC slot used by the tests. {@link #buildConfig} takes a
+     * varargs of these to declare which extras (beyond BASELINE) should appear in the
+     * configuration being built.
+     */
+    enum VcSlot {
+        OUTGOING(VC_OUTGOING_NAME, VC_OUTGOING_BOOTSTRAP, VC_OUTGOING_BROKER_PATTERN),
+        INCOMING(VC_INCOMING_NAME, VC_INCOMING_BOOTSTRAP, VC_INCOMING_BROKER_PATTERN);
+
+        final String name;
+        final String bootstrap;
+        final String brokerPattern;
+
+        VcSlot(String name, String bootstrap, String brokerPattern) {
+            this.name = name;
+            this.bootstrap = bootstrap;
+            this.brokerPattern = brokerPattern;
+        }
+    }
+
     @Test
     void shouldStopRemovedVcButContinueServingOthersEndToEnd(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Wildcard cert covering both VCs' SNI hostnames (both end in SNI_BASE_DOMAIN).
         KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
-        var twoVcConfig = buildConfig(cluster, certs, true);
-        var oneVcConfig = buildConfig(cluster, certs, false);
+        var startingConfig = buildConfig(cluster, certs, OUTGOING); // baseline + outgoing
+        var afterConfig = buildConfig(cluster, certs); // baseline only
 
         // Tester builder so we can register the truststore — required for the default client
         // configuration to do SSL handshakes against the SNI-addressed VCs.
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(twoVcConfig.virtualClusters().toArray(new VirtualCluster[0]));
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
                 .setTrustStoreLocation(certs.clientTrustStore())
                 .setTrustStorePassword(certs.password())
                 .createDefaultKroxyliciousTester()) {
 
-            String topic = tester.createTopic(VC_KEEP_NAME);
+            String topic = tester.createTopic(VC_BASELINE_NAME);
 
             // Phase 1: both SNI-addressed VCs serve produce + consume on the shared port.
-            LOGGER.info("Phase 1: producing + consuming through both SNI-addressed VCs");
-            assertProduceConsumeRoundTrip(tester, VC_KEEP_NAME, topic, "phase1-keep");
-            assertProduceConsumeRoundTrip(tester, VC_REMOVE_NAME, topic, "phase1-remove");
+            LOGGER.info("Phase 1: producing + consuming through baseline + outgoing VCs");
+            assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase1-baseline");
+            assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, topic, "phase1-outgoing");
 
-            // Phase 2: reconfigure removes vc-remove. The acceptor channel stays alive
-            // (vc-keep still needs it); vc-remove transitions to STOPPED.
-            LOGGER.info("Phase 2: reconfiguring to remove '{}'", VC_REMOVE_NAME);
-            var result = tester.reconfigure(oneVcConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+            // Phase 2: reconfigure removes vc-outgoing. The acceptor channel stays alive
+            // (vc-baseline still needs it); vc-outgoing transitions to STOPPED.
+            LOGGER.info("Phase 2: reconfiguring to remove '{}'", VC_OUTGOING_NAME);
+            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
             assertThat(result.hasErrors())
                     .as("ReconfigureResult should have no errors for a clean pure-remove")
                     .isFalse();
 
-            // Phase 3: vc-keep continues to serve on the same port + cert. An unaffected
+            // Phase 3: vc-baseline continues to serve on the same port + cert. An unaffected
             // VC is genuinely undisturbed by the reconfigure.
-            LOGGER.info("Phase 3: verifying '{}' still serves produce + consume", VC_KEEP_NAME);
-            assertProduceConsumeRoundTrip(tester, VC_KEEP_NAME, topic, "phase3-keep");
+            LOGGER.info("Phase 3: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
+            assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase3-baseline");
 
-            // Phase 4: new connections with vc-remove's SNI hostname are rejected. TLS
+            // Phase 4: new connections with vc-outgoing's SNI hostname are rejected. TLS
             // handshake succeeds (cert is wildcard, covers both hostnames), but the Kafka
             // session is closed because the VC behind that SNI binding is now STOPPED —
             // the SERVING-state guard rejects registration.
-            LOGGER.info("Phase 4: verifying '{}' no longer accepts traffic on its SNI hostname", VC_REMOVE_NAME);
-            assertProducerFailure(tester, VC_REMOVE_NAME, topic);
+            LOGGER.info("Phase 4: verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
+            assertProducerFailure(tester, VC_OUTGOING_NAME, topic);
         }
     }
 
-    private static Configuration buildConfig(KafkaCluster cluster, KeystoreTrustStorePair certs, boolean includeRemoveVc) {
+    @Test
+    void shouldStartServingAddedVcEndToEnd(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Wildcard cert covering both VCs' SNI hostnames; required so the cert is already
+        // valid for the to-be-added VC's hostname when registration runs at reconfigure time.
+        KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
+        var startingConfig = buildConfig(cluster, certs); // baseline only
+        var afterConfig = buildConfig(cluster, certs, INCOMING); // baseline + incoming
+
+        // Tester is built around the starting (one-VC) config. We pre-register the truststore
+        // so client SSL handshakes against the SNI-addressed VCs succeed in every phase.
+        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
+                .setTrustStoreLocation(certs.clientTrustStore())
+                .setTrustStorePassword(certs.password())
+                .createDefaultKroxyliciousTester()) {
+
+            String baselineTopic = tester.createTopic(VC_BASELINE_NAME);
+
+            // Phase 1: only vc-baseline is configured and serving. vc-incoming is not yet known.
+            LOGGER.info("Phase 1: producing + consuming through '{}' (only configured VC)", VC_BASELINE_NAME);
+            assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase1-baseline");
+
+            // Phase 2: reconfigure adds vc-incoming.
+            LOGGER.info("Phase 2: reconfiguring to add '{}'", VC_INCOMING_NAME);
+            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+            assertThat(result.hasErrors())
+                    .as("ReconfigureResult should have no errors for a clean pure-add")
+                    .isFalse();
+
+            // Phase 3: the newly-added vc-incoming is reachable end-to-end.
+            LOGGER.info("Phase 3: verifying '{}' serves produce + consume after add", VC_INCOMING_NAME);
+            String incomingTopic = tester.createTopic(VC_INCOMING_NAME);
+            assertProduceConsumeRoundTrip(tester, VC_INCOMING_NAME, incomingTopic, "phase3-incoming");
+
+            // Phase 4: vc-baseline remains undisturbed by the add.
+            LOGGER.info("Phase 4: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
+            assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase4-baseline");
+        }
+    }
+
+    @Test
+    void shouldHandleMixedAddAndRemoveInSingleReconfigure(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Wildcard cert covering every VC hostname in this test (baseline, outgoing, incoming).
+        KeystoreTrustStorePair certs = buildKeystoreTrustStorePair("*" + SNI_BASE_DOMAIN);
+        var startingConfig = buildConfig(cluster, certs, OUTGOING); // baseline + outgoing
+        var afterConfig = buildConfig(cluster, certs, INCOMING); // baseline + incoming
+
+        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder)
+                .setTrustStoreLocation(certs.clientTrustStore())
+                .setTrustStorePassword(certs.password())
+                .createDefaultKroxyliciousTester()) {
+
+            String baselineTopic = tester.createTopic(VC_BASELINE_NAME);
+
+            // Phase 1: starting state — baseline + outgoing both serve.
+            LOGGER.info("Phase 1: producing + consuming through baseline + outgoing VCs");
+            assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase1-baseline");
+            assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, baselineTopic, "phase1-outgoing");
+
+            // Phase 2: a single reconfigure both removes vc-outgoing AND adds vc-incoming.
+            LOGGER.info("Phase 2: reconfiguring to remove '{}' and add '{}' in one call", VC_OUTGOING_NAME, VC_INCOMING_NAME);
+            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+            assertThat(result.hasErrors())
+                    .as("ReconfigureResult should have no errors for a clean mixed add+remove")
+                    .isFalse();
+
+            // Phase 3: vc-baseline is undisturbed by the mixed reconfigure.
+            LOGGER.info("Phase 3: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
+            assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase3-baseline");
+
+            // Phase 4: vc-outgoing's SNI hostname no longer accepts traffic — the binding may
+            // still be alive (shared acceptor channel) but the SERVING-state guard rejects
+            // new connections because vc-outgoing is now STOPPED.
+            LOGGER.info("Phase 4: verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
+            assertProducerFailure(tester, VC_OUTGOING_NAME, baselineTopic);
+
+            // Phase 5: vc-incoming is reachable end-to-end.
+            LOGGER.info("Phase 5: verifying '{}' serves produce + consume after the mixed reconfigure", VC_INCOMING_NAME);
+            String incomingTopic = tester.createTopic(VC_INCOMING_NAME);
+            assertProduceConsumeRoundTrip(tester, VC_INCOMING_NAME, incomingTopic, "phase5-incoming");
+        }
+    }
+
+    /**
+     * Build a {@link Configuration} containing {@code VC_BASELINE} plus the additional VCs
+     * named by {@code extras}. Call sites read like declarations of intent:
+     * <pre>{@code
+     *   buildConfig(cluster, certs)                    // baseline only
+     *   buildConfig(cluster, certs, OUTGOING)          // baseline + outgoing
+     *   buildConfig(cluster, certs, INCOMING)          // baseline + incoming
+     *   buildConfig(cluster, certs, OUTGOING, INCOMING) // baseline + both
+     * }</pre>
+     */
+    private static Configuration buildConfig(KafkaCluster cluster, KeystoreTrustStorePair certs, VcSlot... extras) {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(buildSniVirtualCluster(cluster, certs, VC_KEEP_NAME, VC_KEEP_BOOTSTRAP, VC_KEEP_BROKER_PATTERN));
-        if (includeRemoveVc) {
-            builder.addToVirtualClusters(buildSniVirtualCluster(cluster, certs, VC_REMOVE_NAME, VC_REMOVE_BOOTSTRAP, VC_REMOVE_BROKER_PATTERN));
+                .addToVirtualClusters(buildSniVirtualCluster(cluster, certs, VC_BASELINE_NAME, VC_BASELINE_BOOTSTRAP, VC_BASELINE_BROKER_PATTERN));
+        for (var slot : extras) {
+            builder.addToVirtualClusters(buildSniVirtualCluster(cluster, certs, slot.name, slot.bootstrap, slot.brokerPattern));
         }
         return builder.build();
     }

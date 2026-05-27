@@ -248,21 +248,29 @@ public class VirtualClusterRegistry {
     }
 
     /**
-     * Brings a new virtual cluster up: creates a {@link VirtualClusterLifecycle} in
-     * {@code INITIALIZING}, registers its gateways, and transitions it to {@code SERVING}.
-     * Invoked by {@code ConfigurationReloadOrchestrator} for clusters absent in the running
-     * configuration but present in the submitted one.
+     * Creates a {@link VirtualClusterLifecycle} in {@code INITIALIZING} for
+     * the given model. Endpoint binding and the transition to {@code SERVING} are the
+     * orchestrator's responsibility — once gateway registration succeeds it calls
+     * {@link #initializationSucceeded(String)}; on failure it calls
+     * {@link #initializationFailed(String, Throwable)} and rolls back the gateway bindings.
      *
-     * @param newModel the model for the new cluster
-     * @return a future that completes when the cluster is in {@code SERVING}
+     * @param newModel the model for the new cluster; must not name a cluster already present
+     * @return an already-completed future (the operation is synchronous; the
+     *         {@link CompletableFuture} shape is preserved for caller symmetry with
+     *         {@link #removeVirtualCluster})
+     * @throws IllegalArgumentException if a cluster with this name already exists
      */
     public CompletableFuture<Void> addVirtualCluster(VirtualClusterModel newModel) {
-        // TODO: implement [create lifecycle in INITIALIZING] -> [register gateways] -> SERVING
-        // in the follow-up PR. See removeVirtualCluster Javadoc.
-        LOGGER.atWarn()
-                .addKeyValue("virtualCluster", newModel.getClusterName())
+        Objects.requireNonNull(newModel, "newModel must not be null");
+        String name = newModel.getClusterName();
+        if (lifecyclesByCluster.containsKey(name)) {
+            throw new IllegalArgumentException("Cluster already exists: " + name);
+        }
+        LOGGER.atInfo()
+                .addKeyValue("virtualCluster", name)
                 .addKeyValue("operation", "addVirtualCluster")
-                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
+                .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
+        lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, newModel.drainTimeout()));
         return CompletableFuture.completedFuture(null);
     }
 
