@@ -152,6 +152,26 @@ class RouteFilterIT {
     }
 
     @Test
+    void responseMutationByRouteFilterReachesClient() throws Exception {
+        var config = configWithMarkingFilter("response-marker", ForwardingStyle.SYNCHRONOUS);
+
+        try (var tester = kroxyliciousTester(config)) {
+            try (var producer = tester.producer(producerConfig("route-a-client"))) {
+                producer.send(new ProducerRecord<>(TOPIC, "key", "value"))
+                        .get(10, TimeUnit.SECONDS);
+            }
+            try (var consumer = tester.consumer(consumerConfig("route-a-client"))) {
+                consumer.subscribe(List.of(TOPIC));
+                var records = consumer.poll(Duration.ofSeconds(10));
+                assertThat(records).isNotEmpty();
+            }
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
     void threadingGuaranteeWithSynchronousRouteFilter() throws Exception {
         var config = configWithMarkingFilter("sync-marker", ForwardingStyle.SYNCHRONOUS);
 
@@ -287,6 +307,14 @@ class RouteFilterIT {
             builder.addToFilterDefinitions(fd);
         }
         return builder;
+    }
+
+    private static Map<String, Object> consumerConfig(String clientId) {
+        var config = new HashMap<String, Object>();
+        config.put(ConsumerConfig.CLIENT_ID_CONFIG, clientId);
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "route-filter-it-" + System.nanoTime());
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        return config;
     }
 
     private static Map<String, Object> producerConfig(String clientId) {

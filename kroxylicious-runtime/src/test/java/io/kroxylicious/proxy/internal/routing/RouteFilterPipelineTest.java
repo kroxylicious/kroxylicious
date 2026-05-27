@@ -165,6 +165,22 @@ class RouteFilterPipelineTest {
                 .isEqualTo("second");
     }
 
+    @Test
+    void fireAndForgetShouldPassThroughFilter() throws Exception {
+        var filter = new ClientIdStampingFilter("fire-and-forget-stamped");
+        pipeline = createPipeline(filter);
+
+        var forwardedFuture = new CompletableFuture<Object>();
+        var frame = fetchRequestFrame(CORRELATION_ID);
+
+        pipeline.writeFireAndForget(frame, forwardedFuture::complete);
+
+        var forwarded = forwardedFuture.get(5, TimeUnit.SECONDS);
+        assertThat(forwarded).isInstanceOf(DecodedRequestFrame.class);
+        var forwardedFrame = (DecodedRequestFrame<?>) forwarded;
+        assertThat(forwardedFrame.header().clientId()).isEqualTo("fire-and-forget-stamped");
+    }
+
     private RouteFilterPipeline createPipeline(Object... filters) throws Exception {
         var filterAndInvokers = new java.util.ArrayList<FilterAndInvoker>();
         for (Object filter : filters) {
@@ -262,4 +278,5 @@ class RouteFilterPipelineTest {
                     .completed();
         }
     }
+
 }
