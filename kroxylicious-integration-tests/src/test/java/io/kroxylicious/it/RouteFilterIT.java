@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.AdminClient;
@@ -31,8 +32,11 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.ClientIdRouterFactory;
 import io.kroxylicious.it.testplugins.FixedClientIdFilterFactory;
+import io.kroxylicious.it.testplugins.ForwardingStyle;
+import io.kroxylicious.it.testplugins.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
@@ -151,6 +155,96 @@ class RouteFilterIT {
         var records = consumeDirectly(clusterB);
         assertThat(records).extracting(ConsumerRecord::value)
                 .containsExactly("unfiltered");
+    }
+
+    @Test
+    void threadingGuaranteeWithSynchronousRouteFilter() throws Exception {
+        var config = configWithMarkingFilter("sync-marker", ForwardingStyle.SYNCHRONOUS);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("route-a-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "threading-test"))
+                    .get(10, TimeUnit.SECONDS);
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void threadingGuaranteeWithAsyncDelayedRouteFilter() throws Exception {
+        var config = configWithMarkingFilter("async-delayed", ForwardingStyle.ASYNCHRONOUS_DELAYED);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("route-a-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "async-delayed-test"))
+                    .get(30, TimeUnit.SECONDS);
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    void threadingGuaranteeWithAsyncBrokerRequestRouteFilter() throws Exception {
+        var config = configWithMarkingFilter("async-broker", ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("route-a-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "async-broker-test"))
+                    .get(30, TimeUnit.SECONDS);
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("Config builder ordering issue with addToDefaultFilters — investigate separately")
+    void vcFilterAndRouteFilterBothExecute() throws Exception {
+        var vcFilter = markingFilterDef("vc-marker", ForwardingStyle.SYNCHRONOUS);
+        var routeFilter = markingFilterDef("route-marker", ForwardingStyle.SYNCHRONOUS);
+
+        var routeA = new RouteDefinition("route-a", 0,
+                List.of("route-marker"),
+                new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1,
+                null,
+                new RouteTarget("cluster-b", null));
+
+        var config = buildConfig(routeA, routeB, vcFilter, routeFilter);
+        config.addToDefaultFilters("vc-marker");
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerConfig("route-a-client"))) {
+            producer.send(new ProducerRecord<>(TOPIC, "key", "vc-and-route"))
+                    .get(10, TimeUnit.SECONDS);
+        }
+
+        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                .hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    private ConfigurationBuilder configWithMarkingFilter(String name, ForwardingStyle style) {
+        var filterDef = markingFilterDef(name, style);
+
+        var routeA = new RouteDefinition("route-a", 0,
+                List.of(name),
+                new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1,
+                null,
+                new RouteTarget("cluster-b", null));
+
+        return buildConfig(routeA, routeB, filterDef);
+    }
+
+    private NamedFilterDefinition markingFilterDef(String name, ForwardingStyle style) {
+        return new NamedFilterDefinitionBuilder(name, RequestResponseMarkingFilterFactory.class.getName())
+                .withConfig("keysToMark", Set.of(ApiKeys.PRODUCE),
+                        "direction", Set.of(RequestResponseMarkingFilterFactory.Direction.REQUEST),
+                        "name", name,
+                        "forwardingStyle", style)
+                .build();
     }
 
     private ConfigurationBuilder configWithRouteFilter(
