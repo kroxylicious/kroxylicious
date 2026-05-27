@@ -393,7 +393,6 @@ class HotReloadIT extends BaseIT {
         return builder.build();
     }
 
-
     private static final int PORT_STRIDE = 10;
     private static final int PORT_BLOCK_REMOVE = 51000; // shouldReleasePortWhenPortAddressedVcIsRemoved
     private static final int PORT_BLOCK_ADD = 51100; // shouldStartServingAddedPortAddressedVcEndToEnd
