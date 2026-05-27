@@ -57,7 +57,8 @@ jobs:
           # Always include BOM as it's required for dependency management
           # Also include filter-archetype as it has special IT requirements
           # Also include kroxylicious-app to build operand container image for operator ITs
-          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,${DISCOVERED_MODULES}"
+          # Also include dist modules for operator and admission webhook KT tests
+          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,:kroxylicious-operator-dist,:kroxylicious-admission-dist,${DISCOVERED_MODULES}"
 
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
@@ -162,34 +163,43 @@ jobs:
           mkdir -p "$HOME/.m2/repository"
           cd "$HOME/.m2/repository"
           tar xzf /tmp/kroxylicious-artifacts/maven-repo.tar.gz
-      - name: Check if operator tests in chunk
-        id: check_operator
+      - name: Check if Kubernetes tests in chunk
+        id: check_k8s
         env:
           CHUNK: ${{ matrix.tests }}
         run: |
-          if echo "$CHUNK" | grep -q "kroxylicious-kubernetes/kroxylicious-operator:"; then
-            echo "has_operator_tests=true" >> "$GITHUB_OUTPUT"
-            echo "This chunk contains operator tests - Minikube will be started"
+          # Check if chunk contains tests from any Kubernetes module
+          if echo "$CHUNK" | grep -q "kroxylicious-kubernetes/"; then
+            echo "needs_minikube=true" >> "$GITHUB_OUTPUT"
+            echo "This chunk contains Kubernetes tests - Minikube will be started"
           else
-            echo "has_operator_tests=false" >> "$GITHUB_OUTPUT"
-            echo "This chunk has no operator tests - Minikube will be skipped"
+            echo "needs_minikube=false" >> "$GITHUB_OUTPUT"
+            echo "This chunk has no Kubernetes tests - Minikube will be skipped"
+          fi
+
+          # Check if chunk contains KT (Kubernetes Test) files
+          if echo "$CHUNK" | grep -q "KT,\|KT$"; then
+            echo "has_kt_tests=true" >> "$GITHUB_OUTPUT"
+            echo "This chunk contains KT tests - dist profile will be activated"
+          else
+            echo "has_kt_tests=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Set up Docker Buildx
-        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        if: steps.check_k8s.outputs.needs_minikube == 'true'
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd
       - name: Setup Minikube
-        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        if: steps.check_k8s.outputs.needs_minikube == 'true'
         uses: ./.github/actions/common/setup-minikube
         with:
           githubToken: ${{ secrets.GITHUB_TOKEN }}
       - name: Download Operand Image Artifact
-        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        if: steps.check_k8s.outputs.needs_minikube == 'true'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: kroxylicious-operand-image
           path: /tmp/kroxylicious-operand
       - name: Load Operand Image in Minikube
-        if: steps.check_operator.outputs.has_operator_tests == 'true'
+        if: steps.check_k8s.outputs.needs_minikube == 'true'
         env:
           KROXYLICIOUS_IMAGE: ${{ needs.build_artifacts.outputs.kroxylicious_image }}
         run: |
@@ -201,6 +211,24 @@ jobs:
 
           # Set environment variable for tests
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "${GITHUB_ENV}"
+      - name: 'Extract dist artifacts for KT tests'
+        if: steps.check_k8s.outputs.needs_minikube == 'true'
+        run: |
+          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+
+          # Extract operator dist ZIP if this is an operator test
+          if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-operator" ]; then
+            mkdir -p kroxylicious-kubernetes/kroxylicious-operator/target/packaged
+            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-operator-dist/${KROXYLICIOUS_VERSION}/kroxylicious-operator-dist-${KROXYLICIOUS_VERSION}.zip" \
+              -d kroxylicious-kubernetes/kroxylicious-operator/target/packaged/
+          fi
+
+          # Extract admission dist ZIP if this is an admission test
+          if [ "${{ steps.parse.outputs.module }}" = "kroxylicious-kubernetes/kroxylicious-admission" ]; then
+            mkdir -p kroxylicious-kubernetes/kroxylicious-admission/target/packaged
+            unzip -q "$HOME/.m2/repository/io/kroxylicious/kroxylicious-admission-dist/${KROXYLICIOUS_VERSION}/kroxylicious-admission-dist-${KROXYLICIOUS_VERSION}.zip" \
+              -d kroxylicious-kubernetes/kroxylicious-admission/target/packaged/
+          fi
       - name: 'Run integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -211,11 +239,22 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         working-directory: ${{ steps.parse.outputs.module }}
         run: |
+          # Activate dist profile and skip flags for KT tests
+          if [ "${{ steps.check_k8s.outputs.has_kt_tests }}" = "true" ]; then
+            PROFILES="dist,!qa"
+            # Skip default integration-test execution, enable kube-integration-test execution
+            EXTRA_PROPS="-DskipITs=true -DskipKTs=false"
+          else
+            PROFILES="!qa"
+            EXTRA_PROPS=""
+          fi
+
           mvn --batch-mode \
-            --activate-profiles '!qa' \
+            --activate-profiles "${PROFILES}" \
             -DskipUTs \
             -Derrorprone.skip=true \
             -Dit.test="${{ steps.parse.outputs.tests }}" \
+            ${EXTRA_PROPS} \
             verify
   integration_test_filter_archetype:
     needs: build_artifacts
