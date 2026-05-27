@@ -561,7 +561,9 @@ public final class KafkaProxy implements AutoCloseable {
             virtualClusterModels.forEach(VirtualClusterModel::close);
             transitionTo(LifecycleState.STOPPED, () -> {
             }, lifecycleState -> {
-                throw new LifecycleException("failed to transition to stopped from state: " + lifecycleState);
+                LOGGER.atWarn()
+                        .addKeyValue("state", lifecycleState)
+                        .log("Unexpected state during shutdown, expected STOPPING");
             });
             managementEventGroup = null;
             proxyEventGroup = null;
@@ -585,8 +587,7 @@ public final class KafkaProxy implements AutoCloseable {
             if (t != null) {
                 STARTUP_SHUTDOWN_LOGGER.atWarn()
                         .setCause(t)
-                        .log("Shutdown completed exceptionally");
-                throw new LifecycleException("Shutdown completed exceptionally", t);
+                        .log("Failed to unbind ports");
             }
             return null;
         }).toCompletableFuture().join();
