@@ -37,7 +37,6 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.router.RouterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,7 +73,9 @@ class RouterDispatchHandlerTest {
 
     private static RouterDispatchHandler.PendingResponse testPendingResponse(CompletableFuture<Response> future) {
         return new RouterDispatchHandler.PendingResponse(
-                future, Timer.start(), "default", ApiKeys.FETCH);
+                future, Timer.start(), "default", ApiKeys.FETCH,
+                new IdentityNodeIdMapping("default"), body -> {
+                });
     }
 
     private RouterDispatchHandler createHandler(Map<ApiKeys, String> staticRoutes) {
@@ -85,7 +86,8 @@ class RouterDispatchHandlerTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
-                null, Map.of(), "test-vc");
+                null, null, null,
+                null, null, null);
     }
 
     private void stubCcsmForRouting() {
@@ -97,7 +99,7 @@ class RouterDispatchHandlerTest {
     void shouldInvokeRouterOnDecodedRequestFrame() {
         stubCcsmForRouting();
         when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
-                .thenReturn(CompletableFuture.completedFuture(new RouterResult.CompletedNoResponse()));
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
@@ -195,10 +197,13 @@ class RouterDispatchHandlerTest {
 
         doAnswer(invocation -> {
             RouterContext ctx = invocation.getArgument(4);
-            var reqHeader = new RequestHeaderData();
+            int bootstrapId = ctx.bootstrapNodeId("default");
+            var reqHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.FETCH.id)
+                    .setRequestApiVersion((short) 12);
             var reqBody = new FetchRequestData();
-            ctx.sendRequestToNode("default", 0, reqHeader, reqBody);
-            return CompletableFuture.completedFuture(new RouterResult.CompletedNoResponse());
+            ctx.sendRequestToNode("default", bootstrapId, reqHeader, reqBody);
+            return CompletableFuture.completedFuture(null);
         }).when(router).onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
 
         doAnswer(invocation -> {

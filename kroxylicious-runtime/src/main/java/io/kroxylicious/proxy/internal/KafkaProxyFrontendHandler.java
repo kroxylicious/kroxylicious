@@ -229,7 +229,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             ChannelHandlerContext ctx,
                             Object msg) {
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
     }
 
     /**

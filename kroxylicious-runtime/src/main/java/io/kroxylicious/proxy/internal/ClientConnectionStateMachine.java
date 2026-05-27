@@ -467,9 +467,9 @@ public class ClientConnectionStateMachine {
     /**
      * Signals that a dynamically-routed client request has been fully handled.
      * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
-     * when the router's {@code onClientRequest} future completes and the composed
+     * when the router's {@code onRequest} future completes and the composed
      * response has been sent to the client. This maintains the 1:1 invariant between
-     * {@link #onClientRequest} increments and decrements during fan-out.
+     * {@link #onRequest} increments and decrements during fan-out.
      */
     public void onRoutedRequestComplete() {
         decrementInFlightCount();
@@ -529,8 +529,8 @@ public class ClientConnectionStateMachine {
      * @param msg the RPC received from the downstream client
      */
 
-    void onClientRequest(
-                         Object msg) {
+    void onRequest(
+                   Object msg) {
         Objects.requireNonNull(frontendHandler);
         // Count every msg received from the client.
         clientMessagesInFlightCount++;
@@ -560,7 +560,7 @@ public class ClientConnectionStateMachine {
                 }
             }
         }
-        else if (!onClientRequestBeforeForwarding(msg)) {
+        else if (!onRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
@@ -988,7 +988,7 @@ public class ClientConnectionStateMachine {
      * @param msg Message received from the downstream client.
      * @return {@code false} for unsupported message types
      */
-    private boolean onClientRequestBeforeForwarding(Object msg) {
+    private boolean onRequestBeforeForwarding(Object msg) {
         Objects.requireNonNull(frontendHandler).bufferMsg(msg);
         if (state() instanceof ClientConnectionState.ClientActive clientActive) {
             return transitionToForwarding(msg, clientActive::toForwarding);

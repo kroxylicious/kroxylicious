@@ -192,7 +192,7 @@ class ClientConnectionStateMachineTest {
         when(endpointBinding.upstreamTarget()).thenReturn(BROKER_ADDRESS);
 
         // When — first client request triggers SCSM creation which increments the counter
-        clientConnectionStateMachine.onClientRequest(metadataRequest());
+        clientConnectionStateMachine.onRequest(metadataRequest());
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
@@ -353,7 +353,7 @@ class ClientConnectionStateMachineTest {
         var msg = metadataRequest();
 
         // When
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
 
         // Then
         assertThat(clientConnectionStateMachine.state())
@@ -370,7 +370,7 @@ class ClientConnectionStateMachineTest {
         var msg = apiVersionsRequest();
 
         // When
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
 
         // Then
         assertThat(clientConnectionStateMachine.state())
@@ -385,7 +385,7 @@ class ClientConnectionStateMachineTest {
         stateMachineInHaProxy();
 
         // When - an unexpected (non-Kafka) message arrives
-        clientConnectionStateMachine.onClientRequest(new Object());
+        clientConnectionStateMachine.onRequest(new Object());
 
         // Then
         assertThat(clientConnectionStateMachine.state())
@@ -401,7 +401,7 @@ class ClientConnectionStateMachineTest {
         var msg = metadataRequest();
 
         // When
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
 
         // Then
         assertThat(clientConnectionStateMachine.state())
@@ -418,7 +418,7 @@ class ClientConnectionStateMachineTest {
         var msg = apiVersionsRequest();
 
         // When
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
 
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
@@ -452,7 +452,7 @@ class ClientConnectionStateMachineTest {
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
 
         // Then
         verify(frontendHandler).bufferMsg(msg);
@@ -481,7 +481,7 @@ class ClientConnectionStateMachineTest {
         var msg = metadataRequest();
 
         // When
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
 
         // Then
         assertThat(clientConnectionStateMachine.state()).isSameAs(forwarding);
@@ -1142,7 +1142,7 @@ class ClientConnectionStateMachineTest {
      * <p>
      * Exercises the public {@link ClientConnectionStateMachine#drain(Duration)}
      * entry point and the per-state drain branches in {@code messageFromServer},
-     * {@code onClientRequest}, and {@code toClosed} that are reached only when the CCSM is
+     * {@code onRequest}, and {@code toClosed} that are reached only when the CCSM is
      * in {@link ClientConnectionState.Draining} state.
      * <p>
      * Inherits the outer class's mocks (frontendHandler, serverConnectionStateMachine, etc.) and adds
@@ -1269,10 +1269,10 @@ class ClientConnectionStateMachineTest {
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
 
-        // --- onClientRequest Draining drop branch ---
+        // --- onRequest Draining drop branch ---
 
         @Test
-        void onClientRequestInDrainingReleasesRequestFrameAndFiresPolicyWhenCounterReachesZero() {
+        void onRequestInDrainingReleasesRequestFrameAndFiresPolicyWhenCounterReachesZero() {
             // Given — drain in progress with one in-flight; the in-flight one hasn't been
             // delivered yet, so a *new* RequestFrame arriving in Draining triggers the
             // drop+compensate path
@@ -1281,9 +1281,9 @@ class ClientConnectionStateMachineTest {
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
 
-            // When — a buffered request frame arrives at onClientRequest while in Draining
+            // When — a buffered request frame arrives at onRequest while in Draining
             var lateFrame = makeRequestFrame();
-            clientConnectionStateMachine.onClientRequest(lateFrame);
+            clientConnectionStateMachine.onRequest(lateFrame);
 
             // Then — frame released; the in-flight request still pending so drain still active
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
@@ -1296,7 +1296,7 @@ class ClientConnectionStateMachineTest {
         }
 
         @Test
-        void onClientRequestInDrainingReleasesNonRequestFrameWithoutTouchingCounter() {
+        void onRequestInDrainingReleasesNonRequestFrameWithoutTouchingCounter() {
             // Given — drain in progress with one in-flight
             stateMachineInForwarding();
             bumpClientInFlightCount();
@@ -1304,7 +1304,7 @@ class ClientConnectionStateMachineTest {
 
             // When — a non-RequestFrame (e.g. a control object) arrives in Draining
             Object nonFrame = new Object();
-            clientConnectionStateMachine.onClientRequest(nonFrame);
+            clientConnectionStateMachine.onRequest(nonFrame);
 
             // Then — released without compensating the counter; drain still pending
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
@@ -1483,7 +1483,7 @@ class ClientConnectionStateMachineTest {
         }
 
         /**
-         * Drives a request through {@code onClientRequest} while in Forwarding to bump
+         * Drives a request through {@code onRequest} while in Forwarding to bump
          * the internal client-in-flight counter by one. {@code admitToFilterChain} is
          * mocked as a no-op, so this is purely a counter-bumping action.
          */
@@ -1491,7 +1491,7 @@ class ClientConnectionStateMachineTest {
             if (!(clientConnectionStateMachine.state() instanceof ClientConnectionState.Forwarding)) {
                 stateMachineInForwarding();
             }
-            clientConnectionStateMachine.onClientRequest(makeRequestFrame());
+            clientConnectionStateMachine.onRequest(makeRequestFrame());
         }
 
         private DecodedRequestFrame<ApiVersionsRequestData> makeRequestFrame() {
@@ -1556,7 +1556,7 @@ class ClientConnectionStateMachineTest {
             routingCcsm.onClientActive(frontendHandler);
 
             // When — first request triggers toForwardingWithRoutes
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             // Then — route-a connects to the specific broker, route-b to its bootstrap
             assertThat(createdConnections).containsKey(CLUSTER_A_BROKER_1);
@@ -1571,7 +1571,7 @@ class ClientConnectionStateMachineTest {
             routingCcsm.onClientActive(frontendHandler);
 
             // When
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             // Then — both routes use their bootstraps
             assertThat(createdConnections).containsKey(CLUSTER_A_BOOTSTRAP);
@@ -1583,7 +1583,7 @@ class ClientConnectionStateMachineTest {
         void shouldForwardToOwningRouteViaSpecificBroker() {
             // Given
             routingCcsm.onClientActive(frontendHandler);
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             // When
             var msg = new Object();
@@ -1600,7 +1600,7 @@ class ClientConnectionStateMachineTest {
             routingCcsm.setUpstreamAddressResolver(
                     nodeId -> nodeId == 4 ? Optional.of(targetBroker) : Optional.empty());
             routingCcsm.onClientActive(frontendHandler);
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             var msg = new Object();
             // virtual node 4 = route-a, target broker 2
@@ -1615,7 +1615,7 @@ class ClientConnectionStateMachineTest {
             routingCcsm.setUpstreamAddressResolver(
                     nodeId -> nodeId == 2 ? Optional.of(CLUSTER_A_BROKER_1) : Optional.empty());
             routingCcsm.onClientActive(frontendHandler);
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             int connectionsBefore = createdConnections.size();
             var msg = new Object();
@@ -1630,7 +1630,7 @@ class ClientConnectionStateMachineTest {
         void forwardToNodeShouldThrowWhenAddressUnknown() {
             routingCcsm.setUpstreamAddressResolver(nodeId -> Optional.empty());
             routingCcsm.onClientActive(frontendHandler);
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             assertThatThrownBy(() -> routingCcsm.forwardToNode(99, "route-a", new Object()))
                     .isInstanceOf(IllegalStateException.class)
@@ -1640,7 +1640,7 @@ class ClientConnectionStateMachineTest {
         @Test
         void forwardToNodeShouldThrowWhenResolverNotSet() {
             routingCcsm.onClientActive(frontendHandler);
-            routingCcsm.onClientRequest(metadataRequest());
+            routingCcsm.onRequest(metadataRequest());
 
             assertThatThrownBy(() -> routingCcsm.forwardToNode(0, "route-a", new Object()))
                     .isInstanceOf(IllegalStateException.class)
