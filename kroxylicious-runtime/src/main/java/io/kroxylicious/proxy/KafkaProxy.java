@@ -348,11 +348,11 @@ public final class KafkaProxy implements AutoCloseable {
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
             CompletableFuture.allOf(
-                    Stream.concat(Stream.of(managementFuture),
-                            virtualClusterModels.stream()
-                                    .flatMap(vc -> vc.gateways().values().stream())
-                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
-                            .toArray(CompletableFuture[]::new))
+                            Stream.concat(Stream.of(managementFuture),
+                                            virtualClusterModels.stream()
+                                                    .flatMap(vc -> vc.gateways().values().stream())
+                                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
+                                    .toArray(CompletableFuture[]::new))
                     .join();
 
             virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationSucceeded(model.getClusterName()));
