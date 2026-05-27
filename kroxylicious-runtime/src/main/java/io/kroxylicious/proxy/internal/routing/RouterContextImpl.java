@@ -237,14 +237,14 @@ class RouterContextImpl implements RouterContext {
                 registerAndForward(
                         virtualNodeId, route, apiKey,
                         (DecodedRequestFrame<?>) filtered, future,
-                        routingCorrelationId);
+                        routingCorrelationId, pipeline);
             });
         }
         else {
             registerAndForward(
                     virtualNodeId, route, apiKey,
                     frame, future,
-                    routingCorrelationId);
+                    routingCorrelationId, null);
         }
 
         routingRequestsCounter.withTags(
@@ -276,11 +276,13 @@ class RouterContextImpl implements RouterContext {
                                     ApiKeys apiKey,
                                     DecodedRequestFrame<?> frame,
                                     CompletableFuture<Response> future,
-                                    int routingCorrelationId) {
+                                    int routingCorrelationId,
+                                    @Nullable RouteFilterPipeline routeFilterPipeline) {
         Timer.Sample timerSample = Timer.start();
         var pendingResponse = new RouterDispatchHandler.PendingResponse(
                 future, timerSample, route, apiKey,
-                nodeIdMapping, createMetadataAddressCacher(route));
+                nodeIdMapping, createMetadataAddressCacher(route),
+                null, routeFilterPipeline);
         RouterDispatchHandler.registerPendingResponse(
                 clientChannel, routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();
@@ -382,7 +384,7 @@ class RouterContextImpl implements RouterContext {
                 sharedNodeAddresses,
                 nestedTranslator,
                 nested.childProvider(),
-                null);
+                routeFilterPipelineProvider);
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         LOGGER.atTrace()

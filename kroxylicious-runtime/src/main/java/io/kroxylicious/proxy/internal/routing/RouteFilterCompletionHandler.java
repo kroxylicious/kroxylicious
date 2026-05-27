@@ -45,6 +45,8 @@ class RouteFilterCompletionHandler extends ChannelInboundHandlerAdapter {
     private final AtomicInteger pendingResponseCount;
     private final NodeIdMapping nodeIdMapping;
     private final RouterDispatchHandler.MetadataAddressCacher metadataAddressCacher;
+    @Nullable
+    private RouteFilterPipeline owningPipeline;
 
     @Nullable
     private Consumer<Object> currentForwarder;
@@ -62,6 +64,10 @@ class RouteFilterCompletionHandler extends ChannelInboundHandlerAdapter {
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
         this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
         this.metadataAddressCacher = Objects.requireNonNull(metadataAddressCacher);
+    }
+
+    void setOwningPipeline(RouteFilterPipeline pipeline) {
+        this.owningPipeline = pipeline;
     }
 
     void setCurrentForwarder(Consumer<Object> forwarder) {
@@ -114,7 +120,8 @@ class RouteFilterCompletionHandler extends ChannelInboundHandlerAdapter {
                 apiKey,
                 nodeIdMapping,
                 metadataAddressCacher,
-                irf);
+                irf,
+                owningPipeline);
         RouterDispatchHandler.registerPendingResponse(
                 clientChannel, routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();

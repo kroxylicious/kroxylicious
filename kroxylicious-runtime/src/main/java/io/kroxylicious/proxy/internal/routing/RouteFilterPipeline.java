@@ -88,6 +88,7 @@ class RouteFilterPipeline implements AutoCloseable {
         }
         handlers[i] = completionHandler;
         this.filterChannel = new EmbeddedChannel(handlers);
+        completionHandler.setOwningPipeline(this);
     }
 
     /**

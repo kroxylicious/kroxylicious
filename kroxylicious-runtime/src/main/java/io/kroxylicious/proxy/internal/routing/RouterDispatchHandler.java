@@ -83,7 +83,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     @Nullable
     private final String sniHostname;
     private final Map<String, Router> nestedRouters = new HashMap<>();
-    private final Map<String, RouteFilterPipeline> routeFilterPipelines = new HashMap<>();
+    private final Map<RouteDescriptor, RouteFilterPipeline> routeFilterPipelines = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
     @Nullable
     private ResponseSequencer responseSequencer;
@@ -94,7 +94,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                            ApiKeys apiKey,
                            NodeIdMapping nodeIdMapping,
                            MetadataAddressCacher metadataAddressCacher,
-                           @Nullable DecodedRequestFrame<?> originatingRequestFrame) {
+                           @Nullable DecodedRequestFrame<?> originatingRequestFrame,
+                           @Nullable RouteFilterPipeline routeFilterPipeline) {
 
         PendingResponse(CompletableFuture<Response> future,
                         Timer.Sample timerSample,
@@ -102,7 +103,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         ApiKeys apiKey,
                         NodeIdMapping nodeIdMapping,
                         MetadataAddressCacher metadataAddressCacher) {
-            this(future, timerSample, route, apiKey, nodeIdMapping, metadataAddressCacher, null);
+            this(future, timerSample, route, apiKey, nodeIdMapping, metadataAddressCacher, null, null);
         }
     }
 
@@ -157,7 +158,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         if (rd.filters().isEmpty() || filterChainFactory == null || pfr == null) {
             return null;
         }
-        return routeFilterPipelines.computeIfAbsent(rd.name(), name -> {
+        return routeFilterPipelines.computeIfAbsent(rd, descriptor -> {
             var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
             List<FilterAndInvoker> filters = filterChainFactory.createFilters(
                     filterContext, rd.filters());
@@ -223,7 +224,16 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
-                ccsm.forwardToRoute(staticRoute, msg);
+                RouteDescriptor rd = routes.get(staticRoute);
+                RouteFilterPipeline pipeline = rd != null
+                        ? getOrCreateRouteFilterPipeline(rd, ctx.channel())
+                        : null;
+                if (pipeline != null && msg instanceof DecodedRequestFrame<?> decoded) {
+                    dispatchStaticWithFilters(ctx, decoded, staticRoute, apiKey, pipeline);
+                }
+                else {
+                    ccsm.forwardToRoute(staticRoute, msg);
+                }
                 routingRequestsCounter.withTags(
                         Metrics.ROUTE_LABEL, staticRoute,
                         Metrics.ROUTING_MODE_LABEL, "static",
@@ -248,6 +258,43 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             return;
         }
         ccsm.onClientFilterChainComplete(msg);
+    }
+
+    private void dispatchStaticWithFilters(
+                                           ChannelHandlerContext ctx,
+                                           DecodedRequestFrame<?> decoded,
+                                           String staticRoute,
+                                           ApiKeys apiKey,
+                                           RouteFilterPipeline pipeline) {
+        int clientCorrelationId = decoded.correlationId();
+        int routingCorrelationId = nextRoutingCorrelationId++;
+        var routedFrame = new DecodedRequestFrame<>(
+                decoded.apiVersion(), routingCorrelationId, decoded.decodeResponse(),
+                decoded.header(), decoded.body());
+
+        if (responseSequencer == null) {
+            responseSequencer = new ResponseSequencer(ctx.channel());
+        }
+        long sequenceNumber = responseSequencer.allocateSequence();
+
+        CompletableFuture<Response> future = new CompletableFuture<>();
+        future.thenAccept(response -> {
+            response.header().setCorrelationId(clientCorrelationId);
+            var responseFrame = decoded.responseFrame(response.header(), response.body());
+            responseSequencer.submit(sequenceNumber, responseFrame);
+        });
+
+        pipeline.writeRequest(routedFrame, future, filtered -> {
+            Timer.Sample timerSample = Timer.start();
+            var pendingResponse = new PendingResponse(
+                    future, timerSample, staticRoute, apiKey,
+                    nodeIdMapping, body -> {
+                    },
+                    null, pipeline);
+            registerPendingResponse(ctx.channel(), routingCorrelationId, pendingResponse);
+            pendingResponseCount.incrementAndGet();
+            ccsm.forwardToRoute(staticRoute, filtered);
+        });
     }
 
     private void dispatchDynamically(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) {
@@ -412,7 +459,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         frame.body(), frame.apiVersion(),
                         pendingResponse.nodeIdMapping(), pendingResponse.route());
 
-                RouteFilterPipeline pipeline = routeFilterPipelines.get(pendingResponse.route());
+                RouteFilterPipeline pipeline = pendingResponse.routeFilterPipeline();
                 if (pipeline != null) {
                     if (pendingResponse.originatingRequestFrame() != null) {
                         pipeline.writeInternalResponse(

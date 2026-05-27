@@ -48,6 +48,7 @@ import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -277,7 +278,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             Map<ApiKeys, String> staticRoutes = router.staticRoutes();
             if (!staticRoutes.isEmpty()) {
                 Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
-                dynamicallyRoutedKeys.removeAll(staticRoutes.keySet());
+                for (var entry : staticRoutes.entrySet()) {
+                    RouteDescriptor rd = routeDescriptors.get(entry.getValue());
+                    if (rd != null && rd.filters().isEmpty()) {
+                        dynamicallyRoutedKeys.remove(entry.getKey());
+                    }
+                }
                 dp.setRouterDecodingRequirements(dynamicallyRoutedKeys);
             }
             else {
@@ -305,7 +311,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     routerChainFactory,
                     virtualCluster.allRouteDescriptors(),
                     virtualCluster.getClusterName(),
-                    filterChainFactory, pfr, null);
+                    filterChainFactory, pfr, extractSniHostname(pipeline));
             clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setUpstreamAddressResolver(
                     virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)
@@ -342,6 +348,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(clusterName, nodeId);
         return new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
+    }
+
+    @Nullable
+    private static String extractSniHostname(ChannelPipeline pipeline) {
+        SniHandler sniHandler = pipeline.get(SniHandler.class);
+        return sniHandler != null ? sniHandler.hostname() : null;
     }
 
     private void rejectConnection(Channel ch, String clusterName) {
