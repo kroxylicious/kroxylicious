@@ -575,11 +575,9 @@ public final class KafkaProxy implements AutoCloseable {
             // model along the way (see VirtualClusterRegistry#closeModel). The registry is
             // the single source of truth for per-VC resource lifecycle.
             transitionTo(LifecycleState.STOPPED, () -> {
-            }, lifecycleState -> {
-                LOGGER.atWarn()
-                        .addKeyValue("state", lifecycleState)
-                        .log("Unexpected state during shutdown, expected STOPPING");
-            });
+            }, lifecycleState -> LOGGER.atWarn()
+                    .addKeyValue("state", lifecycleState)
+                    .log("Unexpected state during shutdown, expected STOPPING"));
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
