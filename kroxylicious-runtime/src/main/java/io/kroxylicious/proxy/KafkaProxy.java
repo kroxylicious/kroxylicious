@@ -152,31 +152,45 @@ public final class KafkaProxy implements AutoCloseable {
         NEW {
             @Override
             boolean canTransitionTo(LifecycleState target) {
-                return target == STARTING || target == STOPPING;
+                return switch (target) {
+                    case STARTING, STOPPING -> true;
+                    case NEW, STARTED, STOPPED -> false;
+                };
             }
         },
         STARTING {
             @Override
             boolean canTransitionTo(LifecycleState target) {
-                return target == STARTED || target == STOPPING;
+                return switch (target) {
+                    case STARTED, STOPPING -> true;
+                    case NEW, STARTING, STOPPED -> false;
+                };
             }
         },
         STARTED {
             @Override
             boolean canTransitionTo(LifecycleState target) {
-                return target == STOPPING;
+                return switch (target) {
+                    case STOPPING -> true;
+                    case NEW, STARTING, STARTED, STOPPED -> false;
+                };
             }
         },
         STOPPING {
             @Override
             boolean canTransitionTo(LifecycleState target) {
-                return target == STOPPED;
+                return switch (target) {
+                    case STOPPED -> true;
+                    case NEW, STARTING, STARTED, STOPPING -> false;
+                };
             }
         },
         STOPPED {
             @Override
             boolean canTransitionTo(LifecycleState target) {
-                return false;
+                return switch (target) {
+                    case NEW, STARTING, STARTED, STOPPING, STOPPED -> false;
+                };
             }
         };
 
