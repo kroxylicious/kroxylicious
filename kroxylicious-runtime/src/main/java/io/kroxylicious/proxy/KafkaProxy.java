@@ -560,11 +560,9 @@ public final class KafkaProxy implements AutoCloseable {
             // Close virtual cluster models to release TLS credential supplier resources
             virtualClusterModels.forEach(VirtualClusterModel::close);
             transitionTo(LifecycleState.STOPPED, () -> {
-            }, lifecycleState -> {
-                LOGGER.atWarn()
-                        .addKeyValue("state", lifecycleState)
-                        .log("Unexpected state during shutdown, expected STOPPING");
-            });
+            }, lifecycleState -> LOGGER.atWarn()
+                    .addKeyValue("state", lifecycleState)
+                    .log("Unexpected state during shutdown, expected STOPPING"));
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
