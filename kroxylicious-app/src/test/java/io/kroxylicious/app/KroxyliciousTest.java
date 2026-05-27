@@ -105,8 +105,7 @@ class KroxyliciousTest {
     @Test
     void testKroxyliciousExceptionDuringRun(@TempDir Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
-        var failedFuture = new CompletableFuture<Void>();
-        failedFuture.completeExceptionally(new RuntimeException("exception during run"));
+        var failedFuture = CompletableFuture.<Void>failedFuture(new RuntimeException("exception during run"));
         when(mockProxy.startup()).thenReturn(failedFuture);
         int execute = cmd.execute("-c", file.toString());
         assertEquals(1, execute);
