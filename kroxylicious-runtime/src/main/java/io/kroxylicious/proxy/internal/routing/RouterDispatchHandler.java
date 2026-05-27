@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -61,30 +62,13 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             "pendingResponses");
 
     private final Router router;
-    private final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
-    private final NodeIdMapping nodeIdMapping;
-    private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
-    private final Map<String, Integer> bootstrapVirtualNodeIds;
-    private final MeterProvider<Counter> routingRequestsCounter;
-    private final MeterProvider<Counter> routingErrorsCounter;
-    private final MeterProvider<Timer> routingRequestDurationTimer;
-    private final AtomicInteger pendingResponseCount;
+    private final RoutingInfrastructure infra;
     @Nullable
-    private final RouterChainFactory routerChainFactory;
+    private final RouteFilterSupport routeFilterSupport;
     @Nullable
-    private final Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
-    @Nullable
-    private final String virtualClusterName;
-    @Nullable
-    private final FilterChainFactory filterChainFactory;
-    @Nullable
-    private final PluginFactoryRegistry pfr;
-    @Nullable
-    private final String sniHostname;
-    @Nullable
-    private final io.netty.channel.EventLoopGroup routeFilterEventLoopGroup;
+    private final NestedRoutingSupport nestedRoutingSupport;
     private final Map<String, Router> nestedRouters = new HashMap<>();
     private final Map<RouteDescriptor, CompletionStage<RouteFilterPipeline>> routeFilterPipelines = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
@@ -100,13 +84,16 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                            @Nullable DecodedRequestFrame<?> originatingRequestFrame,
                            @Nullable RouteFilterPipeline routeFilterPipeline) {
 
-        PendingResponse(CompletableFuture<Response> future,
-                        Timer.Sample timerSample,
-                        String route,
-                        ApiKeys apiKey,
-                        NodeIdMapping nodeIdMapping,
-                        MetadataAddressCacher metadataAddressCacher) {
-            this(future, timerSample, route, apiKey, nodeIdMapping, metadataAddressCacher, null, null);
+        static PendingResponse create(
+                                      CompletableFuture<Response> future,
+                                      String route,
+                                      ApiKeys apiKey,
+                                      NodeIdMapping nodeIdMapping,
+                                      MetadataAddressCacher metadataAddressCacher,
+                                      @Nullable DecodedRequestFrame<?> originatingRequestFrame,
+                                      @Nullable RouteFilterPipeline routeFilterPipeline) {
+            return new PendingResponse(future, Timer.start(), route, apiKey,
+                    nodeIdMapping, metadataAddressCacher, originatingRequestFrame, routeFilterPipeline);
         }
     }
 
@@ -120,6 +107,17 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         void cacheIfMetadata(Object responseBody);
     }
 
+    public record RouteFilterSupport(
+                                     FilterChainFactory filterChainFactory,
+                                     PluginFactoryRegistry pfr,
+                                     @Nullable String sniHostname,
+                                     io.netty.channel.EventLoopGroup eventLoopGroup) {}
+
+    public record NestedRoutingSupport(
+                                       RouterChainFactory routerChainFactory,
+                                       Map<String, Map<String, RouteDescriptor>> allRouteDescriptors,
+                                       String virtualClusterName) {}
+
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
@@ -129,57 +127,48 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                                  MeterProvider<Counter> routingErrorsCounter,
                                  MeterProvider<Timer> routingRequestDurationTimer,
                                  AtomicInteger pendingResponseCount,
-                                 @Nullable RouterChainFactory routerChainFactory,
-                                 @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors,
-                                 @Nullable String virtualClusterName,
-                                 @Nullable FilterChainFactory filterChainFactory,
-                                 @Nullable PluginFactoryRegistry pfr,
-                                 @Nullable String sniHostname,
-                                 @Nullable io.netty.channel.EventLoopGroup routeFilterEventLoopGroup) {
+                                 @Nullable RouteFilterSupport routeFilterSupport,
+                                 @Nullable NestedRoutingSupport nestedRoutingSupport) {
         this.router = router;
-        this.routes = routes;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
-        this.nodeIdMapping = nodeIdMapping;
-        this.routingRequestsCounter = routingRequestsCounter;
-        this.routingErrorsCounter = routingErrorsCounter;
-        this.routingRequestDurationTimer = routingRequestDurationTimer;
-        this.pendingResponseCount = pendingResponseCount;
-        this.routerChainFactory = routerChainFactory;
-        this.allRouteDescriptors = allRouteDescriptors;
-        this.virtualClusterName = virtualClusterName;
-        this.filterChainFactory = filterChainFactory;
-        this.pfr = pfr;
-        this.sniHostname = sniHostname;
-        this.routeFilterEventLoopGroup = routeFilterEventLoopGroup;
-        this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
+        this.routeFilterSupport = routeFilterSupport;
+        this.nestedRoutingSupport = nestedRoutingSupport;
+        var routerNodeAddresses = new HashMap<Integer, HostPort>();
+        var bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
                 routes, nodeIdMapping, routerNodeAddresses, IntUnaryOperator.identity());
+        this.infra = new RoutingInfrastructure(
+                routes, nodeIdMapping, bootstrapVirtualNodeIds,
+                () -> nextRoutingCorrelationId++,
+                routingRequestsCounter, routingErrorsCounter,
+                routingRequestDurationTimer, pendingResponseCount,
+                routerNodeAddresses, IntUnaryOperator.identity());
     }
 
     @Nullable
     CompletionStage<RouteFilterPipeline> getOrCreateRouteFilterPipeline(
                                                                         RouteDescriptor rd,
                                                                         Channel clientChannel) {
-        if (rd.filters().isEmpty() || filterChainFactory == null || pfr == null || routeFilterEventLoopGroup == null) {
+        if (rd.filters().isEmpty() || routeFilterSupport == null) {
             return null;
         }
         return routeFilterPipelines.computeIfAbsent(rd, descriptor -> {
-            var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
-            List<FilterAndInvoker> filters = filterChainFactory.createFilters(
+            var filterContext = new NettyFilterContext(clientChannel.eventLoop(), routeFilterSupport.pfr());
+            List<FilterAndInvoker> filters = routeFilterSupport.filterChainFactory().createFilters(
                     filterContext, rd.filters());
             MetadataAddressCacher metadataAddressCacher = body -> {
                 if (body instanceof MetadataResponseData md) {
                     for (var broker : md.brokers()) {
-                        int virtualId = nodeIdMapping.toVirtual(rd.name(), broker.nodeId());
-                        routerNodeAddresses.put(virtualId, new HostPort(broker.host(), broker.port()));
+                        int virtualId = infra.nodeIdMapping().toVirtual(rd.name(), broker.nodeId());
+                        infra.sharedNodeAddresses().put(virtualId, new HostPort(broker.host(), broker.port()));
                     }
                 }
             };
             return RouteFilterPipeline.create(
-                    routeFilterEventLoopGroup,
-                    clientChannel.eventLoop(), filters, clientChannel, sniHostname, ccsm,
-                    rd.name(), () -> nextRoutingCorrelationId++, pendingResponseCount,
-                    nodeIdMapping, metadataAddressCacher);
+                    routeFilterSupport.eventLoopGroup(),
+                    clientChannel.eventLoop(), filters, clientChannel, routeFilterSupport.sniHostname(), ccsm,
+                    rd.name(), infra.routingCorrelationIdAllocator(), infra.pendingResponseCount(),
+                    infra.nodeIdMapping(), metadataAddressCacher);
         });
     }
 
@@ -223,7 +212,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
      * Resolves a virtual node ID to a backend address using addresses discovered from internal METADATA responses.
      */
     public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
-        return Optional.ofNullable(routerNodeAddresses.get(virtualNodeId));
+        return Optional.ofNullable(infra.sharedNodeAddresses().get(virtualNodeId));
     }
 
     @Override
@@ -232,7 +221,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
-                RouteDescriptor rd = routes.get(staticRoute);
+                RouteDescriptor rd = infra.routes().get(staticRoute);
                 CompletionStage<RouteFilterPipeline> pipelineStage = rd != null
                         ? getOrCreateRouteFilterPipeline(rd, ctx.channel())
                         : null;
@@ -242,7 +231,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 else {
                     ccsm.forwardToRoute(staticRoute, msg);
                 }
-                routingRequestsCounter.withTags(
+                infra.routingRequestsCounter().withTags(
                         Metrics.ROUTE_LABEL, staticRoute,
                         Metrics.ROUTING_MODE_LABEL, "static",
                         Metrics.API_KEY_LABEL, apiKey.name()).increment();
@@ -294,14 +283,13 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
 
         pipelineStage.thenAcceptAsync(pipeline -> {
             pipeline.writeRequest(routedFrame, future, filtered -> {
-                Timer.Sample timerSample = Timer.start();
-                var pendingResponse = new PendingResponse(
-                        future, timerSample, staticRoute, apiKey,
-                        nodeIdMapping, body -> {
+                var pendingResponse = PendingResponse.create(
+                        future, staticRoute, apiKey,
+                        infra.nodeIdMapping(), body -> {
                         },
                         null, pipeline);
                 registerPendingResponse(ctx.channel(), routingCorrelationId, pendingResponse);
-                pendingResponseCount.incrementAndGet();
+                infra.pendingResponseCount().incrementAndGet();
                 ccsm.forwardToRoute(staticRoute, filtered);
             });
         }, ctx.channel().eventLoop());
@@ -329,19 +317,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ctx.channel(),
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
-                routes,
+                infra,
                 (routeName, forwarded) -> ccsm.forwardToRoute(routeName, forwarded),
                 (virtualNodeId, routeName, forwarded) -> ccsm.forwardToNode(virtualNodeId, routeName, forwarded),
-                nodeIdMapping,
-                bootstrapVirtualNodeIds,
-                () -> nextRoutingCorrelationId++,
-                routingRequestsCounter,
-                routingErrorsCounter,
-                routingRequestDurationTimer,
-                pendingResponseCount,
                 responseSequencer,
-                routerNodeAddresses,
-                IntUnaryOperator.identity(),
                 hasNestedRouters() ? this::getOrCreateNestedRouterState : null,
                 rd -> getOrCreateRouteFilterPipeline(rd, ctx.channel()));
 
@@ -352,7 +331,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 frame.body(),
                 routingContext).whenComplete((result, error) -> {
                     if (error != null) {
-                        routingErrorsCounter.withTags(
+                        infra.routingErrorsCounter().withTags(
                                 Metrics.ERROR_TYPE_LABEL, "router_failed").increment();
                         LOGGER.atError()
                                 .addKeyValue("sessionId", ccsm.sessionId())
@@ -399,18 +378,19 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     }
 
     private boolean hasNestedRouters() {
-        return routerChainFactory != null
-                && allRouteDescriptors != null
-                && routes.values().stream().anyMatch(RouteDescriptor::targetsRouter);
+        return nestedRoutingSupport != null
+                && infra.routes().values().stream().anyMatch(RouteDescriptor::targetsRouter);
     }
 
     private RouterContextImpl.NestedRouterState getOrCreateNestedRouterState(
                                                                              String routerName,
                                                                              String outerRouteName) {
+        var nrs = Objects.requireNonNull(nestedRoutingSupport);
         String cacheKey = outerRouteName + ":" + routerName;
-        Router nested = nestedRouters.computeIfAbsent(cacheKey, k -> routerChainFactory.createRouter(routerName, virtualClusterName));
+        Router nested = nestedRouters.computeIfAbsent(cacheKey,
+                k -> nrs.routerChainFactory().createRouter(routerName, nrs.virtualClusterName()));
 
-        Map<String, RouteDescriptor> nestedRoutes = allRouteDescriptors.get(routerName);
+        Map<String, RouteDescriptor> nestedRoutes = nrs.allRouteDescriptors().get(routerName);
         if (nestedRoutes == null) {
             throw new IllegalStateException(
                     "No route descriptors for nested router: " + routerName);
@@ -424,10 +404,10 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 ? new BijectiveNodeIdMapping(nestedRouteIds, nestedRouteIds.size())
                 : new IdentityNodeIdMapping(nestedRouteIds.keySet().iterator().next());
 
-        IntUnaryOperator nestedTranslator = nestedVirtual -> nodeIdMapping.toVirtual(outerRouteName, nestedVirtual);
+        IntUnaryOperator nestedTranslator = nestedVirtual -> infra.nodeIdMapping().toVirtual(outerRouteName, nestedVirtual);
 
         var nestedBootstrapIds = RouterContextImpl.computeBootstrapNodeIds(
-                nestedRoutes, nestedNodeIdMapping, routerNodeAddresses, nestedTranslator);
+                nestedRoutes, nestedNodeIdMapping, infra.sharedNodeAddresses(), nestedTranslator);
 
         boolean hasDeepNested = nestedRoutes.values().stream()
                 .anyMatch(RouteDescriptor::targetsRouter);
@@ -460,8 +440,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             Map<Integer, PendingResponse> pending = getPendingResponses(ccsm.clientChannel());
             PendingResponse pendingResponse = pending.remove(correlationId);
             if (pendingResponse != null) {
-                pendingResponseCount.decrementAndGet();
-                pendingResponse.timerSample().stop(routingRequestDurationTimer.withTags(
+                infra.pendingResponseCount().decrementAndGet();
+                pendingResponse.timerSample().stop(infra.routingRequestDurationTimer().withTags(
                         Metrics.ROUTE_LABEL, pendingResponse.route(),
                         Metrics.API_KEY_LABEL, pendingResponse.apiKey().name()));
                 pendingResponse.metadataAddressCacher().cacheIfMetadata(frame.body());
@@ -497,7 +477,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                         .log("Routed response matched to pending request");
                 return true;
             }
-            routingErrorsCounter.withTags(
+            infra.routingErrorsCounter().withTags(
                     Metrics.ERROR_TYPE_LABEL, "unmatched_response").increment();
             LOGGER.atWarn()
                     .addKeyValue("sessionId", ccsm.sessionId())

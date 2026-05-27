@@ -78,6 +78,18 @@ class RouterContextImplTest {
         return () -> nextRoutingCorrelationId++;
     }
 
+    private RoutingInfrastructure testInfra() {
+        return new RoutingInfrastructure(
+                routes, nodeIdMapping, bootstrapVirtualNodeIds,
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount,
+                sharedNodeAddresses,
+                IntUnaryOperator.identity());
+    }
+
     private DecodedRequestFrame<?> clientFrame() {
         return new DecodedRequestFrame<>(
                 API_VERSION, CORRELATION_ID, true,
@@ -94,7 +106,7 @@ class RouterContextImplTest {
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),
-                routes,
+                testInfra(),
                 (routeName, msg) -> {
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
@@ -104,16 +116,7 @@ class RouterContextImplTest {
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
                 },
-                nodeIdMapping,
-                bootstrapVirtualNodeIds,
-                routingIdAllocator(),
-                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
-                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
-                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount,
                 responseSequencer,
-                sharedNodeAddresses,
-                IntUnaryOperator.identity(),
                 null,
                 null);
     }
@@ -280,19 +283,10 @@ class RouterContextImplTest {
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),
-                routes,
+                testInfra(),
                 (routeName, msg) -> forwardedFrames.add(msg),
                 (virtualNodeId, routeName, msg) -> forwardedFrames.add(msg),
-                nodeIdMapping,
-                bootstrapVirtualNodeIds,
-                routingIdAllocator(),
-                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
-                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
-                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount,
                 responseSequencer,
-                sharedNodeAddresses,
-                IntUnaryOperator.identity(),
                 null,
                 null);
 
@@ -326,23 +320,14 @@ class RouterContextImplTest {
                 channel,
                 SESSION_ID,
                 Subject.anonymous(),
-                routes,
+                testInfra(),
                 (routeName, msg) -> {
                     throw new IllegalStateException("Upstream address not yet known");
                 },
                 (virtualNodeId, routeName, msg) -> {
                     throw new IllegalStateException("Upstream address not yet known");
                 },
-                nodeIdMapping,
-                bootstrapVirtualNodeIds,
-                routingIdAllocator(),
-                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
-                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
-                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount,
                 responseSequencer,
-                sharedNodeAddresses,
-                IntUnaryOperator.identity(),
                 null,
                 null);
 

@@ -15,7 +15,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Timer;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -125,9 +124,8 @@ class RouteFilterCompletionHandler extends ChannelInboundHandlerAdapter {
                 irf.body());
 
         CompletableFuture<Response> dummyFuture = new CompletableFuture<>();
-        var pendingResponse = new RouterDispatchHandler.PendingResponse(
+        var pendingResponse = RouterDispatchHandler.PendingResponse.create(
                 dummyFuture,
-                Timer.start(),
                 routeName,
                 apiKey,
                 nodeIdMapping,
