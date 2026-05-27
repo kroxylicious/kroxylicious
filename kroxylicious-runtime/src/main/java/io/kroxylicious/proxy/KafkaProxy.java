@@ -188,9 +188,7 @@ public final class KafkaProxy implements AutoCloseable {
         STOPPED {
             @Override
             boolean canTransitionTo(LifecycleState target) {
-                return switch (target) {
-                    case NEW, STARTING, STARTED, STOPPING, STOPPED -> false;
-                };
+                return false;
             }
         };
 
