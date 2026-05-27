@@ -112,7 +112,27 @@ class RouteFilterPipeline implements AutoCloseable {
         pendingResponseFutures.put(frame.correlationId(), responseFuture);
         completionHandler.setCurrentForwarder(forwarder);
         filterChannel.writeInbound(frame);
+        filterChannel.runPendingTasks();
         drainOutboundResponses();
+    }
+
+    /**
+     * Writes a fire-and-forget request through the route filter pipeline. The request
+     * passes through request filters but no response is expected. Any short-circuit
+     * response from a filter is silently discarded.
+     *
+     * @param frame the request frame
+     * @param forwarder callback to forward the filtered request to the backend
+     */
+    void writeFireAndForget(
+                            DecodedRequestFrame<?> frame,
+                            Consumer<Object> forwarder) {
+        completionHandler.setCurrentForwarder(forwarder);
+        filterChannel.writeInbound(frame);
+        filterChannel.runPendingTasks();
+        while (filterChannel.readOutbound() != null) {
+            // discard short-circuit responses for fire-and-forget
+        }
     }
 
     /**
@@ -134,6 +154,7 @@ class RouteFilterPipeline implements AutoCloseable {
         DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(
                 apiVersion, correlationId, header, body);
         filterChannel.writeOutbound(responseFrame);
+        filterChannel.runPendingTasks();
         drainOutboundResponses();
     }
 

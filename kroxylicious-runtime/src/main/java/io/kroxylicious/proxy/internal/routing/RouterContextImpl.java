@@ -211,7 +211,7 @@ class RouterContextImpl implements RouterContext {
         }
 
         if (!frame.hasResponse()) {
-            forwardOrFilter(virtualNodeId, route, frame, null);
+            forwardOrFilter(virtualNodeId, route, frame);
             routingRequestsCounter.withTags(
                     Metrics.ROUTE_LABEL, route,
                     Metrics.ROUTING_MODE_LABEL, "dynamic",
@@ -312,14 +312,14 @@ class RouterContextImpl implements RouterContext {
     private void forwardOrFilter(
                                  int virtualNodeId,
                                  String route,
-                                 DecodedRequestFrame<?> frame,
-                                 @Nullable CompletableFuture<Response> future) {
+                                 DecodedRequestFrame<?> frame) {
         RouteFilterPipeline pipeline = routeFilterPipelineProvider != null
                 ? routeFilterPipelineProvider.get(routes.get(route))
                 : null;
 
-        if (pipeline != null && future != null) {
-            pipeline.writeRequest(frame, future, filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered));
+        if (pipeline != null) {
+            pipeline.writeFireAndForget(frame,
+                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered));
         }
         else {
             forwardToNode(virtualNodeId, route, frame);
