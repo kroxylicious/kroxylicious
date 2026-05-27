@@ -58,20 +58,27 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Linux, kqueue on macOS). These transports' event loops only support channels backed
  * by OS file descriptors. {@link LocalChannel} and {@link LocalServerChannel} are
  * purely in-memory and have no fd, so they cannot be registered on an epoll/kqueue
- * event loop. We therefore create a shared {@link DefaultEventLoopGroup} for the
- * local transport infrastructure.</p>
+ * event loop. A {@link DefaultEventLoopGroup} is created by {@code KafkaProxy} and
+ * passed through for this purpose.</p>
  *
  * <h2>How filter threading guarantees are preserved</h2>
  *
  * <p>The Filter API guarantees that filter methods and their chained computation stages
  * execute on the connection's event loop thread. Although the local channels run on the
- * {@link DefaultEventLoopGroup}, we add the {@link FilterHandler} instances to the
- * pipeline using {@code pipeline.addLast(clientEventLoop, handler)}. This causes Netty
- * to dispatch all handler callbacks (channelRead, write, etc.) on the client's event
- * loop rather than the local channel's event loop. As a result, {@code ctx.executor()}
- * inside each {@link FilterHandler} returns the client connection's event loop, and
- * deferred work scheduled via {@code thenApplyAsync(..., ctx.executor())} completes on
- * the correct thread.</p>
+ * {@link DefaultEventLoopGroup}, we add the {@link FilterHandler} instances and the
+ * {@code ResponseCaptureHandler} to the pipeline using
+ * {@code pipeline.addLast(clientEventLoop, handler)}. This causes Netty to dispatch all
+ * handler callbacks (channelRead, write, etc.) on the client's event loop rather than
+ * the local channel's event loop. As a result, {@code ctx.executor()} inside each
+ * {@link FilterHandler} returns the client connection's event loop, and deferred work
+ * scheduled via {@code thenApplyAsync(..., ctx.executor())} completes on the correct
+ * thread.</p>
+ *
+ * <p><b>Important for callers:</b> the {@link CompletionStage} returned by
+ * {@link #create} completes on the {@link DefaultEventLoopGroup} thread, not the
+ * client event loop. Callers must use {@code thenAcceptAsync(callback, clientEventLoop)}
+ * when chaining on this stage to ensure that {@code writeRequest},
+ * {@code registerAndForward}, and CCSM calls execute on the connection's thread.</p>
  *
  * <h2>Lifecycle</h2>
  *
@@ -94,7 +101,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *   writeResponse() → filterChannel.writeAndFlush(frame)
  *     → FilterHandler-2.write() [on client event loop]
  *     → FilterHandler-1.write() [on client event loop]
- *     → exits to peer channel → ResponseCaptureHandler → completes future
+ *     → exits to peer channel → ResponseCaptureHandler [on client event loop] → completes future
  *
  * Short-circuit:
  *   A filter's shortCircuitResponse() writes a response during the request path.
