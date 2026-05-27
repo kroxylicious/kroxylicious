@@ -334,7 +334,6 @@ public final class KafkaProxy implements AutoCloseable {
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
-            // TODO: startup/shutdown should return a completionstage
             CompletableFuture.allOf(
                     Stream.concat(Stream.of(managementFuture),
                             virtualClusterModels.stream()
@@ -632,6 +631,7 @@ public final class KafkaProxy implements AutoCloseable {
      * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
      * @return the actual local port the proxy is listening on
      */
+    @SuppressWarnings("SameParameterValue") //the parameters allow us to call idempotently
     @VisibleForTesting
     int listeningPort(@Nullable String bindAddress, int port) {
         return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
