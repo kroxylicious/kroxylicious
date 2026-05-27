@@ -538,38 +538,13 @@ public final class KafkaProxy implements AutoCloseable {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Shutting down");
 
-            // Unbind ports first so no new connections can arrive after the drain snapshot
-            // is taken. endpointRegistry.shutdown() closes only the server (acceptor) socket —
-            // it does NOT disconnect existing client connections.
-            endpointRegistry.shutdown().handle((u, t) -> {
-                bindingOperationProcessor.close();
-                if (t != null) {
-                    STARTUP_SHUTDOWN_LOGGER.atWarn()
-                            .setCause(t)
-                            .log("Shutdown completed exceptionally");
-                    throw new LifecycleException("Shutdown completed exceptionally", t);
-                }
-                return null;
-            }).toCompletableFuture().join();
+            // Unbind ports first so no new connections can arrive after the drain snapshot is taken —
+            // existing connections are unaffected and will be drained in the next step.
+            unbindPorts();
 
-            try {
-                virtualClusterRegistry.shutdownAllClusters();
-                STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
-            }
-            catch (Exception e) {
-                STARTUP_SHUTDOWN_LOGGER.atWarn()
-                        .addKeyValue("error", e.getMessage())
-                        .log("Connection drain completed with errors — Netty shutdown will force-close remaining");
-            }
+            shutdownVirtualClusters();
 
-            var closeFutures = new ArrayList<Future<?>>();
-            if (proxyEventGroup != null) {
-                closeFutures.addAll(proxyEventGroup.shutdownGracefully());
-            }
-            if (managementEventGroup != null) {
-                closeFutures.addAll(managementEventGroup.shutdownGracefully());
-            }
-            closeFutures.forEach(Future::syncUninterruptibly);
+            shutdownNetty();
 
             if (filterChainFactory != null) {
                 filterChainFactory.close();
@@ -602,6 +577,42 @@ public final class KafkaProxy implements AutoCloseable {
             LOGGER.atInfo()
                     .log("Shut down completed");
         }
+    }
+
+    private void unbindPorts() {
+        endpointRegistry.shutdown().handle((u, t) -> {
+            bindingOperationProcessor.close();
+            if (t != null) {
+                STARTUP_SHUTDOWN_LOGGER.atWarn()
+                        .setCause(t)
+                        .log("Shutdown completed exceptionally");
+                throw new LifecycleException("Shutdown completed exceptionally", t);
+            }
+            return null;
+        }).toCompletableFuture().join();
+    }
+
+    private void shutdownVirtualClusters() {
+        try {
+            virtualClusterRegistry.shutdownAllClusters();
+            STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
+        }
+        catch (Exception e) {
+            STARTUP_SHUTDOWN_LOGGER.atWarn()
+                    .addKeyValue("error", e.getMessage())
+                    .log("Connection drain completed with errors — Netty shutdown will force-close remaining");
+        }
+    }
+
+    private void shutdownNetty() {
+        var closeFutures = new ArrayList<Future<?>>();
+        if (proxyEventGroup != null) {
+            closeFutures.addAll(proxyEventGroup.shutdownGracefully());
+        }
+        if (managementEventGroup != null) {
+            closeFutures.addAll(managementEventGroup.shutdownGracefully());
+        }
+        closeFutures.forEach(Future::syncUninterruptibly);
     }
 
     /**
