@@ -119,13 +119,8 @@ class RouteFilterIT {
                 .build();
 
         var routeA = new RouteDefinition("route-a", 0,
-<<<<<<< HEAD
-                List.of("first-marker", "second-marker"),
-                new RouteTarget("cluster-a", null));
-=======
                 List.of("first-stamper", "second-stamper"),
                 new RouteTarget("cluster-a", null));
->>>>>>> 3439a6469 (test(integration-tests): add RouteFilterIT for route filter pipeline)
         var routeB = new RouteDefinition("route-b", 1,
                 null,
                 new RouteTarget("cluster-b", null));
@@ -222,20 +217,27 @@ class RouteFilterIT {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("Config builder ordering issue with addToDefaultFilters — investigate separately")
     void vcFilterAndRouteFilterBothExecute() throws Exception {
-        var vcFilter = markingFilterDef("vc-marker", ForwardingStyle.SYNCHRONOUS);
-        var routeFilter = markingFilterDef("route-marker", ForwardingStyle.SYNCHRONOUS);
+        var vcFilter = new NamedFilterDefinitionBuilder(
+                "vc-stamper",
+                FixedClientIdFilterFactory.class.getName())
+                .withConfig("clientId", "vc-stamped")
+                .build();
+        var routeFilter = new NamedFilterDefinitionBuilder(
+                "route-stamper",
+                FixedClientIdFilterFactory.class.getName())
+                .withConfig("clientId", "route-stamped")
+                .build();
 
         var routeA = new RouteDefinition("route-a", 0,
-                List.of("route-marker"),
+                List.of("route-stamper"),
                 new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", 1,
                 null,
                 new RouteTarget("cluster-b", null));
 
         var config = buildConfig(routeA, routeB, vcFilter, routeFilter);
-        config.addToDefaultFilters("vc-marker");
+        config.addToDefaultFilters("vc-stamper");
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(producerConfig("route-a-client"))) {
@@ -288,7 +290,6 @@ class RouteFilterIT {
     }
 
     @Test
-    @org.junit.jupiter.api.Disabled("NPE in VirtualClusterModel.usesDynamicTlsCredentials when route filter on nested route — needs investigation")
     void nestedRouterRouteFilterApplied() throws Exception {
         var stampFilter = new NamedFilterDefinitionBuilder(
                 "inner-stamper",

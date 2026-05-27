@@ -239,6 +239,7 @@ class RouteFilterPipeline implements AutoCloseable {
                 var pipeline = new RouteFilterPipeline(
                         serverChannel, filterChannel, peerChannel, completionHandler);
                 completionHandler.setOwningPipeline(pipeline);
+
                 result.complete(pipeline);
             });
         });
