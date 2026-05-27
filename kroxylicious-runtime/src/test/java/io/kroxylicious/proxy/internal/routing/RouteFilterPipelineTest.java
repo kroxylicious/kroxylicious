@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -22,7 +23,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.channel.DefaultEventLoopGroup;
+import io.netty.channel.EventLoop;
+import io.netty.channel.local.LocalChannel;
 
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -54,26 +57,32 @@ class RouteFilterPipelineTest {
     private static final String ROUTE_NAME = "test-route";
     private static final int CORRELATION_ID = -500;
 
-    private EmbeddedChannel inboundChannel;
+    private DefaultEventLoopGroup eventLoopGroup;
+    private EventLoop eventLoop;
+    private LocalChannel inboundChannel;
     private ClientConnectionStateMachine ccsm;
     private RouteFilterPipeline pipeline;
 
     @BeforeEach
-    void setUp() {
-        inboundChannel = new EmbeddedChannel();
+    void setUp() throws Exception {
+        eventLoopGroup = new DefaultEventLoopGroup(1);
+        eventLoop = eventLoopGroup.next();
+        inboundChannel = new LocalChannel();
+        eventLoop.register(inboundChannel).sync();
         ccsm = createCcsm();
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
         if (pipeline != null) {
-            pipeline.close();
+            eventLoop.submit(() -> pipeline.close()).sync();
         }
-        inboundChannel.close();
+        inboundChannel.close().sync();
+        eventLoopGroup.shutdownGracefully(0, 100, TimeUnit.MILLISECONDS).sync();
     }
 
     @Test
-    void requestShouldPassThroughFilterAndReachForwarder() {
+    void requestShouldPassThroughFilterAndReachForwarder() throws Exception {
         var filter = new ClientIdStampingFilter("stamped-client");
         pipeline = createPipeline(filter);
 
@@ -81,7 +90,7 @@ class RouteFilterPipelineTest {
         var forwarded = new AtomicReference<Object>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        pipeline.writeRequest(frame, future, forwarded::set);
+        eventLoop.submit(() -> pipeline.writeRequest(frame, future, forwarded::set)).sync();
 
         assertThat(forwarded.get()).isInstanceOf(DecodedRequestFrame.class);
         var forwardedFrame = (DecodedRequestFrame<?>) forwarded.get();
@@ -89,29 +98,31 @@ class RouteFilterPipelineTest {
     }
 
     @Test
-    void responseShouldPassThroughFilterAndCompleteFuture() {
+    void responseShouldPassThroughFilterAndCompleteFuture() throws Exception {
         var filter = new ErrorCodeStampingFilter((short) 42);
         pipeline = createPipeline(filter);
 
         var future = new CompletableFuture<Response>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        pipeline.writeRequest(frame, future, forwarded -> {
-            pipeline.writeResponse(
-                    new ResponseHeaderData().setCorrelationId(CORRELATION_ID),
-                    new FetchResponseData(),
-                    CORRELATION_ID,
-                    API_VERSION);
-        });
+        eventLoop.submit(() -> {
+            pipeline.writeRequest(frame, future, forwarded -> {
+                pipeline.writeResponse(
+                        new ResponseHeaderData().setCorrelationId(CORRELATION_ID),
+                        new FetchResponseData(),
+                        CORRELATION_ID,
+                        API_VERSION);
+            });
+        }).sync();
 
-        assertThat(future).isDone();
-        Response response = future.join();
+        assertThat(future).succeedsWithin(Duration.ofSeconds(5));
+        Response response = future.get();
         assertThat(response.body()).isInstanceOf(FetchResponseData.class);
         assertThat(((FetchResponseData) response.body()).errorCode()).isEqualTo((short) 42);
     }
 
     @Test
-    void shortCircuitShouldCompleteFutureWithoutForwarding() {
+    void shortCircuitShouldCompleteFutureWithoutForwarding() throws Exception {
         var filter = new ShortCircuitFilter();
         pipeline = createPipeline(filter);
 
@@ -119,18 +130,18 @@ class RouteFilterPipelineTest {
         var forwarded = new AtomicReference<Object>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        pipeline.writeRequest(frame, future, forwarded::set);
+        eventLoop.submit(() -> pipeline.writeRequest(frame, future, forwarded::set)).sync();
 
         assertThat(forwarded.get())
                 .as("Short-circuit should not invoke forwarder")
                 .isNull();
-        assertThat(future).isDone();
-        Response response = future.join();
+        assertThat(future).succeedsWithin(Duration.ofSeconds(5));
+        Response response = future.get();
         assertThat(response.body()).isInstanceOf(FetchResponseData.class);
     }
 
     @Test
-    void multipleFiltersShouldExecuteInOrder() {
+    void multipleFiltersShouldExecuteInOrder() throws Exception {
         var filter1 = new ClientIdStampingFilter("first");
         var filter2 = new ClientIdStampingFilter("second");
         pipeline = createPipeline(filter1, filter2);
@@ -139,7 +150,7 @@ class RouteFilterPipelineTest {
         var forwarded = new AtomicReference<Object>();
         var frame = fetchRequestFrame(CORRELATION_ID);
 
-        pipeline.writeRequest(frame, future, forwarded::set);
+        eventLoop.submit(() -> pipeline.writeRequest(frame, future, forwarded::set)).sync();
 
         var forwardedFrame = (DecodedRequestFrame<?>) forwarded.get();
         assertThat(forwardedFrame.header().clientId())
@@ -147,15 +158,17 @@ class RouteFilterPipelineTest {
                 .isEqualTo("second");
     }
 
-    private RouteFilterPipeline createPipeline(Object... filters) {
+    private RouteFilterPipeline createPipeline(Object... filters) throws Exception {
         var filterAndInvokers = new java.util.ArrayList<FilterAndInvoker>();
         for (Object filter : filters) {
-            filterAndInvokers.addAll(FilterAndInvoker.build("test-filter", (io.kroxylicious.proxy.filter.Filter) filter));
+            filterAndInvokers.addAll(FilterAndInvoker.build(
+                    "test-filter", (io.kroxylicious.proxy.filter.Filter) filter));
         }
         var nodeIdMapping = new IdentityNodeIdMapping(ROUTE_NAME);
         RouterDispatchHandler.MetadataAddressCacher metadataAddressCacher = body -> {
         };
-        return new RouteFilterPipeline(
+        return RouteFilterPipeline.create(
+                eventLoop,
                 filterAndInvokers,
                 inboundChannel,
                 null,
@@ -164,12 +177,13 @@ class RouteFilterPipelineTest {
                 new AtomicInteger(Integer.MIN_VALUE)::getAndIncrement,
                 new AtomicInteger(),
                 nodeIdMapping,
-                metadataAddressCacher);
+                metadataAddressCacher).toCompletableFuture().get(5, TimeUnit.SECONDS);
     }
 
     private ClientConnectionStateMachine createCcsm() {
         var targetCluster = mock(TargetCluster.class);
-        when(targetCluster.bootstrapServersList()).thenReturn(List.of(HostPort.parse("localhost:9092")));
+        when(targetCluster.bootstrapServersList()).thenReturn(
+                List.of(HostPort.parse("localhost:9092")));
         var vc = new VirtualClusterModel("TestVC", targetCluster, false, false,
                 List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
         vc.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
@@ -179,7 +193,8 @@ class RouteFilterPipelineTest {
         when(gw.virtualCluster()).thenReturn(vc);
         when(endpointBinding.endpointGateway()).thenReturn(gw);
         var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        return new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), session);
+        return new ClientConnectionStateMachine(
+                endpointBinding, new DefaultSubjectBuilder(List.of()), session);
     }
 
     private static DecodedRequestFrame<FetchRequestData> fetchRequestFrame(int correlationId) {
@@ -187,7 +202,8 @@ class RouteFilterPipelineTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION)
                 .setClientId("original-client");
-        return new DecodedRequestFrame<>(API_VERSION, correlationId, true, header, new FetchRequestData());
+        return new DecodedRequestFrame<>(
+                API_VERSION, correlationId, true, header, new FetchRequestData());
     }
 
     /**

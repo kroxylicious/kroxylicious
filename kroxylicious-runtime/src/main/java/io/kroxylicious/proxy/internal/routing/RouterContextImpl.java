@@ -79,7 +79,7 @@ class RouterContextImpl implements RouterContext {
     @FunctionalInterface
     interface RouteFilterPipelineProvider {
         @Nullable
-        RouteFilterPipeline get(RouteDescriptor rd);
+        CompletionStage<RouteFilterPipeline> get(RouteDescriptor rd);
     }
 
     /**
@@ -228,16 +228,18 @@ class RouterContextImpl implements RouterContext {
 
         CompletableFuture<Response> future = new CompletableFuture<>();
 
-        RouteFilterPipeline pipeline = routeFilterPipelineProvider != null
+        CompletionStage<RouteFilterPipeline> pipelineStage = routeFilterPipelineProvider != null
                 ? routeFilterPipelineProvider.get(rd)
                 : null;
 
-        if (pipeline != null) {
-            pipeline.writeRequest(frame, future, filtered -> {
-                registerAndForward(
-                        virtualNodeId, route, apiKey,
-                        (DecodedRequestFrame<?>) filtered, future,
-                        routingCorrelationId, pipeline);
+        if (pipelineStage != null) {
+            pipelineStage.thenAccept(pipeline -> {
+                pipeline.writeRequest(frame, future, filtered -> {
+                    registerAndForward(
+                            virtualNodeId, route, apiKey,
+                            (DecodedRequestFrame<?>) filtered, future,
+                            routingCorrelationId, pipeline);
+                });
             });
         }
         else {
@@ -313,13 +315,13 @@ class RouterContextImpl implements RouterContext {
                                  int virtualNodeId,
                                  String route,
                                  DecodedRequestFrame<?> frame) {
-        RouteFilterPipeline pipeline = routeFilterPipelineProvider != null
+        CompletionStage<RouteFilterPipeline> pipelineStage = routeFilterPipelineProvider != null
                 ? routeFilterPipelineProvider.get(routes.get(route))
                 : null;
 
-        if (pipeline != null) {
-            pipeline.writeFireAndForget(frame,
-                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered));
+        if (pipelineStage != null) {
+            pipelineStage.thenAccept(pipeline -> pipeline.writeFireAndForget(frame,
+                    filtered -> forwardToNode(virtualNodeId, route, (DecodedRequestFrame<?>) filtered)));
         }
         else {
             forwardToNode(virtualNodeId, route, frame);
