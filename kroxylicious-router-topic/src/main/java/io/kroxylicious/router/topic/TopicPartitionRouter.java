@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.router.topic;
+package io.kroxylicious.router.topic;
 
 import java.time.Clock;
 import java.util.ArrayList;
@@ -83,7 +83,7 @@ import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResult;
-import io.kroxylicious.proxy.router.topic.ProducerIdManager.ProducerIdEpoch;
+import io.kroxylicious.router.topic.ProducerIdManager.ProducerIdEpoch;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

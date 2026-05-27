@@ -32,7 +32,7 @@ defaultFilters:
   - sasl-inspection
 routerDefinitions:
   - name: topic-router
-    type: io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactory
+    type: io.kroxylicious.router.topic.TopicPartitionRouterFactory
     config:
       defaultRoute: route-a
       routes:

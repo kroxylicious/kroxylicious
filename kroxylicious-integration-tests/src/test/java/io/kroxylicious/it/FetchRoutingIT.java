@@ -32,7 +32,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.internal.routing.RoutingEvent;
-import io.kroxylicious.proxy.router.topic.TopicPartitionRouterFactoryTestSupport;
+import io.kroxylicious.router.topic.TopicPartitionRouterFactoryTestSupport;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.ManagementClient;
