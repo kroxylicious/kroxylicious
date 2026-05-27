@@ -130,7 +130,7 @@ class KafkaProxyTest {
 
     @ParameterizedTest()
     @MethodSource
-    void detectsConflictingPorts(String config, String expectedMessage) throws Exception {
+    void detectsConflictingPorts(String config, String expectedMessage) {
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(LifecycleException.class)
                     .cause()
@@ -220,7 +220,7 @@ class KafkaProxyTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldDefaultManagementThreadCountWhenNoNetworkNodePresent() throws Exception {
+    void shouldDefaultManagementThreadCountWhenNoNetworkNodePresent() {
         var config = """
                    management:
                     port: 9190
@@ -244,7 +244,7 @@ class KafkaProxyTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldDefaultManagementThreadCountWhenNetworkNodePresentWithoutManagementSettings() throws Exception {
+    void shouldDefaultManagementThreadCountWhenNetworkNodePresentWithoutManagementSettings() {
         var config = """
                    management:
                     port: 9190
@@ -271,7 +271,7 @@ class KafkaProxyTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldUseConfiguredManagementThreadCount() throws Exception {
+    void shouldUseConfiguredManagementThreadCount() {
         var config = """
                    management:
                     port: 9190
@@ -296,7 +296,7 @@ class KafkaProxyTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldDefaultProxyThreadCountWhenNoNetworkNodePresent() throws Exception {
+    void shouldDefaultProxyThreadCountWhenNoNetworkNodePresent() {
         var config = """
                    management:
                     port: 9190
@@ -320,7 +320,7 @@ class KafkaProxyTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldDefaultProxyThreadCountWhenNetworkNodePresentWithoutProxySettings() throws Exception {
+    void shouldDefaultProxyThreadCountWhenNetworkNodePresentWithoutProxySettings() {
         var config = """
                    management:
                     port: 9190
@@ -347,7 +347,7 @@ class KafkaProxyTest {
 
     @SuppressWarnings("resource")
     @Test
-    void shouldUseConfiguredProxyThreadCount() throws Exception {
+    void shouldUseConfiguredProxyThreadCount() {
         var config = """
                    management:
                     port: 9190
@@ -371,7 +371,7 @@ class KafkaProxyTest {
     }
 
     @Test
-    void startupTwiceReturnsSameFuture() throws Exception {
+    void startupTwiceReturnsSameFuture() {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             var first = proxy.startup();
             var second = proxy.startup();
@@ -380,14 +380,14 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldAllowShuttingDownBeforeStartup() throws Exception {
+    void shouldAllowShuttingDownBeforeStartup() {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             assertThatCode(proxy::shutdown).doesNotThrowAnyException();
         }
     }
 
     @Test
-    void shouldRejectReconfigureWithNullConfig() throws Exception {
+    void shouldRejectReconfigureWithNullConfig() {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             proxy.startup();
             assertThatThrownBy(() -> proxy.reconfigure(null))
@@ -397,7 +397,7 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldRejectReconfigureBeforeStartup() throws Exception {
+    void shouldRejectReconfigureBeforeStartup() {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             var newConfig = configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML);
             assertThatThrownBy(() -> proxy.reconfigure(newConfig))
@@ -407,7 +407,7 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldRejectReconfigureAfterShutdown() throws Exception {
+    void shouldRejectReconfigureAfterShutdown() {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             proxy.startup();
             proxy.shutdown();
@@ -435,7 +435,7 @@ class KafkaProxyTest {
 
     @Test
     @EnabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is not available")
-    void shouldEnableIOUring() throws Exception {
+    void shouldEnableIOUring() {
         // Given
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                    useIoUring: true
@@ -459,7 +459,7 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldFallbackIfIOUringDisabled() throws Exception {
+    void shouldFallbackIfIOUringDisabled() {
         // Given
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                    useIoUring: false
@@ -486,7 +486,7 @@ class KafkaProxyTest {
 
     @Test
     @DisabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is available")
-    void shouldFailToStartIfIouUringConfiguredAndUnavailable() throws Exception {
+    void shouldFailToStartIfIouUringConfiguredAndUnavailable() {
         // Given
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                    useIoUring: true
