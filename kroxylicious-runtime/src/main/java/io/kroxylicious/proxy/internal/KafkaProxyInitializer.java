@@ -323,16 +323,18 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             NodeIdMapping nodeIdMapping = routeIds.size() > 1
                     ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
                     : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
+            var routeFilterSupport = routeFilterEventLoopGroup != null
+                    ? new RouterDispatchHandler.RouteFilterSupport(
+                            filterChainFactory, pfr, extractSniHostname(pipeline), routeFilterEventLoopGroup)
+                    : null;
+            var nestedRoutingSupport = new RouterDispatchHandler.NestedRoutingSupport(
+                    routerChainFactory, virtualCluster.allRouteDescriptors(), virtualCluster.getClusterName());
             var dispatchHandler = new RouterDispatchHandler(
                     router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
                     nodeIdMapping,
                     routingRequestsCounter, routingErrorsCounter,
                     routingRequestDurationTimer, pendingResponseCount,
-                    routerChainFactory,
-                    virtualCluster.allRouteDescriptors(),
-                    virtualCluster.getClusterName(),
-                    filterChainFactory, pfr, extractSniHostname(pipeline),
-                    routeFilterEventLoopGroup);
+                    routeFilterSupport, nestedRoutingSupport);
             clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setUpstreamAddressResolver(
                     virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)

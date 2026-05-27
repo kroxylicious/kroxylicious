@@ -72,10 +72,11 @@ class RouterDispatchHandlerTest {
     }
 
     private static RouterDispatchHandler.PendingResponse testPendingResponse(CompletableFuture<Response> future) {
-        return new RouterDispatchHandler.PendingResponse(
-                future, Timer.start(), "default", ApiKeys.FETCH,
+        return RouterDispatchHandler.PendingResponse.create(
+                future, "default", ApiKeys.FETCH,
                 new IdentityNodeIdMapping("default"), body -> {
-                });
+                },
+                null, null);
     }
 
     private RouterDispatchHandler createHandler(Map<ApiKeys, String> staticRoutes) {
@@ -86,8 +87,7 @@ class RouterDispatchHandlerTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
-                null, null, null,
-                null, null, null, null);
+                null, null);
     }
 
     private void stubCcsmForRouting() {

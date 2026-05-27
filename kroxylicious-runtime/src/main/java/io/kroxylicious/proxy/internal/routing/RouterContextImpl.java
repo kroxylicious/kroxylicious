@@ -10,8 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.IntSupplier;
 import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -21,9 +19,6 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Meter.MeterProvider;
-import io.micrometer.core.instrument.Timer;
 import io.netty.channel.Channel;
 
 import io.kroxylicious.proxy.authentication.Subject;
@@ -52,21 +47,13 @@ class RouterContextImpl implements RouterContext {
     private final short apiVersion;
     private final String sessionId;
     private final Subject subject;
-    private final Map<String, RouteDescriptor> routes;
+    private final RoutingInfrastructure infra;
     private final RouteForwarder routeForwarder;
     private final NodeForwarder nodeForwarder;
-    private final NodeIdMapping nodeIdMapping;
-    private final Map<String, Integer> bootstrapVirtualNodeIds;
-    private final IntSupplier routingCorrelationIdAllocator;
-    private final MeterProvider<Counter> routingRequestsCounter;
-    private final MeterProvider<Counter> routingErrorsCounter;
-    private final MeterProvider<Timer> routingRequestDurationTimer;
-    private final AtomicInteger pendingResponseCount;
     private final Channel clientChannel;
+    @Nullable
     private final ResponseSequencer responseSequencer;
     private final long sequenceNumber;
-    private final Map<Integer, HostPort> sharedNodeAddresses;
-    private final IntUnaryOperator virtualIdTranslator;
     @Nullable
     private final NestedRouterProvider nestedRouterProvider;
     @Nullable
@@ -123,19 +110,10 @@ class RouterContextImpl implements RouterContext {
                       Channel clientChannel,
                       String sessionId,
                       Subject subject,
-                      Map<String, RouteDescriptor> routes,
+                      RoutingInfrastructure infra,
                       RouteForwarder routeForwarder,
                       NodeForwarder nodeForwarder,
-                      NodeIdMapping nodeIdMapping,
-                      Map<String, Integer> bootstrapVirtualNodeIds,
-                      IntSupplier routingCorrelationIdAllocator,
-                      MeterProvider<Counter> routingRequestsCounter,
-                      MeterProvider<Counter> routingErrorsCounter,
-                      MeterProvider<Timer> routingRequestDurationTimer,
-                      AtomicInteger pendingResponseCount,
-                      ResponseSequencer responseSequencer,
-                      Map<Integer, HostPort> sharedNodeAddresses,
-                      IntUnaryOperator virtualIdTranslator,
+                      @Nullable ResponseSequencer responseSequencer,
                       @Nullable NestedRouterProvider nestedRouterProvider,
                       @Nullable RouteFilterPipelineProvider routeFilterPipelineProvider) {
         this.clientFrame = Objects.requireNonNull(clientFrame);
@@ -144,27 +122,18 @@ class RouterContextImpl implements RouterContext {
         this.clientChannel = Objects.requireNonNull(clientChannel);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
-        this.routes = Objects.requireNonNull(routes);
+        this.infra = Objects.requireNonNull(infra);
         this.routeForwarder = Objects.requireNonNull(routeForwarder);
         this.nodeForwarder = Objects.requireNonNull(nodeForwarder);
-        this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
-        this.bootstrapVirtualNodeIds = Objects.requireNonNull(bootstrapVirtualNodeIds);
-        this.routingCorrelationIdAllocator = Objects.requireNonNull(routingCorrelationIdAllocator);
-        this.routingRequestsCounter = Objects.requireNonNull(routingRequestsCounter);
-        this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
-        this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
-        this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
         this.responseSequencer = responseSequencer;
         this.sequenceNumber = responseSequencer != null ? responseSequencer.allocateSequence() : -1;
-        this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
-        this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
         this.nestedRouterProvider = nestedRouterProvider;
         this.routeFilterPipelineProvider = routeFilterPipelineProvider;
     }
 
     @Override
     public int bootstrapNodeId(String route) {
-        Integer id = bootstrapVirtualNodeIds.get(route);
+        Integer id = infra.bootstrapVirtualNodeIds().get(route);
         if (id == null) {
             throw new IllegalArgumentException("Unknown route: " + route);
         }
@@ -177,9 +146,9 @@ class RouterContextImpl implements RouterContext {
                                                        int virtualNodeId,
                                                        RequestHeaderData header,
                                                        ApiMessage request) {
-        RouteDescriptor rd = routes.get(route);
+        RouteDescriptor rd = infra.routes().get(route);
         if (rd == null) {
-            routingErrorsCounter.withTags(
+            infra.routingErrorsCounter().withTags(
                     Metrics.ERROR_TYPE_LABEL, "unknown_route").increment();
             LOGGER.atWarn()
                     .addKeyValue("sessionId", sessionId)
@@ -195,7 +164,7 @@ class RouterContextImpl implements RouterContext {
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
+        int routingCorrelationId = infra.routingCorrelationIdAllocator().getAsInt();
         var frame = new DecodedRequestFrame<>(
                 requestApiVersion,
                 routingCorrelationId,
@@ -212,7 +181,7 @@ class RouterContextImpl implements RouterContext {
 
         if (!frame.hasResponse()) {
             forwardOrFilter(virtualNodeId, route, frame);
-            routingRequestsCounter.withTags(
+            infra.routingRequestsCounter().withTags(
                     Metrics.ROUTE_LABEL, route,
                     Metrics.ROUTING_MODE_LABEL, "dynamic",
                     Metrics.API_KEY_LABEL, apiKey.name()).increment();
@@ -249,7 +218,7 @@ class RouterContextImpl implements RouterContext {
                     routingCorrelationId, null);
         }
 
-        routingRequestsCounter.withTags(
+        infra.routingRequestsCounter().withTags(
                 Metrics.ROUTE_LABEL, route,
                 Metrics.ROUTING_MODE_LABEL, "dynamic",
                 Metrics.API_KEY_LABEL, apiKey.name()).increment();
@@ -280,14 +249,13 @@ class RouterContextImpl implements RouterContext {
                                     CompletableFuture<Response> future,
                                     int routingCorrelationId,
                                     @Nullable RouteFilterPipeline routeFilterPipeline) {
-        Timer.Sample timerSample = Timer.start();
-        var pendingResponse = new RouterDispatchHandler.PendingResponse(
-                future, timerSample, route, apiKey,
-                nodeIdMapping, createMetadataAddressCacher(route),
+        var pendingResponse = RouterDispatchHandler.PendingResponse.create(
+                future, route, apiKey,
+                infra.nodeIdMapping(), createMetadataAddressCacher(route),
                 null, routeFilterPipeline);
         RouterDispatchHandler.registerPendingResponse(
                 clientChannel, routingCorrelationId, pendingResponse);
-        pendingResponseCount.incrementAndGet();
+        infra.pendingResponseCount().incrementAndGet();
 
         try {
             forwardToNode(virtualNodeId, route, frame);
@@ -295,8 +263,8 @@ class RouterContextImpl implements RouterContext {
         catch (Exception e) {
             RouterDispatchHandler.deregisterPendingResponse(
                     clientChannel, routingCorrelationId);
-            pendingResponseCount.decrementAndGet();
-            routingErrorsCounter.withTags(
+            infra.pendingResponseCount().decrementAndGet();
+            infra.routingErrorsCounter().withTags(
                     Metrics.ERROR_TYPE_LABEL, "node_forward_failed").increment();
             LOGGER.atWarn()
                     .addKeyValue("sessionId", sessionId)
@@ -316,7 +284,7 @@ class RouterContextImpl implements RouterContext {
                                  String route,
                                  DecodedRequestFrame<?> frame) {
         CompletionStage<RouteFilterPipeline> pipelineStage = routeFilterPipelineProvider != null
-                ? routeFilterPipelineProvider.get(routes.get(route))
+                ? routeFilterPipelineProvider.get(infra.routes().get(route))
                 : null;
 
         if (pipelineStage != null) {
@@ -333,9 +301,9 @@ class RouterContextImpl implements RouterContext {
         return body -> {
             if (body instanceof MetadataResponseData md) {
                 for (var broker : md.brokers()) {
-                    int virtualId = nodeIdMapping.toVirtual(route, broker.nodeId());
-                    int outerVirtualId = virtualIdTranslator.applyAsInt(virtualId);
-                    sharedNodeAddresses.put(outerVirtualId, new HostPort(broker.host(), broker.port()));
+                    int virtualId = infra.nodeIdMapping().toVirtual(route, broker.nodeId());
+                    int outerVirtualId = infra.virtualIdTranslator().applyAsInt(virtualId);
+                    infra.sharedNodeAddresses().put(outerVirtualId, new HostPort(broker.host(), broker.port()));
                 }
             }
         };
@@ -347,7 +315,7 @@ class RouterContextImpl implements RouterContext {
                                                              RequestHeaderData header,
                                                              ApiMessage request) {
         if (nestedRouterProvider == null) {
-            routingErrorsCounter.withTags(
+            infra.routingErrorsCounter().withTags(
                     Metrics.ERROR_TYPE_LABEL, "nested_routing_unavailable").increment();
             return CompletableFuture.failedFuture(
                     new UnsupportedOperationException(
@@ -368,24 +336,26 @@ class RouterContextImpl implements RouterContext {
             }
         };
 
+        var nestedInfra = new RoutingInfrastructure(
+                nested.routes(),
+                nested.nodeIdMapping(),
+                nested.bootstrapVirtualNodeIds(),
+                infra.routingCorrelationIdAllocator(),
+                infra.routingRequestsCounter(),
+                infra.routingErrorsCounter(),
+                infra.routingRequestDurationTimer(),
+                infra.pendingResponseCount(),
+                infra.sharedNodeAddresses(),
+                nestedTranslator);
         var nestedCtx = new RouterContextImpl(
                 clientFrame,
                 clientChannel,
                 sessionId,
                 subject,
-                nested.routes(),
+                nestedInfra,
                 nestedRouteForwarder,
                 nestedNodeForwarder,
-                nested.nodeIdMapping(),
-                nested.bootstrapVirtualNodeIds(),
-                routingCorrelationIdAllocator,
-                routingRequestsCounter,
-                routingErrorsCounter,
-                routingRequestDurationTimer,
-                pendingResponseCount,
                 null,
-                sharedNodeAddresses,
-                nestedTranslator,
                 nested.childProvider(),
                 routeFilterPipelineProvider);
 
@@ -418,7 +388,7 @@ class RouterContextImpl implements RouterContext {
     }
 
     private void forwardToNode(int virtualNodeId, String route, DecodedRequestFrame<?> frame) {
-        Integer bootstrapId = bootstrapVirtualNodeIds.get(route);
+        Integer bootstrapId = infra.bootstrapVirtualNodeIds().get(route);
         if (bootstrapId != null && bootstrapId == virtualNodeId) {
             routeForwarder.forward(route, frame);
         }
