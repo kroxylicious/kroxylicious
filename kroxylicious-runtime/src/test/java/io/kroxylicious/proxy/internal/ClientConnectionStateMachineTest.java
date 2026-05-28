@@ -1413,36 +1413,46 @@ class ClientConnectionStateMachineTest {
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
         }
 
-        // --- router callback interaction with in-flight count ---
+        // --- routing terminal handler interaction with in-flight count ---
 
         @Test
-        void responseClaimedByRoutingCallbackDoesNotDecrementInFlightCount() {
-            // Given — Forwarding with one in-flight, router callback that claims all responses
+        void dynamicRoutingResponseDoesNotDecrementInFlightCount() {
+            // Given — Forwarding with one in-flight, terminal handler active, drain started
             stateMachineInForwarding();
-            clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+            var terminalHandler = mock(io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler.class);
+            clientConnectionStateMachine.setRoutingTerminalHandler(terminalHandler);
             bumpClientInFlightCount();
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
 
-            // When — server delivers a response that the router callback claims
-            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+            // When — server delivers a dynamic routing response (negative correlation ID)
+            var dynamicResponse = new io.kroxylicious.proxy.frame.DecodedResponseFrame<>(
+                    (short) 12, -1,
+                    new org.apache.kafka.common.message.ResponseHeaderData(),
+                    new org.apache.kafka.common.message.FetchResponseData());
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, dynamicResponse);
 
-            // Then — drain has NOT fired because the in-flight count was not decremented
+            // Then — drain has NOT fired because dynamic responses are decremented by onRoutedRequestComplete
             assertThat(closedFuture).isNotCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
         }
 
         @Test
         void onRoutedRequestCompleteDecrementsInFlightAndFiresDrain() {
-            // Given — Forwarding with one in-flight, router callback active, drain started
+            // Given — Forwarding with one in-flight, terminal handler active, drain started
             stateMachineInForwarding();
-            clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+            var terminalHandler = mock(io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler.class);
+            clientConnectionStateMachine.setRoutingTerminalHandler(terminalHandler);
             bumpClientInFlightCount();
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
 
-            // Simulate router callback claiming the response (no decrement)
-            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+            // Simulate dynamic routing response (no decrement)
+            var dynamicResponse = new io.kroxylicious.proxy.frame.DecodedResponseFrame<>(
+                    (short) 12, -1,
+                    new org.apache.kafka.common.message.ResponseHeaderData(),
+                    new org.apache.kafka.common.message.FetchResponseData());
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, dynamicResponse);
             assertThat(closedFuture).isNotCompleted();
 
             // When — router signals the logical client request is complete
@@ -1458,13 +1468,22 @@ class ClientConnectionStateMachineTest {
         void fanOutWithMultipleResponsesDoesNotDrainPrematurely() {
             // Given — one client request fans out to 2 backend requests
             stateMachineInForwarding();
-            clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
+            var terminalHandler = mock(io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler.class);
+            clientConnectionStateMachine.setRoutingTerminalHandler(terminalHandler);
             bumpClientInFlightCount();
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
-            // When — two backend responses arrive (both claimed by router callback)
-            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
-            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, new Object());
+            // When — two dynamic routing responses arrive (not decremented)
+            var resp1 = new io.kroxylicious.proxy.frame.DecodedResponseFrame<>(
+                    (short) 12, -1,
+                    new org.apache.kafka.common.message.ResponseHeaderData(),
+                    new org.apache.kafka.common.message.FetchResponseData());
+            var resp2 = new io.kroxylicious.proxy.frame.DecodedResponseFrame<>(
+                    (short) 12, -2,
+                    new org.apache.kafka.common.message.ResponseHeaderData(),
+                    new org.apache.kafka.common.message.FetchResponseData());
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, resp1);
+            clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, resp2);
 
             // Then — still draining, in-flight count has not been decremented
             assertThat(closedFuture).isNotCompleted();

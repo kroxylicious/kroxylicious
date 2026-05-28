@@ -47,7 +47,6 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -209,9 +208,6 @@ public class ClientConnectionStateMachine {
     private int clientMessagesInFlightCount;
 
     @Nullable
-    private RoutingResponseCallback routingResponseCallback;
-
-    @Nullable
     private io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler routingTerminalHandler;
 
     @Nullable
@@ -349,10 +345,6 @@ public class ClientConnectionStateMachine {
         return clientSoftwareVersion;
     }
 
-    void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
-        this.routingResponseCallback = callback;
-    }
-
     void setRoutingTerminalHandler(@Nullable io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler handler) {
         this.routingTerminalHandler = handler;
     }
@@ -485,16 +477,13 @@ public class ClientConnectionStateMachine {
             }
             return;
         }
-        boolean claimedByRouter = routingResponseCallback != null && routingResponseCallback.onResponse(msg);
-        if (!claimedByRouter) {
-            Objects.requireNonNull(frontendHandler).forwardToClient(msg);
-            decrementInFlightCount();
-        }
+        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+        decrementInFlightCount();
     }
 
     /**
      * Signals that a dynamically-routed client request has been fully handled.
-     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler}
      * when the router's {@code onClientRequest} future completes and the composed
      * response has been sent to the client. This maintains the 1:1 invariant between
      * {@link #onClientRequest} increments and decrements during fan-out.
@@ -955,7 +944,7 @@ public class ClientConnectionStateMachine {
 
     /**
      * Forward a message to the backend connection for the named route.
-     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler}
      * for both static and dynamic router paths.
      */
     public void forwardToRoute(String routeName, Object msg) {
