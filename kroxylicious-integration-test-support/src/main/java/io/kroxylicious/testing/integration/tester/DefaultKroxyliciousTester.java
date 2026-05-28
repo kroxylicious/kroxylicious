@@ -349,6 +349,15 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
+    public int listeningPort(@Nullable String bindAddress, int port) {
+        if (!(proxy instanceof KafkaProxy kp)) {
+            throw new UnsupportedOperationException(
+                    "listeningPort() requires a KafkaProxy-backed tester; this tester's proxy is " + proxy.getClass().getName());
+        }
+        return kp.listeningPort(bindAddress, port);
+    }
+
+    @Override
     public void close() {
         try {
             List<Exception> exceptions = new ArrayList<>();
