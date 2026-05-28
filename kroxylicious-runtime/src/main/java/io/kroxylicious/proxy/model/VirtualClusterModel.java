@@ -451,6 +451,9 @@ public class VirtualClusterModel implements AutoCloseable {
      * @return true if a credential supplier is configured
      */
     public boolean usesDynamicTlsCredentials() {
+        if (targetCluster == null) {
+            return false;
+        }
         return targetCluster.tls()
                 .map(tls -> tls.credentialSupplier() != null)
                 .orElse(false);
