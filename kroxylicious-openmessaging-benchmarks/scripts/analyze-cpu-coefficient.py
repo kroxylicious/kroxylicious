@@ -32,8 +32,11 @@ An operator can then estimate required proxy CPU as:
 
 Usage:
     python3 analyze-cpu-coefficient.py <sweep-output-dir> [--skip-first N]
+    python3 analyze-cpu-coefficient.py --compare <dir1> [<dir2> ...] [--skip-first N]
 
     sweep-output-dir  Root of a connection-sweep run, e.g. /tmp/results/conn-sweep/
+    --compare         Print a one-row-per-config summary table across multiple directories.
+                      Each dir may be prefixed with a label: "label:path"
     --skip-first N    Fallback: skip the first N CPU snapshots per probe when
                       phase timestamps are absent (default: 10)
 
@@ -221,36 +224,22 @@ def find_probes(sweep_dir):
     return probes
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description="Derive proxy CPU sizing coefficient from connection-sweep results"
-    )
-    parser.add_argument("sweep_dir", help="Root of a connection-sweep output directory")
-    parser.add_argument(
-        "--skip-first",
-        type=int,
-        default=10,
-        metavar="N",
-        help="Fallback: skip first N CPU snapshots when timestamps absent (default: 10)",
-    )
-    args = parser.parse_args()
+def analyze_sweep(sweep_dir, skip_first):
+    """Analyze a sweep directory; return (probe_rows, summary_stats, last_data).
 
-    probes = find_probes(args.sweep_dir)
-    if not probes:
-        print(f"No producers-N directories found under {args.sweep_dir}", file=sys.stderr)
-        sys.exit(1)
-
-    print(f"{'Producers':>9}  {'Achieved':>10}  {'Target':>10}  {'Sat':>4}  "
-          f"{'CPU (mc)':>9}  {'Snapshots':>11}  {'Filter':>10}  {'Source':>14}  {'Coeff (mc/MB/s)':>16}")
-    print("-" * 110)
-
+    probe_rows is a list of dicts for the per-probe table.
+    summary_stats is a dict with mean, stdev, n, sat, or None if no usable data.
+    """
+    probes = find_probes(sweep_dir)
+    rows = []
     coefficients = []
+    sat_count = 0
     last_data = None
 
     for n, probe_dir in probes:
-        data = load_probe(probe_dir, args.skip_first)
+        data = load_probe(probe_dir, skip_first)
         if data is None:
-            print(f"{n:>9}  (no data)")
+            rows.append({"producers": n, "no_data": True})
             continue
 
         achieved = data["achieved_rate"] * data.get("topics", 1)
@@ -261,31 +250,68 @@ def main():
 
         cpu_avg = statistics.mean(usable) if usable else float("nan")
         cpu_millicores = cpu_avg * 1000
-
         total_mb_per_s = (achieved * msg_size * 2) / 1_000_000
         coeff = cpu_millicores / total_mb_per_s if total_mb_per_s > 0 else float("nan")
 
-        sat_flag = "*" if saturated else " "
-        target_str = f"{target:>10,.0f}" if target else f"{'?':>10}"
-        snap_str = f"{len(usable)}/{data['all_snapshots']}"
-        print(f"{n:>9}  {achieved:>10,.0f}  {target_str}  {sat_flag:>4}  "
-              f"{cpu_millicores:>9.0f}  {snap_str:>11}  {data['filter_method']:>10}  "
-              f"{data.get('cpu_source','?'):>14}  {coeff:>16.1f}")
+        rows.append({
+            "producers": n,
+            "achieved": achieved,
+            "target": target,
+            "saturated": saturated,
+            "cpu_millicores": cpu_millicores,
+            "usable_count": len(usable),
+            "all_count": data["all_snapshots"],
+            "filter_method": data["filter_method"],
+            "cpu_source": data.get("cpu_source", "?"),
+            "coeff": coeff,
+        })
 
-        if not saturated:
+        if saturated:
+            sat_count += 1
+        else:
             coefficients.append(coeff)
         last_data = data
 
-    print()
-    if coefficients:
-        mean_coeff = statistics.mean(coefficients)
-        stdev_coeff = statistics.stdev(coefficients) if len(coefficients) > 1 else 0.0
+    if not coefficients:
+        return rows, None, last_data
 
-        print(f"Sizing coefficient (non-saturated probes only): {mean_coeff:.1f} mc/MB/s  "
-              f"(±{stdev_coeff:.1f} stdev, n={len(coefficients)})")
+    mean_coeff = statistics.mean(coefficients)
+    stdev_coeff = statistics.stdev(coefficients) if len(coefficients) > 1 else 0.0
+    summary = {
+        "mean": mean_coeff,
+        "stdev": stdev_coeff,
+        "n": len(coefficients),
+        "sat": sat_count,
+    }
+    return rows, summary, last_data
+
+
+def print_full_table(sweep_dir, skip_first):
+    """Print the detailed per-probe table for a single sweep directory."""
+    rows, summary, last_data = analyze_sweep(sweep_dir, skip_first)
+
+    print(f"{'Producers':>9}  {'Achieved':>10}  {'Target':>10}  {'Sat':>4}  "
+          f"{'CPU (mc)':>9}  {'Snapshots':>11}  {'Filter':>10}  {'Source':>14}  {'Coeff (mc/MB/s)':>16}")
+    print("-" * 110)
+
+    for row in rows:
+        if row.get("no_data"):
+            print(f"{row['producers']:>9}  (no data)")
+            continue
+        sat_flag = "*" if row["saturated"] else " "
+        target_str = f"{row['target']:>10,.0f}" if row["target"] else f"{'?':>10}"
+        snap_str = f"{row['usable_count']}/{row['all_count']}"
+        print(f"{row['producers']:>9}  {row['achieved']:>10,.0f}  {target_str}  {sat_flag:>4}  "
+              f"{row['cpu_millicores']:>9.0f}  {snap_str:>11}  {row['filter_method']:>10}  "
+              f"{row['cpu_source']:>14}  {row['coeff']:>16.1f}")
+
+    print()
+    if summary:
+        print(f"Sizing coefficient (non-saturated probes only): {summary['mean']:.1f} mc/MB/s  "
+              f"(±{summary['stdev']:.1f} stdev, n={summary['n']})")
         print()
         print("Sizing formula:")
-        print(f"  proxy_CPU_millicores = {mean_coeff:.0f} × (produce_MB_per_s + consume_MB_per_s)")
+        print(f"  proxy_CPU_millicores = {summary['mean']:.0f} × (produce_MB_per_s + consume_MB_per_s)")
         print()
         print("Notes:")
         print("  - Assumes encrypt ≈ decrypt CPU cost (bidirectional measurement)")
@@ -296,6 +322,80 @@ def main():
     else:
         print("No non-saturated probes found — cannot compute coefficient.")
         print("Run the sweep at a lower per-producer rate or with fewer steps.")
+
+
+def derive_label(path):
+    """Derive a short display label from a sweep directory path."""
+    parent = os.path.basename(os.path.dirname(os.path.abspath(path)))
+    label = re.sub(r"^conn-sweep-[^-]+-", "", parent)
+    label = re.sub(r"-rf\d+$", "", label)
+    return label or parent
+
+
+def parse_compare_arg(arg):
+    """Parse 'label:path' or plain 'path'; return (label, path)."""
+    if ":" in arg:
+        label, _, path = arg.partition(":")
+        return label.strip(), path.strip()
+    return derive_label(arg), arg
+
+
+def print_comparison_table(compare_args, skip_first):
+    """Print a one-row-per-config summary table."""
+    entries = [parse_compare_arg(a) for a in compare_args]
+
+    col_label = max(len(label) for label, _ in entries)
+    col_label = max(col_label, 6)
+
+    header = (f"{'Config':<{col_label}}  {'Coeff (mc/MB/s)':>16}  "
+              f"{'Stdev':>7}  {'n':>3}  {'Sat':>4}  Formula")
+    print(header)
+    print("-" * len(header))
+
+    for label, path in entries:
+        _, summary, _ = analyze_sweep(path, skip_first)
+        if summary is None:
+            print(f"{label:<{col_label}}  (no usable data)")
+            continue
+        sat_str = f"{summary['sat']}*" if summary["sat"] else "  -"
+        formula = f"{summary['mean']:.0f} × MB/s"
+        print(f"{label:<{col_label}}  {summary['mean']:>13.1f} mc/MB/s  "
+              f"±{summary['stdev']:>5.1f}  {summary['n']:>3}  {sat_str:>4}  {formula}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Derive proxy CPU sizing coefficient from connection-sweep results"
+    )
+    parser.add_argument(
+        "sweep_dir",
+        nargs="?",
+        help="Root of a connection-sweep output directory (single-run mode)",
+    )
+    parser.add_argument(
+        "--compare",
+        nargs="+",
+        metavar="DIR",
+        help="Compare multiple sweep directories (one row each). Each entry may be 'label:path'.",
+    )
+    parser.add_argument(
+        "--skip-first",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Fallback: skip first N CPU snapshots when timestamps absent (default: 10)",
+    )
+    args = parser.parse_args()
+
+    if args.compare and args.sweep_dir:
+        parser.error("Specify either a sweep_dir or --compare, not both.")
+    if not args.compare and not args.sweep_dir:
+        parser.error("Specify a sweep_dir or use --compare.")
+
+    if args.compare:
+        print_comparison_table(args.compare, args.skip_first)
+    else:
+        print_full_table(args.sweep_dir, args.skip_first)
 
 
 if __name__ == "__main__":

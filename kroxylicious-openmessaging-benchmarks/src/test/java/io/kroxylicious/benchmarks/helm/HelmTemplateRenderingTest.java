@@ -182,7 +182,7 @@ class HelmTemplateRenderingTest {
     void smokeProfileShouldOverrideDurations() throws IOException {
         String workloadYaml = renderSmokeWorkloadYaml();
         assertThat(workloadYaml)
-                .contains("testDurationMinutes: 1")
+                .contains("testDurationMinutes: 2")
                 .contains("warmupDurationMinutes: 0");
     }
 

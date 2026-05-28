@@ -20,11 +20,8 @@ set -uo pipefail
 # Steps:
 #   Post 1 — Multi-topic latency  (run-all-scenarios, RF=3, 3 scenarios × 3 workloads)
 #   Post 1 — Rate sweep           (rate-sweep, RF=3, 1-core proxy, 8k–22k msg/s, 5% steps)
-#   Post 2 — Connection sweep, encryption, 1-core, 1-topic, RF=1
-#   Post 2 — Connection sweep, encryption, 4-core, 1-topic, RF=1
-#   Post 2 — Connection sweep, encryption, 4-core, 10-topics, RF=1
+#   Post 2 — CPU coefficient sweep (run-coefficient-sweep: 1/2/4 cores × 1/10/100 topics, RF=1)
 #   Post 2 — Connection sweep, proxy-no-filters, 4-core, 10-topics, RF=1
-#   Post 2 — CPU coefficient analysis (4-core sweeps)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODULE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -36,7 +33,7 @@ usage() {
 Usage: $(basename "$0") [--cluster-overrides <file>] [--output-dir <dir>]
 
 Options:
-  --cluster-overrides <file>  Helm values for cluster-specific settings
+  --cluster-overrides <file>  Helm values for cluster-specific settings (e.g. vault image)
   --output-dir <dir>          Root directory for all results
                               (default: results/blog-suite-<timestamp>)
   -h, --help                  Show this help
@@ -92,17 +89,25 @@ run_step() {
     fi
 }
 
+# Proxy resource presets — passed as --set flags so cluster-overrides stays
+# cluster-specific (vault image, storage class) rather than run-specific.
+# Memory is held constant across core counts so only CPU varies between runs.
+PROXY_MEM="--set kroxylicious.resources.requests.memory=2Gi --set kroxylicious.resources.limits.memory=4Gi"
+PROXY_1CORE="--set kroxylicious.resources.requests.cpu=1000m --set kroxylicious.resources.limits.cpu=1000m ${PROXY_MEM}"
+PROXY_4CORE="--set kroxylicious.resources.requests.cpu=4000m --set kroxylicious.resources.limits.cpu=4000m ${PROXY_MEM}"
+
 # ---------------------------------------------------------------------------
-# Post 1 — Multi-topic latency (RF=3, 3 scenarios × 3 workloads, ~3 hours)
+# Post 1 — Multi-topic latency (RF=3, 1-core proxy, 3 scenarios × 3 workloads)
 # ---------------------------------------------------------------------------
 run_step "post1-multi-topic-latency" \
     scripts/run-all-scenarios.sh \
         baseline proxy-no-filters encryption \
         ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
+        ${PROXY_1CORE} \
         "${OUTPUT_DIR}/all-scenarios/"
 
 # ---------------------------------------------------------------------------
-# Post 1 — Rate sweep (RF=3, 1-core proxy, 8k–22k msg/s, 5% steps, ~10 hours)
+# Post 1 — Rate sweep (RF=3, 1-core proxy, 8k–22k msg/s, 5% steps)
 # ---------------------------------------------------------------------------
 run_step "post1-rate-sweep-1core-rf3" \
     scripts/rate-sweep.sh \
@@ -110,48 +115,20 @@ run_step "post1-rate-sweep-1core-rf3" \
         --scenarios baseline,proxy-no-filters,encryption \
         --workload 1topic-1kb \
         ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
-        --set kroxylicious.resources.requests.cpu=1000m \
-        --set kroxylicious.resources.limits.cpu=1000m \
+        ${PROXY_1CORE} \
         --output-dir "${OUTPUT_DIR}/rate-sweep-1core-rf3/"
 
 # ---------------------------------------------------------------------------
-# Post 2 — Connection sweeps (all RF=1, 10k msg/s per producer)
+# Post 2 — CPU coefficient sweep (1/2/4 cores × 1/10/100 topics, all RF=1)
 # ---------------------------------------------------------------------------
-run_step "post2-conn-sweep-encryption-1core-1topic" \
-    scripts/connection-sweep.sh \
-        --scenario encryption \
-        --per-producer-rate 10000 \
-        --steps 1,2,4,8,16 \
-        --workload 1topic-1kb \
+run_step "post2-cpu-coefficient-sweep" \
+    scripts/run-coefficient-sweep.sh \
         ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
-        --set kafka.replicationFactor=1 \
-        --set kafka.minInSyncReplicas=1 \
-        --set kroxylicious.resources.requests.cpu=1000m \
-        --set kroxylicious.resources.limits.cpu=1000m \
-        --output-dir "${OUTPUT_DIR}/conn-sweep-encryption-1core-1topic-rf1/"
+        --output-dir "${OUTPUT_DIR}/coefficient-sweep/"
 
-run_step "post2-conn-sweep-encryption-4core-1topic" \
-    scripts/connection-sweep.sh \
-        --scenario encryption \
-        --per-producer-rate 10000 \
-        --steps 1,2,4,8,16,32 \
-        --workload 1topic-1kb \
-        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
-        --set kafka.replicationFactor=1 \
-        --set kafka.minInSyncReplicas=1 \
-        --output-dir "${OUTPUT_DIR}/conn-sweep-encryption-4core-1topic-rf1/"
-
-run_step "post2-conn-sweep-encryption-4core-10topics" \
-    scripts/connection-sweep.sh \
-        --scenario encryption \
-        --per-producer-rate 10000 \
-        --steps 1,2,4,8,16,32 \
-        --workload 10topics-1kb \
-        ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
-        --set kafka.replicationFactor=1 \
-        --set kafka.minInSyncReplicas=1 \
-        --output-dir "${OUTPUT_DIR}/conn-sweep-encryption-4core-10topics-rf1/"
-
+# ---------------------------------------------------------------------------
+# Post 2 — Proxy overhead baseline (no filters, 4-core, 10-topics, RF=1)
+# ---------------------------------------------------------------------------
 run_step "post2-conn-sweep-no-filters-4core-10topics" \
     scripts/connection-sweep.sh \
         --scenario proxy-no-filters \
@@ -161,27 +138,8 @@ run_step "post2-conn-sweep-no-filters-4core-10topics" \
         ${CLUSTER_OVERRIDES_ARG[@]+"${CLUSTER_OVERRIDES_ARG[@]}"} \
         --set kafka.replicationFactor=1 \
         --set kafka.minInSyncReplicas=1 \
+        ${PROXY_4CORE} \
         --output-dir "${OUTPUT_DIR}/conn-sweep-no-filters-4core-10topics-rf1/"
-
-# ---------------------------------------------------------------------------
-# Post 2 — CPU coefficient (run against 4-core sweeps if they succeeded)
-# ---------------------------------------------------------------------------
-COEFF_1TOPIC="${OUTPUT_DIR}/conn-sweep-encryption-4core-1topic-rf1/encryption"
-COEFF_10TOPICS="${OUTPUT_DIR}/conn-sweep-encryption-4core-10topics-rf1/encryption"
-
-if [[ -d "${COEFF_1TOPIC}" ]]; then
-    run_step "post2-cpu-coefficient-1topic" \
-        python3 scripts/analyze-cpu-coefficient.py "${COEFF_1TOPIC}"
-else
-    echo "Skipping cpu-coefficient-1topic — sweep directory not found: ${COEFF_1TOPIC}"
-fi
-
-if [[ -d "${COEFF_10TOPICS}" ]]; then
-    run_step "post2-cpu-coefficient-10topics" \
-        python3 scripts/analyze-cpu-coefficient.py "${COEFF_10TOPICS}"
-else
-    echo "Skipping cpu-coefficient-10topics — sweep directory not found: ${COEFF_10TOPICS}"
-fi
 
 # ---------------------------------------------------------------------------
 # Summary
