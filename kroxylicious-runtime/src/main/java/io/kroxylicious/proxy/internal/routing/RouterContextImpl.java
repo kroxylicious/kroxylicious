@@ -31,7 +31,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
- * {@link RouterDispatchHandler} for each incoming client request.
+ * {@link RoutingDecisionHandler} for each incoming client request.
  */
 class RouterContextImpl implements RouterContext {
 
@@ -334,6 +334,11 @@ class RouterContextImpl implements RouterContext {
         }
     }
 
+    /**
+     * Submits a response to the client via the response sequencer.
+     * Called by {@link RoutingDecisionHandler} when the router returns
+     * {@link io.kroxylicious.proxy.router.RouterResult.Completed}.
+     */
     void submitResponse(Response response) {
         response.header().setCorrelationId(clientCorrelationId);
         var responseFrame = clientFrame.responseFrame(response.header(), response.body());
@@ -345,6 +350,10 @@ class RouterContextImpl implements RouterContext {
                 .log("Response submitted to sequencer");
     }
 
+    /**
+     * Closes the client channel. Called by {@link RoutingDecisionHandler}
+     * when the router returns {@link io.kroxylicious.proxy.router.RouterResult.Disconnect}.
+     */
     void disconnectClient() {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", sessionId)
