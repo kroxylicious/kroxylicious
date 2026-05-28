@@ -82,8 +82,8 @@
         "/kroxylicious-openmessaging-benchmarks/helm/kroxylicious-benchmark/values.yaml/"
       ],
       "matchStrings": [
-        "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
-        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)"
+        "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})",
+        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "depNameTemplate": "hashicorp/vault",
       "datasourceTemplate": "docker"
@@ -96,7 +96,7 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/LowkeyVault.java/"
       ],
       "matchStrings": [
-        "(?<depName>nagyesta/lowkey-vault):(?<currentValue>\\d+\\.\\d+\\.\\d+(?:-[a-z0-9-]+)?)@(?<currentDigest>.*)\""
+        "(?<depName>nagyesta/lowkey-vault):(?<currentValue>\\d+\\.\\d+\\.\\d+(?:-[a-z0-9-]+)?)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
     },
@@ -119,9 +119,9 @@
         "/kroxylicious-docs/docs/record-encryption-quickstart/index.adoc/"
       ],
       "matchStrings": [
-        "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
-        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)",
-        ":localstack-tag: *(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)"
+        "(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})",
+        "tag:.*(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})",
+        ":localstack-tag: *(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "depNameTemplate": "localstack/localstack",
       "datasourceTemplate": "docker"
@@ -134,7 +134,7 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/installation/kms/azure/MockOauthServer.java/"
       ],
       "matchStrings": [
-        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
+        "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})",
         "(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
@@ -145,7 +145,7 @@
         "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/filter/validation/JsonSchemaRecordValidation.*IT.java/"
       ],
       "matchStrings": [
-        "(?<depName>quay.io/apicurio/apicurio-registry):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
+        "(?<depName>quay.io/apicurio/apicurio-registry):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
     },
@@ -155,7 +155,7 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
       ],
       "matchStrings": [
-        "(?<depName>quay.io/kroxylicious/python-kafka-test-client):(?<currentValue>\\d+\\.\\d+\\.\\d+-\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
+        "(?<depName>quay.io/kroxylicious/python-kafka-test-client):(?<currentValue>\\d+\\.\\d+\\.\\d+-\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker",
       "extractVersionTemplate": "^(?<version>.*)?(-(?<build>.*))?$",
@@ -167,8 +167,8 @@
         "/kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java/"
       ],
       "matchStrings": [
-        "(?<depName>quay.io/kroxylicious/kcat):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\"",
-        "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
+        "(?<depName>quay.io/kroxylicious/kcat):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})",
+        "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>v\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
     },
@@ -179,7 +179,7 @@
         "/DEV_GUIDE.md/"
       ],
       "matchStrings": [
-        "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>.*)\""
+        "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
       ],
       "datasourceTemplate": "docker"
     },
