@@ -123,8 +123,7 @@ class RouterContextImplTest {
                 testPendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity(),
-                null);
+                IntUnaryOperator.identity());
     }
 
     @Test
@@ -200,20 +199,6 @@ class RouterContextImplTest {
                 .hasFailedWithThrowableThat()
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown route: nonexistent");
-    }
-
-    @Test
-    void shouldFailForNestedRouterRouteWithoutProvider() {
-        var ctx = createContext();
-        var future = ctx.sendRequestToNode("router-route", 0,
-                new RequestHeaderData().setRequestApiKey(ApiKeys.FETCH.id).setRequestApiVersion(API_VERSION),
-                new FetchRequestData());
-
-        assertThat(future.toCompletableFuture())
-                .isCompletedExceptionally()
-                .hasFailedWithThrowableThat()
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("Nested routing is not configured");
     }
 
     @Test
@@ -302,8 +287,7 @@ class RouterContextImplTest {
                 testPendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity(),
-                null);
+                IntUnaryOperator.identity());
 
         var headerA = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
@@ -352,8 +336,7 @@ class RouterContextImplTest {
                 testPendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity(),
-                null);
+                IntUnaryOperator.identity());
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)

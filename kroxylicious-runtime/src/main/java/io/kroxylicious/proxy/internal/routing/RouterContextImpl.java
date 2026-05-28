@@ -30,12 +30,8 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Response;
-import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.router.RouterResult;
 import io.kroxylicious.proxy.service.HostPort;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
@@ -68,28 +64,6 @@ class RouterContextImpl implements RouterContext {
     private final long sequenceNumber;
     private final Map<Integer, HostPort> sharedNodeAddresses;
     private final IntUnaryOperator virtualIdTranslator;
-    @Nullable
-    private final NestedRouterProvider nestedRouterProvider;
-
-    /**
-     * Provides nested router instances and their supporting state,
-     * cached per connection.
-     */
-    @FunctionalInterface
-    interface NestedRouterProvider {
-        NestedRouterState get(String routerName, String outerRouteName);
-    }
-
-    /**
-     * State for a nested router, created lazily per connection.
-     */
-    record NestedRouterState(
-                             Router router,
-                             Map<String, RouteDescriptor> routes,
-                             NodeIdMapping nodeIdMapping,
-                             Map<String, Integer> bootstrapVirtualNodeIds,
-                             IntUnaryOperator virtualIdTranslator,
-                             @Nullable NestedRouterProvider childProvider) {}
 
     /**
      * Callback interface for forwarding requests to a route's bootstrap server.
@@ -125,8 +99,7 @@ class RouterContextImpl implements RouterContext {
                       PendingResponseRegistry pendingResponseRegistry,
                       ResponseSequencer responseSequencer,
                       Map<Integer, HostPort> sharedNodeAddresses,
-                      IntUnaryOperator virtualIdTranslator,
-                      @Nullable NestedRouterProvider nestedRouterProvider) {
+                      IntUnaryOperator virtualIdTranslator) {
         this.clientFrame = Objects.requireNonNull(clientFrame);
         this.clientCorrelationId = clientFrame.correlationId();
         this.apiVersion = clientFrame.apiVersion();
@@ -148,7 +121,6 @@ class RouterContextImpl implements RouterContext {
         this.sequenceNumber = responseSequencer.allocateSequence();
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
         this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
-        this.nestedRouterProvider = nestedRouterProvider;
     }
 
     @Override
@@ -178,10 +150,6 @@ class RouterContextImpl implements RouterContext {
             return CompletableFuture.failedFuture(
                     new IllegalArgumentException("Unknown route: " + route));
         }
-        if (rd.targetsRouter()) {
-            return dispatchToNestedRouter(rd, route, header, request);
-        }
-
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
@@ -276,82 +244,6 @@ class RouterContextImpl implements RouterContext {
                 }
             }
         };
-    }
-
-    private CompletionStage<Response> dispatchToNestedRouter(
-                                                             RouteDescriptor rd,
-                                                             String outerRoute,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request) {
-        if (nestedRouterProvider == null) {
-            routingErrorsCounter.withTags(
-                    Metrics.ERROR_TYPE_LABEL, "nested_routing_unavailable").increment();
-            return CompletableFuture.failedFuture(
-                    new UnsupportedOperationException(
-                            "Nested routing is not configured (route: " + outerRoute + ")"));
-        }
-        NestedRouterState nested = nestedRouterProvider.get(rd.routerName(), outerRoute);
-        IntUnaryOperator nestedTranslator = nested.virtualIdTranslator();
-
-        NodeForwarder nestedNodeForwarder = (nestedVirtualNodeId, routeName, msg) -> {
-            int outerVirtualId = nestedTranslator.applyAsInt(nestedVirtualNodeId);
-            nodeForwarder.forward(outerVirtualId, outerRoute, msg);
-        };
-        RouteForwarder nestedRouteForwarder = (routeName, msg) -> {
-            Integer bootstrapVirtual = nested.bootstrapVirtualNodeIds().get(routeName);
-            if (bootstrapVirtual != null) {
-                int outerVirtualId = nestedTranslator.applyAsInt(bootstrapVirtual);
-                nodeForwarder.forward(outerVirtualId, outerRoute, msg);
-            }
-        };
-
-        var nestedCtx = new RouterContextImpl(
-                clientFrame,
-                clientChannel,
-                sessionId,
-                subject,
-                nested.routes(),
-                nestedRouteForwarder,
-                nestedNodeForwarder,
-                nested.nodeIdMapping(),
-                nested.bootstrapVirtualNodeIds(),
-                routingCorrelationIdAllocator,
-                routingRequestsCounter,
-                routingErrorsCounter,
-                routingRequestDurationTimer,
-                pendingResponseCount,
-                pendingResponseRegistry,
-                responseSequencer,
-                sharedNodeAddresses,
-                nestedTranslator,
-                nested.childProvider());
-
-        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("outerRoute", outerRoute)
-                .addKeyValue("nestedRouter", rd.routerName())
-                .addKeyValue("apiKey", apiKey)
-                .log("Dispatching to nested router");
-
-        return nested.router().onRequest(
-                header.requestApiVersion(), apiKey, header, request, nestedCtx)
-                .thenCompose(result -> {
-                    if (result instanceof RouterResult.Completed completed) {
-                        return CompletableFuture.completedFuture(completed.response());
-                    }
-                    else if (result instanceof RouterResult.CompletedNoResponse) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    else if (result instanceof RouterResult.Disconnect) {
-                        return CompletableFuture.failedFuture(
-                                new IllegalStateException(
-                                        "Nested router '" + rd.routerName()
-                                                + "' attempted to disconnect client"));
-                    }
-                    return CompletableFuture.failedFuture(
-                            new IllegalStateException("Unknown router result type: " + result));
-                });
     }
 
     private void forwardToNode(int virtualNodeId, String route, DecodedRequestFrame<?> frame) {
