@@ -5,13 +5,11 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -25,7 +23,6 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -38,8 +35,6 @@ import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResult;
 import io.kroxylicious.proxy.service.HostPort;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link ChannelDuplexHandler} that executes a {@link Router} as part
@@ -67,20 +62,14 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
     private final NodeIdMapping nodeIdMapping;
-    private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
     private final Map<String, Integer> bootstrapVirtualNodeIds;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
-    @Nullable
-    private final RouterChainFactory routerChainFactory;
-    @Nullable
-    private final Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
-    @Nullable
-    private final String virtualClusterName;
+    private final IntUnaryOperator virtualIdTranslator;
+    private final Map<Integer, HostPort> sharedNodeAddresses;
 
-    private final Map<String, Router> nestedRouters = new HashMap<>();
     private final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
 
@@ -94,9 +83,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                                   MeterProvider<Counter> routingErrorsCounter,
                                   MeterProvider<Timer> routingRequestDurationTimer,
                                   AtomicInteger pendingResponseCount,
-                                  @Nullable RouterChainFactory routerChainFactory,
-                                  @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors,
-                                  @Nullable String virtualClusterName) {
+                                  IntUnaryOperator virtualIdTranslator,
+                                  Map<Integer, HostPort> sharedNodeAddresses) {
         this.activationRoute = activationRoute;
         this.router = router;
         this.routes = routes;
@@ -107,35 +95,19 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         this.routingErrorsCounter = routingErrorsCounter;
         this.routingRequestDurationTimer = routingRequestDurationTimer;
         this.pendingResponseCount = pendingResponseCount;
-        this.routerChainFactory = routerChainFactory;
-        this.allRouteDescriptors = allRouteDescriptors;
-        this.virtualClusterName = virtualClusterName;
+        this.virtualIdTranslator = virtualIdTranslator;
+        this.sharedNodeAddresses = sharedNodeAddresses;
         this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
-                routes, nodeIdMapping, routerNodeAddresses, IntUnaryOperator.identity());
+                routes, nodeIdMapping, sharedNodeAddresses, virtualIdTranslator);
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) {
-        var toClose = new ArrayList<>(nestedRouters.values());
-        nestedRouters.clear();
-        for (var nested : toClose) {
-            try {
-                nested.close();
-            }
-            catch (RuntimeException e) {
-                LOGGER.atWarn()
-                        .setCause(LOGGER.isDebugEnabled() ? e : null)
-                        .addKeyValue("error", e.getMessage())
-                        .log(LOGGER.isDebugEnabled()
-                                ? "Failed to close nested router"
-                                : "Failed to close nested router, increase log level to DEBUG for stacktrace");
-            }
-        }
         router.close();
     }
 
     public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
-        return Optional.ofNullable(routerNodeAddresses.get(virtualNodeId));
+        return Optional.ofNullable(sharedNodeAddresses.get(virtualNodeId));
     }
 
     // --- Inbound (request) path ---
@@ -155,7 +127,14 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
         String staticRoute = staticRoutes.get(apiKey);
         if (staticRoute != null) {
-            setRoutingContext(msg, new RoutingContext.RouteBootstrap(staticRoute));
+            Integer bootstrapVirtual = bootstrapVirtualNodeIds.get(staticRoute);
+            if (bootstrapVirtual != null) {
+                int translatedId = virtualIdTranslator.applyAsInt(bootstrapVirtual);
+                setRoutingContext(msg, new RoutingContext.RouteTargetNode(staticRoute, translatedId));
+            }
+            else {
+                setRoutingContext(msg, new RoutingContext.RouteBootstrap(staticRoute));
+            }
             routingRequestsCounter.withTags(
                     Metrics.ROUTE_LABEL, staticRoute,
                     Metrics.ROUTING_MODE_LABEL, "static",
@@ -193,13 +172,20 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 .addKeyValue("routingMode", "dynamic")
                 .log("Dispatching request to router");
 
-        // Forwarders that fire through the pipeline instead of directly to CCSM
         RouterContextImpl.RouteForwarder routeForwarder = (routeName, forwarded) -> {
-            setRoutingContext(forwarded, new RoutingContext.RouteBootstrap(routeName));
+            Integer bootstrapVirtual = bootstrapVirtualNodeIds.get(routeName);
+            if (bootstrapVirtual != null) {
+                int translatedId = virtualIdTranslator.applyAsInt(bootstrapVirtual);
+                setRoutingContext(forwarded, new RoutingContext.RouteTargetNode(routeName, translatedId));
+            }
+            else {
+                setRoutingContext(forwarded, new RoutingContext.RouteBootstrap(routeName));
+            }
             ctx.fireChannelRead(forwarded);
         };
         RouterContextImpl.NodeForwarder nodeForwarder = (virtualNodeId, routeName, forwarded) -> {
-            setRoutingContext(forwarded, new RoutingContext.RouteTargetNode(routeName, virtualNodeId));
+            int translatedId = virtualIdTranslator.applyAsInt(virtualNodeId);
+            setRoutingContext(forwarded, new RoutingContext.RouteTargetNode(routeName, translatedId));
             ctx.fireChannelRead(forwarded);
         };
 
@@ -219,11 +205,9 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 routingRequestDurationTimer,
                 pendingResponseCount,
                 this,
-                // ResponseSequencer not used - response ordering handled by ResponseOrderer
                 new ResponseSequencer(ctx.channel()),
-                routerNodeAddresses,
-                IntUnaryOperator.identity(),
-                hasNestedRouters() ? this::getOrCreateNestedRouterState : null);
+                sharedNodeAddresses,
+                virtualIdTranslator);
 
         router.onRequest(
                 apiVersion,
@@ -314,7 +298,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 }
             }
         }
-        // Non-intercepted response: re-tag to activation route and forward upstream
         setRoutingContext(msg, new RoutingContext.RouteBootstrap(activationRoute));
         ctx.write(msg, promise);
     }
@@ -329,53 +312,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     @Override
     public void deregister(int correlationId) {
         pendingResponses.remove(correlationId);
-    }
-
-    // --- Nested routers ---
-
-    private boolean hasNestedRouters() {
-        return routerChainFactory != null
-                && allRouteDescriptors != null
-                && routes.values().stream().anyMatch(RouteDescriptor::targetsRouter);
-    }
-
-    private RouterContextImpl.NestedRouterState getOrCreateNestedRouterState(
-                                                                             String routerName,
-                                                                             String outerRouteName) {
-        String cacheKey = outerRouteName + ":" + routerName;
-        Router nested = nestedRouters.computeIfAbsent(cacheKey, k -> routerChainFactory.createRouter(routerName, virtualClusterName));
-
-        Map<String, RouteDescriptor> nestedRoutes = allRouteDescriptors.get(routerName);
-        if (nestedRoutes == null) {
-            throw new IllegalStateException(
-                    "No route descriptors for nested router: " + routerName);
-        }
-
-        var nestedRouteIds = nestedRoutes.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        e -> e.getValue().id()));
-        NodeIdMapping nestedNodeIdMapping = nestedRouteIds.size() > 1
-                ? new BijectiveNodeIdMapping(nestedRouteIds, nestedRouteIds.size())
-                : new IdentityNodeIdMapping(nestedRouteIds.keySet().iterator().next());
-
-        IntUnaryOperator nestedTranslator = nestedVirtual -> nodeIdMapping.toVirtual(outerRouteName, nestedVirtual);
-
-        var nestedBootstrapIds = RouterContextImpl.computeBootstrapNodeIds(
-                nestedRoutes, nestedNodeIdMapping, routerNodeAddresses, nestedTranslator);
-
-        boolean hasDeepNested = nestedRoutes.values().stream()
-                .anyMatch(RouteDescriptor::targetsRouter);
-        RouterContextImpl.NestedRouterProvider childProvider = hasDeepNested
-                ? (rName, outerRoute) -> {
-                    throw new UnsupportedOperationException(
-                            "Routing depth > 2 is not yet supported (router: " + rName + ")");
-                }
-                : null;
-
-        return new RouterContextImpl.NestedRouterState(
-                nested, nestedRoutes, nestedNodeIdMapping,
-                nestedBootstrapIds, nestedTranslator, childProvider);
     }
 
     // --- Helpers ---
