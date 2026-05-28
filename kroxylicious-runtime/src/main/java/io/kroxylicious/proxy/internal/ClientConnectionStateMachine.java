@@ -177,7 +177,7 @@ public class ClientConnectionStateMachine {
     boolean clientReadsBlocked;
     private final TransportSubjectBuilder transportSubjectBuilder;
     private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
-    private int progressionLatch = -1;
+    private boolean transportSubjectReady;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
@@ -240,7 +240,7 @@ public class ClientConnectionStateMachine {
                     KafkaProxyFrontendHandler frontendHandler,
                     @Nullable ServerConnectionStateMachine serverConnectionStateMachine,
                     KafkaSession kafkaSession,
-                    int transportAndBackendLatch) {
+                    boolean transportSubjectReady) {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
@@ -252,7 +252,7 @@ public class ClientConnectionStateMachine {
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.serverConnectionStateMachine = serverConnectionStateMachine;
-        this.progressionLatch = transportAndBackendLatch;
+        this.transportSubjectReady = transportSubjectReady;
     }
 
     @Override
@@ -377,7 +377,6 @@ public class ClientConnectionStateMachine {
     void onServerConnectionActive() {
         if (state() instanceof Forwarding) {
             kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
-            maybeUnblock();
         }
         else {
             illegalState("Server became active while not in the Forwarding state");
@@ -474,7 +473,7 @@ public class ClientConnectionStateMachine {
                 illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
                 return;
             }
-            if (progressionLatch > 0) {
+            if (!transportSubjectReady) {
                 frontendHandler.bufferMsg(msg);
             }
             else {
@@ -760,12 +759,7 @@ public class ClientConnectionStateMachine {
                                 ClientConnectionState.ClientActive clientActive,
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
-        // we require two events before unblocking (making reads from) the client:
-        // 1. the completion of the building of the transport subject
-        // 2. the progression of the state machine to forwarding state
-        // (completion of the connection to the backend)
-        // these can happen in either order
-        this.progressionLatch = 2;
+        this.transportSubjectReady = false;
         if (!this.isTlsListener()) {
             this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder,
                     frontendHandler.eventLoopExecutor(), this::onTransportSubjectBuilt);
@@ -781,15 +775,16 @@ public class ClientConnectionStateMachine {
         if (!authenticatedSubject().isAnonymous()) {
             onSessionTransportAuthenticated();
         }
-        maybeUnblock();
+        this.transportSubjectReady = true;
+        tryUnblockClient();
     }
 
     Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
-    private void maybeUnblock() {
-        if (--this.progressionLatch == 0) {
+    private void tryUnblockClient() {
+        if (transportSubjectReady && state instanceof Forwarding) {
             Objects.requireNonNull(frontendHandler).unblockClient();
         }
     }
@@ -845,6 +840,7 @@ public class ClientConnectionStateMachine {
         if (msg instanceof RequestFrame) {
             var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
             toForwarding(forwardingFactory.get(), target);
+            tryUnblockClient();
             return true;
         }
         return false;
