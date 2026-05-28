@@ -52,6 +52,7 @@ class RouterContextImpl implements RouterContext {
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
     private final Channel clientChannel;
+    private final PendingResponseRegistry pendingResponseRegistry;
     private final ResponseSequencer responseSequencer;
     private final long sequenceNumber;
 
@@ -87,7 +88,11 @@ class RouterContextImpl implements RouterContext {
                       MeterProvider<Counter> routingErrorsCounter,
                       MeterProvider<Timer> routingRequestDurationTimer,
                       AtomicInteger pendingResponseCount,
-                      ResponseSequencer responseSequencer) {
+                      PendingResponseRegistry pendingResponseRegistry,
+                      ResponseSequencer responseSequencer,
+                      Map<Integer, HostPort> sharedNodeAddresses,
+                      IntUnaryOperator virtualIdTranslator,
+                      @Nullable NestedRouterProvider nestedRouterProvider) {
         this.clientFrame = Objects.requireNonNull(clientFrame);
         this.clientCorrelationId = clientFrame.correlationId();
         this.apiVersion = clientFrame.apiVersion();
@@ -103,6 +108,7 @@ class RouterContextImpl implements RouterContext {
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
         this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
+        this.pendingResponseRegistry = Objects.requireNonNull(pendingResponseRegistry);
         this.responseSequencer = Objects.requireNonNull(responseSequencer);
         this.sequenceNumber = responseSequencer.allocateSequence();
     }
@@ -181,88 +187,17 @@ class RouterContextImpl implements RouterContext {
 
         CompletableFuture<Response> future = new CompletableFuture<>();
         Timer.Sample timerSample = Timer.start();
-        var pendingResponse = new RouterDispatchHandler.PendingResponse(
-                future, timerSample, route, apiKey);
-        RouterDispatchHandler.registerPendingResponse(
-                clientChannel, routingCorrelationId, pendingResponse);
-        pendingResponseCount.incrementAndGet();
-
-        requestForwarder.forward(route, frame);
-        routingRequestsCounter.withTags(
-                Metrics.ROUTE_LABEL, route,
-                Metrics.ROUTING_MODE_LABEL, "dynamic",
-                Metrics.API_KEY_LABEL, apiKey.name()).increment();
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
-                .addKeyValue("apiVersion", requestApiVersion)
-                .log("Request sent to route");
-        if (listener != null) {
-            future.whenComplete((resp, error) -> {
-                if (resp != null) {
-                    listener.accept(new RoutingEvent.Response(
-                            sessionId, route, routingCorrelationId, apiKey,
-                            resp.header(), resp.body()));
-                }
-            });
-        }
-        return future;
-    }
-
-    CompletionStage<Response> sendRequestToNode(
-                                                int virtualNodeId,
-                                                RequestHeaderData header,
-                                                ApiMessage request) {
-        NodeIdMapping.RouteAndNode resolved = nodeIdMapping.fromVirtual(virtualNodeId);
-        String route = resolved.route();
-
-        RouteDescriptor rd = routes.get(route);
-        if (rd == null || !rd.targetsCluster()) {
-            routingErrorsCounter.withTags(
-                    Metrics.ERROR_TYPE_LABEL, "invalid_virtual_node").increment();
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("virtualNodeId", virtualNodeId)
-                    .addKeyValue("route", route)
-                    .log("Virtual node ID resolved to invalid route");
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Virtual node " + virtualNodeId
-                            + " resolved to invalid route: " + route));
-        }
-
-        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
-        short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = routingCorrelationIdAllocator.getAsInt();
-        var frame = new DecodedRequestFrame<>(
-                requestApiVersion,
-                routingCorrelationId,
-                true,
-                header,
-                request);
-
-        var listener = RoutingEvent.EVENT_LISTENER.get();
-        if (listener != null) {
-            listener.accept(new RoutingEvent.Request(
-                    sessionId, route, clientCorrelationId, routingCorrelationId,
-                    apiKey, requestApiVersion, header, request));
-        }
-
-        CompletableFuture<Response> future = new CompletableFuture<>();
-        Timer.Sample timerSample = Timer.start();
-        var pendingResponse = new RouterDispatchHandler.PendingResponse(
-                future, timerSample, route, apiKey);
-        RouterDispatchHandler.registerPendingResponse(
-                clientChannel, routingCorrelationId, pendingResponse);
+        var pendingResponse = new PendingResponse(
+                future, timerSample, route, apiKey,
+                nodeIdMapping, createMetadataAddressCacher(route));
+        pendingResponseRegistry.register(routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();
 
         try {
             nodeForwarder.forward(virtualNodeId, route, frame);
         }
         catch (Exception e) {
-            RouterDispatchHandler.deregisterPendingResponse(
-                    clientChannel, routingCorrelationId);
+            pendingResponseRegistry.deregister(routingCorrelationId);
             pendingResponseCount.decrementAndGet();
             routingErrorsCounter.withTags(
                     Metrics.ERROR_TYPE_LABEL, "node_forward_failed").increment();
@@ -299,6 +234,122 @@ class RouterContextImpl implements RouterContext {
             });
         }
         return future;
+    }
+
+    private MetadataAddressCacher createMetadataAddressCacher(String route) {
+        return body -> {
+            if (body instanceof MetadataResponseData md) {
+                for (var broker : md.brokers()) {
+                    int virtualId = nodeIdMapping.toVirtual(route, broker.nodeId());
+                    int outerVirtualId = virtualIdTranslator.applyAsInt(virtualId);
+                    sharedNodeAddresses.put(outerVirtualId, new HostPort(broker.host(), broker.port()));
+                }
+            }
+        };
+    }
+
+    private CompletionStage<Response> dispatchToNestedRouter(
+                                                             RouteDescriptor rd,
+                                                             String outerRoute,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request) {
+        if (nestedRouterProvider == null) {
+            routingErrorsCounter.withTags(
+                    Metrics.ERROR_TYPE_LABEL, "nested_routing_unavailable").increment();
+            return CompletableFuture.failedFuture(
+                    new UnsupportedOperationException(
+                            "Nested routing is not configured (route: " + outerRoute + ")"));
+        }
+        NestedRouterState nested = nestedRouterProvider.get(rd.routerName(), outerRoute);
+        IntUnaryOperator nestedTranslator = nested.virtualIdTranslator();
+
+        NodeForwarder nestedNodeForwarder = (nestedVirtualNodeId, routeName, msg) -> {
+            int outerVirtualId = nestedTranslator.applyAsInt(nestedVirtualNodeId);
+            nodeForwarder.forward(outerVirtualId, outerRoute, msg);
+        };
+        RouteForwarder nestedRouteForwarder = (routeName, msg) -> {
+            Integer bootstrapVirtual = nested.bootstrapVirtualNodeIds().get(routeName);
+            if (bootstrapVirtual != null) {
+                int outerVirtualId = nestedTranslator.applyAsInt(bootstrapVirtual);
+                nodeForwarder.forward(outerVirtualId, outerRoute, msg);
+            }
+        };
+
+        var nestedCtx = new RouterContextImpl(
+                clientFrame,
+                clientChannel,
+                sessionId,
+                subject,
+                nested.routes(),
+                nestedRouteForwarder,
+                nestedNodeForwarder,
+                nested.nodeIdMapping(),
+                nested.bootstrapVirtualNodeIds(),
+                routingCorrelationIdAllocator,
+                routingRequestsCounter,
+                routingErrorsCounter,
+                routingRequestDurationTimer,
+                pendingResponseCount,
+                pendingResponseRegistry,
+                responseSequencer,
+                sharedNodeAddresses,
+                nestedTranslator,
+                nested.childProvider());
+
+        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("outerRoute", outerRoute)
+                .addKeyValue("nestedRouter", rd.routerName())
+                .addKeyValue("apiKey", apiKey)
+                .log("Dispatching to nested router");
+
+        return nested.router().onRequest(
+                header.requestApiVersion(), apiKey, header, request, nestedCtx)
+                .thenCompose(result -> {
+                    if (result instanceof RouterResult.Completed completed) {
+                        return CompletableFuture.completedFuture(completed.response());
+                    }
+                    else if (result instanceof RouterResult.CompletedNoResponse) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    else if (result instanceof RouterResult.Disconnect) {
+                        return CompletableFuture.failedFuture(
+                                new IllegalStateException(
+                                        "Nested router '" + rd.routerName()
+                                                + "' attempted to disconnect client"));
+                    }
+                    return CompletableFuture.failedFuture(
+                            new IllegalStateException("Unknown router result type: " + result));
+                });
+    }
+
+    private void forwardToNode(int virtualNodeId, String route, DecodedRequestFrame<?> frame) {
+        Integer bootstrapId = bootstrapVirtualNodeIds.get(route);
+        if (bootstrapId != null && bootstrapId == virtualNodeId) {
+            routeForwarder.forward(route, frame);
+        }
+        else {
+            nodeForwarder.forward(virtualNodeId, route, frame);
+        }
+    }
+
+    void submitResponse(Response response) {
+        response.header().setCorrelationId(clientCorrelationId);
+        var responseFrame = clientFrame.responseFrame(response.header(), response.body());
+        responseSequencer.submit(sequenceNumber, responseFrame);
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("sequenceNumber", sequenceNumber)
+                .log("Response submitted to sequencer");
+    }
+
+    void disconnectClient() {
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", sessionId)
+                .log("Router requested client disconnect");
+        clientChannel.close();
     }
 
     @Override
