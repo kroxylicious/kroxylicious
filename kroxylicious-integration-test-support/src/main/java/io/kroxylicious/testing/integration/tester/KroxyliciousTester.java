@@ -21,6 +21,8 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A convenient tester for a Kroxylicious instance. Implementations of this will
  * typically create a Kroxylicious server and clean it up on {@link #close()}. It provides
@@ -371,6 +373,19 @@ public interface KroxyliciousTester extends Closeable {
      * @param virtualCluster the virtual cluster whose cached clients should be evicted
      */
     void closeClientsFor(String virtualCluster);
+
+    /**
+     * Returns the actual local port that the proxy is listening on for the given bind address
+     * and configured port. Useful when the configured port is
+     * {@link io.kroxylicious.proxy.internal.net.EndpointRegistry#OS_ASSIGNED_PORT} so tests
+     * do not need to hard-code port numbers.
+     *
+     * @param bindAddress the bind address used in the proxy configuration, or {@code null} for any-address bindings
+     * @param port        the port number used in the proxy configuration
+     * @return the actual local port the proxy is listening on
+     * @throws UnsupportedOperationException if the underlying proxy is not a {@link io.kroxylicious.proxy.KafkaProxy}
+     */
+    int listeningPort(@Nullable String bindAddress, int port);
 
     /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.
