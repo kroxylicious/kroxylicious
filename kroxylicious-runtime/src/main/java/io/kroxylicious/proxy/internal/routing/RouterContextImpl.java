@@ -39,7 +39,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
- * {@link RouterDispatchHandler} for each incoming client request.
+ * {@link RoutingDecisionHandler} for each incoming client request.
  */
 class RouterContextImpl implements RouterContext {
 
@@ -366,7 +366,7 @@ class RouterContextImpl implements RouterContext {
 
     /**
      * Submits a response to the client via the response sequencer.
-     * Called by {@link RouterDispatchHandler} when the router returns
+     * Called by {@link RoutingDecisionHandler} when the router returns
      * {@link io.kroxylicious.proxy.router.RouterResult.Completed}.
      */
     void submitResponse(Response response) {
@@ -381,7 +381,7 @@ class RouterContextImpl implements RouterContext {
     }
 
     /**
-     * Closes the client channel. Called by {@link RouterDispatchHandler}
+     * Closes the client channel. Called by {@link RoutingDecisionHandler}
      * when the router returns {@link io.kroxylicious.proxy.router.RouterResult.Disconnect}.
      */
     void disconnectClient() {
