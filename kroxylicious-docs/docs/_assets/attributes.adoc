@@ -189,3 +189,7 @@ ifndef::DocRoot[:DocRoot: ..]
 :ConnectionExpirationGuideUrl: {DocRoot}/connection-expiration-guide/
 :ConnectionExpirationGuideText: Connection Expiration guide
 :ConnectionExpirationGuide: link:{ConnectionExpirationGuideUrl}[{ConnectionExpirationGuideText}]
+
+:PerformanceGuideUrl: {DocRoot}/performance-guide/
+:PerformanceGuideText: Performance and Sizing guide
+:PerformanceGuide: link:{PerformanceGuideUrl}[{PerformanceGuideText}]

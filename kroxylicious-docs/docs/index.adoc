@@ -20,3 +20,5 @@ This release of Kroxylicious is documented in the following guides:
 {RecordValidationGuide}:: Covers using the record validation filter.
 
 {DeveloperGuide}:: Covers writing plugins for the proxy in the Java programming language
+
+{PerformanceGuide}:: Covers sizing Kroxylicious for production deployments — passthrough overhead and record encryption CPU budgeting.
