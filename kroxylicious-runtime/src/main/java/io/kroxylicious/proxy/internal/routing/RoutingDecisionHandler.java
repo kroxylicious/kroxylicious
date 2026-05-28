@@ -7,7 +7,6 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
@@ -106,10 +105,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         router.close();
     }
 
-    public Optional<HostPort> resolveRouterNodeAddress(int virtualNodeId) {
-        return Optional.ofNullable(sharedNodeAddresses.get(virtualNodeId));
-    }
-
     // --- Inbound (request) path ---
 
     @Override
@@ -190,8 +185,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         };
 
         var routingContext = new RouterContextImpl(
-                frame,
-                ctx.channel(),
+                clientCorrelationId,
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
                 routes,
@@ -205,7 +199,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 routingRequestDurationTimer,
                 pendingResponseCount,
                 this,
-                new ResponseSequencer(ctx.channel()),
                 sharedNodeAddresses,
                 virtualIdTranslator);
 
