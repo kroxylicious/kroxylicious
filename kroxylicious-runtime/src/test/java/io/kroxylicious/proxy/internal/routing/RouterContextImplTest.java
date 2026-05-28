@@ -15,9 +15,7 @@ import java.util.function.IntSupplier;
 import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,13 +23,10 @@ import org.junit.jupiter.api.Test;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,14 +39,12 @@ class RouterContextImplTest {
     private static final short API_VERSION = 12;
     private static final String SESSION_ID = "sess-1";
 
-    private EmbeddedChannel channel;
     private Map<String, RouteDescriptor> routes;
     private AtomicReference<Integer> forwardedNodeId;
     private AtomicReference<String> forwardedRoute;
     private AtomicReference<Object> forwardedMsg;
     private SimpleMeterRegistry meterRegistry;
     private AtomicInteger pendingResponseCount;
-    private ResponseSequencer responseSequencer;
     private NodeIdMapping nodeIdMapping;
     private Map<String, Integer> bootstrapVirtualNodeIds;
     private Map<Integer, HostPort> sharedNodeAddresses;
@@ -68,7 +61,6 @@ class RouterContextImplTest {
 
     @BeforeEach
     void setUp() {
-        channel = new EmbeddedChannel();
         routes = Map.of(
                 "cluster-route", new RouteDescriptor("cluster-route", 0, TARGET, null, List.of()),
                 "router-route", new RouteDescriptor("router-route", 1, null, "nested", List.of()));
@@ -77,7 +69,6 @@ class RouterContextImplTest {
         forwardedMsg = new AtomicReference<>();
         meterRegistry = new SimpleMeterRegistry();
         pendingResponseCount = new AtomicInteger();
-        responseSequencer = new ResponseSequencer(channel);
         nodeIdMapping = new IdentityNodeIdMapping("cluster-route");
         bootstrapVirtualNodeIds = Map.of("cluster-route", -1);
         sharedNodeAddresses = new HashMap<>();
@@ -99,8 +90,7 @@ class RouterContextImplTest {
 
     private RouterContextImpl createContext() {
         return new RouterContextImpl(
-                clientFrame(),
-                channel,
+                CORRELATION_ID,
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
@@ -121,7 +111,6 @@ class RouterContextImplTest {
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
                 testPendingResponseRegistry,
-                responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity());
     }
@@ -202,35 +191,6 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldSubmitResponseToSequencer() {
-        var ctx = createContext();
-        var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
-        var responseBody = new FetchResponseData();
-        Response response = new ResponseImpl(responseHeader, responseBody);
-
-        ctx.submitResponse(response);
-
-        Object written = channel.readOutbound();
-        assertThat(written)
-                .isInstanceOfSatisfying(DecodedResponseFrame.class, frame -> {
-                    assertThat(frame.correlationId()).isEqualTo(CORRELATION_ID);
-                    assertThat(frame.apiVersion()).isEqualTo(API_VERSION);
-                    assertThat(frame.header()).isEqualTo(responseHeader);
-                    assertThat(frame.body()).isEqualTo(responseBody);
-                });
-    }
-
-    @Test
-    void shouldCloseChannelOnDisconnect() {
-        var ctx = createContext();
-        assertThat(channel.isOpen()).isTrue();
-
-        ctx.disconnectClient();
-
-        assertThat(channel.isOpen()).isFalse();
-    }
-
-    @Test
     void shouldRegisterPendingResponseOnSend() {
         var ctx = createContext();
         var header = new RequestHeaderData()
@@ -270,8 +230,7 @@ class RouterContextImplTest {
     void shouldAllocateDistinctRoutingCorrelationIdsForFanOut() {
         List<Object> forwardedFrames = new java.util.ArrayList<>();
         var fanOutCtx = new RouterContextImpl(
-                clientFrame(),
-                channel,
+                CORRELATION_ID,
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
@@ -285,7 +244,6 @@ class RouterContextImplTest {
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
                 testPendingResponseRegistry,
-                responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity());
 
@@ -315,8 +273,7 @@ class RouterContextImplTest {
     @Test
     void sendRequestToNodeShouldFailWhenForwarderThrows() {
         var ctx = new RouterContextImpl(
-                clientFrame(),
-                channel,
+                CORRELATION_ID,
                 SESSION_ID,
                 Subject.anonymous(),
                 routes,
@@ -334,7 +291,6 @@ class RouterContextImplTest {
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
                 testPendingResponseRegistry,
-                responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity());
 
