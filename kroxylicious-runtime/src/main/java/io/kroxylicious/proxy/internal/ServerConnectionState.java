@@ -11,7 +11,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import static io.kroxylicious.proxy.internal.ServerConnectionState.Active;
 import static io.kroxylicious.proxy.internal.ServerConnectionState.Closed;
 import static io.kroxylicious.proxy.internal.ServerConnectionState.Connecting;
-import static io.kroxylicious.proxy.internal.ServerConnectionState.Draining;
 
 /**
  * States of the {@link ServerConnectionStateMachine}.
@@ -19,7 +18,6 @@ import static io.kroxylicious.proxy.internal.ServerConnectionState.Draining;
 sealed interface ServerConnectionState permits
         Connecting,
         Active,
-        Draining,
         Closed {
 
     /**
@@ -38,20 +36,7 @@ sealed interface ServerConnectionState permits
     /**
      * The connection is established and ready for KRPC.
      */
-    record Active() implements ServerConnectionState {
-
-        public Draining toDraining(Runnable onDrained) {
-            return new Draining(onDrained);
-        }
-    }
-
-    /**
-     * No new requests will be sent. In-flight responses are still completing.
-     * When the in-flight count reaches zero, {@code onDrained} is invoked.
-     *
-     * @param onDrained callback invoked when all in-flight responses have been received
-     */
-    record Draining(Runnable onDrained) implements ServerConnectionState {}
+    record Active() implements ServerConnectionState {}
 
     /**
      * Terminal state. The backend channel is closed.

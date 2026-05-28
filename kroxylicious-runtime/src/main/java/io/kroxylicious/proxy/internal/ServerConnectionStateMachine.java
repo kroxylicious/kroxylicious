@@ -31,7 +31,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * server operations here.
  *
  * <pre>
- *     Connecting ──→ Active ──→ [Draining] ──→ Closed
+ *     Connecting ──→ Active ────────────→ Closed
  *         │             │            │
  *         └─────────────┴────────────┴──→ Closed (on error)
  * </pre>
