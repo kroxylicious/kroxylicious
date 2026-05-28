@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -45,7 +44,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * virtual cluster uses a router. Unwraps incoming
  * {@link DecodedRequestFrame}s and invokes {@link Router#onRequest}.
  */
-public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implements RoutingResponseCallback {
+public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implements RoutingResponseCallback, PendingResponseRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
     private static final AttributeKey<Map<Integer, PendingResponse>> PENDING_RESPONSES = AttributeKey.valueOf(RouterDispatchHandler.class,
@@ -68,11 +67,6 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
     @Nullable
     private ResponseSequencer responseSequencer;
-
-    record PendingResponse(CompletableFuture<Response> future,
-                           Timer.Sample timerSample,
-                           String route,
-                           ApiKeys apiKey) {}
 
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
@@ -176,7 +170,11 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 routingErrorsCounter,
                 routingRequestDurationTimer,
                 pendingResponseCount,
-                responseSequencer);
+                this,
+                responseSequencer,
+                routerNodeAddresses,
+                IntUnaryOperator.identity(),
+                hasNestedRouters() ? this::getOrCreateNestedRouterState : null);
 
         router.onRequest(
                 apiVersion,
@@ -229,7 +227,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             if (correlationId >= 0) {
                 return false;
             }
-            Map<Integer, PendingResponse> pending = getPendingResponses(ccsm.clientChannel());
+            var pending = getPendingResponses(ccsm.clientChannel());
             PendingResponse pendingResponse = pending.remove(correlationId);
             if (pendingResponse != null) {
                 pendingResponseCount.decrementAndGet();
@@ -259,15 +257,14 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
         return false;
     }
 
-    static void registerPendingResponse(Channel channel,
-                                        int correlationId,
-                                        PendingResponse pendingResponse) {
-        getPendingResponses(channel).put(correlationId, pendingResponse);
+    @Override
+    public void register(int correlationId, PendingResponse pendingResponse) {
+        getPendingResponses(ccsm.clientChannel()).put(correlationId, pendingResponse);
     }
 
-    static void deregisterPendingResponse(Channel channel,
-                                          int correlationId) {
-        getPendingResponses(channel).remove(correlationId);
+    @Override
+    public void deregister(int correlationId) {
+        getPendingResponses(ccsm.clientChannel()).remove(correlationId);
     }
 
     private static Map<Integer, PendingResponse> getPendingResponses(Channel channel) {
