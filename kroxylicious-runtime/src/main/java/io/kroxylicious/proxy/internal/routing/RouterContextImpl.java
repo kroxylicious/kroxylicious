@@ -63,6 +63,7 @@ class RouterContextImpl implements RouterContext {
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
     private final Channel clientChannel;
+    private final PendingResponseRegistry pendingResponseRegistry;
     private final ResponseSequencer responseSequencer;
     private final long sequenceNumber;
     private final Map<Integer, HostPort> sharedNodeAddresses;
@@ -121,6 +122,7 @@ class RouterContextImpl implements RouterContext {
                       MeterProvider<Counter> routingErrorsCounter,
                       MeterProvider<Timer> routingRequestDurationTimer,
                       AtomicInteger pendingResponseCount,
+                      PendingResponseRegistry pendingResponseRegistry,
                       ResponseSequencer responseSequencer,
                       Map<Integer, HostPort> sharedNodeAddresses,
                       IntUnaryOperator virtualIdTranslator,
@@ -141,6 +143,7 @@ class RouterContextImpl implements RouterContext {
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
         this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
+        this.pendingResponseRegistry = Objects.requireNonNull(pendingResponseRegistry);
         this.responseSequencer = Objects.requireNonNull(responseSequencer);
         this.sequenceNumber = responseSequencer.allocateSequence();
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
@@ -214,19 +217,17 @@ class RouterContextImpl implements RouterContext {
 
         CompletableFuture<Response> future = new CompletableFuture<>();
         Timer.Sample timerSample = Timer.start();
-        var pendingResponse = new RouterDispatchHandler.PendingResponse(
+        var pendingResponse = new PendingResponse(
                 future, timerSample, route, apiKey,
                 nodeIdMapping, createMetadataAddressCacher(route));
-        RouterDispatchHandler.registerPendingResponse(
-                clientChannel, routingCorrelationId, pendingResponse);
+        pendingResponseRegistry.register(routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();
 
         try {
             forwardToNode(virtualNodeId, route, frame);
         }
         catch (Exception e) {
-            RouterDispatchHandler.deregisterPendingResponse(
-                    clientChannel, routingCorrelationId);
+            pendingResponseRegistry.deregister(routingCorrelationId);
             pendingResponseCount.decrementAndGet();
             routingErrorsCounter.withTags(
                     Metrics.ERROR_TYPE_LABEL, "node_forward_failed").increment();
@@ -265,7 +266,7 @@ class RouterContextImpl implements RouterContext {
         return future;
     }
 
-    private RouterDispatchHandler.MetadataAddressCacher createMetadataAddressCacher(String route) {
+    private MetadataAddressCacher createMetadataAddressCacher(String route) {
         return body -> {
             if (body instanceof MetadataResponseData md) {
                 for (var broker : md.brokers()) {
@@ -319,6 +320,7 @@ class RouterContextImpl implements RouterContext {
                 routingErrorsCounter,
                 routingRequestDurationTimer,
                 pendingResponseCount,
+                pendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
                 nestedTranslator,
