@@ -55,6 +55,15 @@ class RouterContextImplTest {
     private NodeIdMapping nodeIdMapping;
     private Map<String, Integer> bootstrapVirtualNodeIds;
     private Map<Integer, HostPort> sharedNodeAddresses;
+    private final PendingResponseRegistry testPendingResponseRegistry = new PendingResponseRegistry() {
+        @Override
+        public void register(int correlationId, PendingResponse pendingResponse) {
+        }
+
+        @Override
+        public void deregister(int correlationId) {
+        }
+    };
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
 
     @BeforeEach
@@ -111,6 +120,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
+                testPendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity(),
@@ -289,6 +299,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
+                testPendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity(),
@@ -338,6 +349,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
+                testPendingResponseRegistry,
                 responseSequencer,
                 sharedNodeAddresses,
                 IntUnaryOperator.identity(),

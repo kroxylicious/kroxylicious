@@ -258,24 +258,78 @@ public class KafkaProxyFrontendHandler
         LOGGER.atTrace()
                 .addKeyValue("channelId", clientChannel.id())
                 .log("ChannelActive");
-        // install filters before first read
-        List<FilterAndInvoker> filters = buildFilters();
-        addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
-        // Set the decode predicate now that we have the filters
+
+        if (clientConnectionStateMachine.virtualCluster().usesRouter()) {
+            inClientActiveWithRouting(clientChannel);
+        }
+        else {
+            inClientActiveWithoutRouting(clientChannel);
+        }
+    }
+
+    private void inClientActiveWithoutRouting(Channel clientChannel) {
+        List<FilterAndInvoker> filters = buildFilters(true);
+        addFiltersToPipeline(filters, clientCtx().pipeline(), clientChannel);
         dp.setDelegate(DecodePredicate.forFilters(filters));
-        // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
     }
 
-    private List<FilterAndInvoker> buildFilters() {
+    private void inClientActiveWithRouting(Channel clientChannel) {
+        ChannelPipeline pipeline = clientCtx().pipeline();
+        var allFilters = new ArrayList<FilterAndInvoker>();
+
+        // 1. Build and install internal-only filters
+        List<FilterAndInvoker> internalFilters = buildFilters(false);
+        addFiltersToPipeline(internalFilters, pipeline, clientChannel);
+        allFilters.addAll(internalFilters);
+
+        // 2. Add PassthroughRoutingHandler after last internal filter
+        String lastHandler = lastFilterHandlerName(pipeline);
+        pipeline.addAfter(lastHandler, "passthroughRouting",
+                new io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler());
+
+        // 3. Build VC user filters and add as route filters scoped to "default"
+        NettyFilterContext filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
+        List<FilterAndInvoker> vcFilters = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
+        allFilters.addAll(vcFilters);
+        addRouteFiltersToPipeline(vcFilters,
+                io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler.DEFAULT_ROUTE,
+                "routingDecisionHandler", pipeline, clientChannel);
+
+        // 4. Build route-specific filters for each route and add scoped to their route
+        var routeDescriptors = clientConnectionStateMachine.virtualCluster().routeDescriptors();
+        if (routeDescriptors != null) {
+            for (var entry : routeDescriptors.entrySet()) {
+                var routeFilterDefs = entry.getValue().filters();
+                if (routeFilterDefs != null && !routeFilterDefs.isEmpty()) {
+                    List<FilterAndInvoker> routeFilters = filterChainFactory.createFilters(filterContext, routeFilterDefs);
+                    allFilters.addAll(routeFilters);
+                    addRouteFiltersToPipeline(routeFilters, entry.getKey(),
+                            "routingTerminalHandler", pipeline, clientChannel);
+                }
+            }
+        }
+
+        // 5. Set decode predicate to union of ALL filters across the routing DAG
+        dp.setDelegate(DecodePredicate.forFilters(allFilters));
+        clientChannel.config().setAutoRead(false);
+        clientChannel.read();
+    }
+
+    /**
+     * @param includeUserFilters whether to include user-configured VC filters
+     */
+    private List<FilterAndInvoker> buildFilters(boolean includeUserFilters) {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
-        NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
-        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
-        filterAndInvokers.addAll(filterChain);
+        if (includeUserFilters) {
+            NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
+            List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
+            filterAndInvokers.addAll(filterChain);
+        }
 
         if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
             boolean closeAfterLearning = !clientConnectionStateMachine.virtualCluster().usesRouter();
@@ -288,6 +342,35 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(brokerAddressFilters);
 
         return filterAndInvokers;
+    }
+
+    private String lastFilterHandlerName(ChannelPipeline pipeline) {
+        String last = clientCtx().name();
+        for (var name : pipeline.names()) {
+            if (name.startsWith("filter-")) {
+                last = name;
+            }
+        }
+        return last;
+    }
+
+    private void addRouteFiltersToPipeline(List<FilterAndInvoker> filters,
+                                           String routeName,
+                                           String addBeforeHandler,
+                                           ChannelPipeline pipeline,
+                                           Channel inboundChannel) {
+        for (FilterAndInvoker protocolFilter : filters) {
+            String handlerName = "routeFilter-" + routeName + "-" + protocolFilter.filterName();
+            pipeline.addBefore(addBeforeHandler,
+                    handlerName,
+                    new RouteFilterHandler(
+                            protocolFilter,
+                            20000,
+                            sniHostname,
+                            inboundChannel,
+                            clientConnectionStateMachine,
+                            routeName));
+        }
     }
 
     /**
