@@ -569,7 +569,7 @@ else
     echo "Removing previous benchmark Job..."
     kubectl delete job omb-benchmark -n "${NAMESPACE}" --ignore-not-found --wait --timeout=60s
     echo "Restarting OMB workers for clean probe..."
-    kubectl delete pod -l app=omb-worker -n "${NAMESPACE}" --wait --timeout=60s
+    kubectl delete pod -l app=omb-worker -n "${NAMESPACE}" --grace-period=30 --wait --timeout=120s
     check_workers_healthy
     reset_topics
 fi
@@ -614,6 +614,17 @@ if [[ -n "${PROXY_POD}" && "${SKIP_DEPLOY}" == "false" ]]; then
             envsubst '${PROXY_DEPLOYMENT} ${NAMESPACE}' \
             < "${HELM_CHART}/patches/proxy-anti-affinity.yaml" \
             | kubectl apply --server-side --field-manager=benchmark-anti-affinity -f - >/dev/null
+    fi
+
+    # Force-delete the old proxy pod so the new one can schedule.
+    # Required when the proxy has a high CPU request (e.g. 4-core) that consumes
+    # most of its dedicated node: the rolling update default (maxUnavailable=0) would
+    # deadlock waiting for the new pod to be ready before evicting the old one, but
+    # the new pod cannot schedule while the old pod holds the node's CPU.
+    OLD_PROXY_POD=$(kubectl get pod -n "${NAMESPACE}" -l "${PROXY_POD_LABEL}" \
+        -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) || true
+    if [[ -n "${OLD_PROXY_POD}" ]]; then
+        kubectl delete pod "${OLD_PROXY_POD}" -n "${NAMESPACE}" --grace-period=30 2>/dev/null || true
     fi
 
     echo "Waiting for proxy deployment rollout after patch..."

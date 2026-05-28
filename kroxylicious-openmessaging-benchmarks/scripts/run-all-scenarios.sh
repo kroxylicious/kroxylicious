@@ -38,6 +38,8 @@ Options:
                              settings always win. Passed through to each run-benchmark.sh call.
   --profile <values-file>    Additional Helm values file layered on top of each scenario.
                              May be specified multiple times; files are applied in order.
+  --set <key=value>         Pass a Helm --set override. May be repeated. Passed through to
+                             each run-benchmark.sh call.
   -h, --help                 Show this help
 
 Environment:
@@ -55,6 +57,7 @@ EOF
 }
 
 PROFILE_VALUES=()
+SET_OVERRIDES=()
 CLUSTER_OVERRIDES=""
 POSITIONAL=()
 
@@ -66,6 +69,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --profile)
             PROFILE_VALUES+=("$2")
+            shift 2
+            ;;
+        --set)
+            SET_OVERRIDES+=(--set "$2")
             shift 2
             ;;
         -h|--help)
@@ -126,6 +133,7 @@ echo ""
 RUN_BENCHMARK_ARGS=()
 for profile_file in ${PROFILE_VALUES[@]+"${PROFILE_VALUES[@]}"}; do RUN_BENCHMARK_ARGS+=(--profile "${profile_file}"); done
 [[ -n "${CLUSTER_OVERRIDES}" ]] && RUN_BENCHMARK_ARGS+=(--cluster-overrides "${CLUSTER_OVERRIDES}")
+RUN_BENCHMARK_ARGS+=(${SET_OVERRIDES[@]+"${SET_OVERRIDES[@]}"})
 
 for SCENARIO in "${SCENARIOS[@]}"; do
     for WORKLOAD in "${WORKLOADS[@]}"; do

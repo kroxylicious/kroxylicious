@@ -10,12 +10,12 @@
 # 5 min warmup allows JIT to stabilise before measurement begins.
 # 5 min test gives enough samples for stable p99 latency at typical rates.
 #
-# workerReplicas is raised to 6 to give headroom at high producer counts (up to
-# 8 producers + 8 consumers per step) without workers becoming the bottleneck.
-# OMB assigns ~1/3 of workers to producers and the rest to consumers, so 6 workers
-# gives 2 producer workers.  At 8 producers × 10k msg/s = 80k total, each producer
-# worker handles ~40k msg/s — the CPU limit is raised to 2000m to keep workers
-# well clear of saturation before the proxy CPU becomes the bottleneck.
+# workerReplicas is set to 4 to fit within an 8-node cluster alongside 3 Kafka
+# brokers and 1 proxy (all with hard pod anti-affinity requiring dedicated nodes).
+# OMB assigns ~1/3 of workers to producers and the rest to consumers, so 4 workers
+# gives 1-2 producer workers. At 16 producers × 10k msg/s = 160k total this is
+# sufficient — the CPU limit is raised to 2000m to keep workers well clear of
+# saturation before the proxy CPU becomes the bottleneck.
 #
 # Applied automatically by connection-sweep.sh unless overridden with --profile.
 
@@ -24,7 +24,7 @@ benchmark:
   warmupDurationMinutes: 5
 
 omb:
-  workerReplicas: 6
+  workerReplicas: 4
   resources:
     requests:
       cpu: "1000m"
