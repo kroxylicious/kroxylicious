@@ -519,10 +519,13 @@ public final class KafkaProxy implements AutoCloseable {
     /**
      * Shuts down a running proxy. Idempotent: safe to call from any thread, including JVM shutdown hooks,
      * and safe to call before {@link #startup()} or after already stopped.
+     *
+     * @return a future that completes when shutdown is complete, identically to the future returned by {@link #startup()}
      */
-    public void shutdown() {
+    public CompletableFuture<Void> shutdown() {
         transitionTo(LifecycleState.STOPPING, this::doShutdown, lifecycleState -> {
         });
+        return shutdown;
     }
 
     private void doShutdown() {
