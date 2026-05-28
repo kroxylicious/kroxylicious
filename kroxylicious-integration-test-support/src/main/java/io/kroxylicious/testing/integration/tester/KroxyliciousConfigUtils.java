@@ -12,6 +12,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -28,7 +29,7 @@ public class KroxyliciousConfigUtils {
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     public static final String DEFAULT_GATEWAY_NAME = "default";
 
-    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
+    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", EndpointRegistry.OS_ASSIGNED_PORT);
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
