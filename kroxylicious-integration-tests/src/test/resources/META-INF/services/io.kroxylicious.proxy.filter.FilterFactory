@@ -17,3 +17,4 @@ io.kroxylicious.it.testplugins.ProtocolCounter
 io.kroxylicious.it.testplugins.ShortCircuitErrorResponse
 io.kroxylicious.it.testplugins.FaultInjectionFilterFactory
 io.kroxylicious.it.testplugins.OrderRecordingFilterFactory
+io.kroxylicious.it.testplugins.TagCapturingFilterFactory
