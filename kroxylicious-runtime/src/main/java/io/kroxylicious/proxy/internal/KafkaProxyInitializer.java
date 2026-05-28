@@ -7,12 +7,9 @@ package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
 import java.util.EnumSet;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
@@ -44,12 +41,8 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
-import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
-import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -265,48 +258,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         pipeline.addLast("frontendHandler", frontendHandler);
         if (virtualCluster.usesRouter() && routerChainFactory != null) {
-            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
-            var routeDescriptors = virtualCluster.routeDescriptors();
-            Map<ApiKeys, String> staticRoutes = router.staticRoutes();
-            if (!staticRoutes.isEmpty()) {
-                Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
-                dynamicallyRoutedKeys.removeAll(staticRoutes.keySet());
-                dp.setRouterDecodingRequirements(dynamicallyRoutedKeys);
-            }
-            else {
-                dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
-            }
-            var clusterName = virtualCluster.getClusterName();
-            var nodeId = binding.nodeId();
-            var routingRequestsCounter = Metrics.routingRequestsCounter(clusterName, nodeId);
-            var routingErrorsCounter = Metrics.routingErrorsCounter(clusterName, nodeId);
-            var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
-            var pendingResponseCount = new AtomicInteger();
-            Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
-            var routeIds = routeDescriptors.entrySet().stream()
-                    .collect(java.util.stream.Collectors.toMap(
-                            Map.Entry::getKey,
-                            e -> e.getValue().id()));
-            NodeIdMapping nodeIdMapping = routeIds.size() > 1
-                    ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
-                    : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
-            var decisionHandler = new io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler(
-                    io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler.DEFAULT_ROUTE,
-                    router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
-                    nodeIdMapping,
-                    routingRequestsCounter, routingErrorsCounter,
-                    routingRequestDurationTimer, pendingResponseCount,
-                    routerChainFactory,
-                    virtualCluster.allRouteDescriptors(),
-                    virtualCluster.getClusterName());
+            dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
+            var sharedNodeAddresses = new java.util.HashMap<Integer, io.kroxylicious.proxy.service.HostPort>();
             var terminalHandler = new io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler(clientConnectionStateMachine);
-            clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setUpstreamAddressResolver(
-                    virtualNodeId -> decisionHandler.resolveRouterNodeAddress(virtualNodeId)
+                    virtualNodeId -> Optional.ofNullable(sharedNodeAddresses.get(virtualNodeId))
                             .or(() -> endpointReconciler.upstreamAddress(
                                     clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
             clientConnectionStateMachine.setRoutingTerminalHandler(terminalHandler);
-            pipeline.addLast("routingDecisionHandler", decisionHandler);
+            frontendHandler.setRoutingConfig(routerChainFactory, sharedNodeAddresses, binding);
             pipeline.addLast("routingTerminalHandler", terminalHandler);
         }
         else {
