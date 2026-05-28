@@ -211,6 +211,9 @@ public class ClientConnectionStateMachine {
     private RoutingResponseCallback routingResponseCallback;
 
     @Nullable
+    private io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler routingTerminalHandler;
+
+    @Nullable
     private NodeIdMapping nodeIdMapping;
 
     @Nullable
@@ -340,6 +343,10 @@ public class ClientConnectionStateMachine {
         this.routingResponseCallback = callback;
     }
 
+    void setRoutingTerminalHandler(@Nullable io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler handler) {
+        this.routingTerminalHandler = handler;
+    }
+
     void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
         this.nodeIdMapping = nodeIdMapping;
     }
@@ -457,6 +464,17 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(ServerConnectionStateMachine scsm,
                               Object msg) {
+        if (routingTerminalHandler != null) {
+            routingTerminalHandler.onBackendResponse(msg);
+            // Dynamic routing responses (negative correlation IDs) are decremented
+            // by onRoutedRequestComplete when the Router's CompletionStage completes.
+            boolean isDynamicRoutingResponse = msg instanceof io.kroxylicious.proxy.frame.DecodedResponseFrame<?> frame
+                    && frame.correlationId() < 0;
+            if (!isDynamicRoutingResponse) {
+                decrementInFlightCount();
+            }
+            return;
+        }
         boolean claimedByRouter = routingResponseCallback != null && routingResponseCallback.onResponse(msg);
         if (!claimedByRouter) {
             Objects.requireNonNull(frontendHandler).forwardToClient(msg);
@@ -500,7 +518,12 @@ public class ClientConnectionStateMachine {
      * Callback from {@link ServerConnectionStateMachine} when reading the upstream batch is complete.
      */
     void onServerReadComplete(ServerConnectionStateMachine scsm) {
-        Objects.requireNonNull(frontendHandler).flushToClient();
+        if (routingTerminalHandler != null) {
+            routingTerminalHandler.flushToClient();
+        }
+        else {
+            Objects.requireNonNull(frontendHandler).flushToClient();
+        }
     }
 
     /**
