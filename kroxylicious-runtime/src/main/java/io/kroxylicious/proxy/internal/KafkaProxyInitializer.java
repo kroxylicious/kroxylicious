@@ -47,7 +47,6 @@ import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
-import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
@@ -291,7 +290,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             NodeIdMapping nodeIdMapping = routeIds.size() > 1
                     ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
                     : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
-            var dispatchHandler = new RouterDispatchHandler(
+            var decisionHandler = new io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler(
+                    io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler.DEFAULT_ROUTE,
                     router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
                     nodeIdMapping,
                     routingRequestsCounter, routingErrorsCounter,
@@ -299,13 +299,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     routerChainFactory,
                     virtualCluster.allRouteDescriptors(),
                     virtualCluster.getClusterName());
+            var terminalHandler = new io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler(clientConnectionStateMachine);
             clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
             clientConnectionStateMachine.setUpstreamAddressResolver(
-                    virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)
+                    virtualNodeId -> decisionHandler.resolveRouterNodeAddress(virtualNodeId)
                             .or(() -> endpointReconciler.upstreamAddress(
                                     clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
-            clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
-            pipeline.addLast("routerDispatchHandler", dispatchHandler);
+            clientConnectionStateMachine.setRoutingTerminalHandler(terminalHandler);
+            pipeline.addLast("routingDecisionHandler", decisionHandler);
+            pipeline.addLast("routingTerminalHandler", terminalHandler);
         }
         else {
             pipeline.addLast("filterChainCompletionHandler",
