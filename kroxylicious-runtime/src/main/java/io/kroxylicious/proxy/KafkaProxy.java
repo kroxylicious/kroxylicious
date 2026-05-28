@@ -198,13 +198,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final @Nullable ManagementConfiguration managementConfiguration;
     private final List<MicrometerDefinition> micrometerConfig;
     private final AtomicReference<LifecycleState> state = new AtomicReference<>(LifecycleState.NEW);
-    private final CompletableFuture<Void> shutdown = new CompletableFuture<>() {
-        @Override
-        public boolean cancel(boolean mayInterruptIfRunning) {
-            KafkaProxy.this.shutdown();
-            return false;
-        }
-    };
+    private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
@@ -359,7 +353,8 @@ public final class KafkaProxy implements AutoCloseable {
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
-            transitionTo(LifecycleState.STARTED, () -> {}, lifecycleState -> STARTUP_SHUTDOWN_LOGGER.atInfo()
+            transitionTo(LifecycleState.STARTED, () -> {
+            }, lifecycleState -> STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .addKeyValue("state", lifecycleState)
                     .log("Shutdown initiated concurrently with final startup transition"));
             return shutdown;

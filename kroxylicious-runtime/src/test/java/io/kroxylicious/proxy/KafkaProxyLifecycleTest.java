@@ -233,17 +233,6 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void cancelOnFutureTriggersGracefulShutdown() {
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
-        CompletableFuture<Void> future = proxy.startup();
-
-        boolean cancelled = future.cancel(true);
-
-        assertThat(cancelled).isFalse();
-        assertThat(future).isCompletedWithValue(null);
-    }
-
-    @Test
     void closeIsIdempotent() {
         this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(DEMO1_CONFIG), Features.defaultFeatures());
         proxy.startup();
