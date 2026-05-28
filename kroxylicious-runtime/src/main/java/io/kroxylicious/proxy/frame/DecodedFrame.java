@@ -42,6 +42,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private @Nullable ObjectSerializationCache serializationCache;
+    private @Nullable RoutingContext routingContext;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
         this.apiVersion = apiVersion;
@@ -146,6 +147,14 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     protected void deallocate() {
         buffers.forEach(ByteBuf::release);
+    }
+
+    public @Nullable RoutingContext routingContext() {
+        return routingContext;
+    }
+
+    public void setRoutingContext(@Nullable RoutingContext routingContext) {
+        this.routingContext = routingContext;
     }
 
     public void transferBuffersTo(DecodedFrame<?, ?> frame) {
