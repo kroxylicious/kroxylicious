@@ -37,7 +37,6 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.router.RouterResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -72,9 +71,11 @@ class RouterDispatchHandlerTest {
         pendingResponseCount = new AtomicInteger();
     }
 
-    private static RouterDispatchHandler.PendingResponse testPendingResponse(CompletableFuture<Response> future) {
-        return new RouterDispatchHandler.PendingResponse(
-                future, Timer.start(), "default", ApiKeys.FETCH);
+    private static PendingResponse testPendingResponse(CompletableFuture<Response> future) {
+        return new PendingResponse(
+                future, Timer.start(), "default", ApiKeys.FETCH,
+                new IdentityNodeIdMapping("default"), body -> {
+                });
     }
 
     private RouterDispatchHandler createHandler(Map<ApiKeys, String> staticRoutes) {
@@ -85,7 +86,7 @@ class RouterDispatchHandlerTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount,
-                null, Map.of(), "test-vc");
+                null, null, null);
     }
 
     private void stubCcsmForRouting() {
@@ -97,7 +98,7 @@ class RouterDispatchHandlerTest {
     void shouldInvokeRouterOnDecodedRequestFrame() {
         stubCcsmForRouting();
         when(router.onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class)))
-                .thenReturn(CompletableFuture.completedFuture(new RouterResult.CompletedNoResponse()));
+                .thenReturn(CompletableFuture.completedFuture(null));
 
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
@@ -156,7 +157,7 @@ class RouterDispatchHandlerTest {
 
         CompletableFuture<Response> future = new CompletableFuture<>();
         var pending = testPendingResponse(future);
-        RouterDispatchHandler.registerPendingResponse(channel, ROUTING_CORRELATION_ID, pending);
+        handler.register(ROUTING_CORRELATION_ID, pending);
         pendingResponseCount.incrementAndGet();
 
         var responseHeader = new ResponseHeaderData().setCorrelationId(ROUTING_CORRELATION_ID);
@@ -195,10 +196,13 @@ class RouterDispatchHandlerTest {
 
         doAnswer(invocation -> {
             RouterContext ctx = invocation.getArgument(4);
-            var reqHeader = new RequestHeaderData();
+            int bootstrapId = ctx.bootstrapNodeId("default");
+            var reqHeader = new RequestHeaderData()
+                    .setRequestApiKey(ApiKeys.FETCH.id)
+                    .setRequestApiVersion((short) 12);
             var reqBody = new FetchRequestData();
-            ctx.sendRequestToNode("default", 0, reqHeader, reqBody);
-            return CompletableFuture.completedFuture(new RouterResult.CompletedNoResponse());
+            ctx.sendRequestToNode("default", bootstrapId, reqHeader, reqBody);
+            return CompletableFuture.completedFuture(null);
         }).when(router).onRequest(anyShort(), any(ApiKeys.class), any(), any(), any(RouterContext.class));
 
         doAnswer(invocation -> {
@@ -209,6 +213,7 @@ class RouterDispatchHandlerTest {
 
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
+        when(ccsm.clientChannel()).thenReturn(channel);
 
         var header = new RequestHeaderData();
         var body = new FetchRequestData();
@@ -225,6 +230,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = createHandler(Map.of());
         channel = new EmbeddedChannel(handler);
+        when(ccsm.clientChannel()).thenReturn(channel);
 
         int routingId1 = ROUTING_CORRELATION_ID;
         int routingId2 = ROUTING_CORRELATION_ID + 1;
@@ -232,12 +238,10 @@ class RouterDispatchHandlerTest {
         CompletableFuture<Response> future1 = new CompletableFuture<>();
         CompletableFuture<Response> future2 = new CompletableFuture<>();
 
-        RouterDispatchHandler.registerPendingResponse(channel, routingId1,
+        handler.register(routingId1,
                 testPendingResponse(future1));
-        RouterDispatchHandler.registerPendingResponse(channel, routingId2,
+        handler.register(routingId2,
                 testPendingResponse(future2));
-
-        when(ccsm.clientChannel()).thenReturn(channel);
 
         var header1 = new ResponseHeaderData().setCorrelationId(routingId1);
         handler.onResponse(new DecodedResponseFrame<>((short) 12, routingId1, header1, new FetchResponseData()));
@@ -291,7 +295,7 @@ class RouterDispatchHandlerTest {
 
         CompletableFuture<Response> future = new CompletableFuture<>();
         var pending = testPendingResponse(future);
-        RouterDispatchHandler.registerPendingResponse(channel, ROUTING_CORRELATION_ID, pending);
+        handler.register(ROUTING_CORRELATION_ID, pending);
 
         var responseHeader = new ResponseHeaderData().setCorrelationId(ROUTING_CORRELATION_ID);
         var responseFrame = new DecodedResponseFrame<>((short) 12, ROUTING_CORRELATION_ID, responseHeader, new FetchResponseData());

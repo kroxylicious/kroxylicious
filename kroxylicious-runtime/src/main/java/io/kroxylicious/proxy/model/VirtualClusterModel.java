@@ -45,6 +45,8 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
@@ -117,6 +119,7 @@ public class VirtualClusterModel implements AutoCloseable {
      * {@code VirtualClusterRegistry} on transition into {@code Stopped}.
      */
     private final FilterChainFactory filterChainFactory;
+    private final Map<String, Map<String, FilterChainFactory>> routeFilterChainFactories;
 
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
@@ -201,12 +204,11 @@ public class VirtualClusterModel implements AutoCloseable {
         }
         else {
             this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
-            // Test-only constructors take this branch. They always pass an empty/null filter
-            // list, so an empty FCF is the right shape — FilterChainFactory tolerates a null
-            // pfr when the chain is empty, which spares tests from building a real
-            // PluginFactoryRegistry.
             this.filterChainFactory = new FilterChainFactory(null, List.of());
         }
+        this.routeFilterChainFactories = pluginFactoryRegistry != null
+                ? initRouteFilterChainFactories(pluginFactoryRegistry)
+                : Map.of();
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -220,6 +222,54 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public FilterChainFactory filterChainFactory() {
         return filterChainFactory;
+    }
+
+    /**
+     * Creates filter instances for a specific route within a router. Returns an empty
+     * list if the route has no filter definitions or if no route-level FCF was initialized
+     * (e.g. in the test-only constructor path).
+     */
+    public List<FilterAndInvoker> createRouteFilters(String routerName, String routeName, FilterFactoryContext context) {
+        var routerMap = routeFilterChainFactories.get(routerName);
+        if (routerMap == null) {
+            return List.of();
+        }
+        var fcf = routerMap.get(routeName);
+        if (fcf == null) {
+            return List.of();
+        }
+        return fcf.createFilters(context);
+    }
+
+    private Map<String, Map<String, FilterChainFactory>> initRouteFilterChainFactories(PluginFactoryRegistry pfr) {
+        Map<String, Map<String, RouteDescriptor>> allRoutes = collectAllRouteDescriptors();
+        if (allRoutes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Map<String, FilterChainFactory>> result = new HashMap<>();
+        for (var routerEntry : allRoutes.entrySet()) {
+            Map<String, FilterChainFactory> routeMap = new HashMap<>();
+            for (var routeEntry : routerEntry.getValue().entrySet()) {
+                List<NamedFilterDefinition> routeFilters = routeEntry.getValue().filters();
+                if (routeFilters != null && !routeFilters.isEmpty()) {
+                    routeMap.put(routeEntry.getKey(), new FilterChainFactory(pfr, routeFilters));
+                }
+            }
+            if (!routeMap.isEmpty()) {
+                result.put(routerEntry.getKey(), routeMap);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Map<String, RouteDescriptor>> collectAllRouteDescriptors() {
+        if (allRouteDescriptors != null) {
+            return allRouteDescriptors;
+        }
+        if (routerName != null && routeDescriptors != null) {
+            return Map.of(routerName, routeDescriptors);
+        }
+        return Map.of();
     }
 
     public Duration drainTimeout() {
@@ -357,14 +407,27 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     @Override
     public void close() {
-        // Suppress exceptions from FCF close so the TLS close still runs; surface the first
-        // failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
         try {
             filterChainFactory.close();
         }
         catch (RuntimeException e) {
             firstFailure = e;
+        }
+        for (var routerMap : routeFilterChainFactories.values()) {
+            for (var fcf : routerMap.values()) {
+                try {
+                    fcf.close();
+                }
+                catch (RuntimeException e) {
+                    if (firstFailure == null) {
+                        firstFailure = e;
+                    }
+                    else {
+                        firstFailure.addSuppressed(e);
+                    }
+                }
+            }
         }
         try {
             tlsCredentialSupplierManager.close();
