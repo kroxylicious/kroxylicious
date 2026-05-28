@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Timer;
-import io.netty.channel.Channel;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -43,9 +42,7 @@ class RouterContextImpl implements RouterContext {
 
     private static final int BOOTSTRAP_TARGET_NODE_ID = -1;
 
-    private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
-    private final short apiVersion;
     private final String sessionId;
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
@@ -58,10 +55,7 @@ class RouterContextImpl implements RouterContext {
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
     private final AtomicInteger pendingResponseCount;
-    private final Channel clientChannel;
     private final PendingResponseRegistry pendingResponseRegistry;
-    private final ResponseSequencer responseSequencer;
-    private final long sequenceNumber;
     private final Map<Integer, HostPort> sharedNodeAddresses;
     private final IntUnaryOperator virtualIdTranslator;
 
@@ -82,8 +76,7 @@ class RouterContextImpl implements RouterContext {
         void forward(int virtualNodeId, String routeName, Object msg);
     }
 
-    RouterContextImpl(DecodedRequestFrame<?> clientFrame,
-                      Channel clientChannel,
+    RouterContextImpl(int clientCorrelationId,
                       String sessionId,
                       Subject subject,
                       Map<String, RouteDescriptor> routes,
@@ -97,13 +90,9 @@ class RouterContextImpl implements RouterContext {
                       MeterProvider<Timer> routingRequestDurationTimer,
                       AtomicInteger pendingResponseCount,
                       PendingResponseRegistry pendingResponseRegistry,
-                      ResponseSequencer responseSequencer,
                       Map<Integer, HostPort> sharedNodeAddresses,
                       IntUnaryOperator virtualIdTranslator) {
-        this.clientFrame = Objects.requireNonNull(clientFrame);
-        this.clientCorrelationId = clientFrame.correlationId();
-        this.apiVersion = clientFrame.apiVersion();
-        this.clientChannel = Objects.requireNonNull(clientChannel);
+        this.clientCorrelationId = clientCorrelationId;
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
         this.routes = Objects.requireNonNull(routes);
@@ -117,8 +106,6 @@ class RouterContextImpl implements RouterContext {
         this.routingRequestDurationTimer = Objects.requireNonNull(routingRequestDurationTimer);
         this.pendingResponseCount = Objects.requireNonNull(pendingResponseCount);
         this.pendingResponseRegistry = Objects.requireNonNull(pendingResponseRegistry);
-        this.responseSequencer = Objects.requireNonNull(responseSequencer);
-        this.sequenceNumber = responseSequencer.allocateSequence();
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
         this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
     }
@@ -254,33 +241,6 @@ class RouterContextImpl implements RouterContext {
         else {
             nodeForwarder.forward(virtualNodeId, route, frame);
         }
-    }
-
-    /**
-     * Submits a response to the client via the response sequencer.
-     * Called by {@link RoutingDecisionHandler} when the router returns
-     * {@link io.kroxylicious.proxy.router.RouterResult.Completed}.
-     */
-    void submitResponse(Response response) {
-        response.header().setCorrelationId(clientCorrelationId);
-        var responseFrame = clientFrame.responseFrame(response.header(), response.body());
-        responseSequencer.submit(sequenceNumber, responseFrame);
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .addKeyValue("sequenceNumber", sequenceNumber)
-                .log("Response submitted to sequencer");
-    }
-
-    /**
-     * Closes the client channel. Called by {@link RoutingDecisionHandler}
-     * when the router returns {@link io.kroxylicious.proxy.router.RouterResult.Disconnect}.
-     */
-    void disconnectClient() {
-        LOGGER.atDebug()
-                .addKeyValue("sessionId", sessionId)
-                .log("Router requested client disconnect");
-        clientChannel.close();
     }
 
     @Override
