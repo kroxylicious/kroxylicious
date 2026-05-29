@@ -127,8 +127,6 @@ class ServerConnectionStateMachine {
         return virtualCluster.getUpstreamSslContext().isPresent();
     }
 
-    // === Connection setup ===
-
     /**
      * Initiates the TCP connection to the upstream broker.
      * Configures the backend channel pipeline (codecs, TLS, logging) and starts the connect.
@@ -268,7 +266,7 @@ class ServerConnectionStateMachine {
             onServerException(new IllegalStateException("TLS credential supplier returned null"));
             return;
         }
-        applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
+        applyTlsContextToChannel(credentials, remote, outboundChannel, pipeline);
     }
 
     private void handleTlsCredentialSupplierFailure(
@@ -285,7 +283,7 @@ class ServerConnectionStateMachine {
     }
 
     @VisibleForTesting
-    void applySslContextToChannel(
+    void applyTlsContextToChannel(
                                   TlsCredentials credentials,
                                   HostPort remote,
                                   Channel outboundChannel,
@@ -343,8 +341,6 @@ class ServerConnectionStateMachine {
         return new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider);
     }
 
-    // === Events from KafkaProxyBackendHandler ===
-
     void onServerActive() {
         if (state instanceof ServerConnectionState.Connecting connecting) {
             setState(connecting.toActive());
@@ -395,8 +391,6 @@ class ServerConnectionStateMachine {
     void onServerWritable() {
         ccsm.onServerWritable();
     }
-
-    // === Called by ClientConnectionStateMachine ===
 
     void sendRequest(Object msg) {
         if (state instanceof ServerConnectionState.Connecting) {

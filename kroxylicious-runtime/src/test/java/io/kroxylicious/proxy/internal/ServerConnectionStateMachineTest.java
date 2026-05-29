@@ -33,6 +33,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
@@ -217,7 +218,7 @@ class ServerConnectionStateMachineTest {
     @ValueSource(booleans = { true, false })
     void shouldTrackTlsRequirement(boolean requiresTls) {
         var vc = mock(VirtualClusterModel.class);
-        when(vc.getUpstreamSslContext()).thenReturn(requiresTls ? Optional.of(mock(io.netty.handler.ssl.SslContext.class)) : Optional.empty());
+        when(vc.getUpstreamSslContext()).thenReturn(requiresTls ? Optional.of(mock(SslContext.class)) : Optional.empty());
 
         ServerConnectionStateMachine sm = new ServerConnectionStateMachine(
                 BROKER_ADDRESS,
@@ -496,8 +497,6 @@ class ServerConnectionStateMachineTest {
         verify(ccsm).onServerConnectionException(exception);
     }
 
-    // === connect() tests ===
-
     private ServerConnectionStateMachine createConnectableScsm(ClientConnectionStateMachine mockCcsm,
                                                                VirtualClusterModel mockVirtualCluster,
                                                                EmbeddedChannel[] outboundHolder) {
@@ -645,8 +644,6 @@ class ServerConnectionStateMachineTest {
         assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Closed.class);
     }
 
-    // === TLS credential tests ===
-
     private ServerConnectionStateMachine createScsmWithMocks(ClientConnectionStateMachine mockCcsm,
                                                              VirtualClusterModel mockVirtualCluster) {
         lenient().when(mockCcsm.sessionId()).thenReturn("test-session");
@@ -770,7 +767,7 @@ class ServerConnectionStateMachineTest {
     }
 
     @Test
-    void applySslContextToChannelRejectsNonTlsCredentialsImpl() {
+    void applyTlsContextToChannelRejectsNonTlsCredentialsImpl() {
         var mockCcsm = mock(ClientConnectionStateMachine.class);
         var mockVirtualCluster = mock(VirtualClusterModel.class);
         var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
@@ -779,7 +776,7 @@ class ServerConnectionStateMachineTest {
         Channel channel = mock(Channel.class);
         ChannelPipeline pipeline = mock(ChannelPipeline.class);
 
-        scsm.applySslContextToChannel(badCreds, BROKER_ADDRESS, channel, pipeline);
+        scsm.applyTlsContextToChannel(badCreds, BROKER_ADDRESS, channel, pipeline);
 
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
         verify(mockCcsm).onServerConnectionException(captor.capture());
@@ -789,7 +786,7 @@ class ServerConnectionStateMachineTest {
     }
 
     @Test
-    void applySslContextToChannelAddsSslHandlerWithValidCredentials() throws Exception {
+    void applyTlsContextToChannelAddsSslHandlerWithValidCredentials() throws Exception {
         var mockCcsm = mock(ClientConnectionStateMachine.class);
         var mockVirtualCluster = mock(VirtualClusterModel.class);
         var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
@@ -803,7 +800,7 @@ class ServerConnectionStateMachineTest {
         when(mockVirtualCluster.targetCluster()).thenReturn(mock(io.kroxylicious.proxy.config.TargetCluster.class));
         when(mockVirtualCluster.targetCluster().tls()).thenReturn(Optional.empty());
 
-        scsm.applySslContextToChannel(creds, BROKER_ADDRESS, channel, channel.pipeline());
+        scsm.applyTlsContextToChannel(creds, BROKER_ADDRESS, channel, channel.pipeline());
 
         assertThat(channel.pipeline().get("ssl")).isNotNull();
         verify(mockCcsm, never()).onServerConnectionException(any());
