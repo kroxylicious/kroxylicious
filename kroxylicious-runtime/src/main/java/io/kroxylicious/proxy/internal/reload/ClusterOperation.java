@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.reload.operations;
+package io.kroxylicious.proxy.internal.reload;
 
 import java.util.Optional;
 
@@ -15,7 +15,7 @@ import io.kroxylicious.proxy.reload.ReconfigureError;
  * produce — adding a new operation type is a deliberate change that the compiler can flag
  * at every dispatch point.
  */
-public sealed interface ClusterOperation permits AddCluster, RemoveCluster {
+sealed interface ClusterOperation permits AddCluster, RemoveCluster {
 
     String clusterName();
 

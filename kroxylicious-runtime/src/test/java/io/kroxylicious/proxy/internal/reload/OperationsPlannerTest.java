@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.reload.operations;
+package io.kroxylicious.proxy.internal.reload;
 
 import java.util.Arrays;
 import java.util.List;
@@ -20,7 +20,6 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
-import io.kroxylicious.proxy.internal.reload.ChangeResult;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 

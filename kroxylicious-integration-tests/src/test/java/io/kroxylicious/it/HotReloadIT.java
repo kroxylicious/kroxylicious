@@ -49,6 +49,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 
 /**
  * End-to-end integration tests for {@link KafkaProxy#reconfigure(Configuration)}
@@ -402,20 +403,15 @@ class HotReloadIT extends BaseIT {
     /**
      * Asserts the port is bindable from outside the proxy within 5s.
      */
-    private static void assertPortIsBindable(int port) throws InterruptedException {
-        var deadline = System.currentTimeMillis() + 5_000;
-        IOException lastError = null;
-        while (System.currentTimeMillis() < deadline) {
-            try (var s = new ServerSocket()) {
-                s.bind(new InetSocketAddress((InetAddress) null, port));
-                return;
-            }
-            catch (IOException e) {
-                lastError = e;
-                Thread.sleep(100);
-            }
-        }
-        throw new AssertionError("port " + port + " was not released within 5s; last error: " + lastError);
+    private static void assertPortIsBindable(int port) {
+        await("port " + port + " to be bindable")
+                .atMost(Duration.ofSeconds(5))
+                .pollInterval(Duration.ofMillis(100))
+                .untilAsserted(() -> {
+                    try (var s = new ServerSocket()) {
+                        s.bind(new InetSocketAddress((InetAddress) null, port));
+                    }
+                });
     }
 
     /**
