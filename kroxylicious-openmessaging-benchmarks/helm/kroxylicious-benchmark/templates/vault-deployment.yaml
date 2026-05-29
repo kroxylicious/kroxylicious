@@ -38,6 +38,10 @@ spec:
           value: "true"
         - name: HOME
           value: "/tmp"
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
         readinessProbe:
           httpGet:
             path: /v1/sys/health
