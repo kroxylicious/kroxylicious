@@ -87,6 +87,7 @@ jobs:
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
         with:
           context: kroxylicious-openmessaging-benchmarks
+          platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
           file: kroxylicious-openmessaging-benchmarks/Containerfile
           push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
