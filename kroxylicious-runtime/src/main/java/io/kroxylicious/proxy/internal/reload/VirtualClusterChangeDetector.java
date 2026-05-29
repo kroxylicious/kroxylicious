@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.config.VirtualCluster;
  * Identifies virtual clusters that were added, removed, or modified by comparing the
  * {@link VirtualCluster} config records in the old and new {@link io.kroxylicious.proxy.config.Configuration}.
  */
-public class VirtualClusterChangeDetector implements ChangeDetector {
+final class VirtualClusterChangeDetector implements ChangeDetector {
 
     @Override
     public ChangeResult detect(ConfigurationChangeContext context) {

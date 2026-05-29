@@ -468,12 +468,23 @@ class HotReloadIT extends BaseIT {
      * the same port fails.
      */
     private static ServerSocket openSocketOnPort(int port) {
+        ServerSocket s = null;
         try {
-            var s = new ServerSocket();
+            s = new ServerSocket();
             s.bind(new InetSocketAddress((InetAddress) null, port));
             return s;
         }
         catch (IOException e) {
+            // bind() can throw after the socket was constructed — close it so the FD
+            // isn't leaked and the OS releases any half-claimed port.
+            if (s != null) {
+                try {
+                    s.close();
+                }
+                catch (IOException closeError) {
+                    e.addSuppressed(closeError);
+                }
+            }
             throw new UncheckedIOException(e);
         }
     }
