@@ -22,9 +22,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -41,7 +39,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.internal.tls.TestCertificateUtil;
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
-import io.kroxylicious.proxy.internal.util.ActivationToken;
+import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
@@ -53,7 +51,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -63,29 +60,22 @@ class ServerConnectionStateMachineTest {
 
     private static final HostPort BROKER_ADDRESS = new HostPort("broker.example.com", 9092);
     private static final String CLUSTER_NAME = "test-cluster";
+    private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
 
     @Mock
     private ClientConnectionStateMachine ccsm;
 
     @Mock
-    private ActivationToken activationToken;
-
-    @Mock
     private VirtualClusterModel virtualCluster;
 
     private ServerConnectionStateMachine serverStateMachine;
     private SimpleMeterRegistry meterRegistry;
-    private Counter proxyToServerErrorCounter;
-    private Timer serverToProxyBackpressureMeter;
 
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(meterRegistry);
-
-        proxyToServerErrorCounter = meterRegistry.counter("test.proxy.to.server.errors");
-        serverToProxyBackpressureMeter = meterRegistry.timer("test.server.to.proxy.backpressure");
 
         lenient().when(ccsm.sessionId()).thenReturn("test-session-123");
         lenient().when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
@@ -96,10 +86,7 @@ class ServerConnectionStateMachineTest {
                 ccsm,
                 virtualCluster,
                 CLUSTER_NAME,
-                null,
-                proxyToServerErrorCounter,
-                serverToProxyBackpressureMeter,
-                activationToken);
+                null);
     }
 
     @AfterEach
@@ -237,10 +224,7 @@ class ServerConnectionStateMachineTest {
                 ccsm,
                 vc,
                 CLUSTER_NAME,
-                null,
-                proxyToServerErrorCounter,
-                serverToProxyBackpressureMeter,
-                activationToken);
+                null);
 
         assertThat(sm.isUpstreamTls()).isEqualTo(requiresTls);
     }
@@ -252,10 +236,12 @@ class ServerConnectionStateMachineTest {
 
     @Test
     void onServerActiveShouldTransitionToActiveAndNotifyClientStateMachine() {
+        int initialActiveCount = getActiveServerConnections();
+
         serverStateMachine.onServerActive();
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Active.class);
-        verify(activationToken).acquire();
+        assertThat(getActiveServerConnections()).isEqualTo(initialActiveCount + 1);
         verify(ccsm).onServerConnectionActive();
     }
 
@@ -272,12 +258,13 @@ class ServerConnectionStateMachineTest {
     @Test
     void onServerInactiveShouldTransitionToClosedAndNotifyClientStateMachine() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.onServerInactive();
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
         verify(ccsm).onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
-        verify(activationToken).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -302,14 +289,15 @@ class ServerConnectionStateMachineTest {
     @Test
     void onServerExceptionShouldIncrementErrorCounterAndTransitionToClosed() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
         RuntimeException cause = new RuntimeException("Connection failed");
 
         serverStateMachine.onServerException(cause);
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
-        assertThat(proxyToServerErrorCounter.count()).isCloseTo(1.0, CLOSE_ENOUGH);
+        assertThat(getProxyToServerErrorCount()).isCloseTo(1.0, CLOSE_ENOUGH);
         verify(ccsm).onServerConnectionException(cause);
-        verify(activationToken).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -319,18 +307,18 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.onServerException(null);
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
-        assertThat(proxyToServerErrorCounter.count()).isCloseTo(1.0, CLOSE_ENOUGH);
+        assertThat(getProxyToServerErrorCount()).isCloseTo(1.0, CLOSE_ENOUGH);
         verify(ccsm).onServerConnectionException(null);
     }
 
     @Test
     void onServerExceptionWhenAlreadyClosedShouldNotIncrementErrorCounter() {
         serverStateMachine.close();
-        double errorCountBefore = proxyToServerErrorCounter.count();
+        double errorCountBefore = getProxyToServerErrorCount();
 
         serverStateMachine.onServerException(new RuntimeException("test"));
 
-        assertThat(proxyToServerErrorCounter.count()).isEqualTo(errorCountBefore);
+        assertThat(getProxyToServerErrorCount()).isEqualTo(errorCountBefore);
         verify(ccsm, never()).onServerConnectionException(null);
     }
 
@@ -427,7 +415,7 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.relieveBackpressure();
 
         assertThat(serverStateMachine).extracting("serverBackpressureTimer").isNull();
-        assertThat(serverToProxyBackpressureMeter.count()).isGreaterThanOrEqualTo(1);
+        assertThat(getBackpressureTimerCount()).isGreaterThanOrEqualTo(1);
     }
 
     @Test
@@ -436,9 +424,9 @@ class ServerConnectionStateMachineTest {
 
         serverStateMachine.applyBackpressure();
         serverStateMachine.relieveBackpressure();
-        long countAfterFirst = serverToProxyBackpressureMeter.count();
+        long countAfterFirst = getBackpressureTimerCount();
         serverStateMachine.relieveBackpressure();
-        long countAfterSecond = serverToProxyBackpressureMeter.count();
+        long countAfterSecond = getBackpressureTimerCount();
 
         assertThat(countAfterSecond).isEqualTo(countAfterFirst);
     }
@@ -448,27 +436,29 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.relieveBackpressure();
 
         assertThat(serverStateMachine).extracting("serverBackpressureTimer").isNull();
-        assertThat(serverToProxyBackpressureMeter.count()).isZero();
+        assertThat(getBackpressureTimerCount()).isZero();
     }
 
     @Test
     void closeShouldTransitionToClosedAndReleaseActivationToken() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.close();
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
-        verify(activationToken).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
     void closeShouldBeIdempotent() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.close();
         serverStateMachine.close();
 
-        verify(activationToken, times(1)).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -487,12 +477,13 @@ class ServerConnectionStateMachineTest {
     @Test
     void shouldReleaseActivationTokenOnlyOnceWhenTransitioningToClosed() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.close();
         serverStateMachine.onServerInactive();
         serverStateMachine.onServerException(new RuntimeException("test"));
 
-        verify(activationToken, times(1)).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -517,8 +508,7 @@ class ServerConnectionStateMachineTest {
         when(mockVirtualCluster.socketFrameMaxSizeBytes()).thenReturn(
                 VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         return new ServerConnectionStateMachine(
-                BROKER_ADDRESS, mockCcsm, mockVirtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                BROKER_ADDRESS, mockCcsm, mockVirtualCluster, CLUSTER_NAME, null) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -581,6 +571,17 @@ class ServerConnectionStateMachineTest {
     }
 
     @Test
+    void connecthouldIncrementConnectionCounter() {
+        double initialCount = getProxyToServerConnectionCount();
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(mockCcsm, mockVirtualCluster, outboundHolder);
+        scsm.connect(new EmbeddedChannel());
+        assertThat(getProxyToServerConnectionCount()).isCloseTo(initialCount + 1.0, CLOSE_ENOUGH);
+    }
+
+    @Test
     void connectShouldAddFrameLoggerWhenLogFramesEnabled() {
         var mockCcsm = mock(ClientConnectionStateMachine.class);
         var mockVirtualCluster = mock(VirtualClusterModel.class);
@@ -618,8 +619,7 @@ class ServerConnectionStateMachineTest {
                 VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         var tcpFailure = new RuntimeException("Connection refused");
         var scsm = new ServerConnectionStateMachine(
-                BROKER_ADDRESS, mockCcsm, mockVirtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                BROKER_ADDRESS, mockCcsm, mockVirtualCluster, CLUSTER_NAME, null) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -657,10 +657,7 @@ class ServerConnectionStateMachineTest {
                 mockCcsm,
                 mockVirtualCluster,
                 CLUSTER_NAME,
-                null,
-                mock(Counter.class),
-                mock(Timer.class),
-                mock(ActivationToken.class));
+                null);
     }
 
     @Test
@@ -812,5 +809,28 @@ class ServerConnectionStateMachineTest {
         verify(mockCcsm, never()).onServerConnectionException(any());
 
         channel.close();
+    }
+
+    private int getActiveServerConnections() {
+        return io.kroxylicious.proxy.internal.util.Metrics
+                .proxyToServerConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
+    }
+
+    private double getProxyToServerConnectionCount() {
+        return Metrics.globalRegistry
+                .get("kroxylicious_proxy_to_server_connections")
+                .counter().count();
+    }
+
+    private double getProxyToServerErrorCount() {
+        return Metrics.globalRegistry
+                .get("kroxylicious_proxy_to_server_errors")
+                .counter().count();
+    }
+
+    private long getBackpressureTimerCount() {
+        return Metrics.globalRegistry
+                .get("kroxylicious_server_to_proxy_reads_paused")
+                .timer().count();
     }
 }

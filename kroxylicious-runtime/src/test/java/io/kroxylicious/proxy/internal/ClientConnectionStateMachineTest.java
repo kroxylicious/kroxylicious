@@ -183,23 +183,6 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void shouldCountProxyToServerConnections() {
-        // Given
-        stateMachineInClientActive();
-        when(endpointBinding.upstreamTarget()).thenReturn(BROKER_ADDRESS);
-
-        // When — first client request triggers SCSM creation which increments the counter
-        clientConnectionStateMachine.onClientRequest(metadataRequest());
-
-        // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, CLOSE_ENOUGH));
-    }
-
-    @Test
     void shouldTransitionToClosedOnServerExceptionInForwardingAwaitingBackend() {
         // Given
         stateMachineInForwardingAwaitingTransportSubject();

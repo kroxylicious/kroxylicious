@@ -41,6 +41,7 @@ import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -89,6 +90,7 @@ class ServerConnectionStateMachine {
     @Nullable
     private List<Object> pendingRequests;
 
+    private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
     private final Timer serverToProxyBackpressureMeter;
     private final ActivationToken proxyToServerConnectionToken;
@@ -98,19 +100,19 @@ class ServerConnectionStateMachine {
                                  ClientConnectionStateMachine ccsm,
                                  VirtualClusterModel virtualCluster,
                                  String clusterName,
-                                 @Nullable Integer nodeId,
-                                 Counter proxyToServerErrorCounter,
-                                 Timer serverToProxyBackpressureMeter,
-                                 ActivationToken proxyToServerConnectionToken) {
+                                 @Nullable Integer nodeId) {
         this.state = new ServerConnectionState.Connecting(remote);
         this.virtualCluster = Objects.requireNonNull(virtualCluster);
         this.clusterName = Objects.requireNonNull(clusterName);
         this.nodeId = nodeId;
         this.ccsm = Objects.requireNonNull(ccsm);
         this.backendHandler = new KafkaProxyBackendHandler(this);
-        this.proxyToServerErrorCounter = proxyToServerErrorCounter;
-        this.serverToProxyBackpressureMeter = serverToProxyBackpressureMeter;
-        this.proxyToServerConnectionToken = proxyToServerConnectionToken;
+
+        var node = new VirtualClusterNode(clusterName, nodeId);
+        this.proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
+        this.proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
+        this.serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
+        this.proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
     }
 
     ServerConnectionState state() {
@@ -138,6 +140,7 @@ class ServerConnectionStateMachine {
             ccsm.illegalState("connect() called while not in Connecting state");
             return;
         }
+        proxyToServerConnectionCounter.increment();
         HostPort remote = connecting.remote();
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
