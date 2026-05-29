@@ -11,9 +11,11 @@ import io.kroxylicious.filter.encryption.config.TemplateConfig;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+@Version("v1alpha1")
 @Plugin(configType = TemplateConfig.class)
 public class TemplateKekSelector<K> implements KekSelectorService<TemplateConfig, K> {
 

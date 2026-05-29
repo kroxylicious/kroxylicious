@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import nl.altindag.log.LogCaptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,6 +92,12 @@ class FilterChainFactoryTest {
                                 return FlakyConfig.class;
                             }
                             return ExampleConfig.class;
+                        }
+
+                        @Nullable
+                        @Override
+                        public String pluginVersion(String instanceName) {
+                            return null;
                         }
 
                         @Override

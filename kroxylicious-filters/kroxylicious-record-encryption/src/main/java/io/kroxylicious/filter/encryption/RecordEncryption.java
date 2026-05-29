@@ -55,6 +55,7 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -64,6 +65,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
+@Version("v1alpha1")
 @Plugin(configType = RecordEncryptionConfig.class)
 public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionConfig, SharedEncryptionContext<K, E>> {
 

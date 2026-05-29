@@ -16,6 +16,7 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -27,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Each call to {@link #createFilter} produces a filter with its own effective expiration deadline,
  * randomized within the configured jitter range to avoid thundering herd reconnections.
  */
+@Version("v1")
 @Plugin(configType = ConnectionExpirationFilterConfig.class)
 public class ConnectionExpiration
         implements FilterFactory<ConnectionExpirationFilterConfig, ConnectionExpirationFilterConfig> {

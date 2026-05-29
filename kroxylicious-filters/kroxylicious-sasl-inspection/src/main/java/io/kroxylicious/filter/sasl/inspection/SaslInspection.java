@@ -29,6 +29,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -37,6 +38,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Factory for {@link SaslInspectionFilter}.
  */
+@Version("v1")
 @Plugin(configType = Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.filters.sasl.inspection.SaslInspection", since = "0.19.0")
 public class SaslInspection implements FilterFactory<Config, Void> {

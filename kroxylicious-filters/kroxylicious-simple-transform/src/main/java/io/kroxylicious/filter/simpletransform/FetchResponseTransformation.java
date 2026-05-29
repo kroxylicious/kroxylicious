@@ -19,6 +19,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -26,6 +27,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * A {@link FilterFactory} for {@link FetchResponseTransformationFilter}.
  */
+@Version("v1")
 @Plugin(configType = FetchResponseTransformation.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation", since = "0.19.0")
 public class FetchResponseTransformation implements FilterFactory<Config, Config> {

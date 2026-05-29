@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.Version;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -47,6 +48,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
+@Version("v1")
 @Plugin(configType = OauthBearerValidation.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation", since = "0.19.0")
 public class OauthBearerValidation implements FilterFactory<OauthBearerValidation.Config, SharedOauthBearerValidationContext> {

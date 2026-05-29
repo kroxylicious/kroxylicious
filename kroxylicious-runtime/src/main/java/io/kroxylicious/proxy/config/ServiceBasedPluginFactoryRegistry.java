@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -83,6 +84,26 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
         ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
         Stream<String> names = Stream.of(providerType.getName(), providerType.getSimpleName());
         names = maybeAddOldNames(providerType, names);
+
+        // Register composite keys simpleName/version for version-based disambiguation
+        Version versionAnnotation = providerType.getAnnotation(Version.class);
+        if (versionAnnotation != null) {
+            String version = versionAnnotation.value();
+            String simpleName = providerType.getSimpleName();
+            String versionedSimpleName = simpleName + "/" + version;
+            names = Stream.concat(names, Stream.of(versionedSimpleName));
+
+            // Also register deprecated names with version suffix
+            if (providerType.isAnnotationPresent(DeprecatedPluginName.class)) {
+                String oldName = providerType.getAnnotation(DeprecatedPluginName.class).oldName();
+                String oldSimpleName = simpleName(oldName);
+                if (oldSimpleName != null) {
+                    String versionedOldName = oldSimpleName + "/" + version;
+                    names = Stream.concat(names, Stream.of(versionedOldName));
+                }
+            }
+        }
+
         names.forEach(name -> nameToProviders.computeIfAbsent(name, k -> new HashSet<>()).add(providerAndConfigType));
     }
 
@@ -194,6 +215,17 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 var providerAndConfigType = nameToProvider.get(instanceName);
                 if (providerAndConfigType != null) {
                     return providerAndConfigType.config();
+                }
+                throw unknownPluginInstanceException(instanceName);
+            }
+
+            @Override
+            public String pluginVersion(String instanceName) {
+                var providerAndConfigType = nameToProvider.get(instanceName);
+                if (providerAndConfigType != null) {
+                    Class<?> pluginClass = providerAndConfigType.provider().type();
+                    Version versionAnnotation = pluginClass.getAnnotation(Version.class);
+                    return versionAnnotation != null ? versionAnnotation.value() : null;
                 }
                 throw unknownPluginInstanceException(instanceName);
             }

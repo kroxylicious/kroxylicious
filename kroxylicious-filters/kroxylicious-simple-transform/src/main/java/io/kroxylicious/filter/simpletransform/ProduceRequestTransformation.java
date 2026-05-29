@@ -17,6 +17,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -25,6 +26,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A {@link FilterFactory} for {@link ProduceRequestTransformationFilter}.
  *
  */
+@Version("v1")
 @Plugin(configType = ProduceRequestTransformation.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation", since = "0.19.0")
 public class ProduceRequestTransformation

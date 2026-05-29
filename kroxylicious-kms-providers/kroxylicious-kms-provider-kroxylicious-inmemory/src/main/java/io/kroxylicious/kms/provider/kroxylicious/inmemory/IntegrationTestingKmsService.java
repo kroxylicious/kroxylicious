@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Version;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -37,6 +38,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * </ul>
  * @see UnitTestingKmsService
  */
+@Version("v1")
 @Plugin(configType = IntegrationTestingKmsService.Config.class)
 public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
 

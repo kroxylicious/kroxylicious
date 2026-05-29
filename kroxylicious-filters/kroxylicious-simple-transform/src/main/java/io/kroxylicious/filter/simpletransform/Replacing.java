@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.plugin.DeprecatedPluginName;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.Version;
 
+@Version("v1")
 @Plugin(configType = Replacing.Config.class)
 @DeprecatedPluginName(oldName = "io.kroxylicious.proxy.filter.simpletransform.Replacing", since = "0.19.0")
 public class Replacing implements ByteBufferTransformationFactory<Replacing.Config> {
