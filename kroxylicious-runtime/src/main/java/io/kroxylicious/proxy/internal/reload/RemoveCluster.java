@@ -70,7 +70,7 @@ final class RemoveCluster implements ClusterOperation {
         }
 
         // Await every gateway's unbind
-        var deregisterFutures = originalGateways().stream()
+        var deregisterFutures = currentGateways().stream()
                 .map(g -> endpointRegistry.deregisterVirtualCluster(g).toCompletableFuture())
                 .toArray(CompletableFuture[]::new);
         try {
@@ -83,7 +83,7 @@ final class RemoveCluster implements ClusterOperation {
         return Optional.empty();
     }
 
-    private Collection<? extends EndpointGateway> originalGateways() {
+    private Collection<? extends EndpointGateway> currentGateways() {
         return virtualClusterRegistry.virtualClusterModels().stream()
                 .filter(m -> clusterName.equals(m.getClusterName()))
                 .findFirst()

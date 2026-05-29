@@ -226,22 +226,21 @@ class HotReloadIT extends BaseIT {
         }
     }
 
-    // -----------------------------------------------------------------------------------------
-    // Port-addressed VCs. The SNI tests above share a single acceptor across multiple VCs;
-    // these tests exercise the per-VC acceptor channel — each gateway binds its own port.
-    // The interesting machinery on the remove side is endpointRegistry.deregisterVirtualCluster
-    // triggering a NetworkUnbindRequest once the bindingMap empties for that port.
-    // -----------------------------------------------------------------------------------------
-
+    /**
+     * Port-addressed VCs exercise the per-VC acceptor channel rather than the shared acceptor
+     * the SNI tests above use: each gateway binds its own port. On the remove side, the
+     * interesting machinery is {@code EndpointRegistry.deregisterVirtualCluster} triggering a
+     * {@code NetworkUnbindRequest} once the binding map empties for that port.
+     */
     @Test
     void shouldReleasePortWhenPortAddressedVcIsRemoved(@BrokerCluster KafkaCluster cluster) throws Exception {
         int retainedPort = PORT_BLOCK_REMOVE;
         int releasedPort = PORT_BLOCK_REMOVE + PORT_STRIDE;
 
-        var startingConfig = portConfig(cluster,
+        var startingConfig = portConfig(
                 portVc(cluster, "vc-retain", retainedPort),
                 portVc(cluster, "vc-release", releasedPort));
-        var afterConfig = portConfig(cluster,
+        var afterConfig = portConfig(
                 portVc(cluster, "vc-retain", retainedPort));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
@@ -276,8 +275,8 @@ class HotReloadIT extends BaseIT {
         int initialPort = PORT_BLOCK_ADD;
         int addedPort = PORT_BLOCK_ADD + PORT_STRIDE;
 
-        var startingConfig = portConfig(cluster, portVc(cluster, "vc-initial", initialPort));
-        var afterConfig = portConfig(cluster,
+        var startingConfig = portConfig(portVc(cluster, "vc-initial", initialPort));
+        var afterConfig = portConfig(
                 portVc(cluster, "vc-initial", initialPort),
                 portVc(cluster, "vc-added", addedPort));
 
@@ -313,8 +312,8 @@ class HotReloadIT extends BaseIT {
         try (var externalHolder = openSocketOnPort(contestedPort)) {
             assertThat(externalHolder.getLocalPort()).isEqualTo(contestedPort);
 
-            var startingConfig = portConfig(cluster, portVc(cluster, "vc-initial", initialPort));
-            var afterConfig = portConfig(cluster,
+            var startingConfig = portConfig(portVc(cluster, "vc-initial", initialPort));
+            var afterConfig = portConfig(
                     portVc(cluster, "vc-initial", initialPort),
                     portVc(cluster, "vc-good", goodPort),
                     portVc(cluster, "vc-blocked", contestedPort));
@@ -347,11 +346,11 @@ class HotReloadIT extends BaseIT {
         int retainedPort = PORT_BLOCK_REUSE;
         int reusedPort = PORT_BLOCK_REUSE + PORT_STRIDE;
 
-        var startingConfig = portConfig(cluster,
+        var startingConfig = portConfig(
                 portVc(cluster, "vc-retain", retainedPort),
                 portVc(cluster, "vc-original", reusedPort));
-        var afterRemove = portConfig(cluster, portVc(cluster, "vc-retain", retainedPort));
-        var afterReadd = portConfig(cluster,
+        var afterRemove = portConfig(portVc(cluster, "vc-retain", retainedPort));
+        var afterReadd = portConfig(
                 portVc(cluster, "vc-retain", retainedPort),
                 portVc(cluster, "vc-new", reusedPort));
 
@@ -382,19 +381,17 @@ class HotReloadIT extends BaseIT {
 
     @Test
     void shouldRemoveRuntimeAddedPortAddressedVc(@BrokerCluster KafkaCluster cluster) throws Exception {
-        // Regression: when a VC is added at runtime and then removed in a subsequent
+        // when a VC is added at runtime and then removed in a subsequent
         // reconfigure, RemoveCluster must be able to resolve the original gateway via
-        // VirtualClusterRegistry#virtualClusterModels. Before the registry tracked added
-        // models in that view, this two-step sequence threw IllegalStateException out of
-        // RemoveCluster#originalGateways and failed the second reconfigure.
+        // VirtualClusterRegistry#virtualClusterModels.
         int retainedPort = PORT_BLOCK_ADD_THEN_REMOVE;
         int runtimeAddedPort = PORT_BLOCK_ADD_THEN_REMOVE + PORT_STRIDE;
 
-        var startingConfig = portConfig(cluster, portVc(cluster, "vc-keep", retainedPort));
-        var afterAdd = portConfig(cluster,
+        var startingConfig = portConfig(portVc(cluster, "vc-keep", retainedPort));
+        var afterAdd = portConfig(
                 portVc(cluster, "vc-keep", retainedPort),
                 portVc(cluster, "vc-runtime-added", runtimeAddedPort));
-        var afterRemove = portConfig(cluster, portVc(cluster, "vc-keep", retainedPort));
+        var afterRemove = portConfig(portVc(cluster, "vc-keep", retainedPort));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
@@ -434,7 +431,7 @@ class HotReloadIT extends BaseIT {
                 .build();
     }
 
-    private static Configuration portConfig(KafkaCluster cluster, VirtualCluster... vcs) {
+    private static Configuration portConfig(VirtualCluster... vcs) {
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
         for (var vc : vcs) {
             builder.addToVirtualClusters(vc);
