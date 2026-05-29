@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.reload;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -100,6 +102,32 @@ class AddClusterTest {
 
         assertThat(result).hasValueSatisfying(e -> assertThat(e.cause()).isSameAs(bindCause));
         verify(endpointRegistry).deregisterVirtualCluster(any(EndpointGateway.class));
+    }
+
+    @Test
+    void shouldAwaitRollbackDeregisterBeforeReturning() throws Exception {
+        // The orchestrator must observe a fully-attempted rollback by the time apply() returns,
+        // so a subsequent reconfigure can't race a still-pending unbind.
+        var model = modelWithGateways(NAME, "default");
+        stubBookkeepingSucceeds();
+        var bindCause = new IllegalStateException("simulated bind failure");
+        when(endpointRegistry.registerVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.failedStage(bindCause));
+        var pendingDeregister = new CompletableFuture<Void>();
+        when(endpointRegistry.deregisterVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(pendingDeregister);
+
+        var applyFuture = CompletableFuture.supplyAsync(() -> new AddCluster(model, vcr, endpointRegistry).apply());
+
+        verify(endpointRegistry, timeout(2_000)).deregisterVirtualCluster(any(EndpointGateway.class));
+        assertThat(applyFuture)
+                .as("apply() must block until rollback deregister completes")
+                .isNotDone();
+
+        pendingDeregister.complete(null);
+
+        var result = applyFuture.get(2, TimeUnit.SECONDS);
+        assertThat(result).hasValueSatisfying(e -> assertThat(e.cause()).isSameAs(bindCause));
     }
 
     private void stubBookkeepingSucceeds() {

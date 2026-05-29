@@ -34,7 +34,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * This detector only produces {@code clustersToModify} entries. Added and removed clusters are
  * the concern of {@link VirtualClusterChangeDetector}.
  */
-public class FilterChangeDetector implements ChangeDetector {
+final class FilterChangeDetector implements ChangeDetector {
 
     @Override
     public ChangeResult detect(ConfigurationChangeContext context) {
