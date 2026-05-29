@@ -70,7 +70,7 @@ class OperationsPlannerTest {
 
         planner.plan(new ChangeResult(Set.of(), Set.of("cluster-remove"), Set.of()), configWith("placeholder"));
 
-        assertThat(resolverCalls[0]).as("modelResolver must not be called for remove-only plans").isEqualTo(0);
+        assertThat(resolverCalls[0]).as("modelResolver must not be called for remove-only plans").isZero();
     }
 
     @Test
@@ -80,10 +80,10 @@ class OperationsPlannerTest {
         // failure is loud-and-clear at the framework layer, not a per-cluster error or a
         // generic NPE deep in AddCluster.
         var planner = plannerWithModels(); // resolves no models from any config
+        var changes = new ChangeResult(Set.of("phantom-cluster"), Set.of(), Set.of());
+        var config = configWith("placeholder");
 
-        assertThatThrownBy(() -> planner.plan(
-                new ChangeResult(Set.of("phantom-cluster"), Set.of(), Set.of()),
-                configWith("placeholder")))
+        assertThatThrownBy(() -> planner.plan(changes, config))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("phantom-cluster")
                 .hasMessageContaining("ChangeDetector contract violation");

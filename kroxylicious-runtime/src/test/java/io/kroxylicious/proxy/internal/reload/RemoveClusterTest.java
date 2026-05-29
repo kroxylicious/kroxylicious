@@ -110,8 +110,9 @@ class RemoveClusterTest {
         // VirtualClusterRegistry doesn't know about.
         when(vcr.removeVirtualCluster(NAME)).thenReturn(CompletableFuture.completedFuture(null));
         when(vcr.virtualClusterModels()).thenReturn(List.of());
+        var op = new RemoveCluster(NAME, vcr, endpointRegistry);
 
-        assertThatThrownBy(() -> new RemoveCluster(NAME, vcr, endpointRegistry).apply())
+        assertThatThrownBy(op::apply)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(NAME)
                 .hasMessageContaining("ChangeDetector contract violation");
