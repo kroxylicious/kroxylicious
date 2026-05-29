@@ -18,12 +18,11 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
-import io.kroxylicious.proxy.internal.reload.operations.ClusterOperation;
-import io.kroxylicious.proxy.internal.reload.operations.OperationsPlanner;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
 import io.kroxylicious.proxy.reload.ReconfigureError;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.reload.StaticConfigurationChangedException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Internal class that owns the {@code KafkaProxy.reconfigure(Configuration)} pipeline.
@@ -59,7 +58,7 @@ public class ConfigurationReloadOrchestrator {
 
     private final ReentrantLock reconfigureLock = new ReentrantLock();
     private final List<ChangeDetector> detectors;
-    private final StaticSectionDiffer staticSectionDiffer;
+    private final StaticSectionDiffer staticSectionDiffer = new StaticSectionDiffer();
     private final OperationsPlanner planner;
 
     /**
@@ -83,12 +82,12 @@ public class ConfigurationReloadOrchestrator {
      * Test seam: lets unit tests inject a pre-configured {@link OperationsPlanner} (or a
      * mock) without resolving plugin-factory-backed models.
      */
+    @VisibleForTesting
     ConfigurationReloadOrchestrator(Configuration initialConfiguration,
                                     List<ChangeDetector> detectors,
                                     OperationsPlanner planner) {
         this.currentConfiguration = Objects.requireNonNull(initialConfiguration, "initialConfiguration");
         this.detectors = List.copyOf(Objects.requireNonNull(detectors, "detectors"));
-        this.staticSectionDiffer = new StaticSectionDiffer();
         this.planner = Objects.requireNonNull(planner, "planner");
     }
 

@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.reload.operations;
+package io.kroxylicious.proxy.internal.reload;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
-import io.kroxylicious.proxy.internal.reload.ChangeResult;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 /**
@@ -25,15 +24,15 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
  *
  * <p>Ordering: removes before adds</p>
  */
-public final class OperationsPlanner {
+final class OperationsPlanner {
 
     private final VirtualClusterRegistry virtualClusterRegistry;
     private final EndpointRegistry endpointRegistry;
     private final Function<Configuration, List<VirtualClusterModel>> modelResolver;
 
-    public OperationsPlanner(VirtualClusterRegistry virtualClusterRegistry,
-                             EndpointRegistry endpointRegistry,
-                             Function<Configuration, List<VirtualClusterModel>> modelResolver) {
+    OperationsPlanner(VirtualClusterRegistry virtualClusterRegistry,
+                      EndpointRegistry endpointRegistry,
+                      Function<Configuration, List<VirtualClusterModel>> modelResolver) {
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");
         this.modelResolver = Objects.requireNonNull(modelResolver, "modelResolver");
@@ -46,7 +45,7 @@ public final class OperationsPlanner {
      *         isn't present in {@code newConfig}'s resolved models — this indicates a
      *         {@code ChangeDetector} contract violation (i.e. a framework bug).
      */
-    public List<ClusterOperation> plan(ChangeResult changes, Configuration newConfig) {
+    List<ClusterOperation> plan(ChangeResult changes, Configuration newConfig) {
         var ops = new ArrayList<ClusterOperation>();
 
         for (String name : changes.clustersToRemove()) {
@@ -72,6 +71,6 @@ public final class OperationsPlanner {
 
     private Map<String, VirtualClusterModel> resolveByName(Configuration newConfig) {
         return modelResolver.apply(newConfig).stream()
-                .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, m -> m));
+                .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
     }
 }

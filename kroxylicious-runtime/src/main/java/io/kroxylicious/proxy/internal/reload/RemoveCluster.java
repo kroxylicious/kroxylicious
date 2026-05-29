@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.reload.operations;
+package io.kroxylicious.proxy.internal.reload;
 
 import java.util.Collection;
 import java.util.Objects;
@@ -35,7 +35,7 @@ import io.kroxylicious.proxy.reload.ReconfigureError;
  * </ol>
  *
  */
-public final class RemoveCluster implements ClusterOperation {
+final class RemoveCluster implements ClusterOperation {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RemoveCluster.class);
 
@@ -46,9 +46,9 @@ public final class RemoveCluster implements ClusterOperation {
     private final VirtualClusterRegistry virtualClusterRegistry;
     private final EndpointRegistry endpointRegistry;
 
-    public RemoveCluster(String clusterName,
-                         VirtualClusterRegistry virtualClusterRegistry,
-                         EndpointRegistry endpointRegistry) {
+    RemoveCluster(String clusterName,
+                  VirtualClusterRegistry virtualClusterRegistry,
+                  EndpointRegistry endpointRegistry) {
         this.clusterName = Objects.requireNonNull(clusterName, "clusterName");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");

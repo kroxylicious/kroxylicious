@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.internal.reload.operations;
+package io.kroxylicious.proxy.internal.reload;
 
 import java.util.List;
 import java.util.Objects;
@@ -46,7 +46,7 @@ import io.kroxylicious.proxy.reload.ReconfigureError;
  *       is in an inconsistent state and the orchestrator will surface it as an error.</li>
  * </ul>
  */
-public final class AddCluster implements ClusterOperation {
+final class AddCluster implements ClusterOperation {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AddCluster.class);
 
@@ -57,9 +57,9 @@ public final class AddCluster implements ClusterOperation {
     private final VirtualClusterRegistry virtualClusterRegistry;
     private final EndpointRegistry endpointRegistry;
 
-    public AddCluster(VirtualClusterModel model,
-                      VirtualClusterRegistry virtualClusterRegistry,
-                      EndpointRegistry endpointRegistry) {
+    AddCluster(VirtualClusterModel model,
+               VirtualClusterRegistry virtualClusterRegistry,
+               EndpointRegistry endpointRegistry) {
         this.model = Objects.requireNonNull(model, "model");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");
@@ -109,7 +109,9 @@ public final class AddCluster implements ClusterOperation {
                                     .setCause(LOGGER.isDebugEnabled() ? ex : null)
                                     .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName())
                                     .addKeyValue(LOG_KEY_ERROR, ex.getMessage())
-                                    .log("reconfigure: rollback deregister failed; gateway binding may remain active");
+                                    .log(LOGGER.isDebugEnabled()
+                                            ? "reconfigure: rollback deregister failed; gateway binding may remain active"
+                                            : "reconfigure: rollback deregister failed; gateway binding may remain active. Raise log level to DEBUG to see the stack.");
                             return null;
                         });
             }
