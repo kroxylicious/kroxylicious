@@ -99,13 +99,13 @@ public abstract class FilterHarness {
 
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()), kafkaSession);
-        var forwarding = new ClientConnectionState.Forwarding(null, null);
+        var forwarding = new ClientConnectionState.Forwarding();
         clientConnectionStateMachine.forceState(
                 forwarding,
                 mock(KafkaProxyFrontendHandler.class),
                 mock(ServerConnectionStateMachine.class),
                 kafkaSession,
-                -1);
+                true);
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addLast, (d1, d2) -> {
                     d2.addAll(d1);

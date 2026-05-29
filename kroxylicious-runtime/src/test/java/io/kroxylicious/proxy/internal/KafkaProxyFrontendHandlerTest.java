@@ -62,7 +62,6 @@ import io.kroxylicious.testing.filter.RequestFactory;
 
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -489,9 +488,9 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void handleConnect(ClientConnectionStateMachine clientConnectionStateMachine) {
-        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Connecting.class);
-        assertFalse(inboundChannel.config().isAutoRead(),
-                "Expect inbound autoRead=true, since outbound not yet active");
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
+        assertTrue(inboundChannel.config().isAutoRead(),
+                "Expect inbound autoRead=true, client already unblocked on entering Forwarding");
 
         // Simulate the backend handler receiving channel active and telling the frontend handler
         outboundChannelBecomesActive(clientConnectionStateMachine);
@@ -545,7 +544,7 @@ class KafkaProxyFrontendHandlerTest {
                                           String initialClientSoftwareName) {
         initialiseInboundChannel(clientConnectionStateMachine, handler);
         writeInboundApiVersionsRequest(initialClientSoftwareName);
-        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Connecting.class);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
     }
 
     private static ChannelInboundHandlerAdapter throwOnReadHandler(Exception cause) {

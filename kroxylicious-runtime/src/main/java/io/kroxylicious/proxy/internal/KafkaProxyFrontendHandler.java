@@ -85,9 +85,6 @@ import io.kroxylicious.proxy.tls.TlsCredentials;
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.internal.ClientConnectionState.Connecting;
-import static io.kroxylicious.proxy.internal.ClientConnectionState.SelectingServer;
-
 @SuppressWarnings("java:S1192") // ignore dupe string literals is due to logger keys
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter {
@@ -114,6 +111,9 @@ public class KafkaProxyFrontendHandler
     @VisibleForTesting
     @Nullable
     List<Object> bufferedMsgs;
+    @VisibleForTesting
+    @Nullable
+    DecodedRequestFrame<?> initialRequestForError;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
 
@@ -293,14 +293,6 @@ public class KafkaProxyFrontendHandler
         clientChannel.read();
     }
 
-    /**
-     * Called by the {@link ClientConnectionStateMachine} on entry to the {@link SelectingServer} state.
-     */
-    void inSelectingServer() {
-        var target = Objects.requireNonNull(clientConnectionStateMachine.endpointBinding().upstreamTarget());
-        initiateConnect(target);
-    }
-
     private List<FilterAndInvoker> buildFilters() {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
@@ -334,26 +326,14 @@ public class KafkaProxyFrontendHandler
 
     /**
      * Initiates the connection to a server.
-     * Changes {@link #clientConnectionStateMachine} from {@link SelectingServer} to {@link Connecting}
-     * Initializes the {@code backendHandler} and configures its pipeline
-     * with the given {@code filters}.
+     * Called by the {@link ClientConnectionStateMachine} to initiate a backend connection.
+     * Configures the backend channel pipeline and starts the TCP connection.
      * @param remote upstream broker target
+     * @param backendHandler the handler for the backend channel
      */
-    void initiateConnect(
-                         HostPort remote) {
-        LOGGER.atDebug()
-                .addKeyValue("sessionId", this.clientConnectionStateMachine.sessionId())
-                .addKeyValue("remote", remote)
-                .log("Connecting to backend broker");
-        this.clientConnectionStateMachine.onInitiateConnect(remote);
-    }
-
-    /**
-     * Called by the {@link ClientConnectionStateMachine} on entry to the {@link Connecting} state.
-     */
-    void inConnecting(
-                      HostPort remote,
-                      KafkaProxyBackendHandler backendHandler) {
+    void initiateBackendConnect(
+                                HostPort remote,
+                                KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
@@ -614,6 +594,9 @@ public class KafkaProxyFrontendHandler
     void bufferMsg(Object msg) {
         if (bufferedMsgs == null) {
             bufferedMsgs = new ArrayList<>();
+            if (msg instanceof DecodedRequestFrame<?> frame) {
+                initialRequestForError = frame;
+            }
         }
         bufferedMsgs.add(msg);
     }
@@ -690,15 +673,17 @@ public class KafkaProxyFrontendHandler
      */
     private @Nullable ResponseFrame errorResponse(
                                                   @Nullable Throwable errorCodeEx) {
-        ResponseFrame errorResponse;
-        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
-        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        final Object triggerMsg;
+        if (bufferedMsgs != null && !bufferedMsgs.isEmpty()) {
+            triggerMsg = bufferedMsgs.get(0);
         }
         else {
-            errorResponse = null;
+            triggerMsg = initialRequestForError;
         }
-        return errorResponse;
+        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            return buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        }
+        return null;
     }
 
     /**

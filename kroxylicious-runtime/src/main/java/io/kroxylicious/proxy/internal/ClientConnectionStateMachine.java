@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
 
@@ -74,11 +74,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
  *  │  {@link ClientConnectionState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╰───┤
- *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
- *     {@link ClientConnectionState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *     {@link ClientConnectionState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *      │
- *      ↓
+ *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any KRPC request
  *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *  ╭───┤
  *  │   ↓ {@link #onDraining(Runnable, CompletableFuture) onDraining}
@@ -110,7 +106,6 @@ import static org.slf4j.LoggerFactory.getLogger;
  */
 @SuppressWarnings("java:S1133")
 public class ClientConnectionStateMachine {
-    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "onInitiateConnect called more than once";
     private static final Logger LOGGER = getLogger(ClientConnectionStateMachine.class);
 
     /**
@@ -182,7 +177,7 @@ public class ClientConnectionStateMachine {
     boolean clientReadsBlocked;
     private final TransportSubjectBuilder transportSubjectBuilder;
     private final ClientSubjectManager clientSubjectManager = new ClientSubjectManager();
-    private int progressionLatch = -1;
+    private boolean transportSubjectReady;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
@@ -190,12 +185,17 @@ public class ClientConnectionStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The server connection state machine. Non-null if {@link #onInitiateConnect(HostPort)}
-     * has been called.
+     * The server connection state machine. Non-null once the first client request triggers
+     * backend connection setup (transition to {@link Forwarding}).
      */
     @VisibleForTesting
     @Nullable
     private ServerConnectionStateMachine serverConnectionStateMachine;
+
+    @Nullable
+    private String clientSoftwareName;
+    @Nullable
+    private String clientSoftwareVersion;
 
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
     private int clientMessagesInFlightCount;
@@ -240,7 +240,7 @@ public class ClientConnectionStateMachine {
                     KafkaProxyFrontendHandler frontendHandler,
                     @Nullable ServerConnectionStateMachine serverConnectionStateMachine,
                     KafkaSession kafkaSession,
-                    int transportAndBackendLatch) {
+                    boolean transportSubjectReady) {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
@@ -252,7 +252,7 @@ public class ClientConnectionStateMachine {
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
         this.serverConnectionStateMachine = serverConnectionStateMachine;
-        this.progressionLatch = transportAndBackendLatch;
+        this.transportSubjectReady = transportSubjectReady;
     }
 
     @Override
@@ -293,6 +293,16 @@ public class ClientConnectionStateMachine {
 
     boolean isTlsListener() {
         return endpointBinding.endpointGateway().isUseTls();
+    }
+
+    @Nullable
+    String clientSoftwareName() {
+        return clientSoftwareName;
+    }
+
+    @Nullable
+    String clientSoftwareVersion() {
+        return clientSoftwareVersion;
     }
 
     /**
@@ -362,28 +372,14 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Notify the statemachine that the connection to the backend has started.
-     * @param peer the upstream host to connect to.
-     */
-    void onInitiateConnect(
-                           HostPort peer) {
-        if (state instanceof ClientConnectionState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer));
-        }
-        else {
-            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR);
-        }
-    }
-
-    /**
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection is ready for RPC calls.
      */
     void onServerConnectionActive() {
-        if (state() instanceof ClientConnectionState.Connecting connectedState) {
-            toForwarding(connectedState.toForwarding());
+        if (state() instanceof Forwarding) {
+            kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         }
         else {
-            illegalState("Server became active while not in the connecting state");
+            illegalState("Server became active while not in the Forwarding state");
         }
     }
 
@@ -472,8 +468,17 @@ public class ClientConnectionStateMachine {
         Objects.requireNonNull(frontendHandler);
         // Count every msg received from the client.
         clientMessagesInFlightCount++;
-        if (state() instanceof Forwarding) { // post-backend connection
-            frontendHandler.admitToFilterChain(msg);
+        if (state() instanceof Forwarding) {
+            if (!(msg instanceof RequestFrame)) {
+                illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
+                return;
+            }
+            if (!transportSubjectReady) {
+                frontendHandler.bufferMsg(msg);
+            }
+            else {
+                frontendHandler.admitToFilterChain(msg);
+            }
         }
         else if (state() instanceof ClientConnectionState.Draining draining) {
             // autoRead is disabled the moment we enter Draining, so the only frames that can
@@ -491,27 +496,6 @@ public class ClientConnectionStateMachine {
         }
         else if (!onClientRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
-        }
-    }
-
-    /**
-     * ensure the state machine is in the selecting server state.
-     *
-     * @return the SelectingServer state
-     * @throws IllegalStateException if the state is not {@link ClientConnectionState.SelectingServer}.
-     */
-    ClientConnectionState.SelectingServer enforceInSelectingServer(String errorMessage) {
-        if (state instanceof ClientConnectionState.SelectingServer selectingServerState) {
-            return selectingServerState;
-        }
-        else {
-            illegalState(errorMessage);
-            throw new IllegalStateException("State required to be "
-                    + ClientConnectionState.SelectingServer.class.getSimpleName()
-                    + " but was "
-                    + currentState()
-                    + ":"
-                    + errorMessage);
         }
     }
 
@@ -775,12 +759,7 @@ public class ClientConnectionStateMachine {
                                 ClientConnectionState.ClientActive clientActive,
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
-        // we require two events before unblocking (making reads from) the client:
-        // 1. the completion of the building of the transport subject
-        // 2. the progression of the state machine to forwarding state
-        // (completion of the connection to the backend)
-        // these can happen in either order
-        this.progressionLatch = 2;
+        this.transportSubjectReady = false;
         if (!this.isTlsListener()) {
             this.clientSubjectManager.subjectFromTransport(null, this.transportSubjectBuilder,
                     frontendHandler.eventLoopExecutor(), this::onTransportSubjectBuilt);
@@ -796,102 +775,79 @@ public class ClientConnectionStateMachine {
         if (!authenticatedSubject().isAnonymous()) {
             onSessionTransportAuthenticated();
         }
-        maybeUnblock();
+        this.transportSubjectReady = true;
+        tryUnblockClient();
     }
 
     Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
-    private void maybeUnblock() {
-        if (--this.progressionLatch == 0) {
+    private void tryUnblockClient() {
+        if (transportSubjectReady && state instanceof Forwarding) {
             Objects.requireNonNull(frontendHandler).unblockClient();
         }
     }
 
     @SuppressWarnings("java:S5738")
-    private void toConnecting(
-                              ClientConnectionState.Connecting connecting) {
-        setState(connecting);
+    private void toForwarding(Forwarding forwarding,
+                              HostPort remote) {
+        setState(forwarding);
         boolean upstreamRequiresTls = virtualCluster().getUpstreamSslContext().isPresent();
         serverConnectionStateMachine = new ServerConnectionStateMachine(
-                connecting.remote(),
+                remote,
                 upstreamRequiresTls,
                 this,
                 proxyToServerConnectionCounter,
                 proxyToServerErrorCounter,
                 serverToProxyBackpressureMeter,
                 proxyToServerConnectionToken);
-        Objects.requireNonNull(frontendHandler).inConnecting(
-                connecting.remote(), serverConnectionStateMachine.backendHandler());
-        var frontend = Objects.requireNonNull(this.frontendHandler);
+        var frontend = Objects.requireNonNull(frontendHandler);
+        frontend.initiateBackendConnect(remote, serverConnectionStateMachine.backendHandler());
         log(Level.DEBUG)
-                .addKeyValue("remote", connecting.remote())
+                .addKeyValue("remote", remote)
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
-                .log("Upstream connection established for client");
-    }
-
-    @SuppressWarnings("java:S5738")
-    private void toForwarding(Forwarding forwarding) {
-        setState(forwarding);
-        kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
-        // we must wait for the transport subject to be built before forwarding the buffered messages and then enabling autoread on the client
-        maybeUnblock();
+                .log("Upstream connection initiated for client");
     }
 
     /**
-     * handle a message received from the client prior to connecting to the upstream node
+     * Handle a message received from the client prior to connecting to the upstream node.
+     * Captures client software metadata from ApiVersions requests and triggers
+     * the transition to {@link Forwarding}.
      * @param msg Message received from the downstream client.
-     * @return <code>false</code> for unsupported message types
+     * @return {@code false} for unsupported message types
      */
     private boolean onClientRequestBeforeForwarding(Object msg) {
         Objects.requireNonNull(frontendHandler).bufferMsg(msg);
         if (state() instanceof ClientConnectionState.ClientActive clientActive) {
-            return onClientRequestInClientActiveState(msg, clientActive);
+            return transitionToForwarding(msg, clientActive::toForwarding);
         }
         else if (state() instanceof ClientConnectionState.HaProxy haProxy) {
-            return onClientRequestInHaProxyState(msg, haProxy);
+            return transitionToForwarding(msg, haProxy::toForwarding);
         }
-        else if (state() instanceof ClientConnectionState.SelectingServer) {
-            return msg instanceof RequestFrame;
-        }
-        else {
-            return state() instanceof ClientConnectionState.Connecting && msg instanceof RequestFrame;
-        }
+        return false;
     }
 
-    private boolean onClientRequestInHaProxyState(Object msg, ClientConnectionState.HaProxy haProxy) {
-        return transitionClientRequest(msg, haProxy::toSelectingServer);
-    }
-
-    private boolean transitionClientRequest(
-                                            Object msg,
-                                            Function<DecodedRequestFrame<ApiVersionsRequestData>, ClientConnectionState.SelectingServer> selectingServerFactory) {
+    private boolean transitionToForwarding(
+                                           Object msg,
+                                           Supplier<Forwarding> forwardingFactory) {
         if (isMessageApiVersionsRequest(msg)) {
-            // We know it's an API Versions request even if the compiler doesn't
             @SuppressWarnings("unchecked")
             DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-            toSelectingServer(selectingServerFactory.apply(apiVersionsFrame));
-            return true;
+            this.clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
+            this.clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
         }
-        else if (msg instanceof RequestFrame) {
-            toSelectingServer(selectingServerFactory.apply(null));
+        if (msg instanceof RequestFrame) {
+            var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+            toForwarding(forwardingFactory.get(), target);
+            tryUnblockClient();
             return true;
         }
         return false;
     }
 
-    private boolean onClientRequestInClientActiveState(Object msg, ClientConnectionState.ClientActive clientActive) {
-        return transitionClientRequest(msg, clientActive::toSelectingServer);
-    }
-
     private void toHaProxy(ClientConnectionState.HaProxy haProxy) {
         setState(haProxy);
-    }
-
-    private void toSelectingServer(ClientConnectionState.SelectingServer selectingServer) {
-        setState(selectingServer);
-        Objects.requireNonNull(frontendHandler).inSelectingServer();
     }
 
     private void toClosed(@Nullable Throwable errorCodeEx) {

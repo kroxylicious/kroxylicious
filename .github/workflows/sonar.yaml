@@ -70,7 +70,7 @@ jobs:
           git checkout "origin/${{env.SANITIZED_HEAD_REF}}"
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
         if: env.SONAR_TOKEN_SET == 'true'
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
