@@ -750,4 +750,37 @@ class VirtualClusterRegistryTest {
                 .isInstanceOf(NullPointerException.class);
     }
 
+    @Test
+    void virtualClusterModelsReflectsRuntimeAddedModel() {
+        // Contract relied on by RemoveCluster#originalGateways: a model handed to
+        // addVirtualCluster appears in virtualClusterModels() so a subsequent reconfigure can
+        // resolve its gateways.
+        var addedModel = mockModel(CLUSTER_B);
+
+        vcc.addVirtualCluster(addedModel);
+
+        assertThat(vcc.virtualClusterModels())
+                .as("constructor-supplied CLUSTER_A then the runtime-added addedModel, in insertion order")
+                .extracting(VirtualClusterModel::getClusterName)
+                .containsExactly(CLUSTER_A, CLUSTER_B);
+        assertThat(vcc.virtualClusterModels())
+                .as("runtime-added model identity is preserved (same reference, not a copy)")
+                .last().isSameAs(addedModel);
+    }
+
+    @Test
+    void virtualClusterModelsRetainsRemovedModel() {
+        // Models persist past Stopped, mirroring lifecyclesByCluster's post-Stopped retention.
+        // RemoveCluster's defensive capture-then-remove relies on this only as a belt-and-braces
+        // ordering — the contract here is that even after the lifecycle has been driven to
+        // Stopped the model entry remains queryable.
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.removeVirtualCluster(CLUSTER_A).join();
+
+        assertThat(vcc.virtualClusterModels())
+                .as("constructor-supplied model should remain queryable after removeVirtualCluster")
+                .extracting(VirtualClusterModel::getClusterName)
+                .containsExactly(CLUSTER_A);
+    }
+
 }

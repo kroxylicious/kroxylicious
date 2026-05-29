@@ -45,7 +45,7 @@ public class VirtualClusterRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterRegistry.class);
 
-    private final List<VirtualClusterModel> virtualClusterModels;
+    private final Map<String, VirtualClusterModel> modelsByCluster;
     private final Map<String, VirtualClusterLifecycle> lifecyclesByCluster;
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
@@ -64,23 +64,26 @@ public class VirtualClusterRegistry {
                                   BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
-        this.virtualClusterModels = List.copyOf(virtualClusterModels);
+        this.modelsByCluster = new LinkedHashMap<>();
         this.lifecyclesByCluster = new LinkedHashMap<>();
-        for (var vcm : this.virtualClusterModels) {
+        for (var vcm : virtualClusterModels) {
             var name = vcm.getClusterName();
             if (lifecyclesByCluster.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate cluster name: " + name);
             }
+            modelsByCluster.put(name, vcm);
             lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, vcm.drainTimeout()));
         }
     }
 
     /**
-     * Returns the virtual cluster models this manager was constructed with.
-     * @return unmodifiable list of virtual cluster models
+     * Returns the currently-tracked virtual cluster models. The list reflects the constructor-
+     * supplied models PLUS any added at runtime via {@link #addVirtualCluster(VirtualClusterModel)}.
+     *
+     * @return snapshot of currently-tracked virtual cluster models (insertion order)
      */
     public List<VirtualClusterModel> virtualClusterModels() {
-        return virtualClusterModels;
+        return List.copyOf(modelsByCluster.values());
     }
 
     /**
@@ -270,6 +273,7 @@ public class VirtualClusterRegistry {
                 .addKeyValue("virtualCluster", name)
                 .addKeyValue("operation", "addVirtualCluster")
                 .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
+        modelsByCluster.put(name, newModel);
         lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, newModel.drainTimeout()));
         return CompletableFuture.completedFuture(null);
     }

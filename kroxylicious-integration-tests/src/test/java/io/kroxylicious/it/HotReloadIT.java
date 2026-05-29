@@ -380,6 +380,54 @@ class HotReloadIT extends BaseIT {
         }
     }
 
+    @Test
+    void shouldRemoveRuntimeAddedPortAddressedVc(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Regression: when a VC is added at runtime and then removed in a subsequent
+        // reconfigure, RemoveCluster must be able to resolve the original gateway via
+        // VirtualClusterRegistry#virtualClusterModels. Before the registry tracked added
+        // models in that view, this two-step sequence threw IllegalStateException out of
+        // RemoveCluster#originalGateways and failed the second reconfigure.
+        int retainedPort = PORT_BLOCK_ADD_THEN_REMOVE;
+        int runtimeAddedPort = PORT_BLOCK_ADD_THEN_REMOVE + PORT_STRIDE;
+
+        var startingConfig = portConfig(cluster, portVc(cluster, "vc-keep", retainedPort));
+        var afterAdd = portConfig(cluster,
+                portVc(cluster, "vc-keep", retainedPort),
+                portVc(cluster, "vc-runtime-added", runtimeAddedPort));
+        var afterRemove = portConfig(cluster, portVc(cluster, "vc-keep", retainedPort));
+
+        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+
+            String keepTopic = tester.createTopic("vc-keep");
+            assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "phase1-keep");
+
+            LOGGER.info("Reconfigure 1: adding vc-runtime-added on port {}", runtimeAddedPort);
+            var r1 = tester.reconfigure(afterAdd).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+            assertThat(r1.hasErrors())
+                    .as("Reconfigure 1 (add) should have no errors")
+                    .isFalse();
+
+            String runtimeTopic = tester.createTopic("vc-runtime-added");
+            assertProduceConsumeRoundTrip(tester, "vc-runtime-added", runtimeTopic, "phase2-runtime-added");
+
+            LOGGER.info("Reconfigure 2: removing the runtime-added vc-runtime-added");
+            var r2 = tester.reconfigure(afterRemove).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
+            assertThat(r2.hasErrors())
+                    .as("Reconfigure 2 (remove of runtime-added VC) should have no errors — "
+                            + "this is the regression: VirtualClusterRegistry must retain models for "
+                            + "runtime-added VCs so RemoveCluster can resolve their gateways")
+                    .isFalse();
+
+            // The port the runtime-added VC was bound to is released.
+            assertPortIsBindable(runtimeAddedPort);
+
+            // The unaffected VC continues to serve.
+            assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "phase4-keep");
+        }
+    }
+
     private static VirtualCluster portVc(KafkaCluster cluster, String name, int port) {
         return KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
@@ -399,6 +447,7 @@ class HotReloadIT extends BaseIT {
     private static final int PORT_BLOCK_ADD = 51100; // shouldStartServingAddedPortAddressedVcEndToEnd
     private static final int PORT_BLOCK_BINDFAIL = 51200; // shouldSurfaceBindFailureAsReconfigureError...
     private static final int PORT_BLOCK_REUSE = 51300; // shouldSupportPortReuseAcrossReconfigures
+    private static final int PORT_BLOCK_ADD_THEN_REMOVE = 51400; // shouldRemoveRuntimeAddedPortAddressedVc
 
     /**
      * Asserts the port is bindable from outside the proxy within 5s.
