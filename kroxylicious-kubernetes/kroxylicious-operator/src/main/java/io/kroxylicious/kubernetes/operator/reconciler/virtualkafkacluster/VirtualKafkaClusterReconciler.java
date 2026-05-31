@@ -399,9 +399,8 @@ public final class VirtualKafkaClusterReconciler implements
                 VirtualKafkaCluster.class)
                 .withName(PROXY_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef()))
-                .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
+                .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferringPrimaries(context,
                         proxy,
-                        VirtualKafkaCluster.class,
                         cluster -> Optional.of(cluster.getSpec().getProxyRef())))
                 .build();
 
@@ -411,9 +410,8 @@ public final class VirtualKafkaClusterReconciler implements
                 PROXY_CONFIG_STATE_SOURCE_NAME,
                 sharedConfigMapInformer,
                 VirtualKafkaClusterReconciler::toConfigStateResourceName,
-                configMap -> ResourcesUtil.findReferrers(context,
+                configMap -> ResourcesUtil.findReferringPrimaries(context,
                         configMap,
-                        VirtualKafkaCluster.class,
                         cluster -> Optional.of(new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap")
                                 .withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX)
                                 .build())),

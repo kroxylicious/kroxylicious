@@ -91,11 +91,7 @@ class AllReconcilersIT {
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
     private static final String STRIMZI_TLS_LISTENER = "tls";
-    // Reconciliation in CI can be considerably slower than locally: the ingress status is only populated
-    // once a whole chain of reconciliations has completed (KafkaProxy creates an annotated Service, which
-    // the VirtualKafkaClusterReconciler then observes). 60s proved insufficient under load, see
-    // https://github.com/kroxylicious/kroxylicious/issues/4017
-    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(120));
+    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll

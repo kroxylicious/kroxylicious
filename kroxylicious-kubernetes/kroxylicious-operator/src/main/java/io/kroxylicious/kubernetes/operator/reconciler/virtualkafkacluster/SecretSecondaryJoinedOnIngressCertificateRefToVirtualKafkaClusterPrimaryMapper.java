@@ -28,9 +28,8 @@ class SecretSecondaryJoinedOnIngressCertificateRefToVirtualKafkaClusterPrimaryMa
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(Secret secret) {
-        return ResourcesUtil.findReferrersMulti(context,
+        return ResourcesUtil.findReferringPrimariesMulti(context,
                 secret,
-                VirtualKafkaCluster.class,
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                         .map(Tls::getCertificateRef).toList());
