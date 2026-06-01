@@ -770,7 +770,8 @@ class VirtualClusterRegistryTest {
 
     @Test
     void virtualClusterModelsRetainsRemovedModel() {
-        // Models persist past Stopped, mirroring lifecyclesByCluster's post-Stopped retention.
+        // Entries persist past Stopped — the registry never removes a cluster's entry from
+        // its internal map, so virtualClusterModels() keeps reporting it.
         // RemoveCluster's defensive capture-then-remove relies on this only as a belt-and-braces
         // ordering — the contract here is that even after the lifecycle has been driven to
         // Stopped the model entry remains queryable.
