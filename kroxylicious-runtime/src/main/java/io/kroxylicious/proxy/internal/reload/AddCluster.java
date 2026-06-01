@@ -89,6 +89,8 @@ final class AddCluster implements ClusterOperation {
                 .toArray(CompletableFuture[]::new);
         try {
             CompletableFuture.allOf(bindFutures).join();
+            virtualClusterRegistry.initializationSucceeded(clusterName());
+            return Optional.empty();
         }
         catch (RuntimeException bindError) {
             Throwable cause = CompletionExceptions.unwrap(bindError);
@@ -98,29 +100,32 @@ final class AddCluster implements ClusterOperation {
                     .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                     .log("reconfigure: gateway registration failed; rolling back");
             virtualClusterRegistry.initializationFailed(clusterName(), cause);
-
-            // Rollback deregister: await every gateway's unbind before returning so the
-            // caller sees a fully-attempted rollback. Per-gateway failures are logged via
-            // .exceptionally(); the original bind cause is what we surface as the
-            // ReconfigureError, never the rollback cause.
-            var rollbackFutures = gateways.stream()
-                    .map(g -> endpointRegistry.deregisterVirtualCluster(g).toCompletableFuture()
-                            .exceptionally(ex -> {
-                                LOGGER.atWarn()
-                                        .setCause(LOGGER.isDebugEnabled() ? ex : null)
-                                        .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName())
-                                        .addKeyValue(LOG_KEY_ERROR, ex.getMessage())
-                                        .log(LOGGER.isDebugEnabled()
-                                                ? "reconfigure: rollback deregister failed; gateway binding may remain active"
-                                                : "reconfigure: rollback deregister failed; gateway binding may remain active. Raise log level to DEBUG to see the stack.");
-                                return null;
-                            }))
-                    .toArray(CompletableFuture[]::new);
-            CompletableFuture.allOf(rollbackFutures).join();
+            rollbackVirtualClusterRegistration(gateways);
             return Optional.of(new ReconfigureError(clusterName(), cause));
         }
-        virtualClusterRegistry.initializationSucceeded(clusterName());
-        return Optional.empty();
+    }
+
+    /**
+     * Awaits every gateway's deregister before returning, so the caller sees a fully-attempted
+     * rollback. Per-gateway failures are logged via {@code .exceptionally()} and swallowed —
+     * the original bind cause is what we surface as the {@link ReconfigureError}, never a
+     * rollback cause.
+     */
+    private void rollbackVirtualClusterRegistration(List<EndpointGateway> gateways) {
+        var rollbackFutures = gateways.stream()
+                .map(g -> endpointRegistry.deregisterVirtualCluster(g).toCompletableFuture()
+                        .exceptionally(ex -> {
+                            LOGGER.atWarn()
+                                    .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                                    .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName())
+                                    .addKeyValue(LOG_KEY_ERROR, ex.getMessage())
+                                    .log(LOGGER.isDebugEnabled()
+                                            ? "reconfigure: rollback deregister failed; gateway binding may remain active"
+                                            : "reconfigure: rollback deregister failed; gateway binding may remain active. Raise log level to DEBUG to see the stack.");
+                            return null;
+                        }))
+                .toArray(CompletableFuture[]::new);
+        CompletableFuture.allOf(rollbackFutures).join();
     }
 
     private ReconfigureError reportFailure(Throwable cause, String message) {

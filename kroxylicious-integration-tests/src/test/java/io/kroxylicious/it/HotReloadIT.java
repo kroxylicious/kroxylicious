@@ -121,10 +121,11 @@ class HotReloadIT extends BaseIT {
             // Phase 2: reconfigure removes vc-outgoing. The acceptor channel stays alive
             // (vc-baseline still needs it); vc-outgoing transitions to STOPPED.
             LOGGER.info("Phase 2: reconfiguring to remove '{}'", VC_OUTGOING_NAME);
-            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(result.hasErrors())
-                    .as("ReconfigureResult should have no errors for a clean pure-remove")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("ReconfigureResult should have no errors for a clean pure-remove")
+                            .isFalse());
 
             // Phase 3: vc-baseline continues to serve on the same port + cert. An unaffected
             // VC is genuinely undisturbed by the reconfigure.
@@ -165,10 +166,11 @@ class HotReloadIT extends BaseIT {
 
             // Phase 2: reconfigure adds vc-incoming.
             LOGGER.info("Phase 2: reconfiguring to add '{}'", VC_INCOMING_NAME);
-            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(result.hasErrors())
-                    .as("ReconfigureResult should have no errors for a clean pure-add")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("ReconfigureResult should have no errors for a clean pure-add")
+                            .isFalse());
 
             // Phase 3: the newly-added vc-incoming is reachable end-to-end.
             LOGGER.info("Phase 3: verifying '{}' serves produce + consume after add", VC_INCOMING_NAME);
@@ -204,10 +206,11 @@ class HotReloadIT extends BaseIT {
 
             // Phase 2: a single reconfigure both removes vc-outgoing AND adds vc-incoming.
             LOGGER.info("Phase 2: reconfiguring to remove '{}' and add '{}' in one call", VC_OUTGOING_NAME, VC_INCOMING_NAME);
-            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(result.hasErrors())
-                    .as("ReconfigureResult should have no errors for a clean mixed add+remove")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("ReconfigureResult should have no errors for a clean mixed add+remove")
+                            .isFalse());
 
             // Phase 3: vc-baseline is undisturbed by the mixed reconfigure.
             LOGGER.info("Phase 3: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
@@ -255,10 +258,11 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-release", releaseTopic, "phase1-release");
 
             LOGGER.info("Reconfiguring to remove port-addressed VC bound to port {}", releasedPort);
-            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(result.hasErrors())
-                    .as("ReconfigureResult should have no errors for a clean port-addressed remove")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("ReconfigureResult should have no errors for a clean port-addressed remove")
+                            .isFalse());
 
             // The released port is reclaimable from outside the proxy. NetworkUnbindRequest is
             // queued on the binding-operation processor; the reconfigure future completes when
@@ -288,10 +292,11 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "phase1-initial");
 
             LOGGER.info("Reconfiguring to add port-addressed VC on port {}", addedPort);
-            var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(result.hasErrors())
-                    .as("ReconfigureResult should have no errors for a clean port-addressed add")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("ReconfigureResult should have no errors for a clean port-addressed add")
+                            .isFalse());
 
             // New VC reachable end-to-end on its freshly bound port.
             String addedTopic = tester.createTopic("vc-added");
@@ -323,14 +328,16 @@ class HotReloadIT extends BaseIT {
             try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
                 LOGGER.info("Reconfiguring to add vc-good (port {}) and vc-blocked (port {}, held externally)", goodPort, contestedPort);
-                var result = tester.reconfigure(afterConfig).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-
-                assertThat(result.hasErrors())
-                        .as("ReconfigureResult should report the bind failure for vc-blocked")
-                        .isTrue();
-                assertThat(result.errors())
-                        .extracting(ReconfigureError::humanReadableIdentifier)
-                        .containsExactly("vc-blocked");
+                assertThat(tester.reconfigure(afterConfig))
+                        .succeedsWithin(RECONFIGURE_TIMEOUT)
+                        .satisfies(rr -> {
+                            assertThat(rr.hasErrors())
+                                    .as("ReconfigureResult should report the bind failure for vc-blocked")
+                                    .isTrue();
+                            assertThat(rr.errors())
+                                    .extracting(ReconfigureError::humanReadableIdentifier)
+                                    .containsExactly("vc-blocked");
+                        });
 
                 // vc-good came up on its own port — a per-VC failure does not block other adds.
                 String goodTopic = tester.createTopic("vc-good");
@@ -361,17 +368,19 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-original", tester.createTopic("vc-original"), "phase1-original");
 
             LOGGER.info("First reconfigure: removing vc-original from port {}", reusedPort);
-            var r1 = tester.reconfigure(afterRemove).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(r1.hasErrors()).isFalse();
+            assertThat(tester.reconfigure(afterRemove))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
             // We deliberately do NOT probe the freed port between the two reconfigures —
             // binding from the test would leave it in TIME_WAIT and prevent the proxy's
             // subsequent rebind. The second reconfigure's success IS the port-released proof.
 
             LOGGER.info("Second reconfigure: adding vc-new on the same port {}", reusedPort);
-            var r2 = tester.reconfigure(afterReadd).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(r2.hasErrors())
-                    .as("Second reconfigure should rebind cleanly on the freed port")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterReadd))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("Second reconfigure should rebind cleanly on the freed port")
+                            .isFalse());
 
             // The newly-added VC on the reused port is fully functional.
             String newTopic = tester.createTopic("vc-new");
@@ -401,21 +410,23 @@ class HotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "phase1-keep");
 
             LOGGER.info("Reconfigure 1: adding vc-runtime-added on port {}", runtimeAddedPort);
-            var r1 = tester.reconfigure(afterAdd).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(r1.hasErrors())
-                    .as("Reconfigure 1 (add) should have no errors")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterAdd))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("Reconfigure 1 (add) should have no errors")
+                            .isFalse());
 
             String runtimeTopic = tester.createTopic("vc-runtime-added");
             assertProduceConsumeRoundTrip(tester, "vc-runtime-added", runtimeTopic, "phase2-runtime-added");
 
             LOGGER.info("Reconfigure 2: removing the runtime-added vc-runtime-added");
-            var r2 = tester.reconfigure(afterRemove).get(RECONFIGURE_TIMEOUT.toSeconds(), TimeUnit.SECONDS);
-            assertThat(r2.hasErrors())
-                    .as("Reconfigure 2 (remove of runtime-added VC) should have no errors — "
-                            + "this is the regression: VirtualClusterRegistry must retain models for "
-                            + "runtime-added VCs so RemoveCluster can resolve their gateways")
-                    .isFalse();
+            assertThat(tester.reconfigure(afterRemove))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("Reconfigure 2 (remove of runtime-added VC) should have no errors — "
+                                    + "this is the regression: VirtualClusterRegistry must retain models for "
+                                    + "runtime-added VCs so RemoveCluster can resolve their gateways")
+                            .isFalse());
 
             // The port the runtime-added VC was bound to is released.
             assertPortIsBindable(runtimeAddedPort);
