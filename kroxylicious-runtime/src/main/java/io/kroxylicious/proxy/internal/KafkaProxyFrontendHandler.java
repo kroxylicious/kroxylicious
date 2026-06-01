@@ -372,8 +372,9 @@ public class KafkaProxyFrontendHandler
 
         // Install any pending route filters (e.g. VC filters for "default" activation route)
         // between the handler that set this activation route and this decision handler
-        for (FilterAndInvoker fi : pendingRouteFilters) {
-            String filterName = "routeFilter-" + activationRoute + "-" + fi.filterName();
+        for (int i = 0; i < pendingRouteFilters.size(); i++) {
+            FilterAndInvoker fi = pendingRouteFilters.get(i);
+            String filterName = "routeFilter-" + activationRoute + "-" + i + "-" + fi.filterName();
             pipeline.addBefore(handlerName, filterName,
                     new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
                             clientConnectionStateMachine, activationRoute));
