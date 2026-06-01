@@ -58,10 +58,19 @@ public record Tls(@Nullable KeyProvider key,
 
     public static final String PEM = "PEM";
 
+    /**
+     * Returns the store type, defaulting to the platform default if null.
+     * @param storeType the store type, or null for platform default
+     * @return the resolved store type in upper case
+     */
     public static String getStoreTypeOrPlatformDefault(@Nullable String storeType) {
         return storeType == null ? KeyStore.getDefaultType().toUpperCase(Locale.ROOT) : storeType.toUpperCase(Locale.ROOT);
     }
 
+    /**
+     * Returns whether a key provider is configured.
+     * @return true if a key provider is set
+     */
     public boolean definesKey() {
         return key != null;
     }
