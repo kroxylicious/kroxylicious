@@ -60,7 +60,6 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -79,10 +78,10 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 /**
- * Integration tests that focus on the ability to present virtual clusters, with various numbers of brokers)
+ * Integration tests that focus on the ability to present virtual clusters, with various numbers of brokers
  * to the kafka clients
  * <br/>
- * TODO corner case test - verify kroxy's ability to recover for a temporary port already bound condition.
+ * TODO corner case test - verify Kroxylicious's ability to recover for a temporary port already bound condition.
  */
 @ExtendWith(KafkaClusterExtension.class)
 class ExpositionIT extends BaseIT {
@@ -464,10 +463,9 @@ class ExpositionIT extends BaseIT {
 
     @Test
     void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        HostPort proxyAddress = PROXY_ADDRESS;
         var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
-                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
                         .build());
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
@@ -795,22 +793,5 @@ class ExpositionIT extends BaseIT {
 
     private static String toAddress(Node n) {
         return n.host() + ":" + n.port();
-    }
-
-    private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {}
-
-    @NonNull
-    private static ExpositionIT.KeystoreTrustStorePair buildKeystoreTrustStorePair(String domain) throws Exception {
-        var brokerCertificateGenerator = new KeytoolCertificateGenerator();
-        brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", domain, "KI", "kroxylicious.io", null, null, "US");
-        Path resolve = certsDirectory.resolve(UUID.randomUUID().toString());
-        if (!resolve.toFile().mkdirs()) {
-            throw new RuntimeException("Could not create directory " + resolve);
-        }
-        var clientTrustStore = resolve.resolve("kafka.truststore.jks");
-        brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
-        return new KeystoreTrustStorePair(brokerCertificateGenerator.getKeyStoreLocation(), clientTrustStore.toAbsolutePath().toString(),
-                brokerCertificateGenerator.getPassword());
     }
 }
