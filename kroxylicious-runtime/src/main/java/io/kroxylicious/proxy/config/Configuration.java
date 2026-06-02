@@ -6,8 +6,8 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,9 +33,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br>
  *
  * @param management management configuration
- * @param clusterDefinitions Named target cluster definitions, referenced by virtual clusters via {@code target.cluster}.
+ * @param clusterDefinitions Named target cluster definitions, referenced by virtual clusters and routes.
  * @param filterDefinitions A list of named filter definitions (names must be unique)
  * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
+ * @param routerDefinitions Named router definitions.
  * @param virtualClusters The virtual clusters
  * @param micrometer The micrometer config
  * @param useIoUring true to use iouring
@@ -43,13 +44,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param network Controls aspects of network configuration for the proxy.
  * @param proxyProtocol PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "clusterDefinitions", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network",
-        "proxyProtocol" })
+@JsonPropertyOrder({ "management", "clusterDefinitions", "filterDefinitions", "defaultFilters", "routerDefinitions", "virtualClusters", "micrometer", "useIoUring",
+        "development", "network", "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<ClusterDefinition> clusterDefinitions,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
+                            @Nullable List<RouterDefinition> routerDefinitions,
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
@@ -60,7 +62,7 @@ public record Configuration(
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     /**
-     * Convenience constructor matching main branch signature, setting {@code clusterDefinitions} to {@code null}.
+     * Convenience constructor matching main branch signature, setting {@code clusterDefinitions} and {@code routerDefinitions} to {@code null}.
      */
     public Configuration(
                          @Nullable ManagementConfiguration management,
@@ -72,7 +74,7 @@ public record Configuration(
                          Optional<Map<String, Object>> development,
                          @Nullable NetworkDefinition network,
                          @Nullable ProxyProtocolConfig proxyProtocol) {
-        this(management, null, filterDefinitions, defaultFilters, virtualClusters, micrometer, useIoUring, development, network, proxyProtocol);
+        this(management, null, filterDefinitions, defaultFilters, null, virtualClusters, micrometer, useIoUring, development, network, proxyProtocol);
     }
 
     /**
@@ -89,7 +91,7 @@ public record Configuration(
         Set<String> targetClusterNames = validateClusterDefinitions(clusterDefinitions);
         validateVirtualClusterNamedTargets(virtualClusters, targetClusterNames);
 
-        // Enforce post condition: filterDefinitions have a unique name
+        Set<String> filterDefsByName = Set.of();
         if (filterDefinitions != null) {
             Map<String, List<NamedFilterDefinition>> groupdByName = filterDefinitions.stream().collect(Collectors.groupingBy(NamedFilterDefinition::name));
             var duplicatedNames = groupdByName.entrySet().stream().filter(entry -> entry.getValue().size() > 1).map(Map.Entry::getKey).toList();
@@ -97,37 +99,87 @@ public record Configuration(
                 throw new IllegalConfigurationException("'filterDefinitions' contains multiple items with the same names: " + duplicatedNames);
             }
 
-            Set<String> filterDefsByName = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toSet());
+            filterDefsByName = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toSet());
             checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
             for (var virtualCluster : virtualClusters) {
                 checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
             }
+        }
 
-            checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters);
+        validateRouterDefinitions(routerDefinitions, targetClusterNames, filterDefsByName);
+        validateVirtualClusterReceivers(virtualClusters, targetClusterNames, routerDefinitions);
+
+        if (filterDefinitions != null) {
+            checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters, routerDefinitions);
         }
     }
 
+    /**
+     * Validates that cluster definition names are unique and returns the set of names.
+     */
     private static Set<String> validateClusterDefinitions(@Nullable List<ClusterDefinition> clusterDefinitions) {
         if (clusterDefinitions == null || clusterDefinitions.isEmpty()) {
             return Set.of();
         }
-        var names = clusterDefinitions.stream().map(ClusterDefinition::name).toList();
-        var duplicates = names.stream()
-                .filter(n -> Collections.frequency(names, n) > 1)
-                .collect(Collectors.toSet());
-        if (!duplicates.isEmpty()) {
-            throw new IllegalConfigurationException(
-                    "'clusterDefinitions' contains duplicate names: " + duplicates);
-        }
-        return new HashSet<>(names);
+        return validateUniqueNames(clusterDefinitions, ClusterDefinition::name, "clusterDefinitions");
     }
 
+    /**
+     * Validates that router definition names are unique, that all route filter references
+     * are defined, and that the router graph is a valid DAG.
+     */
+    private static void validateRouterDefinitions(@Nullable List<RouterDefinition> routerDefinitions,
+                                                  Set<String> targetClusterNames,
+                                                  Set<String> filterDefsByName) {
+        if (routerDefinitions == null || routerDefinitions.isEmpty()) {
+            return;
+        }
+        validateUniqueNames(routerDefinitions, RouterDefinition::name, "routerDefinitions");
+
+        for (var router : routerDefinitions) {
+            for (var route : router.routes()) {
+                if (route.filters() != null) {
+                    checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
+                            "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
+                }
+            }
+        }
+
+        RouterGraphValidator.validate(routerDefinitions, targetClusterNames);
+    }
+
+    /**
+     * Validates that named target cluster references in virtual clusters resolve to known cluster definitions.
+     */
     private static void validateVirtualClusterNamedTargets(List<VirtualCluster> virtualClusters,
                                                            Set<String> targetClusterNames) {
         for (var vc : virtualClusters) {
             if (vc.namedTargetCluster() != null && !targetClusterNames.contains(vc.namedTargetCluster())) {
                 throw new IllegalConfigurationException(
                         "Virtual cluster '" + vc.name() + "' references unknown target cluster '" + vc.namedTargetCluster() + "'");
+            }
+        }
+    }
+
+    /**
+     * Validates that virtual cluster target references (both cluster and router) resolve
+     * to known definitions.
+     */
+    private static void validateVirtualClusterReceivers(List<VirtualCluster> virtualClusters,
+                                                        Set<String> targetClusterNames,
+                                                        @Nullable List<RouterDefinition> routerDefinitions) {
+        Set<String> routerNames = Optional.ofNullable(routerDefinitions).orElse(List.of()).stream()
+                .map(RouterDefinition::name)
+                .collect(Collectors.toSet());
+
+        for (var vc : virtualClusters) {
+            if (vc.namedTargetCluster() != null && !targetClusterNames.contains(vc.namedTargetCluster())) {
+                throw new IllegalConfigurationException(
+                        "Virtual cluster '" + vc.name() + "' references unknown target cluster '" + vc.namedTargetCluster() + "'");
+            }
+            if (vc.router() != null && !routerNames.contains(vc.router())) {
+                throw new IllegalConfigurationException(
+                        "Virtual cluster '" + vc.name() + "' references unknown router '" + vc.router() + "'");
             }
         }
     }
@@ -145,14 +197,17 @@ public record Configuration(
         }
     }
 
+    /**
+     * Validates that virtual cluster names are unique (case-insensitive comparison).
+     */
     private void validateNoDuplicatedClusterNames(List<VirtualCluster> clusters) {
-        var names = clusters.stream()
-                .map(VirtualCluster::name)
-                .map(name -> name.toLowerCase(Locale.ROOT))
-                .toList();
-        var duplicates = names.stream()
-                .filter(i -> Collections.frequency(names, i) > 1)
-                .collect(Collectors.toSet());
+        Set<String> seen = new HashSet<>();
+        Set<String> duplicates = new LinkedHashSet<>();
+        for (var vc : clusters) {
+            if (!seen.add(vc.name().toLowerCase(Locale.ROOT))) {
+                duplicates.add(vc.name().toLowerCase(Locale.ROOT));
+            }
+        }
         if (!duplicates.isEmpty()) {
             throw new IllegalConfigurationException(
                     "Virtual cluster must be unique (case insensitive). The following virtual cluster names are duplicated: [%s]".formatted(
@@ -160,7 +215,27 @@ public record Configuration(
         }
     }
 
-    private void checkAllNamedFilterAreUsed(List<NamedFilterDefinition> filterDefinitions, List<VirtualCluster> clusters, List<String> defaultFilters) {
+    private static <T> Set<String> validateUniqueNames(List<T> items,
+                                                       Function<T, String> nameExtractor,
+                                                       String context) {
+        Set<String> seen = new HashSet<>();
+        Set<String> duplicates = new LinkedHashSet<>();
+        for (T item : items) {
+            if (!seen.add(nameExtractor.apply(item))) {
+                duplicates.add(nameExtractor.apply(item));
+            }
+        }
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "'" + context + "' contains duplicate names: " + duplicates);
+        }
+        return seen;
+    }
+
+    private static void checkAllNamedFilterAreUsed(List<NamedFilterDefinition> filterDefinitions,
+                                                   List<VirtualCluster> clusters,
+                                                   @Nullable List<String> defaultFilters,
+                                                   @Nullable List<RouterDefinition> routerDefinitions) {
         var defined = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toCollection(HashSet::new));
         if (defaultFilters != null) {
             defaultFilters.forEach(defined::remove);
@@ -170,9 +245,18 @@ public record Configuration(
                 .filter(Objects::nonNull)
                 .flatMap(Collection::stream)
                 .forEach(defined::remove);
+        if (routerDefinitions != null) {
+            routerDefinitions.stream()
+                    .flatMap(r -> r.routes().stream())
+                    .map(RouteDefinition::filters)
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .forEach(defined::remove);
+        }
         if (!defined.isEmpty()) {
             throw new IllegalConfigurationException(
-                    "'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
+                    "'filterDefinitions' defines filters which are not used in 'defaultFilters', "
+                            + "in any virtual cluster's 'filters', or in any route's 'filters': " + defined);
         }
     }
 
@@ -245,6 +329,8 @@ public record Configuration(
     }
 
     public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
+        rejectUnsupportedRoutingConfig();
+
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
@@ -255,6 +341,20 @@ public record Configuration(
                     return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
                 })
                 .toList();
+    }
+
+    private void rejectUnsupportedRoutingConfig() {
+        if (routerDefinitions != null && !routerDefinitions.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "Routing is not yet supported in this version. Remove 'routerDefinitions' from configuration.");
+        }
+        for (var vc : virtualClusters) {
+            if (vc.router() != null) {
+                throw new IllegalConfigurationException(
+                        "Routing is not yet supported in this version. Virtual cluster '"
+                                + vc.name() + "' uses a router target, which is not yet implemented.");
+            }
+        }
     }
 
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,
