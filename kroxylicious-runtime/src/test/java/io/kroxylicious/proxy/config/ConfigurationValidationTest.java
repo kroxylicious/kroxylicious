@@ -41,7 +41,7 @@ class ConfigurationValidationTest {
                 new ClusterDefinition("dup", "broker1:9092", null),
                 new ClusterDefinition("dup", "broker2:9092", null));
 
-        assertThatThrownBy(() -> new Configuration(null, clusters, null, null,
+        assertThatThrownBy(() -> new Configuration(null, clusters, null, null, null,
                 List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("duplicate names")
@@ -52,6 +52,23 @@ class ConfigurationValidationTest {
     void shouldAcceptNullClusterDefinitions() {
         assertThatCode(() -> config(List.of(SIMPLE_VC)))
                 .doesNotThrowAnyException();
+    }
+
+    // Router definition validation
+
+    @Test
+    void shouldRejectDuplicateRouterDefinitionNames() {
+        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var route = new RouteDefinition("route1", 0, null, new RouteTarget("c1", null));
+        var routers = List.of(
+                new RouterDefinition("dup", "Type", null, List.of(route)),
+                new RouterDefinition("dup", "Type", null, List.of(route)));
+
+        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, routers,
+                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("duplicate names")
+                .hasMessageContaining("dup");
     }
 
     // Virtual cluster target validation
@@ -75,7 +92,7 @@ class ConfigurationValidationTest {
                 new RouteTarget("known", null),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
-        assertThatCode(() -> new Configuration(null, List.of(cluster), null, null,
+        assertThatCode(() -> new Configuration(null, List.of(cluster), null, null, null,
                 List.of(vcWithNamedTarget), null, false, Optional.empty(), null, null))
                 .doesNotThrowAnyException();
     }
@@ -85,13 +102,27 @@ class ConfigurationValidationTest {
     void shouldRejectRouterTarget() {
         RouteTarget routerTarget = new RouteTarget(null, "nonexistent");
         List<VirtualClusterGateway> gateways = List.of(simpleGateway("gw"));
-        assertThatThrownBy(() -> {
-            new VirtualCluster("demo", null,
-                    routerTarget,
-                    gateways, false, false, null, null, null, null);
-        })
+        assertThatThrownBy(() -> new VirtualCluster("demo", null,
+                routerTarget,
+                gateways, false, false, null, null, null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("illegal target.router for virtual cluster 'demo'.");
+    }
+
+    // rejectUnsupportedRoutingConfig
+
+    @Test
+    void virtualClusterModelRejectsRouterDefinitions() {
+        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var route = new RouteDefinition("r", 0, null, new RouteTarget("c1", null));
+        var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
+
+        var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
+                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null);
+
+        assertThatThrownBy(() -> config.virtualClusterModel(null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Routing is not yet supported");
     }
 
     // Convenience methods
@@ -118,6 +149,34 @@ class ConfigurationValidationTest {
                 List.of(SIMPLE_VC), null, true, Optional.empty(), null, null);
 
         assertThat(config.isUseIoUring()).isTrue();
+    }
+
+    // Filter validation with routes
+
+    @Test
+    void shouldRejectFilterInRouteNotDefinedInFilterDefinitions() {
+        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var filterDefs = List.of(new NamedFilterDefinition("f1", "Type1", null));
+        var route = new RouteDefinition("r", 0, List.of("undefined-filter"), new RouteTarget("c1", null));
+        var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
+
+        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), filterDefs, null, List.of(router),
+                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("references filters not defined")
+                .hasMessageContaining("undefined-filter");
+    }
+
+    @Test
+    void shouldAcceptFilterUsedInRouteAsUsed() {
+        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var filterDefs = List.of(new NamedFilterDefinition("f1", "Type1", null));
+        var route = new RouteDefinition("r", 0, List.of("f1"), new RouteTarget("c1", null));
+        var router = new RouterDefinition("myrouter", "Type", null, List.of(route));
+
+        assertThatCode(() -> new Configuration(null, List.of(cluster), filterDefs, null, List.of(router),
+                List.of(SIMPLE_VC), null, false, Optional.empty(), null, null))
+                .doesNotThrowAnyException();
     }
 
     @Test
