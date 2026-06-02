@@ -316,6 +316,7 @@ class VirtualClusterChangeDetectorTest {
                                                @Nullable Duration drainTimeout) {
         return new VirtualCluster(name,
                 new TargetCluster("kafka:9092", Optional.empty()),
+                null,
                 List.of(gateway("default", 9192)),
                 false, false, List.of(),
                 subjectBuilder, topicNameCache, drainTimeout);
