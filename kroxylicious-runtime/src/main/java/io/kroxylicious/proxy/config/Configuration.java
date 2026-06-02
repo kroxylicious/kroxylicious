@@ -33,6 +33,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br>
  *
  * @param management management configuration
+ * @param clusterDefinitions Named target cluster definitions, referenced by virtual clusters via {@code target.cluster}.
  * @param filterDefinitions A list of named filter definitions (names must be unique)
  * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
  * @param virtualClusters The virtual clusters
@@ -42,9 +43,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param network Controls aspects of network configuration for the proxy.
  * @param proxyProtocol PROXY protocol configuration.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network", "proxyProtocol" })
+@JsonPropertyOrder({ "management", "clusterDefinitions", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network",
+        "proxyProtocol" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
+                            @Nullable List<ClusterDefinition> clusterDefinitions,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
@@ -57,6 +60,22 @@ public record Configuration(
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     /**
+     * Convenience constructor matching main branch signature, setting {@code clusterDefinitions} to {@code null}.
+     */
+    public Configuration(
+                         @Nullable ManagementConfiguration management,
+                         @Nullable List<NamedFilterDefinition> filterDefinitions,
+                         @Nullable List<String> defaultFilters,
+                         List<VirtualCluster> virtualClusters,
+                         @Nullable List<MicrometerDefinition> micrometer,
+                         boolean useIoUring,
+                         Optional<Map<String, Object>> development,
+                         @Nullable NetworkDefinition network,
+                         @Nullable ProxyProtocolConfig proxyProtocol) {
+        this(management, null, filterDefinitions, defaultFilters, virtualClusters, micrometer, useIoUring, development, network, proxyProtocol);
+    }
+
+    /**
      * Creates an instance of configuration.
      *
      */
@@ -67,6 +86,8 @@ public record Configuration(
         }
 
         validateNoDuplicatedClusterNames(virtualClusters);
+        Set<String> targetClusterNames = validateClusterDefinitions(clusterDefinitions);
+        validateVirtualClusterNamedTargets(virtualClusters, targetClusterNames);
 
         // Enforce post condition: filterDefinitions have a unique name
         if (filterDefinitions != null) {
@@ -76,15 +97,38 @@ public record Configuration(
                 throw new IllegalConfigurationException("'filterDefinitions' contains multiple items with the same names: " + duplicatedNames);
             }
 
-            // Enforce post condition: Every filter referenced by a name is defined in the filterDefinitions
-            Set<String> filterDefsByName = Optional.ofNullable(filterDefinitions).orElse(List.of()).stream().map(NamedFilterDefinition::name).collect(
-                    Collectors.toSet());
+            Set<String> filterDefsByName = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toSet());
             checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
             for (var virtualCluster : virtualClusters) {
                 checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
             }
 
             checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters);
+        }
+    }
+
+    private static Set<String> validateClusterDefinitions(@Nullable List<ClusterDefinition> clusterDefinitions) {
+        if (clusterDefinitions == null || clusterDefinitions.isEmpty()) {
+            return Set.of();
+        }
+        var names = clusterDefinitions.stream().map(ClusterDefinition::name).toList();
+        var duplicates = names.stream()
+                .filter(n -> Collections.frequency(names, n) > 1)
+                .collect(Collectors.toSet());
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "'clusterDefinitions' contains duplicate names: " + duplicates);
+        }
+        return new HashSet<>(names);
+    }
+
+    private static void validateVirtualClusterNamedTargets(List<VirtualCluster> virtualClusters,
+                                                           Set<String> targetClusterNames) {
+        for (var vc : virtualClusters) {
+            if (vc.namedTargetCluster() != null && !targetClusterNames.contains(vc.namedTargetCluster())) {
+                throw new IllegalConfigurationException(
+                        "Virtual cluster '" + vc.name() + "' references unknown target cluster '" + vc.namedTargetCluster() + "'");
+            }
         }
     }
 
@@ -132,12 +176,13 @@ public record Configuration(
         }
     }
 
-    private static VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
-                                                             List<NamedFilterDefinition> filterDefinitions,
-                                                             PluginFactoryRegistry pfr) {
+    private VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
+                                                      List<NamedFilterDefinition> filterDefinitions,
+                                                      PluginFactoryRegistry pfr) {
+        TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
-                virtualCluster.targetCluster(),
+                resolvedTargetCluster,
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
                 filterDefinitions,
@@ -150,6 +195,26 @@ public record Configuration(
         virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
+    }
+
+    private TargetCluster resolveTargetCluster(VirtualCluster virtualCluster) {
+        if (virtualCluster.targetCluster() != null) {
+            return virtualCluster.targetCluster();
+        }
+        if (virtualCluster.namedTargetCluster() != null) {
+            return resolveNamedTargetCluster(virtualCluster.namedTargetCluster(), virtualCluster.name());
+        }
+        throw new IllegalConfigurationException(
+                "Virtual cluster '" + virtualCluster.name() + "' has no resolvable target cluster");
+    }
+
+    private TargetCluster resolveNamedTargetCluster(String clusterName, String virtualClusterName) {
+        return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
+                .filter(cd -> cd.name().equals(clusterName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalConfigurationException(
+                        "Virtual cluster '" + virtualClusterName + "' references unknown target cluster '" + clusterName + "'"))
+                .toTargetCluster();
     }
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
