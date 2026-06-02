@@ -138,6 +138,8 @@ class ConfigurationValidationTest {
         assertThat(config.isUseIoUring()).isTrue();
     }
 
+    // Filter validation with routes
+
     @Test
     void shouldRejectFilterInRouteNotDefinedInFilterDefinitions() {
         var cluster = new ClusterDefinition("c1", "broker:9092", null);
