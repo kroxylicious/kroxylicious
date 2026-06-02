@@ -35,7 +35,10 @@ class OperationsPlannerTest {
 
     @Test
     void shouldPlanRemovesBeforeAdds() {
-        var planner = plannerWithModels(modelFor("cluster-add"));
+        var removeModel = modelFor("cluster-remove");
+        var addModel = modelFor("cluster-add");
+        when(vcr.virtualClusterModels()).thenReturn(List.of(removeModel));
+        var planner = plannerWithModels(addModel);
         var changes = new ChangeResult(Set.of("cluster-add"), Set.of("cluster-remove"), Set.of());
 
         var ops = planner.plan(changes, configWith("cluster-add"));
@@ -45,6 +48,26 @@ class OperationsPlannerTest {
         assertThat(ops.get(0).clusterName()).isEqualTo("cluster-remove");
         assertThat(ops.get(1)).isInstanceOf(AddCluster.class);
         assertThat(ops.get(1).clusterName()).isEqualTo("cluster-add");
+    }
+
+    @Test
+    void shouldHandRemoveClusterTheRegistryOwnedModel() {
+        // Reference-identity gotcha: EndpointRegistry's binding map is keyed on the
+        // EndpointGateway reference itself. RemoveCluster must be given the *registry's*
+        // model, not a freshly-resolved one whose gateways have different identities, or
+        // the deregister becomes a silent no-op and the binding leaks. We assert that the
+        // model instance the planner hands to RemoveCluster is the one returned by
+        // vcr.virtualClusterModels().
+        var registryModel = modelFor("cluster-remove");
+        when(vcr.virtualClusterModels()).thenReturn(List.of(registryModel));
+        var planner = plannerWithModels(); // no adds; resolver returns nothing
+        var changes = new ChangeResult(Set.of(), Set.of("cluster-remove"), Set.of());
+
+        var ops = planner.plan(changes, configWith("placeholder"));
+
+        assertThat(ops).singleElement()
+                .isInstanceOfSatisfying(RemoveCluster.class,
+                        op -> assertThat(op.clusterName()).isEqualTo(registryModel.getClusterName()));
     }
 
     @Test
@@ -58,9 +81,11 @@ class OperationsPlannerTest {
 
     @Test
     void shouldNotResolveModelsWhenOnlyRemovesArePresent() {
-        // Remove operations don't need model resolution from the new config (they look up
-        // the original model from VCR's virtualClusterModels). The planner shouldn't waste
-        // work resolving when there are no adds.
+        // Remove operations resolve their model from the registry (vcr.virtualClusterModels),
+        // not the submitted Configuration. The modelResolver (which builds models for the new
+        // config) must not be invoked when there are no adds.
+        var removeModel = modelFor("cluster-remove");
+        when(vcr.virtualClusterModels()).thenReturn(List.of(removeModel));
         var resolverCalls = new int[1];
         Function<Configuration, List<VirtualClusterModel>> resolver = config -> {
             resolverCalls[0]++;
@@ -81,6 +106,23 @@ class OperationsPlannerTest {
         // generic NPE deep in AddCluster.
         var planner = plannerWithModels(); // resolves no models from any config
         var changes = new ChangeResult(Set.of("phantom-cluster"), Set.of(), Set.of());
+        var config = configWith("placeholder");
+
+        assertThatThrownBy(() -> planner.plan(changes, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("phantom-cluster")
+                .hasMessageContaining("ChangeDetector contract violation");
+    }
+
+    @Test
+    void shouldThrowIllegalStateWhenChangeDetectorReportsRemoveForClusterNotInRegistry() {
+        // Phantom-remove — symmetric to phantom-add. The registry has no model for the
+        // named cluster, so the planner can't build a RemoveCluster for it. Surfacing this
+        // at the framework layer (rather than deeper in RemoveCluster) keeps the operation
+        // free of "couldn't resolve gateways" guards.
+        when(vcr.virtualClusterModels()).thenReturn(List.of());
+        var planner = plannerWithModels();
+        var changes = new ChangeResult(Set.of(), Set.of("phantom-cluster"), Set.of());
         var config = configWith("placeholder");
 
         assertThatThrownBy(() -> planner.plan(changes, config))

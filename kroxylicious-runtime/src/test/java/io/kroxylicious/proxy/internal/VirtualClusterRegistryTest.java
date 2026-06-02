@@ -559,15 +559,25 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void shouldThrowForUnknownClusterOnRegisterConnection() {
-        assertThatThrownBy(() -> vcc.registerConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
-                .isInstanceOf(IllegalArgumentException.class);
+    void registerConnectionReturnsFalseForUnknownCluster() {
+        // Connection arrives carrying a cluster name VCR doesn't know about — VCR rejects
+        // cleanly via the false-return path rather than throwing into Netty's pipeline.
+        // Defends KafkaProxyInitializer's rejectConnection flow from the
+        // bookkeeping-vs-binding ordering invariant being broken by a future refactor.
+        assertThat(vcc.registerConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
+                .as("unknown cluster must be treated as a rejection, not an error")
+                .isFalse();
     }
 
     @Test
-    void shouldThrowForUnknownClusterOnDeregisterConnection() {
-        assertThatThrownBy(() -> vcc.deregisterConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
-                .isInstanceOf(IllegalArgumentException.class);
+    void deregisterConnectionIsNoOpForUnknownCluster() {
+        // Channel-close listener races with future cleanup-on-Stopped logic. Throwing into
+        // Netty's listener invoker would log noisily — silent no-op is the right shape.
+        var ccsm = mock(ClientConnectionStateMachine.class);
+
+        vcc.deregisterConnection("nonexistent", ccsm);
+
+        verifyNoInteractions(ccsm);
     }
 
     @Test

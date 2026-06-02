@@ -287,6 +287,11 @@ class ConfigurationReloadOrchestratorTest {
             release.await();
             return CompletableFuture.completedFuture(null);
         });
+        // Planner resolves the model from the registry before handing it to RemoveCluster.
+        var removeModel = mock(VirtualClusterModel.class);
+        when(removeModel.getClusterName()).thenReturn("cluster-remove");
+        when(removeModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
+        when(registry.virtualClusterModels()).thenReturn(List.of(removeModel));
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 
@@ -518,13 +523,16 @@ class ConfigurationReloadOrchestratorTest {
                 .thenReturn(CompletableFuture.failedFuture(failsSpecificFailure));
         when(registry.removeVirtualCluster("cluster-remove-succeeds"))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        // Stub the model lookup so RemoveCluster's deregister step can resolve a gateway for
-        // cluster-remove-succeeds (cluster-remove-fails' remove fails before deregister, so
-        // it doesn't need a model resolved here).
+        // Stub the model lookup so the planner can resolve models for BOTH removes (the
+        // planner refuses to build a RemoveCluster for a cluster the registry doesn't
+        // know about — see OperationsPlannerTest#shouldThrowIllegalStateWhenChangeDetectorReportsRemoveForClusterNotInRegistry).
+        var failsModel = mock(VirtualClusterModel.class);
+        when(failsModel.getClusterName()).thenReturn("cluster-remove-fails");
+        when(failsModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
         var succeedsModel = mock(VirtualClusterModel.class);
         when(succeedsModel.getClusterName()).thenReturn("cluster-remove-succeeds");
         when(succeedsModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
-        when(registry.virtualClusterModels()).thenReturn(List.of(succeedsModel));
+        when(registry.virtualClusterModels()).thenReturn(List.of(failsModel, succeedsModel));
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 

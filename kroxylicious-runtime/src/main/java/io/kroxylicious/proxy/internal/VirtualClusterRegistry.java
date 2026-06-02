@@ -154,21 +154,12 @@ public class VirtualClusterRegistry {
      * </ul>
      *
      * <h2>Entries are retained in {@link #entriesByCluster} after reaching {@code Stopped}.</h2>
-     * The map is append-only by design — driving a cluster to {@code Stopped} never deletes its
-     * entry. Two callers depend on this:
-     * <ul>
-     *   <li>{@code RemoveCluster.originalGateways()} reads the model via
-     *       {@link #virtualClusterModels()} <em>after</em> the lifecycle reaches {@code Stopped}
-     *       so it can recover the original {@code EndpointGateway} references and
-     *       deregister them. {@code EndpointRegistry} keys its binding map on gateway identity,
-     *       so the registry-owned references are the only ones that will match.</li>
-     *   <li>{@code KafkaProxyInitializer} looks up the lifecycle on every incoming connection.
-     *       A late-arriving connection for a just-{@code Stopped} cluster needs to find the
-     *       entry and be rejected by the SERVING-state guard rather than fail with
-     *       {@code IllegalArgumentException} from {@link #requireKnownCluster(String)}.</li>
-     * </ul>
-     * Memory cost is bounded by the set of distinct cluster names the proxy has ever seen,
-     * which is acceptable in practice.
+     * The map is append-only — driving a cluster to {@code Stopped} never deletes its entry.
+     * No caller currently depends on this retention for correctness:
+     * {@link #registerConnection(String, ClientConnectionStateMachine)} and
+     * {@link #deregisterConnection(String, ClientConnectionStateMachine)} both tolerate a
+     * missing entry, and {@code RemoveCluster} receives its model from the planner at plan
+     * time rather than re-reading the registry after the lifecycle reaches {@code Stopped}.
      *
      * @return a future that completes when the cluster has reached {@code Stopped}
      */
@@ -218,12 +209,31 @@ public class VirtualClusterRegistry {
         return entry == null ? null : entry.lifecycle();
     }
 
+    /**
+     * Attempts to register a new connection for {@code clusterName}.
+     *
+     * @return {@code true} iff the cluster is known to this registry AND its lifecycle is in a
+     *         state that accepts new connections (i.e. {@code SERVING}). An unknown cluster is
+     *         treated as a rejection rather than an error so that {@code KafkaProxyInitializer}'s
+     *         existing {@code false → rejectConnection} path covers both "not serving" and "no
+     *         such cluster" without depending on the bookkeeping-vs-binding ordering invariant
+     *         being preserved by future changes.
+     */
     public boolean registerConnection(String clusterName, ClientConnectionStateMachine ccsm) {
-        return requireKnownCluster(clusterName).registerConnection(ccsm);
+        var entry = entriesByCluster.get(clusterName);
+        return entry != null && entry.lifecycle().registerConnection(ccsm);
     }
 
+    /**
+     * Decrements the active-connections count for {@code clusterName} if
+     * the cluster is no longer known to this registry. Called from a Netty channel-close
+     * listener, which can race against entry removal in a future cleanup-on-{@code Stopped}
+     */
     public void deregisterConnection(String clusterName, ClientConnectionStateMachine ccsm) {
-        requireKnownCluster(clusterName).deregisterConnection(ccsm);
+        var entry = entriesByCluster.get(clusterName);
+        if (entry != null) {
+            entry.lifecycle().deregisterConnection(ccsm);
+        }
     }
 
     @VisibleForTesting
