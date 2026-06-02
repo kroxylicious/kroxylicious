@@ -676,7 +676,7 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     private static Configuration withDifferentUseIoUring(Configuration base) {
-        return new Configuration(base.management(), base.filterDefinitions(), base.defaultFilters(),
+        return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
                 base.virtualClusters(), base.micrometer(),
                 !base.useIoUring(),
                 base.development(), base.network(),
