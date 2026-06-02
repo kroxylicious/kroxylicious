@@ -677,7 +677,7 @@ class ConfigurationReloadOrchestratorTest {
 
     private static Configuration withDifferentUseIoUring(Configuration base) {
         return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
-                base.virtualClusters(), base.micrometer(),
+                base.routerDefinitions(), base.virtualClusters(), base.micrometer(),
                 !base.useIoUring(),
                 base.development(), base.network(),
                 // also vary proxyProtocol just to make the diff non-empty even if useIoUring matches
