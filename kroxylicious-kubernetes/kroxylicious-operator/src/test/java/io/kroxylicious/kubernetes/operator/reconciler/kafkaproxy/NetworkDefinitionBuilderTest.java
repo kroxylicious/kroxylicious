@@ -13,7 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 
@@ -261,5 +264,15 @@ class NetworkDefinitionBuilderTest {
         assertThatThrownBy(() -> NetworkDefinitionBuilder.build(proxy))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("not-a-duration");
+    }
+
+    @Test
+    void serializesDeterministically() throws JsonProcessingException {
+        NettySettings management = new NettySettings(Optional.of(1), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        NettySettings proxy = new NettySettings(Optional.of(2), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty());
+        NetworkDefinition networkDefinition = new NetworkDefinition(management, proxy);
+        String a = ConfigParser.createBaseObjectMapper().writeValueAsString(networkDefinition);
+        String b = ConfigParser.createBaseObjectMapper().writeValueAsString(networkDefinition);
+        assertThat(b).isEqualTo(a);
     }
 }
