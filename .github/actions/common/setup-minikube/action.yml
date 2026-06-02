@@ -31,6 +31,6 @@ runs:
       with:
         "minikube version": "v1.38.1"
         # Upgrading kube version? Check https://github.com/kubernetes/minikube/blob/<version>/pkg/minikube/constants/constants.go to know the versions of kube supported by minikube.
-        "kubernetes version": "v1.35.1"
+        "kubernetes version": "v1.36.1"
         "github token": ${{ inputs.githubToken }}
         driver: docker
