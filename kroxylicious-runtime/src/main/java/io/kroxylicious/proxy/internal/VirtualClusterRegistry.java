@@ -221,7 +221,16 @@ public class VirtualClusterRegistry {
      */
     public boolean registerConnection(String clusterName, ClientConnectionStateMachine ccsm) {
         var entry = entriesByCluster.get(clusterName);
-        return entry != null && entry.lifecycle().registerConnection(ccsm);
+        if (entry == null) {
+            // Unreachable under the current bookkeeping-before-binding ordering and append-only
+            // entry policy — log loudly so the broken invariant doesn't hide behind the clean
+            // false-return path.
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", clusterName)
+                    .log("registerConnection called for unknown virtual cluster; rejecting connection");
+            return false;
+        }
+        return entry.lifecycle().registerConnection(ccsm);
     }
 
     /**
@@ -231,9 +240,16 @@ public class VirtualClusterRegistry {
      */
     public void deregisterConnection(String clusterName, ClientConnectionStateMachine ccsm) {
         var entry = entriesByCluster.get(clusterName);
-        if (entry != null) {
-            entry.lifecycle().deregisterConnection(ccsm);
+        if (entry == null) {
+            // Unreachable under the current append-only entry policy — an entry that was present
+            // at registerConnection time must still be present at channel-close time. Logged so
+            // a future cleanup-on-Stopped change that violates this invariant is observable.
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", clusterName)
+                    .log("deregisterConnection called for unknown virtual cluster; ignoring");
+            return;
         }
+        entry.lifecycle().deregisterConnection(ccsm);
     }
 
     @VisibleForTesting
