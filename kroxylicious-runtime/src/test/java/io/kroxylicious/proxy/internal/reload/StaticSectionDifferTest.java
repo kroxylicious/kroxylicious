@@ -91,7 +91,7 @@ class StaticSectionDifferTest {
     @Test
     void differingUseIoUringIsDetected() {
         var oldConfig = baseConfig();
-        var newConfig = new Configuration(oldConfig.management(), oldConfig.filterDefinitions(),
+        var newConfig = new Configuration(oldConfig.management(), oldConfig.clusterDefinitions(), oldConfig.filterDefinitions(),
                 oldConfig.defaultFilters(), oldConfig.virtualClusters(), oldConfig.micrometer(),
                 !oldConfig.useIoUring(), // toggled
                 oldConfig.development(), oldConfig.network(), oldConfig.proxyProtocol());
@@ -108,7 +108,7 @@ class StaticSectionDifferTest {
     @Test
     void differingMicrometerIsDetected() {
         var oldConfig = baseConfig();
-        var newConfig = new Configuration(oldConfig.management(), oldConfig.filterDefinitions(),
+        var newConfig = new Configuration(oldConfig.management(), oldConfig.clusterDefinitions(), oldConfig.filterDefinitions(),
                 oldConfig.defaultFilters(), oldConfig.virtualClusters(),
                 List.of(new MicrometerDefinition("SomeMicrometerType", null)), // different from base's null
                 oldConfig.useIoUring(), oldConfig.development(), oldConfig.network(), oldConfig.proxyProtocol());
@@ -125,7 +125,7 @@ class StaticSectionDifferTest {
     @Test
     void differingDevelopmentIsDetected() {
         var oldConfig = baseConfig();
-        var newConfig = new Configuration(oldConfig.management(), oldConfig.filterDefinitions(),
+        var newConfig = new Configuration(oldConfig.management(), oldConfig.clusterDefinitions(), oldConfig.filterDefinitions(),
                 oldConfig.defaultFilters(), oldConfig.virtualClusters(), oldConfig.micrometer(),
                 oldConfig.useIoUring(),
                 Optional.of(Map.of("debug", "true")), // different from base's Optional.empty()
@@ -138,6 +138,7 @@ class StaticSectionDifferTest {
         var oldConfig = baseConfig();
         var newConfig = new Configuration(
                 new ManagementConfiguration(null, null, null), // changed: management
+                oldConfig.clusterDefinitions(),
                 oldConfig.filterDefinitions(),
                 oldConfig.defaultFilters(),
                 oldConfig.virtualClusters(),
@@ -157,6 +158,7 @@ class StaticSectionDifferTest {
         var oldConfig = baseConfig();
         var newConfig = new Configuration(
                 oldConfig.management(),
+                oldConfig.clusterDefinitions(),
                 List.of(new NamedFilterDefinition("filter-a", "SomeFilterType", null)), // changed: filterDefinitions
                 List.of("filter-a"), // changed: defaultFilters
                 List.of(vc("different-cluster")), // changed: virtualClusters
@@ -202,7 +204,7 @@ class StaticSectionDifferTest {
     }
 
     private static Configuration withManagement(Configuration base, ManagementConfiguration management) {
-        return new Configuration(management, base.filterDefinitions(), base.defaultFilters(),
+        return new Configuration(management, base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
                 base.virtualClusters(), base.micrometer(),
                 base.useIoUring(), base.development(), base.network(), base.proxyProtocol());
     }
@@ -214,13 +216,13 @@ class StaticSectionDifferTest {
     }
 
     private static Configuration withNetwork(Configuration base, NetworkDefinition network) {
-        return new Configuration(base.management(), base.filterDefinitions(), base.defaultFilters(),
+        return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
                 base.virtualClusters(), base.micrometer(),
                 base.useIoUring(), base.development(), network, base.proxyProtocol());
     }
 
     private static Configuration withProxyProtocol(Configuration base, ProxyProtocolConfig proxyProtocol) {
-        return new Configuration(base.management(), base.filterDefinitions(), base.defaultFilters(),
+        return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
                 base.virtualClusters(), base.micrometer(),
                 base.useIoUring(), base.development(), base.network(), proxyProtocol);
     }
