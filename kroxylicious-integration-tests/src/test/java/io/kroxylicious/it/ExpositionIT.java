@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.it;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,7 +38,6 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -97,9 +95,6 @@ class ExpositionIT extends BaseIT {
     public static final String SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME = "$(virtualClusterName)-broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SASL_USER = "user";
     public static final String SASL_PASSWORD = "password";
-
-    @TempDir
-    private static Path certsDirectory;
 
     @ParameterizedTest
     @MethodSource("virtualClusterConfigurations")
