@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.reload;
 
-import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -14,8 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
-import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.reload.ReconfigureError;
 
 /**
@@ -42,27 +41,27 @@ final class RemoveCluster implements ClusterOperation {
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
     private static final String LOG_KEY_ERROR = "error";
 
-    private final String clusterName;
+    private final VirtualClusterModel model;
     private final VirtualClusterRegistry virtualClusterRegistry;
     private final EndpointRegistry endpointRegistry;
 
-    RemoveCluster(String clusterName,
+    RemoveCluster(VirtualClusterModel model,
                   VirtualClusterRegistry virtualClusterRegistry,
                   EndpointRegistry endpointRegistry) {
-        this.clusterName = Objects.requireNonNull(clusterName, "clusterName");
+        this.model = Objects.requireNonNull(model, "model");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");
     }
 
     @Override
     public String clusterName() {
-        return clusterName;
+        return model.getClusterName();
     }
 
     @Override
     public Optional<ReconfigureError> apply() {
         try {
-            virtualClusterRegistry.removeVirtualCluster(clusterName).join();
+            virtualClusterRegistry.removeVirtualCluster(clusterName()).join();
         }
         catch (RuntimeException e) {
             return Optional.of(reportFailure(CompletionExceptions.unwrap(e),
@@ -70,7 +69,7 @@ final class RemoveCluster implements ClusterOperation {
         }
 
         // Await every gateway's unbind
-        var deregisterFutures = currentGateways().stream()
+        var deregisterFutures = model.gateways().values().stream()
                 .map(g -> endpointRegistry.deregisterVirtualCluster(g).toCompletableFuture())
                 .toArray(CompletableFuture[]::new);
         try {
@@ -83,23 +82,12 @@ final class RemoveCluster implements ClusterOperation {
         return Optional.empty();
     }
 
-    private Collection<? extends EndpointGateway> currentGateways() {
-        return virtualClusterRegistry.virtualClusterModels().stream()
-                .filter(m -> clusterName.equals(m.getClusterName()))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "RemoveCluster: no model for '" + clusterName
-                                + "' in VirtualClusterRegistry; this indicates a ChangeDetector contract violation"))
-                .gateways()
-                .values();
-    }
-
     private ReconfigureError reportFailure(Throwable cause, String message) {
         LOGGER.atWarn()
                 .setCause(cause)
-                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName)
+                .addKeyValue(LOG_KEY_VIRTUAL_CLUSTER, clusterName())
                 .addKeyValue(LOG_KEY_ERROR, cause.getMessage())
                 .log(message);
-        return new ReconfigureError(clusterName, cause);
+        return new ReconfigureError(clusterName(), cause);
     }
 }

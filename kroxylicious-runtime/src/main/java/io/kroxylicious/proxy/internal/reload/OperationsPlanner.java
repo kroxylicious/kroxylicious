@@ -41,21 +41,32 @@ final class OperationsPlanner {
     /**
      * Plan the operations for a reconfigure.
      *
-     * @throws IllegalStateException if {@code changes.clustersToAdd()} names a cluster that
-     *         isn't present in {@code newConfig}'s resolved models — this indicates a
-     *         {@code ChangeDetector} contract violation (i.e. a framework bug).
+     * @throws IllegalStateException if {@code changes.clustersToRemove()} names a cluster that
+     *         isn't registered, or {@code changes.clustersToAdd()} names a cluster that isn't
+     *         in {@code newConfig}'s resolved models — both indicate a {@code ChangeDetector}
+     *         contract violation (i.e. a framework bug).
      */
     List<ClusterOperation> plan(ChangeResult changes, Configuration newConfig) {
         var ops = new ArrayList<ClusterOperation>();
 
-        for (String name : changes.clustersToRemove()) {
-            ops.add(new RemoveCluster(name, virtualClusterRegistry, endpointRegistry));
+        if (!changes.clustersToRemove().isEmpty()) {
+            Map<String, VirtualClusterModel> registryModelsByName = registryModelsByName();
+            for (String name : changes.clustersToRemove()) {
+                VirtualClusterModel model = registryModelsByName.get(name);
+                if (model == null) {
+                    throw new IllegalStateException(
+                            "OperationsPlanner: no model for removed cluster '" + name
+                                    + "'; this indicates a ChangeDetector contract violation"
+                                    + " (cluster reported as removed but absent from the registry)");
+                }
+                ops.add(new RemoveCluster(model, virtualClusterRegistry, endpointRegistry));
+            }
         }
 
         if (!changes.clustersToAdd().isEmpty()) {
-            Map<String, VirtualClusterModel> modelsByName = resolveByName(newConfig);
+            Map<String, VirtualClusterModel> newModelsByName = resolveByName(newConfig);
             for (String name : changes.clustersToAdd()) {
-                VirtualClusterModel model = modelsByName.get(name);
+                VirtualClusterModel model = newModelsByName.get(name);
                 if (model == null) {
                     throw new IllegalStateException(
                             "OperationsPlanner: no model for added cluster '" + name
@@ -71,6 +82,11 @@ final class OperationsPlanner {
 
     private Map<String, VirtualClusterModel> resolveByName(Configuration newConfig) {
         return modelResolver.apply(newConfig).stream()
+                .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
+    }
+
+    private Map<String, VirtualClusterModel> registryModelsByName() {
+        return virtualClusterRegistry.virtualClusterModels().stream()
                 .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
     }
 }
