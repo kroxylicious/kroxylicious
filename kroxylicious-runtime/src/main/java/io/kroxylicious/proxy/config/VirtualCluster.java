@@ -31,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param drainTimeout maximum time to wait for in-flight requests to complete during
  *                     graceful connection draining for this cluster
  */
-@SuppressWarnings("java:S1123")
+@SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
                              @Deprecated @Nullable TargetCluster targetCluster,
                              @Nullable RouteTarget target,
@@ -46,7 +46,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
     private static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofSeconds(10);
 
-    @SuppressWarnings("java:S2789")
+    @SuppressWarnings("java:S2789") // S2789 - checking for null tls is the intent
     public VirtualCluster {
         Objects.requireNonNull(name);
         if (!isDnsLabel(name)) {
@@ -66,6 +66,10 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
             throw new IllegalConfigurationException("one or more gateways were null for virtual cluster '" + name + "'");
         }
         validateNoDuplicatedGatewayNames(gateways);
+        // Validate explicitly-supplied drainTimeout. A null drainTimeout is allowed and
+        // means "use the proxy's default"; the resolved value is supplied by
+        // effectiveDrainTimeout() at the use site so that round-trip serialization
+        // preserves null and the operator-generated configs don't bake in today's default.
         if (drainTimeout != null && (drainTimeout.isZero() || drainTimeout.isNegative())) {
             throw new IllegalConfigurationException(
                     "drainTimeout for virtual cluster '" + name + "' must be positive, got: " + drainTimeout);
@@ -131,10 +135,29 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return topicNameCache == null ? CacheConfiguration.DEFAULT : topicNameCache;
     }
 
+    /**
+     * Resolves the {@code drainTimeout} for this virtual cluster, applying the proxy's
+     * default when the field is {@code null}. Used at the construction site of
+     * {@link io.kroxylicious.proxy.model.VirtualClusterModel} so that the raw record
+     * component remains nullable (preserving Jackson round-trip fidelity), while the
+     * runtime always sees a resolved {@link java.time.Duration}.
+     */
     Duration effectiveDrainTimeout() {
         return drainTimeout == null ? DEFAULT_DRAIN_TIMEOUT : drainTimeout;
     }
 
+    /**
+     * Returns {@code true} if this cluster's deployment-time configuration is semantically
+     * identical to {@code other}'s. Used by the configuration change-detection pipeline
+     * (see {@code VirtualClusterChangeDetector}) to decide whether a virtual cluster needs
+     * to be restarted across a {@code reconfigure()}.
+     *
+     * <p>Implementation uses the record's auto-generated {@link #equals(Object)} after
+     * canonicalising gateway order &mdash; {@code gateways} is a name-keyed semantic set,
+     * so reordering YAML entries is a no-op and must not produce a false positive. All
+     * other components (including any added in the future) are compared by the record's
+     * auto-equals, so this method extends automatically.
+     */
     public boolean sameAs(@Nullable VirtualCluster other) {
         if (this == other) {
             return true;
@@ -145,6 +168,11 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         return this.canonical().equals(other.canonical());
     }
 
+    /**
+     * Returns an equivalent {@link VirtualCluster} with gateways sorted by name. Used only
+     * as an internal helper of {@link #sameAs(VirtualCluster)} to normalise the one
+     * order-insensitive component before the record's auto-equals does the rest.
+     */
     private VirtualCluster canonical() {
         List<VirtualClusterGateway> sortedGateways = gateways.stream()
                 .sorted(java.util.Comparator.comparing(VirtualClusterGateway::name))

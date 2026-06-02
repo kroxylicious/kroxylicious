@@ -666,7 +666,8 @@ class ConfigurationTest {
                 null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
+                .hasMessage(
+                        "'filterDefinitions' defines filters which are not used in 'defaultFilters', in any virtual cluster's 'filters', or in any route's 'filters': [unused]");
     }
 
     @Test
