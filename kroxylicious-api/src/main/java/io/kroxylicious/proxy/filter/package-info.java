@@ -7,7 +7,7 @@
 /**
  * <p>The protocol filter API.</p>
  *
- * <p>An interface is provided for each kind of request and response in the Kafka protocol, e.g. {@link io.kroxylicious.proxy.filter.ProduceRequestFilter}.
+ * <p>An interface is provided for each kind of request and response in the Kafka protocol, e.g. {@code ProduceRequestFilter}.
  * Protocol Filter implementations inherit whichever of the per-RPC interfaces they need to intercept.
  * They can inherit multiple interfaces if necessary.
  * For filters which needs to intercept most or all of the protocol it is more convenient to inherit
