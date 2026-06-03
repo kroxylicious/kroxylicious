@@ -1569,9 +1569,11 @@ class ClientConnectionStateMachineTest {
         void shouldConnectOwningRouteToSpecificBroker() {
             // Given — client connected to virtual node 2 (route-a, target broker 1)
             routingCcsm.onClientActive(frontendHandler);
-
-            // When — first request triggers toForwardingWithRoutes
             routingCcsm.onClientRequest(metadataRequest());
+
+            // When — forwardToRoute lazily opens connections
+            routingCcsm.forwardToRoute("route-a", new Object());
+            routingCcsm.forwardToRoute("route-b", new Object());
 
             // Then — route-a connects to the specific broker, route-b to its bootstrap
             assertThat(createdConnections).containsKey(CLUSTER_A_BROKER_1);
@@ -1584,9 +1586,11 @@ class ClientConnectionStateMachineTest {
             // Given — no NodeIdMapping set
             routingCcsm.setNodeIdMapping(null);
             routingCcsm.onClientActive(frontendHandler);
-
-            // When
             routingCcsm.onClientRequest(metadataRequest());
+
+            // When — forwardToRoute lazily opens connections
+            routingCcsm.forwardToRoute("route-a", new Object());
+            routingCcsm.forwardToRoute("route-b", new Object());
 
             // Then — both routes use their bootstraps
             assertThat(createdConnections).containsKey(CLUSTER_A_BOOTSTRAP);
@@ -1632,7 +1636,10 @@ class ClientConnectionStateMachineTest {
             routingCcsm.onClientActive(frontendHandler);
             routingCcsm.onClientRequest(metadataRequest());
 
+            // Lazily create the connection for route-a (resolves to CLUSTER_A_BROKER_1)
+            routingCcsm.forwardToRoute("route-a", new Object());
             int connectionsBefore = createdConnections.size();
+
             var msg = new Object();
             // virtual node 2 maps to CLUSTER_A_BROKER_1 which already has a connection
             routingCcsm.forwardToNode(2, "route-a", msg);
