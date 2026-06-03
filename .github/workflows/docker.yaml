@@ -13,10 +13,10 @@
 # on the forks of developers who haven't configured the variables/secrets.
 #
 # Multi-arch proxy images are built as a 4-phase process:
-#   1. mvn install  — compile and install all module JARs into ~/.m2 once
-#   2. mvn + docker — dist packaging and image build for linux/amd64
-#   3. mvn + docker — dist packaging (with -Paarch64) and image build for linux/arm64
-#   4. manifest     — merge per-arch images into a multi-arch manifest list
+#   1. mvn install  ? compile and install all module JARs into ~/.m2 once
+#   2. mvn + docker ? dist packaging and image build for linux/amd64
+#   3. mvn + docker ? dist packaging (with -Paarch64) and image build for linux/arm64
+#   4. manifest     ? merge per-arch images into a multi-arch manifest list
 #
 # The operator has no architecture-specific native JARs, so a single multi-arch
 # Docker Buildx build covers both platforms without a paired Maven run.
@@ -40,6 +40,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
@@ -97,7 +102,7 @@ jobs:
             echo "admission_tags=${ADMISSION_IMAGE}:${RELEASE_VERSION},${ADMISSION_IMAGE}:latest" >> $GITHUB_OUTPUT
           fi
 
-      # ── Phase 1: compile and install ─────────────────────────────────────────
+      # ?? Phase 1: compile and install ?????????????????????????????????????????
       # Install (not just package) so the per-arch dist steps can resolve local
       # module JARs from ~/.m2 without needing --also-make.
 
@@ -123,7 +128,7 @@ jobs:
           username: ${{ vars.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
 
-      # ── Phase 2: amd64 dist + images ─────────────────────────────────────────
+      # ?? Phase 2: amd64 dist + images ?????????????????????????????????????????
 
       - name: Build amd64 distribution artifacts
         run: |
@@ -177,7 +182,7 @@ jobs:
           cache-from: type=gha,scope=admission
           cache-to: type=gha,mode=max,compression=zstd,scope=admission
 
-      # ── Phase 3: arm64 dist + image ──────────────────────────────────────────
+      # ?? Phase 3: arm64 dist + image ??????????????????????????????????????????
       # `clean package` on kroxylicious-app alone wipes its target/ directory so
       # the aarch64 assembly contains only linux-aarch_64 Netty native binaries
       # (no leftovers from the amd64 run above).
@@ -210,7 +215,7 @@ jobs:
           cache-from: type=gha,scope=proxy-arm64
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-arm64
 
-      # ── Phase 4: multi-arch manifest ─────────────────────────────────────────
+      # ?? Phase 4: multi-arch manifest ?????????????????????????????????????????
       # Assemble the canonical proxy tag and the legacy kroxylicious alias as
       # manifest lists pointing at the per-arch images pushed above.
 
