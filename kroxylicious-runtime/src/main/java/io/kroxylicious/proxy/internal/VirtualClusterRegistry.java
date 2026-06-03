@@ -6,13 +6,13 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
@@ -69,7 +69,7 @@ public class VirtualClusterRegistry {
                                   BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
-        this.entriesByCluster = new LinkedHashMap<>();
+        this.entriesByCluster = new ConcurrentHashMap<>();
         for (var vcm : virtualClusterModels) {
             var name = vcm.getClusterName();
             if (entriesByCluster.containsKey(name)) {
@@ -83,7 +83,10 @@ public class VirtualClusterRegistry {
      * Returns the currently-tracked virtual cluster models. The list reflects the constructor-
      * supplied models PLUS any added at runtime via {@link #addVirtualCluster(VirtualClusterModel)}.
      *
-     * @return snapshot of currently-tracked virtual cluster models (insertion order)
+     * <p>Iteration order is unspecified (the backing map is concurrent). Callers that need
+     * order-stable output should sort the result themselves.
+     *
+     * @return weakly-consistent snapshot of currently-tracked virtual cluster models
      */
     public List<VirtualClusterModel> virtualClusterModels() {
         return entriesByCluster.values().stream()
@@ -280,51 +283,37 @@ public class VirtualClusterRegistry {
     }
 
     /**
-     * Drives an existing virtual cluster through {@code SERVING → DRAINING → INITIALIZING → SERVING}
-     * with the supplied new model. Invoked by {@code ConfigurationReloadOrchestrator} for
-     * clusters whose configuration differs between the running and submitted configurations.
-     *
-     * <p>Named by its <em>intent</em> (apply {@code newModel} to the cluster identified by
-     * {@code clusterName}) rather than its implementation; a future iteration may implement
-     * replace more surgically (filter-chain swap on existing connections, rolling handoff)
-     * without changing the caller's interface.
-     *
-     * @param clusterName the virtual cluster to replace; must name an existing cluster
-     * @param newModel    the new model to apply
-     * @return a future that completes when the replacement is finished
-     */
-    public CompletableFuture<Void> replaceVirtualCluster(String clusterName, VirtualClusterModel newModel) {
-        // TODO: implement SERVING -> DRAINING -> [drain] -> [deregister] -> INITIALIZING ->
-        // [register] -> SERVING in the follow-up PR. See removeVirtualCluster Javadoc.
-        LOGGER.atWarn()
-                .addKeyValue("virtualCluster", clusterName)
-                .addKeyValue("operation", "replaceVirtualCluster")
-                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
-        return CompletableFuture.completedFuture(null);
-    }
-
-    /**
      * Creates a {@link VirtualClusterLifecycle} in {@code INITIALIZING} for
      * the given model. Endpoint binding and the transition to {@code SERVING} are the
      * orchestrator's responsibility — once gateway registration succeeds it calls
      * {@link #initializationSucceeded(String)}; on failure it calls
      * {@link #initializationFailed(String, Throwable)} and rolls back the gateway bindings.
      *
-     * @param newModel the model for the new cluster; must not name a cluster already present
+     * <p>If an entry already exists for this name AND its lifecycle is {@code Stopped}, the
+     * entry is replaced — this is how {@code ReplaceCluster}'s add half re-establishes the
+     * cluster after the remove half drove it to {@code Stopped}. The retained-{@code Stopped}-
+     * entry policy (see {@link #shutdownCluster}) interacts with re-add by name reuse, and
+     * "replace the dead entry" is the natural reconciliation.
+     *
+     * @param newModel the model for the new cluster
      * @return an already-completed future (the operation is synchronous; the
      *         {@link CompletableFuture} shape is preserved for caller symmetry with
      *         {@link #removeVirtualCluster})
-     * @throws IllegalArgumentException if a cluster with this name already exists
+     * @throws IllegalArgumentException if an entry already exists AND its lifecycle is in any
+     *         state OTHER than {@code Stopped} — re-adding an actively-serving (or initializing,
+     *         draining, or failed) cluster would be a contract violation.
      */
     public CompletableFuture<Void> addVirtualCluster(VirtualClusterModel newModel) {
         Objects.requireNonNull(newModel, "newModel must not be null");
         String name = newModel.getClusterName();
-        if (entriesByCluster.containsKey(name)) {
-            throw new IllegalArgumentException("Cluster already exists: " + name);
+        var existing = entriesByCluster.get(name);
+        if (existing != null && !(existing.lifecycle().state() instanceof VirtualClusterLifecycleState.Stopped)) {
+            throw new IllegalArgumentException("Cluster already exists and is not Stopped: " + name);
         }
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", name)
                 .addKeyValue("operation", "addVirtualCluster")
+                .addKeyValue("replacingStoppedEntry", existing != null)
                 .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
         entriesByCluster.put(name, new VirtualClusterEntry(newModel, new VirtualClusterLifecycle(name, newModel.drainTimeout())));
         return CompletableFuture.completedFuture(null);

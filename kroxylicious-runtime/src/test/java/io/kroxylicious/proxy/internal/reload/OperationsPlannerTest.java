@@ -51,6 +51,85 @@ class OperationsPlannerTest {
     }
 
     @Test
+    void shouldOrderPureRemovesThenModifiesThenPureAdds() {
+        // The full three-bucket ordering. A same-port modify wants its remove and add tight
+        // together — emitting one ReplaceCluster per modify achieves that structurally rather
+        // than by the planner remembering to pair them.
+        var pureRemoveModel = modelFor("cluster-pure-remove");
+        var oldModifyModel = modelFor("cluster-modify");
+        var newModifyModel = modelFor("cluster-modify");
+        var pureAddModel = modelFor("cluster-pure-add");
+        when(vcr.virtualClusterModels()).thenReturn(List.of(pureRemoveModel, oldModifyModel));
+        var planner = plannerWithModels(newModifyModel, pureAddModel);
+        var changes = new ChangeResult(
+                Set.of("cluster-pure-add"),
+                Set.of("cluster-pure-remove"),
+                Set.of("cluster-modify"));
+
+        var ops = planner.plan(changes, configWith("cluster-modify", "cluster-pure-add"));
+
+        assertThat(ops).hasSize(3);
+        assertThat(ops.get(0)).isInstanceOf(RemoveCluster.class);
+        assertThat(ops.get(0).clusterName()).isEqualTo("cluster-pure-remove");
+        assertThat(ops.get(1)).isInstanceOf(ReplaceCluster.class);
+        assertThat(ops.get(1).clusterName()).isEqualTo("cluster-modify");
+        assertThat(ops.get(2)).isInstanceOf(AddCluster.class);
+        assertThat(ops.get(2).clusterName()).isEqualTo("cluster-pure-add");
+    }
+
+    @Test
+    void shouldPlanModifyAsSingleReplaceClusterOp() {
+        // Modify produces ONE op, not two. The remove-then-add internals are encapsulated
+        // inside ReplaceCluster — the orchestrator sees a single intent.
+        var oldModel = modelFor("cluster-modify");
+        var newModel = modelFor("cluster-modify");
+        when(vcr.virtualClusterModels()).thenReturn(List.of(oldModel));
+        var planner = plannerWithModels(newModel);
+        var changes = new ChangeResult(Set.of(), Set.of(), Set.of("cluster-modify"));
+
+        var ops = planner.plan(changes, configWith("cluster-modify"));
+
+        assertThat(ops).singleElement()
+                .isInstanceOfSatisfying(ReplaceCluster.class,
+                        op -> assertThat(op.clusterName()).isEqualTo("cluster-modify"));
+    }
+
+    @Test
+    void shouldThrowIllegalStateWhenChangeDetectorReportsModifyForClusterNotInRegistry() {
+        // Phantom-modify, old-side variant. The change detector reported a modify for a name
+        // the registry doesn't have an entry for — the planner can't build a ReplaceCluster
+        // without both halves. Same shape of failure as phantom-add and phantom-remove.
+        var newModel = modelFor("cluster-modify");
+        when(vcr.virtualClusterModels()).thenReturn(List.of());
+        var planner = plannerWithModels(newModel);
+        var changes = new ChangeResult(Set.of(), Set.of(), Set.of("cluster-modify"));
+        var config = configWith("cluster-modify");
+
+        assertThatThrownBy(() -> planner.plan(changes, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cluster-modify")
+                .hasMessageContaining("absent from the registry")
+                .hasMessageContaining("ChangeDetector contract violation");
+    }
+
+    @Test
+    void shouldThrowIllegalStateWhenChangeDetectorReportsModifyForClusterNotInNewConfig() {
+        // Phantom-modify, new-side variant. The registry has the old model but the submitted
+        // configuration doesn't include the cluster — internally inconsistent.
+        var oldModel = modelFor("cluster-modify");
+        when(vcr.virtualClusterModels()).thenReturn(List.of(oldModel));
+        var planner = plannerWithModels(); // resolver returns no models
+        var changes = new ChangeResult(Set.of(), Set.of(), Set.of("cluster-modify"));
+        var config = configWith("placeholder");
+
+        assertThatThrownBy(() -> planner.plan(changes, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cluster-modify")
+                .hasMessageContaining("absent from the submitted configuration")
+                .hasMessageContaining("ChangeDetector contract violation");
+    }
+
+    @Test
     void shouldHandRemoveClusterTheRegistryOwnedModel() {
         // Reference-identity gotcha: EndpointRegistry's binding map is keyed on the
         // EndpointGateway reference itself. RemoveCluster must be given the *registry's*

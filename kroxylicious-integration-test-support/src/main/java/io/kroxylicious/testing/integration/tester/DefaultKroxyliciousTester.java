@@ -328,6 +328,24 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
+    public void closeClientsFor(String virtualCluster) {
+        var exceptions = new ArrayList<Exception>();
+        clients.entrySet().removeIf(e -> {
+            if (e.getKey().virtualCluster().equals(virtualCluster)) {
+                closeCloseable(e.getValue()).ifPresent(exceptions::add);
+                return true;
+            }
+            return false;
+        });
+        if (!exceptions.isEmpty()) {
+            // Log each close-failure (so a stuck client doesn't hide behind the rest) and
+            // surface the first as the test-visible failure. Matches the close() pattern.
+            exceptions.forEach(ex -> LOGGER.error(ex.getMessage(), ex));
+            throw new IllegalStateException(exceptions.get(0));
+        }
+    }
+
+    @Override
     public void close() {
         try {
             List<Exception> exceptions = new ArrayList<>();
