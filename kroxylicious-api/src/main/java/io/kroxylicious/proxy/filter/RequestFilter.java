@@ -17,7 +17,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
  *
  * <p>When a Filter implements {@code RequestFilter}:</p>
  * <ul>
- *  <li>it must not also implement any of the message-specific {@code *RequestFilter} interfaces like {@link ApiVersionsRequestFilter}.</li>
+ *  <li>it must not also implement any of the message-specific {@code *RequestFilter} interfaces like {@code ApiVersionsRequestFilter}.</li>
  *  <li>it may also implement either {@link ResponseFilter} or any of the message-specific {@code *ResponseFilter} interfaces, but not both.</li>
  * </ul>
  */
