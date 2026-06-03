@@ -122,14 +122,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
         String staticRoute = staticRoutes.get(apiKey);
         if (staticRoute != null) {
-            Integer bootstrapVirtual = bootstrapVirtualNodeIds.get(staticRoute);
-            if (bootstrapVirtual != null) {
-                int translatedId = virtualIdTranslator.applyAsInt(bootstrapVirtual);
-                setRoutingContext(msg, new RoutingContext.RouteTargetNode(staticRoute, translatedId));
-            }
-            else {
-                setRoutingContext(msg, new RoutingContext.RouteBootstrap(staticRoute));
-            }
+            setRoutingContext(msg, new RoutingContext.RouteDefaultNode(staticRoute));
             routingRequestsCounter.withTags(
                     Metrics.ROUTE_LABEL, staticRoute,
                     Metrics.ROUTING_MODE_LABEL, "static",
@@ -168,14 +161,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 .log("Dispatching request to router");
 
         RouterContextImpl.RouteForwarder routeForwarder = (routeName, forwarded) -> {
-            Integer bootstrapVirtual = bootstrapVirtualNodeIds.get(routeName);
-            if (bootstrapVirtual != null) {
-                int translatedId = virtualIdTranslator.applyAsInt(bootstrapVirtual);
-                setRoutingContext(forwarded, new RoutingContext.RouteTargetNode(routeName, translatedId));
-            }
-            else {
-                setRoutingContext(forwarded, new RoutingContext.RouteBootstrap(routeName));
-            }
+            setRoutingContext(forwarded, new RoutingContext.RouteDefaultNode(routeName));
             ctx.fireChannelRead(forwarded);
         };
         RouterContextImpl.NodeForwarder nodeForwarder = (virtualNodeId, routeName, forwarded) -> {
@@ -235,7 +221,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
             Response response = completed.response();
             response.header().setCorrelationId(clientCorrelationId);
             var responseFrame = clientFrame.responseFrame(response.header(), response.body());
-            responseFrame.setRoutingContext(new RoutingContext.RouteBootstrap(activationRoute));
+            responseFrame.setRoutingContext(new RoutingContext.RouteDefaultNode(activationRoute));
             ctx.write(responseFrame, ctx.voidPromise());
             ctx.flush();
             LOGGER.atTrace()
@@ -291,7 +277,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 }
             }
         }
-        setRoutingContext(msg, new RoutingContext.RouteBootstrap(activationRoute));
+        setRoutingContext(msg, new RoutingContext.RouteDefaultNode(activationRoute));
         ctx.write(msg, promise);
     }
 
