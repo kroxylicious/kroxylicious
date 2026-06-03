@@ -99,7 +99,7 @@ public class RoutingTerminalHandler extends ChannelInboundHandlerAdapter {
         if (msg instanceof Frame frame) {
             String route = correlationIdToRoute.remove(frame.correlationId());
             if (route != null) {
-                setRoutingContext(msg, new RoutingContext.RouteBootstrap(route));
+                setRoutingContext(msg, new RoutingContext.RouteDefaultNode(route));
             }
         }
         ctx.write(msg, ctx.voidPromise());
