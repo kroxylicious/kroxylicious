@@ -22,7 +22,7 @@
 # operator works correctly on the OpenShift API surface.
 #
 # Prerequisites / secrets required in the repository:
-#   REDHAT_PULL_SECRET  ? Red Hat pull secret (JSON) downloaded from
+#   REDHAT_PULL_SECRET  – Red Hat pull secret (JSON) downloaded from
 #                         https://console.redhat.com/openshift/downloads#tool-pull-secret
 #                         Required to pull MicroShift's bundled OpenShift images.
 
