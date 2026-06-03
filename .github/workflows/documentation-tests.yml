@@ -31,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # StepSecurity harden-runner cannot be used here because of the limitation of running it on containers (minikube)
+      # https://github.com/step-security/harden-runner/blob/main/docs/limitations.md
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
