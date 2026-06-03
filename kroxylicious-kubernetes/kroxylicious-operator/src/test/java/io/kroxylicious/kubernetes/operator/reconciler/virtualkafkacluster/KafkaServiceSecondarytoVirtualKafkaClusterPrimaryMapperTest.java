@@ -12,6 +12,11 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.IndexerResourceCache;
@@ -73,6 +78,49 @@ class KafkaServiceSecondarytoVirtualKafkaClusterPrimaryMapperTest {
         // The live list (context.getClient()...) was the source of the transient failures that dropped events in #4017.
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
         verify(eventSourceContext, never()).getClient();
+    }
+
+    @Test
+    void shouldReturnIdsWhenApiServerUnavailable() {
+        // Regression test for #4017. The mapper previously called client.list() on every secondary
+        // event. JOSDK catches exceptions thrown from within the informer's event-dispatch path and
+        // silently drops the triggering event with no retry — a transient KubernetesClientException
+        // on the list therefore left the VirtualKafkaCluster stuck with no ingress status.
+
+        // Given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName("target-kafka").build()).endSpec().build();
+
+        EventSourceContext<VirtualKafkaCluster> context = mock();
+        stubFailingListOperationClient(context);
+        stubPrimaryCache(cluster, context);
+
+        SecondaryToPrimaryMapper<KafkaService> mapper = new KafkaServiceSecondaryToVirtualKafkaClusterPrimaryMapper(context);
+        KafkaService service = new KafkaServiceBuilder().withNewMetadata().withName("target-kafka").endMetadata().withNewSpec().endSpec().build();
+
+        // When
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // Then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    private static void stubPrimaryCache(VirtualKafkaCluster cluster, EventSourceContext<VirtualKafkaCluster> context) {
+        IndexerResourceCache<VirtualKafkaCluster> primaryCache = mock();
+        when(primaryCache.list(any(), any())).thenAnswer(invocation -> {
+            Predicate<VirtualKafkaCluster> predicate = invocation.getArgument(1);
+            return Stream.of(cluster).filter(predicate);
+        });
+        when(context.getPrimaryCache()).thenReturn(primaryCache);
+    }
+
+    private static void stubFailingListOperationClient(EventSourceContext<VirtualKafkaCluster> context) {
+        KubernetesClient client = mock();
+        when(context.getClient()).thenReturn(client);
+        MixedOperation<VirtualKafkaCluster, KubernetesResourceList<VirtualKafkaCluster>, Resource<VirtualKafkaCluster>> mockOperation = mock();
+        when(client.resources(VirtualKafkaCluster.class)).thenReturn(mockOperation);
+        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
+        when(mockOperation.list()).thenThrow(new KubernetesClientException("transient API server failure"));
     }
 
     @Test
