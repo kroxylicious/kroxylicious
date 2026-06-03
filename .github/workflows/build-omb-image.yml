@@ -46,7 +46,7 @@ jobs:
           OMB_REF: ${{ inputs.omb_ref }}
         run: |
           if echo "${OMB_REF}" | grep -qE '^[a-f0-9]{7,40}$'; then
-            # Looks like a commit SHA ? use it directly
+            # Looks like a commit SHA — use it directly
             OMB_SHA="${OMB_REF}"
           else
             # Try to resolve as a ref name (branch or tag).
@@ -109,5 +109,5 @@ jobs:
           if [[ "${{ steps.build_configuration.outputs.push_images }}" == "true" ]]; then
             echo "Pushed ${{ steps.build_configuration.outputs.tags }}" >> "${GITHUB_STEP_SUMMARY}"
           else
-            echo "Registry not configured ? image built but not pushed." >> "${GITHUB_STEP_SUMMARY}"
+            echo "Registry not configured — image built but not pushed." >> "${GITHUB_STEP_SUMMARY}"
           fi
