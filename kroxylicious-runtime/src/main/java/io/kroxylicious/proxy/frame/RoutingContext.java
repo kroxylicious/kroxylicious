@@ -18,13 +18,12 @@ public sealed interface RoutingContext {
     String route();
 
     /**
-     * Forward to the route's bootstrap server.
-     * Used for static routes and bootstrap sends.
+     * Message is being forwarded along a Route, intended for the default broker (implied by the connection)
      */
-    record RouteBootstrap(String route) implements RoutingContext {}
+    record RouteDefaultNode(String route) implements RoutingContext {}
 
     /**
-     * Forward to a specific broker identified by virtual node ID.
+     * Message is being forwarded along a Route, intended for a specific broker identified by virtual node ID.
      * Used for {@code sendRequestToNode}.
      */
     record RouteTargetNode(String route, int virtualNodeId) implements RoutingContext {}

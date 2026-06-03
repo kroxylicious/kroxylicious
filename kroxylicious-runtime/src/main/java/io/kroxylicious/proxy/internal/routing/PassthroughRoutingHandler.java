@@ -23,7 +23,7 @@ import io.kroxylicious.proxy.frame.RoutingContext;
 public class PassthroughRoutingHandler extends ChannelInboundHandlerAdapter {
 
     public static final String DEFAULT_ROUTE = "default";
-    private static final RoutingContext DEFAULT_CONTEXT = new RoutingContext.RouteBootstrap(DEFAULT_ROUTE);
+    private static final RoutingContext DEFAULT_CONTEXT = new RoutingContext.RouteDefaultNode(DEFAULT_ROUTE);
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
