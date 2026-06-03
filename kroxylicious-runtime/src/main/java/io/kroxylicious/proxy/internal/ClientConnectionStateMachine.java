@@ -45,6 +45,8 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
@@ -901,45 +903,102 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwardingWithRoutes(Forwarding forwarding) {
         setState(forwarding);
-        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
         routeTargets = new HashMap<>();
 
-        // When the client connected to a broker-specific port (after metadata discovery),
-        // the owning route should connect to that specific broker instead of the bootstrap.
-        String owningRoute = null;
-        HostPort brokerTarget = null;
-        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
-            var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
-            owningRoute = routeAndNode.route();
-            brokerTarget = beb.upstreamTarget();
-        }
-
-        var frontend = Objects.requireNonNull(frontendHandler);
-        Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
-        for (var entry : descriptors.entrySet()) {
-            RouteDescriptor rd = entry.getValue();
-            if (rd.targetsCluster()) {
-                HostPort target;
-                if (entry.getKey().equals(owningRoute)) {
-                    target = brokerTarget;
-                }
-                else {
-                    target = rd.targetCluster().bootstrapServer();
-                }
-                routeTargets.put(entry.getKey(), target);
-                if (!serverConnections.containsKey(target)) {
-                    proxyToServerConnectionCounter.increment();
-                    var scsm = createServerConnection(target);
-                    serverConnections.put(target, scsm);
-                    scsm.connect(clientChannel);
+        // Populate routeTargets from ALL cluster-targeting routes across the router DAG.
+        var vc = virtualCluster();
+        var allDescs = vc.allRouteDescriptors();
+        if (allDescs != null) {
+            for (var routerEntry : allDescs.values()) {
+                for (var routeEntry : routerEntry.entrySet()) {
+                    RouteDescriptor rd = routeEntry.getValue();
+                    if (rd.targetsCluster()) {
+                        routeTargets.put(routeEntry.getKey(), rd.targetCluster().bootstrapServer());
+                    }
                 }
             }
         }
+        else {
+            var descriptors = vc.routeDescriptors();
+            if (descriptors != null) {
+                for (var entry : descriptors.entrySet()) {
+                    RouteDescriptor rd = entry.getValue();
+                    if (rd.targetsCluster()) {
+                        routeTargets.put(entry.getKey(), rd.targetCluster().bootstrapServer());
+                    }
+                }
+            }
+        }
+
+        // For broker-specific connections, override the owning route's target
+        // with the specific broker address instead of the bootstrap.
+        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
+            String owningRoute = resolveOwningRoute(beb.nodeId(), allDescs);
+            if (owningRoute != null) {
+                routeTargets.put(owningRoute, beb.upstreamTarget());
+            }
+        }
+
         log(Level.DEBUG)
                 .addKeyValue("routeCount", routeTargets.size())
-                .addKeyValue("backendCount", serverConnections.size())
                 .addKeyValue("routeTargets", () -> routeTargets.toString())
-                .log("Upstream connections initiated for router VC");
+                .log("Route targets resolved for router VC");
+    }
+
+    /**
+     * Walks the router DAG from an outermost virtual node ID to find the
+     * cluster-targeting route that the node ultimately belongs to.
+     */
+    @Nullable
+    private String resolveOwningRoute(int outerVirtualNodeId,
+                                      @Nullable Map<String, Map<String, RouteDescriptor>> allDescs) {
+        var routeAndNode = nodeIdMapping.fromVirtual(outerVirtualNodeId);
+        var descriptors = allDescs != null
+                ? findRouteDescriptor(routeAndNode.route(), allDescs)
+                : findRouteDescriptorFlat(routeAndNode.route(), virtualCluster().routeDescriptors());
+        if (descriptors == null) {
+            return null;
+        }
+        if (descriptors.targetsCluster()) {
+            return routeAndNode.route();
+        }
+        if (!descriptors.targetsRouter() || allDescs == null) {
+            return null;
+        }
+        // Router-targeting route: walk into the nested router
+        var innerDescs = allDescs.get(descriptors.routerName());
+        if (innerDescs == null) {
+            return null;
+        }
+        var innerRouteIds = innerDescs.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
+        NodeIdMapping innerMapping = innerRouteIds.size() > 1
+                ? new BijectiveNodeIdMapping(innerRouteIds, innerRouteIds.size())
+                : new IdentityNodeIdMapping(innerRouteIds.keySet().iterator().next());
+        var innerRouteAndNode = innerMapping.fromVirtual(routeAndNode.targetNodeId());
+        var innerRd = innerDescs.get(innerRouteAndNode.route());
+        if (innerRd != null && innerRd.targetsCluster()) {
+            return innerRouteAndNode.route();
+        }
+        return null;
+    }
+
+    @Nullable
+    private static RouteDescriptor findRouteDescriptor(String routeName,
+                                                       Map<String, Map<String, RouteDescriptor>> allDescs) {
+        for (var routerDescs : allDescs.values()) {
+            RouteDescriptor rd = routerDescs.get(routeName);
+            if (rd != null) {
+                return rd;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private static RouteDescriptor findRouteDescriptorFlat(String routeName,
+                                                           @Nullable Map<String, RouteDescriptor> descs) {
+        return descs != null ? descs.get(routeName) : null;
     }
 
     /**
@@ -955,6 +1014,14 @@ public class ClientConnectionStateMachine {
                 return;
             }
             ServerConnectionStateMachine scsm = serverConnections.get(target);
+            if (scsm == null) {
+                proxyToServerConnectionCounter.increment();
+                scsm = createServerConnection(target);
+                serverConnections.put(target, scsm);
+                Channel clientChannel = Objects.requireNonNull(
+                        Objects.requireNonNull(frontendHandler).clientChannel());
+                scsm.connect(clientChannel);
+            }
             scsm.sendRequest(msg);
             log(Level.TRACE)
                     .addKeyValue("route", routeName)
