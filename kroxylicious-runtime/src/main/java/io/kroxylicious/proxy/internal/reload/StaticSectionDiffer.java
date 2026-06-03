@@ -30,7 +30,7 @@ import io.kroxylicious.proxy.config.Configuration;
  * a new field into runtime reconciliation, add its name to {@link #RECONCILABLE} <em>and</em>
  * implement a corresponding {@link ChangeDetector} in {@link ConfigurationReloadOrchestrator}.
  */
-public class StaticSectionDiffer {
+final class StaticSectionDiffer {
 
     /**
      * Names of {@link Configuration} record components the orchestrator can reconcile at
@@ -51,7 +51,7 @@ public class StaticSectionDiffer {
      * @param newConfig the submitted configuration
      * @return the names of sections that differ; never null, may be empty
      */
-    public Set<String> diff(Configuration oldConfig, Configuration newConfig) {
+    Set<String> diff(Configuration oldConfig, Configuration newConfig) {
         Objects.requireNonNull(oldConfig, "oldConfig");
         Objects.requireNonNull(newConfig, "newConfig");
 

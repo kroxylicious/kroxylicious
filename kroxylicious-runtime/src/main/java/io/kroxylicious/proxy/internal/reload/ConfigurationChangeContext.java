@@ -17,9 +17,9 @@ import io.kroxylicious.proxy.config.Configuration;
  * @param oldConfig configuration currently applied to the running proxy
  * @param newConfig configuration the caller wants to apply
  */
-public record ConfigurationChangeContext(Configuration oldConfig, Configuration newConfig) {
+record ConfigurationChangeContext(Configuration oldConfig, Configuration newConfig) {
 
-    public ConfigurationChangeContext {
+    ConfigurationChangeContext {
         Objects.requireNonNull(oldConfig, "oldConfig");
         Objects.requireNonNull(newConfig, "newConfig");
     }
