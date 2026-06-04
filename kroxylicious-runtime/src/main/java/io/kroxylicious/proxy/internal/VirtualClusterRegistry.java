@@ -52,7 +52,7 @@ public class VirtualClusterRegistry {
      */
     private record VirtualClusterEntry(VirtualClusterModel model, VirtualClusterLifecycle lifecycle) {}
 
-    private final Map<String, VirtualClusterEntry> entriesByCluster;
+    private final Map<String, VirtualClusterEntry> entriesByCluster = new ConcurrentHashMap<>();;
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
@@ -70,7 +70,6 @@ public class VirtualClusterRegistry {
                                   BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
-        this.entriesByCluster = new ConcurrentHashMap<>();
         for (var vcm : virtualClusterModels) {
             var name = vcm.getClusterName();
             if (entriesByCluster.containsKey(name)) {
