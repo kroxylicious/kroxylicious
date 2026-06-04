@@ -466,6 +466,7 @@ class HotReloadIT extends BaseIT {
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> {
                     try (var s = new ServerSocket()) {
+                        s.setReuseAddress(true);
                         s.bind(new InetSocketAddress((InetAddress) null, port));
                     }
                 });
@@ -479,6 +480,7 @@ class HotReloadIT extends BaseIT {
         ServerSocket s = null;
         try {
             s = new ServerSocket();
+            s.setReuseAddress(true);
             s.bind(new InetSocketAddress((InetAddress) null, port));
             return s;
         }
