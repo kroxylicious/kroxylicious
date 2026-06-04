@@ -52,7 +52,7 @@ public class VirtualClusterRegistry {
      */
     private record VirtualClusterEntry(VirtualClusterModel model, VirtualClusterLifecycle lifecycle) {}
 
-    private final Map<String, VirtualClusterEntry> entriesByCluster = new ConcurrentHashMap<>();;
+    private final Map<String, VirtualClusterEntry> entriesByCluster = new ConcurrentHashMap<>();
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
@@ -319,21 +319,23 @@ public class VirtualClusterRegistry {
     public CompletableFuture<Void> addVirtualCluster(VirtualClusterModel newModel) {
         Objects.requireNonNull(newModel, "newModel must not be null");
         String name = newModel.getClusterName();
-        var existing = entriesByCluster.get(name);
-        if (existing != null) {
-            var state = existing.lifecycle().state();
-            if (!(state instanceof VirtualClusterLifecycleState.Stopped)) {
-                throw new IllegalStateException(
-                        "Cluster '" + name + "' already exists and its lifecycle is "
-                                + state.getClass().getSimpleName() + "; re-add is only permitted from Stopped");
+
+        entriesByCluster.compute(name, (key, existing) -> {
+            if (existing != null) {
+                var state = existing.lifecycle().state();
+                if (!(state instanceof VirtualClusterLifecycleState.Stopped)) {
+                    throw new IllegalStateException(
+                            "Cluster '" + name + "' already exists and its lifecycle is "
+                                    + state.getClass().getSimpleName() + "; re-add is only permitted from Stopped");
+                }
             }
-        }
-        LOGGER.atInfo()
-                .addKeyValue("virtualCluster", name)
-                .addKeyValue("operation", "addVirtualCluster")
-                .addKeyValue("replacingStoppedEntry", existing != null)
-                .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
-        entriesByCluster.put(name, new VirtualClusterEntry(newModel, new VirtualClusterLifecycle(name, newModel.drainTimeout())));
+            LOGGER.atInfo()
+                    .addKeyValue("virtualCluster", name)
+                    .addKeyValue("operation", "addVirtualCluster")
+                    .addKeyValue("replacingStoppedEntry", existing != null)
+                    .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
+            return new VirtualClusterEntry(newModel, new VirtualClusterLifecycle(name, newModel.drainTimeout()));
+        });
         return CompletableFuture.completedFuture(null);
     }
 
