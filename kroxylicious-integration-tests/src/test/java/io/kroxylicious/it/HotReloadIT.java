@@ -76,31 +76,18 @@ class HotReloadIT extends BaseIT {
     private static final Duration PRODUCE_CONSUME_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(5);
 
-    // Port blocks per port-addressed test. The BASE is randomized once per JVM run so a
-    // re-run within the OS's TIME_WAIT window (60-240s) doesn't collide with the previous
-    // run's sockets. Chosen range [20000, 28000) sits below the OS ephemeral ranges on both
-    // Linux (32768-61000) and macOS (49152-65535), reducing collisions with unrelated
-    // processes' transient sockets. PORT_STRIDE is the within-test offset between adjacent
-    // bootstrap ports used by a single test.
-    private static final int PORT_BLOCK_BASE = 20000 + ThreadLocalRandom.current().nextInt(8000);
+    // Hard-coded port blocks per port-addressed test, so concurrent test instances on the same
+    // host don't collide. PORT_STRIDE is the within-test offset between adjacent bootstrap
+    // ports used by a single test (bootstrap + brokers + add/remove targets).
     private static final int PORT_STRIDE = 10;
-    private static final int PORT_BLOCK_REMOVE = PORT_BLOCK_BASE; // shouldReleasePortWhenPortAddressedVcIsRemoved
-    private static final int PORT_BLOCK_ADD = PORT_BLOCK_BASE + 100; // shouldStartServingAddedPortAddressedVcEndToEnd
-    private static final int PORT_BLOCK_BINDFAIL = PORT_BLOCK_BASE + 200; // shouldSurfaceBindFailureAsReconfigureError...
-    private static final int PORT_BLOCK_REUSE = PORT_BLOCK_BASE + 300; // shouldSupportPortReuseAcrossReconfigures
-    private static final int PORT_BLOCK_ADD_THEN_REMOVE = PORT_BLOCK_BASE + 400; // shouldRemoveRuntimeAddedPortAddressedVc
-    private static final int PORT_BLOCK_MODIFY_SAME_PORT = PORT_BLOCK_BASE + 500; // shouldModifyPortAddressedVcWithSamePort
-    private static final int PORT_BLOCK_MODIFY_DIFF_PORT = PORT_BLOCK_BASE + 600; // shouldModifyPortAddressedVcWithDifferentPort
-    private static final int PORT_BLOCK_MODIFY_FAIL = PORT_BLOCK_BASE + 700; // shouldSurfaceModifyFailureAsReconfigureError
-
-    static {
-        // Log the chosen base so a CI failure with EADDRINUSE can be reproduced (and the
-        // suspect port range identified) without re-running the suite.
-        LoggerFactory.getLogger(HotReloadIT.class)
-                .atInfo()
-                .addKeyValue("portBlockBase", PORT_BLOCK_BASE)
-                .log("HotReloadIT: per-JVM port block base chosen");
-    }
+    private static final int PORT_BLOCK_REMOVE = 51000; // shouldReleasePortWhenPortAddressedVcIsRemoved
+    private static final int PORT_BLOCK_ADD = 51100; // shouldStartServingAddedPortAddressedVcEndToEnd
+    private static final int PORT_BLOCK_BINDFAIL = 51200; // shouldSurfaceBindFailureAsReconfigureError...
+    private static final int PORT_BLOCK_REUSE = 51300; // shouldSupportPortReuseAcrossReconfigures
+    private static final int PORT_BLOCK_ADD_THEN_REMOVE = 51400; // shouldRemoveRuntimeAddedPortAddressedVc
+    private static final int PORT_BLOCK_MODIFY_SAME_PORT = 51500; // shouldModifyPortAddressedVcWithSamePort
+    private static final int PORT_BLOCK_MODIFY_DIFF_PORT = 51600; // shouldModifyPortAddressedVcWithDifferentPort
+    private static final int PORT_BLOCK_MODIFY_FAIL = 51700; // shouldSurfaceModifyFailureAsReconfigureError
 
     /**
      * Identifies a non-baseline VC slot used by the tests. {@link #buildConfig} takes a
