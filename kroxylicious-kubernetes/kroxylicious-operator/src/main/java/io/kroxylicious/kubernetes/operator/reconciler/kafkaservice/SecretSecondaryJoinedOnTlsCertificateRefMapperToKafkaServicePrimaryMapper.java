@@ -28,9 +28,8 @@ class SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper 
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(Secret secret) {
-        return ResourcesUtil.findReferrers(context,
+        return ResourcesUtil.findKnownPrimariesOf(context,
                 secret,
-                KafkaService.class,
                 service -> Optional.ofNullable(service.getSpec())
                         .map(KafkaServiceSpec::getTls)
                         .map(Tls::getCertificateRef));
