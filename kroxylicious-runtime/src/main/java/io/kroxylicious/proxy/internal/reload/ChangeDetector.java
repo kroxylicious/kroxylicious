@@ -13,7 +13,7 @@ package io.kroxylicious.proxy.internal.reload;
  * Each detector focuses on one concern (virtual-cluster topology, filter definitions, etc.) so
  * individual diffs are easy to understand, test, and evolve.
  */
-public interface ChangeDetector {
+interface ChangeDetector {
 
     /**
      * Examines the old and new configuration carried by {@code context} and returns the set of

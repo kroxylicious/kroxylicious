@@ -6,6 +6,11 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,65 +18,76 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.ssl.SslContext;
 
-import io.kroxylicious.proxy.internal.util.ActivationToken;
+import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
+import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
+import io.kroxylicious.proxy.internal.tls.TestCertificateUtil;
+import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
+import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
+import io.kroxylicious.proxy.tls.TlsCredentials;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ServerConnectionStateMachineTest {
 
     private static final HostPort BROKER_ADDRESS = new HostPort("broker.example.com", 9092);
+    private static final String CLUSTER_NAME = "test-cluster";
+    private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
 
     @Mock
     private ClientConnectionStateMachine ccsm;
 
     @Mock
-    private ActivationToken activationToken;
+    private VirtualClusterModel virtualCluster;
 
     private ServerConnectionStateMachine serverStateMachine;
     private SimpleMeterRegistry meterRegistry;
-    private Counter proxyToServerConnectionCounter;
-    private Counter proxyToServerErrorCounter;
-    private Timer serverToProxyBackpressureMeter;
 
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(meterRegistry);
 
-        proxyToServerConnectionCounter = meterRegistry.counter("test.proxy.to.server.connections");
-        proxyToServerErrorCounter = meterRegistry.counter("test.proxy.to.server.errors");
-        serverToProxyBackpressureMeter = meterRegistry.timer("test.server.to.proxy.backpressure");
-
         lenient().when(ccsm.sessionId()).thenReturn("test-session-123");
-        lenient().when(ccsm.clusterName()).thenReturn("test-cluster");
+        lenient().when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
+        lenient().when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
 
         serverStateMachine = new ServerConnectionStateMachine(
                 BROKER_ADDRESS,
-                false,
                 ccsm,
-                proxyToServerConnectionCounter,
-                proxyToServerErrorCounter,
-                serverToProxyBackpressureMeter,
-                activationToken);
+                virtualCluster,
+                CLUSTER_NAME,
+                null);
     }
 
     @AfterEach
@@ -106,7 +122,6 @@ class ServerConnectionStateMachineTest {
 
     @Test
     void onServerActiveShouldFlushPendingRequests() {
-
         serverStateMachine.sendRequest("req-1");
         serverStateMachine.sendRequest("req-2");
         assertThat(serverStateMachine.serverMessagesInFlightCount).isZero();
@@ -178,7 +193,6 @@ class ServerConnectionStateMachineTest {
 
     @Test
     void pendingRequestsPreserveOrder() {
-
         for (int i = 0; i < 5; i++) {
             serverStateMachine.sendRequest("req-" + i);
         }
@@ -200,23 +214,18 @@ class ServerConnectionStateMachineTest {
                 .isEqualTo(BROKER_ADDRESS);
     }
 
-    @Test
-    void shouldIncrementConnectionCounterOnConstruction() {
-        assertThat(proxyToServerConnectionCounter.count())
-                .isCloseTo(1.0, CLOSE_ENOUGH);
-    }
-
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void shouldTrackTlsRequirement(boolean requiresTls) {
+        var vc = mock(VirtualClusterModel.class);
+        when(vc.getUpstreamSslContext()).thenReturn(requiresTls ? Optional.of(mock(SslContext.class)) : Optional.empty());
+
         ServerConnectionStateMachine sm = new ServerConnectionStateMachine(
                 BROKER_ADDRESS,
-                requiresTls,
                 ccsm,
-                proxyToServerConnectionCounter,
-                proxyToServerErrorCounter,
-                serverToProxyBackpressureMeter,
-                activationToken);
+                vc,
+                CLUSTER_NAME,
+                null);
 
         assertThat(sm.isUpstreamTls()).isEqualTo(requiresTls);
     }
@@ -228,10 +237,12 @@ class ServerConnectionStateMachineTest {
 
     @Test
     void onServerActiveShouldTransitionToActiveAndNotifyClientStateMachine() {
+        int initialActiveCount = getActiveServerConnections();
+
         serverStateMachine.onServerActive();
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Active.class);
-        verify(activationToken).acquire();
+        assertThat(getActiveServerConnections()).isEqualTo(initialActiveCount + 1);
         verify(ccsm).onServerConnectionActive();
     }
 
@@ -248,12 +259,23 @@ class ServerConnectionStateMachineTest {
     @Test
     void onServerInactiveShouldTransitionToClosedAndNotifyClientStateMachine() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.onServerInactive();
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
         verify(ccsm).onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
-        verify(activationToken).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
+    }
+
+    @Test
+    void onServerInactiveWhileConnectingShouldTransitionToClosedAndNotifyCcsm() {
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Connecting.class);
+
+        serverStateMachine.onServerInactive();
+
+        assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
+        verify(ccsm).onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
     }
 
     @Test
@@ -268,14 +290,15 @@ class ServerConnectionStateMachineTest {
     @Test
     void onServerExceptionShouldIncrementErrorCounterAndTransitionToClosed() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
         RuntimeException cause = new RuntimeException("Connection failed");
 
         serverStateMachine.onServerException(cause);
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
-        assertThat(proxyToServerErrorCounter.count()).isCloseTo(1.0, CLOSE_ENOUGH);
+        assertThat(getProxyToServerErrorCount()).isCloseTo(1.0, CLOSE_ENOUGH);
         verify(ccsm).onServerConnectionException(cause);
-        verify(activationToken).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -285,18 +308,18 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.onServerException(null);
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
-        assertThat(proxyToServerErrorCounter.count()).isCloseTo(1.0, CLOSE_ENOUGH);
+        assertThat(getProxyToServerErrorCount()).isCloseTo(1.0, CLOSE_ENOUGH);
         verify(ccsm).onServerConnectionException(null);
     }
 
     @Test
     void onServerExceptionWhenAlreadyClosedShouldNotIncrementErrorCounter() {
         serverStateMachine.close();
-        double errorCountBefore = proxyToServerErrorCounter.count();
+        double errorCountBefore = getProxyToServerErrorCount();
 
         serverStateMachine.onServerException(new RuntimeException("test"));
 
-        assertThat(proxyToServerErrorCounter.count()).isEqualTo(errorCountBefore);
+        assertThat(getProxyToServerErrorCount()).isEqualTo(errorCountBefore);
         verify(ccsm, never()).onServerConnectionException(null);
     }
 
@@ -393,7 +416,7 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.relieveBackpressure();
 
         assertThat(serverStateMachine).extracting("serverBackpressureTimer").isNull();
-        assertThat(serverToProxyBackpressureMeter.count()).isGreaterThanOrEqualTo(1);
+        assertThat(getBackpressureTimerCount()).isGreaterThanOrEqualTo(1);
     }
 
     @Test
@@ -402,9 +425,9 @@ class ServerConnectionStateMachineTest {
 
         serverStateMachine.applyBackpressure();
         serverStateMachine.relieveBackpressure();
-        long countAfterFirst = serverToProxyBackpressureMeter.count();
+        long countAfterFirst = getBackpressureTimerCount();
         serverStateMachine.relieveBackpressure();
-        long countAfterSecond = serverToProxyBackpressureMeter.count();
+        long countAfterSecond = getBackpressureTimerCount();
 
         assertThat(countAfterSecond).isEqualTo(countAfterFirst);
     }
@@ -414,27 +437,29 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.relieveBackpressure();
 
         assertThat(serverStateMachine).extracting("serverBackpressureTimer").isNull();
-        assertThat(serverToProxyBackpressureMeter.count()).isZero();
+        assertThat(getBackpressureTimerCount()).isZero();
     }
 
     @Test
     void closeShouldTransitionToClosedAndReleaseActivationToken() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.close();
 
         assertThat(serverStateMachine.state()).isInstanceOf(ServerConnectionState.Closed.class);
-        verify(activationToken).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
     void closeShouldBeIdempotent() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.close();
         serverStateMachine.close();
 
-        verify(activationToken, times(1)).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -453,12 +478,13 @@ class ServerConnectionStateMachineTest {
     @Test
     void shouldReleaseActivationTokenOnlyOnceWhenTransitioningToClosed() {
         serverStateMachine.onServerActive();
+        int countAfterActive = getActiveServerConnections();
 
         serverStateMachine.close();
         serverStateMachine.onServerInactive();
         serverStateMachine.onServerException(new RuntimeException("test"));
 
-        verify(activationToken, times(1)).release();
+        assertThat(getActiveServerConnections()).isEqualTo(countAfterActive - 1);
     }
 
     @Test
@@ -469,5 +495,339 @@ class ServerConnectionStateMachineTest {
         serverStateMachine.onServerException(exception);
 
         verify(ccsm).onServerConnectionException(exception);
+    }
+
+    private ServerConnectionStateMachine createConnectableScsm(ClientConnectionStateMachine mockCcsm,
+                                                               VirtualClusterModel mockVirtualCluster,
+                                                               EmbeddedChannel[] outboundHolder) {
+        lenient().when(mockCcsm.sessionId()).thenReturn("test-session");
+        lenient().when(mockCcsm.clusterName()).thenReturn(CLUSTER_NAME);
+        lenient().when(mockVirtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(mockVirtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
+        when(mockVirtualCluster.socketFrameMaxSizeBytes()).thenReturn(
+                VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
+        return new ServerConnectionStateMachine(
+                BROKER_ADDRESS, mockCcsm, mockVirtualCluster, CLUSTER_NAME, null) {
+            @Override
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
+                                         Channel inboundChannel) {
+                outboundHolder[0] = new EmbeddedChannel();
+                Bootstrap bootstrap = new Bootstrap();
+                bootstrap.group(outboundHolder[0].eventLoop())
+                        .channel(outboundHolder[0].getClass())
+                        .handler(backendHandler)
+                        .option(ChannelOption.AUTO_READ, true)
+                        .option(ChannelOption.TCP_NODELAY, true);
+                return bootstrap;
+            }
+
+            @Override
+            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+                outboundHolder[0].pipeline().addFirst(backendHandler());
+                return outboundHolder[0].newSucceededFuture();
+            }
+        };
+    }
+
+    @Test
+    void connectInWrongStateShouldCallIllegalState() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        // Force to Active state
+        new EmbeddedChannel(scsm.backendHandler());
+        assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Active.class);
+
+        // Calling connect() in Active state should trigger illegalState
+        scsm.connect(mock(Channel.class));
+
+        verify(mockCcsm).illegalState("connect() called while not in Connecting state");
+    }
+
+    @Test
+    void connectShouldAssemblePipelineInCorrectOrder() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(mockCcsm, mockVirtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        var pipeline = outboundHolder[0].pipeline();
+        List<String> handlerNames = pipeline.names().stream()
+                .filter(n -> !n.contains("DefaultChannelPipeline"))
+                .toList();
+
+        // Pipeline uses addFirst, so the order in the list is the reverse of insertion order.
+        // Expected from head to tail: networkLogger (absent), requestEncoder, responseDecoder,
+        // frameLogger (absent), backendHandler, then tail sentinel.
+        assertThat(handlerNames)
+                .filteredOn(n -> !n.equals("DefaultChannelPipeline$TailContext#0"))
+                .containsSubsequence("requestEncoder", "responseDecoder");
+        assertThat(pipeline.get(KafkaRequestEncoder.class)).isNotNull();
+        assertThat(pipeline.get(KafkaResponseDecoder.class)).isNotNull();
+    }
+
+    @Test
+    void connecthouldIncrementConnectionCounter() {
+        double initialCount = getProxyToServerConnectionCount();
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(mockCcsm, mockVirtualCluster, outboundHolder);
+        scsm.connect(new EmbeddedChannel());
+        assertThat(getProxyToServerConnectionCount()).isCloseTo(initialCount + 1.0, CLOSE_ENOUGH);
+    }
+
+    @Test
+    void connectShouldAddFrameLoggerWhenLogFramesEnabled() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        when(mockVirtualCluster.isLogFrames()).thenReturn(true);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(mockCcsm, mockVirtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        assertThat(outboundHolder[0].pipeline().get("frameLogger")).isNotNull();
+    }
+
+    @Test
+    void connectShouldAddNetworkLoggerWhenLogNetworkEnabled() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        when(mockVirtualCluster.isLogNetwork()).thenReturn(true);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(mockCcsm, mockVirtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        assertThat(outboundHolder[0].pipeline().get("networkLogger")).isNotNull();
+    }
+
+    @Test
+    void connectTcpFailureShouldCallOnServerException() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        lenient().when(mockCcsm.sessionId()).thenReturn("test-session");
+        lenient().when(mockCcsm.clusterName()).thenReturn(CLUSTER_NAME);
+        when(mockVirtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(mockVirtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
+        when(mockVirtualCluster.socketFrameMaxSizeBytes()).thenReturn(
+                VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
+        var tcpFailure = new RuntimeException("Connection refused");
+        var scsm = new ServerConnectionStateMachine(
+                BROKER_ADDRESS, mockCcsm, mockVirtualCluster, CLUSTER_NAME, null) {
+            @Override
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
+                                         Channel inboundChannel) {
+                var ch = new EmbeddedChannel();
+                Bootstrap bootstrap = new Bootstrap();
+                bootstrap.group(ch.eventLoop())
+                        .channel(ch.getClass())
+                        .handler(backendHandler)
+                        .option(ChannelOption.AUTO_READ, true);
+                return bootstrap;
+            }
+
+            @Override
+            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+                var ch = new EmbeddedChannel();
+                return ch.newFailedFuture(tcpFailure);
+            }
+        };
+
+        scsm.connect(new EmbeddedChannel());
+
+        verify(mockCcsm).onServerConnectionException(tcpFailure);
+        assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Closed.class);
+    }
+
+    private ServerConnectionStateMachine createScsmWithMocks(ClientConnectionStateMachine mockCcsm,
+                                                             VirtualClusterModel mockVirtualCluster) {
+        lenient().when(mockCcsm.sessionId()).thenReturn("test-session");
+        lenient().when(mockCcsm.clusterName()).thenReturn(CLUSTER_NAME);
+        lenient().when(mockVirtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        return new ServerConnectionStateMachine(
+                BROKER_ADDRESS,
+                mockCcsm,
+                mockVirtualCluster,
+                CLUSTER_NAME,
+                null);
+    }
+
+    @Test
+    void invokeTlsCredentialSupplierReportsSynchronousFailure() throws Exception {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        RuntimeException failure = new RuntimeException("manager failed");
+        when(mockVirtualCluster.getTlsCredentialSupplierManager()).thenThrow(failure);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+        Method method = ServerConnectionStateMachine.class.getDeclaredMethod(
+                "invokeTlsCredentialSupplier", HostPort.class, Channel.class, ChannelPipeline.class);
+        method.setAccessible(true);
+
+        method.invoke(scsm, BROKER_ADDRESS, channel, pipeline);
+
+        verify(mockCcsm).onServerConnectionException(failure);
+    }
+
+    @Test
+    void requestTlsCredentialsAppliesCredentialsOnEventLoop() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        TlsCredentials badCreds = mock(TlsCredentials.class);
+        ServerTlsCredentialSupplier supplier = context -> CompletableFuture.completedFuture(badCreds);
+        var supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
+        Channel channel = mock(Channel.class);
+        EventLoop eventLoop = mock(EventLoop.class);
+        when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
+
+        scsm.requestTlsCredentials(supplier, supplierContext, BROKER_ADDRESS, channel, mock(ChannelPipeline.class));
+
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(mockCcsm).onServerConnectionException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected TlsCredentials implementation");
+    }
+
+    @Test
+    void requestTlsCredentialsReportsSupplierFailureOnEventLoop() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        RuntimeException failure = new RuntimeException("boom");
+        ServerTlsCredentialSupplier supplier = context -> CompletableFuture.failedFuture(failure);
+        var supplierContext = new ServerTlsCredentialSupplierContextImpl(null);
+        Channel channel = mock(Channel.class);
+        EventLoop eventLoop = mock(EventLoop.class);
+        when(channel.eventLoop()).thenReturn(eventLoop);
+        doAnswer(invocation -> {
+            invocation.getArgument(0, Runnable.class).run();
+            return null;
+        }).when(eventLoop).execute(any(Runnable.class));
+
+        scsm.requestTlsCredentials(supplier, supplierContext, BROKER_ADDRESS, channel, mock(ChannelPipeline.class));
+
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(mockCcsm).onServerConnectionException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Failed to obtain TLS credentials")
+                .hasCause(failure);
+    }
+
+    @Test
+    void handleTlsCredentialSupplierResultReportsNullCredentials() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+
+        scsm.handleTlsCredentialSupplierResult(null, null, BROKER_ADDRESS, channel, pipeline);
+
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(mockCcsm).onServerConnectionException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("TLS credential supplier returned null");
+    }
+
+    @Test
+    void handleTlsCredentialSupplierResultAppliesCredentials() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        TlsCredentials badCreds = mock(TlsCredentials.class);
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+
+        scsm.handleTlsCredentialSupplierResult(badCreds, null, BROKER_ADDRESS, channel, pipeline);
+
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(mockCcsm).onServerConnectionException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected TlsCredentials implementation");
+    }
+
+    @Test
+    void applyTlsContextToChannelRejectsNonTlsCredentialsImpl() {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        TlsCredentials badCreds = mock(TlsCredentials.class);
+        Channel channel = mock(Channel.class);
+        ChannelPipeline pipeline = mock(ChannelPipeline.class);
+
+        scsm.applyTlsContextToChannel(badCreds, BROKER_ADDRESS, channel, pipeline);
+
+        ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
+        verify(mockCcsm).onServerConnectionException(captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected TlsCredentials implementation");
+    }
+
+    @Test
+    void applyTlsContextToChannelAddsSslHandlerWithValidCredentials() throws Exception {
+        var mockCcsm = mock(ClientConnectionStateMachine.class);
+        var mockVirtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(mockCcsm, mockVirtualCluster);
+
+        var keyAndCert = TestCertificateUtil.generateKeyStoreAndCert();
+        var creds = new TlsCredentialsImpl(
+                keyAndCert.privateKey(), new java.security.cert.X509Certificate[]{ keyAndCert.cert() });
+
+        EmbeddedChannel channel = new EmbeddedChannel();
+
+        when(mockVirtualCluster.targetCluster()).thenReturn(mock(io.kroxylicious.proxy.config.TargetCluster.class));
+        when(mockVirtualCluster.targetCluster().tls()).thenReturn(Optional.empty());
+
+        scsm.applyTlsContextToChannel(creds, BROKER_ADDRESS, channel, channel.pipeline());
+
+        assertThat(channel.pipeline().get("ssl")).isNotNull();
+        verify(mockCcsm, never()).onServerConnectionException(any());
+
+        channel.close();
+    }
+
+    private int getActiveServerConnections() {
+        return io.kroxylicious.proxy.internal.util.Metrics
+                .proxyToServerConnectionCounter(VIRTUAL_CLUSTER_NODE).get();
+    }
+
+    private double getProxyToServerConnectionCount() {
+        return Metrics.globalRegistry
+                .get("kroxylicious_proxy_to_server_connections")
+                .counter().count();
+    }
+
+    private double getProxyToServerErrorCount() {
+        return Metrics.globalRegistry
+                .get("kroxylicious_proxy_to_server_errors")
+                .counter().count();
+    }
+
+    private long getBackpressureTimerCount() {
+        return Metrics.globalRegistry
+                .get("kroxylicious_server_to_proxy_reads_paused")
+                .timer().count();
     }
 }

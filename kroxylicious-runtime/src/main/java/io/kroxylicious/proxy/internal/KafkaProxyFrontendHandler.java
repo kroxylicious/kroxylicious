@@ -14,7 +14,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
@@ -23,22 +22,15 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.handler.timeout.IdleState;
@@ -47,40 +39,23 @@ import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
-import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.config.tls.TrustOptions;
-import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.ClientActive;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
-import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
-import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
-import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
-import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
-import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
-import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
-import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-import io.kroxylicious.proxy.tls.ClientTlsContext;
-import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
-import io.kroxylicious.proxy.tls.TlsCredentials;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -322,219 +297,6 @@ public class KafkaProxyFrontendHandler
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         clientConnectionStateMachine.onClientException(cause);
-    }
-
-    /**
-     * Initiates the connection to a server.
-     * Called by the {@link ClientConnectionStateMachine} to initiate a backend connection.
-     * Configures the backend channel pipeline and starts the TCP connection.
-     * @param remote upstream broker target
-     * @param backendHandler the handler for the backend channel
-     */
-    void initiateBackendConnect(
-                                HostPort remote,
-                                KafkaProxyBackendHandler backendHandler) {
-        final Channel inboundChannel = clientCtx().channel();
-        // Start the upstream connection attempt.
-        final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
-
-        LOGGER.atDebug()
-                .addKeyValue("sessionId", this.clientConnectionStateMachine.sessionId())
-                .addKeyValue("remote", remote)
-                .log("Connecting to outbound");
-        ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
-        Channel outboundChannel = serverTcpConnectFuture.channel();
-        ChannelPipeline pipeline = outboundChannel.pipeline();
-
-        var correlationManager = new CorrelationManager();
-
-        // Note: Because we are acting as a client of the target cluster and are thus writing Request data to an outbound channel, the Request flows from the
-        // last outbound handler in the pipeline to the first. When Responses are read from the cluster, the inbound handlers of the pipeline are invoked in
-        // the reverse order, from first to last. This is the opposite of how we configure a server pipeline like we do in KafkaProxyInitializer where the channel
-        // reads Kafka requests, as the message flows are reversed. This is also the opposite of the order that Filters are declared in the Kroxylicious configuration
-        // file. The Netty Channel pipeline documentation provides an illustration https://netty.io/4.0/api/io/netty/channel/ChannelPipeline.html
-        if (clientConnectionStateMachine.virtualCluster().isLogFrames()) {
-            pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
-        }
-
-        var encoderListener = buildMetricsMessageListenerForEncode();
-        var decoderListener = buildMetricsMessageListenerForDecode();
-
-        pipeline.addFirst("responseDecoder",
-                new KafkaResponseDecoder(correlationManager, clientConnectionStateMachine.virtualCluster().socketFrameMaxSizeBytes(), decoderListener));
-        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, encoderListener));
-        if (clientConnectionStateMachine.virtualCluster().isLogNetwork()) {
-            pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger", LogLevel.INFO));
-        }
-
-        // Check if we need to use dynamic TLS credential supplier
-        if (clientConnectionStateMachine.virtualCluster().usesDynamicTlsCredentials()) {
-            // Dynamic credential supplier - invoke it asynchronously
-            invokeTlsCredentialSupplier(remote, outboundChannel, pipeline);
-        }
-        else {
-            // Static TLS configuration - use pre-built SslContext
-            clientConnectionStateMachine.virtualCluster().getUpstreamSslContext().ifPresent(sslContext -> {
-                final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
-                pipeline.addFirst("ssl", handler);
-            });
-        }
-
-        LOGGER.atDebug()
-                .addKeyValue("pipeline", pipeline)
-                .log("Configured broker channel pipeline");
-
-        serverTcpConnectFuture.addListener(future -> {
-            if (future.isSuccess()) {
-                LOGGER.atTrace()
-                        .addKeyValue("channelId", clientCtx().channel().id())
-                        .log("Outbound connected");
-                // This branch does not cause the transition to Connected:
-                // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
-            }
-            else {
-                clientConnectionStateMachine.notifyServerConnectionException(future.cause());
-            }
-        });
-    }
-
-    /**
-     * Invokes the TLS credential supplier asynchronously and configures the SSL handler once credentials are available.
-     */
-    private void invokeTlsCredentialSupplier(HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
-        try {
-            TlsCredentialSupplierManager manager = clientConnectionStateMachine.virtualCluster().getTlsCredentialSupplierManager();
-            ServerTlsCredentialSupplier supplier = manager.getSupplier();
-
-            ClientTlsContext clientCtx = clientConnectionStateMachine.clientTlsContext().orElse(null);
-            ServerTlsCredentialSupplierContextImpl supplierContext = new ServerTlsCredentialSupplierContextImpl(clientCtx);
-
-            outboundChannel.eventLoop().execute(() -> requestTlsCredentials(supplier, supplierContext, remote, outboundChannel, pipeline));
-        }
-        catch (Exception e) {
-            LOGGER.atError()
-                    .addKeyValue("remote", remote)
-                    .addKeyValue("error", e.getMessage())
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .log("Error invoking TLS credential supplier{}",
-                            LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-            clientConnectionStateMachine.notifyServerConnectionException(e);
-        }
-    }
-
-    @VisibleForTesting
-    void requestTlsCredentials(ServerTlsCredentialSupplier supplier, ServerTlsCredentialSupplierContextImpl supplierContext, HostPort remote,
-                               Channel outboundChannel,
-                               ChannelPipeline pipeline) {
-        supplier.tlsCredentials(supplierContext).whenComplete((credentials, throwable) -> outboundChannel.eventLoop()
-                .execute(() -> handleTlsCredentialSupplierResult(credentials, throwable, remote, outboundChannel, pipeline)));
-    }
-
-    @VisibleForTesting
-    void handleTlsCredentialSupplierResult(TlsCredentials credentials, Throwable throwable, HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
-        if (throwable != null) {
-            handleTlsCredentialSupplierFailure(remote, throwable);
-            return;
-        }
-        if (credentials == null) {
-            clientConnectionStateMachine.notifyServerConnectionException(new IllegalStateException("TLS credential supplier returned null"));
-            return;
-        }
-        applySslContextToChannel(credentials, remote, outboundChannel, pipeline);
-    }
-
-    private void handleTlsCredentialSupplierFailure(HostPort remote, Throwable throwable) {
-        LOGGER.atError()
-                .addKeyValue("remote", remote)
-                .addKeyValue("error", throwable.getMessage())
-                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
-                .log("TLS credential supplier failed{}",
-                        LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-        clientConnectionStateMachine.notifyServerConnectionException(new IllegalStateException("Failed to obtain TLS credentials", throwable));
-    }
-
-    /**
-     * Applies the obtained TLS credentials to the channel by building an SslContext and adding an SslHandler.
-     */
-    void applySslContextToChannel(TlsCredentials credentials, HostPort remote, Channel outboundChannel, ChannelPipeline pipeline) {
-        try {
-            if (!(credentials instanceof TlsCredentialsImpl credentialsImpl)) {
-                throw new IllegalStateException("Unexpected TlsCredentials implementation: " + credentials.getClass().getName());
-            }
-
-            // Build SslContextBuilder with trust configuration from target cluster
-            SslContextBuilder sslContextBuilder = SslContextBuilder.forClient()
-                    .keyManager(credentialsImpl.privateKey(), credentialsImpl.certificateChain());
-
-            clientConnectionStateMachine.virtualCluster().targetCluster().tls().ifPresent(tls -> {
-                VirtualClusterModel.configureCipherSuites(sslContextBuilder, tls);
-                VirtualClusterModel.configureEnabledProtocols(sslContextBuilder, tls);
-                Optional.ofNullable(tls.trust())
-                        .map(TrustProvider::trustOptions)
-                        .filter(Predicate.not(TrustOptions::forClient))
-                        .ifPresent(to -> {
-                            throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
-                        });
-                VirtualClusterModel.configureTrustProvider(tls).apply(sslContextBuilder);
-            });
-
-            // Build the SslContext
-            SslContext sslContext = sslContextBuilder.build();
-
-            // Create and add the SslHandler to the pipeline
-            final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
-            pipeline.addFirst("ssl", handler);
-
-            LOGGER.atDebug()
-                    .addKeyValue("remote", remote)
-                    .log("Successfully configured dynamic TLS credentials");
-        }
-        catch (Exception e) {
-            LOGGER.atError()
-                    .addKeyValue("remote", remote)
-                    .addKeyValue("error", e.getMessage())
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .log("Error applying TLS credentials to channel{}",
-                            LOGGER.isDebugEnabled() ? "" : " increase log level to DEBUG for stacktrace");
-            clientConnectionStateMachine.notifyServerConnectionException(e);
-        }
-    }
-
-    private MetricEmittingKafkaMessageListener buildMetricsMessageListenerForEncode() {
-        var clusterName = this.clientConnectionStateMachine.clusterName();
-        var nodeId = clientConnectionStateMachine.nodeId();
-        var proxyToServerMessageCounterProvider = Metrics.proxyToServerMessageCounterProvider(clusterName, nodeId);
-        var proxyToServerMessageSizeDistributionProvider = Metrics.proxyToServerMessageSizeDistributionProvider(clusterName,
-                nodeId);
-        return new MetricEmittingKafkaMessageListener(proxyToServerMessageCounterProvider, proxyToServerMessageSizeDistributionProvider);
-    }
-
-    private KafkaMessageListener buildMetricsMessageListenerForDecode() {
-        var clusterName = clientConnectionStateMachine.clusterName();
-        var nodeId = clientConnectionStateMachine.nodeId();
-        var serverToProxyMessageCounterProvider = Metrics.serverToProxyMessageCounterProvider(clusterName, nodeId);
-
-        var serverToProxyMessageSizeDistributionProvider = Metrics.serverToProxyMessageSizeDistributionProvider(clusterName,
-                nodeId);
-        return new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider);
-    }
-
-    /** Ugly hack used for testing */
-    @VisibleForTesting
-    Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
-        Bootstrap bootstrap = new Bootstrap();
-        bootstrap.group(inboundChannel.eventLoop())
-                .channel(inboundChannel.getClass())
-                .handler(backendHandler)
-                .option(ChannelOption.AUTO_READ, true)
-                .option(ChannelOption.TCP_NODELAY, true);
-        return bootstrap;
-    }
-
-    /** Ugly hack used for testing */
-    @VisibleForTesting
-    ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
-        return bootstrap.connect(remoteHost, remotePort);
     }
 
     /**

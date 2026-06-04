@@ -559,15 +559,25 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void shouldThrowForUnknownClusterOnRegisterConnection() {
-        assertThatThrownBy(() -> vcc.registerConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
-                .isInstanceOf(IllegalArgumentException.class);
+    void registerConnectionReturnsFalseForUnknownCluster() {
+        // Connection arrives carrying a cluster name VCR doesn't know about — VCR rejects
+        // cleanly via the false-return path rather than throwing into Netty's pipeline.
+        // Defends KafkaProxyInitializer's rejectConnection flow from the
+        // bookkeeping-vs-binding ordering invariant being broken by a future refactor.
+        assertThat(vcc.registerConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
+                .as("unknown cluster must be treated as a rejection, not an error")
+                .isFalse();
     }
 
     @Test
-    void shouldThrowForUnknownClusterOnDeregisterConnection() {
-        assertThatThrownBy(() -> vcc.deregisterConnection("nonexistent", mock(ClientConnectionStateMachine.class)))
-                .isInstanceOf(IllegalArgumentException.class);
+    void deregisterConnectionIsNoOpForUnknownCluster() {
+        // Channel-close listener races with future cleanup-on-Stopped logic. Throwing into
+        // Netty's listener invoker would log noisily — silent no-op is the right shape.
+        var ccsm = mock(ClientConnectionStateMachine.class);
+
+        vcc.deregisterConnection("nonexistent", ccsm);
+
+        verifyNoInteractions(ccsm);
     }
 
     @Test
@@ -748,6 +758,40 @@ class VirtualClusterRegistryTest {
     void addVirtualClusterRejectsNullModel() {
         assertThatThrownBy(() -> vcc.addVirtualCluster(null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void virtualClusterModelsReflectsRuntimeAddedModel() {
+        // Contract relied on by RemoveCluster#originalGateways: a model handed to
+        // addVirtualCluster appears in virtualClusterModels() so a subsequent reconfigure can
+        // resolve its gateways.
+        var addedModel = mockModel(CLUSTER_B);
+
+        vcc.addVirtualCluster(addedModel);
+
+        assertThat(vcc.virtualClusterModels())
+                .as("constructor-supplied CLUSTER_A then the runtime-added addedModel, in insertion order")
+                .extracting(VirtualClusterModel::getClusterName)
+                .containsExactly(CLUSTER_A, CLUSTER_B);
+        assertThat(vcc.virtualClusterModels())
+                .as("runtime-added model identity is preserved (same reference, not a copy)")
+                .last().isSameAs(addedModel);
+    }
+
+    @Test
+    void virtualClusterModelsRetainsRemovedModel() {
+        // Entries persist past Stopped — the registry never removes a cluster's entry from
+        // its internal map, so virtualClusterModels() keeps reporting it.
+        // RemoveCluster's defensive capture-then-remove relies on this only as a belt-and-braces
+        // ordering — the contract here is that even after the lifecycle has been driven to
+        // Stopped the model entry remains queryable.
+        vcc.initializationSucceeded(CLUSTER_A);
+        vcc.removeVirtualCluster(CLUSTER_A).join();
+
+        assertThat(vcc.virtualClusterModels())
+                .as("constructor-supplied model should remain queryable after removeVirtualCluster")
+                .extracting(VirtualClusterModel::getClusterName)
+                .containsExactly(CLUSTER_A);
     }
 
 }
