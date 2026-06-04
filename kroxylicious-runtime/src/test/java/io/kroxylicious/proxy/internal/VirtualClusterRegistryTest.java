@@ -91,6 +91,34 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
+    void modelForReturnsRegisteredModel() {
+        // CLUSTER_A is in the registry via setUp.
+        assertThat(vcc.modelFor(CLUSTER_A))
+                .isNotNull()
+                .extracting(VirtualClusterModel::getClusterName).isEqualTo(CLUSTER_A);
+    }
+
+    @Test
+    void modelForReturnsNullForUnknownCluster() {
+        assertThat(vcc.modelFor("never-existed")).isNull();
+    }
+
+    @Test
+    void modelForFollowsRuntimeAddAndRemove() {
+        // After addVirtualCluster, modelFor returns the new model.
+        var added = mockModel(CLUSTER_B);
+        vcc.addVirtualCluster(added);
+        assertThat(vcc.modelFor(CLUSTER_B)).isSameAs(added);
+
+        // After removeVirtualCluster, the entry is retained (append-only policy) so modelFor
+        // continues to return the same model. The lifecycle's state distinguishes "Stopped"
+        // from "Serving" — callers that care about state should compose with lifecycleFor.
+        vcc.initializationSucceeded(CLUSTER_B);
+        vcc.removeVirtualCluster(CLUSTER_B).join();
+        assertThat(vcc.modelFor(CLUSTER_B)).isSameAs(added);
+    }
+
+    @Test
     void shouldExposeVirtualClusterModels() {
         // given
         var modelA = mockModel("cluster-a");

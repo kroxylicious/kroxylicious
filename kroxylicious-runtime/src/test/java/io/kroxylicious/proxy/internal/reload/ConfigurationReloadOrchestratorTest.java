@@ -289,7 +289,7 @@ class ConfigurationReloadOrchestratorTest {
         var removeModel = mock(VirtualClusterModel.class);
         when(removeModel.getClusterName()).thenReturn("cluster-remove");
         when(removeModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
-        when(registry.virtualClusterModels()).thenReturn(List.of(removeModel));
+        when(registry.modelFor("cluster-remove")).thenReturn(removeModel);
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 
@@ -562,7 +562,8 @@ class ConfigurationReloadOrchestratorTest {
         var succeedsModel = mock(VirtualClusterModel.class);
         when(succeedsModel.getClusterName()).thenReturn("cluster-remove-succeeds");
         when(succeedsModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
-        when(registry.virtualClusterModels()).thenReturn(List.of(failsModel, succeedsModel));
+        when(registry.modelFor("cluster-remove-fails")).thenReturn(failsModel);
+        when(registry.modelFor("cluster-remove-succeeds")).thenReturn(succeedsModel);
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 
@@ -638,6 +639,12 @@ class ConfigurationReloadOrchestratorTest {
             return model;
         }).toList();
         when(registry.virtualClusterModels()).thenReturn(models);
+        // The planner uses modelFor(name) for registry-side resolution; stub each known name.
+        // Unknown names fall through to Mockito's default (null), which the planner surfaces
+        // as a phantom-remove/phantom-modify IllegalStateException.
+        for (var model : models) {
+            when(registry.modelFor(model.getClusterName())).thenReturn(model);
+        }
         return registry;
     }
 

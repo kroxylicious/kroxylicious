@@ -60,6 +60,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -323,6 +324,78 @@ class DefaultKroxyliciousTesterTest {
             // When
             // Then
             assertThatThrownBy(tester::close)
+                    .cause()
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessage(EXCEPTION_MESSAGE);
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void closeClientsForEvictsOnlyTheNamedClustersClients() {
+        // Given — touch every cluster so each has a cached KroxyliciousClients in the tester.
+        try (var tester = buildTester()) {
+            tester.admin(VIRTUAL_CLUSTER_A);
+            tester.admin(VIRTUAL_CLUSTER_B);
+            tester.admin(VIRTUAL_CLUSTER_C);
+
+            // When — evict only cluster A's clients.
+            tester.closeClientsFor(VIRTUAL_CLUSTER_A);
+
+            // Then — A is closed, B and C are untouched.
+            verify(kroxyliciousClientsA).close();
+            verify(kroxyliciousClientsB, never()).close();
+            verify(kroxyliciousClientsC, never()).close();
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void closeClientsForCausesNextAccessToRebuildTheClient() {
+        // Given — touch cluster A so the cache holds a client built for it.
+        try (var tester = buildTester()) {
+            tester.admin(VIRTUAL_CLUSTER_A);
+
+            // When — evict, then access again.
+            tester.closeClientsFor(VIRTUAL_CLUSTER_A);
+            tester.admin(VIRTUAL_CLUSTER_A);
+
+            // Then — ClientFactory.build was called twice: once for the original cached client,
+            // and once for the rebuilt-after-eviction client. This is the load-bearing property
+            // for callers — closeClientsFor must invalidate, not just close, so that the next
+            // tester.producer/consumer/admin picks up the current configuration.
+            verify(clientFactory, times(2)).build(eq(new GatewayId(VIRTUAL_CLUSTER_A, DEFAULT_GATEWAY_NAME)), anyMap());
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void closeClientsForIsNoOpWhenClusterHasNoCachedClient() {
+        try (var tester = buildTester()) {
+            // Don't touch cluster A — nothing is cached for it.
+
+            // When
+            tester.closeClientsFor(VIRTUAL_CLUSTER_A);
+
+            // Then — no close call attempted on any per-cluster client mock.
+            verify(kroxyliciousClientsA, never()).close();
+            verify(kroxyliciousClientsB, never()).close();
+            verify(kroxyliciousClientsC, never()).close();
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void closeClientsForSurfacesCloseFailureAsIllegalStateException() {
+        // Given — cluster A's cached client throws on close. doNothing on the second
+        // invocation so the try-with-resources block doesn't fail when it cleans up.
+        try (var tester = buildTester()) {
+            tester.admin(VIRTUAL_CLUSTER_A);
+            doThrow(new IllegalStateException(EXCEPTION_MESSAGE)).doNothing().when(kroxyliciousClientsA).close();
+
+            // When — closeClientsFor must NOT swallow the failure silently; tests need to see it.
+            assertThatThrownBy(() -> tester.closeClientsFor(VIRTUAL_CLUSTER_A))
+                    .isInstanceOf(IllegalStateException.class)
                     .cause()
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessage(EXCEPTION_MESSAGE);

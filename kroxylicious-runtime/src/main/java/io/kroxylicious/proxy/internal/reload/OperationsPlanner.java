@@ -48,6 +48,11 @@ final class OperationsPlanner {
      * (the model that's already serving), adds resolve from {@code newConfig}, and modifies
      * resolve <em>both</em> — old from the registry, new from the submitted configuration.
      *
+     * <p>Registry-side resolution uses {@link VirtualClusterRegistry#modelFor(String)} —
+     * a direct name-keyed lookup to fetch the old existing model.
+     * The new-config side still requires a Map-build because
+     * {@code modelResolver} returns a list (it has no direct name-lookup affordance).
+     *
      * @throws IllegalStateException if any of {@code clustersToRemove}, {@code clustersToAdd},
      *         or {@code clustersToModify} names a cluster that can't be resolved on the side
      *         it's expected — all three indicate a {@code ChangeDetector} contract violation
@@ -56,27 +61,23 @@ final class OperationsPlanner {
     List<ClusterOperation> plan(ChangeResult changes, Configuration newConfig) {
         var ops = new ArrayList<ClusterOperation>();
 
-        // Resolve each model map at most once, and only when at least one phase needs it.
-        // A pure-remove plan doesn't pay for resolving newConfig (and vice versa). Modifies
-        // need both.
-        Map<String, VirtualClusterModel> registryModelsByName = (changes.clustersToRemove().isEmpty()
-                && changes.clustersToModify().isEmpty()) ? Map.of() : registryModelsByName();
+        // The new-config side needs a name → model lookup.
         Map<String, VirtualClusterModel> newModelsByName = (changes.clustersToAdd().isEmpty()
                 && changes.clustersToModify().isEmpty()) ? Map.of() : resolveByName(newConfig);
 
         for (String name : changes.clustersToRemove()) {
-            VirtualClusterModel model = registryModelsByName.get(name);
-            if (model == null) {
+            VirtualClusterModel oldModel = virtualClusterRegistry.modelFor(name);
+            if (oldModel == null) {
                 throw new IllegalStateException(
                         "OperationsPlanner: no model for removed cluster '" + name
                                 + "'; this indicates a ChangeDetector contract violation"
                                 + " (cluster reported as removed but absent from the registry)");
             }
-            ops.add(new RemoveCluster(model, virtualClusterRegistry, endpointRegistry));
+            ops.add(new RemoveCluster(oldModel, virtualClusterRegistry, endpointRegistry));
         }
 
         for (String name : changes.clustersToModify()) {
-            VirtualClusterModel oldModel = registryModelsByName.get(name);
+            VirtualClusterModel oldModel = virtualClusterRegistry.modelFor(name);
             if (oldModel == null) {
                 throw new IllegalStateException(
                         "OperationsPlanner: no old model for modified cluster '" + name
@@ -94,14 +95,14 @@ final class OperationsPlanner {
         }
 
         for (String name : changes.clustersToAdd()) {
-            VirtualClusterModel model = newModelsByName.get(name);
-            if (model == null) {
+            VirtualClusterModel newModel = newModelsByName.get(name);
+            if (newModel == null) {
                 throw new IllegalStateException(
                         "OperationsPlanner: no model for added cluster '" + name
                                 + "'; this indicates a ChangeDetector contract violation"
                                 + " (cluster reported as added but absent from the submitted configuration)");
             }
-            ops.add(new AddCluster(model, virtualClusterRegistry, endpointRegistry));
+            ops.add(new AddCluster(newModel, virtualClusterRegistry, endpointRegistry));
         }
 
         return List.copyOf(ops);
@@ -109,11 +110,6 @@ final class OperationsPlanner {
 
     private Map<String, VirtualClusterModel> resolveByName(Configuration newConfig) {
         return modelResolver.apply(newConfig).stream()
-                .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
-    }
-
-    private Map<String, VirtualClusterModel> registryModelsByName() {
-        return virtualClusterRegistry.virtualClusterModels().stream()
                 .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
     }
 }

@@ -213,6 +213,18 @@ public class VirtualClusterRegistry {
     }
 
     /**
+     * Returns the model for the given virtual cluster name.
+     *
+     * @param clusterName the virtual cluster name
+     * @return the model, or {@code null} if no cluster with that name exists
+     */
+    @Nullable
+    public VirtualClusterModel modelFor(String clusterName) {
+        var entry = entriesByCluster.get(clusterName);
+        return entry == null ? null : entry.model();
+    }
+
+    /**
      * Attempts to register a new connection for {@code clusterName}.
      *
      * @return {@code true} iff the cluster is known to this registry AND its lifecycle is in a
