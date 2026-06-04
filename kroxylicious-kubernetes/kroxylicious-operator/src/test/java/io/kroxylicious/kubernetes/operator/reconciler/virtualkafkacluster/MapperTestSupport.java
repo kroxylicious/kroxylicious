@@ -177,12 +177,7 @@ class MapperTestSupport {
      */
     public static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster... clusters) {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
-        IndexerResourceCache<VirtualKafkaCluster> primaryCache = mock();
-        when(eventSourceContext.getPrimaryCache()).thenReturn(primaryCache);
-        when(primaryCache.list(any(), any())).thenAnswer(invocation -> {
-            Predicate<VirtualKafkaCluster> predicate = invocation.getArgument(1);
-            return Stream.of(clusters).filter(predicate);
-        });
+        stubPrimaryCache(eventSourceContext, clusters);
         return eventSourceContext;
     }
 }
