@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -80,7 +81,7 @@ public class VirtualClusterRegistry {
     }
 
     /**
-     * Returns the currently-tracked virtual cluster models. The list reflects the constructor-
+     * Returns the currently-tracked virtual cluster models. The collection reflects the constructor-
      * supplied models PLUS any added at runtime via {@link #addVirtualCluster(VirtualClusterModel)}.
      *
      * <p>Iteration order is unspecified (the backing map is concurrent). Callers that need
@@ -88,7 +89,7 @@ public class VirtualClusterRegistry {
      *
      * @return weakly-consistent snapshot of currently-tracked virtual cluster models
      */
-    public List<VirtualClusterModel> virtualClusterModels() {
+    public Collection<VirtualClusterModel> virtualClusterModels() {
         return entriesByCluster.values().stream()
                 .map(VirtualClusterEntry::model)
                 .toList();
@@ -311,16 +312,22 @@ public class VirtualClusterRegistry {
      * @return an already-completed future (the operation is synchronous; the
      *         {@link CompletableFuture} shape is preserved for caller symmetry with
      *         {@link #removeVirtualCluster})
-     * @throws IllegalArgumentException if an entry already exists AND its lifecycle is in any
+     * @throws IllegalStateException if an entry already exists AND its lifecycle is in any
      *         state OTHER than {@code Stopped} — re-adding an actively-serving (or initializing,
-     *         draining, or failed) cluster would be a contract violation.
+     *         draining, or failed) cluster would be a contract violation. The exception message
+     *         names the current state to aid diagnosis.
      */
     public CompletableFuture<Void> addVirtualCluster(VirtualClusterModel newModel) {
         Objects.requireNonNull(newModel, "newModel must not be null");
         String name = newModel.getClusterName();
         var existing = entriesByCluster.get(name);
-        if (existing != null && !(existing.lifecycle().state() instanceof VirtualClusterLifecycleState.Stopped)) {
-            throw new IllegalArgumentException("Cluster already exists and is not Stopped: " + name);
+        if (existing != null) {
+            var state = existing.lifecycle().state();
+            if (!(state instanceof VirtualClusterLifecycleState.Stopped)) {
+                throw new IllegalStateException(
+                        "Cluster '" + name + "' already exists and its lifecycle is "
+                                + state.getClass().getSimpleName() + "; re-add is only permitted from Stopped");
+            }
         }
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", name)

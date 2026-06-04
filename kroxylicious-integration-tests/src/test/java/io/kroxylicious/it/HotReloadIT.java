@@ -76,6 +76,19 @@ class HotReloadIT extends BaseIT {
     private static final Duration PRODUCE_CONSUME_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(5);
 
+    // Hard-coded port blocks per port-addressed test, so concurrent test instances on the same
+    // host don't collide. PORT_STRIDE is the within-test offset between ports a single test uses
+    // (bootstrap + brokers + add/remove targets).
+    private static final int PORT_STRIDE = 10;
+    private static final int PORT_BLOCK_REMOVE = 51000; // shouldReleasePortWhenPortAddressedVcIsRemoved
+    private static final int PORT_BLOCK_ADD = 51100; // shouldStartServingAddedPortAddressedVcEndToEnd
+    private static final int PORT_BLOCK_BINDFAIL = 51200; // shouldSurfaceBindFailureAsReconfigureError...
+    private static final int PORT_BLOCK_REUSE = 51300; // shouldSupportPortReuseAcrossReconfigures
+    private static final int PORT_BLOCK_ADD_THEN_REMOVE = 51400; // shouldRemoveRuntimeAddedPortAddressedVc
+    private static final int PORT_BLOCK_MODIFY_SAME_PORT = 51500; // shouldModifyPortAddressedVcWithSamePort
+    private static final int PORT_BLOCK_MODIFY_DIFF_PORT = 51600; // shouldModifyPortAddressedVcWithDifferentPort
+    private static final int PORT_BLOCK_MODIFY_FAIL = 51700; // shouldSurfaceModifyFailureAsReconfigureError
+
     /**
      * Identifies a non-baseline VC slot used by the tests. {@link #buildConfig} takes a
      * varargs of these to declare which extras (beyond BASELINE) should appear in the
@@ -603,16 +616,6 @@ class HotReloadIT extends BaseIT {
         }
         return builder.build();
     }
-
-    private static final int PORT_STRIDE = 10;
-    private static final int PORT_BLOCK_REMOVE = 51000; // shouldReleasePortWhenPortAddressedVcIsRemoved
-    private static final int PORT_BLOCK_ADD = 51100; // shouldStartServingAddedPortAddressedVcEndToEnd
-    private static final int PORT_BLOCK_BINDFAIL = 51200; // shouldSurfaceBindFailureAsReconfigureError...
-    private static final int PORT_BLOCK_REUSE = 51300; // shouldSupportPortReuseAcrossReconfigures
-    private static final int PORT_BLOCK_ADD_THEN_REMOVE = 51400; // shouldRemoveRuntimeAddedPortAddressedVc
-    private static final int PORT_BLOCK_MODIFY_SAME_PORT = 51500; // shouldModifyPortAddressedVcWithSamePort
-    private static final int PORT_BLOCK_MODIFY_DIFF_PORT = 51600; // shouldModifyPortAddressedVcWithDifferentPort
-    private static final int PORT_BLOCK_MODIFY_FAIL = 51700; // shouldSurfaceModifyFailureAsReconfigureError
 
     /**
      * Asserts the port is bindable from outside the proxy within 5s.

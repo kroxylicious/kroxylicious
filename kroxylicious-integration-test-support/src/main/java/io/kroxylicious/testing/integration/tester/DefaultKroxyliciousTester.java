@@ -341,7 +341,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             // Log each close-failure (so a stuck client doesn't hide behind the rest) and
             // surface the first as the test-visible failure. Matches the close() pattern.
             exceptions.forEach(ex -> LOGGER.error(ex.getMessage(), ex));
-            throw new IllegalStateException(exceptions.get(0));
+            throw new IllegalStateException(
+                    "%d client(s) failed to close cleanly. First client close chained, others have been logged at ERROR"
+                            .formatted(exceptions.size()),
+                    exceptions.get(0));
         }
     }
 

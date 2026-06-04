@@ -757,13 +757,14 @@ class VirtualClusterRegistryTest {
     @Test
     void addVirtualClusterRejectsDuplicateNameWhenExistingEntryIsActive() {
         // CLUSTER_A is in INITIALIZING after setUp — re-adding it is a contract violation.
-        // The duplicate-name check is "no actively-tracked cluster with this name" rather
-        // than "no entry at all" (see the Stopped-replace path below).
+        // IllegalStateException because the argument is valid;
+        // it's the registry's state that doesn't permit the operation. The message names the
+        // existing lifecycle's state to aid diagnosis.
         var duplicate = mockModel(CLUSTER_A);
         assertThatThrownBy(() -> vcc.addVirtualCluster(duplicate))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(CLUSTER_A)
-                .hasMessageContaining("not Stopped");
+                .hasMessageContaining("Initializing");
     }
 
     @Test
