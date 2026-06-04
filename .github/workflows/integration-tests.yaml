@@ -39,7 +39,7 @@ jobs:
           egress-policy: audit
 
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: 'Discover ITs'
@@ -81,7 +81,7 @@ jobs:
           egress-policy: audit
 
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -161,7 +161,7 @@ jobs:
       - name: Log tests to run
         run: echo "Running tests '${{ steps.parse.outputs.tests }}' in module '${{ steps.parse.outputs.module }}'"
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -281,7 +281,7 @@ jobs:
           egress-policy: audit
 
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: Setup Java
