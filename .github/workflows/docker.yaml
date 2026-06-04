@@ -1,4 +1,4 @@
-# docker.yaml - builds and pushes kroxylicious container images.
+# docker.yaml - builds and pushes Kroxylicious container images.
 #
 # Requires repository variables:
 # - REGISTRY_SERVER - the server of the container registry service e.g. `quay.io` or `docker.io`
@@ -40,6 +40,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
@@ -211,7 +216,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-arm64
 
       # ── Phase 4: multi-arch manifest ─────────────────────────────────────────
-      # Assemble the canonical proxy tag and the legacy kroxylicious alias as
+      # Assemble the canonical proxy tag and the legacy Kroxylicious alias as
       # manifest lists pointing at the per-arch images pushed above.
 
       - name: Create and push proxy multi-arch manifest
