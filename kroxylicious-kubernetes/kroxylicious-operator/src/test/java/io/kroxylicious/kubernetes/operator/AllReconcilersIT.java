@@ -20,6 +20,7 @@ import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
+import org.awaitility.core.ConditionTimeoutException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -201,16 +202,26 @@ class AllReconcilersIT {
         // The accepted condition and ingresses may be set in separate reconciliation cycles,
         // so we wait explicitly for the ingresses to be populated rather than checking the
         // snapshot returned when the accepted condition first became true.
-        AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO))
-                .untilAsserted(() -> assertThat(testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO))
-                        .isNotNull()
-                        .extracting(VirtualKafkaCluster::getStatus)
-                        .satisfies(vcs -> assertThat(vcs)
-                                .extracting(VirtualKafkaClusterStatus::getIngresses, as(InstanceOfAssertFactories.list(Ingresses.class)))
-                                .singleElement()
-                                .extracting(Ingresses::getBootstrapServer, as(InstanceOfAssertFactories.STRING))
-                                .isNotEmpty()));
-
+        try {
+            AWAIT.alias("cluster %s has ingresses with bootstrap servers".formatted(CLUSTER_FOO))
+                    .untilAsserted(() -> assertThat(testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO))
+                            .isNotNull()
+                            .extracting(VirtualKafkaCluster::getStatus)
+                            .satisfies(vcs -> assertThat(vcs)
+                                    .extracting(VirtualKafkaClusterStatus::getIngresses, as(InstanceOfAssertFactories.list(Ingresses.class)))
+                                    .singleElement()
+                                    .extracting(Ingresses::getBootstrapServer, as(InstanceOfAssertFactories.STRING))
+                                    .isNotEmpty()));
+        }
+        catch (ConditionTimeoutException e) {
+            // Dump the last observed status so an intermittent CI failure can be diagnosed without a local repro.
+            var lastObserved = testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO);
+            LOGGER.atWarn()
+                    .addKeyValue("name", CLUSTER_FOO)
+                    .addKeyValue("status", lastObserved == null ? null : lastObserved.getStatus())
+                    .log("Timed out waiting for ingresses with bootstrap servers; dumping last observed cluster status");
+            throw e;
+        }
     }
 
     static Stream<Arguments> upstreamTlsScenarios() {

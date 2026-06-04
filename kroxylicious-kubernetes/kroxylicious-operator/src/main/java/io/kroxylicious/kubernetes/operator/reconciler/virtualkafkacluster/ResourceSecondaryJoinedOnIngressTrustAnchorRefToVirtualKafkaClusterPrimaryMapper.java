@@ -30,9 +30,8 @@ class ResourceSecondaryJoinedOnIngressTrustAnchorRefToVirtualKafkaClusterPrimary
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(T resource) {
-        return ResourcesUtil.findReferrersMulti(context,
+        return ResourcesUtil.findReferringPrimariesMulti(context,
                 resource,
-                VirtualKafkaCluster.class,
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                         .map(Tls::getTrustAnchorRef)

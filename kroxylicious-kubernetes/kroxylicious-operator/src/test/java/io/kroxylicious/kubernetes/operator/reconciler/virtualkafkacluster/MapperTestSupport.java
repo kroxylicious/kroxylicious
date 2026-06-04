@@ -6,18 +6,16 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster;
 
-import java.util.Arrays;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.processing.event.source.IndexerResourceCache;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
@@ -136,21 +134,20 @@ class MapperTestSupport {
             .build();
     // @formatter:on
 
+    /**
+     * Mocks an {@link EventSourceContext} whose primary cache contains the given clusters. Secondary&rarr;primary
+     * mappers resolve referrers from this cache (via {@code findReferringPrimaries}) rather than issuing a live
+     * {@code list} against the API server, so the mock stubs {@link EventSourceContext#getPrimaryCache()} and applies
+     * the caller's predicate to the supplied clusters.
+     */
     public static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster... clusters) {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-        KubernetesResourceList<VirtualKafkaCluster> mockList = mockListVirtualClustersOperation(client);
-        when(mockList.getItems()).thenReturn(Arrays.asList(clusters));
+        IndexerResourceCache<VirtualKafkaCluster> primaryCache = mock();
+        when(eventSourceContext.getPrimaryCache()).thenReturn(primaryCache);
+        when(primaryCache.list(any(), any())).thenAnswer(invocation -> {
+            Predicate<VirtualKafkaCluster> predicate = invocation.getArgument(1);
+            return Stream.of(clusters).filter(predicate);
+        });
         return eventSourceContext;
-    }
-
-    public static KubernetesResourceList<VirtualKafkaCluster> mockListVirtualClustersOperation(KubernetesClient client) {
-        MixedOperation<VirtualKafkaCluster, KubernetesResourceList<VirtualKafkaCluster>, Resource<VirtualKafkaCluster>> mockOperation = mock();
-        when(client.resources(VirtualKafkaCluster.class)).thenReturn(mockOperation);
-        KubernetesResourceList<VirtualKafkaCluster> mockList = mock();
-        when(mockOperation.list()).thenReturn(mockList);
-        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
-        return mockList;
     }
 }
