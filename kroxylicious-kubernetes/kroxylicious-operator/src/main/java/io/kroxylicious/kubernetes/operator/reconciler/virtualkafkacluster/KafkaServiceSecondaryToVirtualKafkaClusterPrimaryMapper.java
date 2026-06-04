@@ -30,7 +30,7 @@ class KafkaServiceSecondaryToVirtualKafkaClusterPrimaryMapper implements Seconda
             VirtualKafkaClusterReconciler.logIgnoredEvent(service);
             return Set.of();
         }
-        return ResourcesUtil.findReferringPrimaries(context,
+        return ResourcesUtil.findKnownPrimariesOf(context,
                 service,
                 cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
     }

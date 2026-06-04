@@ -366,18 +366,17 @@ public class ResourcesUtil {
      * @param <P> The type of the primary (reference owner)
      * @param <R> The type of the referent
      */
-    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferringPrimaries(EventSourceContext<P> context,
-                                                                                                        R referent,
-                                                                                                        Function<P, Optional<LocalRef<R>>> refAccessor) {
-        return filteredPrimaryIdsInSameNamespace(context,
-                referent,
-                primary -> refAccessor.apply(primary).map(lr -> ResourcesUtil.isReferent(lr, referent)).orElse(false));
+    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOf(EventSourceContext<P> context,
+                                                                                                      R referent,
+                                                                                                      Function<P, Optional<LocalRef<R>>> refAccessor) {
+        return filteredPrimaryIdsInSameNamespace(context, referent,
+                primary -> refAccessor.apply(primary).map(lr -> isReferent(lr, referent)).orElse(false));
     }
 
     /**
      * Like {@link #findReferrers(EventSourceContext, OwnerReference, HasMetadata, Class, Function)} but resolves the
      * referring resources from the controller's primary cache rather than issuing a live {@code list}. See
-     * {@link #findReferringPrimaries(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
+     * {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
      * @param context The event source context
      * @param referent The referent OwnerReference
      * @param hasNamespace A resource bearing the namespace we wish to search
@@ -386,19 +385,20 @@ public class ResourcesUtil {
      * @param <P> The type of the primary (reference owner)
      * @param <R> The type of the referent
      */
-    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferringPrimaries(EventSourceContext<P> context,
-                                                                                                        OwnerReference referent,
-                                                                                                        HasMetadata hasNamespace,
-                                                                                                        Function<P, Optional<LocalRef<R>>> refAccessor) {
-        return filteredPrimaryIdsInSameNamespace(context,
-                hasNamespace,
-                primary -> refAccessor.apply(primary).map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind())).orElse(false));
+    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOf(EventSourceContext<P> context,
+                                                                                                      OwnerReference referent,
+                                                                                                      HasMetadata hasNamespace,
+                                                                                                      Function<P, Optional<LocalRef<R>>> refAccessor) {
+        return filteredPrimaryIdsInSameNamespace(context, hasNamespace,
+                primary -> refAccessor.apply(primary)
+                        .map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind()))
+                        .orElse(false));
     }
 
     /**
      * Like {@link #findReferrersMulti(EventSourceContext, HasMetadata, Class, Function)} but resolves the referring
      * resources from the controller's primary cache rather than issuing a live {@code list}. See
-     * {@link #findReferringPrimaries(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
+     * {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
      * @param context The event source context
      * @param referent The potential referent
      * @param refAccessor A function which returns the references from a given primary.
@@ -406,18 +406,16 @@ public class ResourcesUtil {
      * @param <P> The type of the primary (reference owner)
      * @param <R> The type of the referent
      */
-    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferringPrimariesMulti(EventSourceContext<P> context,
-                                                                                                             R referent,
-                                                                                                             Function<P, Collection<? extends LocalRef<R>>> refAccessor) {
-        return filteredPrimaryIdsInSameNamespace(context,
-                referent,
-                primary -> {
-                    Collection<? extends LocalRef<R>> refs = refAccessor.apply(primary);
-                    if (refs == null) {
-                        return false;
-                    }
-                    return refs.stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent));
-                });
+    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOfEach(EventSourceContext<P> context,
+                                                                                                          R referent,
+                                                                                                          Function<P, Collection<? extends LocalRef<R>>> refAccessor) {
+        return filteredPrimaryIdsInSameNamespace(context, referent, primary -> {
+            Collection<? extends LocalRef<R>> refs = refAccessor.apply(primary);
+            if (refs == null) {
+                return false;
+            }
+            return refs.stream().anyMatch(ref -> isReferent(ref, referent));
+        });
     }
 
     private static <P extends HasMetadata> Set<ResourceID> filteredPrimaryIdsInSameNamespace(EventSourceContext<P> context,
