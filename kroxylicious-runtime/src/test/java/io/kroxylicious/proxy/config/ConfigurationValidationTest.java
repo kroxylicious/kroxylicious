@@ -100,16 +100,14 @@ class ConfigurationValidationTest {
                 .doesNotThrowAnyException();
     }
 
-    // TODO in future VCs will be allowed to target a router
     @Test
-    void shouldRejectRouterTarget() {
+    void virtualClusterWithRouterTarget() {
         RouteTarget routerTarget = new RouteTarget(null, "nonexistent");
         List<VirtualClusterGateway> gateways = List.of(simpleGateway("gw"));
-        assertThatThrownBy(() -> new VirtualCluster("demo", null,
+        VirtualCluster demo = new VirtualCluster("demo", null,
                 routerTarget,
-                gateways, false, false, null, null, null, null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("illegal target.router for virtual cluster 'demo'.");
+                gateways, false, false, null, null, null, null);
+        assertThat(demo.target()).isEqualTo(routerTarget);
     }
 
     @Test
