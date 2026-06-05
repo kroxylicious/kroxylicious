@@ -6,7 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
-import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -15,8 +15,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
@@ -24,27 +22,36 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.SERVICE;
-import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.mockKafkaServiceListOperation;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.TRUST_ANCHOR_PEM_CONFIG_MAP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapperTest {
 
     @Test
     void canMapFromConfigMapTrustAnchorRefToKafkaService() {
         // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(SERVICE));
-
-        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(eventSourceContext);
+        EventSourceContext<KafkaService> context = MapperTestSupport.mockContextContaining(SERVICE);
+        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context);
 
         // When
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(MapperTestSupport.TRUST_ANCHOR_PEM_CONFIG_MAP);
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
+
+        // Then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
+    }
+
+    @Test
+    void shouldReturnIdsWhenApiServerUnavailable() {
+        // Given
+        EventSourceContext<KafkaService> context = mock();
+        MapperTestSupport.stubFailingListOperationClient(context);
+        MapperTestSupport.stubPrimaryCache(context, SERVICE);
+
+        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context);
+
+        // When
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(TRUST_ANCHOR_PEM_CONFIG_MAP);
 
         // Then
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
@@ -61,18 +68,13 @@ class ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapperTest
     @MethodSource
     void mappingToConfigMapToleratesKafkaServicesWithoutTls(KafkaService service) {
         // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(service));
+        EventSourceContext<KafkaService> context = MapperTestSupport.mockContextContaining(service);
+        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context);
 
         // When
-        var mapper = new ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(eventSourceContext);
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(new ConfigMapBuilder().withNewMetadata().withName("cm").endMetadata().build());
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(new ConfigMapBuilder().withNewMetadata().withName("cm").endMetadata().build());
         assertThat(primaryResourceIDs).isEmpty();
     }
 }

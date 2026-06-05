@@ -28,9 +28,8 @@ class StrimziKafkaSecondaryToKafkaServicePrimaryMapper implements SecondaryToPri
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(Kafka kafka) {
-        return ResourcesUtil.findReferrers(context,
+        return ResourcesUtil.findKnownPrimariesOf(context,
                 kafka,
-                KafkaService.class,
                 service -> Optional.ofNullable(service.getSpec())
                         .map(KafkaServiceSpec::getStrimziKafkaRef)
                         .map(StrimziKafkaRef::getRef));
