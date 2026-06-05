@@ -79,7 +79,8 @@ class KafkaProxyTest {
                    - filter1
                 """;
         var parsedConfig = configParser.parseConfiguration(config);
-        assertThatThrownBy(() -> new KafkaProxy(configParser, parsedConfig, Features.defaultFeatures()))
+        var features = Features.defaultFeatures();
+        assertThatThrownBy(() -> new KafkaProxy(configParser, parsedConfig, features))
                 .isInstanceOf(LifecycleException.class)
                 .cause()
                 .isInstanceOf(PluginConfigurationException.class)

@@ -185,9 +185,10 @@ class VirtualClusterModelTest {
         var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("bad-filter", FlakyFactory.class.getName(), flakyConfig));
         var targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
         var pfr = combinedPluginFactoryRegistry();
+        var drainTimeout = Duration.ofSeconds(10);
 
         assertThatThrownBy(() -> new VirtualClusterModel("vc1", targetCluster, false, false, filters,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), pfr))
+                CacheConfiguration.DEFAULT, null, drainTimeout, pfr))
                 .isExactlyInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("Exception initializing filter factory bad-filter")
                 .cause()
