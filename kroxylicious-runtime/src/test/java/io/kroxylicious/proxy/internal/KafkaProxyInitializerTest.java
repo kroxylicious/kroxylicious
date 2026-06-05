@@ -421,7 +421,8 @@ class KafkaProxyInitializerTest {
                                                               VirtualClusterRegistry vcc) {
         return new KafkaProxyInitializer(pfr,
                 tls,
-                new KafkaProxyInitializer.EndpointServices(bindingResolver, (virtualCluster, upstreamNodes) -> null),
+                bindingResolver,
+                (virtualCluster, upstreamNodes) -> null,
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),

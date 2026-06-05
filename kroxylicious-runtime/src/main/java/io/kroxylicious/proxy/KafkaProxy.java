@@ -7,7 +7,6 @@ package io.kroxylicious.proxy;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,7 +67,6 @@ import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.service.HostPort;
@@ -150,7 +148,6 @@ public final class KafkaProxy implements AutoCloseable {
     private final Configuration config;
     private final @Nullable ManagementConfiguration managementConfiguration;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final Collection<VirtualClusterModel> virtualClusterModels;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
@@ -172,7 +169,6 @@ public final class KafkaProxy implements AutoCloseable {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterRegistry = requireNonNull(virtualClusterRegistry);
-        this.virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
     }
@@ -183,26 +179,25 @@ public final class KafkaProxy implements AutoCloseable {
         // PluginConfigurationException — wrap it as a LifecycleException so callers that go
         // through startup-failure handling still see the same exception type they did before
         // FCF construction moved into the VCM constructor.
-        final List<VirtualClusterModel> models;
         try {
-            models = config.virtualClusterModel(pfr);
+            var models = config.virtualClusterModel(pfr);
+            return new VirtualClusterRegistry(models, (clusterName, cause) -> {
+                if (cause.isPresent()) {
+                    STARTUP_SHUTDOWN_LOGGER.atWarn()
+                            .addKeyValue("virtualCluster", clusterName)
+                            .addKeyValue("error", cause.get().getMessage())
+                            .log("Virtual cluster reached terminal stopped state due to failure, proxy shutdown required");
+                }
+                else {
+                    STARTUP_SHUTDOWN_LOGGER.atInfo()
+                            .addKeyValue("virtualCluster", clusterName)
+                            .log("Virtual cluster stopped");
+                }
+            });
         }
         catch (PluginConfigurationException e) {
             throw new LifecycleException("Startup completed exceptionally", e);
         }
-        return new VirtualClusterRegistry(models, (clusterName, cause) -> {
-            if (cause.isPresent()) {
-                STARTUP_SHUTDOWN_LOGGER.atWarn()
-                        .addKeyValue("virtualCluster", clusterName)
-                        .addKeyValue("error", cause.get().getMessage())
-                        .log("Virtual cluster reached terminal stopped state due to failure, proxy shutdown required");
-            }
-            else {
-                STARTUP_SHUTDOWN_LOGGER.atInfo()
-                        .addKeyValue("virtualCluster", clusterName)
-                        .log("Virtual cluster stopped");
-            }
-        });
     }
 
     @VisibleForTesting
@@ -239,6 +234,10 @@ public final class KafkaProxy implements AutoCloseable {
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
         }
+        // Read the current model set fresh from the registry rather than from a field captured at
+        // construction time — keeps startup() consistent with the registry-as-source-of-truth
+        // invariant used by shutdown().
+        var virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         try {
             if (!TESTED_JRE_VERSIONS.contains(JRE_FEATURE_VERSION)) {
                 String versionStatus = "untested";
@@ -284,12 +283,11 @@ public final class KafkaProxy implements AutoCloseable {
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
-            var endpointServices = new KafkaProxyInitializer.EndpointServices(endpointRegistry, endpointRegistry);
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(pfr, true, endpointServices, proxyProtocolMode,
+                    new KafkaProxyInitializer(pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode,
                             apiVersionsService, proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(pfr, false, endpointServices, proxyProtocolMode,
+                    new KafkaProxyInitializer(pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode,
                             apiVersionsService, proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
