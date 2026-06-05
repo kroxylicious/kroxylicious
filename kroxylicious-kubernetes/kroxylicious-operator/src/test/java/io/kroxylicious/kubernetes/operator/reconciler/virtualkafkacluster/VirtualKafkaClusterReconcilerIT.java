@@ -47,7 +47,7 @@ import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
-import io.kroxylicious.testing.operator.ClusterUser
+import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;

@@ -89,7 +89,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuil
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.testing.operator.ClusterUser
+import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
