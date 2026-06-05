@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4064](https://github.com/kroxylicious/kroxylicious/pull/4064): fix(operator): VirtualKafkaCluster secondary→primary mappers no longer call the API server on every secondary event, preventing VKCs from getting stuck when the API server is transiently unavailable (follow-up to [#4044](https://github.com/kroxylicious/kroxylicious/pull/4044) by @Roshr2211)
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): feat(operator): report `DeprecationWarning` status condition on `KafkaProxy` resources with absent `spec`
 
 ### Changes, deprecations and removals

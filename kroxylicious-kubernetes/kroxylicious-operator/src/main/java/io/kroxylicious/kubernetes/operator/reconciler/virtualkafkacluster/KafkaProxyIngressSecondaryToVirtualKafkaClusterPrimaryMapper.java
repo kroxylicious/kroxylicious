@@ -30,7 +30,7 @@ class KafkaProxyIngressSecondaryToVirtualKafkaClusterPrimaryMapper implements Se
             VirtualKafkaClusterReconciler.logIgnoredEvent(ingress);
             return Set.of();
         }
-        return ResourcesUtil.findReferringPrimariesMulti(context,
+        return ResourcesUtil.findKnownPrimariesOfEach(context,
                 ingress,
                 cluster -> cluster.getSpec().getIngresses().stream().map(Ingresses::getIngressRef).toList());
     }

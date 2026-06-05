@@ -30,6 +30,30 @@ import static org.mockito.Mockito.mock;
 class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapperTest {
 
     @Test
+    void shouldReturnIdsWhenApiServerUnavailable() {
+        // Regression for #4017. The mapper previously called client.list() on every secondary event.
+        // JOSDK catches exceptions in the informer's event-dispatch path and silently drops the event
+        // with no retry — a transient KubernetesClientException therefore left the VKC stuck.
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder().withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+
+        EventSourceContext<VirtualKafkaCluster> context = mock();
+        MapperTestSupport.stubFailingListOperationClient(context);
+        MapperTestSupport.stubPrimaryCache(context, cluster);
+
+        SecondaryToPrimaryMapper<Service> mapper = new KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper(context);
+        OwnerReference proxyOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
+        Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(proxyOwner).endMetadata().build();
+
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
     void kubernetesServicesSecondaryToPrimaryMapperServiceOwnedByProxy() {
         // given
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
