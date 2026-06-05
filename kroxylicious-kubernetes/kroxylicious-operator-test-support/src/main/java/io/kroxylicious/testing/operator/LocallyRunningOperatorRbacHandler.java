@@ -59,7 +59,7 @@ import static java.util.Objects.requireNonNull;
  * in production.
  * <br/>
  * For the test's interactions with Kubernetes, where more privileges are required, use the operations
- * exposed by {@link #testActor(AbstractOperatorExtension)}.
+ * exposed by {@link #testActor(KubernetesClient, AbstractOperatorExtension)}.
  *
  */
 public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, AfterEachCallback {

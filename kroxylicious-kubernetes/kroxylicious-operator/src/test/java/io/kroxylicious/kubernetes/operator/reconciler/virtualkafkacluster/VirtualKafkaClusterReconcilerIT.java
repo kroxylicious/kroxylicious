@@ -41,8 +41,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
-import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.ProxyConfigDependentResource;
@@ -50,8 +50,8 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
-import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
+import io.kroxylicious.testing.operator.assertj.ConditionListAssert;
+import io.kroxylicious.testing.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

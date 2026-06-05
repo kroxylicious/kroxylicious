@@ -56,14 +56,15 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuil
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter.KafkaProtocolFilterReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy.KafkaProxyReconcilerIT;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress.KafkaProxyIngressReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceReconciler;
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
-import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
 

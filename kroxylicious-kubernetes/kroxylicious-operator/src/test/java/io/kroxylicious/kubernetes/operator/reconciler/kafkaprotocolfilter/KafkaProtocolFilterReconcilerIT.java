@@ -28,13 +28,13 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.testing.operator.ClusterUser;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
-import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
-import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
-import io.kroxylicious.testing.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
+import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
+import io.kroxylicious.testing.operator.ClusterUser;
+import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
+import io.kroxylicious.testing.operator.OperatorTestUtils;
+import io.kroxylicious.testing.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.assertj.core.api.Assertions.assertThat;

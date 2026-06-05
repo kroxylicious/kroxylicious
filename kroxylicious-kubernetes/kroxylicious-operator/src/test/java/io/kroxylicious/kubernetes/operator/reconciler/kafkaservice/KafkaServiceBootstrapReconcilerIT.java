@@ -26,17 +26,17 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.testing.operator.ClusterUser;
-import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.informer.SharedInformerManager;
+import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
-import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
+import static io.kroxylicious.testing.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")

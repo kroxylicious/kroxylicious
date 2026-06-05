@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.Operator;
@@ -49,11 +50,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
-import io.kroxylicious.testing.operator.LocallyRunningOperatorRbacHandler;
-import io.kroxylicious.testing.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestFiles;
+import io.kroxylicious.testing.operator.LocallyRunningOperatorRbacHandler;
+import io.kroxylicious.testing.operator.OperatorTestUtils;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
@@ -115,11 +116,13 @@ class OperatorSsaUpgradeIT {
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
 
-    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(legacyExtension);
+    private final KubernetesClient userClient = rbacHandler.userClient();
+    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(userClient, legacyExtension);
 
     @AfterEach
     void stopLegacyOperator() {
         legacyExtension.getOperator().stop();
+        userClient.close();
     }
 
     @Test

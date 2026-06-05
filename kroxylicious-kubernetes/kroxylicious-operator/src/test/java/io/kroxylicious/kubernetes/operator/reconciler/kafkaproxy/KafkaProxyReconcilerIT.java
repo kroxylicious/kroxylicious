@@ -89,14 +89,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuil
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.testing.operator.ClusterUser;
-import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestKeyMaterial;
-import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
-import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
-import io.kroxylicious.kubernetes.operator.assertj.ProxyConfigAssert;
 import io.kroxylicious.kubernetes.operator.model.RouteHostDetails;
 import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.RouteClusterIngressNetworkingModel;
@@ -108,6 +103,11 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.testing.operator.ClusterUser;
+import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
+import io.kroxylicious.testing.operator.assertj.AssertFactory;
+import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
+import io.kroxylicious.testing.operator.assertj.ProxyConfigAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;

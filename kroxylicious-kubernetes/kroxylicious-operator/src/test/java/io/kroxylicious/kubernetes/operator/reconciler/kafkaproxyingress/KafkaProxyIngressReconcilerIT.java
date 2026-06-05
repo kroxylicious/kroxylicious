@@ -20,10 +20,10 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.testing.operator.ClusterUser;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
-import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert;
+import io.kroxylicious.testing.operator.assertj.KafkaProxyIngressStatusAssert;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static org.assertj.core.api.Assertions.assertThat;
