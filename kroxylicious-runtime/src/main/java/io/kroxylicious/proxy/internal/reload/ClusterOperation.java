@@ -15,7 +15,7 @@ import io.kroxylicious.proxy.reload.ReconfigureError;
  * produce — adding a new operation type is a deliberate change that the compiler can flag
  * at every dispatch point.
  */
-sealed interface ClusterOperation permits AddCluster, RemoveCluster {
+sealed interface ClusterOperation permits AddCluster, RemoveCluster, ReplaceCluster {
 
     String clusterName();
 

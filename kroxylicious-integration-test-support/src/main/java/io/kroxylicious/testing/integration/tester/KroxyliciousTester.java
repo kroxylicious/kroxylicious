@@ -355,6 +355,24 @@ public interface KroxyliciousTester extends Closeable {
     CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig);
 
     /**
+     * Closes and evicts any cached Kafka clients (admin, producer, consumer) that this tester
+     * has previously created for {@code virtualCluster}, across every gateway. Subsequent
+     * client requests for the same cluster will rebuild fresh clients against the tester's
+     * current configuration.
+     * <p>
+     * Useful after a {@link #reconfigure(Configuration)} that changes a cluster's transport
+     * addressing (e.g. port relocation, SNI hostname change, TLS swap): the tester's
+     * per-{@code (cluster, gateway)} client cache holds Kafka clients whose internal
+     * bootstrap is fixed at construction time, and those clients can't follow the cluster
+     * to its new address. Calling this method invalidates the cached clients so that the
+     * next {@link #producer(String)} / {@link #consumer(String)} call resolves a fresh
+     * bootstrap and constructs a new Kafka client around it.
+     *
+     * @param virtualCluster the virtual cluster whose cached clients should be evicted
+     */
+    void closeClientsFor(String virtualCluster);
+
+    /**
      * Close the Kroxylicious server under test and any other resources that need cleaning.
      */
     @Override

@@ -94,6 +94,34 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
+    void modelForReturnsRegisteredModel() {
+        // CLUSTER_A is in the registry via setUp.
+        assertThat(vcc.modelFor(CLUSTER_A))
+                .isNotNull()
+                .extracting(VirtualClusterModel::getClusterName).isEqualTo(CLUSTER_A);
+    }
+
+    @Test
+    void modelForReturnsNullForUnknownCluster() {
+        assertThat(vcc.modelFor("never-existed")).isNull();
+    }
+
+    @Test
+    void modelForFollowsRuntimeAddAndRemove() {
+        // After addVirtualCluster, modelFor returns the new model.
+        var added = mockModel(CLUSTER_B);
+        vcc.addVirtualCluster(added);
+        assertThat(vcc.modelFor(CLUSTER_B)).isSameAs(added);
+
+        // After removeVirtualCluster, the entry is retained (append-only policy) so modelFor
+        // continues to return the same model. The lifecycle's state distinguishes "Stopped"
+        // from "Serving" — callers that care about state should compose with lifecycleFor.
+        vcc.initializationSucceeded(CLUSTER_B);
+        vcc.removeVirtualCluster(CLUSTER_B).join();
+        assertThat(vcc.modelFor(CLUSTER_B)).isSameAs(added);
+    }
+
+    @Test
     void shouldExposeVirtualClusterModels() {
         // given
         var modelA = mockModel("cluster-a");
@@ -103,8 +131,8 @@ class VirtualClusterRegistryTest {
         // when
         var models = multiVcm.virtualClusterModels();
 
-        // then
-        assertThat(models).containsExactly(modelA, modelB);
+        // then — order is unspecified (backing map is ConcurrentHashMap); only contents matter.
+        assertThat(models).containsExactlyInAnyOrder(modelA, modelB);
     }
 
     @SuppressWarnings("DataFlowIssue")
@@ -640,11 +668,8 @@ class VirtualClusterRegistryTest {
     }
 
     // -----------------------------------------------------------------------------------------
-    // Reconfigure operations. removeVirtualCluster is the first to be made real (step 1 of
-    // the hot-reload staircase); replaceVirtualCluster and addVirtualCluster remain no-op
-    // stubs until later steps land them. The stub tests below pin the contract: each stub
-    // completes its future immediately without mutating registry state, so the orchestrator
-    // can drive the full pipeline against this class while only some operations are real.
+    // Reconfigure operations: addVirtualCluster and removeVirtualCluster. Modify is delegated
+    // to ReplaceCluster which composes remove + add — there is no dedicated VCR method for it.
     // -----------------------------------------------------------------------------------------
 
     @Test
@@ -716,21 +741,6 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void replaceVirtualClusterStubReturnsCompletedFutureWithoutMutatingState() {
-        // given
-        vcc.initializationSucceeded(CLUSTER_A);
-        var lifecycleBefore = vcc.lifecycleFor(CLUSTER_A);
-        var newModel = mockModel(CLUSTER_A);
-
-        // when
-        var future = vcc.replaceVirtualCluster(CLUSTER_A, newModel);
-
-        // then
-        assertThat(future).isCompleted();
-        assertThat(vcc.lifecycleFor(CLUSTER_A)).isSameAs(lifecycleBefore);
-    }
-
-    @Test
     void addVirtualClusterCreatesLifecycleInInitializing() {
         // given
         var newModel = mockModel(CLUSTER_B);
@@ -748,12 +758,34 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
-    void addVirtualClusterRejectsDuplicateName() {
-        // CLUSTER_A is already present from setUp
+    void addVirtualClusterRejectsDuplicateNameWhenExistingEntryIsActive() {
+        // CLUSTER_A is in INITIALIZING after setUp — re-adding it is a contract violation.
         var duplicate = mockModel(CLUSTER_A);
         assertThatThrownBy(() -> vcc.addVirtualCluster(duplicate))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(CLUSTER_A);
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(CLUSTER_A)
+                .hasMessageContaining("Initializing");
+    }
+
+    @Test
+    void addVirtualClusterReplacesStoppedEntry() {
+        // ReplaceCluster's add half lands here: the remove half drove the cluster to Stopped
+        // (entry retained per shutdownCluster's append-only policy), and the add half then
+        // calls addVirtualCluster with the new model — which must succeed and replace the
+        // dead entry with a fresh INITIALIZING lifecycle.
+        vcc.removeVirtualCluster(CLUSTER_A).join();
+        var freshModel = mockModel(CLUSTER_A);
+
+        var future = vcc.addVirtualCluster(freshModel);
+
+        assertThat(future).isCompleted();
+        assertThat(vcc.lifecycleFor(CLUSTER_A)).isNotNull()
+                .extracting(VirtualClusterLifecycle::state)
+                .as("re-added cluster's lifecycle should be a fresh Initializing instance")
+                .isInstanceOf(VirtualClusterLifecycleState.Initializing.class);
+        assertThat(vcc.virtualClusterModels())
+                .as("virtualClusterModels reports the new model, not the stale one")
+                .containsExactly(freshModel);
     }
 
     @SuppressWarnings("DataFlowIssue")
@@ -765,20 +797,21 @@ class VirtualClusterRegistryTest {
 
     @Test
     void virtualClusterModelsReflectsRuntimeAddedModel() {
-        // Contract relied on by RemoveCluster#originalGateways: a model handed to
-        // addVirtualCluster appears in virtualClusterModels() so a subsequent reconfigure can
-        // resolve its gateways.
+        // Contract relied on by OperationsPlanner: a model handed to addVirtualCluster appears
+        // in virtualClusterModels() so a subsequent reconfigure can resolve it by name.
         var addedModel = mockModel(CLUSTER_B);
 
         vcc.addVirtualCluster(addedModel);
 
+        // Order is unspecified (backing map is ConcurrentHashMap); both the constructor-supplied
+        // model and the runtime-added one must be present.
         assertThat(vcc.virtualClusterModels())
-                .as("constructor-supplied CLUSTER_A then the runtime-added addedModel, in insertion order")
+                .as("models for both the constructor-supplied and runtime-added clusters are present")
                 .extracting(VirtualClusterModel::getClusterName)
-                .containsExactly(CLUSTER_A, CLUSTER_B);
+                .containsExactlyInAnyOrder(CLUSTER_A, CLUSTER_B);
         assertThat(vcc.virtualClusterModels())
                 .as("runtime-added model identity is preserved (same reference, not a copy)")
-                .last().isSameAs(addedModel);
+                .contains(addedModel);
     }
 
     @Test

@@ -64,7 +64,6 @@ class ConfigurationReloadOrchestratorTest {
         assertThatThrownBy(future::join).cause().isInstanceOf(StaticConfigurationChangedException.class);
         // No registry interactions — pre-flight rejected before the pipeline ran.
         verify(registry, never()).removeVirtualCluster(anyString());
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
         verify(registry, never()).addVirtualCluster(any());
     }
 
@@ -84,7 +83,6 @@ class ConfigurationReloadOrchestratorTest {
         assertThat(future).isCompletedWithValueMatching(result -> !result.hasErrors());
         // No registry interactions — there was nothing to do.
         verify(registry, never()).removeVirtualCluster(anyString());
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
         verify(registry, never()).addVirtualCluster(any());
     }
 
@@ -120,7 +118,6 @@ class ConfigurationReloadOrchestratorTest {
 
         // Negative assertions: no remove/replace happened, no rollback deregister fired.
         verify(registry, never()).removeVirtualCluster(anyString());
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
         verify(registry, never()).initializationFailed(anyString(), any());
         verify(endpointRegistry, never()).deregisterVirtualCluster(any(EndpointGateway.class));
     }
@@ -214,7 +211,6 @@ class ConfigurationReloadOrchestratorTest {
         inOrder.verify(registry).removeVirtualCluster("cluster-remove");
         inOrder.verify(endpointRegistry).deregisterVirtualCluster(any(EndpointGateway.class));
         verify(registry, never()).addVirtualCluster(any());
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
     }
 
     @Test
@@ -248,26 +244,28 @@ class ConfigurationReloadOrchestratorTest {
 
     @Test
     void lockIsReleasedOnExceptionSoSubsequentCallsCanProceed() {
-        // After the first reconfigure throws UnsupportedOperationException, a second call
-        // must not be rejected with ConcurrentReconfigureException — the lock should be
-        // released even on exception via the finally block. Inject a detector that produces
-        // a modify (the only operation still unsupported under step 2) so the orchestrator
-        // reaches the placeholder UOE rather than the no-op early-return.
+        // After the first reconfigure throws (planner-level IllegalStateException, e.g.
+        // phantom-add from a buggy change detector), a second call must not be rejected with
+        // ConcurrentReconfigureException — the lock should be released even on exception via
+        // the finally block. We inject a detector that reports a phantom add for a cluster
+        // that's NOT present in the submitted configuration; the planner's guard fires with
+        // IllegalStateException, which propagates out of doReconfigure.
         var config = configWith(vc("cluster-a"));
-        var modifyDetector = mock(ChangeDetector.class);
-        when(modifyDetector.detect(any())).thenReturn(new ChangeResult(
-                Set.of(), Set.of(), Set.of("cluster-a")));
+        var phantomAddDetector = mock(ChangeDetector.class);
+        when(phantomAddDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of("phantom-cluster"), Set.of(), Set.of()));
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, stubbedRegistry(), endpointRegistry, mock(PluginFactoryRegistry.class), List.of(modifyDetector));
+                config, stubbedRegistry(), endpointRegistry, mock(PluginFactoryRegistry.class), List.of(phantomAddDetector));
 
         var first = orchestrator.reconfigure(config);
         assertThat(first).isCompletedExceptionally();
-        assertThatThrownBy(first::join).cause().isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(first::join).cause().isInstanceOf(IllegalStateException.class);
 
         var second = orchestrator.reconfigure(config);
         assertThat(second).isCompletedExceptionally();
-        // Second call should also throw UOE (not ConcurrentReconfigureException).
-        assertThatThrownBy(second::join).cause().isInstanceOf(UnsupportedOperationException.class);
+        // Second call should also throw the planner's IllegalStateException (not
+        // ConcurrentReconfigureException) — proving the lock was released between calls.
+        assertThatThrownBy(second::join).cause().isInstanceOf(IllegalStateException.class);
     }
 
     @Test
@@ -291,7 +289,7 @@ class ConfigurationReloadOrchestratorTest {
         var removeModel = mock(VirtualClusterModel.class);
         when(removeModel.getClusterName()).thenReturn("cluster-remove");
         when(removeModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
-        when(registry.virtualClusterModels()).thenReturn(List.of(removeModel));
+        when(registry.modelFor("cluster-remove")).thenReturn(removeModel);
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 
@@ -386,7 +384,6 @@ class ConfigurationReloadOrchestratorTest {
         // then — the orchestrator consulted the injected detector and acted on its verdict.
         verify(customDetector).detect(any());
         verify(registry).removeVirtualCluster("cluster-remove");
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
         verify(registry, never()).addVirtualCluster(any());
 
         // Pure-remove reconfigure: orchestrator completes successfully.
@@ -409,33 +406,66 @@ class ConfigurationReloadOrchestratorTest {
         var inOrder = inOrder(registry);
         inOrder.verify(registry).removeVirtualCluster("cluster-remove");
         inOrder.verify(registry).addVirtualCluster(argThat(m -> m.getClusterName().equals("cluster-add")));
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
     }
 
     @Test
-    void modifyOnlyReconfigureIsRejectedUpfront() {
-        // A modify-only reconfigure is still unsupported and rejected upfront with UOE
-        // before any per-VC work runs. We inject a detector that produces a clustersToModify
-        // entry because the production detectors require an actual filter/cluster change to
-        // surface a modify; this lets the test focus on the orchestrator's guard behaviour.
+    void modifyOnlyReconfigureExecutesViaReplaceCluster() {
+        // A modify-only reconfigure now runs a ReplaceCluster operation, which internally
+        // composes RemoveCluster + AddCluster. The orchestrator-visible behaviour is the same
+        // shape as add/remove: the future completes successfully, ReconfigureResult has no
+        // errors, and the registry sees remove + add for the same cluster name.
         var config = configWith(vc("cluster-a"));
-        var customDetector = mock(ChangeDetector.class);
-        when(customDetector.detect(any())).thenReturn(new ChangeResult(
-                Set.of(),
-                Set.of(),
-                Set.of("cluster-a")));
+        var modifyDetector = mock(ChangeDetector.class);
+        when(modifyDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of(), Set.of(), Set.of("cluster-a")));
 
-        var registry = stubbedRegistry();
+        var registry = stubbedRegistry("cluster-a");
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(customDetector));
+                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(modifyDetector));
 
         var future = orchestrator.reconfigure(config);
 
-        assertThat(future).isCompletedExceptionally();
-        assertThatThrownBy(future::join).cause().isInstanceOf(UnsupportedOperationException.class);
-        verify(registry, never()).removeVirtualCluster(anyString());
-        verify(registry, never()).addVirtualCluster(any());
-        verify(registry, never()).replaceVirtualCluster(anyString(), any());
+        assertThat(future).isCompletedWithValueMatching(r -> !r.hasErrors());
+        // Both halves of the replace executed on the registry side. Ordering is enforced by
+        // ReplaceCluster — the orchestrator just dispatches.
+        var inOrder = inOrder(registry);
+        inOrder.verify(registry).removeVirtualCluster("cluster-a");
+        inOrder.verify(registry).addVirtualCluster(argThat(m -> m.getClusterName().equals("cluster-a")));
+    }
+
+    @Test
+    void shouldExecuteAddRemoveAndModifyInSingleReconfigure() {
+        // End-to-end: a reconfigure that touches every bucket. Ordering invariant (pure
+        // removes → modifies → pure adds) is asserted via mockito's inOrder verification on
+        // the registry's per-name calls. The submitted configuration mentions both the
+        // modified cluster (so the planner can resolve newModel) and the pure-add cluster
+        // (so the planner can resolve its addModel); cluster-pure-remove is absent because
+        // it's being removed.
+        var config = configWith(vc("cluster-modify"), vc("cluster-pure-add"));
+        var multiBucketDetector = mock(ChangeDetector.class);
+        when(multiBucketDetector.detect(any())).thenReturn(new ChangeResult(
+                Set.of("cluster-pure-add"),
+                Set.of("cluster-pure-remove"),
+                Set.of("cluster-modify")));
+
+        var registry = stubbedRegistry("cluster-pure-remove", "cluster-modify");
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(multiBucketDetector));
+
+        var future = orchestrator.reconfigure(config);
+
+        assertThat(future).isCompletedWithValueMatching(r -> !r.hasErrors());
+        var inOrder = inOrder(registry);
+        // Pure remove first.
+        inOrder.verify(registry).removeVirtualCluster("cluster-pure-remove");
+        // Then the modify pair (encapsulated inside ReplaceCluster — both calls happen).
+        inOrder.verify(registry).removeVirtualCluster("cluster-modify");
+        inOrder.verify(registry).addVirtualCluster(argThat(m -> m.getClusterName().equals("cluster-modify")));
+        // Then the pure add last.
+        inOrder.verify(registry).addVirtualCluster(argThat(m -> m.getClusterName().equals("cluster-pure-add")));
+        // We made two adds across the reconfigure (one for the modify, one for the pure-add).
+        verify(registry, times(2)).addVirtualCluster(any());
+        verify(registry, times(2)).removeVirtualCluster(anyString());
     }
 
     @Test
@@ -532,7 +562,8 @@ class ConfigurationReloadOrchestratorTest {
         var succeedsModel = mock(VirtualClusterModel.class);
         when(succeedsModel.getClusterName()).thenReturn("cluster-remove-succeeds");
         when(succeedsModel.gateways()).thenReturn(Map.of("default", mock(EndpointGateway.class)));
-        when(registry.virtualClusterModels()).thenReturn(List.of(failsModel, succeedsModel));
+        when(registry.modelFor("cluster-remove-fails")).thenReturn(failsModel);
+        when(registry.modelFor("cluster-remove-succeeds")).thenReturn(succeedsModel);
 
         var orchestrator = newOrchestrator(oldConfig, registry);
 
@@ -600,7 +631,6 @@ class ConfigurationReloadOrchestratorTest {
     private static VirtualClusterRegistry stubbedRegistry(String... clustersInOldConfig) {
         var registry = mock(VirtualClusterRegistry.class);
         when(registry.removeVirtualCluster(anyString())).thenReturn(CompletableFuture.completedFuture(null));
-        when(registry.replaceVirtualCluster(anyString(), any())).thenReturn(CompletableFuture.completedFuture(null));
         when(registry.addVirtualCluster(any())).thenReturn(CompletableFuture.completedFuture(null));
         var models = Arrays.stream(clustersInOldConfig).map(name -> {
             var model = mock(VirtualClusterModel.class);
@@ -609,6 +639,12 @@ class ConfigurationReloadOrchestratorTest {
             return model;
         }).toList();
         when(registry.virtualClusterModels()).thenReturn(models);
+        // The planner uses modelFor(name) for registry-side resolution; stub each known name.
+        // Unknown names fall through to Mockito's default (null), which the planner surfaces
+        // as a phantom-remove/phantom-modify IllegalStateException.
+        for (var model : models) {
+            when(registry.modelFor(model.getClusterName())).thenReturn(model);
+        }
         return registry;
     }
 
