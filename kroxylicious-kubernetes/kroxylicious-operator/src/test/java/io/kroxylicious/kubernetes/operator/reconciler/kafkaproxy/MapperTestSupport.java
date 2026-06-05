@@ -6,10 +6,16 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxy;
 
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.processing.event.source.IndexerResourceCache;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
@@ -24,6 +30,31 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MapperTestSupport {
+
+    public static void stubPrimaryCache(EventSourceContext<KafkaProxy> context, KafkaProxy... proxies) {
+        IndexerResourceCache<KafkaProxy> primaryCache = mock();
+        when(primaryCache.list(any(), any())).thenAnswer(invocation -> {
+            Predicate<KafkaProxy> predicate = invocation.getArgument(1);
+            return Stream.of(proxies).filter(predicate);
+        });
+        when(context.getPrimaryCache()).thenReturn(primaryCache);
+    }
+
+    public static void stubFailingListOperationClient(EventSourceContext<KafkaProxy> context) {
+        KubernetesClient client = mock();
+        when(context.getClient()).thenReturn(client);
+        MixedOperation<KafkaProxy, KubernetesResourceList<KafkaProxy>, Resource<KafkaProxy>> mockOperation = mock();
+        when(client.resources(KafkaProxy.class)).thenReturn(mockOperation);
+        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
+        when(mockOperation.list()).thenThrow(new KubernetesClientException("transient API server failure"));
+    }
+
+    public static EventSourceContext<KafkaProxy> mockContextContaining(KafkaProxy... proxies) {
+        EventSourceContext<KafkaProxy> context = mock();
+        stubPrimaryCache(context, proxies);
+        return context;
+    }
+
     public static KafkaProxy buildProxy(String name) {
         return proxyBuilder(name).build();
     }

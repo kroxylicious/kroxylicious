@@ -418,6 +418,21 @@ public class ResourcesUtil {
         });
     }
 
+    /**
+     * Returns the {@link ResourceID}s of all primaries in the same namespace as the given referent, regardless of
+     * whether the primary refers to the referent. This is useful for secondary&rarr;primary mappers where the secondary
+     * has no direct reference to the primary and therefore all primaries in the same namespace must be considered
+     * (e.g. filter-to-proxy mapping). See {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for
+     * the rationale and preconditions.
+     * @param context The event source context
+     * @param referent A resource bearing the namespace we wish to search
+     * @return The ids of all known primaries in the same namespace as the referent.
+     * @param <P> The type of the primary
+     */
+    public static <P extends HasMetadata> Set<ResourceID> findAllKnownPrimariesInNamespace(EventSourceContext<P> context, HasMetadata referent) {
+        return filteredPrimaryIdsInSameNamespace(context, referent, ignored -> true);
+    }
+
     private static <P extends HasMetadata> Set<ResourceID> filteredPrimaryIdsInSameNamespace(EventSourceContext<P> context,
                                                                                              HasMetadata referent,
                                                                                              Predicate<P> predicate) {
