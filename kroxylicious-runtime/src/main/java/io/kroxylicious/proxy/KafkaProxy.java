@@ -46,7 +46,6 @@ import io.netty.channel.uring.IoUringIoHandler;
 import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
@@ -69,6 +68,7 @@ import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -157,7 +157,6 @@ public final class KafkaProxy implements AutoCloseable {
     private final PluginFactoryRegistry pfr;
     private final VirtualClusterRegistry virtualClusterRegistry;
     private @Nullable MeterRegistries meterRegistries;
-    private @Nullable FilterChainFactory filterChainFactory;
 
     private @Nullable ConfigurationReloadOrchestrator reconfigureOrchestrator;
     private @Nullable EventGroupConfig managementEventGroup;
@@ -178,7 +177,18 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private static VirtualClusterRegistry defaultRegistry(Configuration config, PluginFactoryRegistry pfr) {
-        var models = config.virtualClusterModel(pfr);
+        // VCM construction triggers per-VC FilterChainFactory construction, which calls each
+        // filter factory's initialize(). A filter init failure surfaces here as a
+        // PluginConfigurationException — wrap it as a LifecycleException so callers that go
+        // through startup-failure handling still see the same exception type they did before
+        // FCF construction moved into the VCM constructor.
+        final List<VirtualClusterModel> models;
+        try {
+            models = config.virtualClusterModel(pfr);
+        }
+        catch (PluginConfigurationException e) {
+            throw new LifecycleException("Startup completed exceptionally", e);
+        }
         return new VirtualClusterRegistry(models, (clusterName, cause) -> {
             if (cause.isPresent()) {
                 STARTUP_SHUTDOWN_LOGGER.atWarn()
@@ -266,7 +276,7 @@ public final class KafkaProxy implements AutoCloseable {
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
-            this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
+
             this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
                     config, virtualClusterRegistry, endpointRegistry, pfr,
                     ConfigurationReloadOrchestrator.defaultDetectors());
@@ -274,10 +284,10 @@ public final class KafkaProxy implements AutoCloseable {
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode,
+                    new KafkaProxyInitializer(pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode,
                             apiVersionsService, proxyNettySettings, virtualClusterRegistry));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode,
+                    new KafkaProxyInitializer(pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode,
                             apiVersionsService, proxyNettySettings, virtualClusterRegistry));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
@@ -469,20 +479,18 @@ public final class KafkaProxy implements AutoCloseable {
             }
             closeFutures.forEach(Future::syncUninterruptibly);
 
-            if (filterChainFactory != null) {
-                filterChainFactory.close();
-            }
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
         }
         finally {
-            // Close virtual cluster models to release TLS credential supplier resources
-            virtualClusterModels.forEach(VirtualClusterModel::close);
+            // No explicit forEach close on virtualClusterModels — the registry's
+            // shutdownAllClusters() above drives each lifecycle to Stopped and closes its
+            // model along the way (see VirtualClusterRegistry#closeModel). The registry is
+            // the single source of truth for per-VC resource lifecycle.
             managementEventGroup = null;
             proxyEventGroup = null;
             meterRegistries = null;
-            filterChainFactory = null;
             reconfigureOrchestrator = null;
             shutdown.complete(null);
             LOGGER.atInfo()

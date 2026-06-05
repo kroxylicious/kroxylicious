@@ -114,7 +114,7 @@ class FilterChainFactoryTest {
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr), null);
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr));
         assertThat(filters)
                 .isNotNull()
                 .isEmpty();
@@ -143,7 +143,7 @@ class FilterChainFactoryTest {
         var nameFilterDefinitions = List.of(new NamedFilterDefinition("myFilterDef", DeprecatedMethodsFilterFactory.class.getName(), null));
         try (var filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
             var context = new NettyFilterContext(eventLoop, pfr);
-            filterChainFactory.createFilters(context, nameFilterDefinitions);
+            filterChainFactory.createFilters(context);
             assertThat(logCaptor.getLogEvents())
                     .hasSize(2)
                     .allSatisfy(logEvent -> {
@@ -290,7 +290,7 @@ class FilterChainFactoryTest {
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<NamedFilterDefinition> nameFilterDefinitions) {
         try (FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
             NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
-            List<FilterAndInvoker> filters = filterChainFactory.createFilters(context, nameFilterDefinitions);
+            List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
             return assertThat(filters).hasSameSizeAs(nameFilterDefinitions);
         }
     }
@@ -352,7 +352,7 @@ class FilterChainFactoryTest {
             // When
 
             // Then
-            assertThatThrownBy(() -> fcf.createFilters(context, list))
+            assertThatThrownBy(() -> fcf.createFilters(context))
                     .isExactlyInstanceOf(PluginConfigurationException.class)
                     .cause()
                     .isExactlyInstanceOf(RuntimeException.class)
@@ -368,6 +368,68 @@ class FilterChainFactoryTest {
         assertThat(onInitialize2.count).isEqualTo(1);
         assertThat(onClose2.count).isEqualTo(1);
 
+    }
+
+    @Test
+    void shouldInitializeAndCloseDedupedFilterOnce() {
+        // A chain may reference the same filter definition multiple times (e.g. audit before-and-after a
+        // transformation). initialize and close must run once per unique name, but createFilters must
+        // still honour every chain position.
+        var onAuditInit = new Counter();
+        var onAuditClose = new Counter();
+        var onTransformInit = new Counter();
+        var onTransformClose = new Counter();
+        List<FlakyConfig> initializeOrder = new ArrayList<>();
+        List<FlakyConfig> closeOrder = new ArrayList<>();
+        var auditConfig = new FlakyConfig(null, null, null,
+                ((Consumer<FlakyConfig>) onAuditInit::increment).andThen(initializeOrder::add),
+                ((Consumer<FlakyConfig>) onAuditClose::increment).andThen(closeOrder::add));
+        var transformConfig = new FlakyConfig(null, null, null,
+                ((Consumer<FlakyConfig>) onTransformInit::increment).andThen(initializeOrder::add),
+                ((Consumer<FlakyConfig>) onTransformClose::increment).andThen(closeOrder::add));
+        var auditDef = new NamedFilterDefinition("audit", FlakyFactory.class.getName(), auditConfig);
+        var transformDef = new NamedFilterDefinition("transform", FlakyFactory.class.getName(), transformConfig);
+        var chain = List.of(auditDef, transformDef, auditDef);
+
+        try (var fcf = new FilterChainFactory(pfr, chain)) {
+            assertThat(onAuditInit.count).isEqualTo(1);
+            assertThat(onTransformInit.count).isEqualTo(1);
+            assertThat(initializeOrder).isEqualTo(List.of(auditConfig, transformConfig));
+
+            var filters = fcf.createFilters(new NettyFilterContext(eventLoop, pfr));
+            assertThat(filters).hasSize(3);
+        }
+
+        assertThat(onAuditClose.count).isEqualTo(1);
+        assertThat(onTransformClose.count).isEqualTo(1);
+        assertThat(closeOrder).isEqualTo(List.of(transformConfig, auditConfig));
+    }
+
+    @Test
+    void shouldNotCloseAnotherFilterChainFactorysWrappersOnClose() {
+        // Two FCFs (one per virtual cluster) using the same filter type with independent configs.
+        // Closing one must not invoke close on the other's wrappers — initResult sharing is intra-FCF only.
+        var onInitA = new Counter();
+        var onCloseA = new Counter();
+        var onInitB = new Counter();
+        var onCloseB = new Counter();
+        var configA = new FlakyConfig(null, null, null, onInitA::increment, onCloseA::increment);
+        var configB = new FlakyConfig(null, null, null, onInitB::increment, onCloseB::increment);
+        var chainA = List.of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), configA));
+        var chainB = List.of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), configB));
+
+        try (var fcfA = new FilterChainFactory(pfr, chainA);
+                var fcfB = new FilterChainFactory(pfr, chainB)) {
+            assertThat(onInitA.count).isEqualTo(1);
+            assertThat(onInitB.count).isEqualTo(1);
+
+            fcfA.close();
+            assertThat(onCloseA.count).isEqualTo(1);
+            assertThat(onCloseB.count).isZero();
+        }
+
+        assertThat(onCloseA.count).isEqualTo(1);
+        assertThat(onCloseB.count).isEqualTo(1);
     }
 
     @Test

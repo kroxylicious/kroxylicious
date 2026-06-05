@@ -41,7 +41,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
@@ -244,11 +243,14 @@ class KafkaProxyFrontendHandlerTest {
         assertStateIsClosed(clientConnectionStateMachine);
     }
 
-    private static VirtualClusterModel mockVirtualClusterModel(String cluster) {
+    private VirtualClusterModel mockVirtualClusterModel(String cluster) {
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         when(virtualClusterModel.getClusterName()).thenReturn(cluster);
         TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, cluster);
         when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
+        // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
+        // mock through the VC so verify(fcf).createFilters(...) still works.
+        when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
         return virtualClusterModel;
     }
 
@@ -338,10 +340,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(DelegatingDecodePredicate dp, ClientConnectionStateMachine clientConnectionStateMachine) {
-        var namedFilterDefs = List.<NamedFilterDefinition> of();
         return new KafkaProxyFrontendHandler(pfr,
-                fcf,
-                namedFilterDefs,
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
@@ -511,7 +510,7 @@ class KafkaProxyFrontendHandlerTest {
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
         assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
-        verify(fcf).createFilters(any(FilterFactoryContext.class), any(List.class));
+        verify(fcf).createFilters(any(FilterFactoryContext.class));
     }
 
     private List<String> outboundClientSoftwareNames() {

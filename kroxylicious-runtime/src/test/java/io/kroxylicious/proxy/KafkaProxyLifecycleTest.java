@@ -114,8 +114,13 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void shouldTransitionToStoppedOnStartupFailure() throws Exception {
-        // given
+    void shouldFailConstructionWhenFilterInitializationFails() {
+        // The FCF-per-VC refactor moved filter init into VirtualClusterModel construction (run from
+        // KafkaProxy's constructor via defaultRegistry), so a bad filter config now surfaces from the
+        // constructor — wrapped as LifecycleException by defaultRegistry — rather than from startup().
+        // The proxy object never exists when its construction throws, so the previously-observed
+        // post-failure transition to Stopped is no longer reachable; the exception-type contract is the
+        // observable contract that remains.
         var config = """
                    virtualClusters:
                      - name: demo1
@@ -132,20 +137,9 @@ class KafkaProxyLifecycleTest {
                    - filter1
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            // when
-            assertThatThrownBy(proxy::startup)
-                    .isInstanceOf(LifecycleException.class)
-                    .cause()
-                    .isInstanceOf(PluginConfigurationException.class);
-
-            // then
-            var manager = proxy.lifecycleFor("demo1");
-            assertThat(manager).isNotNull();
-            assertThat(manager.state())
-                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(Stopped.class))
-                    .extracting(Stopped::priorFailureCause)
-                    .isInstanceOf(PluginConfigurationException.class);
-        }
+        assertThatThrownBy(() -> new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures()))
+                .isInstanceOf(LifecycleException.class)
+                .cause()
+                .isInstanceOf(PluginConfigurationException.class);
     }
 }

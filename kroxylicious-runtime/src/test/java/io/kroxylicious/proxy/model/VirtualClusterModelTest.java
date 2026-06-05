@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.net.ssl.SSLContext;
 
@@ -30,6 +31,9 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.filter.FilterFactory;
+import io.kroxylicious.proxy.internal.filter.FlakyConfig;
+import io.kroxylicious.proxy.internal.filter.FlakyFactory;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -142,6 +146,55 @@ class VirtualClusterModelTest {
     }
 
     @Test
+    void closeClosesBothFilterChainFactoryAndTlsCredentialSupplierManager() {
+        // The merged close at VCM.close() must invoke close on both the FilterChainFactory and the
+        // TlsCredentialSupplierManager. Observed via FlakyConfig.onClose for the filter leg and via
+        // TlsCredentialSupplierManager.getSupplier throwing IllegalStateException post-close for the TLS leg.
+        var onFilterClose = new AtomicInteger();
+        var flakyConfig = new FlakyConfig(null, null, null, c -> {
+        }, c -> onFilterClose.incrementAndGet());
+        var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), flakyConfig));
+
+        var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
+        var targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
+        var model = new VirtualClusterModel("vc1", targetCluster, false, false, filters,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
+
+        var tlsManager = model.getTlsCredentialSupplierManager();
+        assertThat(tlsManager.isConfigured()).isTrue();
+        assertThat(tlsManager.getSupplier()).isNotNull();
+        assertThat(onFilterClose.get()).isZero();
+
+        model.close();
+
+        assertThat(onFilterClose.get()).as("FilterChainFactory close should fire").isEqualTo(1);
+        assertThatThrownBy(tlsManager::getSupplier)
+                .as("TlsCredentialSupplierManager close should fire — post-close getSupplier throws")
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void constructorPropagatesFilterInitializeFailureAsPluginConfigurationException() {
+        // The contract that KafkaProxy.defaultRegistry's try-catch depends on: any filter init failure
+        // during VCM construction surfaces as PluginConfigurationException, which defaultRegistry then
+        // wraps as LifecycleException. If this exception type drifts, the wrap silently stops working
+        // and startup error reporting regresses (the AuthzFailsClosedIT path).
+        var flakyConfig = new FlakyConfig("init kaboom", null, null, c -> {
+        }, c -> {
+        });
+        var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("bad-filter", FlakyFactory.class.getName(), flakyConfig));
+        var targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+
+        assertThatThrownBy(() -> new VirtualClusterModel("vc1", targetCluster, false, false, filters,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry()))
+                .isExactlyInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("Exception initializing filter factory bad-filter")
+                .cause()
+                .isExactlyInstanceOf(RuntimeException.class)
+                .hasMessage("init kaboom");
+    }
+
+    @Test
     void shouldNotAllowUpstreamToProvideTlsServerOptions() {
         // Given
         final Optional<Tls> downstreamTls = Optional
@@ -153,6 +206,54 @@ class VirtualClusterModelTest {
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10)))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
+    }
+
+    /**
+     * PFR that dispatches on plugin class — FilterFactory routes to FlakyFactory; everything else
+     * (in practice, ServerTlsCredentialSupplierFactory) routes to TestSupplierFactory. Used by tests
+     * that exercise both filter and TLS legs simultaneously.
+     */
+    private static PluginFactoryRegistry combinedPluginFactoryRegistry() {
+        return new PluginFactoryRegistry() {
+            @SuppressWarnings({ "rawtypes", "unchecked" })
+            @Override
+            public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
+                if (pluginClass == FilterFactory.class) {
+                    return new PluginFactory() {
+                        @Override
+                        public Object pluginInstance(String instanceName) {
+                            return new FlakyFactory();
+                        }
+
+                        @Override
+                        public Class<?> configType(String instanceName) {
+                            return FlakyConfig.class;
+                        }
+
+                        @Override
+                        public Set<String> registeredInstanceNames() {
+                            return Set.of(FlakyFactory.class.getSimpleName());
+                        }
+                    };
+                }
+                return new PluginFactory() {
+                    @Override
+                    public Object pluginInstance(String instanceName) {
+                        return new TestSupplierFactory();
+                    }
+
+                    @Override
+                    public Class<?> configType(String instanceName) {
+                        return TestSupplierConfig.class;
+                    }
+
+                    @Override
+                    public Set<String> registeredInstanceNames() {
+                        return Set.of("TestSupplierFactory");
+                    }
+                };
+            }
+        };
     }
 
     private static PluginFactoryRegistry pluginFactoryRegistry() {

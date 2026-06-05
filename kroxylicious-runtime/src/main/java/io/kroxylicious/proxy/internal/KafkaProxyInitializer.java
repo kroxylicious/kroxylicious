@@ -27,7 +27,6 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -60,7 +59,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
@@ -70,8 +68,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final VirtualClusterRegistry virtualClusterRegistry;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
-                                 PluginFactoryRegistry pfr,
+    public KafkaProxyInitializer(PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
@@ -84,7 +81,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
-        this.filterChainFactory = Objects.requireNonNull(filterChainFactory, "filterChainFactory");
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
@@ -246,8 +242,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         }
         var frontendHandler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
-                virtualCluster.getFilters(),
                 endpointReconciler,
                 apiVersionsService,
                 dp,
