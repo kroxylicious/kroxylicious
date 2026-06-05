@@ -48,7 +48,6 @@ import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.internal.StringUtil;
 
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -105,7 +104,6 @@ class KafkaProxyInitializerTest {
     private KafkaProxyInitializer kafkaProxyInitializer;
     private CompletionStage<EndpointBinding> bindingStage;
     private VirtualClusterModel virtualClusterModel;
-    private FilterChainFactory filterChainFactory;
     private NettySettings proxyNettySettings;
 
     @BeforeEach
@@ -113,7 +111,6 @@ class KafkaProxyInitializerTest {
         virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(endpointBinding);
-        filterChainFactory = new FilterChainFactory(pfr, List.of());
         proxyNettySettings = null; // use defaults
         final InetSocketAddress localhost = new InetSocketAddress(0);
         ChannelId channelId = DefaultChannelId.newInstance();
@@ -424,8 +421,7 @@ class KafkaProxyInitializerTest {
                                                               VirtualClusterRegistry vcc) {
         return new KafkaProxyInitializer(pfr,
                 tls,
-                bindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
+                new KafkaProxyInitializer.EndpointServices(bindingResolver, (virtualCluster, upstreamNodes) -> null),
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),

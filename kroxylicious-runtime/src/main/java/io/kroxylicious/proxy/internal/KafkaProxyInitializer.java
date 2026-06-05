@@ -67,20 +67,30 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
 
+    /**
+     * Endpoint plumbing services used by the initializer: resolving inbound connections to
+     * an {@link EndpointBinding} and reconciling endpoint state with the registry.
+     */
+    public record EndpointServices(EndpointBindingResolver bindingResolver, EndpointReconciler endpointReconciler) {
+        public EndpointServices {
+            Objects.requireNonNull(bindingResolver);
+            Objects.requireNonNull(endpointReconciler);
+        }
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(PluginFactoryRegistry pfr,
                                  boolean tls,
-                                 EndpointBindingResolver bindingResolver,
-                                 EndpointReconciler endpointReconciler,
+                                 EndpointServices endpointServices,
                                  ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings,
                                  VirtualClusterRegistry virtualClusterRegistry) {
         this.pfr = pfr;
-        this.endpointReconciler = endpointReconciler;
+        this.endpointReconciler = endpointServices.endpointReconciler();
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
-        this.bindingResolver = bindingResolver;
+        this.bindingResolver = endpointServices.bindingResolver();
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
