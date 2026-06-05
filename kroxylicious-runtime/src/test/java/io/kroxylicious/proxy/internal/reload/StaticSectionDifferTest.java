@@ -200,9 +200,7 @@ class StaticSectionDifferTest {
     // -------- fixture helpers --------
 
     private static Configuration baseConfig() {
-        return new Configuration(null, null, null,
-                List.of(vc("base-cluster")), null,
-                false, Optional.empty(), null, null);
+        return new Configuration(null, null, null, null, null, List.of(vc("base-cluster")), null, false, Optional.empty(), null, null);
     }
 
     private static Configuration withManagement(Configuration base, ManagementConfiguration management) {
@@ -212,8 +210,8 @@ class StaticSectionDifferTest {
     }
 
     private static Configuration withMicrometer(Configuration base, List<MicrometerDefinition> micrometer) {
-        return new Configuration(base.management(), base.filterDefinitions(), base.defaultFilters(),
-                base.virtualClusters(), micrometer,
+        return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
+                base.routerDefinitions(), base.virtualClusters(), micrometer,
                 base.useIoUring(), base.development(), base.network(), base.proxyProtocol());
     }
 
