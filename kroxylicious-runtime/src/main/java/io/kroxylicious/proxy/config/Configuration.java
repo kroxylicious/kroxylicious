@@ -62,22 +62,6 @@ public record Configuration(
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     /**
-     * Convenience constructor matching main branch signature, setting {@code clusterDefinitions} and {@code routerDefinitions} to {@code null}.
-     */
-    public Configuration(
-                         @Nullable ManagementConfiguration management,
-                         @Nullable List<NamedFilterDefinition> filterDefinitions,
-                         @Nullable List<String> defaultFilters,
-                         List<VirtualCluster> virtualClusters,
-                         @Nullable List<MicrometerDefinition> micrometer,
-                         boolean useIoUring,
-                         Optional<Map<String, Object>> development,
-                         @Nullable NetworkDefinition network,
-                         @Nullable ProxyProtocolConfig proxyProtocol) {
-        this(management, null, filterDefinitions, defaultFilters, null, virtualClusters, micrometer, useIoUring, development, network, proxyProtocol);
-    }
-
-    /**
      * Creates an instance of configuration.
      *
      */
