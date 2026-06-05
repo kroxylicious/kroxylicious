@@ -156,9 +156,7 @@ class StaticSectionDifferTest {
     // -------- fixture helpers --------
 
     private static Configuration baseConfig() {
-        return new Configuration(null, null, null,
-                List.of(vc("base-cluster")), null,
-                false, Optional.empty(), null, null);
+        return new Configuration(null, null, null, null, null, List.of(vc("base-cluster")), null, false, Optional.empty(), null, null);
     }
 
     private static Configuration withManagement(Configuration base, ManagementConfiguration management) {
