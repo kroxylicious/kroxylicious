@@ -30,7 +30,7 @@ class ConfigurationValidationTest {
     }
 
     private static Configuration config(List<VirtualCluster> vcs) {
-        return new Configuration(null, null, null, vcs, null, false, Optional.empty(), null, null);
+        return new Configuration(null, null, null, null, null, vcs, null, false, Optional.empty(), null, null);
     }
 
     @Test
@@ -126,16 +126,14 @@ class ConfigurationValidationTest {
     @Test
     void getMicrometerReturnsConfiguredValue() {
         var micrometer = List.of(new MicrometerDefinition("JmxMeterRegistry", null));
-        var config = new Configuration(null, null, null,
-                List.of(SIMPLE_VC), micrometer, false, Optional.empty(), null, null);
+        var config = new Configuration(null, null, null, null, null, List.of(SIMPLE_VC), micrometer, false, Optional.empty(), null, null);
 
         assertThat(config.getMicrometer()).isEqualTo(micrometer);
     }
 
     @Test
     void isUseIoUringReturnsConfiguredValue() {
-        var config = new Configuration(null, null, null,
-                List.of(SIMPLE_VC), null, true, Optional.empty(), null, null);
+        var config = new Configuration(null, null, null, null, null, List.of(SIMPLE_VC), null, true, Optional.empty(), null, null);
 
         assertThat(config.isUseIoUring()).isTrue();
     }
@@ -168,16 +166,14 @@ class ConfigurationValidationTest {
 
     @Test
     void shouldRejectNoVirtualClusters() {
-        assertThatThrownBy(() -> new Configuration(null, null, null,
-                List.of(), null, false, Optional.empty(), null, null))
+        assertThatThrownBy(() -> new Configuration(null, null, null, null, null, List.of(), null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("At least one virtual cluster");
     }
 
     @Test
     void shouldRejectNullVirtualClusters() {
-        assertThatThrownBy(() -> new Configuration(null, null, null,
-                null, null, false, Optional.empty(), null, null))
+        assertThatThrownBy(() -> new Configuration(null, null, null, null, null, null, null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("At least one virtual cluster");
     }

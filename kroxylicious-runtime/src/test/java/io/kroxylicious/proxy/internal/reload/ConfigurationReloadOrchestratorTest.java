@@ -658,8 +658,7 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     private static Configuration configWith(VirtualCluster... clusters) {
-        return new Configuration(null, null, null, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+        return new Configuration(null, null, null, null, null, List.of(clusters), null, false, Optional.empty(), null, null);
     }
 
     private static Configuration withDifferentUseIoUring(Configuration base) {
