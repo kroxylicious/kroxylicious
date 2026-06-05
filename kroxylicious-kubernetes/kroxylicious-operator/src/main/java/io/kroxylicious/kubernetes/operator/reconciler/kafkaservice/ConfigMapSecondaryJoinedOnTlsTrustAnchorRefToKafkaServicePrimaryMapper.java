@@ -29,9 +29,8 @@ class ConfigMapSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper imp
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(ConfigMap configMap) {
-        return ResourcesUtil.findReferrers(context,
+        return ResourcesUtil.findKnownPrimariesOf(context,
                 configMap,
-                KafkaService.class,
                 service -> Optional.ofNullable(service.getSpec())
                         .map(KafkaServiceSpec::getTls)
                         .map(Tls::getTrustAnchorRef)

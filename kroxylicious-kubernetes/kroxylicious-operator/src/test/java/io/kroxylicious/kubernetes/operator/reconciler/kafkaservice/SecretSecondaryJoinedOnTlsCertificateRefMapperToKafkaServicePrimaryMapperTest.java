@@ -6,25 +6,25 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
-import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
 import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.SERVICE;
+import static io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.MapperTestSupport.TLS_SECRET;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapperTest {
 
@@ -35,22 +35,46 @@ class SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapperT
                         new KafkaServiceBuilder(SERVICE).editSpec().editTls().withCertificateRef(null).endTls().endSpec().build()));
     }
 
+    @Test
+    void canMapFromTlsCertificateRefToKafkaService() {
+        // Given
+        EventSourceContext<KafkaService> context = MapperTestSupport.mockContextContaining(SERVICE);
+        var mapper = new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context);
+
+        // When
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(TLS_SECRET);
+
+        // Then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
+    }
+
+    @Test
+    void shouldReturnIdsWhenApiServerUnavailable() {
+        // Given
+        EventSourceContext<KafkaService> context = mock();
+        MapperTestSupport.stubFailingListOperationClient(context);
+        MapperTestSupport.stubPrimaryCache(context, SERVICE);
+
+        var mapper = new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context);
+
+        // When
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(TLS_SECRET);
+
+        // Then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(SERVICE));
+    }
+
     @ParameterizedTest
     @MethodSource
     void mappingToSecretToleratesKafkaServicesWithoutTls(KafkaService service) {
         // Given
-        EventSourceContext<KafkaService> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<KafkaService> mockList = MapperTestSupport.mockKafkaServiceListOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(service));
+        EventSourceContext<KafkaService> context = MapperTestSupport.mockContextContaining(service);
+        var mapper = new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(context);
 
         // When
-        var mapper = new SecretSecondaryJoinedOnTlsCertificateRefMapperToKafkaServicePrimaryMapper(eventSourceContext);
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(new SecretBuilder().withNewMetadata().withName("secret").endMetadata().build());
 
         // Then
-        var primaryResourceIDs = mapper.toPrimaryResourceIDs(new SecretBuilder().withNewMetadata().withName("secret").endMetadata().build());
         assertThat(primaryResourceIDs).isEmpty();
     }
 }
