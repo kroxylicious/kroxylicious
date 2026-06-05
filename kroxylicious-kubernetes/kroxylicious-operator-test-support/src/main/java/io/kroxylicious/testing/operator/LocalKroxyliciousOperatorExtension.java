@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
@@ -88,6 +89,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     private LocallyRunOperatorExtension localOperatorExtension;
     @Nullable
     private LocallyRunningOperatorRbacHandler.TestActor testActor;
+    // Owned here so its lifecycle spans the full test class; closed last in afterAll().
+    @Nullable
+    private KubernetesClient clusterUserClient;
 
     private LocalKroxyliciousOperatorExtension(Builder builder) {
         this(builder,
@@ -116,6 +120,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     public void beforeAll(ExtensionContext context) throws Exception {
         rbacHandler = rbacHandlerFactory.get();
         rbacHandler.beforeEach(context);
+        clusterUserClient = rbacHandler.userClient();
 
         imagePreloader.run();
 
@@ -138,7 +143,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         localOperatorExtension = extensionFactory.apply(rbacHandler);
         localOperatorExtension.beforeAll(context);
 
-        testActor = rbacHandler.testActor(localOperatorExtension);
+        testActor = rbacHandler.testActor(clusterUserClient, localOperatorExtension);
     }
 
     @Override
@@ -156,7 +161,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         }
         if (rbacHandler != null) {
             rbacHandler.afterEach(context);
-            rbacHandler.afterAll(context);
+        }
+        if (clusterUserClient != null) {
+            clusterUserClient.close();
         }
     }
 
@@ -271,7 +278,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
      */
     @NonNull
     public ClusterUser clusterUser() {
-        return new ClusterUser(rbacHandler.userClient(), localOperatorExtension.getNamespace());
+        return new ClusterUser(clusterUserClient, localOperatorExtension.getNamespace());
     }
 
     @NonNull

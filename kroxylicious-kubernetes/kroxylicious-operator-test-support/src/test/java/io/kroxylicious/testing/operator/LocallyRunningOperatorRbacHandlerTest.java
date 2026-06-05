@@ -9,9 +9,7 @@ package io.kroxylicious.testing.operator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,7 +25,6 @@ import static io.kroxylicious.testing.operator.KubernetesResourceUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @EnableKubernetesMockClient(crud = true)
@@ -146,7 +143,7 @@ class LocallyRunningOperatorRbacHandlerTest {
     @Test
     void testActorCreateAddsResourceToNamespace() throws Exception {
         // Given
-        var actor = handlerForTestActor().testActor(operatorExtensionInNamespace(TEST_NS));
+        var actor = handlerForTestActor().testActor(kubeClient, operatorExtensionInNamespace(TEST_NS));
         var configMap = new ConfigMapBuilder().withNewMetadata().withName("my-map").endMetadata().build();
 
         // When
@@ -161,7 +158,7 @@ class LocallyRunningOperatorRbacHandlerTest {
         // Given
         kubeClient.configMaps().inNamespace(TEST_NS)
                 .resource(new ConfigMapBuilder().withNewMetadata().withName("my-map").endMetadata().build()).create();
-        var actor = handlerForTestActor().testActor(operatorExtensionInNamespace(TEST_NS));
+        var actor = handlerForTestActor().testActor(kubeClient, operatorExtensionInNamespace(TEST_NS));
 
         // When
         var result = actor.get(ConfigMap.class, "my-map");
@@ -176,7 +173,7 @@ class LocallyRunningOperatorRbacHandlerTest {
         // Given
         var created = kubeClient.configMaps().inNamespace(TEST_NS)
                 .resource(new ConfigMapBuilder().withNewMetadata().withName("my-map").endMetadata().build()).create();
-        var actor = handlerForTestActor().testActor(operatorExtensionInNamespace(TEST_NS));
+        var actor = handlerForTestActor().testActor(kubeClient, operatorExtensionInNamespace(TEST_NS));
 
         // When
         actor.replace(new ConfigMapBuilder(created).addToData("key", "value").build());
@@ -191,7 +188,7 @@ class LocallyRunningOperatorRbacHandlerTest {
         // Given
         var created = kubeClient.configMaps().inNamespace(TEST_NS)
                 .resource(new ConfigMapBuilder().withNewMetadata().withName("my-map").endMetadata().build()).create();
-        var actor = handlerForTestActor().testActor(operatorExtensionInNamespace(TEST_NS));
+        var actor = handlerForTestActor().testActor(kubeClient, operatorExtensionInNamespace(TEST_NS));
 
         // When
         boolean deleted = actor.delete(created);
@@ -206,43 +203,13 @@ class LocallyRunningOperatorRbacHandlerTest {
         // Given
         kubeClient.configMaps().inNamespace(TEST_NS)
                 .resource(new ConfigMapBuilder().withNewMetadata().withName("my-map").endMetadata().build()).create();
-        var actor = handlerForTestActor().testActor(operatorExtensionInNamespace(TEST_NS));
+        var actor = handlerForTestActor().testActor(kubeClient, operatorExtensionInNamespace(TEST_NS));
 
         // When
         var items = actor.resources(ConfigMap.class).list().getItems();
 
         // Then
         assertThat(items).extracting(cm -> name(cm)).contains("my-map");
-    }
-
-    // ---- afterAll ----
-
-    @Test
-    void afterAllClosesTestActorClient() throws Exception {
-        // Given: loadClusterRoles (in constructor) gets a real client; testActor() gets the mock
-        var mockClient = mock(KubernetesClient.class);
-        Files.writeString(tempDir.resolve("role.ClusterRole.yaml"), clusterRoleYaml("test-role"));
-        var callCount = new AtomicInteger();
-        var handler = new LocallyRunningOperatorRbacHandler(tempDir,
-                () -> callCount.getAndIncrement() == 0 ? freshClient() : mockClient,
-                "*.ClusterRole.yaml");
-        handler.testActor(operatorExtensionInNamespace(TEST_NS));
-
-        // When
-        handler.afterAll(mock(ExtensionContext.class));
-
-        // Then
-        verify(mockClient).close();
-    }
-
-    @Test
-    void afterAllIsNoOpIfTestActorWasNeverCalled() throws Exception {
-        // Given
-        Files.writeString(tempDir.resolve("role.ClusterRole.yaml"), clusterRoleYaml("test-role"));
-        var handler = new LocallyRunningOperatorRbacHandler(tempDir, this::freshClient, "*.ClusterRole.yaml");
-
-        // When / Then: must not throw
-        Assertions.assertDoesNotThrow(() -> handler.afterAll(mock(ExtensionContext.class)));
     }
 
     // ---- operatorClient userAgent ----

@@ -69,14 +69,27 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
 
     @Test
     void afterAllStopsOperatorThenCleansUpRbac() throws Exception {
+        var userClient = mock(KubernetesClient.class);
+        when(rbacHandler.userClient()).thenReturn(userClient);
         extension.beforeAll(context);
 
         extension.afterAll(context);
 
-        InOrder order = inOrder(locallyRunOperatorExtension, rbacHandler);
+        InOrder order = inOrder(locallyRunOperatorExtension, rbacHandler, userClient);
         order.verify(locallyRunOperatorExtension).afterAll(context);
         order.verify(rbacHandler).afterEach(context);
-        order.verify(rbacHandler).afterAll(context);
+        order.verify(userClient).close();
+    }
+
+    @Test
+    void afterAllClosesClusterUserClient() throws Exception {
+        var userClient = mock(KubernetesClient.class);
+        when(rbacHandler.userClient()).thenReturn(userClient);
+        extension.beforeAll(context);
+
+        extension.afterAll(context);
+
+        verify(userClient).close();
     }
 
     @Test
@@ -120,7 +133,7 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
         });
 
         LocallyRunningOperatorRbacHandler.TestActor mockActor = mock(LocallyRunningOperatorRbacHandler.TestActor.class);
-        when(localRbac.testActor(any())).thenReturn(mockActor);
+        when(localRbac.testActor(any(), any())).thenReturn(mockActor);
 
         List<Class<? extends HasMetadata>> standardTypes = List.of(
                 VirtualKafkaCluster.class, KafkaProxy.class, KafkaProxyIngress.class,
@@ -269,7 +282,7 @@ class LocalKroxyliciousOperatorExtensionLifecycleTest {
         when(mockList.getItems()).thenReturn(itemsPerType);
         when(mockOp.list()).thenReturn(mockList);
         when(mockActor.resources(any())).thenReturn(mockOp);
-        when(localRbac.testActor(any())).thenReturn(mockActor);
+        when(localRbac.testActor(any(), any())).thenReturn(mockActor);
 
         ext.beforeAll(context);
         return new ExtensionWithActor(ext, mockActor);

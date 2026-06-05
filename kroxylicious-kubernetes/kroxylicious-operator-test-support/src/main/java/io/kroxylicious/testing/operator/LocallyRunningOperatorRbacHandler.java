@@ -21,7 +21,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -64,7 +63,7 @@ import static java.util.Objects.requireNonNull;
  * exposed by {@link #testActor(AbstractOperatorExtension)}.
  *
  */
-public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, AfterEachCallback, AfterAllCallback {
+public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, AfterEachCallback {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LocallyRunningOperatorRbacHandler.class);
 
@@ -92,10 +91,6 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     private final List<ClusterRole> clusterRoles;
     private final List<ClusterRoleBinding> roleBindings;
-
-    // Lazily set when testActor() is called; closed in afterAll.
-    @Nullable
-    private KubernetesClient testActorClient;
 
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
         this(Path.of(resourceDirectory), OperatorTestUtils::kubeClient, clusterRoleFileGlobs);
@@ -217,22 +212,16 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     }
 
     /**
-     * Returns the Kubernetes client used for user-level interactions.
-     * <p>
-     * This client has the RBAC rights of a cluster user (via the admin client), not the operator.
-     * The client is created lazily on first call and closed in {@link #afterAll}.
+     * Creates and returns a new Kubernetes client with the RBAC rights of a cluster user (via the admin client).
+     * The caller is responsible for closing the returned client.
      */
     @NonNull
     public KubernetesClient userClient() {
-        if (testActorClient == null) {
-            testActorClient = adminClientFactory.get();
-        }
-        return testActorClient;
+        return adminClientFactory.get();
     }
 
     @NonNull
-    public TestActor testActor(@NonNull AbstractOperatorExtension operatorExtension) {
-        var client = userClient();
+    public TestActor testActor(@NonNull KubernetesClient client, @NonNull AbstractOperatorExtension operatorExtension) {
         return new TestActor() {
 
             @NonNull
@@ -250,7 +239,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             @NonNull
             @Override
             public <T extends HasMetadata> T getInNamespace(@NonNull Class<T> type, @NonNull String name, @NonNull String namespace) {
-                return testActorClient.resources(type).inNamespace(namespace).withName(name).get();
+                return client.resources(type).inNamespace(namespace).withName(name).get();
             }
 
             @NonNull
@@ -280,17 +269,10 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
             @Override
             public <T extends KubernetesResource> boolean supports(Class<T> type) {
-                return testActorClient.supports(type);
+                return client.supports(type);
             }
 
         };
-    }
-
-    @Override
-    public void afterAll(ExtensionContext context) {
-        if (testActorClient != null) {
-            testActorClient.close();
-        }
     }
 
     public interface TestActor {
