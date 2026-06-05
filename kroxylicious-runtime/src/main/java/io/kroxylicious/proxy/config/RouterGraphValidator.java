@@ -67,18 +67,12 @@ class RouterGraphValidator {
     private static void validateRouteIds(List<RouterDefinition> routerDefinitions) {
         for (var router : routerDefinitions) {
             int routeCount = router.routes().size();
-            Set<Integer> seen = new HashSet<>();
             for (var route : router.routes()) {
                 if (route.id() >= routeCount) {
                     throw new IllegalConfigurationException(
                             "Route '" + route.name() + "' in router '" + router.name()
                                     + "' has id " + route.id()
                                     + " which is outside the valid range [0, " + routeCount + ")");
-                }
-                if (!seen.add(route.id())) {
-                    throw new IllegalConfigurationException(
-                            "Router '" + router.name()
-                                    + "' has duplicate route id " + route.id());
                 }
             }
             if (routeCount >= 2) {

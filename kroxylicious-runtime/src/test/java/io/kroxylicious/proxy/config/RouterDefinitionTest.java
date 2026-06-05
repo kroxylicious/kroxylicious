@@ -69,6 +69,16 @@ class RouterDefinitionTest {
     }
 
     @Test
+    void shouldRejectDuplicateRouteIds() {
+        var routes = List.of(route("a", 0), route("b", 0));
+
+        assertThatThrownBy(() -> new RouterDefinition("r1", "type", null, routes))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("duplicate route ids")
+                .hasMessageContaining("0");
+    }
+
+    @Test
     void shouldAcceptMultipleUniqueRoutes() {
         var routes = List.of(route("a", 0), route("b", 1));
 

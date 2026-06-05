@@ -104,17 +104,6 @@ class RouterGraphValidatorTest {
     }
 
     @Test
-    void shouldRejectDuplicateRouteIds() {
-        var routers = List.of(router("r1",
-                clusterRoute("foo", 0, "c1"),
-                clusterRoute("bar", 0, "c1")));
-        assertThatThrownBy(() -> RouterGraphValidator.validate(routers, Set.of("c1")))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("duplicate route id")
-                .hasMessageContaining("0");
-    }
-
-    @Test
     void shouldRejectRouteIdOutOfRange() {
         var routers = List.of(router("r1",
                 clusterRoute("foo", 0, "c1"),

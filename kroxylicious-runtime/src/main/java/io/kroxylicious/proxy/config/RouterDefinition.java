@@ -43,12 +43,22 @@ public record RouterDefinition(
         var routeNames = routes.stream()
                 .map(RouteDefinition::name)
                 .toList();
-        var duplicates = routeNames.stream()
+        var nameDuplicates = routeNames.stream()
                 .filter(n -> Collections.frequency(routeNames, n) > 1)
                 .collect(Collectors.toSet());
-        if (!duplicates.isEmpty()) {
+        if (!nameDuplicates.isEmpty()) {
             throw new IllegalConfigurationException(
-                    "Router '" + name + "' has duplicate route names: " + duplicates);
+                    "Router '" + name + "' has duplicate route names: " + nameDuplicates);
+        }
+        var routeIds = routes.stream()
+                .map(RouteDefinition::id)
+                .toList();
+        var idDuplicates = routeIds.stream()
+                .filter(id -> Collections.frequency(routeIds, id) > 1)
+                .collect(Collectors.toSet());
+        if (!idDuplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "Router '" + name + "' has duplicate route ids: " + idDuplicates);
         }
     }
 }
