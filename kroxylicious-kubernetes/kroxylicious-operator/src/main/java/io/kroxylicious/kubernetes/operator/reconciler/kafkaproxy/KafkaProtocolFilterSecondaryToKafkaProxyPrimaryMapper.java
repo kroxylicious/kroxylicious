@@ -19,6 +19,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findAllKnownPrimariesInNamespace;
+
 class KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrimaryMapper<KafkaProtocolFilter> {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper.class);
 
@@ -39,7 +41,7 @@ class KafkaProtocolFilterSecondaryToKafkaProxyPrimaryMapper implements Secondary
         }
         // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
         // so when a filter changes we reconcile all the proxies in the same namespace
-        Set<ResourceID> proxiesInFilterNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);
+        Set<ResourceID> proxiesInFilterNamespace = findAllKnownPrimariesInNamespace(context, filter);
         LOGGER.atDebug()
                 .addKeyValue("proxyIds", proxiesInFilterNamespace)
                 .log("Event source SecondaryToPrimaryMapper");
