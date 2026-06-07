@@ -7,6 +7,7 @@ package io.kroxylicious.proxy;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -149,7 +150,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final Configuration config;
     private final @Nullable ManagementConfiguration managementConfiguration;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final List<VirtualClusterModel> virtualClusterModels;
+    private final Collection<VirtualClusterModel> virtualClusterModels;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();

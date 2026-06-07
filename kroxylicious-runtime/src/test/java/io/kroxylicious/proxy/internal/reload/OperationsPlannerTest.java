@@ -37,7 +37,7 @@ class OperationsPlannerTest {
     void shouldPlanRemovesBeforeAdds() {
         var removeModel = modelFor("cluster-remove");
         var addModel = modelFor("cluster-add");
-        when(vcr.virtualClusterModels()).thenReturn(List.of(removeModel));
+        when(vcr.modelFor("cluster-remove")).thenReturn(removeModel);
         var planner = plannerWithModels(addModel);
         var changes = new ChangeResult(Set.of("cluster-add"), Set.of("cluster-remove"), Set.of());
 
@@ -51,15 +51,95 @@ class OperationsPlannerTest {
     }
 
     @Test
+    void shouldOrderPureRemovesThenModifiesThenPureAdds() {
+        // The full three-bucket ordering. A same-port modify wants its remove and add tight
+        // together — emitting one ReplaceCluster per modify achieves that structurally rather
+        // than by the planner remembering to pair them.
+        var pureRemoveModel = modelFor("cluster-pure-remove");
+        var oldModifyModel = modelFor("cluster-modify");
+        var newModifyModel = modelFor("cluster-modify");
+        var pureAddModel = modelFor("cluster-pure-add");
+        when(vcr.modelFor("cluster-pure-remove")).thenReturn(pureRemoveModel);
+        when(vcr.modelFor("cluster-modify")).thenReturn(oldModifyModel);
+        var planner = plannerWithModels(newModifyModel, pureAddModel);
+        var changes = new ChangeResult(
+                Set.of("cluster-pure-add"),
+                Set.of("cluster-pure-remove"),
+                Set.of("cluster-modify"));
+
+        var ops = planner.plan(changes, configWith("cluster-modify", "cluster-pure-add"));
+
+        assertThat(ops).hasSize(3);
+        assertThat(ops.get(0)).isInstanceOf(RemoveCluster.class);
+        assertThat(ops.get(0).clusterName()).isEqualTo("cluster-pure-remove");
+        assertThat(ops.get(1)).isInstanceOf(ReplaceCluster.class);
+        assertThat(ops.get(1).clusterName()).isEqualTo("cluster-modify");
+        assertThat(ops.get(2)).isInstanceOf(AddCluster.class);
+        assertThat(ops.get(2).clusterName()).isEqualTo("cluster-pure-add");
+    }
+
+    @Test
+    void shouldPlanModifyAsSingleReplaceClusterOp() {
+        // Modify produces ONE op, not two. The remove-then-add internals are encapsulated
+        // inside ReplaceCluster — the orchestrator sees a single intent.
+        var oldModel = modelFor("cluster-modify");
+        var newModel = modelFor("cluster-modify");
+        when(vcr.modelFor("cluster-modify")).thenReturn(oldModel);
+        var planner = plannerWithModels(newModel);
+        var changes = new ChangeResult(Set.of(), Set.of(), Set.of("cluster-modify"));
+
+        var ops = planner.plan(changes, configWith("cluster-modify"));
+
+        assertThat(ops).singleElement()
+                .isInstanceOfSatisfying(ReplaceCluster.class,
+                        op -> assertThat(op.clusterName()).isEqualTo("cluster-modify"));
+    }
+
+    @Test
+    void shouldThrowIllegalStateWhenChangeDetectorReportsModifyForClusterNotInRegistry() {
+        // Phantom-modify, old-side variant. The change detector reported a modify for a name
+        // the registry doesn't have an entry for — the planner can't build a ReplaceCluster
+        // without both halves. Same shape of failure as phantom-add and phantom-remove.
+        // vcr.modelFor("cluster-modify") returns null by Mockito default — no stub needed.
+        var newModel = modelFor("cluster-modify");
+        var planner = plannerWithModels(newModel);
+        var changes = new ChangeResult(Set.of(), Set.of(), Set.of("cluster-modify"));
+        var config = configWith("cluster-modify");
+
+        assertThatThrownBy(() -> planner.plan(changes, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cluster-modify")
+                .hasMessageContaining("absent from the registry")
+                .hasMessageContaining("ChangeDetector contract violation");
+    }
+
+    @Test
+    void shouldThrowIllegalStateWhenChangeDetectorReportsModifyForClusterNotInNewConfig() {
+        // Phantom-modify, new-side variant. The registry has the old model but the submitted
+        // configuration doesn't include the cluster — internally inconsistent.
+        var oldModel = modelFor("cluster-modify");
+        when(vcr.modelFor("cluster-modify")).thenReturn(oldModel);
+        var planner = plannerWithModels(); // resolver returns no models
+        var changes = new ChangeResult(Set.of(), Set.of(), Set.of("cluster-modify"));
+        var config = configWith("placeholder");
+
+        assertThatThrownBy(() -> planner.plan(changes, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cluster-modify")
+                .hasMessageContaining("absent from the submitted configuration")
+                .hasMessageContaining("ChangeDetector contract violation");
+    }
+
+    @Test
     void shouldHandRemoveClusterTheRegistryOwnedModel() {
         // Reference-identity gotcha: EndpointRegistry's binding map is keyed on the
         // EndpointGateway reference itself. RemoveCluster must be given the *registry's*
         // model, not a freshly-resolved one whose gateways have different identities, or
         // the deregister becomes a silent no-op and the binding leaks. We assert that the
         // model instance the planner hands to RemoveCluster is the one returned by
-        // vcr.virtualClusterModels().
+        // vcr.modelFor(name).
         var registryModel = modelFor("cluster-remove");
-        when(vcr.virtualClusterModels()).thenReturn(List.of(registryModel));
+        when(vcr.modelFor("cluster-remove")).thenReturn(registryModel);
         var planner = plannerWithModels(); // no adds; resolver returns nothing
         var changes = new ChangeResult(Set.of(), Set.of("cluster-remove"), Set.of());
 
@@ -81,11 +161,11 @@ class OperationsPlannerTest {
 
     @Test
     void shouldNotResolveModelsWhenOnlyRemovesArePresent() {
-        // Remove operations resolve their model from the registry (vcr.virtualClusterModels),
+        // Remove operations resolve their model from the registry (vcr.modelFor(name)),
         // not the submitted Configuration. The modelResolver (which builds models for the new
         // config) must not be invoked when there are no adds.
         var removeModel = modelFor("cluster-remove");
-        when(vcr.virtualClusterModels()).thenReturn(List.of(removeModel));
+        when(vcr.modelFor("cluster-remove")).thenReturn(removeModel);
         var resolverCalls = new int[1];
         Function<Configuration, List<VirtualClusterModel>> resolver = config -> {
             resolverCalls[0]++;
@@ -120,7 +200,7 @@ class OperationsPlannerTest {
         // named cluster, so the planner can't build a RemoveCluster for it. Surfacing this
         // at the framework layer (rather than deeper in RemoveCluster) keeps the operation
         // free of "couldn't resolve gateways" guards.
-        when(vcr.virtualClusterModels()).thenReturn(List.of());
+        // vcr.modelFor("phantom-cluster") returns null by Mockito default — no stub needed.
         var planner = plannerWithModels();
         var changes = new ChangeResult(Set.of(), Set.of("phantom-cluster"), Set.of());
         var config = configWith("placeholder");

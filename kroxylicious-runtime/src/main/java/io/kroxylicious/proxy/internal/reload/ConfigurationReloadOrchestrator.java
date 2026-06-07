@@ -47,8 +47,6 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  *   <li><b>Commit</b> — advance {@code currentConfiguration} to the submitted value.</li>
  * </ul>
  *
- * <p>Modify operations are not yet supported and are rejected upfront with
- * {@link UnsupportedOperationException}.
  */
 public class ConfigurationReloadOrchestrator {
 
@@ -107,14 +105,12 @@ public class ConfigurationReloadOrchestrator {
      *           <li>successfully with an empty-errors {@link ReconfigureResult} on a no-op
      *               reconfigure ({@code currentConfiguration} still advances)</li>
      *           <li>successfully with a {@link ReconfigureResult} (possibly with per-cluster
-     *               errors) on any non-modify reconfigure ({@code currentConfiguration}
-     *               advances unconditionally — see {@link #commit} for rationale)</li>
+     *               errors) on any reconfigure ({@code currentConfiguration} advances
+     *               unconditionally — see {@link #commit} for rationale)</li>
      *           <li>exceptionally with {@link StaticConfigurationChangedException} on
      *               static-section diff</li>
      *           <li>exceptionally with {@link ConcurrentReconfigureException} on
      *               concurrent submission</li>
-     *           <li>exceptionally with {@link UnsupportedOperationException} when the
-     *               submission requires modify operations</li>
      *         </ul>
      */
     public CompletableFuture<ReconfigureResult> reconfigure(Configuration newConfig) {
@@ -152,7 +148,6 @@ public class ConfigurationReloadOrchestrator {
         if (changes.isEmpty()) {
             return commit(newConfig, List.of());
         }
-        rejectIfModifyRequested(changes);
 
         var errors = planner.plan(changes, newConfig).stream()
                 .map(ClusterOperation::apply)
@@ -172,15 +167,6 @@ public class ConfigurationReloadOrchestrator {
     private CompletableFuture<ReconfigureResult> commit(Configuration newConfig, List<ReconfigureError> errors) {
         this.currentConfiguration = newConfig;
         return CompletableFuture.completedFuture(ReconfigureResult.of(errors));
-    }
-
-    private void rejectIfModifyRequested(ChangeResult changes) {
-        if (!changes.clustersToModify().isEmpty()) {
-            throw new UnsupportedOperationException(
-                    "KafkaProxy.reconfigure() does not yet support modify operations. "
-                            + "This reconfigure was rejected because it would have required "
-                            + changes.clustersToModify().size() + " cluster modify operation(s).");
-        }
     }
 
     private ChangeResult aggregateChanges(Configuration oldConfig, Configuration newConfig) {

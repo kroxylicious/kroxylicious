@@ -22,7 +22,11 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
  * list of {@link ClusterOperation}s for the orchestrator to execute. Stateless — the
  * planner holds only its collaborators, no per-reconfigure state.
  *
- * <p>Ordering: removes before adds</p>
+ * <p><strong>Ordering:</strong> pure removes → modifies → pure adds. The "removes before
+ * adds" invariant is preserved globally, and each modify is a self-contained pair-wise
+ * remove-then-add inside its {@link ReplaceCluster} operation — so a same-port modify gets
+ * unbind-then-rebind sequenced tightly within one op, without intervening drains from
+ * unrelated clusters.</p>
  */
 final class OperationsPlanner {
 
@@ -39,42 +43,66 @@ final class OperationsPlanner {
     }
 
     /**
-     * Plan the operations for a reconfigure.
+     * Plan the operations for a reconfigure. Each phase resolves a {@link VirtualClusterModel}
+     * by name and hands it to the operation: removes resolve from the registry's current state
+     * (the model that's already serving), adds resolve from {@code newConfig}, and modifies
+     * resolve <em>both</em> — old from the registry, new from the submitted configuration.
      *
-     * @throws IllegalStateException if {@code changes.clustersToRemove()} names a cluster that
-     *         isn't registered, or {@code changes.clustersToAdd()} names a cluster that isn't
-     *         in {@code newConfig}'s resolved models — both indicate a {@code ChangeDetector}
-     *         contract violation (i.e. a framework bug).
+     * <p>Registry-side resolution uses {@link VirtualClusterRegistry#modelFor(String)} —
+     * a direct name-keyed lookup to fetch the old existing model.
+     * The new-config side still requires a Map-build because
+     * {@code modelResolver} returns a list (it has no direct name-lookup affordance).
+     *
+     * @throws IllegalStateException if any of {@code clustersToRemove}, {@code clustersToAdd},
+     *         or {@code clustersToModify} names a cluster that can't be resolved on the side
+     *         it's expected — all three indicate a {@code ChangeDetector} contract violation
+     *         (i.e. a framework bug).
      */
     List<ClusterOperation> plan(ChangeResult changes, Configuration newConfig) {
         var ops = new ArrayList<ClusterOperation>();
 
-        if (!changes.clustersToRemove().isEmpty()) {
-            Map<String, VirtualClusterModel> registryModelsByName = registryModelsByName();
-            for (String name : changes.clustersToRemove()) {
-                VirtualClusterModel model = registryModelsByName.get(name);
-                if (model == null) {
-                    throw new IllegalStateException(
-                            "OperationsPlanner: no model for removed cluster '" + name
-                                    + "'; this indicates a ChangeDetector contract violation"
-                                    + " (cluster reported as removed but absent from the registry)");
-                }
-                ops.add(new RemoveCluster(model, virtualClusterRegistry, endpointRegistry));
+        // The new-config side needs a name → model lookup.
+        Map<String, VirtualClusterModel> newModelsByName = (changes.clustersToAdd().isEmpty()
+                && changes.clustersToModify().isEmpty()) ? Map.of() : resolveByName(newConfig);
+
+        for (String name : changes.clustersToRemove()) {
+            VirtualClusterModel oldModel = virtualClusterRegistry.modelFor(name);
+            if (oldModel == null) {
+                throw new IllegalStateException(
+                        "OperationsPlanner: no model for removed cluster '" + name
+                                + "'; this indicates a ChangeDetector contract violation"
+                                + " (cluster reported as removed but absent from the registry)");
             }
+            ops.add(new RemoveCluster(oldModel, virtualClusterRegistry, endpointRegistry));
         }
 
-        if (!changes.clustersToAdd().isEmpty()) {
-            Map<String, VirtualClusterModel> newModelsByName = resolveByName(newConfig);
-            for (String name : changes.clustersToAdd()) {
-                VirtualClusterModel model = newModelsByName.get(name);
-                if (model == null) {
-                    throw new IllegalStateException(
-                            "OperationsPlanner: no model for added cluster '" + name
-                                    + "'; this indicates a ChangeDetector contract violation"
-                                    + " (cluster reported as added but absent from the submitted configuration)");
-                }
-                ops.add(new AddCluster(model, virtualClusterRegistry, endpointRegistry));
+        for (String name : changes.clustersToModify()) {
+            VirtualClusterModel oldModel = virtualClusterRegistry.modelFor(name);
+            if (oldModel == null) {
+                throw new IllegalStateException(
+                        "OperationsPlanner: no old model for modified cluster '" + name
+                                + "'; this indicates a ChangeDetector contract violation"
+                                + " (cluster reported as modified but absent from the registry)");
             }
+            VirtualClusterModel newModel = newModelsByName.get(name);
+            if (newModel == null) {
+                throw new IllegalStateException(
+                        "OperationsPlanner: no new model for modified cluster '" + name
+                                + "'; this indicates a ChangeDetector contract violation"
+                                + " (cluster reported as modified but absent from the submitted configuration)");
+            }
+            ops.add(new ReplaceCluster(oldModel, newModel, virtualClusterRegistry, endpointRegistry));
+        }
+
+        for (String name : changes.clustersToAdd()) {
+            VirtualClusterModel newModel = newModelsByName.get(name);
+            if (newModel == null) {
+                throw new IllegalStateException(
+                        "OperationsPlanner: no model for added cluster '" + name
+                                + "'; this indicates a ChangeDetector contract violation"
+                                + " (cluster reported as added but absent from the submitted configuration)");
+            }
+            ops.add(new AddCluster(newModel, virtualClusterRegistry, endpointRegistry));
         }
 
         return List.copyOf(ops);
@@ -82,11 +110,6 @@ final class OperationsPlanner {
 
     private Map<String, VirtualClusterModel> resolveByName(Configuration newConfig) {
         return modelResolver.apply(newConfig).stream()
-                .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
-    }
-
-    private Map<String, VirtualClusterModel> registryModelsByName() {
-        return virtualClusterRegistry.virtualClusterModels().stream()
                 .collect(Collectors.toUnmodifiableMap(VirtualClusterModel::getClusterName, Function.identity()));
     }
 }
