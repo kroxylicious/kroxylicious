@@ -45,8 +45,6 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
-import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
-import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
@@ -924,8 +922,11 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Walks the router DAG from an outermost virtual node ID to find the
-     * cluster-targeting route that the node ultimately belongs to.
+     * Resolves the outermost virtual node ID to the cluster-targeting route
+     * that owns it. Only resolves at the top level — if the virtual node
+     * belongs to a router-targeting route (i.e. a nested router), returns
+     * {@code null} because the caller's {@code beb.upstreamTarget()} address
+     * is only meaningful for the top-level route, not for any inner route.
      */
     @Nullable
     private String resolveOwningRoute(int outerVirtualNodeId,
@@ -934,29 +935,8 @@ public class ClientConnectionStateMachine {
         var descriptors = allDescs != null
                 ? findRouteDescriptor(routeAndNode.route(), allDescs)
                 : findRouteDescriptorFlat(routeAndNode.route(), virtualCluster().routeDescriptors());
-        if (descriptors == null) {
-            return null;
-        }
-        if (descriptors.targetsCluster()) {
+        if (descriptors != null && descriptors.targetsCluster()) {
             return routeAndNode.route();
-        }
-        if (!descriptors.targetsRouter() || allDescs == null) {
-            return null;
-        }
-        // Router-targeting route: walk into the nested router
-        var innerDescs = allDescs.get(descriptors.routerName());
-        if (innerDescs == null) {
-            return null;
-        }
-        var innerRouteIds = innerDescs.entrySet().stream()
-                .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
-        NodeIdMapping innerMapping = innerRouteIds.size() > 1
-                ? new BijectiveNodeIdMapping(innerRouteIds, innerRouteIds.size())
-                : new IdentityNodeIdMapping(innerRouteIds.keySet().iterator().next());
-        var innerRouteAndNode = innerMapping.fromVirtual(routeAndNode.targetNodeId());
-        var innerRd = innerDescs.get(innerRouteAndNode.route());
-        if (innerRd != null && innerRd.targetsCluster()) {
-            return innerRouteAndNode.route();
         }
         return null;
     }
