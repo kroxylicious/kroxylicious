@@ -28,6 +28,7 @@ import io.netty.channel.EventLoop;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.DeprecatedMethodsFilterFactory;
@@ -430,6 +431,64 @@ class FilterChainFactoryTest {
 
         assertThat(onCloseA.count).isEqualTo(1);
         assertThat(onCloseB.count).isEqualTo(1);
+    }
+
+    @Test
+    void shouldCallInitializeOnceRegardlessOfConnectionCount() {
+        // Given
+        var onInit = new Counter();
+        var flakyConfig = new FlakyConfig(null, null, null, onInit::increment, c -> {
+        });
+        var chain = List.of(new NamedFilterDefinition("f", FlakyFactory.class.getName(), flakyConfig));
+        try (var fcf = new FilterChainFactory(pfr, chain)) {
+            var context = new NettyFilterContext(eventLoop, pfr);
+            fcf.createFilters(context);
+            fcf.createFilters(context);
+
+            // When
+            fcf.createFilters(context);
+
+            // Then
+            assertThat(onInit.count).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void shouldCreateNewFilterInstancePerConnection() {
+        // Given
+        var chain = List.of(new NamedFilterDefinition("f", TestFilterFactory.class.getName(), config));
+        try (var fcf = new FilterChainFactory(pfr, chain)) {
+            var context = new NettyFilterContext(eventLoop, pfr);
+
+            // When
+            var conn1 = fcf.createFilters(context);
+            var conn2 = fcf.createFilters(context);
+
+            // Then
+            Filter conn1Filter = conn1.get(0).filter();
+            Filter conn2Filter = conn2.get(0).filter();
+            assertThat(conn1Filter).isNotSameAs(conn2Filter);
+        }
+    }
+
+    @Test
+    void shouldCreateNewInstanceWhenDefinitionIsDuplicated() {
+        // Given
+        var auditDef = new NamedFilterDefinition("audit", TestFilterFactory.class.getName(), config);
+        var transformDef = new NamedFilterDefinition("transform", TestFilterFactory.class.getName(), new ExampleConfig());
+        var chain = List.of(auditDef, transformDef, auditDef);
+        try (var fcf = new FilterChainFactory(pfr, chain)) {
+            var context = new NettyFilterContext(eventLoop, pfr);
+
+            // When
+            var filters = fcf.createFilters(context);
+
+            // Then
+            assertThat(filters).hasSize(3);
+            Filter inboundAudit = filters.get(0).filter();
+            Filter outboundAudit = filters.get(2).filter();
+            assertThat(inboundAudit).isNotSameAs(outboundAudit);
+        }
     }
 
     @Test
