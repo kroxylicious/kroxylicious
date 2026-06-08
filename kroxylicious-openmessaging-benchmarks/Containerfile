@@ -13,7 +13,7 @@
 ARG OMB_COMMIT=85599891321cafa2fb7065a63f009b4bb5374288
 
 # ---------- Stage 1: build ----------
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1779791379@sha256:f957ec240a4d6d9e065562cede6994b6b8146be8c5247d3cbe42af819a933da8 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1780581576@sha256:ce8f6d3276d84b711bcbd8970c39177b9d308d1ae0c9a54a1bd1871ca7444544 AS builder
 USER root
 
 ARG OMB_COMMIT
