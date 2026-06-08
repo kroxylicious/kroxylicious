@@ -18,8 +18,8 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Tag;
-import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +103,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         kroxylicious.createOrUpdateResources();
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenKafkaProxyIngressChanges(String namespace) {
         // Given
         deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
@@ -121,7 +121,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenVirtualKafkaClusterChanges(String namespace) {
         // Given
         // @formatter:off
@@ -156,7 +156,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) {
         // Given
         var issuer = certManager.issuer(namespace);
@@ -182,7 +182,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) {
         // Given
         var issuer = certManager.issuer(namespace);
@@ -206,7 +206,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateWhenFilterConfigurationChanges(String namespace) {
         // Given
         // @formatter:off
@@ -233,7 +233,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenResourceRequirementsChange(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
@@ -281,7 +281,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         });
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldNotUpdateDeploymentChecksumWhenKafkaProxyScaled(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
@@ -302,7 +302,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUnchanged(namespace, originalChecksum, 2);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldPreserveExternalSsaPatchOnProxyDeploymentAfterReconcile(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
@@ -321,7 +321,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertEnvVarsStillPresent(namespace, kubeClient);
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
         // Given
         resourceManager.createOrUpdateResourceFromBuilderWithWait(
