@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaprotocolfilter;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -60,6 +61,8 @@ public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
+    // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+    static final Duration FORCE_RECONCILE_INTERVAL = Duration.ofSeconds(1);
     private static final String SECRETS = "secrets";
     private static final String CONFIG_MAPS = "configmaps";
     private final KafkaProtocolFilterStatusFactory statusFactory;
@@ -253,7 +256,13 @@ public class KafkaProtocolFilterReconciler implements
                     .addKeyValue(OperatorLoggingKeys.NAME, name(filter))
                     .log("Completed reconciliation");
         }
-        return UpdateControl.patchResourceAndStatus(patch);
+        // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+        // JOSDK can miss generation updates that arrive during our SSA patch.
+        var updateControl = UpdateControl.<KafkaProtocolFilter> patchResourceAndStatus(patch);
+        if (!ResourcesUtil.isStatusFresh(filter)) {
+            updateControl.rescheduleAfter(FORCE_RECONCILE_INTERVAL);
+        }
+        return updateControl;
     }
 
     @Override

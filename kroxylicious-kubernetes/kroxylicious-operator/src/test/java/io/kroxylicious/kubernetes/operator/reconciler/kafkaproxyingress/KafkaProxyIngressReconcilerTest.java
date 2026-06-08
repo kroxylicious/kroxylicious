@@ -208,6 +208,37 @@ class KafkaProxyIngressReconcilerTest {
     }
 
     @Test
+    void shouldRescheduleWhenObservedGenerationBehind() throws Exception {
+        // given
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+
+        // when (INGRESS has no status, so observedGeneration is null — behind metadata.generation)
+        var update = reconciler.reconcile(INGRESS, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).hasValue(KafkaProxyIngressReconciler.FORCE_RECONCILE_INTERVAL.toMillis());
+    }
+
+    @Test
+    void shouldNotRescheduleWhenObservedGenerationCurrent() throws Exception {
+        // given
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+        var freshIngress = INGRESS.edit()
+                .editOrNewStatus()
+                .withObservedGeneration(INGRESS.getMetadata().getGeneration())
+                .endStatus()
+                .build();
+
+        // when
+        var update = reconciler.reconcile(freshIngress, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).isEmpty();
+    }
+
+    @Test
     void shouldNotPatchResourceWhenResolvedRefsFalse() throws Exception {
         // given
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);

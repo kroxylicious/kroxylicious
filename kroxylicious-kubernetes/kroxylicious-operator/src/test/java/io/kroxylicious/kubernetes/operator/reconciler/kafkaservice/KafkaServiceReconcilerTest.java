@@ -635,6 +635,37 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
+    void shouldRescheduleWhenObservedGenerationBehind() {
+        // given
+        Context<KafkaService> context = mockContext();
+        var service = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).withTls(null).endSpec().build();
+
+        // when (SERVICE has no status, so observedGeneration is null — behind metadata.generation)
+        var update = kafkaServiceReconciler.reconcile(service, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).hasValue(KafkaServiceReconciler.FORCE_RECONCILE_INTERVAL.toMillis());
+    }
+
+    @Test
+    void shouldNotRescheduleWhenObservedGenerationCurrent() {
+        // given
+        Context<KafkaService> context = mockContext();
+        var freshService = new KafkaServiceBuilder(SERVICE)
+                .editSpec().withStrimziKafkaRef(null).withTls(null).endSpec()
+                .editOrNewStatus()
+                .withObservedGeneration(SERVICE.getMetadata().getGeneration())
+                .endStatus()
+                .build();
+
+        // when
+        var update = kafkaServiceReconciler.reconcile(freshService, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).isEmpty();
+    }
+
+    @Test
     void shouldSetReferentAnnotationWhenCertificateRefSecretPresent() {
         Context<KafkaService> context = mockContext();
         mockGetSecret(context, Optional.of(TLS_SECRET));

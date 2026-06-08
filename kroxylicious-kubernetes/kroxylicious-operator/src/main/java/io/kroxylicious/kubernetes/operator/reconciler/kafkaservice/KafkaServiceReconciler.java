@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -65,6 +66,8 @@ public final class KafkaServiceReconciler implements
         io.javaoperatorsdk.operator.api.reconciler.Reconciler<KafkaService> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconciler.class);
+    // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+    static final Duration FORCE_RECONCILE_INTERVAL = Duration.ofSeconds(1);
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
     public static final String CONFIG_MAPS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME = "configmapsTrustAnchorRef";
@@ -398,7 +401,13 @@ public final class KafkaServiceReconciler implements
                     .addKeyValue(OperatorLoggingKeys.NAME, name(service))
                     .log("Completed reconciliation");
         }
-        return UpdateControl.patchResourceAndStatus(updated);
+        // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+        // JOSDK can miss generation updates that arrive during our SSA patch.
+        var updateControl = UpdateControl.<KafkaService> patchResourceAndStatus(updated);
+        if (!ResourcesUtil.isStatusFresh(service)) {
+            updateControl.rescheduleAfter(FORCE_RECONCILE_INTERVAL);
+        }
+        return updateControl;
     }
 
     @Override

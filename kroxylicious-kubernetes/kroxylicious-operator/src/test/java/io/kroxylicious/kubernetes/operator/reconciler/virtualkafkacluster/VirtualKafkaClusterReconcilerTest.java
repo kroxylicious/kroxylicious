@@ -750,6 +750,35 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
+    void shouldRescheduleWhenObservedGenerationBehind() {
+        // given
+        Context<VirtualKafkaCluster> context = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
+
+        // when (CLUSTER_NO_FILTERS has no status, so observedGeneration is null — behind metadata.generation)
+        var update = virtualKafkaClusterReconciler.reconcile(CLUSTER_NO_FILTERS, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).hasValue(VirtualKafkaClusterReconciler.FORCE_RECONCILE_INTERVAL.toMillis());
+    }
+
+    @Test
+    void shouldNotRescheduleWhenObservedGenerationCurrent() {
+        // given
+        Context<VirtualKafkaCluster> context = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
+        var freshCluster = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+                .editOrNewStatus()
+                .withObservedGeneration(CLUSTER_NO_FILTERS.getMetadata().getGeneration())
+                .endStatus()
+                .build();
+
+        // when
+        var update = virtualKafkaClusterReconciler.reconcile(freshCluster, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).isEmpty();
+    }
+
+    @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create(), mock(SharedInformerManager.class));

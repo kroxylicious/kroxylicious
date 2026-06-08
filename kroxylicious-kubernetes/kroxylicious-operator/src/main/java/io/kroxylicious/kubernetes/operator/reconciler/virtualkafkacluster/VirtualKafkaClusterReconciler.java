@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -91,6 +92,8 @@ public final class VirtualKafkaClusterReconciler implements
         Reconciler<VirtualKafkaCluster> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconciler.class);
+    // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+    static final Duration FORCE_RECONCILE_INTERVAL = Duration.ofSeconds(1);
     static final String PROXY_EVENT_SOURCE_NAME = "proxy";
     static final String PROXY_CONFIG_STATE_SOURCE_NAME = "proxy-config-state";
     static final String SERVICES_EVENT_SOURCE_NAME = "services";
@@ -150,6 +153,11 @@ public final class VirtualKafkaClusterReconciler implements
                     .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(cluster))
                     .addKeyValue(OperatorLoggingKeys.NAME, name(cluster))
                     .log("Completed reconciliation");
+        }
+        // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+        // JOSDK can miss generation updates that arrive during our SSA patch.
+        if (!ResourcesUtil.isStatusFresh(cluster)) {
+            reconciliationResult.rescheduleAfter(FORCE_RECONCILE_INTERVAL);
         }
         return reconciliationResult;
     }

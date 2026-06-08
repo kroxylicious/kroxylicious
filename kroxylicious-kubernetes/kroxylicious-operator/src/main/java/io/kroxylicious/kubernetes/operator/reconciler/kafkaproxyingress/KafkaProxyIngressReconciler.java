@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaproxyingress;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -54,6 +55,8 @@ public class KafkaProxyIngressReconciler implements
         Reconciler<KafkaProxyIngress> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconciler.class);
+    // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+    static final Duration FORCE_RECONCILE_INTERVAL = Duration.ofSeconds(1);
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
     private final KafkaProxyIngressStatusFactory statusFactory;
 
@@ -106,6 +109,11 @@ public class KafkaProxyIngressReconciler implements
         }
         else {
             updateControl = UpdateControl.patchStatus(update);
+        }
+        // Workaround for https://github.com/operator-framework/java-operator-sdk/issues/3398
+        // JOSDK can miss generation updates that arrive during our SSA patch.
+        if (!ResourcesUtil.isStatusFresh(ingress)) {
+            updateControl.rescheduleAfter(FORCE_RECONCILE_INTERVAL);
         }
 
         if (LOGGER.isInfoEnabled()) {

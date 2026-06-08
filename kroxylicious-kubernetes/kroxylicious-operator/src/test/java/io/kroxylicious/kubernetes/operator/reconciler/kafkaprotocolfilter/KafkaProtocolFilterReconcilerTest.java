@@ -274,6 +274,41 @@ class KafkaProtocolFilterReconcilerTest {
     }
 
     @Test
+    void shouldRescheduleWhenObservedGenerationBehind() {
+        // given
+        Context<KafkaProtocolFilter> context = mockContext();
+        when(context.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
+        when(context.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
+
+        // when (FILTER has no status, so observedGeneration is null — behind metadata.generation)
+        var update = reconciler.reconcile(FILTER, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).hasValue(KafkaProtocolFilterReconciler.FORCE_RECONCILE_INTERVAL.toMillis());
+    }
+
+    @Test
+    void shouldNotRescheduleWhenObservedGenerationCurrent() {
+        // given
+        Context<KafkaProtocolFilter> context = mockContext();
+        when(context.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
+        when(context.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
+        var freshFilter = FILTER.edit()
+                .editOrNewStatus()
+                .withObservedGeneration(FILTER.getMetadata().getGeneration())
+                .endStatus()
+                .build();
+
+        // when
+        var update = reconciler.reconcile(freshFilter, context);
+
+        // then
+        assertThat(update.getScheduleDelay()).isEmpty();
+    }
+
+    @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
         var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR, mock(SharedInformerManager.class));
