@@ -63,6 +63,8 @@ class FilterChangeHotReloadIT extends BaseIT {
     private static final int PORT_REMOVE_FILTER = PORT_BLOCK_BASE + 500;
     private static final int PORT_REORDER = PORT_BLOCK_BASE + 600;
     private static final int PORT_CONFIG_CHANGE = PORT_BLOCK_BASE + 700;
+    private static final int PORT_DEFAULT_FILTERS_A = PORT_BLOCK_BASE + 800;
+    private static final int PORT_DEFAULT_FILTERS_B = PORT_BLOCK_BASE + 810;
 
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
 
@@ -463,6 +465,76 @@ class FilterChangeHotReloadIT extends BaseIT {
             // Phase 4: traffic flows under the new config.
             String topic = tester.createTopic("vc-cfg-change");
             assertProduceConsumeRoundTrip(tester, "vc-cfg-change", topic, "phase4-new-config");
+        }
+    }
+
+    @Test
+    void shouldHandleDefaultFiltersChangeAsReplace(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // defaultFilters apply to every VC whose explicit `filters` list is null. Changing the
+        // proxy-wide defaultFilters cascades to every such VC: FilterChangeDetector flags each
+        // affected cluster, and the orchestrator emits one ReplaceCluster per affected VC.
+        UUID oldFilterId = UUID.randomUUID();
+        UUID newFilterId = UUID.randomUUID();
+
+        var oldFilterDef = invocationCounterDef("default-old", oldFilterId);
+        var newFilterDef = invocationCounterDef("default-new", newFilterId);
+
+        // Two VCs, BOTH without explicit filters — both rely on defaultFilters.
+        VirtualCluster vcA = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-default-a")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_DEFAULT_FILTERS_A)).build())
+                .build();
+        VirtualCluster vcB = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "vc-default-b")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_DEFAULT_FILTERS_B)).build())
+                .build();
+
+        var startingTesterBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToFilterDefinitions(oldFilterDef)
+                .addToDefaultFilters("default-old")
+                .addToVirtualClusters(vcA, vcB);
+        Configuration afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToFilterDefinitions(newFilterDef)
+                .addToDefaultFilters("default-new")
+                .addToVirtualClusters(vcA, vcB)
+                .build();
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingTesterBuilder).createDefaultKroxyliciousTester()) {
+
+            // Phase 1: both VCs initialised with default-old via defaultFilters. Each VC has its
+            // own FilterFactory instance per the per-VC FCF design, so the SAME UUID sees TWO
+            // independent initialize calls — one per VC.
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(oldFilterId))
+                    .as("Both VCs share the same defaultFilter config UUID — init fires once per VC")
+                    .isEqualTo(2);
+
+            // Phase 2: traffic confirms both VCs serve via the old defaultFilter.
+            String topicA = tester.createTopic("vc-default-a");
+            String topicB = tester.createTopic("vc-default-b");
+            assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "phase2-a-old");
+            assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "phase2-b-old");
+
+            // Phase 3: reconfigure changes defaultFilters globally — no per-VC field changed,
+            // but both VCs are affected because both rely on defaultFilters.
+            LOGGER.info("Reconfiguring proxy: defaultFilters [default-old] -> [default-new]");
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
+
+            // Phase 4: BOTH VCs' old initResults closed; BOTH VCs initialise the new filter.
+            // The count-of-2 on both sides is the load-bearing assertion: it proves the
+            // cascade — a single defaultFilters change affected every dependent VC.
+            assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
+                    .as("both VCs' old defaultFilter initResults should have been closed")
+                    .isEqualTo(2);
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(newFilterId))
+                    .as("both VCs should have initialised the new defaultFilter — cascade verified")
+                    .isEqualTo(2);
+            assertThat(InvocationCountingFilterFactory.closeCountFor(newFilterId))
+                    .as("new defaultFilters are part of the live chains, not yet closed")
+                    .isZero();
+
+            // Phase 5: both VCs still serve traffic on the new defaultFilter chain.
+            assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "phase5-a-new");
+            assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "phase5-b-new");
         }
     }
 
