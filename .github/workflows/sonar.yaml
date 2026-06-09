@@ -104,7 +104,7 @@ jobs:
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects ''!:kroxylicious-operator,!:kroxylicious-operator-dist'' \
+            --projects '!:kroxylicious-operator,!:kroxylicious-operator-dist,!:kroxylicious-kubernetes-api,!:kroxylicious-operator-test-support' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
@@ -121,9 +121,9 @@ jobs:
       - name: SonarCloud scan on PR for the Operator
         if: env.SONAR_TOKEN_SET == 'true'
         run: |
-          PROJECTS=':kroxylicious-operator,:kroxylicious-parent,:kroxylicious-operator-dist'
+          PROJECTS=':kroxylicious-operator,:kroxylicious-operator-test-support,:kroxylicious-parent,:kroxylicious-operator-dist'
           if [ -f "kroxylicious-kubernetes/pom.xml" ]; then
-            PROJECTS=":kroxylicious-operator,:kroxylicious-kubernetes-parent,:kroxylicious-parent,:kroxylicious-operator-dist"
+            PROJECTS=":kroxylicious-operator,:kroxylicious-operator-test-support,:kroxylicious-kubernetes-parent,:kroxylicious-parent,:kroxylicious-operator-dist"
           fi
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
