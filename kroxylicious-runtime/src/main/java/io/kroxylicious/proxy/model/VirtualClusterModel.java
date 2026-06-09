@@ -107,6 +107,7 @@ public class VirtualClusterModel implements AutoCloseable {
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
+    private final java.util.concurrent.ConcurrentHashMap<org.apache.kafka.common.Uuid, String> topicIdResponseCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
     private final @Nullable String routerName;
@@ -586,6 +587,10 @@ public class VirtualClusterModel implements AutoCloseable {
         TransportSubjectBuilderService subjectBuilderService = pf.pluginInstance(type);
         subjectBuilderService.initialize(config);
         return subjectBuilderService.build();
+    }
+
+    public java.util.concurrent.ConcurrentHashMap<org.apache.kafka.common.Uuid, String> getTopicIdResponseCache() {
+        return topicIdResponseCache;
     }
 
     public TopicNameCacheFilter getTopicNameCacheFilter() {

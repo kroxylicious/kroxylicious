@@ -311,7 +311,7 @@ public class KafkaProxyFrontendHandler
 
         // 4a. Install unscoped topicId response enrichment immediately before
         // the terminal handler — every backend response passes through it.
-        var responseEnrichment = new TopicIdResponseEnrichmentFilter();
+        var responseEnrichment = new TopicIdResponseEnrichmentFilter(clientConnectionStateMachine.virtualCluster().getTopicIdResponseCache());
         List<FilterAndInvoker> responseEnrichmentFai = FilterAndInvoker.build(
                 "TopicIdResponseEnrichment (internal)", responseEnrichment);
         allFilters.addAll(responseEnrichmentFai);
@@ -447,7 +447,8 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(clientConnectionStateMachine.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
-        filterAndInvokers.addAll(FilterAndInvoker.build("TopicIdResponseEnrichment (internal)", new TopicIdResponseEnrichmentFilter()));
+        filterAndInvokers.addAll(FilterAndInvoker.build("TopicIdResponseEnrichment (internal)",
+                new TopicIdResponseEnrichmentFilter(clientConnectionStateMachine.virtualCluster().getTopicIdResponseCache())));
 
         return filterAndInvokers;
     }
