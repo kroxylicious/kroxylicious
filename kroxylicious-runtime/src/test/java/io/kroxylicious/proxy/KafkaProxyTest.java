@@ -58,7 +58,11 @@ class KafkaProxyTest {
     }
 
     @Test
-    void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
+    void shouldFailToStartIfRequireFilterConfigIsMissing() {
+        // Filter init runs during VCM construction (per the FCF-per-VC refactor), so a bad filter
+        // config now surfaces from the KafkaProxy constructor rather than from startup(). The
+        // wrap-as-LifecycleException in KafkaProxy.defaultRegistry preserves the exception type
+        // and cause that callers of the legacy startup() path had previously relied on.
         var config = """
                    virtualClusters:
                      - name: demo1
@@ -74,13 +78,13 @@ class KafkaProxyTest {
                    defaultFilters:
                    - filter1
                 """;
-        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            assertThatThrownBy(kafkaProxy::startup)
-                    .isInstanceOf(LifecycleException.class)
-                    .cause()
-                    .isInstanceOf(PluginConfigurationException.class)
-                    .hasMessageContaining("Exception initializing filter factory filter1 with config null");
-        }
+        var parsedConfig = configParser.parseConfiguration(config);
+        var features = Features.defaultFeatures();
+        assertThatThrownBy(() -> new KafkaProxy(configParser, parsedConfig, features))
+                .isInstanceOf(LifecycleException.class)
+                .cause()
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("Exception initializing filter factory filter1 with config null");
     }
 
     static Stream<Arguments> detectsConflictingPorts() {

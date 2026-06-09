@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
@@ -169,35 +170,70 @@ public class VirtualClusterRegistry {
     private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
         var state = lifecycle.state();
         if (state instanceof VirtualClusterLifecycleState.Serving) {
+            // Dispatch the close + callback to a non-event-loop executor: a connection's drain
+            // future completes on its Netty event loop, and a default thenRun would inherit that
+            // thread. FilterFactory.close() is allowed to block (closing KMS/HTTP clients), so it
+            // must not run on an event loop.
             return lifecycle.startDraining()
-                    .thenRun(() -> {
+                    .thenRunAsync(() -> {
                         lifecycle.drainComplete();
+                        closeModel(clusterName);
                         onVirtualClusterStopped.accept(clusterName, Optional.empty());
-                    });
+                    }, ForkJoinPool.commonPool());
         }
         else if (state instanceof VirtualClusterLifecycleState.Draining) {
             // Pre-existing drain (e.g. concurrent shutdown or hot-reload) — join it rather
-            // than starting a new one.
+            // than starting a new one. Same non-event-loop dispatch as the Serving path above.
             return lifecycle.drainFuture()
-                    .thenRun(() -> {
+                    .thenRunAsync(() -> {
                         lifecycle.drainComplete();
+                        closeModel(clusterName);
                         onVirtualClusterStopped.accept(clusterName, Optional.empty());
-                    });
+                    }, ForkJoinPool.commonPool());
         }
         else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
             lifecycle.stop();
+            closeModel(clusterName);
             onVirtualClusterStopped.accept(clusterName, Optional.of(failed.cause()));
             return CompletableFuture.completedFuture(null);
         }
         else if (state instanceof VirtualClusterLifecycleState.Stopped) {
-            // Already dead, let sleeping dogs lie.
+            // Already stopped, no need to close() again
             return CompletableFuture.completedFuture(null);
         }
         else {
             // Initializing — transition to Stopped via the dedicated stop() method.
             lifecycle.stop();
+            closeModel(clusterName);
             onVirtualClusterStopped.accept(clusterName, Optional.empty());
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /**
+     * Closes per-VC resources (FilterChainFactory, TLS credential supplier manager) at the
+     * moment the lifecycle transitions into {@code Stopped}. Called from every transition-
+     * into-Stopped branch of {@link #shutdownCluster}
+     *
+     * <p>If the model close throws, the failure is logged at WARN and swallowed — we don't
+     * want a noisy filter cleanup to stop us from firing {@link #onVirtualClusterStopped}
+     * or completing the shutdown future. The exception is recorded against the cluster name
+     * so operators can diagnose stuck cleanups.
+     */
+    private void closeModel(String clusterName) {
+        var entry = entriesByCluster.get(clusterName);
+        if (entry == null) {
+            return;
+        }
+        try {
+            entry.model().close();
+        }
+        catch (RuntimeException e) {
+            LOGGER.atWarn()
+                    .setCause(e)
+                    .addKeyValue("virtualCluster", clusterName)
+                    .addKeyValue("error", e.getMessage())
+                    .log("Failed to close virtual cluster resources on lifecycle transition to Stopped");
         }
     }
 

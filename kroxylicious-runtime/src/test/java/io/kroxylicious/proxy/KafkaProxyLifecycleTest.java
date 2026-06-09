@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -88,7 +90,7 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void shouldTransitionToStoppedAfterShutdown() {
+    void shouldTransitionToStoppedAfterShutdown() throws Exception {
         // given
         var config = """
                    virtualClusters:
@@ -101,21 +103,83 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9192
                 """;
 
-        var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
-        proxy.startup();
-        var manager = proxy.lifecycleFor("demo1");
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+            var manager = proxy.lifecycleFor("demo1");
 
-        // when
-        proxy.shutdown();
+            // when
+            proxy.shutdown();
 
-        // then
-        assertThat(manager).isNotNull();
-        assertThat(manager.state()).isInstanceOf(Stopped.class);
+            // then
+            assertThat(manager).isNotNull();
+            assertThat(manager.state()).isInstanceOf(Stopped.class);
+        }
     }
 
     @Test
-    void shouldTransitionToStoppedOnStartupFailure() throws Exception {
-        // given
+    void shutdownAfterReloadDrivesNewlyAddedVcToStopped() throws Exception {
+        // Regression test for #4066: KafkaProxy.shutdown() must drive VCs added via reload to
+        // Stopped, not just the ones present at proxy construction time. Prior to the FCF-per-VC
+        // refactor, shutdown iterated a stale snapshot of virtualClusterModels captured at
+        // construction time — any VC added via the reload API was invisible to shutdown.
+        var initial = """
+                   virtualClusters:
+                     - name: vc-a
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9492
+                """;
+        var afterReload = """
+                   virtualClusters:
+                     - name: vc-a
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9492
+                     - name: vc-b
+                       targetCluster:
+                         bootstrapServers: kafka.example:5678
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9592
+                """;
+
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(initial), Features.defaultFeatures())) {
+            proxy.startup();
+            proxy.reconfigure(configParser.parseConfiguration(afterReload)).get(5, TimeUnit.SECONDS);
+
+            var lifecycleA = proxy.lifecycleFor("vc-a");
+            var lifecycleB = proxy.lifecycleFor("vc-b");
+            assertThat(lifecycleB).as("vc-b should be tracked after reload").isNotNull();
+            assertThat(lifecycleB.state()).as("vc-b should reach Serving after reload").isInstanceOf(Serving.class);
+
+            // when
+            proxy.shutdown();
+
+            // then — BOTH the originally-configured vc-a AND the runtime-added vc-b must reach Stopped.
+            assertThat(lifecycleA.state())
+                    .as("originally-configured vc-a should reach Stopped on shutdown")
+                    .isInstanceOf(Stopped.class);
+            assertThat(lifecycleB.state())
+                    .as("runtime-added vc-b should also reach Stopped on shutdown (regression test for #4066)")
+                    .isInstanceOf(Stopped.class);
+        }
+    }
+
+    @Test
+    void shouldFailConstructionWhenFilterInitializationFails() {
+        // The FCF-per-VC refactor moved filter init into VirtualClusterModel construction (run from
+        // KafkaProxy's constructor via defaultRegistry), so a bad filter config now surfaces from the
+        // constructor — wrapped as LifecycleException by defaultRegistry — rather than from startup().
+        // The proxy object never exists when its construction throws, so the previously-observed
+        // post-failure transition to Stopped is no longer reachable; the exception-type contract is the
+        // observable contract that remains.
         var config = """
                    virtualClusters:
                      - name: demo1
@@ -131,21 +195,12 @@ class KafkaProxyLifecycleTest {
                    defaultFilters:
                    - filter1
                 """;
+        var parsedConfig = configParser.parseConfiguration(config);
+        var features = Features.defaultFeatures();
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            // when
-            assertThatThrownBy(proxy::startup)
-                    .isInstanceOf(LifecycleException.class)
-                    .cause()
-                    .isInstanceOf(PluginConfigurationException.class);
-
-            // then
-            var manager = proxy.lifecycleFor("demo1");
-            assertThat(manager).isNotNull();
-            assertThat(manager.state())
-                    .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(Stopped.class))
-                    .extracting(Stopped::priorFailureCause)
-                    .isInstanceOf(PluginConfigurationException.class);
-        }
+        assertThatThrownBy(() -> new KafkaProxy(configParser, parsedConfig, features))
+                .isInstanceOf(LifecycleException.class)
+                .cause()
+                .isInstanceOf(PluginConfigurationException.class);
     }
 }

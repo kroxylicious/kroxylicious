@@ -25,7 +25,10 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -825,6 +828,116 @@ class VirtualClusterRegistryTest {
                 .as("constructor-supplied model should remain queryable after removeVirtualCluster")
                 .extracting(VirtualClusterModel::getClusterName)
                 .containsExactly(CLUSTER_A);
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // closeModel hook — pins the per-VC resource cleanup contract added by the FCF-per-VC
+    // refactor. Each of the four transition-into-Stopped branches in shutdownCluster must
+    // invoke model.close(); the Stopped→Stopped no-op must not. Close failure must not stall
+    // the shutdown future or block the onVirtualClusterStopped callback.
+    // -----------------------------------------------------------------------------------------
+
+    @Test
+    void shouldCloseModelWhenServingClusterIsRemoved() {
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), noOpCallback);
+        registry.initializationSucceeded(CLUSTER_A);
+
+        registry.removeVirtualCluster(CLUSTER_A).join();
+
+        verify(model).close();
+    }
+
+    @Test
+    void shouldCloseModelWhenInitializingClusterIsShutDown() {
+        // Initializing state — the cluster never reached Serving but still owns FCF/TLS resources.
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), noOpCallback);
+
+        registry.shutdownAllClusters();
+
+        verify(model).close();
+    }
+
+    @Test
+    void shouldCloseModelWhenFailedClusterIsShutDown() {
+        // Drive directly to Failed via the lifecycle, bypassing the registry's auto-stop, so the
+        // shutdownAllClusters call exercises the Failed→Stopped close branch.
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), noOpCallback);
+        var failureCause = new RuntimeException("init failed");
+        var lifecycle = registry.lifecycleFor(CLUSTER_A);
+        Assumptions.assumeThat(lifecycle).isNotNull();
+        lifecycle.initializationFailed(failureCause);
+
+        registry.shutdownAllClusters();
+
+        verify(model).close();
+    }
+
+    @Test
+    void shouldCloseModelWhenDrainingClusterCompletesDrain() {
+        // Close must fire only after the drain completes — not at drain start. Mocks the connection's
+        // drain future so we can hold the cluster in Draining and assert close has not yet fired.
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), noOpCallback);
+        registry.initializationSucceeded(CLUSTER_A);
+
+        var pendingDrain = new CompletableFuture<Void>();
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        when(ccsm.drain(any())).thenReturn(pendingDrain);
+        registry.registerConnection(CLUSTER_A, ccsm);
+
+        var shutdown = CompletableFuture.runAsync(registry::shutdownAllClusters);
+
+        Awaitility.await("drain should be initiated while cluster is Draining")
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> verify(ccsm).drain(any()));
+
+        // While still Draining, close must not have fired yet
+        verify(model, never()).close();
+
+        // Complete the drain — close should now fire on the Draining→Stopped transition
+        pendingDrain.complete(null);
+
+        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
+        verify(model).close();
+    }
+
+    @Test
+    void shouldNotCloseAlreadyStoppedModelOnRedundantShutdown() {
+        // The Stopped→Stopped no-op branch must not invoke close again. Without this guarantee,
+        // the FCF's per-Wrapper AtomicBoolean would absorb the double-close, but the
+        // TlsCredentialSupplierManager might not, and a future close-handler addition could
+        // throw on double-invocation.
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), noOpCallback);
+        registry.initializationSucceeded(CLUSTER_A);
+
+        registry.removeVirtualCluster(CLUSTER_A).join();
+        verify(model, times(1)).close();
+
+        registry.removeVirtualCluster(CLUSTER_A).join();
+
+        verify(model, times(1)).close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldFireStoppedCallbackEvenWhenModelCloseThrows() {
+        // The swallow-and-log policy in closeModel means filter/TLS close failures cannot stall
+        // the shutdown future or block the onVirtualClusterStopped callback.
+        var model = mockModel(CLUSTER_A);
+        doThrow(new RuntimeException("KMS shutdown failed")).when(model).close();
+        BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
+        var registry = new VirtualClusterRegistry(List.of(model), callback);
+        registry.initializationSucceeded(CLUSTER_A);
+
+        var shutdown = registry.removeVirtualCluster(CLUSTER_A);
+
+        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
+        verify(model).close();
+        verify(callback).accept(CLUSTER_A, Optional.empty());
     }
 
 }
