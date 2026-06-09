@@ -61,6 +61,37 @@ public class InvocationCountingFilterFactory implements FilterFactory<Invocation
         assertThat(initializeCounts.get(configId)).hasValue(count);
     }
 
+    /**
+     * Returns the current close count for the given configId, or {@code 0} if {@code close} has
+     * never been invoked for that config. Lets tests assert on per-config close timing inline
+     * (e.g. during the body of a hot-reload sequence) rather than waiting for the bulk
+     * {@link #assertAllClosedAndResetCounts()} at teardown.
+     */
+    public static int closeCountFor(UUID configId) {
+        var counter = closeCounts.get(configId);
+        return counter == null ? 0 : counter.get();
+    }
+
+    /**
+     * Returns the current initialize count for the given configId, or {@code 0} if not initialized.
+     */
+    public static int initializationCountFor(UUID configId) {
+        var counter = initializeCounts.get(configId);
+        return counter == null ? 0 : counter.get();
+    }
+
+    /**
+     * Clears initialise/close counters without assertion. Use in {@code @BeforeEach}/{@code @AfterEach}
+     * when the test's contract cannot rely on perfect init/close balance — e.g. hot-reload tests
+     * where {@code OperationsPlanner.resolveByName} pre-constructs VCMs for every cluster in the
+     * new configuration as part of planning, leaving orphan initialisations for unchanged
+     * clusters that never reach the registry and therefore never see a matching close.
+     */
+    public static void resetCounts() {
+        initializeCounts.clear();
+        closeCounts.clear();
+    }
+
     public static void assertAllClosedAndResetCounts() {
         // Everything that was initialised gets closed
         for (var entry : initializeCounts.entrySet()) {
