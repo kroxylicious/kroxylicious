@@ -309,6 +309,19 @@ public class KafkaProxyFrontendHandler
                 vcFilters,
                 filterContext, pipeline, clientChannel, allFilters);
 
+        // 4a. Install unscoped topicId response enrichment immediately before
+        // the terminal handler — every backend response passes through it.
+        var responseEnrichment = new TopicIdResponseEnrichmentFilter();
+        List<FilterAndInvoker> responseEnrichmentFai = FilterAndInvoker.build(
+                "TopicIdResponseEnrichment (internal)", responseEnrichment);
+        allFilters.addAll(responseEnrichmentFai);
+        for (FilterAndInvoker fi : responseEnrichmentFai) {
+            pipeline.addBefore("routingTerminalHandler",
+                    "topicIdResponseEnrichment",
+                    new FilterHandler(fi, 20000, sniHostname, clientChannel,
+                            clientConnectionStateMachine));
+        }
+
         // 5. Set top-level NodeIdMapping on CCSM for broker-port resolution
         var topRouteDescriptors = vc.routeDescriptors();
         var topRouteIds = topRouteDescriptors.entrySet().stream()
@@ -406,17 +419,6 @@ public class KafkaProxyFrontendHandler
                             new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
                                     clientConnectionStateMachine, routeName));
                 }
-                // Install per-cluster topicId response enrichment as the last route
-                // filter (closest to terminal), so it enriches responses before
-                // per-route user filters see them.
-                for (FilterAndInvoker fi : FilterAndInvoker.build(
-                        "TopicIdResponseEnrichment-" + routeName + " (internal)",
-                        new TopicIdResponseEnrichmentFilter())) {
-                    pipeline.addBefore("routingTerminalHandler",
-                            "routeFilter-" + routeName + "-internal-TopicIdResponseEnrichment",
-                            new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
-                                    clientConnectionStateMachine, routeName));
-                }
             }
         }
     }
@@ -445,6 +447,7 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(clientConnectionStateMachine.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
+        filterAndInvokers.addAll(FilterAndInvoker.build("TopicIdResponseEnrichment (internal)", new TopicIdResponseEnrichmentFilter()));
 
         return filterAndInvokers;
     }
