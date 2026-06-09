@@ -100,6 +100,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @BeforeEach
     void setUp() {
         when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
+        when(virtualCluster.filterChainFactory()).thenReturn(new FilterChainFactory(null, List.of()));
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(clientConnectionStateMachine.endpointBinding()).thenReturn(endpointBinding);
@@ -114,8 +115,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         handler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
-                virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
@@ -249,8 +248,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         handler = new KafkaProxyFrontendHandler(
                 mock(PluginFactoryRegistry.class),
-                mock(FilterChainFactory.class),
-                List.of(),
                 endpointReconciler,
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
@@ -279,8 +276,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Given
         handler = new KafkaProxyFrontendHandler(
                 mock(PluginFactoryRegistry.class),
-                mock(FilterChainFactory.class),
-                List.of(),
                 endpointReconciler,
                 mock(ApiVersionsServiceImpl.class),
                 DELEGATING_PREDICATE,
@@ -311,8 +306,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         var ccsm = new ClientConnectionStateMachine(endpointBinding, subjectBuilder, session);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
-                virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,
@@ -336,8 +329,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         var ccsm = new ClientConnectionStateMachine(endpointBinding, subjectBuilder, session);
         handler = new KafkaProxyFrontendHandler(
                 pfr,
-                filterChainFactory,
-                virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsServiceImpl(),
                 DELEGATING_PREDICATE,

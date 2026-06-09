@@ -38,8 +38,6 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -75,8 +73,6 @@ public class KafkaProxyFrontendHandler
     private final DelegatingDecodePredicate dp;
     private final ClientConnectionStateMachine clientConnectionStateMachine;
     private final PluginFactoryRegistry pfr;
-    private final FilterChainFactory filterChainFactory;
-    private final List<NamedFilterDefinition> namedFilterDefinitions;
     private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
     private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
@@ -109,8 +105,6 @@ public class KafkaProxyFrontendHandler
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     KafkaProxyFrontendHandler(
                               PluginFactoryRegistry pfr,
-                              FilterChainFactory filterChainFactory,
-                              List<NamedFilterDefinition> namedFilterDefinitions,
                               EndpointReconciler endpointReconciler,
                               ApiVersionsServiceImpl apiVersionsService,
                               DelegatingDecodePredicate dp,
@@ -118,8 +112,6 @@ public class KafkaProxyFrontendHandler
                               ClientConnectionStateMachine clientConnectionStateMachine,
                               Optional<NettySettings> proxyNettySettings) {
         this.pfr = pfr;
-        this.filterChainFactory = filterChainFactory;
-        this.namedFilterDefinitions = namedFilterDefinitions;
         this.endpointReconciler = endpointReconciler;
         this.apiVersionsIntersectFilter = new ApiVersionsIntersectFilter(apiVersionsService);
         this.apiVersionsDowngradeFilter = new ApiVersionsDowngradeFilter(apiVersionsService);
@@ -274,7 +266,10 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
         NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
-        List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, this.namedFilterDefinitions);
+
+        List<FilterAndInvoker> filterChain = clientConnectionStateMachine.virtualCluster()
+                .filterChainFactory()
+                .createFilters(filterContext);
         filterAndInvokers.addAll(filterChain);
 
         if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {

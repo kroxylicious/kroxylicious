@@ -55,7 +55,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
-import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -483,8 +482,6 @@ class ClientConnectionStateMachineEndToEndTest {
                                               DelegatingDecodePredicate dp) {
         var pfr = mock(PluginFactoryRegistry.class);
         return new KafkaProxyFrontendHandler(pfr,
-                new FilterChainFactory(pfr, List.of()),
-                List.of(),
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
@@ -501,6 +498,9 @@ class ClientConnectionStateMachineEndToEndTest {
         when(virtualClusterModel.getClusterName()).thenReturn("cluster");
         TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, "cluster");
         when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
+        // FCF is now resolved per-connection from the VC (see #4055). An empty FCF here is
+        // sufficient — these tests don't exercise filter behavior, just connection flow.
+        when(virtualClusterModel.filterChainFactory()).thenReturn(new io.kroxylicious.proxy.bootstrap.FilterChainFactory(null, java.util.List.of()));
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         EndpointGateway endpointGateway = mock(EndpointGateway.class);
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);

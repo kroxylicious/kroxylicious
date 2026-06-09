@@ -17,12 +17,22 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  * <li>called by the proxy runtime to {@linkplain #createFilter(FilterFactoryContext, Object) create} filter instances</li>
  * </ul>
  *
- * <p>The proxy runtime guarantees that:</p>
+ * <h2>Lifecycle scope</h2>
+ * <p>{@code FilterFactory} instances are scoped <strong>per virtual cluster</strong>: each virtual
+ * cluster that references a filter definition gets its own {@code FilterFactory} instance with its
+ * own {@link #initialize(FilterFactoryContext, Object) initialize}/{@link #close(Object) close}
+ * pair. The same filter type used by two virtual clusters produces two independent instances with
+ * independent initialization data — there is no cross-virtual-cluster sharing. Within a single
+ * virtual cluster, a filter definition referenced multiple times in the chain (e.g. an audit filter
+ * applied before and after a transformation) is initialized once and its initialization data is
+ * shared across all positions in that virtual cluster's chain.</p>
+ *
+ * <p>Per virtual cluster, the proxy runtime guarantees that:</p>
  * <ol>
  *     <li>instances will be {@linkplain  #initialize(FilterFactoryContext, Object) initialized} before any attempt to {@linkplain  #createFilter(FilterFactoryContext, Object) create} filter instances,</li>
  *     <li>instances will eventually be {@linkplain #close(Object)} closed} if and only if they were successfully initialized,</li>
  *     <li>no attempts to create filter instances will be made once a {@code FilterFactory} instance is closed,</li>
- *     <li>instances will be initialized and closed on the same thread.</li>
+ *     <li>{@code initialize} and {@code close} are never invoked on a Netty event loop thread — blocking work (e.g. closing an HTTP/KMS client) is safe in either method.</li>
  * </ol>
  * <p>Filter instance creation can happen on a different thread than initialization or cleanup.
  * It is suggested to pass state using via the return value from {@link #createFilter(FilterFactoryContext, Object)} rather than
@@ -36,10 +46,16 @@ public interface FilterFactory<C, I> {
     /**
      * <p>Initializes the factory with the specified configuration.</p>
      *
-     * <p>This method is guaranteed to be called at most once for each filter configuration and before any call to
-     * {@link #createFilter(FilterFactoryContext, Object)}.
-     * This method may provide extra semantic validation of the config,
-     * and returns some object (which may be the config, or some other object) which will be passed to {@link #createFilter(FilterFactoryContext, Object)}.
+     * <p>This method is guaranteed to be called at most once <em>per virtual cluster</em> for each
+     * filter definition referenced by that virtual cluster, and before any call to
+     * {@link #createFilter(FilterFactoryContext, Object)} on that virtual cluster. Note that
+     * because {@code FilterFactory} instances are per-virtual-cluster (see the class javadoc),
+     * the same filter type used by multiple virtual clusters will see one {@code initialize} call
+     * per virtual cluster — each on a different {@code FilterFactory} instance with its own
+     * initialization data.</p>
+     *
+     * <p>This method may provide extra semantic validation of the config,
+     * and returns some object (which may be the config, or some other object) which will be passed to {@link #createFilter(FilterFactoryContext, Object)}.</p>
      *
      * @param context context
      * @param config configuration

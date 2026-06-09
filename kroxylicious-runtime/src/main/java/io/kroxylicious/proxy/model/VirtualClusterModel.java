@@ -31,6 +31,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
@@ -58,8 +59,28 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Runtime representation of a virtual cluster: its name, target Kafka cluster, gateways,
+ * TLS configuration, and the components whose lifecycle is bound to this VC.
+ *
+ * <h2>Owned resources</h2>
+ * The VCM owns and is responsible for closing two per-VC components:
+ * <ul>
+ *   <li>{@link FilterChainFactory} — the filter chain factory for <em>this</em> VC. Each VCM
+ *       has its own FCF.</li>
+ *   <li>{@link TlsCredentialSupplierManager} — the TLS credential supplier for this VC.</li>
+ * </ul>
+ *
+ * <h2>Lifecycle</h2>
+ * The VCM is created when the VC is configured (or reconfigured via hot-reload), and closed
+ * via {@link #close()} when the VC's lifecycle reaches {@code Stopped}. The
+ * {@code VirtualClusterRegistry} drives the close.
+ *
+ * <p>{@link #close()} is idempotent: the underlying components guard against double-close,
+ * so accidental redundant close calls are safe.
+ */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class VirtualClusterModel {
+public class VirtualClusterModel implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
@@ -85,6 +106,13 @@ public class VirtualClusterModel {
     private TopicNameCacheFilter topicNameCacheFilter = null;
 
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
+
+    /**
+     * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
+     * lifetime is tied to this VCM's lifetime, closed when {@link #close()} is called by
+     * {@code VirtualClusterRegistry} on transition into {@code Stopped}.
+     */
+    private final FilterChainFactory filterChainFactory;
 
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
@@ -129,13 +157,29 @@ public class VirtualClusterModel {
                     .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
                     .orElse(null);
             this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, definition);
+            this.filterChainFactory = new FilterChainFactory(pluginFactoryRegistry, filters);
         }
         else {
             this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
+            // Test-only constructors take this branch. They always pass an empty/null filter
+            // list, so an empty FCF is the right shape — FilterChainFactory tolerates a null
+            // pfr when the chain is empty, which spares tests from building a real
+            // PluginFactoryRegistry.
+            this.filterChainFactory = new FilterChainFactory(null, List.of());
         }
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
+    }
+
+    /**
+     * Returns this VC's filter chain factory. The returned factory is alive for the lifetime
+     * of this VCM; closing the VCM (via {@link #close()}, driven by
+     * {@code VirtualClusterRegistry} on transition into {@code Stopped}) also closes the FCF.
+     * Callers should not retain the reference past the VC's lifetime.
+     */
+    public FilterChainFactory filterChainFactory() {
+        return filterChainFactory;
     }
 
     public Duration drainTimeout() {
@@ -234,11 +278,37 @@ public class VirtualClusterModel {
     }
 
     /**
-     * Closes resources associated with this virtual cluster.
-     * Currently closes the TLS credential supplier manager.
+     * Closes resources associated with this virtual cluster — the TLS credential supplier
+     * manager and the {@link FilterChainFactory}. Called by {@code VirtualClusterRegistry}
+     * on lifecycle transition into {@code Stopped}. Safe to call multiple times — the FCF's
+     * underlying {@code Wrapper.close} is idempotent via an internal {@code AtomicBoolean},
+     * and {@code TlsCredentialSupplierManager.close} tolerates re-entry.
      */
+    @Override
     public void close() {
-        tlsCredentialSupplierManager.close();
+        // Suppress exceptions from FCF close so the TLS close still runs; surface the first
+        // failure at the end so callers see something rather than nothing.
+        RuntimeException firstFailure = null;
+        try {
+            filterChainFactory.close();
+        }
+        catch (RuntimeException e) {
+            firstFailure = e;
+        }
+        try {
+            tlsCredentialSupplierManager.close();
+        }
+        catch (RuntimeException e) {
+            if (firstFailure == null) {
+                firstFailure = e;
+            }
+            else {
+                firstFailure.addSuppressed(e);
+            }
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
     }
 
     /**
