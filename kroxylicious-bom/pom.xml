@@ -101,6 +101,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-cluster-inmemory</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-runtime</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -121,6 +127,12 @@
             <dependency>
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-authorizer-acl</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-router-topic</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -606,12 +606,14 @@
         <module>kroxylicious-kms-providers</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
+        <module>kroxylicious-cluster-inmemory</module>
         <module>kroxylicious-app</module>
         <module>kroxylicious-krpc-plugin</module>
         <module>kroxylicious-integration-test-support</module>
         <module>kroxylicious-filter-test-support</module>
         <module>kroxylicious-filter-archetype</module>
         <module>kroxylicious-runtime</module>
+        <module>kroxylicious-router-topic</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-kubernetes</module>
         <module>kroxylicious-docs</module>

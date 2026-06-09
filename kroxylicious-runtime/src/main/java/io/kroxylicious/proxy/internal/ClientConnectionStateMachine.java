@@ -7,11 +7,14 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
@@ -39,8 +42,12 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -146,6 +153,12 @@ public class ClientConnectionStateMachine {
 
     private final ActivationToken clientToProxyConnectionToken;
 
+    // Server-side metrics (passed to SCSM at construction)
+    private final Counter proxyToServerConnectionCounter;
+    private final Counter proxyToServerErrorCounter;
+    private final Timer serverToProxyBackpressureMeter;
+    private final ActivationToken proxyToServerConnectionToken;
+
     @VisibleForTesting
     @Nullable
     Timer.Sample clientToProxyBackpressureTimer;
@@ -179,12 +192,12 @@ public class ClientConnectionStateMachine {
     private @Nullable KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The server connection state machine. Non-null once the first client request triggers
-     * backend connection setup (transition to {@link Forwarding}).
+     * Server connection state machines, keyed by remote address. Populated when the first client
+     * request triggers backend connection setup (transition to {@link Forwarding}). Currently
+     * contains at most one entry; router will add more.
      */
     @VisibleForTesting
-    @Nullable
-    private ServerConnectionStateMachine serverConnectionStateMachine;
+    final Map<HostPort, ServerConnectionStateMachine> serverConnections = new HashMap<>();
 
     @Nullable
     private String clientSoftwareName;
@@ -193,6 +206,18 @@ public class ClientConnectionStateMachine {
 
     /** Tracks requests received from the client whose response hasn't been forwarded back yet (client↔proxy). */
     private int clientMessagesInFlightCount;
+
+    @Nullable
+    private RoutingResponseCallback routingResponseCallback;
+
+    @Nullable
+    private NodeIdMapping nodeIdMapping;
+
+    @Nullable
+    private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
+
+    @Nullable
+    private Map<String, HostPort> routeTargets;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
@@ -213,8 +238,12 @@ public class ClientConnectionStateMachine {
         clientToProxyDisconnectsDrainCompletedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_COMPLETED.label()).withTags();
         clientToProxyDisconnectsDrainTimeoutCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_TIMEOUT.label()).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
+        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
+        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
+        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
+        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
     }
 
     ClientConnectionState state() {
@@ -228,21 +257,33 @@ public class ClientConnectionStateMachine {
     @VisibleForTesting
     void forceState(ClientConnectionState state,
                     KafkaProxyFrontendHandler frontendHandler,
-                    @Nullable ServerConnectionStateMachine serverConnectionStateMachine,
+                    Map<HostPort, ServerConnectionStateMachine> serverConnections,
                     KafkaSession kafkaSession,
                     boolean transportSubjectReady) {
+        forceState(state, frontendHandler, serverConnections, kafkaSession, transportSubjectReady, null);
+    }
+
+    @VisibleForTesting
+    void forceState(ClientConnectionState state,
+                    KafkaProxyFrontendHandler frontendHandler,
+                    Map<HostPort, ServerConnectionStateMachine> serverConnections,
+                    KafkaSession kafkaSession,
+                    boolean transportSubjectReady,
+                    @Nullable Map<String, HostPort> routeTargets) {
         LOGGER.atInfo()
                 .addKeyValue("sessionId", kafkaSession.sessionId())
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("state", state)
                 .addKeyValue("frontendHandler", frontendHandler)
-                .addKeyValue("serverConnectionStateMachine", serverConnectionStateMachine)
+                .addKeyValue("serverConnections", serverConnections)
                 .log("Forcing state");
         this.state = state;
         this.kafkaSession = kafkaSession;
         this.frontendHandler = frontendHandler;
-        this.serverConnectionStateMachine = serverConnectionStateMachine;
+        this.serverConnections.clear();
+        this.serverConnections.putAll(serverConnections);
         this.transportSubjectReady = transportSubjectReady;
+        this.routeTargets = routeTargets;
     }
 
     @Override
@@ -251,7 +292,7 @@ public class ClientConnectionStateMachine {
                 "state=" + state +
                 ", clientReadsBlocked=" + clientReadsBlocked +
                 ", frontendHandler=" + frontendHandler +
-                ", serverConnectionStateMachine=" + serverConnectionStateMachine +
+                ", serverConnections=" + serverConnections +
                 '}';
     }
 
@@ -295,12 +336,29 @@ public class ClientConnectionStateMachine {
         return clientSoftwareVersion;
     }
 
+    void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
+        this.routingResponseCallback = callback;
+    }
+
+    void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
+        this.nodeIdMapping = nodeIdMapping;
+    }
+
+    void setUpstreamAddressResolver(@Nullable Function<Integer, Optional<HostPort>> resolver) {
+        this.upstreamAddressResolver = resolver;
+    }
+
+    @Nullable
+    public Channel clientChannel() {
+        return frontendHandler != null ? frontendHandler.clientChannel() : null;
+    }
+
     /**
      * Notify the state machine when the client applies back pressure.
      */
     public void onClientUnwritable() {
-        if (serverConnectionStateMachine != null) {
-            serverConnectionStateMachine.applyBackpressure();
+        for (ServerConnectionStateMachine scsm : serverConnections.values()) {
+            scsm.applyBackpressure();
         }
     }
 
@@ -308,15 +366,15 @@ public class ClientConnectionStateMachine {
      * Notify the state machine when the client stops applying back pressure
      */
     public void onClientWritable() {
-        if (serverConnectionStateMachine != null) {
-            serverConnectionStateMachine.relieveBackpressure();
+        for (ServerConnectionStateMachine scsm : serverConnections.values()) {
+            scsm.relieveBackpressure();
         }
     }
 
     /**
      * Notify the state machine when the server applies back pressure
      */
-    public void onServerUnwritable() {
+    void onServerUnwritable(ServerConnectionStateMachine scsm) {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
             clientToProxyBackpressureTimer = Timer.start();
@@ -327,7 +385,7 @@ public class ClientConnectionStateMachine {
     /**
      * Notify the state machine when the server stops applying back pressure
      */
-    public void onServerWritable() {
+    void onServerWritable(ServerConnectionStateMachine scsm) {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
             if (clientToProxyBackpressureTimer != null) {
@@ -364,7 +422,7 @@ public class ClientConnectionStateMachine {
     /**
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection is ready for RPC calls.
      */
-    void onServerConnectionActive() {
+    void onServerConnectionActive(ServerConnectionStateMachine scsm) {
         if (state() instanceof Forwarding) {
             kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         }
@@ -397,9 +455,27 @@ public class ClientConnectionStateMachine {
      * upstream node and should be passed to the downstream client.
      * @param msg the object received from the upstream
      */
-    void onResponseFromServer(Object msg) {
-        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+    void onResponseFromServer(ServerConnectionStateMachine scsm,
+                              Object msg) {
+        boolean claimedByRouter = routingResponseCallback != null && routingResponseCallback.onResponse(msg);
+        if (!claimedByRouter) {
+            Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+            decrementInFlightCount();
+        }
+    }
 
+    /**
+     * Signals that a dynamically-routed client request has been fully handled.
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * when the router's {@code onRequest} future completes and the composed
+     * response has been sent to the client. This maintains the 1:1 invariant between
+     * {@link #onRequest} increments and decrements during fan-out.
+     */
+    public void onRoutedRequestComplete() {
+        decrementInFlightCount();
+    }
+
+    private void decrementInFlightCount() {
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
         if (state instanceof ClientConnectionState.Draining draining) {
@@ -423,7 +499,7 @@ public class ClientConnectionStateMachine {
     /**
      * Callback from {@link ServerConnectionStateMachine} when reading the upstream batch is complete.
      */
-    void onServerReadComplete() {
+    void onServerReadComplete(ServerConnectionStateMachine scsm) {
         Objects.requireNonNull(frontendHandler).flushToClient();
     }
 
@@ -439,9 +515,9 @@ public class ClientConnectionStateMachine {
      *
      * @param msg the RPC received from the upstream
      */
-    void onClientFilterChainComplete(Object msg) {
+    public void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
-            Objects.requireNonNull(serverConnectionStateMachine).sendRequest(msg);
+            serverConnections.values().iterator().next().sendRequest(msg);
         }
         else {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
@@ -453,8 +529,8 @@ public class ClientConnectionStateMachine {
      * @param msg the RPC received from the downstream client
      */
 
-    void onClientRequest(
-                         Object msg) {
+    void onRequest(
+                   Object msg) {
         Objects.requireNonNull(frontendHandler);
         // Count every msg received from the client.
         clientMessagesInFlightCount++;
@@ -484,7 +560,7 @@ public class ClientConnectionStateMachine {
                 }
             }
         }
-        else if (!onClientRequestBeforeForwarding(msg)) {
+        else if (!onRequestBeforeForwarding(msg)) {
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
@@ -493,7 +569,8 @@ public class ClientConnectionStateMachine {
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection has been disconnected.
      * @param disconnectCause the cause of the disconnection
      */
-    void onServerConnectionClosed(DisconnectCause disconnectCause) {
+    void onServerConnectionClosed(ServerConnectionStateMachine scsm,
+                                  DisconnectCause disconnectCause) {
         toClosed(null, disconnectCause);
     }
 
@@ -583,11 +660,11 @@ public class ClientConnectionStateMachine {
      */
     private void onDraining(Runnable onDrained, CompletableFuture<Void> closedFuture) {
         if (!(state instanceof Forwarding)) {
-            LOGGER.atWarn()
+            LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
-                    .log("Cannot start draining — not in Forwarding state");
+                    .log("Drain requested for connection not yet in Forwarding state — completing immediately");
             onDrained.run();
             return;
         }
@@ -601,7 +678,7 @@ public class ClientConnectionStateMachine {
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                 .addKeyValue("serverMessagesInFlightCount",
-                        serverConnectionStateMachine != null ? serverConnectionStateMachine.serverMessagesInFlightCount : 0)
+                        serverConnections.values().stream().mapToInt(s -> s.serverMessagesInFlightCount).sum())
                 .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
 
         if (clientMessagesInFlightCount <= 0) {
@@ -651,7 +728,8 @@ public class ClientConnectionStateMachine {
      * un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
      */
-    void onServerConnectionException(@Nullable Throwable cause) {
+    void onServerConnectionException(ServerConnectionStateMachine scsm,
+                                     @Nullable Throwable cause) {
         toClosed(cause);
     }
 
@@ -761,7 +839,7 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
-    Subject authenticatedSubject() {
+    public Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 
@@ -775,13 +853,119 @@ public class ClientConnectionStateMachine {
     private void toForwarding(Forwarding forwarding,
                               HostPort remote) {
         setState(forwarding);
-        serverConnectionStateMachine = createServerConnection(remote);
+        proxyToServerConnectionCounter.increment();
+        var scsm = createServerConnection(remote);
+        serverConnections.put(remote, scsm);
         var frontend = Objects.requireNonNull(frontendHandler);
-        serverConnectionStateMachine.connect(Objects.requireNonNull(frontend.clientChannel()));
+        scsm.connect(Objects.requireNonNull(frontend.clientChannel()));
         log(Level.DEBUG)
                 .addKeyValue("remote", remote)
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
                 .log("Upstream connection initiated for client");
+    }
+
+    @SuppressWarnings("java:S5738")
+    private void toForwardingWithRoutes(Forwarding forwarding) {
+        setState(forwarding);
+        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
+        routeTargets = new HashMap<>();
+
+        // When the client connected to a broker-specific port (after metadata discovery),
+        // the owning route should connect to that specific broker instead of the bootstrap.
+        String owningRoute = null;
+        HostPort brokerTarget = null;
+        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
+            var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
+            owningRoute = routeAndNode.route();
+            brokerTarget = beb.upstreamTarget();
+        }
+
+        var frontend = Objects.requireNonNull(frontendHandler);
+        Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
+        for (var entry : descriptors.entrySet()) {
+            RouteDescriptor rd = entry.getValue();
+            if (rd.targetsCluster()) {
+                HostPort target;
+                if (entry.getKey().equals(owningRoute)) {
+                    target = brokerTarget;
+                }
+                else {
+                    target = rd.targetCluster().bootstrapServer();
+                }
+                routeTargets.put(entry.getKey(), target);
+                if (!serverConnections.containsKey(target)) {
+                    proxyToServerConnectionCounter.increment();
+                    var scsm = createServerConnection(target);
+                    serverConnections.put(target, scsm);
+                    scsm.connect(clientChannel);
+                }
+            }
+        }
+        log(Level.DEBUG)
+                .addKeyValue("routeCount", routeTargets.size())
+                .addKeyValue("backendCount", serverConnections.size())
+                .addKeyValue("routeTargets", () -> routeTargets.toString())
+                .log("Upstream connections initiated for router VC");
+    }
+
+    /**
+     * Forward a message to the backend connection for the named route.
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * for both static and dynamic router paths.
+     */
+    public void forwardToRoute(String routeName, Object msg) {
+        if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
+            HostPort target = routeTargets.get(routeName);
+            if (target == null) {
+                illegalState("Unknown route: " + routeName);
+                return;
+            }
+            ServerConnectionStateMachine scsm = serverConnections.get(target);
+            scsm.sendRequest(msg);
+            log(Level.TRACE)
+                    .addKeyValue("route", routeName)
+                    .addKeyValue("routeTarget", target)
+                    .log("Request forwarded to backend for route");
+        }
+        else {
+            illegalState("forwardToRoute in unexpected state");
+        }
+    }
+
+    /**
+     * Forward a message to the backend broker identified by the virtual node ID.
+     * Creates a new server connection if one does not already exist for the
+     * resolved upstream address.
+     */
+    public void forwardToNode(int virtualNodeId, String routeName, Object msg) {
+        if (!(state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining)) {
+            illegalState("forwardToNode in unexpected state");
+            return;
+        }
+        if (upstreamAddressResolver == null) {
+            throw new IllegalStateException("No upstream address resolver configured");
+        }
+        Optional<HostPort> resolved = upstreamAddressResolver.apply(virtualNodeId);
+        if (resolved.isEmpty()) {
+            throw new IllegalStateException(
+                    "Upstream address not yet known for virtual node ID " + virtualNodeId);
+        }
+        HostPort target = resolved.get();
+        ServerConnectionStateMachine scsm = serverConnections.get(target);
+        if (scsm == null) {
+            proxyToServerConnectionCounter.increment();
+            scsm = createServerConnection(target);
+            serverConnections.put(target, scsm);
+            Channel clientChannel = Objects.requireNonNull(
+                    Objects.requireNonNull(frontendHandler).clientChannel());
+            scsm.connect(clientChannel);
+        }
+        scsm.sendRequest(msg);
+        log(Level.TRACE)
+                .addKeyValue("route", routeName)
+                .addKeyValue("virtualNodeId", virtualNodeId)
+                .addKeyValue("routeTarget", target)
+                .log("Request forwarded to specific node");
     }
 
     @VisibleForTesting
@@ -791,7 +975,10 @@ public class ClientConnectionStateMachine {
                 this,
                 virtualCluster(),
                 clusterName(),
-                nodeId());
+                nodeId(),
+                proxyToServerErrorCounter,
+                serverToProxyBackpressureMeter,
+                proxyToServerConnectionToken);
     }
 
     /**
@@ -801,7 +988,7 @@ public class ClientConnectionStateMachine {
      * @param msg Message received from the downstream client.
      * @return {@code false} for unsupported message types
      */
-    private boolean onClientRequestBeforeForwarding(Object msg) {
+    private boolean onRequestBeforeForwarding(Object msg) {
         Objects.requireNonNull(frontendHandler).bufferMsg(msg);
         if (state() instanceof ClientConnectionState.ClientActive clientActive) {
             return transitionToForwarding(msg, clientActive::toForwarding);
@@ -822,8 +1009,13 @@ public class ClientConnectionStateMachine {
             this.clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
         }
         if (msg instanceof RequestFrame) {
-            var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-            toForwarding(forwardingFactory.get(), target);
+            if (virtualCluster().usesRouter()) {
+                toForwardingWithRoutes(forwardingFactory.get());
+            }
+            else {
+                var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+                toForwarding(forwardingFactory.get(), target);
+            }
             tryUnblockClient();
             return true;
         }
@@ -857,10 +1049,11 @@ public class ClientConnectionStateMachine {
         incrementAppropriateDisconnectsMetric(disconnectCause);
 
         kafkaSession.transitionTo(KafkaSessionState.TERMINATING);
-        // Close the server connection
-        if (serverConnectionStateMachine != null) {
-            serverConnectionStateMachine.close();
+        // Close all server connections
+        for (ServerConnectionStateMachine scsm : serverConnections.values()) {
+            scsm.close();
         }
+        serverConnections.clear();
 
         // Close the client connection
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
@@ -879,7 +1072,7 @@ public class ClientConnectionStateMachine {
                     .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
                     .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                     .addKeyValue("serverMessagesInFlightCount",
-                            serverConnectionStateMachine != null ? serverConnectionStateMachine.serverMessagesInFlightCount : 0)
+                            serverConnections.values().stream().mapToInt(s -> s.serverMessagesInFlightCount).sum())
                     .log("Drain interrupted by connection close — signalling drain policy from toClosed path");
             pendingDrainCallback.run();
         }

@@ -42,6 +42,11 @@ public class Metrics {
     public static final String API_VERSION_LABEL = "api_version";
     public static final String DECODED_LABEL = "decoded";
 
+    // Routing Labels
+    public static final String ROUTE_LABEL = "route";
+    public static final String ROUTING_MODE_LABEL = "routing_mode";
+    public static final String ERROR_TYPE_LABEL = "error_type";
+
     // Base Metric Names
 
     private static final String CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME = "kroxylicious_client_to_proxy_request";
@@ -58,6 +63,12 @@ public class Metrics {
     private static final String CLIENT_TO_PROXY_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_active_connections";
     private static final String PROXY_TO_SERVER_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_active_connections";
     private static final String SIZE_SUFFIX = "_size";
+
+    // Routing Metric Names
+    private static final String ROUTING_REQUESTS_BASE_METER_NAME = "kroxylicious_routing_requests";
+    private static final String ROUTING_ERRORS_BASE_METER_NAME = "kroxylicious_routing_errors";
+    private static final String ROUTING_REQUEST_DURATION_BASE_METER_NAME = "kroxylicious_routing_request_duration";
+    private static final String ROUTING_PENDING_RESPONSES_BASE_METER_NAME = "kroxylicious_routing_pending_responses";
 
     /**
      * Name of the build_info metric.  Note that the {@code .info} suffix is significant
@@ -220,6 +231,49 @@ public class Metrics {
                     .register(globalRegistry);
             return activeCount;
         });
+    }
+
+    // Routing metrics
+
+    public static MeterProvider<Counter> routingRequestsCounter(String clusterName,
+                                                                @Nullable Integer nodeId) {
+        return Counter
+                .builder(ROUTING_REQUESTS_BASE_METER_NAME)
+                .description("Count of requests dispatched via router.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    public static MeterProvider<Counter> routingErrorsCounter(String clusterName,
+                                                              @Nullable Integer nodeId) {
+        return Counter
+                .builder(ROUTING_ERRORS_BASE_METER_NAME)
+                .description("Count of router errors.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    public static MeterProvider<Timer> routingRequestDurationTimer(String clusterName,
+                                                                   @Nullable Integer nodeId) {
+        return Timer
+                .builder(ROUTING_REQUEST_DURATION_BASE_METER_NAME)
+                .description("Time from request dispatch to response receipt for dynamically routed requests.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    public static Gauge routingPendingResponsesGauge(String clusterName,
+                                                     @Nullable Integer nodeId,
+                                                     AtomicInteger pendingCount) {
+        return Gauge.builder(ROUTING_PENDING_RESPONSES_BASE_METER_NAME, pendingCount, AtomicInteger::get)
+                .strongReference(true)
+                .description("Number of currently pending router responses.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .register(globalRegistry);
     }
 
     public static Counter taggedCounter(String counterName, List<Tag> tags) {

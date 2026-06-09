@@ -229,7 +229,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             ChannelHandlerContext ctx,
                             Object msg) {
-        clientConnectionStateMachine.onClientRequest(msg);
+        clientConnectionStateMachine.onRequest(msg);
     }
 
     /**
@@ -278,7 +278,8 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(filterChain);
 
         if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
-            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
+            boolean closeAfterLearning = !clientConnectionStateMachine.virtualCluster().usesRouter();
+            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner(closeAfterLearning)));
         }
         filterAndInvokers
                 .addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", clientConnectionStateMachine.virtualCluster().getTopicNameCacheFilter()));

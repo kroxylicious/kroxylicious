@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Kroxylicious proxy configuration for the topic router demo.
+#
+# Routes topics by name prefix across two independent Kafka clusters:
+#   a.* topics → cluster-a (default route)
+#   b.* topics → cluster-b
+#
+# SASL PLAIN authentication identifies users for subject-based router
+# of transactions and consumer groups.
+
+---
+management:
+  endpoints:
+    prometheus: {}
+clusterDefinitions:
+  - name: cluster-a
+    bootstrapServers: kafka-a-1:9093
+  - name: cluster-b
+    bootstrapServers: kafka-b-1:9093
+filterDefinitions:
+  - name: sasl-inspection
+    type: io.kroxylicious.filter.sasl.inspection.SaslInspection
+    config:
+      enabledMechanisms:
+        - PLAIN
+defaultFilters:
+  - sasl-inspection
+routerDefinitions:
+  - name: topic-router
+    type: io.kroxylicious.router.topic.TopicPartitionRouterFactory
+    config:
+      defaultRoute: route-a
+      routes:
+        - name: route-a
+          topicPrefixes:
+            - "a."
+        - name: route-b
+          topicPrefixes:
+            - "b."
+          subjects:
+            - bob
+    routes:
+      - name: route-a
+        id: 0
+        target:
+          cluster: cluster-a
+      - name: route-b
+        id: 1
+        target:
+          cluster: cluster-b
+virtualClusters:
+  - name: demo
+    target:
+      router: topic-router
+    gateways:
+      - name: host
+        portIdentifiesNode:
+          bootstrapAddress: kroxylicious:9192
+          nodeIdRanges:
+            - name: brokers
+              start: 0
+              end: 8

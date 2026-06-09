@@ -423,14 +423,16 @@ class KafkaProxyInitializerTest {
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
         return new KafkaProxyInitializer(filterChainFactory,
+                null,
                 pfr,
                 tls,
                 bindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
+                mock(io.kroxylicious.proxy.internal.net.EndpointReconciler.class),
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),
-                vcc);
+                vcc,
+                null);
     }
 
     private void assertErrorHandlerAdded() {

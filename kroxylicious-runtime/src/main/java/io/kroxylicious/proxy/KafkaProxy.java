@@ -30,6 +30,7 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.IoHandlerFactory;
 import io.netty.channel.MultiThreadIoEventLoopGroup;
@@ -48,6 +49,8 @@ import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.cluster.ProxyCluster;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
@@ -157,25 +160,51 @@ public final class KafkaProxy implements AutoCloseable {
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    private final @Nullable ProxyCluster proxyCluster;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
+    private @Nullable RouterChainFactory routerChainFactory;
 
     private @Nullable ConfigurationReloadOrchestrator reconfigureOrchestrator;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig proxyEventGroup;
+    private @Nullable EventLoopGroup routeFilterEventLoopGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
-        this(pfr, config, features, defaultRegistry(config, pfr));
+        this(pfr, config, features, defaultRegistry(config, pfr), null);
+    }
+
+    public KafkaProxy(
+                      PluginFactoryRegistry pfr,
+                      Configuration config,
+                      Features features,
+                      @Nullable ProxyCluster proxyCluster) {
+        this(pfr, config, features, defaultRegistry(config, pfr), proxyCluster);
     }
 
     @VisibleForTesting
-    KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, VirtualClusterRegistry virtualClusterRegistry) {
+    KafkaProxy(
+               PluginFactoryRegistry pfr,
+               Configuration config,
+               Features features,
+               VirtualClusterRegistry virtualClusterRegistry) {
+        this(pfr, config, features, virtualClusterRegistry, null);
+    }
+
+    @VisibleForTesting
+    KafkaProxy(
+               PluginFactoryRegistry pfr,
+               Configuration config,
+               Features features,
+               VirtualClusterRegistry virtualClusterRegistry,
+               @Nullable ProxyCluster proxyCluster) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterRegistry = requireNonNull(virtualClusterRegistry);
         this.virtualClusterModels = virtualClusterRegistry.virtualClusterModels();
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+        this.proxyCluster = proxyCluster;
     }
 
     private static VirtualClusterRegistry defaultRegistry(Configuration config, PluginFactoryRegistry pfr) {
@@ -268,18 +297,26 @@ public final class KafkaProxy implements AutoCloseable {
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
+            this.routerChainFactory = new RouterChainFactory(pfr, config.virtualClusters(), config.routerDefinitions());
             this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
                     config, virtualClusterRegistry, endpointRegistry, pfr,
                     ConfigurationReloadOrchestrator.defaultDetectors());
+            this.routeFilterEventLoopGroup = new DefaultEventLoopGroup(1);
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
             var proxyProtocolMode = config.proxyProtocolMode();
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, proxyProtocolMode,
-                            apiVersionsService, proxyNettySettings, virtualClusterRegistry));
+                    new KafkaProxyInitializer(filterChainFactory, routerChainFactory,
+                            pfr, true, endpointRegistry, endpointRegistry,
+                            proxyProtocolMode, apiVersionsService,
+                            proxyNettySettings, virtualClusterRegistry,
+                            routeFilterEventLoopGroup));
             var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, proxyProtocolMode,
-                            apiVersionsService, proxyNettySettings, virtualClusterRegistry));
+                    new KafkaProxyInitializer(filterChainFactory, routerChainFactory,
+                            pfr, false, endpointRegistry, endpointRegistry,
+                            proxyProtocolMode, apiVersionsService,
+                            proxyNettySettings, virtualClusterRegistry,
+                            routeFilterEventLoopGroup));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -468,10 +505,16 @@ public final class KafkaProxy implements AutoCloseable {
             if (managementEventGroup != null) {
                 closeFutures.addAll(managementEventGroup.shutdownGracefully());
             }
+            if (routeFilterEventLoopGroup != null) {
+                closeFutures.add(routeFilterEventLoopGroup.shutdownGracefully());
+            }
             closeFutures.forEach(Future::syncUninterruptibly);
 
             if (filterChainFactory != null) {
                 filterChainFactory.close();
+            }
+            if (routerChainFactory != null) {
+                routerChainFactory.close();
             }
             if (meterRegistries != null) {
                 meterRegistries.close();
@@ -484,6 +527,7 @@ public final class KafkaProxy implements AutoCloseable {
             proxyEventGroup = null;
             meterRegistries = null;
             filterChainFactory = null;
+            routerChainFactory = null;
             reconfigureOrchestrator = null;
             shutdown.complete(null);
             LOGGER.atInfo()

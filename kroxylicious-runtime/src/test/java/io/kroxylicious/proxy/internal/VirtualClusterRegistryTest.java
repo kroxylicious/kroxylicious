@@ -709,29 +709,27 @@ class VirtualClusterRegistryTest {
         // when
         vcc.removeVirtualCluster(CLUSTER_A).join();
 
-        // then — callback invoked with (clusterName, Optional.empty()) per the no-failure case
+        // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
 
     @Test
     void removeVirtualClusterIsNoOpWhenAlreadyStopped() {
-        // given — drive the cluster to Stopped via the normal remove path
+        // given
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.removeVirtualCluster(CLUSTER_A).join();
         assertThat(requireLifecycle(CLUSTER_A).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
 
-        // when — call remove again on an already-Stopped cluster
+        // when
         var future = vcc.removeVirtualCluster(CLUSTER_A);
 
-        // then — completes immediately, no exception
+        // then
         assertThat(future).succeedsWithin(1, TimeUnit.SECONDS);
         assertThat(requireLifecycle(CLUSTER_A).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
     void removeVirtualClusterThrowsForUnknownClusterName() {
-        // The real removeVirtualCluster validates via requireKnownCluster, unlike the previous
-        // stub which silently accepted unknown names.
         assertThatThrownBy(() -> vcc.removeVirtualCluster("never-existed"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown cluster");
@@ -746,8 +744,7 @@ class VirtualClusterRegistryTest {
         // when
         var future = vcc.addVirtualCluster(newModel);
 
-        // then — future already completed; lifecycle exists in INITIALIZING (orchestrator will
-        // call initializationSucceeded once gateways are bound).
+        // then
         assertThat(future).isCompleted();
         assertThat(vcc.lifecycleFor(CLUSTER_B)).isNotNull()
                 .extracting(VirtualClusterLifecycle::state)

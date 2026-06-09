@@ -6,10 +6,15 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +24,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
@@ -28,6 +34,7 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -39,8 +46,14 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -61,6 +74,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
+    @Nullable
+    private final RouterChainFactory routerChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
@@ -68,9 +83,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @Nullable
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
+    @Nullable
+    private final EventLoopGroup routeFilterEventLoopGroup;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+                                 @Nullable RouterChainFactory routerChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
@@ -78,18 +96,21 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  ProxyProtocolMode proxyProtocolMode,
                                  ApiVersionsServiceImpl apiVersionsService,
                                  Optional<NettySettings> proxyNettySettings,
-                                 VirtualClusterRegistry virtualClusterRegistry) {
+                                 VirtualClusterRegistry virtualClusterRegistry,
+                                 @Nullable EventLoopGroup routeFilterEventLoopGroup) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = Objects.requireNonNull(filterChainFactory, "filterChainFactory");
+        this.routerChainFactory = routerChainFactory;
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
         unauthenticatedIdleMillis = getUnAuthenticatedIdleMillis(this.proxyNettySettings);
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry);
+        this.routeFilterEventLoopGroup = routeFilterEventLoopGroup;
     }
 
     @Override
@@ -256,14 +277,76 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
-        // Filter Handlers will be installed at this point in the pipeline by KafkaProxyFrontendHandler when the client channel fires channelActive()
-        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(clientConnectionStateMachine));
+        configureRouterDispatch(pipeline, virtualCluster, binding, dp, clientConnectionStateMachine);
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()
                 .addKeyValue("channelId", ch::toString)
                 .addKeyValue("pipeline", pipeline)
                 .log("Initial pipeline");
+    }
+
+    private void configureRouterDispatch(
+                                         ChannelPipeline pipeline,
+                                         VirtualClusterModel virtualCluster,
+                                         EndpointBinding binding,
+                                         DelegatingDecodePredicate dp,
+                                         ClientConnectionStateMachine clientConnectionStateMachine) {
+        if (virtualCluster.usesRouter() && routerChainFactory != null) {
+            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
+            var routeDescriptors = virtualCluster.routeDescriptors();
+            Map<ApiKeys, String> staticRoutes = router.staticRoutes();
+            if (!staticRoutes.isEmpty()) {
+                Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
+                for (var entry : staticRoutes.entrySet()) {
+                    RouteDescriptor rd = routeDescriptors.get(entry.getValue());
+                    if (rd != null && rd.filters().isEmpty()) {
+                        dynamicallyRoutedKeys.remove(entry.getKey());
+                    }
+                }
+                dp.setRouterDecodingRequirements(dynamicallyRoutedKeys);
+            }
+            else {
+                dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
+            }
+            var clusterName = virtualCluster.getClusterName();
+            var nodeId = binding.nodeId();
+            var routingRequestsCounter = Metrics.routingRequestsCounter(clusterName, nodeId);
+            var routingErrorsCounter = Metrics.routingErrorsCounter(clusterName, nodeId);
+            var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
+            var pendingResponseCount = new AtomicInteger();
+            Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
+            var routeIds = routeDescriptors.entrySet().stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> e.getValue().id()));
+            NodeIdMapping nodeIdMapping = routeIds.size() > 1
+                    ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
+                    : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
+            var routeFilterSupport = routeFilterEventLoopGroup != null
+                    ? new RouterDispatchHandler.RouteFilterSupport(
+                            filterChainFactory, pfr, extractSniHostname(pipeline), routeFilterEventLoopGroup)
+                    : null;
+            var nestedRoutingSupport = new RouterDispatchHandler.NestedRoutingSupport(
+                    routerChainFactory, virtualCluster.allRouteDescriptors(), virtualCluster.getClusterName());
+            var dispatchHandler = new RouterDispatchHandler(
+                    router, routeDescriptors, staticRoutes, clientConnectionStateMachine,
+                    nodeIdMapping,
+                    routingRequestsCounter, routingErrorsCounter,
+                    routingRequestDurationTimer, pendingResponseCount,
+                    routeFilterSupport, nestedRoutingSupport);
+            clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
+            clientConnectionStateMachine.setUpstreamAddressResolver(
+                    virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)
+                            .or(() -> endpointReconciler.upstreamAddress(
+                                    clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
+            clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
+            pipeline.addLast("routerDispatchHandler", dispatchHandler);
+        }
+        else {
+            pipeline.addLast("filterChainCompletionHandler",
+                    new FilterChainCompletionHandler(clientConnectionStateMachine));
+        }
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
@@ -282,6 +365,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(clusterName, nodeId);
         return new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
+    }
+
+    @Nullable
+    private static String extractSniHostname(ChannelPipeline pipeline) {
+        SniHandler sniHandler = pipeline.get(SniHandler.class);
+        return sniHandler != null ? sniHandler.hostname() : null;
     }
 
     private void rejectConnection(Channel ch, String clusterName) {
