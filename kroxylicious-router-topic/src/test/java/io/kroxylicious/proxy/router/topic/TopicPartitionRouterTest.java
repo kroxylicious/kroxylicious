@@ -94,7 +94,7 @@ class TopicPartitionRouterTest {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
         router = new TopicPartitionRouter(table, "default-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
     }
 
     // --- close ---
@@ -105,7 +105,7 @@ class TopicPartitionRouterTest {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), "default-route");
         var closeable = new TopicPartitionRouter(table, "default-route", Map.of(),
-                new ProducerIdManager(Duration.ofDays(7)), cache, new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new ProducerIdManager(Duration.ofDays(7)), cache, Clock.systemUTC(), "testVc", "testRouter");
 
         var request = fetchRequest("orders.uk");
         request.setSessionId(0);
@@ -243,7 +243,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = produceRequest("orders.uk", "logs.app");
         var respA = produceResponse("orders.uk", 0, Errors.NONE);
@@ -341,7 +341,7 @@ class TopicPartitionRouterTest {
         var singleRouteTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "only-route"), null);
         var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = new InitProducerIdRequestData()
                 .setTransactionTimeoutMs(60000);
@@ -721,7 +721,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = fetchRequest("orders.uk", "unknown.topic");
         request.setSessionId(0);
@@ -751,7 +751,6 @@ class TopicPartitionRouterTest {
         var sessionRouter = new TopicPartitionRouter(table, "default-route", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 10_000, "testVc", "testRouter"),
-                new SharedTopicIdCache(),
                 Clock.systemUTC(), "testVc", "testRouter");
 
         primeLeaderCache(sessionRouter, 1, "orders.uk");
@@ -855,7 +854,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = listOffsetsRequest("orders.uk", "unknown.topic");
         var respA = listOffsetsResponse("orders.uk", 0, Errors.NONE);
@@ -931,7 +930,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), new SharedTopicIdCache(), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
 
         var request = offsetCommitRequest("orders.uk", "unknown.topic");
         var respA = offsetCommitResponse("orders.uk", 0, Errors.NONE);
@@ -1047,7 +1046,6 @@ class TopicPartitionRouterTest {
         var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                new SharedTopicIdCache(),
                 Clock.systemUTC(), "testVc", "testRouter");
 
         var request = new DescribeClusterRequestData()
@@ -1080,7 +1078,6 @@ class TopicPartitionRouterTest {
         var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                new SharedTopicIdCache(),
                 Clock.systemUTC(), "testVc", "testRouter");
 
         var request = new DescribeClusterRequestData();
@@ -1112,7 +1109,6 @@ class TopicPartitionRouterTest {
         var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                new SharedTopicIdCache(),
                 Clock.systemUTC(), "testVc", "testRouter");
 
         var request = new DescribeClusterRequestData();
@@ -1454,7 +1450,6 @@ class TopicPartitionRouterTest {
                 Map.of("cg-user", mappedRoute),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                new SharedTopicIdCache(),
                 Clock.systemUTC(), "testVc", "testRouter");
     }
 
@@ -1469,7 +1464,6 @@ class TopicPartitionRouterTest {
                 Map.of("txn-user", mappedRoute),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                new SharedTopicIdCache(),
                 Clock.systemUTC(), "testVc", "testRouter");
     }
 

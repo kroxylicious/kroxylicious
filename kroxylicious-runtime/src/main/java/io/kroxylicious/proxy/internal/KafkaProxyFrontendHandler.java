@@ -52,6 +52,8 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.filter.impl.TopicIdRequestEnrichmentFilter;
+import io.kroxylicious.proxy.internal.filter.impl.TopicIdResponseEnrichmentFilter;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -404,6 +406,17 @@ public class KafkaProxyFrontendHandler
                             new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
                                     clientConnectionStateMachine, routeName));
                 }
+                // Install per-cluster topicId response enrichment as the last route
+                // filter (closest to terminal), so it enriches responses before
+                // per-route user filters see them.
+                for (FilterAndInvoker fi : FilterAndInvoker.build(
+                        "TopicIdResponseEnrichment-" + routeName + " (internal)",
+                        new TopicIdResponseEnrichmentFilter())) {
+                    pipeline.addBefore("routingTerminalHandler",
+                            "routeFilter-" + routeName + "-internal-TopicIdResponseEnrichment",
+                            new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                                    clientConnectionStateMachine, routeName));
+                }
             }
         }
     }
@@ -415,6 +428,7 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
+        filterAndInvokers.addAll(FilterAndInvoker.build("TopicIdRequestEnrichment (internal)", new TopicIdRequestEnrichmentFilter()));
 
         if (includeUserFilters) {
             NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
