@@ -447,4 +447,110 @@ class RouteClusterIngressNetworkingModelTest {
     private static NodeIdRanges createNodeIdRange(@Nullable String name, long start, long endInclusive) {
         return new NodeIdRangesBuilder().withName(name).withStart(start).withEnd(endInclusive).build();
     }
+
+    @Test
+    void serviceIncludesInfrastructureAnnotations() {
+        // given
+        KafkaProxyIngress ingressWithAnnotations = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(INGRESS_NAME)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withNewInfrastructure()
+                .addToAnnotations("example.com/custom", "test-value")
+                .addToAnnotations("haproxy.router.openshift.io/timeout", "60s")
+                .endInfrastructure()
+                .withNewOpenShiftRoute()
+                .endOpenShiftRoute()
+                .withNewProxyRef()
+                .withName(PROXY_NAME)
+                .endProxyRef()
+                .endSpec()
+                .build();
+
+        // when
+        ClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations,
+                ingressWithAnnotations.getSpec().getOpenShiftRoute(), List.of(NODE_ID_RANGE), TLS, 5, List.of());
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // then
+        assertThat(serviceBuilders).singleElement().satisfies(serviceBuild -> {
+            Service service = serviceBuild.build();
+            assertThat(service.getMetadata().getAnnotations())
+                    .containsEntry("example.com/custom", "test-value")
+                    .containsEntry("haproxy.router.openshift.io/timeout", "60s")
+                    .containsKey("kroxylicious.io/bootstrap-servers");
+        });
+    }
+
+    @Test
+    void serviceWithoutInfrastructureAnnotations() {
+        // given - using INGRESS without infrastructure annotations
+        ClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, ROUTE, List.of(NODE_ID_RANGE), TLS, 5,
+                List.of());
+
+        // when
+        List<ServiceBuilder> serviceBuilders = instance.services().toList();
+
+        // then - only operator-managed annotation present
+        assertThat(serviceBuilders).singleElement().satisfies(serviceBuild -> {
+            Service service = serviceBuild.build();
+            assertThat(service.getMetadata().getAnnotations())
+                    .containsOnlyKeys("kroxylicious.io/bootstrap-servers");
+        });
+    }
+
+    @Test
+    void routeIncludesInfrastructureAnnotations() {
+        // given
+        KafkaProxyIngress ingressWithAnnotations = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(INGRESS_NAME)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withNewInfrastructure()
+                .addToAnnotations("example.com/custom", "test-value")
+                .addToAnnotations("haproxy.router.openshift.io/timeout", "60s")
+                .endInfrastructure()
+                .withNewOpenShiftRoute()
+                .endOpenShiftRoute()
+                .withNewProxyRef()
+                .withName(PROXY_NAME)
+                .endProxyRef()
+                .endSpec()
+                .build();
+
+        // when
+        ClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, ingressWithAnnotations,
+                ingressWithAnnotations.getSpec().getOpenShiftRoute(), List.of(NODE_ID_RANGE), TLS, 5, List.of());
+        List<RouteBuilder> routeBuilders = instance.routes().toList();
+
+        // then
+        assertThat(routeBuilders).isNotEmpty().allSatisfy(routeBuild -> {
+            Route route = routeBuild.build();
+            assertThat(route.getMetadata().getAnnotations())
+                    .containsEntry("example.com/custom", "test-value")
+                    .containsEntry("haproxy.router.openshift.io/timeout", "60s")
+                    .containsKey("kroxylicious.io/bootstrap-servers");
+        });
+    }
+
+    @Test
+    void routeWithoutInfrastructureAnnotations() {
+        // given - using INGRESS without infrastructure annotations
+        ClusterIngressNetworkingModel instance = new RouteClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, ROUTE, List.of(NODE_ID_RANGE), TLS, 5,
+                List.of());
+
+        // when
+        List<RouteBuilder> routeBuilders = instance.routes().toList();
+
+        // then - only operator-managed annotation present
+        assertThat(routeBuilders).isNotEmpty().allSatisfy(routeBuild -> {
+            Route route = routeBuild.build();
+            assertThat(route.getMetadata().getAnnotations())
+                    .containsOnlyKeys("kroxylicious.io/bootstrap-servers");
+        });
+    }
 }

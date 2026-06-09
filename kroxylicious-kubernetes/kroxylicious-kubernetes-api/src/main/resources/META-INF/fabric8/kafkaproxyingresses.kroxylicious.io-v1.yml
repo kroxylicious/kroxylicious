@@ -71,6 +71,27 @@ spec:
                       maxLength: 253
                       minLength: 1
                       type: string
+                infrastructure:
+                  type: object
+                  description: |
+                    Infrastructure-level settings for ingress resources created by this KafkaProxyIngress.
+                    Controls annotations applied to Services and Routes created for this ingress.
+                  properties:
+                    annotations:
+                      type: object
+                      description: |
+                        Annotations to be applied to Services and Routes created for this KafkaProxyIngress.
+                        Examples:
+                        - AWS Load Balancer Controller: service.beta.kubernetes.io/aws-load-balancer-type
+                        - OpenShift service-serving-cert: service.beta.openshift.io/serving-cert-secret-name
+                        - HAProxy timeout annotations for Routes
+                      additionalProperties:
+                        type: string
+                      x-kubernetes-validations:
+                        - rule: "self.all(key, size(key) <= 253)"
+                          message: "annotation keys must be 253 characters or less"
+                        - rule: "self.all(key, size(key) >= 1)"
+                          message: "annotation keys must not be empty"
                 clusterIP:
                   type: object
                   description: |-
