@@ -533,6 +533,43 @@ class ProduceRoutingIT extends TopicPartitionRoutingBaseIT {
                         "No successful INIT_PRODUCER_ID response captured for route " + route));
     }
 
+    @Test
+    void shouldProduceAfterTopicRecreation() throws Exception {
+        String topic = "a.recreated";
+        createTopic(topic, clusterA);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config)) {
+            try (var producer = tester.producer(Map.of(
+                    "enable.idempotence", false,
+                    "retries", 0,
+                    "batch.size", 0,
+                    "linger.ms", 0))) {
+                producer.send(new ProducerRecord<>(topic, "before", "before-recreate"))
+                        .get(10, TimeUnit.SECONDS);
+            }
+
+            try (var admin = org.apache.kafka.clients.admin.AdminClient.create(
+                    clusterA.getKafkaClientConfiguration())) {
+                admin.deleteTopics(List.of(topic)).all().get(10, TimeUnit.SECONDS);
+            }
+            createTopic(topic, clusterA);
+
+            try (var producer = tester.producer(Map.of(
+                    "enable.idempotence", false,
+                    "retries", 0,
+                    "batch.size", 0,
+                    "linger.ms", 0))) {
+                producer.send(new ProducerRecord<>(topic, "after", "after-recreate"))
+                        .get(10, TimeUnit.SECONDS);
+            }
+        }
+
+        var records = consumeDirectly(clusterA, topic);
+        assertThat(records).extracting(ConsumerRecord::value)
+                .containsExactly("after-recreate");
+    }
+
     private static MemoryRecords buildSingleRecord(String key, String value) {
         var builder = MemoryRecords.builder(
                 java.nio.ByteBuffer.allocate(1024),

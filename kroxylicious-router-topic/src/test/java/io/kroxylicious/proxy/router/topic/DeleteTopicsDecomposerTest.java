@@ -8,7 +8,9 @@ package io.kroxylicious.proxy.router.topic;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
+import org.apache.kafka.common.message.DeleteTopicsRequestData.DeleteTopicState;
 import org.apache.kafka.common.message.DeleteTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsResponseData.DeletableTopicResult;
 import org.apache.kafka.common.protocol.Errors;
@@ -47,7 +49,7 @@ class DeleteTopicsDecomposerTest {
     void shouldDecomposeByTopicRoute() {
         var request = deleteTopicsRequest("a.orders", "b.logs", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 5);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topicNames())
@@ -60,7 +62,7 @@ class DeleteTopicsDecomposerTest {
     void shouldReturnSingleEntryWhenAllTopicsOnOneRoute() {
         var request = deleteTopicsRequest("a.orders", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 5);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topicNames()).hasSize(2);
@@ -71,7 +73,7 @@ class DeleteTopicsDecomposerTest {
         var request = deleteTopicsRequest("a.orders", "b.logs");
         request.setTimeoutMs(45000);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 5);
 
         for (var sub : parts.values()) {
             assertThat(sub.timeoutMs()).isEqualTo(45000);
@@ -82,7 +84,7 @@ class DeleteTopicsDecomposerTest {
     void shouldExcludeUnroutableTopics() {
         var request = deleteTopicsRequest("a.orders", "unknown.topic");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 5);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topicNames())
@@ -93,7 +95,7 @@ class DeleteTopicsDecomposerTest {
     void shouldReturnEmptyMapWhenAllTopicsUnroutable() {
         var request = deleteTopicsRequest("unknown.one", "unknown.two");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 5);
 
         assertThat(parts).isEmpty();
     }
@@ -153,7 +155,7 @@ class DeleteTopicsDecomposerTest {
     void shouldSynthesiseErrorForUnroutableTopics() {
         var request = deleteTopicsRequest("unknown.topic");
 
-        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(request, table);
+        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(request, table, (short) 5);
 
         assertThat(error.responses()).hasSize(1);
         var topicResult = error.responses().iterator().next();
@@ -166,12 +168,108 @@ class DeleteTopicsDecomposerTest {
     void shouldReturnEmptyErrorResponseWhenAllTopicsRoutable() {
         var request = deleteTopicsRequest("a.orders", "b.logs");
 
-        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(request, table);
+        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(request, table, (short) 5);
+
+        assertThat(error.responses()).isEmpty();
+    }
+
+    // --- v6 decompose with Topics[] struct ---
+
+    @Test
+    void shouldDecomposeV6ByTopicName() {
+        var request = deleteTopicsRequestV6("a.orders", "b.logs");
+
+        var parts = decomposer.decompose(request, table, (short) 6);
+
+        assertThat(parts).containsOnlyKeys("route-a", "route-b");
+        assertThat(parts.get("route-a").topics()).extracting("name")
+                .containsExactly("a.orders");
+        assertThat(parts.get("route-b").topics()).extracting("name")
+                .containsExactly("b.logs");
+    }
+
+    @Test
+    void shouldExcludeUnroutableTopicsAtV6() {
+        var request = deleteTopicsRequestV6("a.orders", "unknown.topic");
+
+        var parts = decomposer.decompose(request, table, (short) 6);
+
+        assertThat(parts).containsOnlyKeys("route-a");
+    }
+
+    @Test
+    void shouldExcludeTopicsWithNullNameAtV6() {
+        var request = new DeleteTopicsRequestData();
+        request.topics().add(new DeleteTopicState()
+                .setTopicId(Uuid.randomUuid()));
+        request.setTimeoutMs(30000);
+
+        var parts = decomposer.decompose(request, table, (short) 6);
+
+        assertThat(parts).isEmpty();
+    }
+
+    @Test
+    void shouldCopyEnvelopeFieldsAtV6() {
+        var request = deleteTopicsRequestV6("a.orders");
+        request.setTimeoutMs(45000);
+
+        var parts = decomposer.decompose(request, table, (short) 6);
+
+        for (var sub : parts.values()) {
+            assertThat(sub.timeoutMs()).isEqualTo(45000);
+        }
+    }
+
+    // --- v6 error responses ---
+
+    @Test
+    void shouldReturnUnknownTopicIdForUnresolvedTopicIdAtV6() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new DeleteTopicsRequestData();
+        request.topics().add(new DeleteTopicState().setTopicId(topicId));
+
+        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 6);
+
+        assertThat(error.responses()).hasSize(1);
+        var result = error.responses().iterator().next();
+        assertThat(result.topicId()).isEqualTo(topicId);
+        assertThat(result.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_ID.code());
+    }
+
+    @Test
+    void shouldReturnUnknownTopicOrPartitionForUnroutableNameAtV6() {
+        var request = deleteTopicsRequestV6("unknown.topic");
+
+        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 6);
+
+        assertThat(error.responses()).hasSize(1);
+        var result = error.responses().iterator().next();
+        assertThat(result.name()).isEqualTo("unknown.topic");
+        assertThat(result.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code());
+    }
+
+    @Test
+    void shouldNotIncludeRoutableTopicsInV6ErrorResponse() {
+        var request = deleteTopicsRequestV6("a.orders");
+
+        var error = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 6);
 
         assertThat(error.responses()).isEmpty();
     }
 
     // --- helpers ---
+
+    private static DeleteTopicsRequestData deleteTopicsRequestV6(String... topicNames) {
+        var request = new DeleteTopicsRequestData();
+        for (var name : topicNames) {
+            request.topics().add(new DeleteTopicState().setName(name));
+        }
+        return request;
+    }
 
     private static DeleteTopicsRequestData deleteTopicsRequest(String... topicNames) {
         var request = new DeleteTopicsRequestData();

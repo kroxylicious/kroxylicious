@@ -48,6 +48,7 @@ public class TopicPartitionRouterFactory
                     Map<String, String> subjectRoutes,
                     ProducerIdManager producerIdManager,
                     FetchSessionCache fetchSessionCache,
+                    TopicIdCache topicIdCache,
                     Clock clock,
                     String virtualClusterName,
                     String routerName) {}
@@ -139,6 +140,7 @@ public class TopicPartitionRouterFactory
                 new ProducerIdManager(ttl),
                 new FetchSessionCache(maxSlots, evictionMs,
                         context.virtualClusterName(), context.routerName()),
+                new SharedTopicIdCache(),
                 clock,
                 context.virtualClusterName(),
                 context.routerName());
@@ -153,6 +155,7 @@ public class TopicPartitionRouterFactory
                 initData.subjectRoutes(),
                 initData.producerIdManager(),
                 initData.fetchSessionCache(),
+                initData.topicIdCache(),
                 initData.clock(),
                 initData.virtualClusterName(),
                 initData.routerName());

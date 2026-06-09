@@ -54,19 +54,32 @@ Synthetic error responses for unroutable topics (and, where applicable, topics w
 
 When multiple backends return throttle times, the router takes the maximum across all responses. This ensures the client respects the most restrictive backend's rate limit.
 
+## TopicId support
+
+Several Kafka API keys transition from topic-name-based addressing to topic-ID-based addressing at certain versions (PRODUCE v13, FETCH v13, OFFSET_COMMIT v10, OFFSET_FETCH v10, DELETE_TOPICS v6). Topic IDs are cluster-specific -- the same topic on two independent clusters has different UUIDs.
+
+The router resolves topicIds to topic names using a `TopicIdCache`, then routes by name as normal. The cache is populated opportunistically from METADATA responses. On cache miss (e.g. the client learned topicIds from a different proxy instance), the router sends internal METADATA-by-topicId requests to all routes, waits for responses, and caches the results before proceeding. A routing table consistency check ensures that when per-route filters cause the same topicId to resolve to different names on different routes, only the name consistent with the routing table is cached.
+
+### Cache implementation
+
+The `TopicIdCache` interface decouples the router from the cache implementation. The current implementation (`SharedTopicIdCache`) uses a `ConcurrentHashMap` shared across all connections via the router factory, following the same pattern as `ProducerIdManager` and `FetchSessionCache`.
+
+Only the `topicId → name` direction is cached. The reverse (`name → topicId`) is unsafe because topic recreation changes the topicId for a given name. Where a reverse lookup is needed (e.g. restoring topicIds on FETCH responses after session management), a per-request map scoped to the current handler invocation is used instead.
+
+### Cache poisoning caveat
+
+The shared cache assumes that the `topicId → name` mapping is the same for all clients. If per-route filters transform topic names in a subject-dependent way (e.g. a multi-tenant prefix derived from client identity), this assumption breaks -- a name cached for one subject would be wrong for others. A future per-connection `TopicIdCache` implementation behind the same interface would resolve this, selectable at initialisation time based on a filter property declaration (e.g. "name-preserving").
+
 ## Version capping
 
-Several Kafka API keys transition from topic-name-based addressing to topic-ID-based addressing at certain versions. Topic IDs are cluster-specific -- the same topic on two independent clusters has different UUIDs. The router must force name-based addressing to maintain routing correctness.
+Some API keys have structural changes unrelated to topicId that require version capping:
 
 | API key | Capped to version | Reason |
 |---|---|---|
-| PRODUCE | v12 | v13 (KIP-516) uses TopicId instead of Name |
-| FETCH | v12 | v13 uses TopicId |
-| OFFSET_COMMIT | v9 | v10+ uses TopicId |
-| OFFSET_FETCH | v9 | v10+ uses TopicId |
-| DELETE_TOPICS | v5 | v6+ uses TopicId |
+| ADD_PARTITIONS_TO_TXN | v3 | v4+ is broker-only batch format |
+| FIND_COORDINATOR | v3 | v4+ adds batched coordinator keys (KIP-699) |
 
-The router intercepts `API_VERSIONS` responses and applies these caps via `ApiVersionsResponseTransformers.limitMaxVersionForApiKeys()`, so clients negotiate down to versions that use topic names on the wire.
+The router intercepts `API_VERSIONS` responses and applies these caps via `ApiVersionsResponseTransformers.limitMaxVersionForApiKeys()`.
 
 ## Idempotent produce
 

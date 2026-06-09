@@ -55,16 +55,33 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
     }
 
     static FetchResponseData errorResponseForUnroutableTopics(FetchRequestData request,
-                                                              TopicRoutingTable table) {
+                                                              TopicRoutingTable table,
+                                                              boolean usesTopicIds) {
         var errorResponse = new FetchResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.topic()) == null) {
-                var topicResponse = new FetchableTopicResponse().setTopic(topic.topic());
+            boolean hasName = topic.topic() != null && !topic.topic().isEmpty();
+            boolean unroutable = !hasName || table.routeForTopic(topic.topic()) == null;
+            if (unroutable) {
+                var topicResponse = new FetchableTopicResponse();
+                short errorCode;
+                if (usesTopicIds) {
+                    topicResponse.setTopicId(topic.topicId());
+                    if (hasName) {
+                        topicResponse.setTopic(topic.topic());
+                    }
+                    errorCode = hasName
+                            ? Errors.UNKNOWN_TOPIC_OR_PARTITION.code()
+                            : Errors.UNKNOWN_TOPIC_ID.code();
+                }
+                else {
+                    topicResponse.setTopic(topic.topic());
+                    errorCode = Errors.UNKNOWN_TOPIC_OR_PARTITION.code();
+                }
                 for (var partition : topic.partitions()) {
                     topicResponse.partitions().add(
                             new PartitionData()
                                     .setPartitionIndex(partition.partition())
-                                    .setErrorCode(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+                                    .setErrorCode(errorCode));
                 }
                 errorResponse.responses().add(topicResponse);
             }
