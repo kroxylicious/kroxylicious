@@ -120,8 +120,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean filter-chain swap")
                             .isFalse());
 
-            // Phase 4: old initResult was closed during ReplaceCluster's remove step;
-            // new initResult was initialised during ReplaceCluster's add step.
+            // Phase 4: assert lifecycle effects of the ReplaceCluster.
             assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
                     .as("old filter's initResult should have been closed exactly once during ReplaceCluster")
                     .isEqualTo(1);
@@ -161,9 +160,8 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: both VCs initialised. (Init counts not asserted strictly because the
-            // planner over-initialises during reconfigure planning — see the @BeforeEach comment.
-            // The contract this test pins is on close counts.)
+            // Phase 1: both VCs initialised at startup. Init counts use a lower-bound assertion
+            // because the planner over-initialises during reconfigure planning (see afterEach).
             assertThat(InvocationCountingFilterFactory.initializationCountFor(vcAFilter1Id))
                     .as("VC-A's old filter was initialised at startup").isGreaterThanOrEqualTo(1);
             assertThat(InvocationCountingFilterFactory.initializationCountFor(vcBFilterId))
@@ -181,10 +179,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 4: per-VC isolation — VC-A's old filter is closed (it was actually replaced);
-            // VC-B's filter is NOT closed (its live VCM is unaffected by VC-A's reconfigure).
-            // We assert on close counts because they correspond 1:1 with VCMs the registry
-            // actually managed; init counts are inflated by planner pre-construction.
+            // Phase 4: per-VC isolation asserted via close counts only (init counts are inflated by planner pre-construction).
             assertThat(InvocationCountingFilterFactory.closeCountFor(vcAFilter1Id))
                     .as("VC-A's old filter should have been closed exactly once during ReplaceCluster")
                     .isEqualTo(1);
@@ -229,9 +224,7 @@ class FilterChangeHotReloadIT extends BaseIT {
             String topic = tester.createTopic("vc-fail");
             assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "phase1-good");
 
-            // Phase 2: reconfigure with a filter that will fail on initialize. The future fails
-            // exceptionally — the planner could not even build the new VCMs, so no operations
-            // were applied. The proxy continues running with the original configuration.
+            // Phase 2: reconfigure with a filter that fails on initialize; the future fails exceptionally at the plan phase, no operations applied.
             LOGGER.info("Reconfiguring vc-fail with invalid filter chain (expected to fail at plan phase)");
             assertThat(tester.reconfigure(afterConfig))
                     .as("reconfigure with a filter that throws on initialize should fail exceptionally")
@@ -240,8 +233,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .havingCause()
                     .withMessageContaining("FailingInitFilterFactory");
 
-            // Phase 3: the old filter was NOT closed because no operation actually ran. The
-            // live VC is unaffected.
+            // Phase 3: the old filter was NOT closed — no operation ran, live VC unaffected.
             assertThat(InvocationCountingFilterFactory.closeCountFor(goodFilterId))
                     .as("old filter must NOT be closed when the reconfigure fails at planning")
                     .isZero();
@@ -283,9 +275,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: F1's old initResult was closed; F1 was re-initialised (init=2); F2 was
-            // initialised. The init=2 count for F1 is the load-bearing assertion: it pins the
-            // whole-FCF-replacement semantic (no partial-chain optimisation).
+            // Phase 3: F1 closed + re-initialised, F2 newly initialised — F1's init=2 is the load-bearing whole-FCF-replacement assertion.
             assertThat(InvocationCountingFilterFactory.closeCountFor(filter1Id))
                     .as("F1's old initResult should have been closed during ReplaceCluster")
                     .isEqualTo(1);
@@ -338,8 +328,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: both old initResults closed (whole-FCF replacement). F1 re-initialised
-            // for the new chain. F2 NOT re-initialised (not in the new chain).
+            // Phase 3: both old initResults closed; F1 re-initialised, F2 not (it is gone from the new chain).
             assertThat(InvocationCountingFilterFactory.closeCountFor(filter1Id))
                     .as("F1's old initResult should have been closed")
                     .isEqualTo(1);
@@ -394,8 +383,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: reorder = full replace. Both old initResults closed, both new initResults
-            // initialised. No filter is preserved across the reorder.
+            // Phase 3: reorder is treated as a full replace — both old initResults closed, both new initResults initialised.
             assertThat(InvocationCountingFilterFactory.closeCountFor(filter1Id))
                     .as("F1's old initResult should have been closed")
                     .isEqualTo(1);
@@ -450,8 +438,7 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: the X initResult was closed; the Y initResult was initialised. Different
-            // UUIDs mean independent lifecycles even though the filter NAME stayed the same.
+            // Phase 3: X closed, Y initialised — independent lifecycles per config UUID even when the filter name is unchanged.
             assertThat(InvocationCountingFilterFactory.closeCountFor(configX))
                     .as("the old config's initResult should have been closed")
                     .isEqualTo(1);
@@ -499,9 +486,7 @@ class FilterChangeHotReloadIT extends BaseIT {
 
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingTesterBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: both VCs initialised with default-old via defaultFilters. Each VC has its
-            // own FilterFactory instance per the per-VC FCF design, so the SAME UUID sees TWO
-            // independent initialize calls — one per VC.
+            // Phase 1: per-VC FCF scoping means each VC initialises its own copy of the shared defaultFilter, so the same UUID sees two init calls.
             assertThat(InvocationCountingFilterFactory.initializationCountFor(oldFilterId))
                     .as("Both VCs share the same defaultFilter config UUID — init fires once per VC")
                     .isEqualTo(2);
@@ -512,16 +497,13 @@ class FilterChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "phase2-a-old");
             assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "phase2-b-old");
 
-            // Phase 3: reconfigure changes defaultFilters globally — no per-VC field changed,
-            // but both VCs are affected because both rely on defaultFilters.
+            // Phase 3: change defaultFilters globally — both VCs are affected via the use-defaults path.
             LOGGER.info("Reconfiguring proxy: defaultFilters [default-old] -> [default-new]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 4: BOTH VCs' old initResults closed; BOTH VCs initialise the new filter.
-            // The count-of-2 on both sides is the load-bearing assertion: it proves the
-            // cascade — a single defaultFilters change affected every dependent VC.
+            // Phase 4: counts of 2 prove the cascade — a single defaultFilters change replaced every dependent VC's chain.
             assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
                     .as("both VCs' old defaultFilter initResults should have been closed")
                     .isEqualTo(2);
