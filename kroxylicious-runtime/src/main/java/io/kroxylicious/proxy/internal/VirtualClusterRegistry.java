@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
@@ -169,22 +170,26 @@ public class VirtualClusterRegistry {
     private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
         var state = lifecycle.state();
         if (state instanceof VirtualClusterLifecycleState.Serving) {
+            // Dispatch the close + callback to a non-event-loop executor: a connection's drain
+            // future completes on its Netty event loop, and a default thenRun would inherit that
+            // thread. FilterFactory.close() is allowed to block (closing KMS/HTTP clients), so it
+            // must not run on an event loop.
             return lifecycle.startDraining()
-                    .thenRun(() -> {
+                    .thenRunAsync(() -> {
                         lifecycle.drainComplete();
                         closeModel(clusterName);
                         onVirtualClusterStopped.accept(clusterName, Optional.empty());
-                    });
+                    }, ForkJoinPool.commonPool());
         }
         else if (state instanceof VirtualClusterLifecycleState.Draining) {
             // Pre-existing drain (e.g. concurrent shutdown or hot-reload) — join it rather
-            // than starting a new one.
+            // than starting a new one. Same non-event-loop dispatch as the Serving path above.
             return lifecycle.drainFuture()
-                    .thenRun(() -> {
+                    .thenRunAsync(() -> {
                         lifecycle.drainComplete();
                         closeModel(clusterName);
                         onVirtualClusterStopped.accept(clusterName, Optional.empty());
-                    });
+                    }, ForkJoinPool.commonPool());
         }
         else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
             lifecycle.stop();
