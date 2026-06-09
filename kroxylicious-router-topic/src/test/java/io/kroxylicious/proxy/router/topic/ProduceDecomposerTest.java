@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.router.topic;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
@@ -209,7 +210,7 @@ class ProduceDecomposerTest {
         td.partitionData().add(new PartitionProduceData().setIndex(1));
         request.topicData().add(td);
 
-        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(request, table);
+        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(request, table, (short) 12);
 
         assertThat(error.responses()).hasSize(1);
         var topicResp = findResponse(error, "unknown.topic");
@@ -222,7 +223,7 @@ class ProduceDecomposerTest {
     void shouldOnlyIncludeUnroutableTopicsInErrorResponse() {
         var request = produceRequest("a.orders", "unknown.topic");
 
-        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(request, table);
+        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(request, table, (short) 12);
 
         assertThat(error.responses()).extracting("name")
                 .containsExactly("unknown.topic");
@@ -232,7 +233,63 @@ class ProduceDecomposerTest {
     void shouldReturnEmptyErrorResponseWhenAllTopicsRoutable() {
         var request = produceRequest("a.orders", "b.logs");
 
-        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(request, table);
+        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(request, table, (short) 12);
+
+        assertThat(error.responses()).isEmpty();
+    }
+
+    // --- v13 topicId error responses ---
+
+    @Test
+    void shouldReturnUnknownTopicIdForUnresolvedTopicIdAtV13() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new ProduceRequestData();
+        var td = new TopicProduceData().setTopicId(topicId);
+        td.partitionData().add(new PartitionProduceData().setIndex(0));
+        request.topicData().add(td);
+
+        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 13);
+
+        assertThat(error.responses()).hasSize(1);
+        var topicResp = error.responses().iterator().next();
+        assertThat(topicResp.topicId()).isEqualTo(topicId);
+        assertThat(topicResp.partitionResponses()).allSatisfy(
+                pr -> assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_ID.code()));
+    }
+
+    @Test
+    void shouldReturnUnknownTopicOrPartitionForEnrichedButUnroutableAtV13() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new ProduceRequestData();
+        var td = new TopicProduceData()
+                .setTopicId(topicId)
+                .setName("unknown.topic");
+        td.partitionData().add(new PartitionProduceData().setIndex(0));
+        request.topicData().add(td);
+
+        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 13);
+
+        assertThat(error.responses()).hasSize(1);
+        var topicResp = error.responses().iterator().next();
+        assertThat(topicResp.topicId()).isEqualTo(topicId);
+        assertThat(topicResp.partitionResponses()).allSatisfy(
+                pr -> assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+    }
+
+    @Test
+    void shouldNotIncludeRoutableEnrichedTopicsInV13ErrorResponse() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new ProduceRequestData();
+        var td = new TopicProduceData()
+                .setTopicId(topicId)
+                .setName("a.orders");
+        td.partitionData().add(new PartitionProduceData().setIndex(0));
+        request.topicData().add(td);
+
+        ProduceResponseData error = ProduceDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 13);
 
         assertThat(error.responses()).isEmpty();
     }

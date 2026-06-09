@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.router.topic;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchRequestData.FetchPartition;
 import org.apache.kafka.common.message.FetchRequestData.FetchTopic;
@@ -235,7 +236,7 @@ class FetchDecomposerTest {
         topic.partitions().add(new FetchPartition().setPartition(1));
         request.topics().add(topic);
 
-        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table);
+        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table, false);
 
         assertThat(error.responses()).hasSize(1);
         var topicResp = error.responses().stream()
@@ -250,7 +251,60 @@ class FetchDecomposerTest {
     void shouldReturnEmptyErrorResponseWhenAllTopicsRoutable() {
         var request = fetchRequest("a.orders", "b.logs");
 
-        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table);
+        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table, false);
+
+        assertThat(error.responses()).isEmpty();
+    }
+
+    // --- v13 topicId error responses ---
+
+    @Test
+    void shouldReturnUnknownTopicIdForUnresolvedTopicIdAtV13() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new FetchRequestData();
+        var topic = new FetchTopic().setTopicId(topicId);
+        topic.partitions().add(new FetchPartition().setPartition(0));
+        request.topics().add(topic);
+
+        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table, true);
+
+        assertThat(error.responses()).hasSize(1);
+        var topicResp = error.responses().stream().findFirst().orElseThrow();
+        assertThat(topicResp.topicId()).isEqualTo(topicId);
+        assertThat(topicResp.partitions()).allSatisfy(
+                pr -> assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_ID.code()));
+    }
+
+    @Test
+    void shouldReturnUnknownTopicOrPartitionForEnrichedButUnroutableAtV13() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new FetchRequestData();
+        var topic = new FetchTopic()
+                .setTopicId(topicId)
+                .setTopic("unknown.topic");
+        topic.partitions().add(new FetchPartition().setPartition(0));
+        request.topics().add(topic);
+
+        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table, true);
+
+        assertThat(error.responses()).hasSize(1);
+        var topicResp = error.responses().stream().findFirst().orElseThrow();
+        assertThat(topicResp.topicId()).isEqualTo(topicId);
+        assertThat(topicResp.partitions()).allSatisfy(
+                pr -> assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+    }
+
+    @Test
+    void shouldNotIncludeRoutableEnrichedTopicsInV13ErrorResponse() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new FetchRequestData();
+        var topic = new FetchTopic()
+                .setTopicId(topicId)
+                .setTopic("a.orders");
+        topic.partitions().add(new FetchPartition().setPartition(0).setFetchOffset(0));
+        request.topics().add(topic);
+
+        var error = FetchDecomposer.errorResponseForUnroutableTopics(request, table, true);
 
         assertThat(error.responses()).isEmpty();
     }

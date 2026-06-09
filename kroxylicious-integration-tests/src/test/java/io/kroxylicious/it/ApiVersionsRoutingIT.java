@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ApiVersionsRoutingIT extends TopicPartitionRoutingBaseIT {
 
     @Test
-    void shouldCapApiVersionsForTopicIdBearingKeys() throws Exception {
+    void shouldNotCapTopicIdBearingApiVersions() throws Exception {
         createTopic("a.dummy", clusterA);
         var config = topicRouterConfig();
 
@@ -45,23 +45,45 @@ class ApiVersionsRoutingIT extends TopicPartitionRoutingBaseIT {
 
                 var produceVersion = body.apiKeys().find(ApiKeys.PRODUCE.id);
                 assertThat(produceVersion).isNotNull();
-                assertThat(produceVersion.maxVersion()).isLessThanOrEqualTo((short) 12);
+                assertThat(produceVersion.maxVersion())
+                        .as("PRODUCE should not be capped — topicId resolution handles v13+")
+                        .isGreaterThanOrEqualTo((short) 13);
 
                 var fetchVersion = body.apiKeys().find(ApiKeys.FETCH.id);
                 assertThat(fetchVersion).isNotNull();
-                assertThat(fetchVersion.maxVersion()).isLessThanOrEqualTo((short) 12);
+                assertThat(fetchVersion.maxVersion())
+                        .as("FETCH should not be capped — topicId resolution handles v13+")
+                        .isGreaterThanOrEqualTo((short) 13);
 
                 var offsetCommitVersion = body.apiKeys().find(ApiKeys.OFFSET_COMMIT.id);
                 assertThat(offsetCommitVersion).isNotNull();
-                assertThat(offsetCommitVersion.maxVersion()).isLessThanOrEqualTo((short) 9);
+                assertThat(offsetCommitVersion.maxVersion())
+                        .as("OFFSET_COMMIT should not be capped — topicId resolution handles v10+")
+                        .isGreaterThanOrEqualTo((short) 10);
 
                 var offsetFetchVersion = body.apiKeys().find(ApiKeys.OFFSET_FETCH.id);
                 assertThat(offsetFetchVersion).isNotNull();
-                assertThat(offsetFetchVersion.maxVersion()).isLessThanOrEqualTo((short) 9);
+                assertThat(offsetFetchVersion.maxVersion())
+                        .as("OFFSET_FETCH should not be capped — topicId resolution handles v10+")
+                        .isGreaterThanOrEqualTo((short) 10);
 
                 var deleteTopicsVersion = body.apiKeys().find(ApiKeys.DELETE_TOPICS.id);
                 assertThat(deleteTopicsVersion).isNotNull();
-                assertThat(deleteTopicsVersion.maxVersion()).isLessThanOrEqualTo((short) 5);
+                assertThat(deleteTopicsVersion.maxVersion())
+                        .as("DELETE_TOPICS should not be capped — topicId resolution handles v6+")
+                        .isGreaterThanOrEqualTo((short) 6);
+
+                var addPartitionsVersion = body.apiKeys().find(ApiKeys.ADD_PARTITIONS_TO_TXN.id);
+                assertThat(addPartitionsVersion).isNotNull();
+                assertThat(addPartitionsVersion.maxVersion())
+                        .as("ADD_PARTITIONS_TO_TXN should still be capped (not topicId-related)")
+                        .isLessThanOrEqualTo((short) 3);
+
+                var findCoordinatorVersion = body.apiKeys().find(ApiKeys.FIND_COORDINATOR.id);
+                assertThat(findCoordinatorVersion).isNotNull();
+                assertThat(findCoordinatorVersion.maxVersion())
+                        .as("FIND_COORDINATOR should still be capped (not topicId-related)")
+                        .isLessThanOrEqualTo((short) 3);
             }
         }
 

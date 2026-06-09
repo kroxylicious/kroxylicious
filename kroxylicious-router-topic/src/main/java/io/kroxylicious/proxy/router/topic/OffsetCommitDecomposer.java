@@ -55,16 +55,30 @@ class OffsetCommitDecomposer implements RequestDecomposer<OffsetCommitRequestDat
     }
 
     static OffsetCommitResponseData errorResponseForUnroutableTopics(OffsetCommitRequestData request,
-                                                                     TopicRoutingTable table) {
+                                                                     TopicRoutingTable table,
+                                                                     short apiVersion) {
         var errorResponse = new OffsetCommitResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) == null) {
-                var topicResponse = new OffsetCommitResponseTopic().setName(topic.name());
+            boolean hasName = topic.name() != null && !topic.name().isEmpty();
+            boolean unroutable = !hasName || table.routeForTopic(topic.name()) == null;
+            if (unroutable) {
+                var topicResponse = new OffsetCommitResponseTopic();
+                short errorCode;
+                if (apiVersion >= 10) {
+                    topicResponse.setTopicId(topic.topicId());
+                    errorCode = hasName
+                            ? Errors.UNKNOWN_TOPIC_OR_PARTITION.code()
+                            : Errors.UNKNOWN_TOPIC_ID.code();
+                }
+                else {
+                    topicResponse.setName(topic.name());
+                    errorCode = Errors.UNKNOWN_TOPIC_OR_PARTITION.code();
+                }
                 for (var partition : topic.partitions()) {
                     topicResponse.partitions().add(
                             new OffsetCommitResponsePartition()
                                     .setPartitionIndex(partition.partitionIndex())
-                                    .setErrorCode(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+                                    .setErrorCode(errorCode));
                 }
                 errorResponse.topics().add(topicResponse);
             }

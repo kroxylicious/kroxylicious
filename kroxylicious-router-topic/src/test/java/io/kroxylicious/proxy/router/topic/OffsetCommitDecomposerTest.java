@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.router.topic;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestPartition;
 import org.apache.kafka.common.message.OffsetCommitRequestData.OffsetCommitRequestTopic;
@@ -191,7 +192,7 @@ class OffsetCommitDecomposerTest {
                 .setPartitionIndex(1).setCommittedOffset(20));
         request.topics().add(topic);
 
-        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(request, table);
+        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(request, table, (short) 9);
 
         assertThat(error.topics()).hasSize(1);
         var topicResp = error.topics().stream()
@@ -206,7 +207,66 @@ class OffsetCommitDecomposerTest {
     void shouldReturnEmptyErrorResponseWhenAllTopicsRoutable() {
         var request = offsetCommitRequest("a.orders", "b.logs");
 
-        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(request, table);
+        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(request, table, (short) 9);
+
+        assertThat(error.topics()).isEmpty();
+    }
+
+    // --- v10 topicId error responses ---
+
+    @Test
+    void shouldReturnUnknownTopicIdForUnresolvedTopicIdAtV10() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new OffsetCommitRequestData().setGroupId("g");
+        var topic = new OffsetCommitRequestTopic().setTopicId(topicId);
+        topic.partitions().add(new OffsetCommitRequestPartition()
+                .setPartitionIndex(0).setCommittedOffset(10));
+        request.topics().add(topic);
+
+        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 10);
+
+        assertThat(error.topics()).hasSize(1);
+        var topicResp = error.topics().iterator().next();
+        assertThat(topicResp.topicId()).isEqualTo(topicId);
+        assertThat(topicResp.partitions()).allSatisfy(
+                pr -> assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_ID.code()));
+    }
+
+    @Test
+    void shouldReturnUnknownTopicOrPartitionForEnrichedButUnroutableAtV10() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new OffsetCommitRequestData().setGroupId("g");
+        var topic = new OffsetCommitRequestTopic()
+                .setTopicId(topicId)
+                .setName("unknown.topic");
+        topic.partitions().add(new OffsetCommitRequestPartition()
+                .setPartitionIndex(0).setCommittedOffset(10));
+        request.topics().add(topic);
+
+        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 10);
+
+        assertThat(error.topics()).hasSize(1);
+        var topicResp = error.topics().iterator().next();
+        assertThat(topicResp.topicId()).isEqualTo(topicId);
+        assertThat(topicResp.partitions()).allSatisfy(
+                pr -> assertThat(pr.errorCode()).isEqualTo(Errors.UNKNOWN_TOPIC_OR_PARTITION.code()));
+    }
+
+    @Test
+    void shouldNotIncludeRoutableTopicsInV10ErrorResponse() {
+        Uuid topicId = Uuid.randomUuid();
+        var request = new OffsetCommitRequestData().setGroupId("g");
+        var topic = new OffsetCommitRequestTopic()
+                .setTopicId(topicId)
+                .setName("a.orders");
+        topic.partitions().add(new OffsetCommitRequestPartition()
+                .setPartitionIndex(0).setCommittedOffset(10));
+        request.topics().add(topic);
+
+        var error = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
+                request, table, (short) 10);
 
         assertThat(error.topics()).isEmpty();
     }

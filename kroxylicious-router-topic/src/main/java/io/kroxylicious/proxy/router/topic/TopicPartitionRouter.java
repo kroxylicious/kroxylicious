@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddOffsetsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
@@ -140,15 +141,11 @@ class TopicPartitionRouter implements Router {
     private static final Logger LOGGER = LoggerFactory.getLogger(TopicPartitionRouter.class);
 
     /**
-     * API keys whose wire format transitions from topic names to topic IDs
-     * at certain versions. We cap these to force name-based addressing.
+     * API keys whose wire format changes structurally at certain versions.
+     * TopicId-bearing APIs (PRODUCE, FETCH, OFFSET_COMMIT, OFFSET_FETCH,
+     * DELETE_TOPICS) are handled by the router's topicId cache — no cap needed.
      */
     static final Map<ApiKeys, Short> VERSION_CAPS = Map.of(
-            ApiKeys.PRODUCE, (short) 12,
-            ApiKeys.FETCH, (short) 12,
-            ApiKeys.OFFSET_COMMIT, (short) 9,
-            ApiKeys.OFFSET_FETCH, (short) 9,
-            ApiKeys.DELETE_TOPICS, (short) 5,
             ApiKeys.ADD_PARTITIONS_TO_TXN, (short) 3,
             ApiKeys.FIND_COORDINATOR, (short) 3);
 
@@ -221,9 +218,12 @@ class TopicPartitionRouter implements Router {
      * Netty event loop thread (see {@link Router#onRequest} threading contract).
      */
     private final Map<String, Map<Integer, Integer>> partitionLeaders = new HashMap<>();
+
+    private final TopicIdCache topicIdCache;
     @Nullable
     private String activeTransactionRoute;
 
+    private static final short INTERNAL_METADATA_API_VERSION = 12;
     private static final short FIND_COORDINATOR_API_VERSION = 3;
 
     /**
@@ -234,12 +234,14 @@ class TopicPartitionRouter implements Router {
      *                          individual connections so that reconnecting producers retain
      *                          their per-route mappings
      * @param fetchSessionCache shared cache bounding the total number of client-side fetch sessions
+     * @param topicIdCache shared cache mapping topic IDs to topic names
      */
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute,
                          Map<String, String> subjectRoutes,
                          ProducerIdManager producerIdManager,
                          FetchSessionCache fetchSessionCache,
+                         TopicIdCache topicIdCache,
                          Clock clock,
                          String virtualClusterName,
                          String routerName) {
@@ -247,6 +249,7 @@ class TopicPartitionRouter implements Router {
         this.defaultRoute = defaultRoute;
         this.subjectRoutes = subjectRoutes;
         this.producerIdManager = producerIdManager;
+        this.topicIdCache = topicIdCache;
         this.fetchSessionManager = new FetchSessionManager(fetchSessionCache, clock);
         this.staticRoutes = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
@@ -291,7 +294,7 @@ class TopicPartitionRouter implements Router {
             return handleApiVersions(header, request, context);
         }
         if (apiKey == ApiKeys.PRODUCE) {
-            return handleProduce(header, (ProduceRequestData) request, context);
+            return handleProduce(apiVersion, header, (ProduceRequestData) request, context);
         }
         if (apiKey == ApiKeys.INIT_PRODUCER_ID) {
             return handleInitProducerId(header, (InitProducerIdRequestData) request, context);
@@ -309,7 +312,7 @@ class TopicPartitionRouter implements Router {
             return handleOffsetForLeaderEpoch(header, (OffsetForLeaderEpochRequestData) request, context);
         }
         if (apiKey == ApiKeys.OFFSET_COMMIT) {
-            return handleOffsetCommit(header, (OffsetCommitRequestData) request, context);
+            return handleOffsetCommit(apiVersion, header, (OffsetCommitRequestData) request, context);
         }
         if (apiKey == ApiKeys.OFFSET_FETCH) {
             return handleOffsetFetch(apiVersion, header, (OffsetFetchRequestData) request, context);
@@ -318,7 +321,7 @@ class TopicPartitionRouter implements Router {
             return handleCreateTopics(header, (CreateTopicsRequestData) request, context);
         }
         if (apiKey == ApiKeys.DELETE_TOPICS) {
-            return handleDeleteTopics(header, (DeleteTopicsRequestData) request, context);
+            return handleDeleteTopics(apiVersion, header, (DeleteTopicsRequestData) request, context);
         }
         if (apiKey == ApiKeys.CREATE_PARTITIONS) {
             return handleCreatePartitions(header, (CreatePartitionsRequestData) request, context);
@@ -379,11 +382,31 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleProduce(
+                                                        short apiVersion,
                                                         RequestHeaderData header,
                                                         ProduceRequestData request,
                                                         RouterContext context) {
+        if (request.acks() == 0) {
+            return handleProduceAfterResolution(apiVersion, header, request, context);
+        }
+        List<Uuid> uncached = collectUncachedTopicIds(request, apiVersion);
+        return ensureTopicIdsResolved(uncached, context)
+                .thenCompose(v -> handleProduceAfterResolution(apiVersion, header, request, context));
+    }
+
+    private CompletionStage<RouterResult> handleProduceAfterResolution(
+                                                                       short apiVersion,
+                                                                       RequestHeaderData header,
+                                                                       ProduceRequestData request,
+                                                                       RouterContext context) {
+        if (apiVersion >= 13) {
+            enrichProduceTopicIds(request);
+        }
         ProduceResponseData errorResponse = ProduceDecomposer.errorResponseForUnroutableTopics(
-                request, routingTable);
+                request, routingTable, apiVersion);
+        if (apiVersion >= 13) {
+            removeUnresolvedTopics(request);
+        }
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
                 request, routingTable);
         boolean subjectRouted = subjectRouteFor(context.authenticatedSubject()) != null;
@@ -391,7 +414,7 @@ class TopicPartitionRouter implements Router {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .log("Producer ID mapping not found, returning UNKNOWN_PRODUCER_ID");
-            return CompletableFuture.completedFuture(syntheticResult(unknownProducerIdResponse(request)));
+            return CompletableFuture.completedFuture(syntheticResult(unknownProducerIdResponse(request, apiVersion)));
         }
 
         boolean isAcksZero = request.acks() == 0;
@@ -400,7 +423,7 @@ class TopicPartitionRouter implements Router {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
         }
 
-        // acks=0: fire-and-forget to route bootstrap (sendRequestToNode doesn't support fire-and-forget)
+        // acks=0: fire-and-forget to route bootstrap
         if (isAcksZero) {
             for (var entry : subRequests.entrySet()) {
                 context.sendRequestToNode(entry.getKey(), context.bootstrapNodeId(entry.getKey()), header, entry.getValue());
@@ -435,6 +458,22 @@ class TopicPartitionRouter implements Router {
                 return syntheticResult(merged);
             });
         });
+    }
+
+    private void enrichProduceTopicIds(ProduceRequestData request) {
+        for (var td : request.topicData()) {
+            Uuid topicId = td.topicId();
+            if (!Uuid.ZERO_UUID.equals(topicId)) {
+                String name = resolveTopicId(topicId);
+                if (name != null) {
+                    td.setName(name);
+                }
+            }
+        }
+    }
+
+    private static void removeUnresolvedTopics(ProduceRequestData request) {
+        request.topicData().removeIf(td -> td.name() == null || td.name().isEmpty());
     }
 
     private CompletionStage<RouterResult> handleInitProducerId(
@@ -516,7 +555,7 @@ class TopicPartitionRouter implements Router {
                                                          RouterContext context) {
         var mdHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion((short) 9);
+                .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
         var mdReq = new MetadataRequestData();
 
         return context.sendRequestToNode(route, context.bootstrapNodeId(route), mdHeader, mdReq).thenCompose(mdResponse -> {
@@ -684,10 +723,17 @@ class TopicPartitionRouter implements Router {
         return null;
     }
 
-    private static ProduceResponseData unknownProducerIdResponse(ProduceRequestData request) {
+    private static ProduceResponseData unknownProducerIdResponse(ProduceRequestData request,
+                                                                 short apiVersion) {
         var response = new ProduceResponseData();
         for (var td : request.topicData()) {
-            var topicResponse = new TopicProduceResponse().setName(td.name());
+            var topicResponse = new TopicProduceResponse();
+            if (apiVersion >= 13) {
+                topicResponse.setTopicId(td.topicId());
+            }
+            else {
+                topicResponse.setName(td.name());
+            }
             for (var pd : td.partitionData()) {
                 topicResponse.partitionResponses().add(
                         new PartitionProduceResponse()
@@ -785,6 +831,13 @@ class TopicPartitionRouter implements Router {
                                                       RequestHeaderData header,
                                                       FetchRequestData request,
                                                       RouterContext context) {
+        boolean usesTopicIds = apiVersion >= 13;
+        Map<String, Uuid> nameToId = Map.of();
+        if (usesTopicIds) {
+            enrichFetchTopicIds(request);
+            nameToId = buildNameToIdMap(request);
+        }
+
         var clientResult = fetchSessionManager.processClientRequest(request, apiVersion);
         if (clientResult instanceof FetchSessionManager.ClientRequestResult.SessionError error) {
             return CompletableFuture.completedFuture(syntheticResult(error.response()));
@@ -792,18 +845,23 @@ class TopicPartitionRouter implements Router {
         var fullRequest = ((FetchSessionManager.ClientRequestResult.FullFetch) clientResult).request();
 
         FetchResponseData errorResponse = FetchDecomposer.errorResponseForUnroutableTopics(
-                fullRequest, routingTable);
+                fullRequest, routingTable, usesTopicIds);
+        if (usesTopicIds) {
+            fullRequest.topics().removeIf(t -> t.topic() == null || t.topic().isEmpty());
+        }
         Map<String, FetchRequestData> subRequests = fetchDecomposer.decompose(
                 fullRequest, routingTable);
 
         if (subRequests.isEmpty()) {
             var clientResponse = fetchSessionManager.computeClientResponse(errorResponse);
+            if (usesTopicIds) {
+                setFetchResponseTopicIds(clientResponse, nameToId);
+            }
             return CompletableFuture.completedFuture(syntheticResult(clientResponse));
         }
 
+        Map<String, Uuid> capturedNameToId = nameToId;
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            // Group by leader — each leader is a distinct backend connection
-            // and gets its own fetch session keyed by String.valueOf(nodeId)
             Map<Integer, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest);
             Map<Integer, String> leaderToRoute = mapLeadersToRoutes(subRequests);
             Map<String, FetchRequestData> byLeaderStr = new HashMap<>();
@@ -812,6 +870,11 @@ class TopicPartitionRouter implements Router {
             }
 
             fetchSessionManager.wrapForBackends(byLeaderStr);
+            if (usesTopicIds) {
+                for (var sub : byLeaderStr.values()) {
+                    setFetchRequestTopicIds(sub, capturedNameToId);
+                }
+            }
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
@@ -832,15 +895,96 @@ class TopicPartitionRouter implements Router {
                     bodies.put(String.valueOf(entry.getKey()),
                             (FetchResponseData) entry.getValue().body());
                 }
+                if (usesTopicIds) {
+                    for (var body : bodies.values()) {
+                        enrichFetchResponseTopicNames(body);
+                    }
+                }
                 fetchSessionManager.processServerResponses(bodies);
                 FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest);
                 for (var tr : capturedErrors.responses()) {
                     merged.responses().add(tr.duplicate());
                 }
                 var clientResponse = fetchSessionManager.computeClientResponse(merged);
+                if (usesTopicIds) {
+                    setFetchResponseTopicIds(clientResponse, capturedNameToId);
+                }
                 return syntheticResult(clientResponse);
             });
         });
+    }
+
+    private static Map<String, Uuid> buildNameToIdMap(FetchRequestData request) {
+        var map = new HashMap<String, Uuid>();
+        for (var topic : request.topics()) {
+            if (topic.topic() != null && !topic.topic().isEmpty()
+                    && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                map.put(topic.topic(), topic.topicId());
+            }
+        }
+        for (var forgotten : request.forgottenTopicsData()) {
+            if (forgotten.topic() != null && !forgotten.topic().isEmpty()
+                    && !Uuid.ZERO_UUID.equals(forgotten.topicId())) {
+                map.put(forgotten.topic(), forgotten.topicId());
+            }
+        }
+        return map;
+    }
+
+    private void enrichFetchTopicIds(FetchRequestData request) {
+        for (var topic : request.topics()) {
+            if (!Uuid.ZERO_UUID.equals(topic.topicId())) {
+                String name = resolveTopicId(topic.topicId());
+                if (name != null) {
+                    topic.setTopic(name);
+                }
+            }
+        }
+        for (var forgotten : request.forgottenTopicsData()) {
+            if (!Uuid.ZERO_UUID.equals(forgotten.topicId())) {
+                String name = resolveTopicId(forgotten.topicId());
+                if (name != null) {
+                    forgotten.setTopic(name);
+                }
+            }
+        }
+    }
+
+    private static void setFetchRequestTopicIds(FetchRequestData request,
+                                                Map<String, Uuid> nameToId) {
+        for (var topic : request.topics()) {
+            Uuid id = nameToId.get(topic.topic());
+            if (id != null) {
+                topic.setTopicId(id);
+            }
+        }
+        for (var forgotten : request.forgottenTopicsData()) {
+            Uuid id = nameToId.get(forgotten.topic());
+            if (id != null) {
+                forgotten.setTopicId(id);
+            }
+        }
+    }
+
+    private void enrichFetchResponseTopicNames(FetchResponseData response) {
+        for (var topicResp : response.responses()) {
+            if (!Uuid.ZERO_UUID.equals(topicResp.topicId())) {
+                String name = resolveTopicId(topicResp.topicId());
+                if (name != null) {
+                    topicResp.setTopic(name);
+                }
+            }
+        }
+    }
+
+    private static void setFetchResponseTopicIds(FetchResponseData response,
+                                                 Map<String, Uuid> nameToId) {
+        for (var topicResp : response.responses()) {
+            Uuid id = nameToId.get(topicResp.topic());
+            if (id != null) {
+                topicResp.setTopicId(id);
+            }
+        }
     }
 
     private CompletionStage<RouterResult> handleListOffsets(
@@ -986,15 +1130,22 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleOffsetCommit(
+                                                             short apiVersion,
                                                              RequestHeaderData header,
                                                              OffsetCommitRequestData request,
                                                              RouterContext context) {
+        if (apiVersion >= 10) {
+            enrichOffsetCommitTopicIds(request);
+        }
         if (!subjectRoutes.isEmpty()) {
             return handleGroupRoutedOffsetCommit(header, request, context);
         }
 
         OffsetCommitResponseData errorResponse = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
-                request, routingTable);
+                request, routingTable, apiVersion);
+        if (apiVersion >= 10) {
+            request.topics().removeIf(t -> t.name() == null || t.name().isEmpty());
+        }
         Map<String, OffsetCommitRequestData> subRequests = offsetCommitDecomposer.decompose(
                 request, routingTable);
 
@@ -1085,6 +1236,33 @@ class TopicPartitionRouter implements Router {
                 });
     }
 
+    private void enrichOffsetCommitTopicIds(OffsetCommitRequestData request) {
+        for (var topic : request.topics()) {
+            if (!Uuid.ZERO_UUID.equals(topic.topicId())) {
+                String name = resolveTopicId(topic.topicId());
+                if (name != null) {
+                    topic.setName(name);
+                }
+            }
+        }
+    }
+
+    private void enrichOffsetFetchTopicIds(OffsetFetchRequestData request) {
+        for (var group : request.groups()) {
+            if (group.topics() == null) {
+                continue;
+            }
+            for (var topic : group.topics()) {
+                if (!Uuid.ZERO_UUID.equals(topic.topicId())) {
+                    String name = resolveTopicId(topic.topicId());
+                    if (name != null) {
+                        topic.setName(name);
+                    }
+                }
+            }
+        }
+    }
+
     private CompletionStage<RouterResult> handleCreateTopics(
                                                              RequestHeaderData header,
                                                              CreateTopicsRequestData request,
@@ -1147,13 +1325,20 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleDeleteTopics(
+                                                             short apiVersion,
                                                              RequestHeaderData header,
                                                              DeleteTopicsRequestData request,
                                                              RouterContext context) {
+        if (apiVersion >= 6) {
+            enrichDeleteTopicsTopicIds(request);
+        }
         DeleteTopicsResponseData errorResponse = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
-                request, routingTable);
+                request, routingTable, apiVersion);
+        if (apiVersion >= 6) {
+            request.topics().removeIf(t -> t.name() == null || t.name().isEmpty());
+        }
         Map<String, DeleteTopicsRequestData> subRequests = deleteTopicsDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1194,6 +1379,18 @@ class TopicPartitionRouter implements Router {
             }
             return syntheticResult(merged);
         });
+    }
+
+    private void enrichDeleteTopicsTopicIds(DeleteTopicsRequestData request) {
+        for (var topic : request.topics()) {
+            if ((topic.name() == null || topic.name().isEmpty())
+                    && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                String name = resolveTopicId(topic.topicId());
+                if (name != null) {
+                    topic.setName(name);
+                }
+            }
+        }
     }
 
     private CompletionStage<RouterResult> handleCreatePartitions(
@@ -1740,6 +1937,9 @@ class TopicPartitionRouter implements Router {
                                                             RequestHeaderData header,
                                                             OffsetFetchRequestData request,
                                                             RouterContext context) {
+        if (apiVersion >= 10) {
+            enrichOffsetFetchTopicIds(request);
+        }
         String cgRoute = defaultRoute;
         if (!subjectRoutes.isEmpty()) {
             LOGGER.atDebug()
@@ -1754,6 +1954,13 @@ class TopicPartitionRouter implements Router {
 
         OffsetFetchResponseData errorResponse = OffsetFetchDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
+        if (apiVersion >= 10) {
+            for (var group : request.groups()) {
+                if (group.topics() != null) {
+                    group.topics().removeIf(t -> t.name() == null || t.name().isEmpty());
+                }
+            }
+        }
         Map<String, OffsetFetchRequestData> subRequests = offsetFetchDecomposer.decompose(
                 request, routingTable, apiVersion);
 
@@ -1929,6 +2136,7 @@ class TopicPartitionRouter implements Router {
             if (topic.errorCode() != Errors.NONE.code()) {
                 continue;
             }
+            updateTopicIdCache(topic);
             var partMap = partitionLeaders.computeIfAbsent(topic.name(), k -> new HashMap<>());
             for (var partition : topic.partitions()) {
                 if (partition.errorCode() == Errors.NONE.code() && partition.leaderId() >= 0) {
@@ -1936,6 +2144,19 @@ class TopicPartitionRouter implements Router {
                 }
             }
         }
+    }
+
+    private void updateTopicIdCache(MetadataResponseData.MetadataResponseTopic topic) {
+        Uuid topicId = topic.topicId();
+        String topicName = topic.name();
+        if (!Uuid.ZERO_UUID.equals(topicId) && topicName != null && !topicName.isEmpty()) {
+            topicIdCache.put(topicId, topicName);
+        }
+    }
+
+    @Nullable
+    String resolveTopicId(Uuid topicId) {
+        return topicIdCache.resolve(topicId);
     }
 
     @Nullable
@@ -2005,7 +2226,7 @@ class TopicPartitionRouter implements Router {
                                                          RouterContext context) {
         var mdHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion((short) 9);
+                .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
         var mdReq = new MetadataRequestData();
         for (var name : topicNames) {
             mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic().setName(name));
@@ -2013,6 +2234,115 @@ class TopicPartitionRouter implements Router {
         return context.sendRequestToNode(route, context.bootstrapNodeId(route), mdHeader, mdReq).thenAccept(response -> {
             updateLeaderCache((MetadataResponseData) response.body());
         });
+    }
+
+    /**
+     * Sends a METADATA-by-topicId request to a single route and caches
+     * any successfully resolved topicId→name mappings where the name
+     * is consistent with the routing table.
+     */
+    private CompletionStage<Void> fetchMetadataForTopicIds(String route,
+                                                           List<Uuid> topicIds,
+                                                           RouterContext context) {
+        var mdHeader = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.METADATA.id)
+                .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
+        var mdReq = new MetadataRequestData();
+        mdReq.setAllowAutoTopicCreation(false);
+        for (var id : topicIds) {
+            mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic().setTopicId(id));
+        }
+        return context.sendRequestToNode(route, context.bootstrapNodeId(route), mdHeader, mdReq)
+                .thenAccept(response -> {
+                    var md = (MetadataResponseData) response.body();
+                    for (var topic : md.topics()) {
+                        if (topic.errorCode() == Errors.NONE.code()
+                                && !Uuid.ZERO_UUID.equals(topic.topicId())
+                                && topic.name() != null && !topic.name().isEmpty()) {
+                            if (route.equals(routingTable.routeForTopic(topic.name()))) {
+                                topicIdCache.put(topic.topicId(), topic.name());
+                            }
+                        }
+                    }
+                    updateLeaderCache(md);
+                });
+    }
+
+    /**
+     * Ensures all topicIds in the request are resolved to names in the cache.
+     * On cache miss, fans out METADATA-by-topicId to all routes and waits.
+     */
+    private CompletionStage<Void> ensureTopicIdsResolved(List<Uuid> uncachedTopicIds,
+                                                         RouterContext context) {
+        if (uncachedTopicIds.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        LOGGER.atDebug()
+                .addKeyValue("sessionId", context.sessionId())
+                .addKeyValue("uncachedCount", uncachedTopicIds.size())
+                .log("Resolving uncached topicIds via METADATA fan-out");
+        Set<String> allRoutes = routingTable.allRoutes();
+        List<CompletionStage<Void>> fetches = new ArrayList<>();
+        for (String route : allRoutes) {
+            fetches.add(fetchMetadataForTopicIds(route, uncachedTopicIds, context));
+        }
+        CompletableFuture<Void> combined = CompletableFuture.completedFuture(null);
+        for (var fetch : fetches) {
+            combined = combined.thenCombine(fetch, (a, b) -> null);
+        }
+        return combined;
+    }
+
+    private List<Uuid> collectUncachedTopicIds(ApiMessage request,
+                                               short apiVersion) {
+        var uncached = new ArrayList<Uuid>();
+        if (request instanceof ProduceRequestData pr && apiVersion >= 13) {
+            for (var td : pr.topicData()) {
+                if (!Uuid.ZERO_UUID.equals(td.topicId()) && topicIdCache.resolve(td.topicId()) == null) {
+                    uncached.add(td.topicId());
+                }
+            }
+        }
+        else if (request instanceof FetchRequestData fr && apiVersion >= 13) {
+            for (var topic : fr.topics()) {
+                if (!Uuid.ZERO_UUID.equals(topic.topicId()) && topicIdCache.resolve(topic.topicId()) == null) {
+                    uncached.add(topic.topicId());
+                }
+            }
+            for (var forgotten : fr.forgottenTopicsData()) {
+                if (!Uuid.ZERO_UUID.equals(forgotten.topicId()) && topicIdCache.resolve(forgotten.topicId()) == null) {
+                    uncached.add(forgotten.topicId());
+                }
+            }
+        }
+        else if (request instanceof OffsetCommitRequestData oc && apiVersion >= 10) {
+            for (var topic : oc.topics()) {
+                if (!Uuid.ZERO_UUID.equals(topic.topicId()) && topicIdCache.resolve(topic.topicId()) == null) {
+                    uncached.add(topic.topicId());
+                }
+            }
+        }
+        else if (request instanceof OffsetFetchRequestData of && apiVersion >= 10) {
+            for (var group : of.groups()) {
+                if (group.topics() != null) {
+                    for (var topic : group.topics()) {
+                        if (!Uuid.ZERO_UUID.equals(topic.topicId()) && topicIdCache.resolve(topic.topicId()) == null) {
+                            uncached.add(topic.topicId());
+                        }
+                    }
+                }
+            }
+        }
+        else if (request instanceof DeleteTopicsRequestData dt && apiVersion >= 6) {
+            for (var topic : dt.topics()) {
+                if ((topic.name() == null || topic.name().isEmpty())
+                        && !Uuid.ZERO_UUID.equals(topic.topicId())
+                        && topicIdCache.resolve(topic.topicId()) == null) {
+                    uncached.add(topic.topicId());
+                }
+            }
+        }
+        return uncached;
     }
 
     /**
@@ -2174,7 +2504,7 @@ class TopicPartitionRouter implements Router {
                             .setAcks(original.acks())
                             .setTimeoutMs(original.timeoutMs())
                             .setTransactionalId(routeReq.transactionalId()));
-                    var leaderTopic = findOrCreateProduceTopic(leaderReq, topic.name());
+                    var leaderTopic = findOrCreateProduceTopic(leaderReq, topic.name(), topic.topicId());
                     leaderTopic.partitionData().add(partition.duplicate());
                 }
             }
@@ -2184,13 +2514,16 @@ class TopicPartitionRouter implements Router {
 
     private static ProduceRequestData.TopicProduceData findOrCreateProduceTopic(
                                                                                 ProduceRequestData data,
-                                                                                String topicName) {
+                                                                                String topicName,
+                                                                                Uuid topicId) {
         for (var t : data.topicData()) {
             if (t.name().equals(topicName)) {
                 return t;
             }
         }
-        var t = new ProduceRequestData.TopicProduceData().setName(topicName);
+        var t = new ProduceRequestData.TopicProduceData()
+                .setName(topicName)
+                .setTopicId(topicId);
         data.topicData().add(t);
         return t;
     }
@@ -2213,7 +2546,7 @@ class TopicPartitionRouter implements Router {
                             .setMinBytes(original.minBytes())
                             .setIsolationLevel(original.isolationLevel())
                             .setReplicaId(original.replicaId()));
-                    var leaderTopic = findOrCreateFetchTopic(leaderReq, topic.topic());
+                    var leaderTopic = findOrCreateFetchTopic(leaderReq, topic.topic(), topic.topicId());
                     leaderTopic.partitions().add(partition.duplicate());
                 }
             }
@@ -2223,13 +2556,16 @@ class TopicPartitionRouter implements Router {
 
     private static FetchRequestData.FetchTopic findOrCreateFetchTopic(
                                                                       FetchRequestData data,
-                                                                      String topicName) {
+                                                                      String topicName,
+                                                                      Uuid topicId) {
         for (var t : data.topics()) {
             if (t.topic().equals(topicName)) {
                 return t;
             }
         }
-        var t = new FetchRequestData.FetchTopic().setTopic(topicName);
+        var t = new FetchRequestData.FetchTopic()
+                .setTopic(topicName)
+                .setTopicId(topicId);
         data.topics().add(t);
         return t;
     }
