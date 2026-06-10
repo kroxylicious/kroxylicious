@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import java.util.function.IntUnaryOperator;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -58,6 +59,7 @@ class RouterContextImpl implements RouterContext {
     private final PendingResponseRegistry pendingResponseRegistry;
     private final Map<Integer, HostPort> sharedNodeAddresses;
     private final IntUnaryOperator virtualIdTranslator;
+    private final Map<Uuid, String> topicIdCache;
 
     /**
      * Callback interface for forwarding requests to a route's bootstrap server.
@@ -91,7 +93,8 @@ class RouterContextImpl implements RouterContext {
                       AtomicInteger pendingResponseCount,
                       PendingResponseRegistry pendingResponseRegistry,
                       Map<Integer, HostPort> sharedNodeAddresses,
-                      IntUnaryOperator virtualIdTranslator) {
+                      IntUnaryOperator virtualIdTranslator,
+                      Map<Uuid, String> topicIdCache) {
         this.clientCorrelationId = clientCorrelationId;
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
@@ -108,6 +111,7 @@ class RouterContextImpl implements RouterContext {
         this.pendingResponseRegistry = Objects.requireNonNull(pendingResponseRegistry);
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
         this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
+        this.topicIdCache = Objects.requireNonNull(topicIdCache);
     }
 
     @Override
@@ -251,6 +255,11 @@ class RouterContextImpl implements RouterContext {
     @Override
     public Subject authenticatedSubject() {
         return subject;
+    }
+
+    @Override
+    public String topicName(Uuid topicId) {
+        return topicIdCache.get(topicId);
     }
 
     /**

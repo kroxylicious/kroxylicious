@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
@@ -68,6 +69,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private final AtomicInteger pendingResponseCount;
     private final IntUnaryOperator virtualIdTranslator;
     private final Map<Integer, HostPort> sharedNodeAddresses;
+    private final Map<Uuid, String> topicIdCache;
 
     private final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
@@ -83,7 +85,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                                   MeterProvider<Timer> routingRequestDurationTimer,
                                   AtomicInteger pendingResponseCount,
                                   IntUnaryOperator virtualIdTranslator,
-                                  Map<Integer, HostPort> sharedNodeAddresses) {
+                                  Map<Integer, HostPort> sharedNodeAddresses,
+                                  Map<Uuid, String> topicIdCache) {
         this.activationRoute = activationRoute;
         this.router = router;
         this.routes = routes;
@@ -96,6 +99,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         this.pendingResponseCount = pendingResponseCount;
         this.virtualIdTranslator = virtualIdTranslator;
         this.sharedNodeAddresses = sharedNodeAddresses;
+        this.topicIdCache = topicIdCache;
         this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
                 routes, nodeIdMapping, sharedNodeAddresses, virtualIdTranslator);
     }
@@ -186,7 +190,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 pendingResponseCount,
                 this,
                 sharedNodeAddresses,
-                virtualIdTranslator);
+                virtualIdTranslator,
+                topicIdCache);
 
         router.onRequest(
                 apiVersion,

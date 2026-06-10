@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal.filter.impl;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
@@ -52,7 +51,15 @@ import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
  */
 public class TopicIdRequestEnrichmentFilter implements RequestFilter, ResponseFilter {
 
-    private final Map<Uuid, String> cache = new HashMap<>();
+    private final Map<Uuid, String> cache;
+
+    /**
+     * @param cache shared cache that will also be read by
+     *              {@link io.kroxylicious.proxy.router.RouterContext#topicName(Uuid)}
+     */
+    public TopicIdRequestEnrichmentFilter(Map<Uuid, String> cache) {
+        this.cache = cache;
+    }
 
     @Override
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
