@@ -7,12 +7,14 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.AfterEach;
@@ -104,15 +106,13 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: only the old filter has been initialised.
+            // Given: only the old filter has been initialised, and real traffic flows on the old chain.
             InvocationCountingFilterFactory.assertInitializationCount(oldFilterId, 1);
             assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId)).isZero();
-
-            // Phase 2: real traffic confirms the old chain is in use.
             String topic = tester.createTopic("vc-filter-change");
-            assertProduceConsumeRoundTrip(tester, "vc-filter-change", topic, "phase2-old");
+            assertProduceConsumeRoundTrip(tester, "vc-filter-change", topic, "before-reconfigure");
 
-            // Phase 3: reconfigure swaps the filter chain.
+            // When: proxy reconfigured with a new filter chain.
             LOGGER.info("Reconfiguring vc-filter-change: old-counter -> new-counter");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -120,14 +120,14 @@ class FilterChangeHotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean filter-chain swap")
                             .isFalse());
 
-            // Phase 4: assert lifecycle effects of the ReplaceCluster.
+            // Then: the old initResult is closed and the new filter is initialised.
             assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
                     .as("old filter's initResult should have been closed exactly once during ReplaceCluster")
                     .isEqualTo(1);
             InvocationCountingFilterFactory.assertInitializationCount(newFilterId, 1);
 
-            // Phase 5: real traffic confirms the new chain is in use end-to-end.
-            assertProduceConsumeRoundTrip(tester, "vc-filter-change", topic, "phase5-new");
+            // Then: real traffic confirms the new chain is in use end-to-end.
+            assertProduceConsumeRoundTrip(tester, "vc-filter-change", topic, "after-reconfigure");
         }
     }
 
@@ -160,26 +160,26 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: both VCs initialised at startup. Init counts use a lower-bound assertion
-            // because the planner over-initialises during reconfigure planning (see afterEach).
+            // Given: both VCs initialised at startup and serving traffic on their respective chains.
+            // Init counts use a lower-bound assertion because the planner over-initialises during
+            // reconfigure planning (see afterEach).
             assertThat(InvocationCountingFilterFactory.initializationCountFor(vcAFilter1Id))
                     .as("VC-A's old filter was initialised at startup").isGreaterThanOrEqualTo(1);
             assertThat(InvocationCountingFilterFactory.initializationCountFor(vcBFilterId))
                     .as("VC-B's filter was initialised at startup").isGreaterThanOrEqualTo(1);
-
-            // Phase 2: traffic confirms both chains are in use.
             String topicA = tester.createTopic("vc-a");
             String topicB = tester.createTopic("vc-b");
-            assertProduceConsumeRoundTrip(tester, "vc-a", topicA, "phase2-vc-a");
-            assertProduceConsumeRoundTrip(tester, "vc-b", topicB, "phase2-vc-b");
+            assertProduceConsumeRoundTrip(tester, "vc-a", topicA, "before-reconfigure-vc-a");
+            assertProduceConsumeRoundTrip(tester, "vc-b", topicB, "before-reconfigure-vc-b");
 
-            // Phase 3: reconfigure only changes VC-A's filter chain; VC-B's config is identical.
+            // When: proxy reconfigured to change only VC-A's filter chain; VC-B's config is identical.
             LOGGER.info("Reconfiguring to change vc-a's filter chain only");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 4: per-VC isolation asserted via close counts only (init counts are inflated by planner pre-construction).
+            // Then: VC-A's old filter is closed; VC-B's filter is untouched. (Asserted via close
+            // counts because init counts are inflated by planner pre-construction.)
             assertThat(InvocationCountingFilterFactory.closeCountFor(vcAFilter1Id))
                     .as("VC-A's old filter should have been closed exactly once during ReplaceCluster")
                     .isEqualTo(1);
@@ -187,9 +187,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .as("VC-B's filter must NOT have been closed by VC-A's reconfigure (per-VC isolation)")
                     .isZero();
 
-            // Phase 5: both VCs still serve traffic — VC-A on its new chain, VC-B unchanged.
-            assertProduceConsumeRoundTrip(tester, "vc-a", topicA, "phase5-vc-a");
-            assertProduceConsumeRoundTrip(tester, "vc-b", topicB, "phase5-vc-b");
+            // Then: both VCs still serve traffic — VC-A on its new chain, VC-B unchanged.
+            assertProduceConsumeRoundTrip(tester, "vc-a", topicA, "after-reconfigure-vc-a");
+            assertProduceConsumeRoundTrip(tester, "vc-b", topicB, "after-reconfigure-vc-b");
         }
     }
 
@@ -220,11 +220,11 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: good filter active, traffic flows.
+            // Given: good filter active and traffic flowing.
             String topic = tester.createTopic("vc-fail");
-            assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "phase1-good");
+            assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "before-reconfigure");
 
-            // Phase 2: reconfigure with a filter that fails on initialize; the future fails exceptionally at the plan phase, no operations applied.
+            // When: proxy reconfigured with a filter that fails on initialize.
             LOGGER.info("Reconfiguring vc-fail with invalid filter chain (expected to fail at plan phase)");
             assertThat(tester.reconfigure(afterConfig))
                     .as("reconfigure with a filter that throws on initialize should fail exceptionally")
@@ -233,13 +233,13 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .havingCause()
                     .withMessageContaining("FailingInitFilterFactory");
 
-            // Phase 3: the old filter was NOT closed — no operation ran, live VC unaffected.
+            // Then: the old filter is NOT closed — no operation ran, the live VC is unaffected.
             assertThat(InvocationCountingFilterFactory.closeCountFor(goodFilterId))
                     .as("old filter must NOT be closed when the reconfigure fails at planning")
                     .isZero();
 
-            // Phase 4: traffic still flows on the original chain (the proxy state was not mutated).
-            assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "phase4-still-good");
+            // Then: traffic still flows on the original chain (proxy state was not mutated).
+            assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "after-failed-reconfigure");
         }
     }
 
@@ -266,16 +266,17 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: only F1 initialised at startup.
+            // Given: only F1 initialised at startup.
             InvocationCountingFilterFactory.assertInitializationCount(filter1Id, 1);
 
-            // Phase 2: reconfigure — chain [f1] -> [f1, f2].
+            // When: proxy reconfigured to add F2 — chain [f1] -> [f1, f2].
             LOGGER.info("Reconfiguring vc-add-filter: [f1] -> [f1, f2]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: F1 closed + re-initialised, F2 newly initialised — F1's init=2 is the load-bearing whole-FCF-replacement assertion.
+            // Then: F1 closed and re-initialised, F2 newly initialised — F1's init=2 is the
+            // load-bearing whole-FCF-replacement assertion.
             assertThat(InvocationCountingFilterFactory.closeCountFor(filter1Id))
                     .as("F1's old initResult should have been closed during ReplaceCluster")
                     .isEqualTo(1);
@@ -289,9 +290,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .as("F2 is part of the live new chain, should not be closed yet")
                     .isZero();
 
-            // Phase 4: traffic flows on the new chain.
+            // Then: traffic flows on the new chain.
             String topic = tester.createTopic("vc-add-filter");
-            assertProduceConsumeRoundTrip(tester, "vc-add-filter", topic, "phase4-new-chain");
+            assertProduceConsumeRoundTrip(tester, "vc-add-filter", topic, "after-reconfigure");
         }
     }
 
@@ -318,17 +319,17 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: both F1 and F2 initialised at startup.
+            // Given: both F1 and F2 initialised at startup.
             InvocationCountingFilterFactory.assertInitializationCount(filter1Id, 1);
             InvocationCountingFilterFactory.assertInitializationCount(filter2Id, 1);
 
-            // Phase 2: reconfigure — chain [f1, f2] -> [f1].
+            // When: proxy reconfigured to remove F2 — chain [f1, f2] -> [f1].
             LOGGER.info("Reconfiguring vc-remove-filter: [f1, f2] -> [f1]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: both old initResults closed; F1 re-initialised, F2 not (it is gone from the new chain).
+            // Then: both old initResults closed; F1 re-initialised, F2 not (it is gone from the new chain).
             assertThat(InvocationCountingFilterFactory.closeCountFor(filter1Id))
                     .as("F1's old initResult should have been closed")
                     .isEqualTo(1);
@@ -342,9 +343,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .as("F2 should NOT have been re-initialised — it's not in the new chain")
                     .isEqualTo(1);
 
-            // Phase 4: traffic flows on the new chain.
+            // Then: traffic flows on the shortened chain.
             String topic = tester.createTopic("vc-remove-filter");
-            assertProduceConsumeRoundTrip(tester, "vc-remove-filter", topic, "phase4-shortened-chain");
+            assertProduceConsumeRoundTrip(tester, "vc-remove-filter", topic, "after-reconfigure");
         }
     }
 
@@ -373,17 +374,17 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: both F1 and F2 initialised at startup.
+            // Given: both F1 and F2 initialised at startup.
             InvocationCountingFilterFactory.assertInitializationCount(filter1Id, 1);
             InvocationCountingFilterFactory.assertInitializationCount(filter2Id, 1);
 
-            // Phase 2: reconfigure — chain [f1, f2] -> [f2, f1] (reorder only).
+            // When: proxy reconfigured to reorder the chain — [f1, f2] -> [f2, f1].
             LOGGER.info("Reconfiguring vc-reorder: [f1, f2] -> [f2, f1]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: reorder is treated as a full replace — both old initResults closed, both new initResults initialised.
+            // Then: reorder is treated as a full replace — both old initResults closed, both new initResults initialised.
             assertThat(InvocationCountingFilterFactory.closeCountFor(filter1Id))
                     .as("F1's old initResult should have been closed")
                     .isEqualTo(1);
@@ -397,9 +398,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .as("F2 should have been re-initialised for the reordered chain")
                     .isEqualTo(2);
 
-            // Phase 4: traffic flows on the reordered chain.
+            // Then: traffic flows on the reordered chain.
             String topic = tester.createTopic("vc-reorder");
-            assertProduceConsumeRoundTrip(tester, "vc-reorder", topic, "phase4-reordered");
+            assertProduceConsumeRoundTrip(tester, "vc-reorder", topic, "after-reconfigure");
         }
     }
 
@@ -428,17 +429,17 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: filter initialised with the X config.
+            // Given: filter initialised with config X.
             InvocationCountingFilterFactory.assertInitializationCount(configX, 1);
             assertThat(InvocationCountingFilterFactory.initializationCountFor(configY)).isZero();
 
-            // Phase 2: reconfigure — same filter name, different config (X -> Y).
+            // When: proxy reconfigured to change the same filter name's config X -> Y.
             LOGGER.info("Reconfiguring vc-cfg-change: filter 'f1' config X -> Y");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 3: X closed, Y initialised — independent lifecycles per config UUID even when the filter name is unchanged.
+            // Then: X is closed, Y is initialised — independent lifecycles per config UUID even when the filter name is unchanged.
             assertThat(InvocationCountingFilterFactory.closeCountFor(configX))
                     .as("the old config's initResult should have been closed")
                     .isEqualTo(1);
@@ -449,9 +450,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .as("the new config's initResult is part of the live chain, not yet closed")
                     .isZero();
 
-            // Phase 4: traffic flows under the new config.
+            // Then: traffic flows under the new config.
             String topic = tester.createTopic("vc-cfg-change");
-            assertProduceConsumeRoundTrip(tester, "vc-cfg-change", topic, "phase4-new-config");
+            assertProduceConsumeRoundTrip(tester, "vc-cfg-change", topic, "after-reconfigure");
         }
     }
 
@@ -486,24 +487,24 @@ class FilterChangeHotReloadIT extends BaseIT {
 
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingTesterBuilder).createDefaultKroxyliciousTester()) {
 
-            // Phase 1: per-VC FCF scoping means each VC initialises its own copy of the shared defaultFilter, so the same UUID sees two init calls.
+            // Given: both VCs initialised via defaultFilters and serving traffic. Per-VC FCF
+            // scoping means each VC initialises its own copy of the shared defaultFilter, so
+            // the same UUID sees two init calls.
             assertThat(InvocationCountingFilterFactory.initializationCountFor(oldFilterId))
                     .as("Both VCs share the same defaultFilter config UUID — init fires once per VC")
                     .isEqualTo(2);
-
-            // Phase 2: traffic confirms both VCs serve via the old defaultFilter.
             String topicA = tester.createTopic("vc-default-a");
             String topicB = tester.createTopic("vc-default-b");
-            assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "phase2-a-old");
-            assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "phase2-b-old");
+            assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "before-reconfigure-vc-a");
+            assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "before-reconfigure-vc-b");
 
-            // Phase 3: change defaultFilters globally — both VCs are affected via the use-defaults path.
+            // When: proxy reconfigured to change defaultFilters globally — affects every VC that uses defaults.
             LOGGER.info("Reconfiguring proxy: defaultFilters [default-old] -> [default-new]");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Phase 4: counts of 2 prove the cascade — a single defaultFilters change replaced every dependent VC's chain.
+            // Then: counts of 2 prove the cascade — a single defaultFilters change replaced every dependent VC's chain.
             assertThat(InvocationCountingFilterFactory.closeCountFor(oldFilterId))
                     .as("both VCs' old defaultFilter initResults should have been closed")
                     .isEqualTo(2);
@@ -514,9 +515,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .as("new defaultFilters are part of the live chains, not yet closed")
                     .isZero();
 
-            // Phase 5: both VCs still serve traffic on the new defaultFilter chain.
-            assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "phase5-a-new");
-            assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "phase5-b-new");
+            // Then: both VCs still serve traffic on the new defaultFilter chain.
+            assertProduceConsumeRoundTrip(tester, "vc-default-a", topicA, "after-reconfigure-vc-a");
+            assertProduceConsumeRoundTrip(tester, "vc-default-b", topicB, "after-reconfigure-vc-b");
         }
     }
 
@@ -549,9 +550,10 @@ class FilterChangeHotReloadIT extends BaseIT {
     }
 
     /**
-     * Per-VC produce-consume round-trip. Mirrors the helper in {@link HotReloadIT}, simplified
-     * to a smaller per-call message count since these tests don't depend on volume — they only
-     * need to prove a single end-to-end request flowed through the relevant filter chain.
+     * Per-VC produce-then-consume round-trip. Produces {@code messageCount} records with
+     * marker-prefixed keys and asserts that a consumer reads all of them back. Proves that
+     * traffic flows end-to-end through the VC's filter chain on both the request (produce)
+     * and response (fetch) paths, not just that produce was accepted.
      */
     private static void assertProduceConsumeRoundTrip(KroxyliciousTester tester, String vc, String topic, String marker) throws Exception {
         int messageCount = 5;
@@ -560,6 +562,26 @@ class FilterChangeHotReloadIT extends BaseIT {
                 producer.send(new ProducerRecord<>(topic, marker + "-" + i, marker + "-v-" + i))
                         .get(10, TimeUnit.SECONDS);
             }
+        }
+
+        try (var consumer = tester.consumer(vc, Map.of(
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                ConsumerConfig.GROUP_ID_CONFIG, "filter-change-it-" + marker))) {
+            consumer.subscribe(List.of(topic));
+            var seenKeys = new HashSet<String>();
+            String keyPrefix = marker + "-";
+            long deadline = System.currentTimeMillis() + 10_000;
+            while (System.currentTimeMillis() < deadline && seenKeys.size() < messageCount) {
+                var batch = consumer.poll(Duration.ofMillis(500));
+                for (var record : batch) {
+                    if (record.key() != null && record.key().startsWith(keyPrefix)) {
+                        seenKeys.add(record.key());
+                    }
+                }
+            }
+            assertThat(seenKeys)
+                    .as("consumer should observe all %d records produced with marker '%s' via VC '%s'", messageCount, marker, vc)
+                    .hasSize(messageCount);
         }
     }
 }
