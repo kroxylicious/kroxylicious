@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListOffsetsResponseData;
 import org.apache.kafka.common.message.ListOffsetsResponseData.ListOffsetsPartitionResponse;
@@ -28,7 +30,8 @@ class ListOffsetsDecomposer implements RequestDecomposer<ListOffsetsRequestData,
     @Override
     public Map<String, ListOffsetsRequestData> decompose(ListOffsetsRequestData request,
                                                          TopicRoutingTable table,
-                                                         short apiVersion) {
+                                                         short apiVersion,
+                                                         Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, ListOffsetsRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());

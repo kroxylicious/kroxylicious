@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
@@ -29,10 +31,15 @@ class ProduceDecomposer implements RequestDecomposer<ProduceRequestData, Produce
     @Override
     public Map<String, ProduceRequestData> decompose(ProduceRequestData request,
                                                      TopicRoutingTable table,
-                                                     short apiVersion) {
+                                                     short apiVersion,
+                                                     Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, ProduceRequestData>();
         for (var td : request.topicData()) {
-            String route = table.routeForTopic(td.name());
+            String topicName = td.name();
+            if ((topicName == null || topicName.isEmpty()) && !Uuid.ZERO_UUID.equals(td.topicId())) {
+                topicName = topicNameResolver.apply(td.topicId());
+            }
+            String route = table.routeForTopic(topicName);
             if (route != null) {
                 result.computeIfAbsent(route, k -> copyEnvelope(request))
                         .topicData().add(td.duplicate());

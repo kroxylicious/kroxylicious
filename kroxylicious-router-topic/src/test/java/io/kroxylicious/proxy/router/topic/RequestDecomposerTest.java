@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.TopicProduceResponse;
@@ -106,7 +108,8 @@ class RequestDecomposerTest {
         public Map<String, ProduceRequestData> decompose(
                                                          ProduceRequestData request,
                                                          TopicRoutingTable table,
-                                                         short apiVersion) {
+                                                         short apiVersion,
+                                                         Function<Uuid, String> topicNameResolver) {
             var result = new java.util.LinkedHashMap<String, ProduceRequestData>();
             for (var td : request.topicData()) {
                 String route = table.routeForTopic(td.name());
