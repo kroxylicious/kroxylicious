@@ -40,6 +40,7 @@ import static io.kroxylicious.testing.operator.assertj.OperatorAssertions.assert
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
+@SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 class KafkaServiceBootstrapReconcilerIT {
 
     public static final String FOO_BOOTSTRAP_9090 = "foo.bootstrap:9090";

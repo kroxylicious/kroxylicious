@@ -81,6 +81,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
  *
  */
 @EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
+@SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 class AllReconcilersIT {
     private static final String PROXY_A = "proxy-a";
     private static final String CLUSTER_FOO = "foo";

@@ -74,6 +74,7 @@ import static org.awaitility.Awaitility.await;
  * independently within a single test) which the extension does not support.
  */
 @EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
+@SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 class OperatorSsaUpgradeIT {
 
     private static final String PROXY_NAME = "proxy-a";
