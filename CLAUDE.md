@@ -32,6 +32,7 @@ When writing code, follow these prescriptive rules:
 - [Logging](.claude/rules/logging.md) - Logging conventions
 - [Documentation](.claude/rules/documentation-requirements.md) - When to write docs
 - [Pull Requests](.claude/rules/pull-requests.md) - PR checklist requirements
+- [Testing](.claude/rules/testing.md) - Test structure conventions
 
 ## Commit Conventions
 
