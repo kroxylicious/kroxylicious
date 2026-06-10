@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData.OffsetFetchRequestGroup;
 import org.apache.kafka.common.message.OffsetFetchResponseData;
@@ -33,12 +35,13 @@ class OffsetFetchDecomposer implements RequestDecomposer<OffsetFetchRequestData,
     @Override
     public Map<String, OffsetFetchRequestData> decompose(OffsetFetchRequestData request,
                                                          TopicRoutingTable table,
-                                                         short apiVersion) {
+                                                         short apiVersion,
+                                                         Function<Uuid, String> topicNameResolver) {
         if (apiVersion <= 7) {
             return decomposeV1to7(request, table);
         }
         else {
-            return decomposeV8plus(request, table);
+            return decomposeV8plus(request, table, topicNameResolver);
         }
     }
 
@@ -128,14 +131,19 @@ class OffsetFetchDecomposer implements RequestDecomposer<OffsetFetchRequestData,
     // --- v8-9: multi-group with Groups array ---
 
     private Map<String, OffsetFetchRequestData> decomposeV8plus(OffsetFetchRequestData request,
-                                                                TopicRoutingTable table) {
+                                                                TopicRoutingTable table,
+                                                                Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, OffsetFetchRequestData>();
         for (var group : request.groups()) {
             if (group.topics() == null) {
                 continue;
             }
             for (var topic : group.topics()) {
-                String route = table.routeForTopic(topic.name());
+                String topicName = topic.name();
+                if ((topicName == null || topicName.isEmpty()) && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                    topicName = topicNameResolver.apply(topic.topicId());
+                }
+                String route = table.routeForTopic(topicName);
                 if (route != null) {
                     var routeReq = result.computeIfAbsent(route, k -> new OffsetFetchRequestData()
                             .setRequireStable(request.requireStable()));

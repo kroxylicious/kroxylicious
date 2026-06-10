@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
 import org.apache.kafka.common.message.CreatePartitionsResponseData;
 import org.apache.kafka.common.message.CreatePartitionsResponseData.CreatePartitionsTopicResult;
@@ -29,7 +31,8 @@ class CreatePartitionsDecomposer implements RequestDecomposer<CreatePartitionsRe
     @Override
     public Map<String, CreatePartitionsRequestData> decompose(CreatePartitionsRequestData request,
                                                               TopicRoutingTable table,
-                                                              short apiVersion) {
+                                                              short apiVersion,
+                                                              Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, CreatePartitionsRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());

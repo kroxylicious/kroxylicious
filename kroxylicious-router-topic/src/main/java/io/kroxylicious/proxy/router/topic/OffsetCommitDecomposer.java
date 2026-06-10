@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.OffsetCommitResponseData.OffsetCommitResponsePartition;
@@ -28,10 +30,15 @@ class OffsetCommitDecomposer implements RequestDecomposer<OffsetCommitRequestDat
     @Override
     public Map<String, OffsetCommitRequestData> decompose(OffsetCommitRequestData request,
                                                           TopicRoutingTable table,
-                                                          short apiVersion) {
+                                                          short apiVersion,
+                                                          Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, OffsetCommitRequestData>();
         for (var topic : request.topics()) {
-            String route = table.routeForTopic(topic.name());
+            String topicName = topic.name();
+            if ((topicName == null || topicName.isEmpty()) && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                topicName = topicNameResolver.apply(topic.topicId());
+            }
+            String route = table.routeForTopic(topicName);
             if (route != null) {
                 result.computeIfAbsent(route, k -> copyEnvelope(request))
                         .topics().add(topic.duplicate());

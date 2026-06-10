@@ -385,7 +385,7 @@ class TopicPartitionRouter implements Router {
         ProduceResponseData errorResponse = ProduceDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
         boolean subjectRouted = subjectRouteFor(context.authenticatedSubject()) != null;
         if (!subjectRouted && !rewriteProducerIdsForRoutes(subRequests)) {
             LOGGER.atDebug()
@@ -804,7 +804,7 @@ class TopicPartitionRouter implements Router {
         FetchResponseData errorResponse = FetchDecomposer.errorResponseForUnroutableTopics(
                 fullRequest, routingTable, usesTopicIds);
         Map<String, FetchRequestData> subRequests = fetchDecomposer.decompose(
-                fullRequest, routingTable, apiVersion);
+                fullRequest, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             var clientResponse = fetchSessionManager.computeClientResponse(errorResponse);
@@ -859,7 +859,7 @@ class TopicPartitionRouter implements Router {
         ListOffsetsResponseData errorResponse = ListOffsetsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, ListOffsetsRequestData> subRequests = listOffsetsDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1006,7 +1006,7 @@ class TopicPartitionRouter implements Router {
         OffsetCommitResponseData errorResponse = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, OffsetCommitRequestData> subRequests = offsetCommitDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1114,7 +1114,7 @@ class TopicPartitionRouter implements Router {
                     .log("Rejecting CreateTopics with explicit replica assignments");
         }
         Map<String, CreateTopicsRequestData> subRequests = createTopicsDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1165,7 +1165,7 @@ class TopicPartitionRouter implements Router {
         DeleteTopicsResponseData errorResponse = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, DeleteTopicsRequestData> subRequests = deleteTopicsDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1227,7 +1227,7 @@ class TopicPartitionRouter implements Router {
                     .log("Rejecting CreatePartitions with explicit partition assignments");
         }
         Map<String, CreatePartitionsRequestData> subRequests = createPartitionsDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1278,7 +1278,7 @@ class TopicPartitionRouter implements Router {
         DeleteRecordsResponseData errorResponse = DeleteRecordsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, DeleteRecordsRequestData> subRequests = deleteRecordsDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1769,7 +1769,7 @@ class TopicPartitionRouter implements Router {
         OffsetFetchResponseData errorResponse = OffsetFetchDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, OffsetFetchRequestData> subRequests = offsetFetchDecomposer.decompose(
-                request, routingTable, apiVersion);
+                request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));

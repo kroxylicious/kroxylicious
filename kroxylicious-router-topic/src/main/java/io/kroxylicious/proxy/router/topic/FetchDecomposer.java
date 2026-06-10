@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -28,10 +30,15 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
     @Override
     public Map<String, FetchRequestData> decompose(FetchRequestData request,
                                                    TopicRoutingTable table,
-                                                   short apiVersion) {
+                                                   short apiVersion,
+                                                   Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, FetchRequestData>();
         for (var topic : request.topics()) {
-            String route = table.routeForTopic(topic.topic());
+            String topicName = topic.topic();
+            if ((topicName == null || topicName.isEmpty()) && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                topicName = topicNameResolver.apply(topic.topicId());
+            }
+            String route = table.routeForTopic(topicName);
             if (route != null) {
                 result.computeIfAbsent(route, k -> copyEnvelope(request))
                         .topics().add(topic.duplicate());

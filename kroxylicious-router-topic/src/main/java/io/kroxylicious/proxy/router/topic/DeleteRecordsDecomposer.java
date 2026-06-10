@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsResponseData;
 import org.apache.kafka.common.message.DeleteRecordsResponseData.DeleteRecordsPartitionResult;
@@ -28,7 +30,8 @@ class DeleteRecordsDecomposer implements RequestDecomposer<DeleteRecordsRequestD
     @Override
     public Map<String, DeleteRecordsRequestData> decompose(DeleteRecordsRequestData request,
                                                            TopicRoutingTable table,
-                                                           short apiVersion) {
+                                                           short apiVersion,
+                                                           Function<Uuid, String> topicNameResolver) {
         var result = new LinkedHashMap<String, DeleteRecordsRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());

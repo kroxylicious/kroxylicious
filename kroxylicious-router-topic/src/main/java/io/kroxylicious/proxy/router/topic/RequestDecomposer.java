@@ -6,7 +6,9 @@
 package io.kroxylicious.proxy.router.topic;
 
 import java.util.Map;
+import java.util.function.Function;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
@@ -28,11 +30,22 @@ public interface RequestDecomposer<Req extends ApiMessage, Resp extends ApiMessa
      * @param request the client's original request body
      * @param table the topic-to-route mapping
      * @param apiVersion the API version of the request
+     * @param topicNameResolver resolves a topic UUID to its name, returning {@code null} if unknown
      * @return per-route sub-requests, never empty
      */
     Map<String, Req> decompose(Req request,
                                TopicRoutingTable table,
-                               short apiVersion);
+                               short apiVersion,
+                               Function<Uuid, String> topicNameResolver);
+
+    /**
+     * Convenience overload that passes a no-op resolver.
+     */
+    default Map<String, Req> decompose(Req request,
+                                       TopicRoutingTable table,
+                                       short apiVersion) {
+        return decompose(request, table, apiVersion, uuid -> null);
+    }
 
     /**
      * Merges per-route sub-responses into a single response for the client.
