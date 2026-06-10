@@ -112,7 +112,8 @@ class RouterContextImplTest {
                 pendingResponseCount,
                 testPendingResponseRegistry,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity());
+                IntUnaryOperator.identity(),
+                java.util.Map.of());
     }
 
     @Test
@@ -245,7 +246,8 @@ class RouterContextImplTest {
                 pendingResponseCount,
                 testPendingResponseRegistry,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity());
+                IntUnaryOperator.identity(),
+                java.util.Map.of());
 
         var headerA = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
@@ -292,7 +294,8 @@ class RouterContextImplTest {
                 pendingResponseCount,
                 testPendingResponseRegistry,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity());
+                IntUnaryOperator.identity(),
+                java.util.Map.of());
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
