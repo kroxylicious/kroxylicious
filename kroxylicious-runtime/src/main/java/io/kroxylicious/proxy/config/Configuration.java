@@ -192,6 +192,30 @@ public record Configuration(
                 .toList();
     }
 
+    /**
+     * Builds the {@link VirtualClusterModel} for a single virtual cluster by name. Unlike
+     * {@link #virtualClusterModel(PluginFactoryRegistry)}, this avoids constructing models
+     * (and therefore avoids running each filter's {@code initialize()}) for any virtual cluster
+     * other than the one requested. Used by {@code OperationsPlanner} so a reconfigure that
+     * targets one cluster doesn't orphan-initialise the filters of unrelated clusters.
+     *
+     * @throws IllegalArgumentException if no virtual cluster with that name exists in this configuration
+     */
+    public VirtualClusterModel virtualClusterModel(PluginFactoryRegistry pfr, String clusterName) {
+        var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
+                .stream()
+                .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
+
+        return virtualClusters.stream()
+                .filter(virtualCluster -> virtualCluster.name().equals(clusterName))
+                .findFirst()
+                .map(virtualCluster -> {
+                    List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
+                })
+                .orElseThrow(() -> new IllegalArgumentException("No virtual cluster named '" + clusterName + "' in this configuration"));
+    }
+
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                                          VirtualCluster virtualCluster) {
         List<NamedFilterDefinition> filterDefinitions;

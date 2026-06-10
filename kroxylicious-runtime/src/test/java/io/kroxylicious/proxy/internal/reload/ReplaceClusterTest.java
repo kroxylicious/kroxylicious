@@ -43,7 +43,7 @@ class ReplaceClusterTest {
         stubAddBookkeepingSucceeds();
         stubRegisterSucceeds();
 
-        var result = new ReplaceCluster(oldModel, newModel, vcr, endpointRegistry).apply();
+        var result = new ReplaceCluster(oldModel, NAME, () -> newModel, vcr, endpointRegistry).apply();
 
         assertThat(result).isEmpty();
         var inOrder = inOrder(vcr, endpointRegistry);
@@ -65,7 +65,7 @@ class ReplaceClusterTest {
         var removeCause = new IllegalStateException("simulated drain failure");
         when(vcr.removeVirtualCluster(NAME)).thenReturn(CompletableFuture.failedFuture(removeCause));
 
-        var result = new ReplaceCluster(oldModel, newModel, vcr, endpointRegistry).apply();
+        var result = new ReplaceCluster(oldModel, NAME, () -> newModel, vcr, endpointRegistry).apply();
 
         assertThat(result).hasValueSatisfying(e -> {
             assertThat(e.humanReadableIdentifier()).isEqualTo(NAME);
@@ -92,7 +92,7 @@ class ReplaceClusterTest {
                 .thenReturn(CompletableFuture.failedStage(bindCause));
         stubDeregisterSucceeds(); // for the AddCluster rollback path
 
-        var result = new ReplaceCluster(oldModel, newModel, vcr, endpointRegistry).apply();
+        var result = new ReplaceCluster(oldModel, NAME, () -> newModel, vcr, endpointRegistry).apply();
 
         assertThat(result).hasValueSatisfying(e -> {
             assertThat(e.humanReadableIdentifier()).isEqualTo(NAME);
@@ -110,18 +110,19 @@ class ReplaceClusterTest {
         var oldModel = modelWithGateway(NAME, mock(EndpointGateway.class));
         var newModel = modelWithGateway(NAME, mock(EndpointGateway.class));
 
-        assertThat(new ReplaceCluster(oldModel, newModel, vcr, endpointRegistry).clusterName())
+        assertThat(new ReplaceCluster(oldModel, NAME, () -> newModel, vcr, endpointRegistry).clusterName())
                 .isEqualTo(NAME);
     }
 
     @Test
-    void constructorRejectsNameMismatch() {
-        // Defence in depth: the planner only emits ReplaceCluster pairs where both models share
-        // a name, but the operation guards against a buggy planner that violates that.
+    void constructorRejectsNameMismatchBetweenOldModelAndPlannedName() {
+        // Defence in depth: the planner only emits ReplaceCluster where the old model's name
+        // matches the planned cluster name, but the operation guards against a buggy planner
+        // that violates that.
         var oldModel = modelWithGateway("cluster-a", mock(EndpointGateway.class));
         var newModel = modelWithGateway("cluster-b", mock(EndpointGateway.class));
 
-        assertThatThrownBy(() -> new ReplaceCluster(oldModel, newModel, vcr, endpointRegistry))
+        assertThatThrownBy(() -> new ReplaceCluster(oldModel, "cluster-b", () -> newModel, vcr, endpointRegistry))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cluster-a")
                 .hasMessageContaining("cluster-b");
@@ -131,13 +132,15 @@ class ReplaceClusterTest {
     @Test
     void constructorRejectsNullArguments() {
         var model = modelWithGateway(NAME, mock(EndpointGateway.class));
-        assertThatThrownBy(() -> new ReplaceCluster(null, model, vcr, endpointRegistry))
+        assertThatThrownBy(() -> new ReplaceCluster(null, NAME, () -> model, vcr, endpointRegistry))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ReplaceCluster(model, null, vcr, endpointRegistry))
+        assertThatThrownBy(() -> new ReplaceCluster(model, null, () -> model, vcr, endpointRegistry))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ReplaceCluster(model, model, null, endpointRegistry))
+        assertThatThrownBy(() -> new ReplaceCluster(model, NAME, null, vcr, endpointRegistry))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> new ReplaceCluster(model, model, vcr, null))
+        assertThatThrownBy(() -> new ReplaceCluster(model, NAME, () -> model, null, endpointRegistry))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ReplaceCluster(model, NAME, () -> model, vcr, null))
                 .isInstanceOf(NullPointerException.class);
     }
 

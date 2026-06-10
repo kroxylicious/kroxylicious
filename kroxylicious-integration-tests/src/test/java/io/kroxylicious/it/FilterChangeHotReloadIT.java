@@ -79,8 +79,8 @@ class FilterChangeHotReloadIT extends BaseIT {
 
     @AfterEach
     void afterEach() {
-        // Per-test isolation
-        InvocationCountingFilterFactory.resetCounts();
+        // Strict per-test hygiene: every initialise call must have a matching close.
+        InvocationCountingFilterFactory.assertAllClosedAndResetCounts();
     }
 
     @Test
@@ -160,13 +160,9 @@ class FilterChangeHotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Given: both VCs initialised at startup and serving traffic on their respective chains.
-            // Init counts use a lower-bound assertion because the planner over-initialises during
-            // reconfigure planning (see afterEach).
-            assertThat(InvocationCountingFilterFactory.initializationCountFor(vcAFilter1Id))
-                    .as("VC-A's old filter was initialised at startup").isGreaterThanOrEqualTo(1);
-            assertThat(InvocationCountingFilterFactory.initializationCountFor(vcBFilterId))
-                    .as("VC-B's filter was initialised at startup").isGreaterThanOrEqualTo(1);
+            // Given: both VCs initialised exactly once at startup and serving traffic on their chains.
+            InvocationCountingFilterFactory.assertInitializationCount(vcAFilter1Id, 1);
+            InvocationCountingFilterFactory.assertInitializationCount(vcBFilterId, 1);
             String topicA = tester.createTopic("vc-a");
             String topicB = tester.createTopic("vc-b");
             assertProduceConsumeRoundTrip(tester, "vc-a", topicA, "before-reconfigure-vc-a");
@@ -178,13 +174,16 @@ class FilterChangeHotReloadIT extends BaseIT {
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // Then: VC-A's old filter is closed; VC-B's filter is untouched. (Asserted via close
-            // counts because init counts are inflated by planner pre-construction.)
+            // Then: VC-A's old filter is closed and its new filter is initialised exactly once.
             assertThat(InvocationCountingFilterFactory.closeCountFor(vcAFilter1Id))
                     .as("VC-A's old filter should have been closed exactly once during ReplaceCluster")
                     .isEqualTo(1);
+            InvocationCountingFilterFactory.assertInitializationCount(vcAFilter2Id, 1);
+
+            // Then: VC-B's filter is structurally untouched — same init count as at startup, no close.
+            InvocationCountingFilterFactory.assertInitializationCount(vcBFilterId, 1);
             assertThat(InvocationCountingFilterFactory.closeCountFor(vcBFilterId))
-                    .as("VC-B's filter must NOT have been closed by VC-A's reconfigure (per-VC isolation)")
+                    .as("VC-B's filter must NOT have been closed by VC-A's reconfigure")
                     .isZero();
 
             // Then: both VCs still serve traffic — VC-A on its new chain, VC-B unchanged.
@@ -194,14 +193,13 @@ class FilterChangeHotReloadIT extends BaseIT {
     }
 
     @Test
-    void shouldFailReconfigureExceptionallyWhenNewFilterChainHasInvalidConfig(@BrokerCluster KafkaCluster cluster) throws Exception {
-        // The orchestrator's OperationsPlanner pre-constructs VCMs for the entire new config
-        // as part of planning (so it can resolve cluster names to fully-built models for the
-        // Add/Replace operations). Filter init failures surface during this construction,
-        // BEFORE any operation's apply runs — so the reconfigure future fails exceptionally
-        // and no live cluster is mutated. The contract is therefore *more transactional* than
-        // the naive "non-transactional replace" reading would suggest: a doomed new config
-        // is rejected at the planning phase, leaving the live proxy state intact.
+    void shouldSurfaceFilterInitFailureAsReconfigureErrorAndLeaveVcStopped(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Per-cluster failure semantics under lazy VCM construction. A filter that throws
+        // on initialize causes the AddCluster half of ReplaceCluster to fail AFTER the
+        // RemoveCluster half has already torn down the old chain. The reconfigure future
+        // completes successfully — the failure surfaces in ReconfigureResult.errors() — but the
+        // affected VC ends up Stopped, and its old filter HAS been closed. Other clusters in the
+        // same reconfigure are unaffected.
         UUID goodFilterId = UUID.randomUUID();
 
         var goodFilterDef = invocationCounterDef("good-counter", goodFilterId);
@@ -225,21 +223,24 @@ class FilterChangeHotReloadIT extends BaseIT {
             assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "before-reconfigure");
 
             // When: proxy reconfigured with a filter that fails on initialize.
-            LOGGER.info("Reconfiguring vc-fail with invalid filter chain (expected to fail at plan phase)");
+            LOGGER.info("Reconfiguring vc-fail with invalid filter chain");
             assertThat(tester.reconfigure(afterConfig))
-                    .as("reconfigure with a filter that throws on initialize should fail exceptionally")
-                    .failsWithin(RECONFIGURE_TIMEOUT)
-                    .withThrowableThat()
-                    .havingCause()
-                    .withMessageContaining("FailingInitFilterFactory");
+                    .as("reconfigure future completes successfully but carries an error for the failing cluster")
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> {
+                        assertThat(rr.hasErrors())
+                                .as("ReconfigureResult should report the per-cluster failure")
+                                .isTrue();
+                        assertThat(rr.errors())
+                                .as("error should mention the failing cluster")
+                                .anySatisfy(e -> assertThat(e.toString()).contains("vc-fail"));
+                    });
 
-            // Then: the old filter is NOT closed — no operation ran, the live VC is unaffected.
+            // Then: the old filter HAS been closed — the RemoveCluster half of ReplaceCluster ran
+            // successfully before the AddCluster half tried (and failed) to build the new VCM.
             assertThat(InvocationCountingFilterFactory.closeCountFor(goodFilterId))
-                    .as("old filter must NOT be closed when the reconfigure fails at planning")
-                    .isZero();
-
-            // Then: traffic still flows on the original chain (proxy state was not mutated).
-            assertProduceConsumeRoundTrip(tester, "vc-fail", topic, "after-failed-reconfigure");
+                    .as("old filter is closed because RemoveCluster ran before the new chain's filter init failed")
+                    .isEqualTo(1);
         }
     }
 

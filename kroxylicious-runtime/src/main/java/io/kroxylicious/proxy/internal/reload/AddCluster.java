@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,25 +54,42 @@ final class AddCluster implements ClusterOperation {
     private static final String LOG_KEY_VIRTUAL_CLUSTER = "virtualCluster";
     private static final String LOG_KEY_ERROR = "error";
 
-    private final VirtualClusterModel model;
+    private final String clusterName;
+    private final Supplier<VirtualClusterModel> modelSupplier;
     private final VirtualClusterRegistry virtualClusterRegistry;
     private final EndpointRegistry endpointRegistry;
 
-    AddCluster(VirtualClusterModel model,
+    AddCluster(String clusterName,
+               Supplier<VirtualClusterModel> modelSupplier,
                VirtualClusterRegistry virtualClusterRegistry,
                EndpointRegistry endpointRegistry) {
-        this.model = Objects.requireNonNull(model, "model");
+        this.clusterName = Objects.requireNonNull(clusterName, "clusterName");
+        this.modelSupplier = Objects.requireNonNull(modelSupplier, "modelSupplier");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");
     }
 
     @Override
     public String clusterName() {
-        return model.getClusterName();
+        return clusterName;
     }
 
     @Override
     public Optional<ReconfigureError> apply() {
+        // Construct the model lazily: the supplier closes over (Configuration, clusterName) and
+        // calling get() triggers VCM construction including each filter's initialize(). Failures
+        // here (e.g. PluginConfigurationException from a bad filter config) become a per-cluster
+        // ReconfigureError rather than failing the whole reconfigure exceptionally — other
+        // operations in the same plan can still succeed.
+        VirtualClusterModel model;
+        try {
+            model = modelSupplier.get();
+        }
+        catch (RuntimeException e) {
+            return Optional.of(reportFailure(CompletionExceptions.unwrap(e),
+                    "reconfigure: failed to construct virtual cluster model"));
+        }
+
         try {
             virtualClusterRegistry.addVirtualCluster(model).join();
         }
@@ -79,10 +97,10 @@ final class AddCluster implements ClusterOperation {
             return Optional.of(reportFailure(CompletionExceptions.unwrap(e),
                     "reconfigure: failed to create lifecycle for virtual cluster"));
         }
-        return bindGatewaysWithRollback();
+        return bindGatewaysWithRollback(model);
     }
 
-    private Optional<ReconfigureError> bindGatewaysWithRollback() {
+    private Optional<ReconfigureError> bindGatewaysWithRollback(VirtualClusterModel model) {
         List<EndpointGateway> gateways = List.copyOf(model.gateways().values());
         var bindFutures = gateways.stream()
                 .map(g -> endpointRegistry.registerVirtualCluster(g).toCompletableFuture())
