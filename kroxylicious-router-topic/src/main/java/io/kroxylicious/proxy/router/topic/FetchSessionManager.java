@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchRequestData.FetchPartition;
 import org.apache.kafka.common.message.FetchRequestData.FetchTopic;
@@ -42,6 +43,7 @@ class FetchSessionManager {
     private int clientSessionId;
     private int clientNextEpoch;
     private final Map<TopicPartition, PartitionState> clientPartitions = new LinkedHashMap<>();
+    private final Map<String, Uuid> clientTopicIds = new HashMap<>();
     private final Map<TopicPartition, CachedPartitionResponse> lastSentToClient = new HashMap<>();
 
     private final Map<String, ServerSession> serverSessions = new HashMap<>();
@@ -152,12 +154,22 @@ class FetchSessionManager {
         clientSessionId = 0;
         clientNextEpoch = 0;
         clientPartitions.clear();
+        clientTopicIds.clear();
         lastSentToClient.clear();
+    }
+
+    private void learnTopicId(String topicName, Uuid topicId) {
+        if (topicName != null && !topicName.isEmpty()
+                && topicId != null && !Uuid.ZERO_UUID.equals(topicId)) {
+            clientTopicIds.put(topicName, topicId);
+        }
     }
 
     private void populateClientPartitions(FetchRequestData request) {
         clientPartitions.clear();
+        clientTopicIds.clear();
         for (var topic : request.topics()) {
+            learnTopicId(topic.topic(), topic.topicId());
             for (var partition : topic.partitions()) {
                 clientPartitions.put(
                         new TopicPartition(topic.topic(), partition.partition()),
@@ -168,6 +180,7 @@ class FetchSessionManager {
 
     private void applyIncrementalChanges(FetchRequestData request) {
         for (var topic : request.topics()) {
+            learnTopicId(topic.topic(), topic.topicId());
             for (var partition : topic.partitions()) {
                 clientPartitions.put(
                         new TopicPartition(topic.topic(), partition.partition()),
@@ -196,8 +209,14 @@ class FetchSessionManager {
         for (var entry : clientPartitions.entrySet()) {
             var tp = entry.getKey();
             var state = entry.getValue();
-            topicMap.computeIfAbsent(tp.topic(), t -> new FetchTopic().setTopic(t))
-                    .partitions().add(state.toFetchPartition(tp.partition()));
+            topicMap.computeIfAbsent(tp.topic(), t -> {
+                var ft = new FetchTopic().setTopic(t);
+                Uuid id = clientTopicIds.get(t);
+                if (id != null) {
+                    ft.setTopicId(id);
+                }
+                return ft;
+            }).partitions().add(state.toFetchPartition(tp.partition()));
         }
         for (var topic : topicMap.values()) {
             full.topics().add(topic);
@@ -239,6 +258,7 @@ class FetchSessionManager {
             return;
         }
 
+        Map<String, Uuid> topicNameToId = extractTopicIds(subRequest);
         Map<TopicPartition, PartitionState> currentPartitions = extractPartitions(subRequest);
 
         Map<String, FetchTopic> changedTopics = new LinkedHashMap<>();
@@ -247,8 +267,14 @@ class FetchSessionManager {
             PartitionState current = entry.getValue();
             PartitionState last = session.lastSentPartitions.get(tp);
             if (last == null || !last.equals(current)) {
-                changedTopics.computeIfAbsent(tp.topic(), t -> new FetchTopic().setTopic(t))
-                        .partitions().add(current.toFetchPartition(tp.partition()));
+                changedTopics.computeIfAbsent(tp.topic(), t -> {
+                    var ft = new FetchTopic().setTopic(t);
+                    Uuid id = topicNameToId.get(t);
+                    if (id != null) {
+                        ft.setTopicId(id);
+                    }
+                    return ft;
+                }).partitions().add(current.toFetchPartition(tp.partition()));
             }
         }
 
@@ -266,10 +292,14 @@ class FetchSessionManager {
         }
         subRequest.forgottenTopicsData().clear();
         for (var entry : removedByTopic.entrySet()) {
-            subRequest.forgottenTopicsData().add(
-                    new ForgottenTopic()
-                            .setTopic(entry.getKey())
-                            .setPartitions(entry.getValue()));
+            var forgotten = new ForgottenTopic()
+                    .setTopic(entry.getKey())
+                    .setPartitions(entry.getValue());
+            Uuid id = topicNameToId.get(entry.getKey());
+            if (id != null) {
+                forgotten.setTopicId(id);
+            }
+            subRequest.forgottenTopicsData().add(forgotten);
         }
         subRequest.setSessionId(session.sessionId);
         subRequest.setSessionEpoch(session.nextEpoch);
@@ -403,6 +433,17 @@ class FetchSessionManager {
     }
 
     // --- Helpers ---
+
+    private static Map<String, Uuid> extractTopicIds(FetchRequestData request) {
+        Map<String, Uuid> result = new HashMap<>();
+        for (var topic : request.topics()) {
+            if (topic.topic() != null && !topic.topic().isEmpty()
+                    && topic.topicId() != null && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                result.put(topic.topic(), topic.topicId());
+            }
+        }
+        return result;
+    }
 
     private static Map<TopicPartition, PartitionState> extractPartitions(FetchRequestData request) {
         Map<TopicPartition, PartitionState> result = new LinkedHashMap<>();
