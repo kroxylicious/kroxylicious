@@ -23,16 +23,17 @@ import org.apache.kafka.common.protocol.Errors;
  * the per-route responses. Handles both v1-7 (single group) and
  * v8-9 (multi-group) wire formats.
  */
-class OffsetFetchDecomposer {
+class OffsetFetchDecomposer implements RequestDecomposer<OffsetFetchRequestData, OffsetFetchResponseData> {
 
     static final OffsetFetchDecomposer INSTANCE = new OffsetFetchDecomposer();
 
     private OffsetFetchDecomposer() {
     }
 
-    Map<String, OffsetFetchRequestData> decompose(OffsetFetchRequestData request,
-                                                  TopicRoutingTable table,
-                                                  short apiVersion) {
+    @Override
+    public Map<String, OffsetFetchRequestData> decompose(OffsetFetchRequestData request,
+                                                         TopicRoutingTable table,
+                                                         short apiVersion) {
         if (apiVersion <= 7) {
             return decomposeV1to7(request, table);
         }
@@ -41,9 +42,10 @@ class OffsetFetchDecomposer {
         }
     }
 
-    OffsetFetchResponseData recompose(Map<String, OffsetFetchResponseData> responses,
-                                      OffsetFetchRequestData originalRequest,
-                                      short apiVersion) {
+    @Override
+    public OffsetFetchResponseData recompose(Map<String, OffsetFetchResponseData> responses,
+                                             OffsetFetchRequestData originalRequest,
+                                             short apiVersion) {
         if (apiVersion <= 7) {
             return recomposeV1to7(responses);
         }
@@ -101,7 +103,7 @@ class OffsetFetchDecomposer {
             return errorResponse;
         }
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) == null) {
+            if (!table.isRoutable(topic.name())) {
                 var topicResponse = new OffsetFetchResponseTopic().setName(topic.name());
                 for (int partitionIndex : topic.partitionIndexes()) {
                     topicResponse.partitions().add(
@@ -182,9 +184,8 @@ class OffsetFetchDecomposer {
             }
             OffsetFetchResponseGroup errorGroup = null;
             for (var topic : group.topics()) {
-                boolean hasName = topic.name() != null && !topic.name().isEmpty();
-                boolean unroutable = !hasName || table.routeForTopic(topic.name()) == null;
-                if (unroutable) {
+                if (!table.isRoutable(topic.name())) {
+                    boolean hasName = topic.name() != null && !topic.name().isEmpty();
                     if (errorGroup == null) {
                         errorGroup = new OffsetFetchResponseGroup()
                                 .setGroupId(group.groupId());

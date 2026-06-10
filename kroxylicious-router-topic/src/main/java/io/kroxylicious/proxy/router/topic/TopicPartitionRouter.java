@@ -405,7 +405,7 @@ class TopicPartitionRouter implements Router {
             for (var entry : subRequests.entrySet()) {
                 context.sendRequestToNode(entry.getKey(), context.bootstrapNodeId(entry.getKey()), header, entry.getValue());
             }
-            return CompletableFuture.completedFuture(syntheticResult(mergeWithErrors(Map.of(), errorResponse, request)));
+            return CompletableFuture.completedFuture(syntheticResult(mergeWithErrors(Map.of(), errorResponse, request, apiVersion)));
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
@@ -431,7 +431,7 @@ class TopicPartitionRouter implements Router {
                     bodies.put(String.valueOf(entry.getKey()),
                             (ProduceResponseData) entry.getValue().body());
                 }
-                ProduceResponseData merged = mergeWithErrors(bodies, capturedErrors, request);
+                ProduceResponseData merged = mergeWithErrors(bodies, capturedErrors, request, apiVersion);
                 return syntheticResult(merged);
             });
         });
@@ -708,8 +708,9 @@ class TopicPartitionRouter implements Router {
 
     private ProduceResponseData mergeWithErrors(Map<String, ProduceResponseData> routeResponses,
                                                 ProduceResponseData errorResponse,
-                                                ProduceRequestData originalRequest) {
-        ProduceResponseData merged = produceDecomposer.recompose(routeResponses, originalRequest);
+                                                ProduceRequestData originalRequest,
+                                                short apiVersion) {
+        ProduceResponseData merged = produceDecomposer.recompose(routeResponses, originalRequest, apiVersion);
         for (var tr : errorResponse.responses()) {
             merged.responses().add(tr.duplicate());
         }
@@ -840,7 +841,7 @@ class TopicPartitionRouter implements Router {
                             (FetchResponseData) entry.getValue().body());
                 }
                 fetchSessionManager.processServerResponses(bodies);
-                FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest);
+                FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest, apiVersion);
                 for (var tr : capturedErrors.responses()) {
                     merged.responses().add(tr.duplicate());
                 }
@@ -888,7 +889,7 @@ class TopicPartitionRouter implements Router {
                     bodies.put(String.valueOf(entry.getKey()),
                             (ListOffsetsResponseData) entry.getValue().body());
                 }
-                ListOffsetsResponseData merged = listOffsetsDecomposer.recompose(bodies, request);
+                ListOffsetsResponseData merged = listOffsetsDecomposer.recompose(bodies, request, apiVersion);
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }
@@ -1028,7 +1029,7 @@ class TopicPartitionRouter implements Router {
             for (var entry : responses.entrySet()) {
                 bodies.put(entry.getKey(), (OffsetCommitResponseData) entry.getValue().body());
             }
-            OffsetCommitResponseData merged = offsetCommitDecomposer.recompose(bodies, request);
+            OffsetCommitResponseData merged = offsetCommitDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.topics()) {
                 merged.topics().add(tr.duplicate());
             }
@@ -1148,7 +1149,7 @@ class TopicPartitionRouter implements Router {
             for (var entry : responses.entrySet()) {
                 bodies.put(entry.getKey(), (CreateTopicsResponseData) entry.getValue().body());
             }
-            CreateTopicsResponseData merged = createTopicsDecomposer.recompose(bodies, request);
+            CreateTopicsResponseData merged = createTopicsDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.topics()) {
                 merged.topics().add(tr.duplicate());
             }
@@ -1199,7 +1200,7 @@ class TopicPartitionRouter implements Router {
             for (var entry : responses.entrySet()) {
                 bodies.put(entry.getKey(), (DeleteTopicsResponseData) entry.getValue().body());
             }
-            DeleteTopicsResponseData merged = deleteTopicsDecomposer.recompose(bodies, request);
+            DeleteTopicsResponseData merged = deleteTopicsDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.responses()) {
                 merged.responses().add(tr.duplicate());
             }
@@ -1261,7 +1262,7 @@ class TopicPartitionRouter implements Router {
             for (var entry : responses.entrySet()) {
                 bodies.put(entry.getKey(), (CreatePartitionsResponseData) entry.getValue().body());
             }
-            CreatePartitionsResponseData merged = createPartitionsDecomposer.recompose(bodies, request);
+            CreatePartitionsResponseData merged = createPartitionsDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.results()) {
                 merged.results().add(tr.duplicate());
             }
@@ -1307,7 +1308,7 @@ class TopicPartitionRouter implements Router {
                     bodies.put(String.valueOf(entry.getKey()),
                             (DeleteRecordsResponseData) entry.getValue().body());
                 }
-                DeleteRecordsResponseData merged = deleteRecordsDecomposer.recompose(bodies, request);
+                DeleteRecordsResponseData merged = deleteRecordsDecomposer.recompose(bodies, request, apiVersion);
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }

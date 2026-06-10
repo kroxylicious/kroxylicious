@@ -130,7 +130,7 @@ class DeleteRecordsDecomposerTest {
         respB.topics().add(topicResponse("b.logs", 0, Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.topics()).extracting("name")
                 .containsExactlyInAnyOrder("a.orders", "b.logs");
@@ -146,7 +146,7 @@ class DeleteRecordsDecomposerTest {
         respB.topics().add(topicResponse("b.logs", 0, Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.throttleTimeMs()).isEqualTo(250);
     }
@@ -158,7 +158,7 @@ class DeleteRecordsDecomposerTest {
         var resp = new DeleteRecordsResponseData();
         resp.topics().add(topicResponse("a.orders", 0, Errors.OFFSET_OUT_OF_RANGE));
 
-        var merged = decomposer.recompose(Map.of("route-a", resp), request);
+        var merged = decomposer.recompose(Map.of("route-a", resp), request, (short) 0);
 
         var topic = merged.topics().stream()
                 .filter(t -> t.name().equals("a.orders"))

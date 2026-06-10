@@ -42,7 +42,8 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
 
     @Override
     public FetchResponseData recompose(Map<String, FetchResponseData> responses,
-                                       FetchRequestData originalRequest) {
+                                       FetchRequestData originalRequest,
+                                       short apiVersion) {
         var merged = new FetchResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -60,9 +61,8 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
                                                               boolean usesTopicIds) {
         var errorResponse = new FetchResponseData();
         for (var topic : request.topics()) {
-            boolean hasName = topic.topic() != null && !topic.topic().isEmpty();
-            boolean unroutable = !hasName || table.routeForTopic(topic.topic()) == null;
-            if (unroutable) {
+            if (!table.isRoutable(topic.topic())) {
+                boolean hasName = topic.topic() != null && !topic.topic().isEmpty();
                 var topicResponse = new FetchableTopicResponse();
                 short errorCode;
                 if (usesTopicIds) {

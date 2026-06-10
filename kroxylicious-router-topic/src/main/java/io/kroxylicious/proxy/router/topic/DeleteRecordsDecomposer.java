@@ -42,7 +42,8 @@ class DeleteRecordsDecomposer implements RequestDecomposer<DeleteRecordsRequestD
 
     @Override
     public DeleteRecordsResponseData recompose(Map<String, DeleteRecordsResponseData> responses,
-                                               DeleteRecordsRequestData originalRequest) {
+                                               DeleteRecordsRequestData originalRequest,
+                                               short apiVersion) {
         var merged = new DeleteRecordsResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -59,7 +60,7 @@ class DeleteRecordsDecomposer implements RequestDecomposer<DeleteRecordsRequestD
                                                                       TopicRoutingTable table) {
         var errorResponse = new DeleteRecordsResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) == null) {
+            if (!table.isRoutable(topic.name())) {
                 var topicResult = new DeleteRecordsTopicResult().setName(topic.name());
                 for (var partition : topic.partitions()) {
                     topicResult.partitions().add(

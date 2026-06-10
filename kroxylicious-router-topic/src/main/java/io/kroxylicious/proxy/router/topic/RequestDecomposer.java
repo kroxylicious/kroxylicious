@@ -39,8 +39,10 @@ public interface RequestDecomposer<Req extends ApiMessage, Resp extends ApiMessa
      *
      * @param responses per-route responses keyed by route name
      * @param originalRequest the original undivided client request
+     * @param apiVersion the API version of the request
      * @return the merged response
      */
     Resp recompose(Map<String, Resp> responses,
-                   Req originalRequest);
+                   Req originalRequest,
+                   short apiVersion);
 }

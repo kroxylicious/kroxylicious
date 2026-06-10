@@ -132,7 +132,7 @@ class ListOffsetsDecomposerTest {
         respB.topics().add(topicResponse("b.logs", 0, Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.topics()).extracting("name")
                 .containsExactlyInAnyOrder("a.orders", "b.logs");
@@ -148,7 +148,7 @@ class ListOffsetsDecomposerTest {
         respB.topics().add(topicResponse("b.logs", 0, Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.throttleTimeMs()).isEqualTo(300);
     }
@@ -160,7 +160,7 @@ class ListOffsetsDecomposerTest {
         var resp = new ListOffsetsResponseData();
         resp.topics().add(topicResponse("a.orders", 0, Errors.NOT_LEADER_OR_FOLLOWER));
 
-        var merged = decomposer.recompose(Map.of("route-a", resp), request);
+        var merged = decomposer.recompose(Map.of("route-a", resp), request, (short) 0);
 
         var partition = merged.topics().stream()
                 .filter(t -> t.name().equals("a.orders"))

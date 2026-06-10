@@ -42,7 +42,8 @@ class OffsetCommitDecomposer implements RequestDecomposer<OffsetCommitRequestDat
 
     @Override
     public OffsetCommitResponseData recompose(Map<String, OffsetCommitResponseData> responses,
-                                              OffsetCommitRequestData originalRequest) {
+                                              OffsetCommitRequestData originalRequest,
+                                              short apiVersion) {
         var merged = new OffsetCommitResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -60,9 +61,8 @@ class OffsetCommitDecomposer implements RequestDecomposer<OffsetCommitRequestDat
                                                                      short apiVersion) {
         var errorResponse = new OffsetCommitResponseData();
         for (var topic : request.topics()) {
-            boolean hasName = topic.name() != null && !topic.name().isEmpty();
-            boolean unroutable = !hasName || table.routeForTopic(topic.name()) == null;
-            if (unroutable) {
+            if (!table.isRoutable(topic.name())) {
+                boolean hasName = topic.name() != null && !topic.name().isEmpty();
                 var topicResponse = new OffsetCommitResponseTopic();
                 short errorCode;
                 if (apiVersion >= 10) {

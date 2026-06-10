@@ -127,7 +127,7 @@ class CreatePartitionsDecomposerTest {
         respB.results().add(topicResult("b.logs", Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.results()).extracting("name")
                 .containsExactlyInAnyOrder("a.orders", "b.logs");
@@ -143,7 +143,7 @@ class CreatePartitionsDecomposerTest {
         respB.results().add(topicResult("b.logs", Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.throttleTimeMs()).isEqualTo(400);
     }
@@ -155,7 +155,7 @@ class CreatePartitionsDecomposerTest {
         var resp = new CreatePartitionsResponseData();
         resp.results().add(topicResult("a.orders", Errors.INVALID_PARTITIONS));
 
-        var merged = decomposer.recompose(Map.of("route-a", resp), request);
+        var merged = decomposer.recompose(Map.of("route-a", resp), request, (short) 0);
 
         var topic = merged.results().stream()
                 .filter(t -> t.name().equals("a.orders"))

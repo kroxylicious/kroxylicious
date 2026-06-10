@@ -47,7 +47,8 @@ class CreatePartitionsDecomposer implements RequestDecomposer<CreatePartitionsRe
 
     @Override
     public CreatePartitionsResponseData recompose(Map<String, CreatePartitionsResponseData> responses,
-                                                  CreatePartitionsRequestData originalRequest) {
+                                                  CreatePartitionsRequestData originalRequest,
+                                                  short apiVersion) {
         var merged = new CreatePartitionsResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -64,7 +65,7 @@ class CreatePartitionsDecomposer implements RequestDecomposer<CreatePartitionsRe
                                                                          TopicRoutingTable table) {
         var errorResponse = new CreatePartitionsResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) == null) {
+            if (!table.isRoutable(topic.name())) {
                 errorResponse.results().add(
                         new CreatePartitionsTopicResult()
                                 .setName(topic.name())
@@ -79,7 +80,7 @@ class CreatePartitionsDecomposer implements RequestDecomposer<CreatePartitionsRe
                                                                               TopicRoutingTable table) {
         var errorResponse = new CreatePartitionsResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) != null && hasAssignments(topic)) {
+            if (table.isRoutable(topic.name()) && hasAssignments(topic)) {
                 errorResponse.results().add(
                         new CreatePartitionsTopicResult()
                                 .setName(topic.name())

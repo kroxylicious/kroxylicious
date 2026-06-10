@@ -82,7 +82,7 @@ class RequestDecomposerTest {
         respB.responses().add(topicResponse("b.logs"));
 
         ProduceResponseData merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.responses()).extracting("name")
                 .containsExactlyInAnyOrder("a.orders", "b.logs");
@@ -121,7 +121,8 @@ class RequestDecomposerTest {
         @Override
         public ProduceResponseData recompose(
                                              Map<String, ProduceResponseData> responses,
-                                             ProduceRequestData originalRequest) {
+                                             ProduceRequestData originalRequest,
+                                             short apiVersion) {
             var merged = new ProduceResponseData();
             for (var resp : responses.values()) {
                 for (var tr : resp.responses()) {

@@ -42,7 +42,8 @@ class ListOffsetsDecomposer implements RequestDecomposer<ListOffsetsRequestData,
 
     @Override
     public ListOffsetsResponseData recompose(Map<String, ListOffsetsResponseData> responses,
-                                             ListOffsetsRequestData originalRequest) {
+                                             ListOffsetsRequestData originalRequest,
+                                             short apiVersion) {
         var merged = new ListOffsetsResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -59,7 +60,7 @@ class ListOffsetsDecomposer implements RequestDecomposer<ListOffsetsRequestData,
                                                                     TopicRoutingTable table) {
         var errorResponse = new ListOffsetsResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) == null) {
+            if (!table.isRoutable(topic.name())) {
                 var topicResponse = new ListOffsetsTopicResponse().setName(topic.name());
                 for (var partition : topic.partitions()) {
                     topicResponse.partitions().add(
