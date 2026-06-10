@@ -21,6 +21,10 @@
     <description>Kubernetes components</description>
     <packaging>pom</packaging>
 
+    <properties>
+        <josdk.version>5.2.3</josdk.version>
+    </properties>
+
     <modules>
         <module>kroxylicious-kubernetes-api</module>
         <module>kroxylicious-operator</module>
@@ -30,6 +34,18 @@
         <module>kroxylicious-admission</module>
         <module>kroxylicious-admission-dist</module>
     </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.javaoperatorsdk</groupId>
+                <artifactId>operator-framework-bom</artifactId>
+                <version>${josdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>
