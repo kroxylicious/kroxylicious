@@ -302,7 +302,7 @@ class TopicPartitionRouter implements Router {
             return handleFetch(apiVersion, header, (FetchRequestData) request, context);
         }
         if (apiKey == ApiKeys.LIST_OFFSETS) {
-            return handleListOffsets(header, (ListOffsetsRequestData) request, context);
+            return handleListOffsets(apiVersion, header, (ListOffsetsRequestData) request, context);
         }
         if (apiKey == ApiKeys.OFFSET_FOR_LEADER_EPOCH) {
             return handleOffsetForLeaderEpoch(header, (OffsetForLeaderEpochRequestData) request, context);
@@ -314,16 +314,16 @@ class TopicPartitionRouter implements Router {
             return handleOffsetFetch(apiVersion, header, (OffsetFetchRequestData) request, context);
         }
         if (apiKey == ApiKeys.CREATE_TOPICS) {
-            return handleCreateTopics(header, (CreateTopicsRequestData) request, context);
+            return handleCreateTopics(apiVersion, header, (CreateTopicsRequestData) request, context);
         }
         if (apiKey == ApiKeys.DELETE_TOPICS) {
             return handleDeleteTopics(apiVersion, header, (DeleteTopicsRequestData) request, context);
         }
         if (apiKey == ApiKeys.CREATE_PARTITIONS) {
-            return handleCreatePartitions(header, (CreatePartitionsRequestData) request, context);
+            return handleCreatePartitions(apiVersion, header, (CreatePartitionsRequestData) request, context);
         }
         if (apiKey == ApiKeys.DELETE_RECORDS) {
-            return handleDeleteRecords(header, (DeleteRecordsRequestData) request, context);
+            return handleDeleteRecords(apiVersion, header, (DeleteRecordsRequestData) request, context);
         }
         if (apiKey == ApiKeys.ADD_PARTITIONS_TO_TXN) {
             return handleAddPartitionsToTxn(header,
@@ -385,7 +385,7 @@ class TopicPartitionRouter implements Router {
         ProduceResponseData errorResponse = ProduceDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
         boolean subjectRouted = subjectRouteFor(context.authenticatedSubject()) != null;
         if (!subjectRouted && !rewriteProducerIdsForRoutes(subRequests)) {
             LOGGER.atDebug()
@@ -803,7 +803,7 @@ class TopicPartitionRouter implements Router {
         FetchResponseData errorResponse = FetchDecomposer.errorResponseForUnroutableTopics(
                 fullRequest, routingTable, usesTopicIds);
         Map<String, FetchRequestData> subRequests = fetchDecomposer.decompose(
-                fullRequest, routingTable);
+                fullRequest, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             var clientResponse = fetchSessionManager.computeClientResponse(errorResponse);
@@ -851,13 +851,14 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleListOffsets(
+                                                            short apiVersion,
                                                             RequestHeaderData header,
                                                             ListOffsetsRequestData request,
                                                             RouterContext context) {
         ListOffsetsResponseData errorResponse = ListOffsetsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, ListOffsetsRequestData> subRequests = listOffsetsDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1004,7 +1005,7 @@ class TopicPartitionRouter implements Router {
         OffsetCommitResponseData errorResponse = OffsetCommitDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, OffsetCommitRequestData> subRequests = offsetCommitDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1094,6 +1095,7 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleCreateTopics(
+                                                             short apiVersion,
                                                              RequestHeaderData header,
                                                              CreateTopicsRequestData request,
                                                              RouterContext context) {
@@ -1111,7 +1113,7 @@ class TopicPartitionRouter implements Router {
                     .log("Rejecting CreateTopics with explicit replica assignments");
         }
         Map<String, CreateTopicsRequestData> subRequests = createTopicsDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1206,6 +1208,7 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleCreatePartitions(
+                                                                 short apiVersion,
                                                                  RequestHeaderData header,
                                                                  CreatePartitionsRequestData request,
                                                                  RouterContext context) {
@@ -1223,7 +1226,7 @@ class TopicPartitionRouter implements Router {
                     .log("Rejecting CreatePartitions with explicit partition assignments");
         }
         Map<String, CreatePartitionsRequestData> subRequests = createPartitionsDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -1267,13 +1270,14 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResult> handleDeleteRecords(
+                                                              short apiVersion,
                                                               RequestHeaderData header,
                                                               DeleteRecordsRequestData request,
                                                               RouterContext context) {
         DeleteRecordsResponseData errorResponse = DeleteRecordsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, DeleteRecordsRequestData> subRequests = deleteRecordsDecomposer.decompose(
-                request, routingTable);
+                request, routingTable, apiVersion);
 
         if (subRequests.isEmpty()) {
             return CompletableFuture.completedFuture(syntheticResult(errorResponse));
@@ -2024,15 +2028,6 @@ class TopicPartitionRouter implements Router {
         });
     }
 
-    /**
-     * Sends a METADATA-by-topicId request to a single route and caches
-     * any successfully resolved topicId→name mappings where the name
-     * is consistent with the routing table.
-     */
-    /**
-     * Ensures all topicIds in the request are resolved to names in the cache.
-     * On cache miss, fans out METADATA-by-topicId to all routes and waits.
-     */
     /**
      * Fires a background METADATA request to refresh the leader cache.
      * The response is not awaited — it updates the cache asynchronously

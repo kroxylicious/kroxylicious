@@ -28,7 +28,8 @@ class CreateTopicsDecomposer implements RequestDecomposer<CreateTopicsRequestDat
 
     @Override
     public Map<String, CreateTopicsRequestData> decompose(CreateTopicsRequestData request,
-                                                          TopicRoutingTable table) {
+                                                          TopicRoutingTable table,
+                                                          short apiVersion) {
         var result = new LinkedHashMap<String, CreateTopicsRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());

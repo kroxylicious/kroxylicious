@@ -51,7 +51,7 @@ class ProduceDecomposerTest {
     void shouldDecomposeByTopicRoute() {
         var request = produceRequest("a.orders", "b.logs", "a.payments");
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topicData()).extracting("name")
@@ -64,7 +64,7 @@ class ProduceDecomposerTest {
     void shouldReturnSingleEntryWhenAllTopicsOnOneRoute() {
         var request = produceRequest("a.orders", "a.payments");
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topicData()).hasSize(2);
@@ -77,7 +77,7 @@ class ProduceDecomposerTest {
         request.setTimeoutMs(5000);
         request.setTransactionalId("tx-1");
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.acks()).isEqualTo((short) -1);
@@ -90,7 +90,7 @@ class ProduceDecomposerTest {
     void shouldExcludeUnroutableTopicsFromDecomposition() {
         var request = produceRequest("a.orders", "unknown.topic");
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topicData()).extracting("name")
@@ -101,7 +101,7 @@ class ProduceDecomposerTest {
     void shouldReturnEmptyMapWhenAllTopicsUnroutable() {
         var request = produceRequest("unknown.one", "unknown.two");
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).isEmpty();
     }
@@ -114,7 +114,7 @@ class ProduceDecomposerTest {
         td.partitionData().add(new PartitionProduceData().setIndex(1));
         request.topicData().add(td);
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(findTopic(parts.get("route-a"), "a.orders").partitionData())
                 .extracting("index")
@@ -126,7 +126,7 @@ class ProduceDecomposerTest {
         var request = produceRequest("a.orders", "b.logs");
         int originalSize = request.topicData().size();
 
-        decomposer.decompose(request, table);
+        decomposer.decompose(request, table, (short) 0);
 
         assertThat(request.topicData()).hasSize(originalSize);
     }

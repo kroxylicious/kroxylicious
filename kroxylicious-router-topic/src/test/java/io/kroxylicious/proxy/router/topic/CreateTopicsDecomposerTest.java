@@ -51,7 +51,7 @@ class CreateTopicsDecomposerTest {
     void shouldDecomposeByTopicRoute() {
         var request = createTopicsRequest("a.orders", "b.logs", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -64,7 +64,7 @@ class CreateTopicsDecomposerTest {
     void shouldReturnSingleEntryWhenAllTopicsOnOneRoute() {
         var request = createTopicsRequest("a.orders", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).hasSize(2);
@@ -76,7 +76,7 @@ class CreateTopicsDecomposerTest {
         request.setTimeoutMs(30000);
         request.setValidateOnly(true);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.timeoutMs()).isEqualTo(30000);
@@ -88,7 +88,7 @@ class CreateTopicsDecomposerTest {
     void shouldExcludeUnroutableTopics() {
         var request = createTopicsRequest("a.orders", "unknown.topic");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -99,7 +99,7 @@ class CreateTopicsDecomposerTest {
     void shouldReturnEmptyMapWhenAllTopicsUnroutable() {
         var request = createTopicsRequest("unknown.one", "unknown.two");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).isEmpty();
     }
@@ -116,7 +116,7 @@ class CreateTopicsDecomposerTest {
                 .setValue("86400000"));
         request.topics().add(topic);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         var decomposed = parts.get("route-a").topics().iterator().next();
         assertThat(decomposed.numPartitions()).isEqualTo(3);
@@ -207,7 +207,7 @@ class CreateTopicsDecomposerTest {
         request.topics().add(new CreatableTopic().setName("a.payments")
                 .setNumPartitions(1).setReplicationFactor((short) 1));
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -219,7 +219,7 @@ class CreateTopicsDecomposerTest {
         var request = new CreateTopicsRequestData();
         request.topics().add(topicWithAssignments("a.orders"));
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).isEmpty();
     }

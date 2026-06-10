@@ -51,7 +51,7 @@ class OffsetCommitDecomposerTest {
     void shouldDecomposeByTopicRoute() {
         var request = offsetCommitRequest("a.orders", "b.logs", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -64,7 +64,7 @@ class OffsetCommitDecomposerTest {
     void shouldReturnSingleEntryWhenAllTopicsOnOneRoute() {
         var request = offsetCommitRequest("a.orders", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).hasSize(2);
@@ -79,7 +79,7 @@ class OffsetCommitDecomposerTest {
         request.setGroupInstanceId("instance-1");
         request.setRetentionTimeMs(60000);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.groupId()).isEqualTo("test-group");
@@ -94,7 +94,7 @@ class OffsetCommitDecomposerTest {
     void shouldExcludeUnroutableTopics() {
         var request = offsetCommitRequest("a.orders", "unknown.topic");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -105,7 +105,7 @@ class OffsetCommitDecomposerTest {
     void shouldReturnEmptyMapWhenAllTopicsUnroutable() {
         var request = offsetCommitRequest("unknown.one", "unknown.two");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).isEmpty();
     }
@@ -120,7 +120,7 @@ class OffsetCommitDecomposerTest {
                 .setPartitionIndex(1).setCommittedOffset(200));
         request.topics().add(topic);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         var decomposed = parts.get("route-a").topics().stream()
                 .filter(t -> t.name().equals("a.orders"))

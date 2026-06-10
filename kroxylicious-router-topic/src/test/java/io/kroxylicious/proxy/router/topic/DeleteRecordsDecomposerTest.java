@@ -50,7 +50,7 @@ class DeleteRecordsDecomposerTest {
     void shouldDecomposeByTopicRoute() {
         var request = deleteRecordsRequest("a.orders", "b.logs", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -63,7 +63,7 @@ class DeleteRecordsDecomposerTest {
     void shouldReturnSingleEntryWhenAllTopicsOnOneRoute() {
         var request = deleteRecordsRequest("a.orders", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).hasSize(2);
@@ -74,7 +74,7 @@ class DeleteRecordsDecomposerTest {
         var request = deleteRecordsRequest("a.orders", "b.logs");
         request.setTimeoutMs(15000);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.timeoutMs()).isEqualTo(15000);
@@ -85,7 +85,7 @@ class DeleteRecordsDecomposerTest {
     void shouldExcludeUnroutableTopics() {
         var request = deleteRecordsRequest("a.orders", "unknown.topic");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).extracting("name")
@@ -96,7 +96,7 @@ class DeleteRecordsDecomposerTest {
     void shouldReturnEmptyMapWhenAllTopicsUnroutable() {
         var request = deleteRecordsRequest("unknown.one", "unknown.two");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).isEmpty();
     }
@@ -109,7 +109,7 @@ class DeleteRecordsDecomposerTest {
         topic.partitions().add(new DeleteRecordsPartition().setPartitionIndex(1).setOffset(200));
         request.topics().add(topic);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         var decomposed = parts.get("route-a").topics().iterator().next();
         assertThat(decomposed.partitions()).extracting("partitionIndex")

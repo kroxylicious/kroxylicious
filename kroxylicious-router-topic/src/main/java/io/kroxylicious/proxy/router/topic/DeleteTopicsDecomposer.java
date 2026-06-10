@@ -19,16 +19,17 @@ import org.apache.kafka.common.protocol.Errors;
  * the per-route responses. Handles both v0-5 (flat name list) and
  * v6+ (struct array with name and topicId) wire formats.
  */
-class DeleteTopicsDecomposer {
+class DeleteTopicsDecomposer implements RequestDecomposer<DeleteTopicsRequestData, DeleteTopicsResponseData> {
 
     static final DeleteTopicsDecomposer INSTANCE = new DeleteTopicsDecomposer();
 
     private DeleteTopicsDecomposer() {
     }
 
-    Map<String, DeleteTopicsRequestData> decompose(DeleteTopicsRequestData request,
-                                                   TopicRoutingTable table,
-                                                   short apiVersion) {
+    @Override
+    public Map<String, DeleteTopicsRequestData> decompose(DeleteTopicsRequestData request,
+                                                          TopicRoutingTable table,
+                                                          short apiVersion) {
         if (apiVersion >= 6) {
             return decomposeV6(request, table);
         }
@@ -64,8 +65,9 @@ class DeleteTopicsDecomposer {
         return result;
     }
 
-    DeleteTopicsResponseData recompose(Map<String, DeleteTopicsResponseData> responses,
-                                       DeleteTopicsRequestData originalRequest) {
+    @Override
+    public DeleteTopicsResponseData recompose(Map<String, DeleteTopicsResponseData> responses,
+                                              DeleteTopicsRequestData originalRequest) {
         var merged = new DeleteTopicsResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
