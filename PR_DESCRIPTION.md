@@ -40,8 +40,6 @@ Added `apiVersion` parameter to `RequestDecomposer.decompose()` and `recompose()
 
 - **METADATA-by-topicId decomposition in the router**: When the request enrichment filter sends METADATA-by-topicId on cache miss, the router needs to decompose it across routes. If per-route filters cause the same topicId to resolve to different names on different routes, the router's routing table acts as arbiter (the merged METADATA response flows back through the request enrichment filter, populating the cache with the router-decided name). This works but hasn't been tested with name-transforming per-route filters.
 
-- **No explicit test for cross-instance topicId resolution**: The integration tests run a single proxy instance. The async resolution logic (METADATA on cache miss) is designed for the multi-instance case but isn't exercised by the current test suite.
-
 ## Test plan
 
 - [ ] 294 router unit tests pass (decomposers, router, FetchSessionManager)
@@ -52,6 +50,7 @@ Added `apiVersion` parameter to `RequestDecomposer.decompose()` and `recompose()
 - [ ] `ApiVersionsRoutingIT` — 1/1 pass (verifies uncapped versions)
 - [ ] `TransactionalProduceRoutingIT` — 18/18 pass
 - [ ] `ConsumerGroupRoutingIT` — 9/9 pass
+- [ ] `CrossInstanceRoutingIT` — 2/2 pass (cross-instance topicId resolution)
 - [ ] `shouldProduceAfterTopicRecreation` — topic recreation test
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
