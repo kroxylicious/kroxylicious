@@ -175,7 +175,7 @@ class FetchDecomposerTest {
         respB.responses().add(topicResponse("b.logs", 0, Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.responses()).extracting("topic")
                 .containsExactlyInAnyOrder("a.orders", "b.logs");
@@ -191,7 +191,7 @@ class FetchDecomposerTest {
         respB.responses().add(topicResponse("b.logs", 0, Errors.NONE));
 
         var merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.throttleTimeMs()).isEqualTo(300);
     }
@@ -203,7 +203,7 @@ class FetchDecomposerTest {
         var resp = new FetchResponseData().setSessionId(42);
         resp.responses().add(topicResponse("a.orders", 0, Errors.NONE));
 
-        var merged = decomposer.recompose(Map.of("route-a", resp), request);
+        var merged = decomposer.recompose(Map.of("route-a", resp), request, (short) 0);
 
         assertThat(merged.sessionId())
                 .as("recompose should not override session ID — FetchSessionManager handles that")
@@ -217,7 +217,7 @@ class FetchDecomposerTest {
         var resp = new FetchResponseData();
         resp.responses().add(topicResponse("a.orders", 0, Errors.NOT_LEADER_OR_FOLLOWER));
 
-        var merged = decomposer.recompose(Map.of("route-a", resp), request);
+        var merged = decomposer.recompose(Map.of("route-a", resp), request, (short) 0);
 
         var partition = merged.responses().stream()
                 .filter(t -> t.topic().equals("a.orders"))

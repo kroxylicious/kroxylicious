@@ -43,7 +43,8 @@ class ProduceDecomposer implements RequestDecomposer<ProduceRequestData, Produce
 
     @Override
     public ProduceResponseData recompose(Map<String, ProduceResponseData> responses,
-                                         ProduceRequestData originalRequest) {
+                                         ProduceRequestData originalRequest,
+                                         short apiVersion) {
         var merged = new ProduceResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -69,9 +70,8 @@ class ProduceDecomposer implements RequestDecomposer<ProduceRequestData, Produce
                                                                 short apiVersion) {
         var errorResponse = new ProduceResponseData();
         for (var td : request.topicData()) {
-            boolean hasName = td.name() != null && !td.name().isEmpty();
-            boolean unroutable = !hasName || table.routeForTopic(td.name()) == null;
-            if (unroutable) {
+            if (!table.isRoutable(td.name())) {
+                boolean hasName = td.name() != null && !td.name().isEmpty();
                 var topicResponse = new TopicProduceResponse();
                 short errorCode;
                 if (apiVersion >= 13) {

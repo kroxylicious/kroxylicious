@@ -143,7 +143,7 @@ class ProduceDecomposerTest {
         respB.responses().add(topicResponse("b.logs", 0, Errors.NONE));
 
         ProduceResponseData merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.responses()).extracting("name")
                 .containsExactlyInAnyOrder("a.orders", "b.logs");
@@ -159,7 +159,7 @@ class ProduceDecomposerTest {
         respB.responses().add(topicResponse("b.logs", 0, Errors.NONE));
 
         ProduceResponseData merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.throttleTimeMs()).isEqualTo(300);
     }
@@ -172,7 +172,7 @@ class ProduceDecomposerTest {
         resp.responses().add(topicResponse("a.orders", 0, Errors.NOT_LEADER_OR_FOLLOWER));
 
         ProduceResponseData merged = decomposer.recompose(
-                Map.of("route-a", resp), request);
+                Map.of("route-a", resp), request, (short) 0);
 
         assertThat(findResponse(merged, "a.orders").partitionResponses().get(0).errorCode())
                 .isEqualTo(Errors.NOT_LEADER_OR_FOLLOWER.code());
@@ -193,7 +193,7 @@ class ProduceDecomposerTest {
                 .setNodeId(1).setHost("hostB").setPort(9093));
 
         ProduceResponseData merged = decomposer.recompose(
-                Map.of("route-a", respA, "route-b", respB), request);
+                Map.of("route-a", respA, "route-b", respB), request, (short) 0);
 
         assertThat(merged.nodeEndpoints()).hasSize(2);
         assertThat(merged.nodeEndpoints().find(0)).isNotNull();

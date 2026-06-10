@@ -43,7 +43,8 @@ class CreateTopicsDecomposer implements RequestDecomposer<CreateTopicsRequestDat
 
     @Override
     public CreateTopicsResponseData recompose(Map<String, CreateTopicsResponseData> responses,
-                                              CreateTopicsRequestData originalRequest) {
+                                              CreateTopicsRequestData originalRequest,
+                                              short apiVersion) {
         var merged = new CreateTopicsResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -60,7 +61,7 @@ class CreateTopicsDecomposer implements RequestDecomposer<CreateTopicsRequestDat
                                                                      TopicRoutingTable table) {
         var errorResponse = new CreateTopicsResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) == null) {
+            if (!table.isRoutable(topic.name())) {
                 errorResponse.topics().add(
                         new CreatableTopicResult()
                                 .setName(topic.name())
@@ -75,7 +76,7 @@ class CreateTopicsDecomposer implements RequestDecomposer<CreateTopicsRequestDat
                                                                           TopicRoutingTable table) {
         var errorResponse = new CreateTopicsResponseData();
         for (var topic : request.topics()) {
-            if (table.routeForTopic(topic.name()) != null && !topic.assignments().isEmpty()) {
+            if (table.isRoutable(topic.name()) && !topic.assignments().isEmpty()) {
                 errorResponse.topics().add(
                         new CreatableTopicResult()
                                 .setName(topic.name())

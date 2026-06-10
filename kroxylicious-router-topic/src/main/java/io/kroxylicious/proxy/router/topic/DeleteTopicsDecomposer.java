@@ -67,7 +67,8 @@ class DeleteTopicsDecomposer implements RequestDecomposer<DeleteTopicsRequestDat
 
     @Override
     public DeleteTopicsResponseData recompose(Map<String, DeleteTopicsResponseData> responses,
-                                              DeleteTopicsRequestData originalRequest) {
+                                              DeleteTopicsRequestData originalRequest,
+                                              short apiVersion) {
         var merged = new DeleteTopicsResponseData();
         int maxThrottle = 0;
         for (var resp : responses.values()) {
@@ -93,7 +94,7 @@ class DeleteTopicsDecomposer implements RequestDecomposer<DeleteTopicsRequestDat
                                                             TopicRoutingTable table) {
         var errorResponse = new DeleteTopicsResponseData();
         for (var topicName : request.topicNames()) {
-            if (table.routeForTopic(topicName) == null) {
+            if (!table.isRoutable(topicName)) {
                 errorResponse.responses().add(
                         new DeletableTopicResult()
                                 .setName(topicName)
@@ -107,9 +108,8 @@ class DeleteTopicsDecomposer implements RequestDecomposer<DeleteTopicsRequestDat
                                                             TopicRoutingTable table) {
         var errorResponse = new DeleteTopicsResponseData();
         for (var topic : request.topics()) {
-            boolean hasName = topic.name() != null && !topic.name().isEmpty();
-            boolean unroutable = !hasName || table.routeForTopic(topic.name()) == null;
-            if (unroutable) {
+            if (!table.isRoutable(topic.name())) {
+                boolean hasName = topic.name() != null && !topic.name().isEmpty();
                 var result = new DeletableTopicResult();
                 if (!Uuid.ZERO_UUID.equals(topic.topicId())) {
                     result.setTopicId(topic.topicId());
