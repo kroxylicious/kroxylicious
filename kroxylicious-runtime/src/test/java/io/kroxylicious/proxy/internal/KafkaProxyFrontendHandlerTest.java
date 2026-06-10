@@ -243,6 +243,7 @@ class KafkaProxyFrontendHandlerTest {
         // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
         // mock through the VC so verify(fcf).createFilters(...) still works.
         when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
+        when(virtualClusterModel.getTopicIdResponseCache()).thenReturn(new java.util.concurrent.ConcurrentHashMap<>());
         return virtualClusterModel;
     }
 
