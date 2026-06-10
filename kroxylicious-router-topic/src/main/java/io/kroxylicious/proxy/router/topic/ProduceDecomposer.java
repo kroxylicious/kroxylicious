@@ -28,7 +28,8 @@ class ProduceDecomposer implements RequestDecomposer<ProduceRequestData, Produce
 
     @Override
     public Map<String, ProduceRequestData> decompose(ProduceRequestData request,
-                                                     TopicRoutingTable table) {
+                                                     TopicRoutingTable table,
+                                                     short apiVersion) {
         var result = new LinkedHashMap<String, ProduceRequestData>();
         for (var td : request.topicData()) {
             String route = table.routeForTopic(td.name());

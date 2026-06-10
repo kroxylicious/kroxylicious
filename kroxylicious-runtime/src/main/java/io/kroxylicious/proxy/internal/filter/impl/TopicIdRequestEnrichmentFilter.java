@@ -35,13 +35,15 @@ import io.kroxylicious.proxy.internal.util.RequestHeaderTagger;
 /**
  * Enriches client requests with topic names resolved from topicIds.
  * Per-connection instance (single-threaded on the event loop).
+ * Works in tandem with {@link TopicIdResponseEnrichmentFilter}, which
+ * enriches backend responses.
  *
  * <p>On the request path, resolves topicIds to names from a local cache.
  * On cache miss, sends an internal METADATA-by-topicId request through
  * the topology (which flows through the router and reaches backends),
  * waits for the response, caches the result, then continues.</p>
  *
- * <p>On the response path, learns topicId→name mappings from all
+ * <p>On the response path, learns topicId-to-name mappings from all
  * responses flowing back to the client. These are post-transform names
  * (per-route user filters have already run).</p>
  *

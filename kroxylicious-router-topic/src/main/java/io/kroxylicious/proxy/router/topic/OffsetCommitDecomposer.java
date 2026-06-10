@@ -27,7 +27,8 @@ class OffsetCommitDecomposer implements RequestDecomposer<OffsetCommitRequestDat
 
     @Override
     public Map<String, OffsetCommitRequestData> decompose(OffsetCommitRequestData request,
-                                                          TopicRoutingTable table) {
+                                                          TopicRoutingTable table,
+                                                          short apiVersion) {
         var result = new LinkedHashMap<String, OffsetCommitRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());

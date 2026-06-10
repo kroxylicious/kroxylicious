@@ -49,7 +49,7 @@ class RequestDecomposerTest {
         request.topicData().add(topicData("b.logs"));
         request.topicData().add(topicData("a.payments"));
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topicData()).extracting("name")
@@ -64,7 +64,7 @@ class RequestDecomposerTest {
         request.topicData().add(topicData("a.orders"));
         request.topicData().add(topicData("a.payments"));
 
-        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table);
+        Map<String, ProduceRequestData> parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topicData()).hasSize(2);
@@ -105,7 +105,8 @@ class RequestDecomposerTest {
         @Override
         public Map<String, ProduceRequestData> decompose(
                                                          ProduceRequestData request,
-                                                         TopicRoutingTable table) {
+                                                         TopicRoutingTable table,
+                                                         short apiVersion) {
             var result = new java.util.LinkedHashMap<String, ProduceRequestData>();
             for (var td : request.topicData()) {
                 String route = table.routeForTopic(td.name());

@@ -27,7 +27,8 @@ class ListOffsetsDecomposer implements RequestDecomposer<ListOffsetsRequestData,
 
     @Override
     public Map<String, ListOffsetsRequestData> decompose(ListOffsetsRequestData request,
-                                                         TopicRoutingTable table) {
+                                                         TopicRoutingTable table,
+                                                         short apiVersion) {
         var result = new LinkedHashMap<String, ListOffsetsRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());

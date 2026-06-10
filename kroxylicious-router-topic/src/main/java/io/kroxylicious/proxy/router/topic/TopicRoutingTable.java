@@ -25,6 +25,16 @@ public interface TopicRoutingTable {
     String routeForTopic(String topicName);
 
     /**
+     * Returns whether the given topic name is routable (has a matching route).
+     *
+     * @param topicName the Kafka topic name (may be null or empty)
+     * @return true if the topic has a route
+     */
+    default boolean isRoutable(String topicName) {
+        return topicName != null && !topicName.isEmpty() && routeForTopic(topicName) != null;
+    }
+
+    /**
      * Returns the set of all route names known to this table.
      */
     Set<String> allRoutes();

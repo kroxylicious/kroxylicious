@@ -27,10 +27,12 @@ public interface RequestDecomposer<Req extends ApiMessage, Resp extends ApiMessa
      *
      * @param request the client's original request body
      * @param table the topic-to-route mapping
+     * @param apiVersion the API version of the request
      * @return per-route sub-requests, never empty
      */
     Map<String, Req> decompose(Req request,
-                               TopicRoutingTable table);
+                               TopicRoutingTable table,
+                               short apiVersion);
 
     /**
      * Merges per-route sub-responses into a single response for the client.

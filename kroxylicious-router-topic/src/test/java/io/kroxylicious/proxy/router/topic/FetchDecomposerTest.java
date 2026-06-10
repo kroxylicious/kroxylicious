@@ -52,7 +52,7 @@ class FetchDecomposerTest {
     void shouldDecomposeByTopicRoute() {
         var request = fetchRequest("a.orders", "b.logs", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a", "route-b");
         assertThat(parts.get("route-a").topics()).extracting("topic")
@@ -65,7 +65,7 @@ class FetchDecomposerTest {
     void shouldReturnSingleEntryWhenAllTopicsOnOneRoute() {
         var request = fetchRequest("a.orders", "a.payments");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).hasSize(2);
@@ -80,7 +80,7 @@ class FetchDecomposerTest {
         request.setIsolationLevel((byte) 1);
         request.setRackId("rack-1");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.maxWaitMs()).isEqualTo(500);
@@ -97,7 +97,7 @@ class FetchDecomposerTest {
         request.setSessionId(42);
         request.setSessionEpoch(3);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.sessionId())
@@ -115,7 +115,7 @@ class FetchDecomposerTest {
         request.forgottenTopicsData().add(
                 new ForgottenTopic().setTopic("old.topic").setPartitions(java.util.List.of(0)));
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         for (var sub : parts.values()) {
             assertThat(sub.forgottenTopicsData())
@@ -128,7 +128,7 @@ class FetchDecomposerTest {
     void shouldExcludeUnroutableTopics() {
         var request = fetchRequest("a.orders", "unknown.topic");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).containsOnlyKeys("route-a");
         assertThat(parts.get("route-a").topics()).extracting("topic")
@@ -139,7 +139,7 @@ class FetchDecomposerTest {
     void shouldReturnEmptyMapWhenAllTopicsUnroutable() {
         var request = fetchRequest("unknown.one", "unknown.two");
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         assertThat(parts).isEmpty();
     }
@@ -152,7 +152,7 @@ class FetchDecomposerTest {
         topic.partitions().add(new FetchPartition().setPartition(1).setFetchOffset(200));
         request.topics().add(topic);
 
-        var parts = decomposer.decompose(request, table);
+        var parts = decomposer.decompose(request, table, (short) 0);
 
         var decomposed = parts.get("route-a").topics().stream()
                 .filter(t -> t.topic().equals("a.orders"))

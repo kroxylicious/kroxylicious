@@ -58,17 +58,23 @@ When multiple backends return throttle times, the router takes the maximum acros
 
 Several Kafka API keys transition from topic-name-based addressing to topic-ID-based addressing at certain versions (PRODUCE v13, FETCH v13, OFFSET_COMMIT v10, OFFSET_FETCH v10, DELETE_TOPICS v6). Topic IDs are cluster-specific -- the same topic on two independent clusters has different UUIDs.
 
-The router resolves topicIds to topic names using a `TopicIdCache`, then routes by name as normal. The cache is populated opportunistically from METADATA responses. On cache miss (e.g. the client learned topicIds from a different proxy instance), the router sends internal METADATA-by-topicId requests to all routes, waits for responses, and caches the results before proceeding. A routing table consistency check ensures that when per-route filters cause the same topicId to resolve to different names on different routes, only the name consistent with the routing table is cached.
+TopicId resolution is handled by two internal filters installed by the runtime, not by the router itself. The router always sees topic names on both requests and responses.
 
-### Cache implementation
+### Request enrichment (`TopicIdRequestEnrichmentFilter`)
 
-The `TopicIdCache` interface decouples the router from the cache implementation. The current implementation (`SharedTopicIdCache`) uses a `ConcurrentHashMap` shared across all connections via the router factory, following the same pattern as `ProducerIdManager` and `FetchSessionCache`.
+A per-connection filter on the frontend pipeline, positioned before user filters and routing. On the request path, it resolves topicIds to names from a local cache. On cache miss (e.g. the client learned topicIds from a different proxy instance, or has reconnected), it sends an internal METADATA-by-topicId request through the topology, waits for the response, caches the result, and then continues with the enriched request. On the response path, it learns topicId→name mappings from METADATA and other responses flowing back to the client. The cache is per-connection to avoid poisoning from subject-dependent name transforms in per-route filters.
 
-Only the `topicId → name` direction is cached. The reverse (`name → topicId`) is unsafe because topic recreation changes the topicId for a given name. Where a reverse lookup is needed (e.g. restoring topicIds on FETCH responses after session management), a per-request map scoped to the current handler invocation is used instead.
+### Response enrichment (`TopicIdResponseEnrichmentFilter`)
+
+A shared filter installed immediately before the `routingTerminalHandler`. It enriches backend responses with topic names from a shared `ConcurrentHashMap` cache (one per virtual cluster, stored on `VirtualClusterModel`). On cache miss, it sends an internal METADATA-by-topicId to resolve the name. It is also installed in `buildFilters()` for non-routing configurations. Because this filter sees raw backend responses before any subject-dependent name transforms, the shared cache is safe.
+
+### FetchSessionManager topicId propagation
+
+The `FetchSessionManager` maintains client-side fetch session state using `TopicPartition` (name-based). When it creates new `FetchTopic` objects (in `buildFullRequestFromState` for session reconstruction, and `wrapForBackend` for incremental fetch), it preserves topicIds from a `clientTopicIds` map learned from incoming requests.
 
 ### Cache poisoning caveat
 
-The shared cache assumes that the `topicId → name` mapping is the same for all clients. If per-route filters transform topic names in a subject-dependent way (e.g. a multi-tenant prefix derived from client identity), this assumption breaks -- a name cached for one subject would be wrong for others. A future per-connection `TopicIdCache` implementation behind the same interface would resolve this, selectable at initialisation time based on a filter property declaration (e.g. "name-preserving").
+The response enrichment cache is shared and safe (it sees raw backend names). The request enrichment cache is per-connection (it sees post-transform names from per-route filters). If per-route filters transform names in a subject-dependent way, a shared request cache would be poisoned. A future optimisation could share the request cache when the topology is known to be "name-preserving", selectable via a filter property declaration.
 
 ## Version capping
 
@@ -160,7 +166,7 @@ Subject-routed users have all coordinator-bound operations (transactions, consum
 
 - **Inadequate testing**: **DO NOT RELY ON THIS CODE IN ANY WAY WHATSOEVER**. Really, we mean it. It's not been reviewed. It's been only lightly tested, in very limited environments. 
 - **No classic consumer groups**: Only the "new" KIP-848 consumer group protocol is supported.
-- **No support topic ids**: We're capping API versions so a client cannot use a version the router doesn't support. That can prevent using more modern Kafka functionality.
+- **TopicId support is new and lightly tested**: TopicId-bearing API versions (PRODUCE v13, FETCH v13, OFFSET_COMMIT v10, OFFSET_FETCH v10, DELETE_TOPICS v6) are supported via internal enrichment filters, but this has not been extensively tested in production environments.
 - **Cross-route transactions**: A transactional producer whose topics span multiple backends will not get correct exactly-once semantics. Subject-based routing ensures each user's transactions target a single backend.
 - **Cross-route consumer groups**: Consumer groups whose subscriptions span routes will see incomplete behaviour. Subject-based routing ensures each user's groups target a single backend.
 - **No topic migration**: Once a topic is assigned to a route by prefix or explicit name, it cannot be moved without reconfiguration and data migration.

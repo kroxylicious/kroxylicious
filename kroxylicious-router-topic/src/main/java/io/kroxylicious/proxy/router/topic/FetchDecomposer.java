@@ -27,7 +27,8 @@ class FetchDecomposer implements RequestDecomposer<FetchRequestData, FetchRespon
 
     @Override
     public Map<String, FetchRequestData> decompose(FetchRequestData request,
-                                                   TopicRoutingTable table) {
+                                                   TopicRoutingTable table,
+                                                   short apiVersion) {
         var result = new LinkedHashMap<String, FetchRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.topic());

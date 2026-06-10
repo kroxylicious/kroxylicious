@@ -27,7 +27,8 @@ class DeleteRecordsDecomposer implements RequestDecomposer<DeleteRecordsRequestD
 
     @Override
     public Map<String, DeleteRecordsRequestData> decompose(DeleteRecordsRequestData request,
-                                                           TopicRoutingTable table) {
+                                                           TopicRoutingTable table,
+                                                           short apiVersion) {
         var result = new LinkedHashMap<String, DeleteRecordsRequestData>();
         for (var topic : request.topics()) {
             String route = table.routeForTopic(topic.name());
