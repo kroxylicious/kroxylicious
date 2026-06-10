@@ -145,20 +145,25 @@ class ProduceRoutingIT extends TopicPartitionRoutingBaseIT {
             producer.send(new ProducerRecord<>(topicA, "key-a", "val-a"));
             producer.send(new ProducerRecord<>(topicB, "key-b", "val-b"));
             producer.flush();
+
+            // workaround for test flakiness, see issue #4094, when the client closes the connection
+            // we don't make a best-effort to forward zero-acks produce requests on. So we avoid closing
+            // the producer until after consumption.
+
+            var recordsA = consumeDirectly(clusterA, topicA);
+            var recordsB = consumeDirectly(clusterB, topicB);
+
+            assertThat(recordsA).hasSize(1);
+            assertThat(recordsB).hasSize(1);
+
+            assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
+                    .as("fire-and-forget produce to route-a")
+                    .hasSize(1);
+            assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.PRODUCE))
+                    .as("fire-and-forget produce to route-b")
+                    .hasSize(1);
         }
 
-        var recordsA = consumeDirectly(clusterA, topicA);
-        var recordsB = consumeDirectly(clusterB, topicB);
-
-        assertThat(recordsA).hasSize(1);
-        assertThat(recordsB).hasSize(1);
-
-        assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.PRODUCE))
-                .as("fire-and-forget produce to route-a")
-                .hasSize(1);
-        assertThat(routingCaptor.requestsToRoute("route-b", ApiKeys.PRODUCE))
-                .as("fire-and-forget produce to route-b")
-                .hasSize(1);
     }
 
     @Test
