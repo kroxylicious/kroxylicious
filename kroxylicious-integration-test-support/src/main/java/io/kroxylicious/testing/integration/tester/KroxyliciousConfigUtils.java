@@ -8,7 +8,6 @@ package io.kroxylicious.testing.integration.tester;
 
 import java.time.Duration;
 
-import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
@@ -74,29 +73,6 @@ public class KroxyliciousConfigUtils {
      */
     public static ConfigurationBuilder proxy(KafkaCluster cluster) {
         return proxy(cluster.getBootstrapServers());
-    }
-
-    /**
-     * Locate the bootstrap servers for a virtual cluster
-     * @param virtualCluster virtual cluster
-     * @param config config to retrieve the bootstrap from
-     * @param gateway gateway of the virtual cluster
-     * @return bootstrap address
-     * @throws IllegalStateException if we encounter an unknown endpoint config provider type for the virtualcluster
-     * @throws IllegalArgumentException if the virtualCluster is not in the kroxylicious config
-     */
-    static String bootstrapServersFor(String virtualCluster, Configuration config, String gateway) {
-        var cluster = config.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
-        if (cluster.isEmpty()) {
-            throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
-        }
-        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(
-                virtualClusterGateway -> virtualClusterGateway.buildNodeIdentificationStrategy(virtualCluster)).findFirst();
-        var nodeIdentificationStrategy = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
-        // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
-        // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
-        // config might not work.
-        return nodeIdentificationStrategy.getClusterBootstrapAddress().toString();
     }
 
     public static VirtualClusterGatewayBuilder defaultGatewayBuilder() {
