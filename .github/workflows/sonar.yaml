@@ -105,7 +105,7 @@ jobs:
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects ''!:kroxylicious-operator,!:kroxylicious-operator-dist'' \
+            --projects '!:kroxylicious-operator,!:kroxylicious-operator-dist,!:kroxylicious-kubernetes-api,!:kroxylicious-operator-test-support' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \
@@ -124,7 +124,7 @@ jobs:
         run: |
           mvn --batch-mode \
             --activate-profiles 'ci,!qa' \
-            --projects ':kroxylicious-operator,:kroxylicious-kubernetes-parent,:kroxylicious-parent,:kroxylicious-operator-dist' \
+            --projects ':kroxylicious-operator,:kroxylicious-operator-dist,:kroxylicious-kubernetes-api,:kroxylicious-operator-test-support,:kroxylicious-kubernetes-parent,:kroxylicious-parent' \
             -Derrorprone.skip=true \
             -DskipITs=true \
             -Djapicmp.skip=true \

@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
@@ -20,7 +21,9 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
@@ -47,11 +50,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
-import io.kroxylicious.kubernetes.operator.LocallyRunningOperatorRbacHandler;
-import io.kroxylicious.kubernetes.operator.OperatorTestUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestFiles;
+import io.kroxylicious.testing.operator.LocallyRunningOperatorRbacHandler;
+import io.kroxylicious.testing.operator.OperatorTestUtils;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
@@ -65,8 +68,13 @@ import static org.awaitility.Awaitility.await;
  * <p>
  * This test has a short shelf life: once all users have migrated past the
  * non-SSA operator, the upgrade scenario no longer applies.
+ * <p>
+ * Not migrated to {@link io.kroxylicious.kubernetes.operator.LocalKroxyliciousOperatorExtension}:
+ * this test requires a dual-operator lifecycle (two operator instances started and stopped
+ * independently within a single test) which the extension does not support.
  */
-@EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
+@EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
+@SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 class OperatorSsaUpgradeIT {
 
     private static final String PROXY_NAME = "proxy-a";
@@ -77,7 +85,20 @@ class OperatorSsaUpgradeIT {
 
     @BeforeAll
     static void preloadOperandImage() {
-        OperatorTestUtils.preloadOperandImage();
+        String image = ProxyDeploymentDependentResource.getOperandImage();
+        try (var client = OperatorTestUtils.kubeClient()) {
+            var pod = client.run().withName("preload-operand-image")
+                    .withNewRunConfig()
+                    .withImage(image)
+                    .withRestartPolicy("Never")
+                    .withCommand("ls").done();
+            try {
+                client.resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
+            }
+            finally {
+                client.resource(pod).delete();
+            }
+        }
     }
 
     @RegisterExtension
@@ -96,11 +117,13 @@ class OperatorSsaUpgradeIT {
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
 
-    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(legacyExtension);
+    private final KubernetesClient userClient = rbacHandler.userClient();
+    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(userClient, legacyExtension);
 
     @AfterEach
     void stopLegacyOperator() {
         legacyExtension.getOperator().stop();
+        userClient.close();
     }
 
     @Test
