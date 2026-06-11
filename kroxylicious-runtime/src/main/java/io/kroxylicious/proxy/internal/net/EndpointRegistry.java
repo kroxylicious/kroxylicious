@@ -458,6 +458,16 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
     }
 
+    @VisibleForTesting
+    public int localPortFor(Optional<String> bindAddress, int port) {
+        return listeningChannels.entrySet().stream()
+                .filter(e -> e.getKey().bindingAddress().equals(bindAddress) && e.getKey().port() == port)
+                .findFirst()
+                .map(e -> ((InetSocketAddress) e.getValue().bindingStage().toCompletableFuture().join().localAddress()).getPort())
+                .orElseThrow(() -> new IllegalStateException(
+                        "No listening channel for (" + bindAddress.orElse("*") + ":" + port + ")"));
+    }
+
     private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding) {
         Objects.requireNonNull(key, "key cannot be null");
         Objects.requireNonNull(virtualClusterBinding, "virtualClusterBinding cannot be null");
