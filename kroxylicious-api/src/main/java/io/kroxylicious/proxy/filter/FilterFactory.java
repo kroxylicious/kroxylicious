@@ -32,7 +32,7 @@ import edu.umd.cs.findbugs.annotations.UnknownNullness;
  *     <li>instances will be {@linkplain  #initialize(FilterFactoryContext, Object) initialized} before any attempt to {@linkplain  #createFilter(FilterFactoryContext, Object) create} filter instances,</li>
  *     <li>instances will eventually be {@linkplain #close(Object)} closed} if and only if they were successfully initialized,</li>
  *     <li>no attempts to create filter instances will be made once a {@code FilterFactory} instance is closed,</li>
- *     <li>{@code initialize} and {@code close} are never invoked on a Netty event loop thread — blocking work (e.g. closing an HTTP/KMS client) is safe in either method.</li>
+ *     <li>{@code initialize} and {@code close} are dispatched to a dedicated lifecycle thread, so they are never invoked on a Netty event loop — blocking work (e.g. closing an HTTP/KMS client) is safe in either method.</li>
  * </ol>
  * <p>Filter instance creation can happen on a different thread than initialization or cleanup.
  * It is suggested to pass state using via the return value from {@link #createFilter(FilterFactoryContext, Object)} rather than

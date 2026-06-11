@@ -71,9 +71,12 @@ public class ConfigurationReloadOrchestrator {
                                            EndpointRegistry endpointRegistry,
                                            PluginFactoryRegistry pfr,
                                            List<ChangeDetector> detectors) {
+        // VCM construction is dispatched to the registry's lifecycle executor so
+        // FilterFactory.initialize() runs on a dedicated non-event-loop thread regardless
+        // of which thread invoked reconfigure().
         this(initialConfiguration, detectors,
                 new OperationsPlanner(virtualClusterRegistry, endpointRegistry,
-                        config -> config.virtualClusterModel(pfr)));
+                        config -> virtualClusterRegistry.submitToLifecycle(() -> config.virtualClusterModel(pfr))));
     }
 
     /**

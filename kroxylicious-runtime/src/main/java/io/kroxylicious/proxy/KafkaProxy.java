@@ -482,6 +482,9 @@ public final class KafkaProxy implements AutoCloseable {
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
+
+            // VCR.close() shuts down its lifecycle executor.
+            virtualClusterRegistry.close();
         }
         finally {
             // No explicit forEach close on virtualClusterModels — the registry's

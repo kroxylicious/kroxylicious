@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +54,7 @@ class ConfigurationReloadOrchestratorTest {
         // given
         var oldConfig = configWith(vc("cluster-a"));
         var newConfig = withDifferentUseIoUring(oldConfig);
-        var registry = mock(VirtualClusterRegistry.class);
+        var registry = mockVcr();
         var orchestrator = newOrchestrator(oldConfig, registry);
 
         // when
@@ -73,7 +74,7 @@ class ConfigurationReloadOrchestratorTest {
         // Change detection returns an empty ChangeResult; the orchestrator takes the
         // no-op early-return path and reports a clean ReconfigureResult.
         var config = configWith(vc("cluster-a"));
-        var registry = mock(VirtualClusterRegistry.class);
+        var registry = mockVcr();
         var orchestrator = newOrchestrator(config, registry);
 
         // when
@@ -275,7 +276,7 @@ class ConfigurationReloadOrchestratorTest {
         // with ConcurrentReconfigureException.
         var oldConfig = configWith(vc("cluster-remove"), vc("cluster-a"));
         var newConfig = configWith(vc("cluster-a"));
-        var registry = mock(VirtualClusterRegistry.class);
+        var registry = mockVcr();
 
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
@@ -348,7 +349,7 @@ class ConfigurationReloadOrchestratorTest {
         when(capturingDetector.detect(any())).thenReturn(ChangeResult.EMPTY);
 
         var orchestrator = new ConfigurationReloadOrchestrator(
-                initialConfig, mock(VirtualClusterRegistry.class), endpointRegistry,
+                initialConfig, mockVcr(), endpointRegistry,
                 mock(PluginFactoryRegistry.class), List.of(capturingDetector));
 
         orchestrator.reconfigure(firstSubmittedConfig).join();
@@ -514,7 +515,7 @@ class ConfigurationReloadOrchestratorTest {
         var oldConfig = configWith(vc("cluster-a"));
         var newConfig = configWith(vc("cluster-a"), vc("cluster-add-fails"), vc("cluster-add-succeeds"));
 
-        var registry = mock(VirtualClusterRegistry.class);
+        var registry = mockVcr();
         var failsSpecificFailure = new IllegalStateException("simulated bookkeeping failure on cluster-add-fails");
         when(registry.addVirtualCluster(argThat(m -> m != null && "cluster-add-fails".equals(m.getClusterName()))))
                 .thenReturn(CompletableFuture.failedFuture(failsSpecificFailure));
@@ -547,7 +548,7 @@ class ConfigurationReloadOrchestratorTest {
         var oldConfig = configWith(vc("cluster-a"), vc("cluster-remove-fails"), vc("cluster-remove-succeeds"));
         var newConfig = configWith(vc("cluster-a")); // removes cluster-remove-fails AND cluster-remove-succeeds
 
-        var registry = mock(VirtualClusterRegistry.class);
+        var registry = mockVcr();
         var failsSpecificFailure = new IllegalStateException("simulated drain failure on cluster-remove-fails");
         when(registry.removeVirtualCluster("cluster-remove-fails"))
                 .thenReturn(CompletableFuture.failedFuture(failsSpecificFailure));
@@ -628,8 +629,22 @@ class ConfigurationReloadOrchestratorTest {
      * A {@link VirtualClusterRegistry} mock where the reconfigure operations are stubbed to
      * return a completed future, mirroring the production stub behaviour.
      */
-    private static VirtualClusterRegistry stubbedRegistry(String... clustersInOldConfig) {
+    /**
+     * Creates a {@link VirtualClusterRegistry} mock with the lifecycle-dispatch invariant
+     * preserved: {@code submitToLifecycle(callable)} invokes the callable on the calling thread
+     * and returns its result. The orchestrator routes all VCM construction through this
+     * method, so a stub that returns {@code null} (Mockito's default) breaks every test that
+     * exercises the planner. Use this helper instead of bare {@code mock(VCR.class)}.
+     */
+    @SuppressWarnings("unchecked")
+    private static VirtualClusterRegistry mockVcr() {
         var registry = mock(VirtualClusterRegistry.class);
+        when(registry.submitToLifecycle(any(Callable.class))).thenAnswer(inv -> ((Callable<Object>) inv.getArgument(0)).call());
+        return registry;
+    }
+
+    private static VirtualClusterRegistry stubbedRegistry(String... clustersInOldConfig) {
+        var registry = mockVcr();
         when(registry.removeVirtualCluster(anyString())).thenReturn(CompletableFuture.completedFuture(null));
         when(registry.addVirtualCluster(any())).thenReturn(CompletableFuture.completedFuture(null));
         var models = Arrays.stream(clustersInOldConfig).map(name -> {
