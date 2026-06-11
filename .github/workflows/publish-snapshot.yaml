@@ -1,0 +1,129 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Publish SNAPSHOT
+
+# Publishes date-stamped SNAPSHOT Maven artifacts to the Central Portal snapshot
+# repository so that external users can test pre-release changes without waiting
+# for a scheduled release.
+#
+# Prerequisites:
+# - SNAPSHOT publishing must be enabled for the io.kroxylicious namespace on the
+#   Central Portal (https://central.sonatype.com/publishing/namespaces).
+#
+# It requires the following:
+# variables:
+# KROXYLICIOUS_SONATYPE_TOKEN_USERNAME        - Sonatype Access User Token Username
+# secrets:
+# KROXYLICIOUS_RELEASE_TOKEN                  - GitHub PAT with org:read for team membership check
+# KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD        - Sonatype Access User Token Password
+#
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to publish snapshot from'
+        required: false
+        default: 'main'
+
+jobs:
+  publish-snapshot:
+    runs-on: ubuntu-latest
+    if: github.repository == 'kroxylicious/kroxylicious'
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: 'Check out repository'
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: 'Check team membership'
+        uses: tspascoal/get-user-teams-membership@b2546c5affc730fd8e3d8483ae9ad3621938c2f9
+        id: team-membership
+        with:
+          username: ${{ github.actor }}
+          team: release-engineers
+          GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Stop workflow if user is not a release-engineer'
+        if: ${{ steps.team-membership.outputs.isTeamMember == 'false' }}
+        run: |
+          echo "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          exit 1
+
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+
+      - name: 'Set up Java'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          java-version: 21
+          distribution: temurin
+          server-id: central
+          server-username: SONATYPE_TOKEN_USERNAME
+          server-password: SONATYPE_TOKEN_PASSWORD
+          overwrite-settings: true
+
+      - name: 'Set snapshot version'
+        run: |
+          CURRENT_VERSION=$(mvn --quiet help:evaluate -Dexpression=project.version -q -DforceStdout)
+          BASE_VERSION=${CURRENT_VERSION%-SNAPSHOT}
+          SNAPSHOT_VERSION="${BASE_VERSION}-$(date +%Y%m%d)-SNAPSHOT"
+          echo "SNAPSHOT_VERSION=${SNAPSHOT_VERSION}" >> $GITHUB_ENV
+          mvn --batch-mode versions:set -DnewVersion="${SNAPSHOT_VERSION}" -DgenerateBackupPoms=false
+
+      - name: 'Deploy snapshot'
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+        run: |
+          mvn --batch-mode \
+            -DskipTests \
+            -DskipITs \
+            -DskipDocs=true \
+            -DskipContainerImageBuild=true \
+            deploy
+
+      - name: 'Summary'
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'SUMMARY'
+          ## SNAPSHOT Published
+
+          **Version:** `${{ env.SNAPSHOT_VERSION }}`
+          **Branch:** `${{ github.event.inputs.branch }}`
+
+          ### Consumer configuration
+
+          Add the Central Portal snapshot repository to your `pom.xml` or `settings.xml`:
+
+          ```xml
+          <repositories>
+            <repository>
+              <id>central-snapshots</id>
+              <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+              <snapshots>
+                <enabled>true</enabled>
+              </snapshots>
+            </repository>
+          </repositories>
+          ```
+          SUMMARY
