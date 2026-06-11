@@ -45,9 +45,7 @@ import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.config.Features;
-import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -131,23 +129,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     @NonNull
     public String getBootstrapAddress(String virtualCluster, String gateway) {
-        var config = kroxyliciousConfig.get();
-        var vc = config.virtualClusters().stream()
-                .filter(v -> v.name().equals(virtualCluster))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config"));
-        var strategy = vc.gateways().stream()
-                .filter(g -> g.name().equals(gateway))
-                .map(g -> g.buildNodeIdentificationStrategy(virtualCluster))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
-        var bootstrapAddress = strategy.getClusterBootstrapAddress();
-        if (bootstrapAddress.port() == EndpointRegistry.OS_ASSIGNED_PORT && proxy instanceof KafkaProxy kp) {
-            var bindAddress = strategy.getBindAddress().orElse(null);
-            int actualPort = kp.listeningPort(bindAddress, EndpointRegistry.OS_ASSIGNED_PORT);
-            return new HostPort(bootstrapAddress.host(), actualPort).toString();
-        }
-        return bootstrapAddress.toString();
+        return KroxyliciousConfigUtils.bootstrapAddressFor(
+                virtualCluster,
+                kroxyliciousConfig.get(),
+                gateway,
+                proxy instanceof KafkaProxy kp
+                        ? (bind, port) -> kp.listeningPort(bind.orElse(null), port)
+                        : (bind, port) -> port)
+                .toString();
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {
@@ -364,15 +353,6 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                             .formatted(exceptions.size()),
                     exceptions.get(0));
         }
-    }
-
-    @Override
-    public int listeningPort(@Nullable String bindAddress, int port) {
-        if (!(proxy instanceof KafkaProxy kp)) {
-            throw new UnsupportedOperationException(
-                    "listeningPort() requires a KafkaProxy-backed tester; this tester's proxy is " + proxy.getClass().getName());
-        }
-        return kp.listeningPort(bindAddress, port);
     }
 
     @Override
