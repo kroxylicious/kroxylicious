@@ -626,10 +626,6 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     /**
-     * A {@link VirtualClusterRegistry} mock where the reconfigure operations are stubbed to
-     * return a completed future, mirroring the production stub behaviour.
-     */
-    /**
      * Creates a {@link VirtualClusterRegistry} mock with the lifecycle-dispatch invariant
      * preserved: {@code submitToLifecycle(callable)} invokes the callable on the calling thread
      * and returns its result. The orchestrator routes all VCM construction through this

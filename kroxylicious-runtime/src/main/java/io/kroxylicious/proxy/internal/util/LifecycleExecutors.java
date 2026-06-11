@@ -42,10 +42,12 @@ public final class LifecycleExecutors {
      *
      * <p>Exceptions thrown by the task are unwrapped: a {@link RuntimeException} thrown inside
      * the task is rethrown with the same type, preserving the caller's catch-by-type semantics.
+     * Checked exceptions are wrapped in {@link CompletionException}.
      *
-     * @throws RuntimeException whatever the task threw, or a wrapping {@code RuntimeException}
-     *         for non-runtime exceptions
+     * @throws RuntimeException the same RuntimeException the task threw, or a
+     *         {@link CompletionException} wrapping a checked exception
      */
+    @SuppressWarnings("java:S1181") // catching Throwable is intentional — see comment inside
     public static <T> T runOnLifecycle(Executor executor, Callable<T> task) {
         // Accepting Executor (not ExecutorService) keeps the test surface small — a synchronous
         // Runnable::run lambda is a valid Executor and lets unit tests run lifecycle work on the
@@ -56,6 +58,9 @@ public final class LifecycleExecutors {
                 future.complete(task.call());
             }
             catch (Throwable t) {
+                // Catch Throwable (not Exception) so Errors thrown by the task are forwarded
+                // to the caller via the future rather than escaping into the single-threaded
+                // executor.
                 future.completeExceptionally(t);
             }
         });
@@ -70,7 +75,7 @@ public final class LifecycleExecutors {
             if (cause instanceof Error err) {
                 throw err;
             }
-            throw new RuntimeException(cause);
+            throw new CompletionException(cause);
         }
     }
 
