@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.it;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +25,7 @@ import io.kroxylicious.testing.integration.Request;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for DELETE_TOPICS router through the topic-partition router.
@@ -62,15 +64,21 @@ class DeleteTopicsRoutingIT extends TopicPartitionRoutingBaseIT {
             }
         }
 
-        // Verify topics were deleted from the correct backend clusters
-        try (var admin = AdminClient.create(clusterA.getKafkaClientConfiguration())) {
-            var names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
-            assertThat(names).doesNotContain(topicA);
-        }
-        try (var admin = AdminClient.create(clusterB.getKafkaClientConfiguration())) {
-            var names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
-            assertThat(names).doesNotContain(topicB);
-        }
+        // Verify topics were deleted from the correct backend clusters.
+        // The delete response arrives once the controller accepts the command,
+        // but removal propagates lazily to brokers.
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            try (var admin = AdminClient.create(clusterA.getKafkaClientConfiguration())) {
+                var names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+                assertThat(names).doesNotContain(topicA);
+            }
+        });
+        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            try (var admin = AdminClient.create(clusterB.getKafkaClientConfiguration())) {
+                var names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
+                assertThat(names).doesNotContain(topicB);
+            }
+        });
 
         // Verify router
         var deleteToA = routingCaptor.requestsToRoute("route-a", ApiKeys.DELETE_TOPICS);
