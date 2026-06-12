@@ -238,6 +238,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
         return new CipherTrustTestKekManager();
     }
 
+    @Nullable
     private Tls getTlsConfig() {
         // Priority 1: Check for insecure mode (testing/development)
         if (tlsInsecure) {
