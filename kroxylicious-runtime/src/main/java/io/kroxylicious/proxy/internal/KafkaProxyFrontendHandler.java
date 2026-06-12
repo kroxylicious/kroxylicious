@@ -87,6 +87,9 @@ public class KafkaProxyFrontendHandler
     DecodedRequestFrame<?> initialRequestForError;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
+    private @Nullable io.kroxylicious.proxy.bootstrap.RouterChainFactory routerChainFactory;
+    private @Nullable java.util.Map<Integer, io.kroxylicious.proxy.service.HostPort> sharedNodeAddresses;
+    private @Nullable io.kroxylicious.proxy.internal.net.EndpointBinding routingEndpointBinding;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -118,6 +121,14 @@ public class KafkaProxyFrontendHandler
         this.dp = dp;
         this.clientConnectionStateMachine = clientConnectionStateMachine;
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
+    }
+
+    void setRoutingConfig(io.kroxylicious.proxy.bootstrap.RouterChainFactory routerChainFactory,
+                          java.util.Map<Integer, io.kroxylicious.proxy.service.HostPort> sharedNodeAddresses,
+                          io.kroxylicious.proxy.internal.net.EndpointBinding binding) {
+        this.routerChainFactory = routerChainFactory;
+        this.sharedNodeAddresses = sharedNodeAddresses;
+        this.routingEndpointBinding = binding;
     }
 
     @Override
@@ -250,30 +261,170 @@ public class KafkaProxyFrontendHandler
         LOGGER.atTrace()
                 .addKeyValue("channelId", clientChannel.id())
                 .log("ChannelActive");
-        // install filters before first read
-        List<FilterAndInvoker> filters = buildFilters();
-        addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
-        // Set the decode predicate now that we have the filters
+
+        if (clientConnectionStateMachine.virtualCluster().usesRouter()) {
+            inClientActiveWithRouting(clientChannel);
+        }
+        else {
+            inClientActiveWithoutRouting(clientChannel);
+        }
+    }
+
+    private void inClientActiveWithoutRouting(Channel clientChannel) {
+        List<FilterAndInvoker> filters = buildFilters(true);
+        addFiltersToPipeline(filters, clientCtx().pipeline(), clientChannel);
         dp.setDelegate(DecodePredicate.forFilters(filters));
-        // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
     }
 
-    private List<FilterAndInvoker> buildFilters() {
+    private void inClientActiveWithRouting(Channel clientChannel) {
+        ChannelPipeline pipeline = clientCtx().pipeline();
+        var allFilters = new ArrayList<FilterAndInvoker>();
+        NettyFilterContext filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
+        var vc = clientConnectionStateMachine.virtualCluster();
+
+        // 1. Build and install internal-only filters
+        List<FilterAndInvoker> internalFilters = buildFilters(false);
+        addFiltersToPipeline(internalFilters, pipeline, clientChannel);
+        allFilters.addAll(internalFilters);
+
+        // 2. Add PassthroughRoutingHandler after last internal filter
+        String lastHandler = lastFilterHandlerName(pipeline);
+        pipeline.addAfter(lastHandler, "passthroughRouting",
+                new io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler());
+
+        // 3. Build VC user filters and add as route filters scoped to "default"
+        List<FilterAndInvoker> vcFilters = vc.filterChainFactory().createFilters(filterContext);
+        allFilters.addAll(vcFilters);
+
+        // 4. Walk the router graph depth-first, installing RoutingDecisionHandlers
+        // and route filters in topological order before the RoutingTerminalHandler
+        installRouterGraph(
+                vc.routerName(),
+                io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler.DEFAULT_ROUTE,
+                java.util.function.IntUnaryOperator.identity(),
+                vcFilters,
+                filterContext, pipeline, clientChannel, allFilters);
+
+        // 5. Set top-level NodeIdMapping on CCSM for broker-port resolution
+        var topRouteDescriptors = vc.routeDescriptors();
+        var topRouteIds = topRouteDescriptors.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        java.util.Map.Entry::getKey,
+                        e -> e.getValue().id()));
+        io.kroxylicious.proxy.internal.routing.NodeIdMapping topNodeIdMapping = topRouteIds.size() > 1
+                ? new io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping(topRouteIds, topRouteIds.size())
+                : new io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping(topRouteIds.keySet().iterator().next());
+        clientConnectionStateMachine.setNodeIdMapping(topNodeIdMapping);
+
+        // 6. Set decode predicate to union of ALL filters across the routing DAG
+        dp.setDelegate(DecodePredicate.forFilters(allFilters));
+        clientChannel.config().setAutoRead(false);
+        clientChannel.read();
+    }
+
+    private void installRouterGraph(String routerName,
+                                    String activationRoute,
+                                    java.util.function.IntUnaryOperator parentTranslator,
+                                    List<FilterAndInvoker> pendingRouteFilters,
+                                    NettyFilterContext filterContext,
+                                    ChannelPipeline pipeline,
+                                    Channel clientChannel,
+                                    List<FilterAndInvoker> allFilters) {
+        var vc = clientConnectionStateMachine.virtualCluster();
+        var allRouteDescriptors = vc.allRouteDescriptors();
+        var routeDescriptors = allRouteDescriptors != null ? allRouteDescriptors.get(routerName) : vc.routeDescriptors();
+
+        // Create Router and compute NodeIdMapping
+        io.kroxylicious.proxy.router.Router router = routerChainFactory.createRouter(routerName, vc.getClusterName());
+        var routeIds = routeDescriptors.entrySet().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        java.util.Map.Entry::getKey,
+                        e -> e.getValue().id()));
+        io.kroxylicious.proxy.internal.routing.NodeIdMapping nodeIdMapping = routeIds.size() > 1
+                ? new io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping(routeIds, routeIds.size())
+                : new io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping(routeIds.keySet().iterator().next());
+
+        // Compose the virtual ID translator for this level
+        java.util.function.IntUnaryOperator translator = parentTranslator;
+
+        // Metrics
+        var clusterName = vc.getClusterName();
+        var nodeId = routingEndpointBinding.nodeId();
+        var routingRequestsCounter = io.kroxylicious.proxy.internal.util.Metrics.routingRequestsCounter(clusterName, nodeId);
+        var routingErrorsCounter = io.kroxylicious.proxy.internal.util.Metrics.routingErrorsCounter(clusterName, nodeId);
+        var routingRequestDurationTimer = io.kroxylicious.proxy.internal.util.Metrics.routingRequestDurationTimer(clusterName, nodeId);
+        var pendingResponseCount = new java.util.concurrent.atomic.AtomicInteger();
+        io.kroxylicious.proxy.internal.util.Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
+
+        // Install RoutingDecisionHandler
+        String handlerName = "routingDecisionHandler-" + routerName;
+        var decisionHandler = new io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler(
+                activationRoute,
+                router, routeDescriptors, router.staticRoutes(), clientConnectionStateMachine,
+                nodeIdMapping,
+                routingRequestsCounter, routingErrorsCounter,
+                routingRequestDurationTimer, pendingResponseCount,
+                translator,
+                sharedNodeAddresses);
+        pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
+
+        // Install any pending route filters (e.g. VC filters for "default" activation route)
+        // between the handler that set this activation route and this decision handler
+        for (int i = 0; i < pendingRouteFilters.size(); i++) {
+            FilterAndInvoker fi = pendingRouteFilters.get(i);
+            String filterName = "routeFilter-" + activationRoute + "-" + i + "-" + fi.filterName();
+            pipeline.addBefore(handlerName, filterName,
+                    new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                            clientConnectionStateMachine, activationRoute));
+        }
+
+        // For each route, install route filters and recurse into nested routers
+        for (var entry : routeDescriptors.entrySet()) {
+            String routeName = entry.getKey();
+            io.kroxylicious.proxy.internal.routing.RouteDescriptor rd = entry.getValue();
+
+            // Build this route's filters
+            List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routerName, routeName, filterContext);
+            allFilters.addAll(routeFilters);
+
+            if (rd.targetsRouter()) {
+                // Nested router: compose translator and recurse
+                java.util.function.IntUnaryOperator nestedTranslator = nestedVirtual -> parentTranslator.applyAsInt(
+                        nodeIdMapping.toVirtual(routeName, nestedVirtual));
+                installRouterGraph(rd.routerName(), routeName, nestedTranslator,
+                        routeFilters, filterContext, pipeline, clientChannel, allFilters);
+            }
+            else {
+                // Cluster-targeting route: install route filters before terminal
+                for (FilterAndInvoker fi : routeFilters) {
+                    String filterHandlerName = "routeFilter-" + routeName + "-" + fi.filterName();
+                    pipeline.addBefore("routingTerminalHandler", filterHandlerName,
+                            new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                                    clientConnectionStateMachine, routeName));
+                }
+            }
+        }
+    }
+
+    /**
+     * @param includeUserFilters whether to include user-configured VC filters
+     */
+    private List<FilterAndInvoker> buildFilters(boolean includeUserFilters) {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
-        NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
-
-        List<FilterAndInvoker> filterChain = clientConnectionStateMachine.virtualCluster()
-                .filterChainFactory()
-                .createFilters(filterContext);
-        filterAndInvokers.addAll(filterChain);
+        if (includeUserFilters) {
+            NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
+            List<FilterAndInvoker> filterChain = clientConnectionStateMachine.virtualCluster().filterChainFactory().createFilters(filterContext);
+            filterAndInvokers.addAll(filterChain);
+        }
 
         if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
-            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
+            boolean closeAfterLearning = !clientConnectionStateMachine.virtualCluster().usesRouter();
+            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner(closeAfterLearning)));
         }
         filterAndInvokers
                 .addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", clientConnectionStateMachine.virtualCluster().getTopicNameCacheFilter()));
@@ -282,6 +433,35 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(brokerAddressFilters);
 
         return filterAndInvokers;
+    }
+
+    private String lastFilterHandlerName(ChannelPipeline pipeline) {
+        String last = clientCtx().name();
+        for (var name : pipeline.names()) {
+            if (name.startsWith("filter-")) {
+                last = name;
+            }
+        }
+        return last;
+    }
+
+    private void addRouteFiltersToPipeline(List<FilterAndInvoker> filters,
+                                           String routeName,
+                                           String addBeforeHandler,
+                                           ChannelPipeline pipeline,
+                                           Channel inboundChannel) {
+        for (FilterAndInvoker protocolFilter : filters) {
+            String handlerName = "routeFilter-" + routeName + "-" + protocolFilter.filterName();
+            pipeline.addBefore(addBeforeHandler,
+                    handlerName,
+                    new RouteFilterHandler(
+                            protocolFilter,
+                            20000,
+                            sniHostname,
+                            inboundChannel,
+                            clientConnectionStateMachine,
+                            routeName));
+        }
     }
 
     /**

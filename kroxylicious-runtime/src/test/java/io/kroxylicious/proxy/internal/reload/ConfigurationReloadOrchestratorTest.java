@@ -658,13 +658,12 @@ class ConfigurationReloadOrchestratorTest {
     }
 
     private static Configuration configWith(VirtualCluster... clusters) {
-        return new Configuration(null, null, null, List.of(clusters), null, false,
-                Optional.empty(), null, null);
+        return new Configuration(null, null, null, null, null, List.of(clusters), null, false, Optional.empty(), null, null);
     }
 
     private static Configuration withDifferentUseIoUring(Configuration base) {
-        return new Configuration(base.management(), base.filterDefinitions(), base.defaultFilters(),
-                base.virtualClusters(), base.micrometer(),
+        return new Configuration(base.management(), base.clusterDefinitions(), base.filterDefinitions(), base.defaultFilters(),
+                base.routerDefinitions(), base.virtualClusters(), base.micrometer(),
                 !base.useIoUring(),
                 base.development(), base.network(),
                 // also vary proxyProtocol just to make the diff non-empty even if useIoUring matches

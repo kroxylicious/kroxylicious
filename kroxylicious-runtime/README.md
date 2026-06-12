@@ -38,6 +38,27 @@ Kafka clients use pipelining - they send multiple requests before receiving resp
 
 **Critical file:** `src/main/java/io/kroxylicious/proxy/internal/ResponseOrderer.java`
 
+## Router Dispatch
+
+When a virtual cluster targets a router, `RouterDispatchHandler` replaces `FilterChainCompletionHandler` at the end of the filter chain. It handles static routes (opaque forwarding by API key) and dynamic routes (deserialised, dispatched to `Router.onRequest`).
+
+**Key classes:**
+- `RouterDispatchHandler` — Netty handler; owns the per-connection router lifecycle, response sequencer, and nested router cache
+- `RouterContextImpl` — per-request context passed to `Router.onRequest`; implements `sendRequestToNode` for both cluster and router targets
+- `NodeIdMapping` — translates between target-cluster node IDs and virtual node IDs (`BijectiveNodeIdMapping` for multi-route, `IdentityNodeIdMapping` for single-route)
+
+### Nested routers
+
+A route can target another router instead of a cluster. When `sendRequestToNode` is called for such a route, `RouterContextImpl.dispatchToNestedRouter` creates a nested `RouterContextImpl` with its own `NodeIdMapping` and invokes the inner router's `onRequest`.
+
+Virtual node IDs from the nested level are translated to the outer level via `outerMapping.toVirtual(outerRoute, nestedVirtual)` before reaching the CCSM's address resolver. This reuses the outer route's slot in the bijective mapping, guaranteeing no collisions. Address caching from METADATA responses uses the translated IDs; response translation uses the nested mapping (so the inner router sees its own virtual space).
+
+Nested `Router` instances are cached per connection in `RouterDispatchHandler` and closed in `handlerRemoved`.
+
+### Response handling for routed requests
+
+`PendingResponse` carries a per-response `NodeIdMapping` and `MetadataAddressCacher`. In `onResponse`, addresses are cached **before** `NodeIdResponseTranslator` runs (while node IDs are still target IDs), using the cacher to map to the correct virtual space for the CCSM.
+
 ## FilterHandler Async Processing
 
 **Read/Write Future Chains:**

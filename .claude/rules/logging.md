@@ -95,6 +95,9 @@ When choosing the key to use with `addKeyValue()`, try to be consistent in captu
 * A Kafka topic id: `topicId`
 * A Kafka topic parition index: `partition`
 * An a Kafka request or response correlationId: Either `serverCorrelationId` or `clientCorrelationId` (not just `correlationId`)
+* A routing route name: `route`
+* Whether routing is static or dynamic: `routingMode` (values: `"static"`, `"dynamic"`)
+* The backend address a route resolves to: `routeTarget`
 
 In `kroxylicious-operator` specifically:
 

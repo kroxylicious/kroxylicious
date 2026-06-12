@@ -23,6 +23,17 @@ See [DEV_GUIDE.md](DEV_GUIDE.md) for:
 - Container image building and pushing
 - Continuous integration workflows
 
+### Running specific tests
+
+- **Unit tests** (surefire): `mvn test -pl <module> -Dtest="TestClassA,TestClassB"`
+- **Integration tests** (failsafe): `mvn verify -pl <module> -Dit.test="SomeIT,OtherIT"`
+
+IMPORTANT: Integration test classes (named `*IT`) are run by the failsafe plugin, NOT surefire. You **must** use `-Dit.test` (not `-Dtest`) to select them. Using `-Dtest` will silently run zero integration tests while still running all ITs via failsafe.
+
+IMPORTANT: If you use `verify` with `-pl`, `-am` and `-Dit.test` at the same time then you must also add `-Dfailsafe.failIfNoSpecifiedTests=false`, otherwise a dependency's integration tests will most likely fail owing to the absence of the named test in that module.
+
+IMPORTANT: Our builds and tests can take a long time. To minimize time spent re-testing **do not** using shell pipelines which discard output like `mvn ... | head -20` or `mvn ... | grep ... | head -20`. Instead, use `mvn test ... | tee /tmp/claude-kroxylicious/test.log | head -20` or `mvn test ... | tee /tmp/claude-kroxylicious/test.log | grep ... | head -20`. This way, if the test fails, you have already captured all the test output for analysis so you don't need to re-exec the slow `mvn` command.
+
 ## Coding Rules
 
 When writing code, follow these prescriptive rules:
@@ -90,6 +101,29 @@ See module README.md files for detailed context:
 ## Kubernetes
 
 There is a Kubernetes operator for the proxy in `kroxylicious-operator`. The end user defines a number of custom resources, such as `KafkaProxy`, `KafkaProxyIngress`, and `KafkaProtocolFilter`, and the operator observes ("reconciles") these and creates/updates a Kubernetes `Deployment` to run a number of proxy instances as containers within `Pods`.
+
+## Kafka Protocol and Version Negotiation
+
+The Kafka wire protocol is versioned per API key. Each request type (PRODUCE, FETCH, METADATA, etc.) has an independent version range. The authoritative schema for each request/response lives in the Apache Kafka source tree at `clients/src/main/resources/common/message/<ApiKey>Request.json`. These JSON IDL files define which fields exist at which versions — a field with `"versions": "0-12"` is absent from the wire format at v13+.
+
+**Version negotiation** works as follows:
+1. The client sends `API_VERSIONS` to discover the server's supported version ranges.
+2. The proxy's `ApiVersionsIntersectFilter` intersects the backend's ranges with the proxy's own maximums, and returns this intersection to the client.
+3. The client then uses the highest mutually-supported version for each API key.
+4. `ApiVersionsServiceImpl` accepts an override map (`Map<ApiKeys, Short>`) to cap specific API keys below their natural maximum.
+
+**Key protocol evolution to be aware of:**
+- **PRODUCE v13** (KIP-516): Replaces `Name` (topic name string) with `TopicId` (UUID). Topic IDs are cluster-specific — the same topic on two independent clusters has different UUIDs. This means any feature that routes PRODUCE requests between independent clusters must cap the advertised PRODUCE version at v12 to force name-based addressing.
+- The pattern for capping versions is demonstrated by `MultiTenantFilter`, which uses `ApiVersionsResponseTransformers.limitMaxVersionForApiKeys(Map.of(ApiKeys.PRODUCE, (short) 12))` on the `API_VERSIONS` response.
+- **FETCH v7+** (KIP-227): Introduces incremental fetch sessions. The client and server negotiate a session (sessionId/epoch) so that subsequent fetches only carry changed partitions, reducing wire overhead. Key session semantics: `sessionId=0, epoch=-1` means sessionless (full fetch); `sessionId=0, epoch=0` creates a new session; `sessionId=N, epoch=M` (M>0) is an incremental fetch; `sessionId=N, epoch=-1` closes the session. The `TopicPartitionRouter` manages bidirectional sessions via `FetchSessionManager`: it acts as a session **server** for the downstream client and as a session **client** for each upstream backend route. These two sides are independent — a pre-v7 client (no session support) can still benefit from server-side sessions, and vice versa. When a backend sends an incremental response the proxy reconstructs a full response before merging across routes.
+
+**Implications for routers:**
+- A `Router` that sends requests to multiple independent backend clusters must intercept `API_VERSIONS` (make it dynamically routed rather than static) and cap any API key whose wire format uses cluster-specific identifiers (e.g. topic IDs).
+- The proxy preserves the client's original `apiVersion` when creating `DecodedRequestFrame` for the backend (`RoutingContextImpl` line 81). The backend encoder serialises at that version. There is no automatic version translation between client and backend.
+- The Kafka producer's default configuration (`enable.idempotence=true` in Kafka 3.0+) can cause retries that appear as additional requests to the proxy. Tests that count requests per API key should disable idempotence and retries, and set `batch.size=0` to ensure one PRODUCE request per record.
+- Pre-v7 FETCH requests cannot carry session fields on the wire, so server-side sessions are structurally impossible for pre-v7 clients regardless of proxy logic.
+- **Nested routers** (a route targeting another router) are supported. Each level has its own `NodeIdMapping`. Virtual node IDs are translated between levels: `outerVirtual = outerMapping.toVirtual(outerRoute, nestedVirtual)`. This composition guarantees no collisions with the outer level's IDs. The CCSM address resolver sees only outermost virtual IDs; each router level sees its own virtual space in responses. The translation happens in the nested level's forwarder callbacks and `MetadataAddressCacher`.
+- **METADATA must be statically routed** when a router sends PRODUCE to multiple independent clusters. `BrokerAddressFilter` only translates addresses for responses on the static/filter path, not the dynamic `PendingResponse` path. Routers that need client-addressable brokers from METADATA should declare METADATA as a static route to a fixed default route.
 
 ## End User Documentation
 

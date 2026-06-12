@@ -591,7 +591,9 @@ class ConfigurationTest {
         Optional<Map<String, Object>> development = Optional.empty();
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
         assertThatThrownBy(() -> new Configuration(null,
+                null,
                 filterDefinitions,
+                null,
                 null,
                 virtualCluster,
                 null,
@@ -609,8 +611,11 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<String> defaultFilters = List.of("missing");
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
+        assertThatThrownBy(() -> new Configuration(null,
+                null,
+                filterDefinitions,
                 defaultFilters,
+                null,
                 virtualCluster,
                 null,
                 false,
@@ -631,7 +636,9 @@ class ConfigurationTest {
                 .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null,
+                null,
                 filterDefinitions,
+                null,
                 null,
                 virtualClusters,
                 null, false,
@@ -657,8 +664,10 @@ class ConfigurationTest {
         TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
         List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null,
+                null,
                 filterDefinitions,
                 defaultFilters,
+                null,
                 virtualClusters,
                 null,
                 false,
@@ -666,7 +675,8 @@ class ConfigurationTest {
                 null,
                 null))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
+                .hasMessage(
+                        "'filterDefinitions' defines filters which are not used in 'defaultFilters', in any virtual cluster's 'filters', or in any route's 'filters': [unused]");
     }
 
     @Test
@@ -681,8 +691,10 @@ class ConfigurationTest {
 
         Configuration configuration = new Configuration(
                 null,
+                null,
                 filterDefinitions,
                 List.of("bar"),
+                null,
                 List.of(direct, defaulted),
                 null,
                 false,
@@ -704,7 +716,7 @@ class ConfigurationTest {
 
     @Test
     void proxyProtocolModeShouldReturnRequiredWhenRequired() {
-        Configuration configuration = new Configuration(null, null, null,
+        Configuration configuration = new Configuration(null, null, null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
                 new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
@@ -713,7 +725,7 @@ class ConfigurationTest {
 
     @Test
     void proxyProtocolModeShouldReturnAllowedWhenAllowed() {
-        Configuration configuration = new Configuration(null, null, null,
+        Configuration configuration = new Configuration(null, null, null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
                 new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
@@ -722,7 +734,7 @@ class ConfigurationTest {
 
     @Test
     void proxyProtocolModeShouldReturnDisabledWhenDisabled() {
-        Configuration configuration = new Configuration(null, null, null,
+        Configuration configuration = new Configuration(null, null, null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
                 new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
@@ -731,7 +743,7 @@ class ConfigurationTest {
 
     @Test
     void proxyProtocolDefaultsToDisabledWhenNull() {
-        Configuration configuration = new Configuration(null, null, null,
+        Configuration configuration = new Configuration(null, null, null, null, null,
                 List.of(buildVirtualCluster("vc", "x:9092", null)),
                 null, false, Optional.empty(), null,
                 null);
