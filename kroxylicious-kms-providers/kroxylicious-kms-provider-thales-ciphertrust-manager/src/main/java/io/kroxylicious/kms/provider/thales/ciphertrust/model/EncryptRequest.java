@@ -18,7 +18,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param id the key ID to use for encryption
  * @param plaintext the plaintext to encrypt (base64 encoded by Jackson)
- * @param type id type (optional, validated by server)
+ * @param type id type (null means server uses heuristic to determine type)
  */
 @SuppressWarnings("java:S6218") // no need for toString, equals, hashCode to go deep on the byte[]
 public record EncryptRequest(
