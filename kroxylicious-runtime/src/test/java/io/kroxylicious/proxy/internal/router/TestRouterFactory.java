@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.router;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -18,7 +17,7 @@ import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterResult;
+import io.kroxylicious.proxy.router.RouterResponse;
 
 @Plugin(configType = Void.class)
 public class TestRouterFactory implements RouterFactory<Void, Void> {
@@ -32,10 +31,10 @@ public class TestRouterFactory implements RouterFactory<Void, Void> {
     public Router createRouter(RouterFactoryContext context, Void initializationData) {
         return new Router() {
             @Override
-            public CompletionStage<RouterResult> onRequest(short apiVersion, ApiKeys apiKey,
-                                                           RequestHeaderData header, ApiMessage request,
-                                                           RouterContext routerContext) {
-                return CompletableFuture.completedFuture(new RouterResult.Disconnect());
+            public CompletionStage<RouterResponse> onRequest(short apiVersion, ApiKeys apiKey,
+                                                             RequestHeaderData header, ApiMessage request,
+                                                             RouterContext routerContext) {
+                return routerContext.respondWithoutReply().withCloseConnection().completed();
             }
         };
     }

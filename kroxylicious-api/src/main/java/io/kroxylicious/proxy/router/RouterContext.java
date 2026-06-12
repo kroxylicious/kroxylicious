@@ -10,7 +10,9 @@ import java.util.OptionalInt;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.authentication.Subject;
@@ -79,14 +81,14 @@ public interface RouterContext {
      * @param virtualNodeId the virtual node ID of the target broker
      * @param header the request header
      * @param request the request body
-     * @return a stage that completes with the response from the broker
+     * @return a stage that completes with the response body from the broker
      * @throws IllegalStateException if the upstream address for the node is
      *         not yet known (metadata not yet reconciled)
      */
-    CompletionStage<Response> sendRequestToNode(
-                                                int virtualNodeId,
-                                                RequestHeaderData header,
-                                                ApiMessage request);
+    CompletionStage<ApiMessage> sendRequestToNode(
+                                                  int virtualNodeId,
+                                                  RequestHeaderData header,
+                                                  ApiMessage request);
 
     /**
      * Returns the unique identifier for the current proxy session.
@@ -139,7 +141,49 @@ public interface RouterContext {
      *         be resolved (e.g. the topic was deleted)
      */
     @Nullable
-    default String topicName(Uuid topicId) {
-        return null;
-    }
+    String topicName(Uuid topicId);
+
+    /**
+     * Begins building a router response that delivers the given response
+     * body to the client. The runtime provides a response header.
+     *
+     * @param body the response body
+     * @return a stage that can optionally close the connection
+     */
+    CloseOrTerminalStage respondWith(ApiMessage body);
+
+    /**
+     * Begins building a router response that delivers a synthesised
+     * response to the client.
+     *
+     * @param header the response header
+     * @param body the response body
+     * @return a stage that can optionally close the connection
+     */
+    CloseOrTerminalStage respondWith(
+                                     ResponseHeaderData header,
+                                     ApiMessage body);
+
+    /**
+     * Begins building a router result that generates an error response
+     * for the client. The generated error response is API-specific.
+     *
+     * @param header the request header
+     * @param request the request body
+     * @param exception the exception that triggered the error
+     * @return a stage that can optionally close the connection
+     */
+    CloseOrTerminalStage respondWithError(
+                                          RequestHeaderData header,
+                                          ApiMessage request,
+                                          ApiException exception);
+
+    /**
+     * Begins building a router result for a fire-and-forget request
+     * where no response is delivered to the client (e.g. acks=0
+     * {@code PRODUCE}).
+     *
+     * @return a stage that can optionally close the connection
+     */
+    CloseOrTerminalStage respondWithoutReply();
 }

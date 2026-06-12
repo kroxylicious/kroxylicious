@@ -15,10 +15,13 @@ import java.util.function.IntSupplier;
 import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,8 +31,9 @@ import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.router.Response;
+import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -128,10 +132,10 @@ class RouterContextImpl implements RouterContext {
     }
 
     @Override
-    public CompletionStage<Response> sendRequestToNode(
-                                                       int virtualNodeId,
-                                                       RequestHeaderData header,
-                                                       ApiMessage request) {
+    public CompletionStage<ApiMessage> sendRequestToNode(
+                                                         int virtualNodeId,
+                                                         RequestHeaderData header,
+                                                         ApiMessage request) {
         NodeIdMapping.RouteAndNode ran = nodeIdMapping.fromVirtual(virtualNodeId);
         String route = ran.route();
         RouteDescriptor rd = routes.get(route);
@@ -179,7 +183,7 @@ class RouterContextImpl implements RouterContext {
             return CompletableFuture.completedFuture(null);
         }
 
-        CompletableFuture<Response> future = new CompletableFuture<>();
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         Timer.Sample timerSample = Timer.start();
         var pendingResponse = new PendingResponse(
                 future, timerSample, route, apiKey,
@@ -223,7 +227,7 @@ class RouterContextImpl implements RouterContext {
                 if (resp != null) {
                     listener.accept(new RoutingEvent.Response(
                             sessionId, route, routingCorrelationId, apiKey,
-                            resp.header(), resp.body()));
+                            null, resp));
                 }
             });
         }
@@ -265,6 +269,36 @@ class RouterContextImpl implements RouterContext {
     @Override
     public String topicName(Uuid topicId) {
         return topicIdCache.get(topicId);
+    }
+
+    @Override
+    public CloseOrTerminalStage respondWith(ApiMessage body) {
+        Objects.requireNonNull(body);
+        return new RouterResultBuilderImpl(null, body);
+    }
+
+    @Override
+    public CloseOrTerminalStage respondWith(
+                                            ResponseHeaderData header,
+                                            ApiMessage body) {
+        return new RouterResultBuilderImpl(header, body);
+    }
+
+    @Override
+    public CloseOrTerminalStage respondWithError(
+                                                 RequestHeaderData header,
+                                                 ApiMessage request,
+                                                 ApiException exception) {
+        AbstractResponse errorResponse = KafkaProxyExceptionMapper
+                .errorResponseForMessage(header, request, exception);
+        ResponseHeaderData responseHeader = new ResponseHeaderData();
+        responseHeader.setCorrelationId(header.correlationId());
+        return new RouterResultBuilderImpl(responseHeader, errorResponse.data());
+    }
+
+    @Override
+    public CloseOrTerminalStage respondWithoutReply() {
+        return new RouterResultBuilderImpl(null, null);
     }
 
     /**

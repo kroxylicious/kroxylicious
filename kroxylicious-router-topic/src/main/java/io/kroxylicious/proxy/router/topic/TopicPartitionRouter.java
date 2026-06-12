@@ -80,11 +80,9 @@ import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformer;
 import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformers;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
-import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.router.RouterResult;
-import io.kroxylicious.proxy.router.RouterResult.Completed;
+import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.router.topic.ProducerIdManager.ProducerIdEpoch;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -270,12 +268,12 @@ class TopicPartitionRouter implements Router {
     }
 
     @Override
-    public CompletionStage<RouterResult> onRequest(
-                                                   short apiVersion,
-                                                   ApiKeys apiKey,
-                                                   RequestHeaderData header,
-                                                   ApiMessage request,
-                                                   RouterContext context) {
+    public CompletionStage<RouterResponse> onRequest(
+                                                     short apiVersion,
+                                                     ApiKeys apiKey,
+                                                     RequestHeaderData header,
+                                                     ApiMessage request,
+                                                     RouterContext context) {
         // Subject-routed users have coordinator-bound operations forwarded to their
         // assigned route. Topic-addressed ops (PRODUCE, FETCH, etc.) still go through
         // the normal handlers for leader-based router. METADATA and admin ops fan out.
@@ -356,33 +354,31 @@ class TopicPartitionRouter implements Router {
         }
 
         return context.sendRequestToNode(context.anyNodeId(defaultRoute), header, request)
-                .thenApply(response -> {
-                    return new Completed(response);
-                });
+                .thenApply(response -> context.respondWith(response).build());
     }
 
-    private CompletionStage<RouterResult> handleApiVersions(
-                                                            RequestHeaderData header,
-                                                            ApiMessage request,
-                                                            RouterContext context) {
+    private CompletionStage<RouterResponse> handleApiVersions(
+                                                              RequestHeaderData header,
+                                                              ApiMessage request,
+                                                              RouterContext context) {
         int targetNode = context.virtualNodeId().orElse(context.anyNodeId(defaultRoute));
         return context.sendRequestToNode(targetNode, header, request)
                 .thenApply(response -> {
                     versionCapper.transform(
-                            (org.apache.kafka.common.message.ApiVersionsResponseData) response.body());
+                            (org.apache.kafka.common.message.ApiVersionsResponseData) response);
                     LOGGER.atDebug()
                             .addKeyValue("sessionId", context.sessionId())
                             .addKeyValue("versionCaps", VERSION_CAPS)
                             .log("Capped API versions for topic-ID-bearing API keys");
-                    return new Completed(response);
+                    return context.respondWith(response).build();
                 });
     }
 
-    private CompletionStage<RouterResult> handleProduce(
-                                                        short apiVersion,
-                                                        RequestHeaderData header,
-                                                        ProduceRequestData request,
-                                                        RouterContext context) {
+    private CompletionStage<RouterResponse> handleProduce(
+                                                          short apiVersion,
+                                                          RequestHeaderData header,
+                                                          ProduceRequestData request,
+                                                          RouterContext context) {
         ProduceResponseData errorResponse = ProduceDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
@@ -392,13 +388,16 @@ class TopicPartitionRouter implements Router {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .log("Producer ID mapping not found, returning UNKNOWN_PRODUCER_ID");
-            return CompletableFuture.completedFuture(syntheticResult(unknownProducerIdResponse(request, apiVersion)));
+            return CompletableFuture.completedFuture(
+                    syntheticResult(context,
+                            unknownProducerIdResponse(request, apiVersion)));
         }
 
         boolean isAcksZero = request.acks() == 0;
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(
+                    syntheticResult(context, errorResponse));
         }
 
         // acks=0: fire-and-forget to route bootstrap
@@ -406,7 +405,10 @@ class TopicPartitionRouter implements Router {
             for (var entry : subRequests.entrySet()) {
                 context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue());
             }
-            return CompletableFuture.completedFuture(syntheticResult(mergeWithErrors(Map.of(), errorResponse, request, apiVersion)));
+            return CompletableFuture.completedFuture(
+                    syntheticResult(context,
+                            mergeWithErrors(Map.of(), errorResponse,
+                                    request, apiVersion)));
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
@@ -417,7 +419,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("Produce dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
                         context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
@@ -428,18 +430,18 @@ class TopicPartitionRouter implements Router {
                 Map<String, ProduceResponseData> bodies = new HashMap<>();
                 for (var entry : responses.entrySet()) {
                     bodies.put(String.valueOf(entry.getKey()),
-                            (ProduceResponseData) entry.getValue().body());
+                            (ProduceResponseData) entry.getValue());
                 }
                 ProduceResponseData merged = mergeWithErrors(bodies, capturedErrors, request, apiVersion);
-                return syntheticResult(merged);
+                return syntheticResult(context, merged);
             });
         });
     }
 
-    private CompletionStage<RouterResult> handleInitProducerId(
-                                                               RequestHeaderData header,
-                                                               InitProducerIdRequestData request,
-                                                               RouterContext context) {
+    private CompletionStage<RouterResponse> handleInitProducerId(
+                                                                 RequestHeaderData header,
+                                                                 InitProducerIdRequestData request,
+                                                                 RouterContext context) {
         Set<String> allRoutes = routingTable.allRoutes();
         boolean isTransactional = request.transactionalId() != null
                 && !request.transactionalId().isEmpty();
@@ -447,7 +449,7 @@ class TopicPartitionRouter implements Router {
         if (allRoutes.size() == 1) {
             return context.sendRequestToNode(context.anyNodeId(defaultRoute), header, request)
                     .thenApply(response -> {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -460,12 +462,12 @@ class TopicPartitionRouter implements Router {
         return fanOutInitProducerId(header, request, allRoutes, context);
     }
 
-    private CompletionStage<RouterResult> fanOutInitProducerId(
-                                                               RequestHeaderData header,
-                                                               InitProducerIdRequestData request,
-                                                               Set<String> allRoutes,
-                                                               RouterContext context) {
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+    private CompletionStage<RouterResponse> fanOutInitProducerId(
+                                                                 RequestHeaderData header,
+                                                                 InitProducerIdRequestData request,
+                                                                 Set<String> allRoutes,
+                                                                 RouterContext context) {
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (String route : allRoutes) {
             InitProducerIdRequestData routeRequest = rewriteInitProducerIdRequest(request, route);
             futures.put(route, context.sendRequestToNode(context.anyNodeId(route), header, routeRequest));
@@ -476,14 +478,14 @@ class TopicPartitionRouter implements Router {
             InitProducerIdResponseData defaultResponse = null;
 
             for (var entry : responses.entrySet()) {
-                var resp = (InitProducerIdResponseData) entry.getValue().body();
+                var resp = (InitProducerIdResponseData) entry.getValue();
                 if (resp.errorCode() != Errors.NONE.code()) {
                     LOGGER.atDebug()
                             .addKeyValue("sessionId", context.sessionId())
                             .addKeyValue("route", entry.getKey())
                             .addKeyValue("errorCode", Errors.forCode(resp.errorCode()))
                             .log("INIT_PRODUCER_ID failed on route");
-                    return new Completed(entry.getValue());
+                    return context.respondWith(entry.getValue()).build();
                 }
                 routeMapping.put(entry.getKey(),
                         new ProducerIdEpoch(resp.producerId(), resp.producerEpoch()));
@@ -493,7 +495,7 @@ class TopicPartitionRouter implements Router {
             }
 
             if (defaultResponse == null) {
-                defaultResponse = (InitProducerIdResponseData) responses.values().iterator().next().body();
+                defaultResponse = (InitProducerIdResponseData) responses.values().iterator().next();
             }
             producerIdManager.put(defaultResponse.producerId(), routeMapping);
 
@@ -504,7 +506,7 @@ class TopicPartitionRouter implements Router {
                     .log("Producer ID mapping established");
 
             var responseHeader = new ResponseHeaderData().setCorrelationId(0);
-            return new Completed(new SimpleResponse(responseHeader, defaultResponse));
+            return context.respondWith(responseHeader, defaultResponse).build();
         });
     }
 
@@ -519,7 +521,7 @@ class TopicPartitionRouter implements Router {
         var mdReq = new MetadataRequestData();
 
         return context.sendRequestToNode(context.anyNodeId(route), mdHeader, mdReq).thenCompose(mdResponse -> {
-            updateLeaderCache((MetadataResponseData) mdResponse.body());
+            updateLeaderCache((MetadataResponseData) mdResponse);
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", route)
@@ -534,7 +536,7 @@ class TopicPartitionRouter implements Router {
 
             return context.sendRequestToNode(context.anyNodeId(route), findCoordHeader, findCoordReq);
         }).thenApply(coordResponse -> {
-            var resp = (FindCoordinatorResponseData) coordResponse.body();
+            var resp = (FindCoordinatorResponseData) coordResponse;
             if (resp.errorCode() != Errors.NONE.code()) {
                 throw new CoordinatorDiscoveryException(Errors.forCode(resp.errorCode()));
             }
@@ -549,11 +551,11 @@ class TopicPartitionRouter implements Router {
         });
     }
 
-    private CompletionStage<RouterResult> discoverCoordinatorAndInitProducerId(
-                                                                               RequestHeaderData header,
-                                                                               InitProducerIdRequestData request,
-                                                                               String txnRoute,
-                                                                               RouterContext context) {
+    private CompletionStage<RouterResponse> discoverCoordinatorAndInitProducerId(
+                                                                                 RequestHeaderData header,
+                                                                                 InitProducerIdRequestData request,
+                                                                                 String txnRoute,
+                                                                                 RouterContext context) {
         return discoverCoordinator(txnRoute, (byte) 1, request.transactionalId(), context)
                 .thenCompose(coordinatorNodeId -> {
                     transactionCoordinators.put(txnRoute, coordinatorNodeId);
@@ -563,15 +565,15 @@ class TopicPartitionRouter implements Router {
                             .setRequestApiVersion(header.requestApiVersion());
 
                     return context.sendRequestToNode(coordinatorNodeId, initHeader, request)
-                            .<RouterResult> thenApply(initResponse -> {
-                                var initResp = (InitProducerIdResponseData) initResponse.body();
+                            .<RouterResponse> thenApply(initResponse -> {
+                                var initResp = (InitProducerIdResponseData) initResponse;
                                 if (initResp.errorCode() != Errors.NONE.code()) {
                                     LOGGER.atDebug()
                                             .addKeyValue("sessionId", context.sessionId())
                                             .addKeyValue("route", txnRoute)
                                             .addKeyValue("errorCode", Errors.forCode(initResp.errorCode()))
                                             .log("Transactional INIT_PRODUCER_ID failed on route");
-                                    return new Completed(initResponse);
+                                    return context.respondWith(initResponse).build();
                                 }
 
                                 Map<String, ProducerIdEpoch> routeMapping = Map.of(
@@ -586,8 +588,10 @@ class TopicPartitionRouter implements Router {
                                         .addKeyValue("transactionalId", request.transactionalId())
                                         .log("Transactional producer ID mapping established");
 
-                                var responseHeader = new ResponseHeaderData().setCorrelationId(0);
-                                return new Completed(new SimpleResponse(responseHeader, initResp));
+                                var responseHeader = new ResponseHeaderData()
+                                        .setCorrelationId(0);
+                                return context.respondWith(
+                                        responseHeader, initResp).build();
                             });
                 }).exceptionally(ex -> {
                     LOGGER.atWarn()
@@ -600,7 +604,7 @@ class TopicPartitionRouter implements Router {
                                     ? "Transactional INIT_PRODUCER_ID failed"
                                     : "Transactional INIT_PRODUCER_ID failed, "
                                             + "increase log level to DEBUG for stacktrace");
-                    return syntheticResult(
+                    return syntheticResult(context,
                             new InitProducerIdResponseData()
                                     .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
                 });
@@ -716,10 +720,10 @@ class TopicPartitionRouter implements Router {
         return merged;
     }
 
-    private CompletionStage<RouterResult> handleMetadata(
-                                                         RequestHeaderData header,
-                                                         MetadataRequestData request,
-                                                         RouterContext context) {
+    private CompletionStage<RouterResponse> handleMetadata(
+                                                           RequestHeaderData header,
+                                                           MetadataRequestData request,
+                                                           RouterContext context) {
         Map<String, MetadataRequestData> subRequests = metadataDecomposer.decompose(
                 request, routingTable, defaultRoute);
 
@@ -732,10 +736,10 @@ class TopicPartitionRouter implements Router {
 
             return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
-                        var md = (MetadataResponseData) response.body();
+                        var md = (MetadataResponseData) response;
                         updateLeaderCache(md);
                         logMergedMetadata(context, md);
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -744,7 +748,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", subRequests.size())
                 .log("Metadata fanning out across clusters");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
                     context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
@@ -753,14 +757,14 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, MetadataResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                var md = (MetadataResponseData) entry.getValue().body();
+                var md = (MetadataResponseData) entry.getValue();
                 updateLeaderCache(md);
                 bodies.put(entry.getKey(), md);
             }
             MetadataResponseData merged = metadataDecomposer.recompose(
                     bodies, request, routingTable, defaultRoute);
             logMergedMetadata(context, merged);
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
@@ -787,16 +791,16 @@ class TopicPartitionRouter implements Router {
         }
     }
 
-    private CompletionStage<RouterResult> handleFetch(
-                                                      short apiVersion,
-                                                      RequestHeaderData header,
-                                                      FetchRequestData request,
-                                                      RouterContext context) {
+    private CompletionStage<RouterResponse> handleFetch(
+                                                        short apiVersion,
+                                                        RequestHeaderData header,
+                                                        FetchRequestData request,
+                                                        RouterContext context) {
         boolean usesTopicIds = apiVersion >= 13;
 
         var clientResult = fetchSessionManager.processClientRequest(request, apiVersion);
         if (clientResult instanceof FetchSessionManager.ClientRequestResult.SessionError error) {
-            return CompletableFuture.completedFuture(syntheticResult(error.response()));
+            return CompletableFuture.completedFuture(syntheticResult(context, error.response()));
         }
         var fullRequest = ((FetchSessionManager.ClientRequestResult.FullFetch) clientResult).request();
 
@@ -807,7 +811,7 @@ class TopicPartitionRouter implements Router {
 
         if (subRequests.isEmpty()) {
             var clientResponse = fetchSessionManager.computeClientResponse(errorResponse);
-            return CompletableFuture.completedFuture(syntheticResult(clientResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, clientResponse));
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
@@ -825,7 +829,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("Fetch dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
                         context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
@@ -836,7 +840,7 @@ class TopicPartitionRouter implements Router {
                 Map<String, FetchResponseData> bodies = new HashMap<>();
                 for (var entry : responses.entrySet()) {
                     bodies.put(String.valueOf(entry.getKey()),
-                            (FetchResponseData) entry.getValue().body());
+                            (FetchResponseData) entry.getValue());
                 }
                 fetchSessionManager.processServerResponses(bodies);
                 FetchResponseData merged = fetchDecomposer.recompose(bodies, fullRequest, apiVersion);
@@ -844,23 +848,23 @@ class TopicPartitionRouter implements Router {
                     merged.responses().add(tr.duplicate());
                 }
                 var clientResponse = fetchSessionManager.computeClientResponse(merged);
-                return syntheticResult(clientResponse);
+                return syntheticResult(context, clientResponse);
             });
         });
     }
 
-    private CompletionStage<RouterResult> handleListOffsets(
-                                                            short apiVersion,
-                                                            RequestHeaderData header,
-                                                            ListOffsetsRequestData request,
-                                                            RouterContext context) {
+    private CompletionStage<RouterResponse> handleListOffsets(
+                                                              short apiVersion,
+                                                              RequestHeaderData header,
+                                                              ListOffsetsRequestData request,
+                                                              RouterContext context) {
         ListOffsetsResponseData errorResponse = ListOffsetsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, ListOffsetsRequestData> subRequests = listOffsetsDecomposer.decompose(
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
@@ -872,7 +876,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("ListOffsets dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
                         context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
@@ -883,22 +887,22 @@ class TopicPartitionRouter implements Router {
                 Map<String, ListOffsetsResponseData> bodies = new HashMap<>();
                 for (var entry : responses.entrySet()) {
                     bodies.put(String.valueOf(entry.getKey()),
-                            (ListOffsetsResponseData) entry.getValue().body());
+                            (ListOffsetsResponseData) entry.getValue());
                 }
                 ListOffsetsResponseData merged = listOffsetsDecomposer.recompose(bodies, request, apiVersion);
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }
                 refreshCacheIfStaleLeaders(merged, subRequests, context);
-                return syntheticResult(merged);
+                return syntheticResult(context, merged);
             });
         });
     }
 
-    private CompletionStage<RouterResult> handleOffsetForLeaderEpoch(
-                                                                     RequestHeaderData header,
-                                                                     OffsetForLeaderEpochRequestData request,
-                                                                     RouterContext context) {
+    private CompletionStage<RouterResponse> handleOffsetForLeaderEpoch(
+                                                                       RequestHeaderData header,
+                                                                       OffsetForLeaderEpochRequestData request,
+                                                                       RouterContext context) {
         Map<String, OffsetForLeaderEpochRequestData> subRequests = new HashMap<>();
         var errorResponse = new OffsetForLeaderEpochResponseData();
 
@@ -927,7 +931,7 @@ class TopicPartitionRouter implements Router {
         }
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
@@ -951,7 +955,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("OffsetForLeaderEpoch dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
                         context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
@@ -961,7 +965,7 @@ class TopicPartitionRouter implements Router {
             return collectAll(futures).thenApply(responses -> {
                 var merged = new OffsetForLeaderEpochResponseData();
                 for (var entry : responses.entrySet()) {
-                    var body = (OffsetForLeaderEpochResponseData) entry.getValue().body();
+                    var body = (OffsetForLeaderEpochResponseData) entry.getValue();
                     for (var topicResult : body.topics()) {
                         merged.topics().add(topicResult.duplicate());
                     }
@@ -969,7 +973,7 @@ class TopicPartitionRouter implements Router {
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }
-                return syntheticResult(merged);
+                return syntheticResult(context, merged);
             });
         });
     }
@@ -987,11 +991,11 @@ class TopicPartitionRouter implements Router {
         return t;
     }
 
-    private CompletionStage<RouterResult> handleOffsetCommit(
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             OffsetCommitRequestData request,
-                                                             RouterContext context) {
+    private CompletionStage<RouterResponse> handleOffsetCommit(
+                                                               short apiVersion,
+                                                               RequestHeaderData header,
+                                                               OffsetCommitRequestData request,
+                                                               RouterContext context) {
         if (!subjectRoutes.isEmpty()) {
             return handleGroupRoutedOffsetCommit(header, request, context);
         }
@@ -1002,7 +1006,7 @@ class TopicPartitionRouter implements Router {
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         LOGGER.atDebug()
@@ -1010,7 +1014,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", subRequests.size())
                 .log("OffsetCommit dispatching to group coordinators");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
                     sendToGroupCoordinator(entry.getKey(), request.groupId(), header, entry.getValue(), context));
@@ -1020,20 +1024,20 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, OffsetCommitResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                bodies.put(entry.getKey(), (OffsetCommitResponseData) entry.getValue().body());
+                bodies.put(entry.getKey(), (OffsetCommitResponseData) entry.getValue());
             }
             OffsetCommitResponseData merged = offsetCommitDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.topics()) {
                 merged.topics().add(tr.duplicate());
             }
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
-    private CompletionStage<RouterResult> handleGroupRoutedOffsetCommit(
-                                                                        RequestHeaderData header,
-                                                                        OffsetCommitRequestData request,
-                                                                        RouterContext context) {
+    private CompletionStage<RouterResponse> handleGroupRoutedOffsetCommit(
+                                                                          RequestHeaderData header,
+                                                                          OffsetCommitRequestData request,
+                                                                          RouterContext context) {
         String expectedRoute = defaultRoute;
 
         var errorResponse = new OffsetCommitResponseData();
@@ -1057,7 +1061,7 @@ class TopicPartitionRouter implements Router {
         }
 
         if (routableTopics.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         var routeRequest = new OffsetCommitRequestData()
@@ -1076,23 +1080,23 @@ class TopicPartitionRouter implements Router {
         return sendToGroupCoordinator(expectedRoute, request.groupId(), header, routeRequest, context)
                 .thenApply(response -> {
                     if (errorResponse.topics().isEmpty()) {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     }
                     else {
-                        var body = (OffsetCommitResponseData) response.body();
+                        var body = (OffsetCommitResponseData) response;
                         for (var tr : errorResponse.topics()) {
                             body.topics().add(tr.duplicate());
                         }
-                        return syntheticResult(body);
+                        return syntheticResult(context, body);
                     }
                 });
     }
 
-    private CompletionStage<RouterResult> handleCreateTopics(
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             CreateTopicsRequestData request,
-                                                             RouterContext context) {
+    private CompletionStage<RouterResponse> handleCreateTopics(
+                                                               short apiVersion,
+                                                               RequestHeaderData header,
+                                                               CreateTopicsRequestData request,
+                                                               RouterContext context) {
         CreateTopicsResponseData errorResponse = CreateTopicsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         CreateTopicsResponseData assignmentErrors = CreateTopicsDecomposer.errorResponseForTopicsWithAssignments(
@@ -1110,7 +1114,7 @@ class TopicPartitionRouter implements Router {
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         if (subRequests.size() == 1 && errorResponse.topics().isEmpty()) {
@@ -1121,7 +1125,7 @@ class TopicPartitionRouter implements Router {
                     .log("CreateTopics routed to single cluster");
             return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -1130,7 +1134,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", subRequests.size())
                 .log("CreateTopics fanning out across clusters");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
                     context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
@@ -1140,28 +1144,28 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, CreateTopicsResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                bodies.put(entry.getKey(), (CreateTopicsResponseData) entry.getValue().body());
+                bodies.put(entry.getKey(), (CreateTopicsResponseData) entry.getValue());
             }
             CreateTopicsResponseData merged = createTopicsDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.topics()) {
                 merged.topics().add(tr.duplicate());
             }
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
-    private CompletionStage<RouterResult> handleDeleteTopics(
-                                                             short apiVersion,
-                                                             RequestHeaderData header,
-                                                             DeleteTopicsRequestData request,
-                                                             RouterContext context) {
+    private CompletionStage<RouterResponse> handleDeleteTopics(
+                                                               short apiVersion,
+                                                               RequestHeaderData header,
+                                                               DeleteTopicsRequestData request,
+                                                               RouterContext context) {
         DeleteTopicsResponseData errorResponse = DeleteTopicsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable, apiVersion);
         Map<String, DeleteTopicsRequestData> subRequests = deleteTopicsDecomposer.decompose(
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         if (subRequests.size() == 1 && errorResponse.responses().isEmpty()) {
@@ -1172,7 +1176,7 @@ class TopicPartitionRouter implements Router {
                     .log("DeleteTopics routed to single cluster");
             return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -1181,7 +1185,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", subRequests.size())
                 .log("DeleteTopics fanning out across clusters");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
                     context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
@@ -1191,21 +1195,21 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, DeleteTopicsResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                bodies.put(entry.getKey(), (DeleteTopicsResponseData) entry.getValue().body());
+                bodies.put(entry.getKey(), (DeleteTopicsResponseData) entry.getValue());
             }
             DeleteTopicsResponseData merged = deleteTopicsDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.responses()) {
                 merged.responses().add(tr.duplicate());
             }
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
-    private CompletionStage<RouterResult> handleCreatePartitions(
-                                                                 short apiVersion,
-                                                                 RequestHeaderData header,
-                                                                 CreatePartitionsRequestData request,
-                                                                 RouterContext context) {
+    private CompletionStage<RouterResponse> handleCreatePartitions(
+                                                                   short apiVersion,
+                                                                   RequestHeaderData header,
+                                                                   CreatePartitionsRequestData request,
+                                                                   RouterContext context) {
         CreatePartitionsResponseData errorResponse = CreatePartitionsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         CreatePartitionsResponseData assignmentErrors = CreatePartitionsDecomposer.errorResponseForTopicsWithAssignments(
@@ -1223,7 +1227,7 @@ class TopicPartitionRouter implements Router {
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         if (subRequests.size() == 1 && errorResponse.results().isEmpty()) {
@@ -1234,7 +1238,7 @@ class TopicPartitionRouter implements Router {
                     .log("CreatePartitions routed to single cluster");
             return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -1243,7 +1247,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", subRequests.size())
                 .log("CreatePartitions fanning out across clusters");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
                     context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
@@ -1253,28 +1257,28 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, CreatePartitionsResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                bodies.put(entry.getKey(), (CreatePartitionsResponseData) entry.getValue().body());
+                bodies.put(entry.getKey(), (CreatePartitionsResponseData) entry.getValue());
             }
             CreatePartitionsResponseData merged = createPartitionsDecomposer.recompose(bodies, request, apiVersion);
             for (var tr : capturedErrors.results()) {
                 merged.results().add(tr.duplicate());
             }
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
-    private CompletionStage<RouterResult> handleDeleteRecords(
-                                                              short apiVersion,
-                                                              RequestHeaderData header,
-                                                              DeleteRecordsRequestData request,
-                                                              RouterContext context) {
+    private CompletionStage<RouterResponse> handleDeleteRecords(
+                                                                short apiVersion,
+                                                                RequestHeaderData header,
+                                                                DeleteRecordsRequestData request,
+                                                                RouterContext context) {
         DeleteRecordsResponseData errorResponse = DeleteRecordsDecomposer.errorResponseForUnroutableTopics(
                 request, routingTable);
         Map<String, DeleteRecordsRequestData> subRequests = deleteRecordsDecomposer.decompose(
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
@@ -1286,7 +1290,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("DeleteRecords dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<Response>> futures = new HashMap<>();
+            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
                         context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
@@ -1297,22 +1301,22 @@ class TopicPartitionRouter implements Router {
                 Map<String, DeleteRecordsResponseData> bodies = new HashMap<>();
                 for (var entry : responses.entrySet()) {
                     bodies.put(String.valueOf(entry.getKey()),
-                            (DeleteRecordsResponseData) entry.getValue().body());
+                            (DeleteRecordsResponseData) entry.getValue());
                 }
                 DeleteRecordsResponseData merged = deleteRecordsDecomposer.recompose(bodies, request, apiVersion);
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }
                 refreshCacheIfStaleLeadersDeleteRecords(merged, context);
-                return syntheticResult(merged);
+                return syntheticResult(context, merged);
             });
         });
     }
 
-    private CompletionStage<RouterResult> handleAddPartitionsToTxn(
-                                                                   RequestHeaderData header,
-                                                                   AddPartitionsToTxnRequestData request,
-                                                                   RouterContext context) {
+    private CompletionStage<RouterResponse> handleAddPartitionsToTxn(
+                                                                     RequestHeaderData header,
+                                                                     AddPartitionsToTxnRequestData request,
+                                                                     RouterContext context) {
         String expectedRoute = defaultRoute;
         var topics = request.v3AndBelowTopics();
         var errorTopics = new ArrayList<AddPartitionsToTxnTopicResult>();
@@ -1338,7 +1342,7 @@ class TopicPartitionRouter implements Router {
                         .addKeyValue("topicRoute", route)
                         .addKeyValue("expectedRoute", expectedRoute)
                         .log("ADD_PARTITIONS_TO_TXN topic on wrong route for user");
-                return CompletableFuture.completedFuture(syntheticResult(
+                return CompletableFuture.completedFuture(syntheticResult(context,
                         allPartitionsError(request, Errors.INVALID_TXN_STATE)));
             }
             else {
@@ -1349,7 +1353,7 @@ class TopicPartitionRouter implements Router {
         if (!hasRoutableTopic) {
             var response = new AddPartitionsToTxnResponseData();
             response.resultsByTopicV3AndBelow().addAll(errorTopics);
-            return CompletableFuture.completedFuture(syntheticResult(response));
+            return CompletableFuture.completedFuture(syntheticResult(context, response));
         }
 
         activeTransactionRoute = expectedRoute;
@@ -1362,12 +1366,12 @@ class TopicPartitionRouter implements Router {
                         .addKeyValue("sessionId", context.sessionId())
                         .addKeyValue("clientProducerId", clientPid)
                         .log("Producer ID mapping not found for ADD_PARTITIONS_TO_TXN");
-                return CompletableFuture.completedFuture(syntheticResult(
+                return CompletableFuture.completedFuture(syntheticResult(context,
                         allPartitionsError(request, Errors.UNKNOWN_PRODUCER_ID)));
             }
             ProducerIdEpoch routeIds = mapping.get(expectedRoute);
             if (routeIds == null) {
-                return CompletableFuture.completedFuture(syntheticResult(
+                return CompletableFuture.completedFuture(syntheticResult(context,
                         allPartitionsError(request, Errors.UNKNOWN_PRODUCER_ID)));
             }
             request.setV3AndBelowProducerId(routeIds.producerId());
@@ -1380,7 +1384,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", expectedRoute)
                     .log("No cached coordinator for route during ADD_PARTITIONS_TO_TXN");
-            return CompletableFuture.completedFuture(syntheticResult(
+            return CompletableFuture.completedFuture(syntheticResult(context,
                     allPartitionsError(request, Errors.COORDINATOR_NOT_AVAILABLE)));
         }
 
@@ -1394,12 +1398,12 @@ class TopicPartitionRouter implements Router {
         return context.sendRequestToNode(coordinatorNodeId, header, request)
                 .thenApply(response -> {
                     if (!capturedErrors.isEmpty()) {
-                        var body = (AddPartitionsToTxnResponseData) response.body();
+                        var body = (AddPartitionsToTxnResponseData) response;
                         body.resultsByTopicV3AndBelow().addAll(capturedErrors);
-                        return syntheticResult(body);
+                        return syntheticResult(context, body);
                     }
                     else {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     }
                 }).exceptionally(ex -> {
                     LOGGER.atWarn()
@@ -1411,7 +1415,7 @@ class TopicPartitionRouter implements Router {
                                     ? "ADD_PARTITIONS_TO_TXN forwarding failed"
                                     : "ADD_PARTITIONS_TO_TXN forwarding failed, "
                                             + "increase log level to DEBUG for stacktrace");
-                    return syntheticResult(
+                    return syntheticResult(context,
                             allPartitionsError(request, Errors.COORDINATOR_NOT_AVAILABLE));
                 });
     }
@@ -1433,10 +1437,10 @@ class TopicPartitionRouter implements Router {
         return response;
     }
 
-    private CompletionStage<RouterResult> handleAddOffsetsToTxn(
-                                                                RequestHeaderData header,
-                                                                AddOffsetsToTxnRequestData request,
-                                                                RouterContext context) {
+    private CompletionStage<RouterResponse> handleAddOffsetsToTxn(
+                                                                  RequestHeaderData header,
+                                                                  AddOffsetsToTxnRequestData request,
+                                                                  RouterContext context) {
         String route = defaultRoute;
 
         Integer coordinatorNodeId = transactionCoordinators.get(route);
@@ -1445,7 +1449,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", route)
                     .log("No cached coordinator for route during ADD_OFFSETS_TO_TXN");
-            return CompletableFuture.completedFuture(syntheticResult(
+            return CompletableFuture.completedFuture(syntheticResult(context,
                     new AddOffsetsToTxnResponseData()
                             .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code())));
         }
@@ -1469,7 +1473,7 @@ class TopicPartitionRouter implements Router {
                 .log("ADD_OFFSETS_TO_TXN routed to transaction coordinator");
 
         return context.sendRequestToNode(coordinatorNodeId, header, request)
-                .<RouterResult> thenApply(Completed::new)
+                .<RouterResponse> thenApply(r -> context.respondWith(r).build())
                 .exceptionally(ex -> {
                     LOGGER.atWarn()
                             .addKeyValue("sessionId", context.sessionId())
@@ -1480,16 +1484,16 @@ class TopicPartitionRouter implements Router {
                                     ? "ADD_OFFSETS_TO_TXN forwarding failed"
                                     : "ADD_OFFSETS_TO_TXN forwarding failed, "
                                             + "increase log level to DEBUG for stacktrace");
-                    return syntheticResult(
+                    return syntheticResult(context,
                             new AddOffsetsToTxnResponseData()
                                     .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
                 });
     }
 
-    private CompletionStage<RouterResult> handleTxnOffsetCommit(
-                                                                RequestHeaderData header,
-                                                                TxnOffsetCommitRequestData request,
-                                                                RouterContext context) {
+    private CompletionStage<RouterResponse> handleTxnOffsetCommit(
+                                                                  RequestHeaderData header,
+                                                                  TxnOffsetCommitRequestData request,
+                                                                  RouterContext context) {
         String route = defaultRoute;
 
         if (!route.equals(defaultRoute)) {
@@ -1510,7 +1514,7 @@ class TopicPartitionRouter implements Router {
                 .log("TXN_OFFSET_COMMIT forwarded to group coordinator");
 
         return sendToGroupCoordinator(route, request.groupId(), header, request, context)
-                .<RouterResult> thenApply(Completed::new)
+                .<RouterResponse> thenApply(r -> context.respondWith(r).build())
                 .exceptionally(ex -> {
                     LOGGER.atWarn()
                             .addKeyValue("sessionId", context.sessionId())
@@ -1532,14 +1536,14 @@ class TopicPartitionRouter implements Router {
                         }
                         errorResp.topics().add(topicResp);
                     }
-                    return syntheticResult(errorResp);
+                    return syntheticResult(context, errorResp);
                 });
     }
 
-    private CompletionStage<RouterResult> handleEndTxn(
-                                                       RequestHeaderData header,
-                                                       EndTxnRequestData request,
-                                                       RouterContext context) {
+    private CompletionStage<RouterResponse> handleEndTxn(
+                                                         RequestHeaderData header,
+                                                         EndTxnRequestData request,
+                                                         RouterContext context) {
         String route = defaultRoute;
 
         Integer coordinatorNodeId = transactionCoordinators.get(route);
@@ -1547,7 +1551,7 @@ class TopicPartitionRouter implements Router {
             return context.sendRequestToNode(context.anyNodeId(route), header, request)
                     .thenApply(response -> {
                         activeTransactionRoute = null;
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -1577,8 +1581,8 @@ class TopicPartitionRouter implements Router {
 
         short capturedPreRewriteEpoch = preRewriteRouteEpoch;
         return context.sendRequestToNode(coordinatorNodeId, header, request)
-                .<RouterResult> thenApply(response -> {
-                    var endTxnResp = (EndTxnResponseData) response.body();
+                .<RouterResponse> thenApply(response -> {
+                    var endTxnResp = (EndTxnResponseData) response;
 
                     if (endTxnResp.producerId() != -1
                             && !route.equals(defaultRoute)) {
@@ -1605,7 +1609,7 @@ class TopicPartitionRouter implements Router {
                     }
 
                     activeTransactionRoute = null;
-                    return new Completed(response);
+                    return context.respondWith(response).build();
                 }).exceptionally(ex -> {
                     LOGGER.atWarn()
                             .addKeyValue("sessionId", context.sessionId())
@@ -1617,7 +1621,7 @@ class TopicPartitionRouter implements Router {
                                     : "END_TXN forwarding failed, "
                                             + "increase log level to DEBUG for stacktrace");
                     activeTransactionRoute = null;
-                    return syntheticResult(
+                    return syntheticResult(context,
                             new EndTxnResponseData()
                                     .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
                 });
@@ -1633,20 +1637,20 @@ class TopicPartitionRouter implements Router {
                 .orElse(null);
     }
 
-    private CompletionStage<RouterResult> forwardToRoute(String route,
-                                                         RequestHeaderData header,
-                                                         ApiMessage request,
-                                                         RouterContext context) {
+    private CompletionStage<RouterResponse> forwardToRoute(String route,
+                                                           RequestHeaderData header,
+                                                           ApiMessage request,
+                                                           RouterContext context) {
         return context.sendRequestToNode(context.anyNodeId(route), header, request)
                 .thenApply(response -> {
-                    return new Completed(response);
+                    return context.respondWith(response).build();
                 });
     }
 
-    private CompletionStage<RouterResult> handleFindCoordinator(
-                                                                RequestHeaderData header,
-                                                                ApiMessage request,
-                                                                RouterContext context) {
+    private CompletionStage<RouterResponse> handleFindCoordinator(
+                                                                  RequestHeaderData header,
+                                                                  ApiMessage request,
+                                                                  RouterContext context) {
         var findCoordReq = (FindCoordinatorRequestData) request;
         String route;
         if (findCoordReq.keyType() == 1) {
@@ -1667,14 +1671,14 @@ class TopicPartitionRouter implements Router {
 
         return context.sendRequestToNode(context.anyNodeId(route), header, request)
                 .thenApply(response -> {
-                    return new Completed(response);
+                    return context.respondWith(response).build();
                 });
     }
 
-    private CompletionStage<RouterResult> handleConsumerGroupHeartbeat(
-                                                                       RequestHeaderData header,
-                                                                       ConsumerGroupHeartbeatRequestData request,
-                                                                       RouterContext context) {
+    private CompletionStage<RouterResponse> handleConsumerGroupHeartbeat(
+                                                                         RequestHeaderData header,
+                                                                         ConsumerGroupHeartbeatRequestData request,
+                                                                         RouterContext context) {
         String route = defaultRoute;
         Integer cachedCoordinator = consumerGroupCoordinators.get(route);
 
@@ -1699,18 +1703,18 @@ class TopicPartitionRouter implements Router {
                                     ? "CONSUMER_GROUP_HEARTBEAT coordinator discovery failed"
                                     : "CONSUMER_GROUP_HEARTBEAT coordinator discovery failed, "
                                             + "increase log level to DEBUG for stacktrace");
-                    return syntheticResult(
+                    return syntheticResult(context,
                             new ConsumerGroupHeartbeatResponseData()
                                     .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
                 });
     }
 
-    private CompletionStage<RouterResult> forwardToConsumerGroupCoordinator(
-                                                                            int coordinatorNodeId,
-                                                                            String route,
-                                                                            RequestHeaderData header,
-                                                                            ApiMessage request,
-                                                                            RouterContext context) {
+    private CompletionStage<RouterResponse> forwardToConsumerGroupCoordinator(
+                                                                              int coordinatorNodeId,
+                                                                              String route,
+                                                                              RequestHeaderData header,
+                                                                              ApiMessage request,
+                                                                              RouterContext context) {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
@@ -1718,13 +1722,13 @@ class TopicPartitionRouter implements Router {
                 .log("Consumer group request forwarded to coordinator");
 
         return context.sendRequestToNode(coordinatorNodeId, header, request)
-                .thenApply(Completed::new);
+                .thenApply(r -> context.respondWith(r).build());
     }
 
-    private CompletionStage<RouterResult> handleConsumerGroupDescribe(
-                                                                      RequestHeaderData header,
-                                                                      ConsumerGroupDescribeRequestData request,
-                                                                      RouterContext context) {
+    private CompletionStage<RouterResponse> handleConsumerGroupDescribe(
+                                                                        RequestHeaderData header,
+                                                                        ConsumerGroupDescribeRequestData request,
+                                                                        RouterContext context) {
         String route = defaultRoute;
 
         LOGGER.atDebug()
@@ -1736,15 +1740,15 @@ class TopicPartitionRouter implements Router {
         String groupId = request.groupIds().isEmpty() ? "" : request.groupIds().get(0);
         return sendToGroupCoordinator(route, groupId, header, request, context)
                 .thenApply(response -> {
-                    return new Completed(response);
+                    return context.respondWith(response).build();
                 });
     }
 
-    private CompletionStage<RouterResult> handleOffsetFetch(
-                                                            short apiVersion,
-                                                            RequestHeaderData header,
-                                                            OffsetFetchRequestData request,
-                                                            RouterContext context) {
+    private CompletionStage<RouterResponse> handleOffsetFetch(
+                                                              short apiVersion,
+                                                              RequestHeaderData header,
+                                                              OffsetFetchRequestData request,
+                                                              RouterContext context) {
         String cgRoute = defaultRoute;
         if (!subjectRoutes.isEmpty()) {
             LOGGER.atDebug()
@@ -1753,7 +1757,7 @@ class TopicPartitionRouter implements Router {
                     .log("OffsetFetch routed to consumer group coordinator");
             return sendToGroupCoordinator(cgRoute, request.groupId(), header, request, context)
                     .thenApply(response -> {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -1763,7 +1767,7 @@ class TopicPartitionRouter implements Router {
                 request, routingTable, apiVersion, context::topicName);
 
         if (subRequests.isEmpty()) {
-            return CompletableFuture.completedFuture(syntheticResult(errorResponse));
+            return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
         LOGGER.atDebug()
@@ -1771,7 +1775,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", subRequests.size())
                 .log("OffsetFetch dispatching to group coordinators");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
                     sendToGroupCoordinator(entry.getKey(), request.groupId(), header, entry.getValue(), context));
@@ -1781,12 +1785,12 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, OffsetFetchResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                bodies.put(entry.getKey(), (OffsetFetchResponseData) entry.getValue().body());
+                bodies.put(entry.getKey(), (OffsetFetchResponseData) entry.getValue());
             }
             OffsetFetchResponseData merged = offsetFetchDecomposer.recompose(
                     bodies, request, apiVersion);
             mergeOffsetFetchErrors(merged, capturedErrors, apiVersion);
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
@@ -1815,16 +1819,16 @@ class TopicPartitionRouter implements Router {
         }
     }
 
-    private CompletionStage<RouterResult> handleDescribeCluster(
-                                                                RequestHeaderData header,
-                                                                ApiMessage request,
-                                                                RouterContext context) {
+    private CompletionStage<RouterResponse> handleDescribeCluster(
+                                                                  RequestHeaderData header,
+                                                                  ApiMessage request,
+                                                                  RouterContext context) {
         Set<String> allRoutes = routingTable.allRoutes();
 
         if (allRoutes.size() == 1) {
             return context.sendRequestToNode(context.anyNodeId(defaultRoute), header, request)
                     .thenApply(response -> {
-                        return new Completed(response);
+                        return context.respondWith(response).build();
                     });
         }
 
@@ -1833,7 +1837,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("routeCount", allRoutes.size())
                 .log("DESCRIBE_CLUSTER fanning out across clusters");
 
-        Map<String, CompletionStage<Response>> futures = new HashMap<>();
+        Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (String route : allRoutes) {
             futures.put(route, context.sendRequestToNode(context.anyNodeId(route), header, request));
         }
@@ -1843,7 +1847,7 @@ class TopicPartitionRouter implements Router {
             int maxThrottle = 0;
 
             for (var entry : responses.entrySet()) {
-                var resp = (DescribeClusterResponseData) entry.getValue().body();
+                var resp = (DescribeClusterResponseData) entry.getValue();
                 maxThrottle = Math.max(maxThrottle, resp.throttleTimeMs());
                 if (entry.getKey().equals(defaultRoute)) {
                     base = resp;
@@ -1851,7 +1855,7 @@ class TopicPartitionRouter implements Router {
             }
 
             if (base == null) {
-                base = (DescribeClusterResponseData) responses.values().iterator().next().body();
+                base = (DescribeClusterResponseData) responses.values().iterator().next();
             }
 
             var merged = new DescribeClusterResponseData()
@@ -1864,7 +1868,7 @@ class TopicPartitionRouter implements Router {
                     .setThrottleTimeMs(maxThrottle);
 
             for (var resp : responses.values()) {
-                var body = (DescribeClusterResponseData) resp.body();
+                var body = (DescribeClusterResponseData) resp;
                 for (var broker : body.brokers()) {
                     merged.brokers().add(broker.duplicate());
                 }
@@ -1876,26 +1880,28 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("clusterId", merged.clusterId())
                     .log("Merged DESCRIBE_CLUSTER response");
 
-            return syntheticResult(merged);
+            return syntheticResult(context, merged);
         });
     }
 
-    private static RouterResult syntheticResult(ApiMessage body) {
+    private static RouterResponse syntheticResult(
+                                                  RouterContext context,
+                                                  ApiMessage body) {
         var responseHeader = new ResponseHeaderData()
                 .setCorrelationId(0);
-        return new Completed(new SimpleResponse(responseHeader, body));
+        return context.respondWith(responseHeader, body).build();
     }
 
     /**
      * Sends a request to the group coordinator for the given group on the specified route.
      * Uses the cached coordinator if available; otherwise discovers it first.
      */
-    private CompletionStage<Response> sendToGroupCoordinator(
-                                                             String route,
-                                                             String groupId,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request,
-                                                             RouterContext context) {
+    private CompletionStage<ApiMessage> sendToGroupCoordinator(
+                                                               String route,
+                                                               String groupId,
+                                                               RequestHeaderData header,
+                                                               ApiMessage request,
+                                                               RouterContext context) {
         Integer cached = consumerGroupCoordinators.get(route);
         if (cached != null) {
             return context.sendRequestToNode(cached, header, request);
@@ -1911,12 +1917,12 @@ class TopicPartitionRouter implements Router {
      * Sends a request to the transaction coordinator for the given route.
      * Uses the cached coordinator if available; otherwise discovers it first.
      */
-    private CompletionStage<Response> sendToTxnCoordinator(
-                                                           String route,
-                                                           String transactionalId,
-                                                           RequestHeaderData header,
-                                                           ApiMessage request,
-                                                           RouterContext context) {
+    private CompletionStage<ApiMessage> sendToTxnCoordinator(
+                                                             String route,
+                                                             String transactionalId,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext context) {
         Integer cached = transactionCoordinators.get(route);
         if (cached != null) {
             return context.sendRequestToNode(cached, header, request);
@@ -2016,7 +2022,7 @@ class TopicPartitionRouter implements Router {
             mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic().setName(name));
         }
         return context.sendRequestToNode(context.anyNodeId(route), mdHeader, mdReq).thenAccept(response -> {
-            updateLeaderCache((MetadataResponseData) response.body());
+            updateLeaderCache((MetadataResponseData) response);
         });
     }
 
@@ -2318,10 +2324,10 @@ class TopicPartitionRouter implements Router {
         }
     }
 
-    private static <K> CompletionStage<Map<K, Response>> collectAll(
-                                                                    Map<K, CompletionStage<Response>> futures) {
-        Map<K, Response> results = new HashMap<>();
-        CompletableFuture<Map<K, Response>> combined = CompletableFuture.completedFuture(results);
+    private static <K> CompletionStage<Map<K, ApiMessage>> collectAll(
+                                                                      Map<K, CompletionStage<ApiMessage>> futures) {
+        Map<K, ApiMessage> results = new HashMap<>();
+        CompletableFuture<Map<K, ApiMessage>> combined = CompletableFuture.completedFuture(results);
         for (var entry : futures.entrySet()) {
             combined = combined.thenCombine(entry.getValue(), (map, response) -> {
                 map.put(entry.getKey(), response);
