@@ -72,8 +72,8 @@ public class PrincipalRouterFactory
                                                            ApiMessage request,
                                                            RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    int nodeId = routerContext.bootstrapNodeId(defaultRoute);
-                    return routerContext.sendRequestToNode(defaultRoute, nodeId, header, request)
+                    int nodeId = routerContext.anyNodeId(defaultRoute);
+                    return routerContext.sendRequestToNode(nodeId, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response.body());
                                 return new RouterResult.Completed(response);
@@ -81,8 +81,8 @@ public class PrincipalRouterFactory
                 }
 
                 String route = resolveRoute(routerContext);
-                int nodeId = routerContext.bootstrapNodeId(route);
-                return routerContext.sendRequestToNode(route, nodeId, header, request)
+                int nodeId = routerContext.anyNodeId(route);
+                return routerContext.sendRequestToNode(nodeId, header, request)
                         .thenApply(RouterResult.Completed::new);
             }
 

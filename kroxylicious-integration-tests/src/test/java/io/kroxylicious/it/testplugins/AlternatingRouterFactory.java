@@ -80,8 +80,8 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                                                            ApiMessage request,
                                                            RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    int nodeId = routerContext.bootstrapNodeId(routeA);
-                    return routerContext.sendRequestToNode(routeA, nodeId, header, request)
+                    int nodeId = routerContext.anyNodeId(routeA);
+                    return routerContext.sendRequestToNode(nodeId, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response.body());
                                 LOGGER.atDebug()
@@ -100,8 +100,8 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                         .addKeyValue("batchIndex", index)
                         .addKeyValue("batchSize", batchSize)
                         .log("Alternating router chose route based on batch index");
-                int nodeId = routerContext.bootstrapNodeId(route);
-                return routerContext.sendRequestToNode(route, nodeId, header, request)
+                int nodeId = routerContext.anyNodeId(route);
+                return routerContext.sendRequestToNode(nodeId, header, request)
                         .thenApply(RouterResult.Completed::new);
             }
 

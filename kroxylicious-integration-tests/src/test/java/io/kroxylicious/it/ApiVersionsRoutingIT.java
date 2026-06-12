@@ -12,6 +12,7 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.internal.routing.RoutingEvent;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.client.KafkaClient;
@@ -90,5 +91,46 @@ class ApiVersionsRoutingIT extends TopicPartitionRoutingBaseIT {
         assertThat(routingCaptor.requestsToRoute("route-a", ApiKeys.API_VERSIONS))
                 .as("API_VERSIONS should be routed to default route")
                 .hasSize(1);
+    }
+
+    @Test
+    void shouldRouteApiVersionsToBrokerSpecificEndpoint() throws Exception {
+        // Given
+        createTopic("a.broker-specific", clusterA);
+        var config = topicRouterConfig();
+
+        try (var tester = kroxyliciousTester(config)) {
+            var bootstrapAddress = URI.create("kafka://" + tester.getBootstrapAddress());
+            try (var bootstrapClient = new KafkaClient(
+                    bootstrapAddress.getHost(), bootstrapAddress.getPort())) {
+                negotiateApiVersions(bootstrapClient);
+                var metadata = fetchMetadata(bootstrapClient, "a.broker-specific");
+
+                // When: connect to a broker-specific endpoint
+                try (var brokerClient = clientForLeader(
+                        tester, metadata, "a.broker-specific", 0)) {
+                    // clientForLeader calls negotiateApiVersions, which sends API_VERSIONS
+                    // to the broker-specific endpoint
+
+                    // Then: find the API_VERSIONS events
+                    var apiVersionEvents = routingCaptor.requestEvents().stream()
+                            .filter(e -> e.apiKey() == ApiKeys.API_VERSIONS)
+                            .toList();
+
+                    assertThat(apiVersionEvents)
+                            .as("should have at least 2 API_VERSIONS events "
+                                    + "(one bootstrap, one broker-specific)")
+                            .hasSizeGreaterThanOrEqualTo(2);
+
+                    // The broker-specific event should have a non-negative virtualNodeId
+                    // (negative values are bootstrap/anyNode sentinels)
+                    RoutingEvent.Request brokerSpecificEvent = apiVersionEvents.get(apiVersionEvents.size() - 1);
+                    assertThat(brokerSpecificEvent.virtualNodeId())
+                            .as("broker-specific API_VERSIONS should target a real node, "
+                                    + "not a bootstrap sentinel")
+                            .isGreaterThanOrEqualTo(0);
+                }
+            }
+        }
     }
 }

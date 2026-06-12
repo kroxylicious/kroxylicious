@@ -5,9 +5,9 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,7 +41,7 @@ class RouterContextImpl implements RouterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterContextImpl.class);
 
-    private static final int BOOTSTRAP_TARGET_NODE_ID = -1;
+    static final int BOOTSTRAP_TARGET_NODE_ID = -1;
 
     private final int clientCorrelationId;
     private final String sessionId;
@@ -50,7 +50,7 @@ class RouterContextImpl implements RouterContext {
     private final RouteForwarder routeForwarder;
     private final NodeForwarder nodeForwarder;
     private final NodeIdMapping nodeIdMapping;
-    private final Map<String, Integer> bootstrapVirtualNodeIds;
+    private final OptionalInt virtualNodeId;
     private final IntSupplier routingCorrelationIdAllocator;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
@@ -85,7 +85,7 @@ class RouterContextImpl implements RouterContext {
                       RouteForwarder routeForwarder,
                       NodeForwarder nodeForwarder,
                       NodeIdMapping nodeIdMapping,
-                      Map<String, Integer> bootstrapVirtualNodeIds,
+                      OptionalInt virtualNodeId,
                       IntSupplier routingCorrelationIdAllocator,
                       MeterProvider<Counter> routingRequestsCounter,
                       MeterProvider<Counter> routingErrorsCounter,
@@ -102,7 +102,7 @@ class RouterContextImpl implements RouterContext {
         this.routeForwarder = Objects.requireNonNull(routeForwarder);
         this.nodeForwarder = Objects.requireNonNull(nodeForwarder);
         this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
-        this.bootstrapVirtualNodeIds = Objects.requireNonNull(bootstrapVirtualNodeIds);
+        this.virtualNodeId = Objects.requireNonNull(virtualNodeId);
         this.routingCorrelationIdAllocator = Objects.requireNonNull(routingCorrelationIdAllocator);
         this.routingRequestsCounter = Objects.requireNonNull(routingRequestsCounter);
         this.routingErrorsCounter = Objects.requireNonNull(routingErrorsCounter);
@@ -115,20 +115,25 @@ class RouterContextImpl implements RouterContext {
     }
 
     @Override
-    public int bootstrapNodeId(String route) {
-        Integer id = bootstrapVirtualNodeIds.get(route);
-        if (id == null) {
+    public OptionalInt virtualNodeId() {
+        return virtualNodeId;
+    }
+
+    @Override
+    public int anyNodeId(String route) {
+        if (!routes.containsKey(route)) {
             throw new IllegalArgumentException("Unknown route: " + route);
         }
-        return id;
+        return nodeIdMapping.toVirtual(route, BOOTSTRAP_TARGET_NODE_ID);
     }
 
     @Override
     public CompletionStage<Response> sendRequestToNode(
-                                                       String route,
                                                        int virtualNodeId,
                                                        RequestHeaderData header,
                                                        ApiMessage request) {
+        NodeIdMapping.RouteAndNode ran = nodeIdMapping.fromVirtual(virtualNodeId);
+        String route = ran.route();
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
             routingErrorsCounter.withTags(
@@ -155,11 +160,11 @@ class RouterContextImpl implements RouterContext {
         if (listener != null) {
             listener.accept(new RoutingEvent.Request(
                     sessionId, route, clientCorrelationId, routingCorrelationId,
-                    apiKey, requestApiVersion, header, request));
+                    apiKey, requestApiVersion, virtualNodeId, header, request));
         }
 
         if (!frame.hasResponse()) {
-            forwardToNode(virtualNodeId, route, frame);
+            forwardToNode(virtualNodeId, frame);
             routingRequestsCounter.withTags(
                     Metrics.ROUTE_LABEL, route,
                     Metrics.ROUTING_MODE_LABEL, "dynamic",
@@ -183,7 +188,7 @@ class RouterContextImpl implements RouterContext {
         pendingResponseCount.incrementAndGet();
 
         try {
-            forwardToNode(virtualNodeId, route, frame);
+            forwardToNode(virtualNodeId, frame);
         }
         catch (Exception e) {
             pendingResponseRegistry.deregister(routingCorrelationId);
@@ -237,13 +242,13 @@ class RouterContextImpl implements RouterContext {
         };
     }
 
-    private void forwardToNode(int virtualNodeId, String route, DecodedRequestFrame<?> frame) {
-        Integer bootstrapId = bootstrapVirtualNodeIds.get(route);
-        if (bootstrapId != null && bootstrapId == virtualNodeId) {
-            routeForwarder.forward(route, frame);
+    private void forwardToNode(int virtualNodeId, DecodedRequestFrame<?> frame) {
+        NodeIdMapping.RouteAndNode ran = nodeIdMapping.fromVirtual(virtualNodeId);
+        if (ran.targetNodeId() == BOOTSTRAP_TARGET_NODE_ID) {
+            routeForwarder.forward(ran.route(), frame);
         }
         else {
-            nodeForwarder.forward(virtualNodeId, route, frame);
+            nodeForwarder.forward(virtualNodeId, ran.route(), frame);
         }
     }
 
@@ -263,33 +268,26 @@ class RouterContextImpl implements RouterContext {
     }
 
     /**
-     * Computes bootstrap virtual node IDs for all cluster-targeting routes.
-     * Registers addresses in the shared node address map using translated
-     * virtual IDs so the CCSM can resolve them.
+     * Registers bootstrap addresses for all cluster-targeting routes in the
+     * shared node address map so the CCSM can resolve them.
      *
      * @param routes the route descriptors
      * @param nodeIdMapping mapping for this router level
      * @param sharedNodeAddresses shared mutable address map for the CCSM resolver
      * @param virtualIdTranslator translates this level's virtual IDs to outermost virtual IDs
-     * @return map of route name to bootstrap virtual ID (in this level's space)
      */
-    static Map<String, Integer> computeBootstrapNodeIds(
-                                                        Map<String, RouteDescriptor> routes,
-                                                        NodeIdMapping nodeIdMapping,
-                                                        Map<Integer, HostPort> sharedNodeAddresses,
-                                                        IntUnaryOperator virtualIdTranslator) {
-        var result = new HashMap<String, Integer>();
+    static void registerBootstrapAddresses(
+                                           Map<String, RouteDescriptor> routes,
+                                           NodeIdMapping nodeIdMapping,
+                                           Map<Integer, HostPort> sharedNodeAddresses,
+                                           IntUnaryOperator virtualIdTranslator) {
         for (var entry : routes.entrySet()) {
-            String routeName = entry.getKey();
             RouteDescriptor rd = entry.getValue();
-            int virtualId = nodeIdMapping.toVirtual(routeName, BOOTSTRAP_TARGET_NODE_ID);
             if (rd.targetsCluster()) {
-                var bootstrapAddr = rd.targetCluster().bootstrapServer();
+                int virtualId = nodeIdMapping.toVirtual(entry.getKey(), BOOTSTRAP_TARGET_NODE_ID);
                 int outerVirtualId = virtualIdTranslator.applyAsInt(virtualId);
-                sharedNodeAddresses.put(outerVirtualId, bootstrapAddr);
+                sharedNodeAddresses.put(outerVirtualId, rd.targetCluster().bootstrapServer());
             }
-            result.put(routeName, virtualId);
         }
-        return Map.copyOf(result);
     }
 }

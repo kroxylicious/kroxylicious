@@ -9,15 +9,22 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntUnaryOperator;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +45,7 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -54,7 +62,17 @@ import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.impl.TopicIdRequestEnrichmentFilter;
 import io.kroxylicious.proxy.internal.filter.impl.TopicIdResponseEnrichmentFilter;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler;
+import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -89,9 +107,9 @@ public class KafkaProxyFrontendHandler
     DecodedRequestFrame<?> initialRequestForError;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
-    private @Nullable io.kroxylicious.proxy.bootstrap.RouterChainFactory routerChainFactory;
-    private @Nullable java.util.Map<Integer, io.kroxylicious.proxy.service.HostPort> sharedNodeAddresses;
-    private @Nullable io.kroxylicious.proxy.internal.net.EndpointBinding routingEndpointBinding;
+    private @Nullable RouterChainFactory routerChainFactory;
+    private @Nullable Map<Integer, HostPort> sharedNodeAddresses;
+    private @Nullable EndpointBinding routingEndpointBinding;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -125,9 +143,9 @@ public class KafkaProxyFrontendHandler
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
     }
 
-    void setRoutingConfig(io.kroxylicious.proxy.bootstrap.RouterChainFactory routerChainFactory,
-                          java.util.Map<Integer, io.kroxylicious.proxy.service.HostPort> sharedNodeAddresses,
-                          io.kroxylicious.proxy.internal.net.EndpointBinding binding) {
+    void setRoutingConfig(RouterChainFactory routerChainFactory,
+                          Map<Integer, HostPort> sharedNodeAddresses,
+                          EndpointBinding binding) {
         this.routerChainFactory = routerChainFactory;
         this.sharedNodeAddresses = sharedNodeAddresses;
         this.routingEndpointBinding = binding;
@@ -273,7 +291,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private void inClientActiveWithoutRouting(Channel clientChannel) {
-        var topicIdCache = new java.util.HashMap<org.apache.kafka.common.Uuid, String>();
+        var topicIdCache = new HashMap<Uuid, String>();
         List<FilterAndInvoker> filters = buildFilters(true, topicIdCache);
         addFiltersToPipeline(filters, clientCtx().pipeline(), clientChannel);
         dp.setDelegate(DecodePredicate.forFilters(filters));
@@ -288,7 +306,7 @@ public class KafkaProxyFrontendHandler
         var vc = clientConnectionStateMachine.virtualCluster();
 
         // 1. Build and install internal-only filters
-        var topicIdCache = new java.util.HashMap<org.apache.kafka.common.Uuid, String>();
+        var topicIdCache = new HashMap<Uuid, String>();
         List<FilterAndInvoker> internalFilters = buildFilters(false, topicIdCache);
         addFiltersToPipeline(internalFilters, pipeline, clientChannel);
         allFilters.addAll(internalFilters);
@@ -296,7 +314,7 @@ public class KafkaProxyFrontendHandler
         // 2. Add PassthroughRoutingHandler after last internal filter
         String lastHandler = lastFilterHandlerName(pipeline);
         pipeline.addAfter(lastHandler, "passthroughRouting",
-                new io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler());
+                new PassthroughRoutingHandler());
 
         // 3. Build VC user filters and add as route filters scoped to "default"
         List<FilterAndInvoker> vcFilters = vc.filterChainFactory().createFilters(filterContext);
@@ -304,17 +322,22 @@ public class KafkaProxyFrontendHandler
 
         // 4. Walk the router graph depth-first, installing RoutingDecisionHandlers
         // and route filters in topological order before the RoutingTerminalHandler
+        OptionalInt topLevelVirtualNodeId = routingEndpointBinding.nodeId() != null
+                ? OptionalInt.of(routingEndpointBinding.nodeId())
+                : OptionalInt.empty();
         installRouterGraph(
                 vc.routerName(),
-                io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler.DEFAULT_ROUTE,
-                java.util.function.IntUnaryOperator.identity(),
+                PassthroughRoutingHandler.DEFAULT_ROUTE,
+                IntUnaryOperator.identity(),
                 vcFilters,
                 filterContext, pipeline, clientChannel, allFilters,
-                topicIdCache);
+                topicIdCache,
+                topLevelVirtualNodeId);
 
         // 4a. Install unscoped topicId response enrichment immediately before
         // the terminal handler — every backend response passes through it.
-        var responseEnrichment = new TopicIdResponseEnrichmentFilter(clientConnectionStateMachine.virtualCluster().getTopicIdResponseCache());
+        var responseEnrichment = new TopicIdResponseEnrichmentFilter(
+                clientConnectionStateMachine.virtualCluster().getTopicIdResponseCache());
         List<FilterAndInvoker> responseEnrichmentFai = FilterAndInvoker.build(
                 "TopicIdResponseEnrichment (internal)", responseEnrichment);
         allFilters.addAll(responseEnrichmentFai);
@@ -328,12 +351,10 @@ public class KafkaProxyFrontendHandler
         // 5. Set top-level NodeIdMapping on CCSM for broker-port resolution
         var topRouteDescriptors = vc.routeDescriptors();
         var topRouteIds = topRouteDescriptors.entrySet().stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        java.util.Map.Entry::getKey,
-                        e -> e.getValue().id()));
-        io.kroxylicious.proxy.internal.routing.NodeIdMapping topNodeIdMapping = topRouteIds.size() > 1
-                ? new io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping(topRouteIds, topRouteIds.size())
-                : new io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping(topRouteIds.keySet().iterator().next());
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
+        NodeIdMapping topNodeIdMapping = topRouteIds.size() > 1
+                ? new BijectiveNodeIdMapping(topRouteIds, topRouteIds.size())
+                : new IdentityNodeIdMapping(topRouteIds.keySet().iterator().next());
         clientConnectionStateMachine.setNodeIdMapping(topNodeIdMapping);
 
         // 6. Set decode predicate to union of ALL filters across the routing DAG
@@ -344,50 +365,50 @@ public class KafkaProxyFrontendHandler
 
     private void installRouterGraph(String routerName,
                                     String activationRoute,
-                                    java.util.function.IntUnaryOperator parentTranslator,
+                                    IntUnaryOperator parentTranslator,
                                     List<FilterAndInvoker> pendingRouteFilters,
                                     NettyFilterContext filterContext,
                                     ChannelPipeline pipeline,
                                     Channel clientChannel,
                                     List<FilterAndInvoker> allFilters,
-                                    java.util.Map<org.apache.kafka.common.Uuid, String> topicIdCache) {
+                                    Map<Uuid, String> topicIdCache,
+                                    OptionalInt virtualNodeId) {
         var vc = clientConnectionStateMachine.virtualCluster();
         var allRouteDescriptors = vc.allRouteDescriptors();
-        var routeDescriptors = allRouteDescriptors != null ? allRouteDescriptors.get(routerName) : vc.routeDescriptors();
+        var routeDescriptors = allRouteDescriptors != null
+                ? allRouteDescriptors.get(routerName)
+                : vc.routeDescriptors();
 
         // Create Router and compute NodeIdMapping
-        io.kroxylicious.proxy.router.Router router = routerChainFactory.createRouter(routerName, vc.getClusterName());
+        Router router = routerChainFactory.createRouter(routerName, vc.getClusterName());
         var routeIds = routeDescriptors.entrySet().stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        java.util.Map.Entry::getKey,
-                        e -> e.getValue().id()));
-        io.kroxylicious.proxy.internal.routing.NodeIdMapping nodeIdMapping = routeIds.size() > 1
-                ? new io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping(routeIds, routeIds.size())
-                : new io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping(routeIds.keySet().iterator().next());
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
+        NodeIdMapping nodeIdMapping = routeIds.size() > 1
+                ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
+                : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
 
         // Compose the virtual ID translator for this level
-        java.util.function.IntUnaryOperator translator = parentTranslator;
+        IntUnaryOperator translator = parentTranslator;
 
         // Metrics
         var clusterName = vc.getClusterName();
         var nodeId = routingEndpointBinding.nodeId();
-        var routingRequestsCounter = io.kroxylicious.proxy.internal.util.Metrics.routingRequestsCounter(clusterName, nodeId);
-        var routingErrorsCounter = io.kroxylicious.proxy.internal.util.Metrics.routingErrorsCounter(clusterName, nodeId);
-        var routingRequestDurationTimer = io.kroxylicious.proxy.internal.util.Metrics.routingRequestDurationTimer(clusterName, nodeId);
-        var pendingResponseCount = new java.util.concurrent.atomic.AtomicInteger();
-        io.kroxylicious.proxy.internal.util.Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
+        var routingRequestsCounter = Metrics.routingRequestsCounter(clusterName, nodeId);
+        var routingErrorsCounter = Metrics.routingErrorsCounter(clusterName, nodeId);
+        var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
+        var pendingResponseCount = new AtomicInteger();
+        Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
 
         // Install RoutingDecisionHandler
         String handlerName = "routingDecisionHandler-" + routerName;
-        var decisionHandler = new io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler(
+        var decisionHandler = new RoutingDecisionHandler(
                 activationRoute,
-                router, routeDescriptors, router.staticRoutes(), clientConnectionStateMachine,
-                nodeIdMapping,
+                router, routeDescriptors, router.staticRoutes(),
+                clientConnectionStateMachine, nodeIdMapping,
                 routingRequestsCounter, routingErrorsCounter,
                 routingRequestDurationTimer, pendingResponseCount,
-                translator,
-                sharedNodeAddresses,
-                topicIdCache);
+                translator, sharedNodeAddresses, topicIdCache,
+                virtualNodeId);
         pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
 
         // Install any pending route filters (e.g. VC filters for "default" activation route)
@@ -403,7 +424,7 @@ public class KafkaProxyFrontendHandler
         // For each route, install route filters and recurse into nested routers
         for (var entry : routeDescriptors.entrySet()) {
             String routeName = entry.getKey();
-            io.kroxylicious.proxy.internal.routing.RouteDescriptor rd = entry.getValue();
+            RouteDescriptor rd = entry.getValue();
 
             // Build this route's filters
             List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routerName, routeName, filterContext);
@@ -411,11 +432,16 @@ public class KafkaProxyFrontendHandler
 
             if (rd.targetsRouter()) {
                 // Nested router: compose translator and recurse
-                java.util.function.IntUnaryOperator nestedTranslator = nestedVirtual -> parentTranslator.applyAsInt(
+                IntUnaryOperator nestedTranslator = nestedVirtual -> parentTranslator.applyAsInt(
                         nodeIdMapping.toVirtual(routeName, nestedVirtual));
+                OptionalInt nestedVirtualNodeId = virtualNodeId.stream()
+                        .mapToObj(nodeIdMapping::fromVirtual)
+                        .filter(ran -> ran.route().equals(routeName))
+                        .mapToInt(NodeIdMapping.RouteAndNode::targetNodeId)
+                        .findFirst();
                 installRouterGraph(rd.routerName(), routeName, nestedTranslator,
-                        routeFilters, filterContext, pipeline, clientChannel, allFilters,
-                        topicIdCache);
+                        routeFilters, filterContext, pipeline, clientChannel,
+                        allFilters, topicIdCache, nestedVirtualNodeId);
             }
             else {
                 // Cluster-targeting route: install route filters before terminal
@@ -434,7 +460,7 @@ public class KafkaProxyFrontendHandler
      * @param topicIdCache per-connection cache shared with {@link io.kroxylicious.proxy.router.RouterContext#topicName}
      */
     private List<FilterAndInvoker> buildFilters(boolean includeUserFilters,
-                                                java.util.Map<org.apache.kafka.common.Uuid, String> topicIdCache) {
+                                                Map<Uuid, String> topicIdCache) {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));

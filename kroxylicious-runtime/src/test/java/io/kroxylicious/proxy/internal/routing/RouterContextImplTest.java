@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
@@ -46,8 +47,8 @@ class RouterContextImplTest {
     private SimpleMeterRegistry meterRegistry;
     private AtomicInteger pendingResponseCount;
     private NodeIdMapping nodeIdMapping;
-    private Map<String, Integer> bootstrapVirtualNodeIds;
     private Map<Integer, HostPort> sharedNodeAddresses;
+    private OptionalInt virtualNodeId;
     private final PendingResponseRegistry testPendingResponseRegistry = new PendingResponseRegistry() {
         @Override
         public void register(int correlationId, PendingResponse pendingResponse) {
@@ -70,8 +71,8 @@ class RouterContextImplTest {
         meterRegistry = new SimpleMeterRegistry();
         pendingResponseCount = new AtomicInteger();
         nodeIdMapping = new IdentityNodeIdMapping("cluster-route");
-        bootstrapVirtualNodeIds = Map.of("cluster-route", -1);
         sharedNodeAddresses = new HashMap<>();
+        virtualNodeId = OptionalInt.empty();
     }
 
     private IntSupplier routingIdAllocator() {
@@ -89,6 +90,10 @@ class RouterContextImplTest {
     }
 
     private RouterContextImpl createContext() {
+        return createContext(virtualNodeId);
+    }
+
+    private RouterContextImpl createContext(OptionalInt virtualNodeId) {
         return new RouterContextImpl(
                 CORRELATION_ID,
                 SESSION_ID,
@@ -98,13 +103,13 @@ class RouterContextImplTest {
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
                 },
-                (virtualNodeId, routeName, msg) -> {
-                    forwardedNodeId.set(virtualNodeId);
+                (vnId, routeName, msg) -> {
+                    forwardedNodeId.set(vnId);
                     forwardedRoute.set(routeName);
                     forwardedMsg.set(msg);
                 },
                 nodeIdMapping,
-                bootstrapVirtualNodeIds,
+                virtualNodeId,
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
@@ -129,43 +134,62 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldReturnBootstrapNodeId() {
-        var ctx = createContext();
-        assertThat(ctx.bootstrapNodeId("cluster-route")).isEqualTo(-1);
+    void shouldReturnEmptyVirtualNodeIdForBootstrapContext() {
+        var ctx = createContext(OptionalInt.empty());
+        assertThat(ctx.virtualNodeId()).isEmpty();
     }
 
     @Test
-    void shouldReturnBootstrapNodeIdForRouterTargetingRoute() {
-        var routesWithRouter = Map.of(
-                "cluster-route", new RouteDescriptor("cluster-route", 0, TARGET, null, List.of()),
-                "router-route", new RouteDescriptor("router-route", 1, null, "nested", List.of()));
-        var mapping = new BijectiveNodeIdMapping(Map.of("cluster-route", 0, "router-route", 1), 2);
-        var nodeAddresses = new HashMap<Integer, HostPort>();
-        var bootstrapIds = RouterContextImpl.computeBootstrapNodeIds(
-                routesWithRouter, mapping, nodeAddresses, IntUnaryOperator.identity());
-
-        assertThat(bootstrapIds).containsKey("router-route");
-        assertThat(nodeAddresses).as("router-targeting routes should not register addresses")
-                .doesNotContainKey(bootstrapIds.get("router-route"));
+    void shouldReturnPresentVirtualNodeIdForBrokerContext() {
+        var ctx = createContext(OptionalInt.of(0));
+        assertThat(ctx.virtualNodeId()).hasValue(0);
     }
 
     @Test
-    void shouldThrowForUnknownBootstrapRoute() {
+    void shouldComputeAnyNodeIdForKnownRoute() {
         var ctx = createContext();
-        assertThatThrownBy(() -> ctx.bootstrapNodeId("nonexistent"))
+        assertThat(ctx.anyNodeId("cluster-route")).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldThrowForUnknownRouteInAnyNodeId() {
+        var ctx = createContext();
+        assertThatThrownBy(() -> ctx.anyNodeId("nonexistent"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown route");
     }
 
     @Test
-    void shouldForwardRequestToNode() {
+    void shouldRegisterBootstrapAddressesForClusterRoutes() {
+        var routesWithRouter = Map.of(
+                "cluster-route", new RouteDescriptor("cluster-route", 0, TARGET, null, List.of()),
+                "router-route", new RouteDescriptor("router-route", 1, null, "nested", List.of()));
+        var mapping = new BijectiveNodeIdMapping(Map.of("cluster-route", 0, "router-route", 1), 2);
+        var nodeAddresses = new HashMap<Integer, HostPort>();
+
+        // When
+        RouterContextImpl.registerBootstrapAddresses(
+                routesWithRouter, mapping, nodeAddresses, IntUnaryOperator.identity());
+
+        // Then
+        int clusterBootstrapId = mapping.toVirtual("cluster-route", RouterContextImpl.BOOTSTRAP_TARGET_NODE_ID);
+        assertThat(nodeAddresses).containsKey(clusterBootstrapId);
+
+        int routerBootstrapId = mapping.toVirtual("router-route", RouterContextImpl.BOOTSTRAP_TARGET_NODE_ID);
+        assertThat(nodeAddresses)
+                .as("router-targeting routes should not register addresses")
+                .doesNotContainKey(routerBootstrapId);
+    }
+
+    @Test
+    void shouldForwardNonBootstrapRequestViaNodeForwarder() {
         var ctx = createContext();
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
         var body = new FetchRequestData();
 
-        var future = ctx.sendRequestToNode("cluster-route", 0, header, body);
+        var future = ctx.sendRequestToNode(0, header, body);
 
         assertThat(forwardedNodeId.get()).isEqualTo(0);
         assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
@@ -180,15 +204,90 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldFailForUnknownRoute() {
+    void shouldForwardBootstrapRequestViaRouteForwarder() {
         var ctx = createContext();
-        var future = ctx.sendRequestToNode("nonexistent", 0, new RequestHeaderData(), new FetchRequestData());
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+        var body = new FetchRequestData();
+
+        ctx.sendRequestToNode(ctx.anyNodeId("cluster-route"), header, body);
+
+        assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
+        assertThat(forwardedNodeId.get())
+                .as("bootstrap should use routeForwarder, not nodeForwarder")
+                .isNull();
+        assertThat(forwardedMsg.get()).isNotNull();
+    }
+
+    @Test
+    void shouldDeriveRouteFromVirtualNodeIdWithBijectiveMapping() {
+        // Given: two routes with bijective mapping
+        var bijectiveRoutes = Map.of(
+                "route-a", new RouteDescriptor("route-a", 0, TARGET, null, List.of()),
+                "route-b", new RouteDescriptor("route-b", 1, TARGET, null, List.of()));
+        var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
+        var ctx = new RouterContextImpl(
+                CORRELATION_ID, SESSION_ID, Subject.anonymous(),
+                bijectiveRoutes,
+                (routeName, msg) -> {
+                    forwardedRoute.set(routeName);
+                    forwardedMsg.set(msg);
+                },
+                (vnId, routeName, msg) -> {
+                    forwardedNodeId.set(vnId);
+                    forwardedRoute.set(routeName);
+                    forwardedMsg.set(msg);
+                },
+                mapping, OptionalInt.empty(),
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount, testPendingResponseRegistry,
+                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion(API_VERSION);
+
+        // When: send to virtual node 3 (= route-b, target 1: V = 1 + 2*1 = 3)
+        ctx.sendRequestToNode(3, header, new FetchRequestData());
+
+        // Then: route should be derived as "route-b"
+        assertThat(forwardedRoute.get()).isEqualTo("route-b");
+        assertThat(forwardedNodeId.get()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldFailForUnknownRouteInSendRequestToNode() {
+        // IdentityNodeIdMapping returns ("cluster-route", virtualNodeId) for any ID,
+        // so we need a bijective mapping that can produce an unknown route
+        var singleRoute = Map.of(
+                "known-route", new RouteDescriptor("known-route", 0, TARGET, null, List.of()));
+        var mapping = new BijectiveNodeIdMapping(Map.of("known-route", 0, "phantom", 1), 2);
+        var ctx = new RouterContextImpl(
+                CORRELATION_ID, SESSION_ID, Subject.anonymous(),
+                singleRoute,
+                (routeName, msg) -> {
+                },
+                (vnId, routeName, msg) -> {
+                },
+                mapping, OptionalInt.empty(),
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount, testPendingResponseRegistry,
+                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+
+        // Virtual node 1 maps to route "phantom" which isn't in the routes map
+        var future = ctx.sendRequestToNode(1, new RequestHeaderData(), new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally()
                 .hasFailedWithThrowableThat()
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Unknown route: nonexistent");
+                .hasMessageContaining("Unknown route: phantom");
     }
 
     @Test
@@ -198,7 +297,7 @@ class RouterContextImplTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
 
-        ctx.sendRequestToNode("cluster-route", 0, header, new FetchRequestData());
+        ctx.sendRequestToNode(0, header, new FetchRequestData());
 
         assertThat(pendingResponseCount.get()).isEqualTo(1);
     }
@@ -210,7 +309,7 @@ class RouterContextImplTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
 
-        ctx.sendRequestToNode("cluster-route", 0, header, new FetchRequestData());
+        ctx.sendRequestToNode(0, header, new FetchRequestData());
 
         var counter = meterRegistry.find("test_routing_requests").counter();
         assertThat(counter).isNotNull();
@@ -219,8 +318,25 @@ class RouterContextImplTest {
 
     @Test
     void shouldIncrementErrorCounterForUnknownRoute() {
-        var ctx = createContext();
-        ctx.sendRequestToNode("nonexistent", 0, new RequestHeaderData(), new FetchRequestData());
+        // Use bijective mapping so we can produce an unknown route
+        var mapping = new BijectiveNodeIdMapping(Map.of("cluster-route", 0, "phantom", 1), 2);
+        var ctx = new RouterContextImpl(
+                CORRELATION_ID, SESSION_ID, Subject.anonymous(),
+                routes,
+                (routeName, msg) -> {
+                },
+                (vnId, routeName, msg) -> {
+                },
+                mapping, OptionalInt.empty(),
+                routingIdAllocator(),
+                Counter.builder("test_routing_requests").withRegistry(meterRegistry),
+                Counter.builder("test_routing_errors").withRegistry(meterRegistry),
+                Timer.builder("test_routing_duration").withRegistry(meterRegistry),
+                pendingResponseCount, testPendingResponseRegistry,
+                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+
+        // Virtual node 1 maps to "phantom" which is unknown to routes
+        ctx.sendRequestToNode(1, new RequestHeaderData(), new FetchRequestData());
 
         var counter = meterRegistry.find("test_routing_errors").counter();
         assertThat(counter).isNotNull();
@@ -231,23 +347,17 @@ class RouterContextImplTest {
     void shouldAllocateDistinctRoutingCorrelationIdsForFanOut() {
         List<Object> forwardedFrames = new java.util.ArrayList<>();
         var fanOutCtx = new RouterContextImpl(
-                CORRELATION_ID,
-                SESSION_ID,
-                Subject.anonymous(),
+                CORRELATION_ID, SESSION_ID, Subject.anonymous(),
                 routes,
                 (routeName, msg) -> forwardedFrames.add(msg),
-                (virtualNodeId, routeName, msg) -> forwardedFrames.add(msg),
-                nodeIdMapping,
-                bootstrapVirtualNodeIds,
+                (vnId, routeName, msg) -> forwardedFrames.add(msg),
+                nodeIdMapping, OptionalInt.empty(),
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount,
-                testPendingResponseRegistry,
-                sharedNodeAddresses,
-                IntUnaryOperator.identity(),
-                java.util.Map.of());
+                pendingResponseCount, testPendingResponseRegistry,
+                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
 
         var headerA = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
@@ -256,8 +366,8 @@ class RouterContextImplTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
 
-        var futureA = fanOutCtx.sendRequestToNode("cluster-route", 0, headerA, new FetchRequestData());
-        var futureB = fanOutCtx.sendRequestToNode("cluster-route", 0, headerB, new FetchRequestData());
+        var futureA = fanOutCtx.sendRequestToNode(0, headerA, new FetchRequestData());
+        var futureB = fanOutCtx.sendRequestToNode(0, headerB, new FetchRequestData());
 
         assertThat(forwardedFrames).hasSize(2);
 
@@ -275,32 +385,26 @@ class RouterContextImplTest {
     @Test
     void sendRequestToNodeShouldFailWhenForwarderThrows() {
         var ctx = new RouterContextImpl(
-                CORRELATION_ID,
-                SESSION_ID,
-                Subject.anonymous(),
+                CORRELATION_ID, SESSION_ID, Subject.anonymous(),
                 routes,
                 (routeName, msg) -> {
                     throw new IllegalStateException("Upstream address not yet known");
                 },
-                (virtualNodeId, routeName, msg) -> {
+                (vnId, routeName, msg) -> {
                     throw new IllegalStateException("Upstream address not yet known");
                 },
-                nodeIdMapping,
-                bootstrapVirtualNodeIds,
+                nodeIdMapping, OptionalInt.empty(),
                 routingIdAllocator(),
                 Counter.builder("test_routing_requests").withRegistry(meterRegistry),
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
-                pendingResponseCount,
-                testPendingResponseRegistry,
-                sharedNodeAddresses,
-                IntUnaryOperator.identity(),
-                java.util.Map.of());
+                pendingResponseCount, testPendingResponseRegistry,
+                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
-        var future = ctx.sendRequestToNode("cluster-route", 0, header, new FetchRequestData());
+        var future = ctx.sendRequestToNode(0, header, new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally();

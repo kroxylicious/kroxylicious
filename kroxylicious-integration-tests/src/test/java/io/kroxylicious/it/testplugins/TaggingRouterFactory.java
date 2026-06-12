@@ -53,8 +53,8 @@ public class TaggingRouterFactory
                     request.unknownTaggedFields().add(
                             new RawTaggedField(BASE_TAG + config.tagOffset(), config.routerTag().getBytes(UTF_8)));
                 }
-                int nodeId = routerContext.bootstrapNodeId(config.route());
-                return routerContext.sendRequestToNode(config.route(), nodeId, header, request)
+                int nodeId = routerContext.anyNodeId(config.route());
+                return routerContext.sendRequestToNode(nodeId, header, request)
                         .thenApply(RouterResult.Completed::new);
             }
         };
