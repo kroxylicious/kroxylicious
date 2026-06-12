@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.provider.thales.ciphertrust.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -18,4 +20,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @SuppressWarnings("java:S6218") // no need for toString, equals, hashCode to go deep on the byte[]
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RandomResponse(
-                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty("bytes") byte[] bytes) {}
+                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty("bytes") byte[] bytes) {
+
+    /**
+     * Constructs a random response.
+     */
+    public RandomResponse {
+        Objects.requireNonNull(bytes, "bytes cannot be null");
+    }
+}
