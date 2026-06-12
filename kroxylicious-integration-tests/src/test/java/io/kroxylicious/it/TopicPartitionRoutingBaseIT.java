@@ -38,6 +38,7 @@ import io.micrometer.core.instrument.Metrics;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -139,8 +140,8 @@ abstract class TopicPartitionRoutingBaseIT {
         var targetA = new TargetClusterDefinition("cluster-a", a.getBootstrapServers(), null);
         var targetB = new TargetClusterDefinition("cluster-b", b.getBootstrapServers(), null);
 
-        var routeA = new RouteDefinition("route-a", null, "cluster-a", null);
-        var routeB = new RouteDefinition("route-b", null, "cluster-b", null);
+        var routeA = new RouteDefinition("route-a", null, new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", null, new RouteTarget("cluster-b", null));
 
         var routerConfig = new TopicPartitionRouterConfig(
                 "route-a",
