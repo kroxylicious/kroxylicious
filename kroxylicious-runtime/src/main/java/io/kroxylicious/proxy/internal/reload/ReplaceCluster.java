@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.reload;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
@@ -37,30 +38,33 @@ import io.kroxylicious.proxy.reload.ReconfigureError;
 final class ReplaceCluster implements ClusterOperation {
 
     private final VirtualClusterModel oldModel;
-    private final VirtualClusterModel newModel;
+    private final String clusterName;
+    private final Supplier<VirtualClusterModel> newModelSupplier;
     private final VirtualClusterRegistry virtualClusterRegistry;
     private final EndpointRegistry endpointRegistry;
 
     ReplaceCluster(VirtualClusterModel oldModel,
-                   VirtualClusterModel newModel,
+                   String clusterName,
+                   Supplier<VirtualClusterModel> newModelSupplier,
                    VirtualClusterRegistry virtualClusterRegistry,
                    EndpointRegistry endpointRegistry) {
         this.oldModel = Objects.requireNonNull(oldModel, "oldModel");
-        this.newModel = Objects.requireNonNull(newModel, "newModel");
+        this.clusterName = Objects.requireNonNull(clusterName, "clusterName");
+        this.newModelSupplier = Objects.requireNonNull(newModelSupplier, "newModelSupplier");
         this.virtualClusterRegistry = Objects.requireNonNull(virtualClusterRegistry, "virtualClusterRegistry");
         this.endpointRegistry = Objects.requireNonNull(endpointRegistry, "endpointRegistry");
-        // The ChangeDetector contract guarantees both sides share the cluster name; we guard it
-        // locally to catch a buggy planner / detector before it produces a corrupted reconfigure.
-        if (!oldModel.getClusterName().equals(newModel.getClusterName())) {
+        // The ChangeDetector contract guarantees the old side's cluster name matches the planned
+        // cluster name; guard it locally to catch a buggy planner / detector early.
+        if (!oldModel.getClusterName().equals(clusterName)) {
             throw new IllegalArgumentException(
-                    "ReplaceCluster requires the same cluster name on both sides; got '"
-                            + oldModel.getClusterName() + "' (old) vs '" + newModel.getClusterName() + "' (new)");
+                    "ReplaceCluster: oldModel cluster name '" + oldModel.getClusterName()
+                            + "' does not match planned cluster name '" + clusterName + "'");
         }
     }
 
     @Override
     public String clusterName() {
-        return newModel.getClusterName();
+        return clusterName;
     }
 
     @Override
@@ -72,6 +76,6 @@ final class ReplaceCluster implements ClusterOperation {
             // failure. The cluster stays in the failure state RemoveCluster left it in.
             return removeError;
         }
-        return new AddCluster(newModel, virtualClusterRegistry, endpointRegistry).apply();
+        return new AddCluster(clusterName, newModelSupplier, virtualClusterRegistry, endpointRegistry).apply();
     }
 }

@@ -7,9 +7,11 @@ package io.kroxylicious.proxy.internal.reload;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.function.BiFunction;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -167,9 +169,9 @@ class OperationsPlannerTest {
         var removeModel = modelFor("cluster-remove");
         when(vcr.modelFor("cluster-remove")).thenReturn(removeModel);
         var resolverCalls = new int[1];
-        Function<Configuration, List<VirtualClusterModel>> resolver = config -> {
+        BiFunction<Configuration, String, VirtualClusterModel> resolver = (config, clusterName) -> {
             resolverCalls[0]++;
-            return List.of();
+            throw new IllegalStateException("resolver should not be called for remove-only plans");
         };
         var planner = new OperationsPlanner(vcr, endpointRegistry, resolver);
 
@@ -212,7 +214,18 @@ class OperationsPlannerTest {
     }
 
     private OperationsPlanner plannerWithModels(VirtualClusterModel... resolvedModels) {
-        return new OperationsPlanner(vcr, endpointRegistry, config -> List.of(resolvedModels));
+        Map<String, VirtualClusterModel> byName = Arrays.stream(resolvedModels)
+                .collect(Collectors.toMap(VirtualClusterModel::getClusterName, m -> m));
+        return new OperationsPlanner(vcr, endpointRegistry, (config, clusterName) -> {
+            var resolved = byName.get(clusterName);
+            if (resolved == null) {
+                // Simulate the production behaviour where Configuration#virtualClusterModel(pfr, name)
+                // throws IllegalArgumentException for unknown clusters. Some tests rely on this
+                // behaviour to surface phantom-add bugs.
+                throw new IllegalArgumentException("No virtual cluster named '" + clusterName + "' in this configuration");
+            }
+            return resolved;
+        });
     }
 
     private static VirtualClusterModel modelFor(String name) {
