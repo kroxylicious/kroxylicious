@@ -618,11 +618,13 @@ public class CipherTrustMockServer {
             }
         }
 
+        @Nullable
         private String extractQueryParam(String query, String param) {
             return extractQueryParam(query, param, null);
         }
 
-        private String extractQueryParam(String query, String param, String defaultValue) {
+        @Nullable
+        private String extractQueryParam(String query, String param, @Nullable String defaultValue) {
             String searchStr = param + "=";
             if (query.contains(searchStr)) {
                 String value = query.substring(query.indexOf(searchStr) + searchStr.length());
@@ -812,6 +814,7 @@ public class CipherTrustMockServer {
          * Rotate a key - creates a NEW key with NEW ID, SAME name, incremented version.
          * @return the new key ID, or null if the old key doesn't exist
          */
+        @Nullable
         String rotateKey(String keyId) {
             KeyMetadata oldKey = keysById.get(keyId);
             if (oldKey == null) {
@@ -840,6 +843,7 @@ public class CipherTrustMockServer {
          * @param name the key name
          * @return the new key ID, or null if no key with that name exists
          */
+        @Nullable
         String rotateKeyByName(String name) {
             // Find the key with highest version for this name
             KeyMetadata currentKey = keysById.values().stream()
@@ -858,6 +862,7 @@ public class CipherTrustMockServer {
         /**
          * Get the secret key for a given key ID.
          */
+        @Nullable
         SecretKey getKey(String keyId) {
             KeyMetadata metadata = keysById.get(keyId);
             return metadata != null ? metadata.secretKey : null;
