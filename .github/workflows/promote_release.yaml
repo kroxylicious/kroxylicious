@@ -104,7 +104,6 @@ jobs:
       - name: Download release state artefact
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         with:
-          workflow: stage-release
           run_id: ${{ env.RELCAND_ID }}
           name: RELEASE_STATE.json
 
