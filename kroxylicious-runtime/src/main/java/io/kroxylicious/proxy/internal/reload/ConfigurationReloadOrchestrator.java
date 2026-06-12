@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
@@ -69,19 +68,9 @@ public class ConfigurationReloadOrchestrator {
     public ConfigurationReloadOrchestrator(Configuration initialConfiguration,
                                            VirtualClusterRegistry virtualClusterRegistry,
                                            EndpointRegistry endpointRegistry,
-                                           PluginFactoryRegistry pfr,
                                            List<ChangeDetector> detectors) {
-        // Per-cluster lazy VCM construction (from #4092): the planner asks for one cluster's
-        // model on demand instead of bulk-building every cluster's, so an add/modify of cluster A
-        // doesn't orphan-initialise the filters of unrelated clusters.
-        //
-        // Each per-cluster construction is dispatched through the registry's lifecycle executor
-        // (from #4087) so FilterFactory.initialize() lands on a dedicated non-event-loop thread
-        // regardless of which thread invoked reconfigure().
         this(initialConfiguration, detectors,
-                new OperationsPlanner(virtualClusterRegistry, endpointRegistry,
-                        (config, clusterName) -> virtualClusterRegistry.submitToLifecycle(
-                                () -> config.virtualClusterModel(pfr, clusterName))));
+                new OperationsPlanner(virtualClusterRegistry, endpointRegistry, virtualClusterRegistry::resolveModel));
     }
 
     /**

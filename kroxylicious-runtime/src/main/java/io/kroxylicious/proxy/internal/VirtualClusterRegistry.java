@@ -12,16 +12,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.util.LifecycleExecutors;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -58,13 +59,14 @@ public class VirtualClusterRegistry implements AutoCloseable {
 
     private final Map<String, VirtualClusterEntry> entriesByCluster = new ConcurrentHashMap<>();
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
+    private final BiFunction<Configuration, String, VirtualClusterModel> rawModelResolver;
 
     /**
      * Dedicated single-threaded executor that owns every {@code FilterFactory.initialize()}
      * and {@code FilterFactory.close()} invocation triggered through this registry — both the
-     * orchestrator's reconfigure-time VCM construction (via {@link #submitToLifecycle}) and the
+     * orchestrator's reconfigure-time VCM construction (via {@link #resolveModel}) and the
      * close work in {@link #shutdownCluster}. Created here so the threading guarantee is a
-     * VCR-internal invariant: callers cannot accidentally bypass it. Shut down by {@link #close()}.
+     * VCR-internal invariant: callers cannot bypass it. Shut down by {@link #close()}.
      */
     private final ExecutorService lifecycleExecutor = LifecycleExecutors.newLifecycleExecutor();
 
@@ -72,6 +74,11 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * Creates a new VirtualClusterRegistry for the given set of virtual clusters.
      *
      * @param virtualClusterModels the complete set of virtual cluster configurations
+     * @param rawModelResolver builds a {@link VirtualClusterModel} for a (config, clusterName)
+     *        pair without any threading concerns. The registry wraps every invocation in a
+     *        dispatch to the lifecycle executor — see {@link #resolveModel}. Captured at
+     *        construction time so plugin-factory wiring is the responsibility of the registry's
+     *        owner (typically KafkaProxy), not the registry itself.
      * @param onVirtualClusterStopped callback invoked with {@code (clusterName, priorFailureCause)}
      *        whenever a virtual cluster reaches the terminal Stopped state. The cause is empty
      *        for clean stops (e.g. drain completed during shutdown) and present for failure-driven stops.
@@ -80,8 +87,10 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * @throws IllegalArgumentException if the list contains duplicate cluster names
      */
     public VirtualClusterRegistry(List<VirtualClusterModel> virtualClusterModels,
+                                  BiFunction<Configuration, String, VirtualClusterModel> rawModelResolver,
                                   BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
+        this.rawModelResolver = Objects.requireNonNull(rawModelResolver, "rawModelResolver must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
         for (var vcm : virtualClusterModels) {
             var name = vcm.getClusterName();
@@ -93,15 +102,17 @@ public class VirtualClusterRegistry implements AutoCloseable {
     }
 
     /**
-     * Runs {@code task} on the lifecycle executor and returns its result. The orchestrator
-     * uses this to dispatch VCM construction (which calls {@code FilterFactory.initialize()})
-     * onto the lifecycle thread regardless of which thread invoked reconfigure.
+     * Builds a {@link VirtualClusterModel} for the named virtual cluster, dispatched onto the
+     * lifecycle thread. Used by {@code OperationsPlanner} during reconfigure so each filter's
+     * {@code initialize()} runs on a non-event-loop thread regardless of which thread invoked
+     * {@code reconfigure()}.
      *
-     * @throws RuntimeException whatever the task threw (rethrown directly for RuntimeException;
-     *         wrapped otherwise — see {@link LifecycleExecutors#runOnLifecycle})
+     * @throws RuntimeException whatever the underlying model construction threw (rethrown
+     *         directly for RuntimeException; checked exceptions are wrapped in CompletionException
+     *         — see {@link LifecycleExecutors#runOnLifecycle})
      */
-    public <T> T submitToLifecycle(Callable<T> task) {
-        return LifecycleExecutors.runOnLifecycle(lifecycleExecutor, task);
+    public VirtualClusterModel resolveModel(Configuration config, String clusterName) {
+        return LifecycleExecutors.runOnLifecycle(lifecycleExecutor, () -> rawModelResolver.apply(config, clusterName));
     }
 
     /**

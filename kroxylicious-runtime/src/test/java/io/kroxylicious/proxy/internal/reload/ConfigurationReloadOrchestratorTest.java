@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -256,7 +255,7 @@ class ConfigurationReloadOrchestratorTest {
         when(phantomAddDetector.detect(any())).thenReturn(new ChangeResult(
                 Set.of("phantom-cluster"), Set.of(), Set.of()));
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, stubbedRegistry(), endpointRegistry, mock(PluginFactoryRegistry.class), List.of(phantomAddDetector));
+                config, stubbedRegistry(), endpointRegistry, List.of(phantomAddDetector));
 
         var first = orchestrator.reconfigure(config);
         assertThat(first).isCompletedExceptionally();
@@ -349,8 +348,7 @@ class ConfigurationReloadOrchestratorTest {
         when(capturingDetector.detect(any())).thenReturn(ChangeResult.EMPTY);
 
         var orchestrator = new ConfigurationReloadOrchestrator(
-                initialConfig, mockVcr(), endpointRegistry,
-                mock(PluginFactoryRegistry.class), List.of(capturingDetector));
+                initialConfig, mockVcr(), endpointRegistry, List.of(capturingDetector));
 
         orchestrator.reconfigure(firstSubmittedConfig).join();
         orchestrator.reconfigure(firstSubmittedConfig).join();
@@ -377,7 +375,7 @@ class ConfigurationReloadOrchestratorTest {
 
         var registry = stubbedRegistry("cluster-remove");
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(customDetector));
+                config, registry, endpointRegistry, List.of(customDetector));
 
         // when
         var future = orchestrator.reconfigure(config);
@@ -422,7 +420,7 @@ class ConfigurationReloadOrchestratorTest {
 
         var registry = stubbedRegistry("cluster-a");
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(modifyDetector));
+                config, registry, endpointRegistry, List.of(modifyDetector));
 
         var future = orchestrator.reconfigure(config);
 
@@ -451,7 +449,7 @@ class ConfigurationReloadOrchestratorTest {
 
         var registry = stubbedRegistry("cluster-pure-remove", "cluster-modify");
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(multiBucketDetector));
+                config, registry, endpointRegistry, List.of(multiBucketDetector));
 
         var future = orchestrator.reconfigure(config);
 
@@ -486,7 +484,7 @@ class ConfigurationReloadOrchestratorTest {
 
         var registry = stubbedRegistry();
         var orchestrator = new ConfigurationReloadOrchestrator(
-                config, registry, endpointRegistry, mock(PluginFactoryRegistry.class), List.of(phantomDetector));
+                config, registry, endpointRegistry, List.of(phantomDetector));
 
         var future = orchestrator.reconfigure(config);
 
@@ -596,7 +594,7 @@ class ConfigurationReloadOrchestratorTest {
                 ChangeResult.EMPTY);
 
         var orchestrator = new ConfigurationReloadOrchestrator(
-                initialConfig, stubbedRegistry("cluster-a", "cluster-remove"), endpointRegistry, mock(PluginFactoryRegistry.class), List.of(capturingDetector));
+                initialConfig, stubbedRegistry("cluster-a", "cluster-remove"), endpointRegistry, List.of(capturingDetector));
 
         orchestrator.reconfigure(afterRemove).join();
         orchestrator.reconfigure(afterRemove).join();
@@ -621,21 +619,25 @@ class ConfigurationReloadOrchestratorTest {
     private final EndpointRegistry endpointRegistry = stubbedEndpointRegistry();
 
     private ConfigurationReloadOrchestrator newOrchestrator(Configuration initial, VirtualClusterRegistry registry) {
-        return new ConfigurationReloadOrchestrator(initial, registry, endpointRegistry, mock(PluginFactoryRegistry.class),
+        return new ConfigurationReloadOrchestrator(initial, registry, endpointRegistry,
                 ConfigurationReloadOrchestrator.defaultDetectors());
     }
 
     /**
-     * Creates a {@link VirtualClusterRegistry} mock with the lifecycle-dispatch invariant
-     * preserved: {@code submitToLifecycle(callable)} invokes the callable on the calling thread
-     * and returns its result. The orchestrator routes all VCM construction through this
-     * method, so a stub that returns {@code null} (Mockito's default) breaks every test that
-     * exercises the planner. Use this helper instead of bare {@code mock(VCR.class)}.
+     * Creates a {@link VirtualClusterRegistry} mock with {@code resolveModel} stubbed to delegate
+     * straight to {@code Configuration.virtualClusterModel(pfr, name)} on the calling thread.
+     * The orchestrator routes all VCM construction through {@code vcr.resolveModel}, so a stub
+     * that returns {@code null} (Mockito's default) breaks every test that exercises the planner.
+     * Use this helper instead of bare {@code mock(VCR.class)}.
      */
-    @SuppressWarnings("unchecked")
     private static VirtualClusterRegistry mockVcr() {
+        var pfr = mock(PluginFactoryRegistry.class);
         var registry = mock(VirtualClusterRegistry.class);
-        when(registry.submitToLifecycle(any(Callable.class))).thenAnswer(inv -> ((Callable<Object>) inv.getArgument(0)).call());
+        when(registry.resolveModel(any(Configuration.class), anyString())).thenAnswer(inv -> {
+            Configuration config = inv.getArgument(0);
+            String name = inv.getArgument(1);
+            return config.virtualClusterModel(pfr, name);
+        });
         return registry;
     }
 

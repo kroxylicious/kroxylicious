@@ -126,7 +126,9 @@ class KafkaProxyShutdownOrderingTest {
     private static VirtualClusterRegistry blockingDrainCoordinator(java.util.List<VirtualClusterModel> models,
                                                                    CountDownLatch drainStarted,
                                                                    CountDownLatch drainCanComplete) {
-        return new VirtualClusterRegistry(models, noOpCallback()) {
+        return new VirtualClusterRegistry(models, (cfg, name) -> {
+            throw new UnsupportedOperationException("resolveModel not exercised by this test");
+        }, noOpCallback()) {
             @Override
             public void shutdownAllClusters() {
                 drainStarted.countDown();
@@ -141,7 +143,9 @@ class KafkaProxyShutdownOrderingTest {
     }
 
     private static VirtualClusterRegistry failingDrainCoordinator(java.util.List<VirtualClusterModel> models) {
-        return new VirtualClusterRegistry(models, noOpCallback()) {
+        return new VirtualClusterRegistry(models, (cfg, name) -> {
+            throw new UnsupportedOperationException("resolveModel not exercised by this test");
+        }, noOpCallback()) {
             @Override
             public void shutdownAllClusters() {
                 throw new RuntimeException("simulated drain failure");

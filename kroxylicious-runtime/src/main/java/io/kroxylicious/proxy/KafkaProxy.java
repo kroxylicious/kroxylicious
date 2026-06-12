@@ -181,19 +181,22 @@ public final class KafkaProxy implements AutoCloseable {
         // FCF construction moved into the VCM constructor.
         try {
             var models = config.virtualClusterModel(pfr);
-            return new VirtualClusterRegistry(models, (clusterName, cause) -> {
-                if (cause.isPresent()) {
-                    STARTUP_SHUTDOWN_LOGGER.atWarn()
-                            .addKeyValue("virtualCluster", clusterName)
-                            .addKeyValue("error", cause.get().getMessage())
-                            .log("Virtual cluster reached terminal stopped state due to failure, proxy shutdown required");
-                }
-                else {
-                    STARTUP_SHUTDOWN_LOGGER.atInfo()
-                            .addKeyValue("virtualCluster", clusterName)
-                            .log("Virtual cluster stopped");
-                }
-            });
+            return new VirtualClusterRegistry(
+                    models,
+                    (cfg, clusterName) -> cfg.virtualClusterModel(pfr, clusterName),
+                    (clusterName, cause) -> {
+                        if (cause.isPresent()) {
+                            STARTUP_SHUTDOWN_LOGGER.atWarn()
+                                    .addKeyValue("virtualCluster", clusterName)
+                                    .addKeyValue("error", cause.get().getMessage())
+                                    .log("Virtual cluster reached terminal stopped state due to failure, proxy shutdown required");
+                        }
+                        else {
+                            STARTUP_SHUTDOWN_LOGGER.atInfo()
+                                    .addKeyValue("virtualCluster", clusterName)
+                                    .log("Virtual cluster stopped");
+                        }
+                    });
         }
         catch (PluginConfigurationException e) {
             throw new LifecycleException("Startup completed exceptionally", e);
@@ -278,7 +281,7 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
 
             this.reconfigureOrchestrator = new ConfigurationReloadOrchestrator(
-                    config, virtualClusterRegistry, endpointRegistry, pfr,
+                    config, virtualClusterRegistry, endpointRegistry,
                     ConfigurationReloadOrchestrator.defaultDetectors());
 
             Optional<NettySettings> proxyNettySettings = getNettySettings(config, NetworkDefinition::proxy);
