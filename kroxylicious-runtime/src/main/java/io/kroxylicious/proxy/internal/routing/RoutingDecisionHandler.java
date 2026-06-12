@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
@@ -62,7 +63,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
     private final NodeIdMapping nodeIdMapping;
-    private final Map<String, Integer> bootstrapVirtualNodeIds;
+    private final OptionalInt virtualNodeId;
     private final MeterProvider<Counter> routingRequestsCounter;
     private final MeterProvider<Counter> routingErrorsCounter;
     private final MeterProvider<Timer> routingRequestDurationTimer;
@@ -86,7 +87,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                                   AtomicInteger pendingResponseCount,
                                   IntUnaryOperator virtualIdTranslator,
                                   Map<Integer, HostPort> sharedNodeAddresses,
-                                  Map<Uuid, String> topicIdCache) {
+                                  Map<Uuid, String> topicIdCache,
+                                  OptionalInt virtualNodeId) {
         this.activationRoute = activationRoute;
         this.router = router;
         this.routes = routes;
@@ -100,7 +102,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         this.virtualIdTranslator = virtualIdTranslator;
         this.sharedNodeAddresses = sharedNodeAddresses;
         this.topicIdCache = topicIdCache;
-        this.bootstrapVirtualNodeIds = RouterContextImpl.computeBootstrapNodeIds(
+        this.virtualNodeId = virtualNodeId;
+        RouterContextImpl.registerBootstrapAddresses(
                 routes, nodeIdMapping, sharedNodeAddresses, virtualIdTranslator);
     }
 
@@ -182,7 +185,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 routeForwarder,
                 nodeForwarder,
                 nodeIdMapping,
-                bootstrapVirtualNodeIds,
+                virtualNodeId,
                 () -> nextRoutingCorrelationId++,
                 routingRequestsCounter,
                 routingErrorsCounter,

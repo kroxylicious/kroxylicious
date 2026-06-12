@@ -55,8 +55,8 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
                                                            RequestHeaderData header,
                                                            ApiMessage request,
                                                            RouterContext routerContext) {
-                int nodeId = routerContext.bootstrapNodeId(route);
-                return routerContext.sendRequestToNode(route, nodeId, header, request)
+                int nodeId = routerContext.anyNodeId(route);
+                return routerContext.sendRequestToNode(nodeId, header, request)
                         .thenApply(RouterResult.Completed::new);
             }
 

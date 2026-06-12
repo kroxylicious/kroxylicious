@@ -55,6 +55,7 @@ public sealed interface RoutingEvent {
                    int routingCorrelationId,
                    ApiKeys apiKey,
                    short apiVersion,
+                   int virtualNodeId,
                    RequestHeaderData header,
                    ApiMessage body)
             implements RoutingEvent {

@@ -75,4 +75,13 @@ public class RoutingEventCaptor implements AutoCloseable {
                 .filter(e -> e.apiKey() == apiKey)
                 .toList();
     }
+
+    /** Request events for the given API key with the given virtual node ID. */
+    public List<RoutingEvent.Request> requestsForApiKeyAndNode(ApiKeys apiKey,
+                                                               int virtualNodeId) {
+        return requestEvents().stream()
+                .filter(e -> e.apiKey() == apiKey)
+                .filter(e -> e.virtualNodeId() == virtualNodeId)
+                .toList();
+    }
 }
