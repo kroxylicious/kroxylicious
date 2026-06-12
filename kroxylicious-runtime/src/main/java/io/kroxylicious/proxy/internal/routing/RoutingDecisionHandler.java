@@ -14,6 +14,7 @@ import java.util.function.IntUnaryOperator;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,9 +33,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.frame.RoutingContext;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.router.Response;
 import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.router.RouterResult;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -214,7 +213,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                         ctx.channel().close();
                     }
                     else {
-                        handleRouterResult(ctx, frame, clientCorrelationId, result, apiKey);
+                        handleRouterResult(ctx, frame, clientCorrelationId, (RouterResultImpl) result, apiKey);
                     }
                     ccsm.onRoutedRequestComplete();
                 });
@@ -223,35 +222,50 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private void handleRouterResult(ChannelHandlerContext ctx,
                                     DecodedRequestFrame<?> clientFrame,
                                     int clientCorrelationId,
-                                    RouterResult result,
+                                    RouterResultImpl result,
                                     ApiKeys apiKey) {
-        if (result instanceof RouterResult.Completed completed) {
-            Response response = completed.response();
-            response.header().setCorrelationId(clientCorrelationId);
-            var responseFrame = clientFrame.responseFrame(response.header(), response.body());
+        ApiMessage body = result.body();
+        boolean closeConnection = result.closeConnection();
+        if (body != null) {
+            ResponseHeaderData header = result.header();
+            if (header == null) {
+                header = new ResponseHeaderData();
+            }
+            header.setCorrelationId(clientCorrelationId);
+            var responseFrame = clientFrame.responseFrame(header, body);
             responseFrame.setRoutingContext(new RoutingContext.RouteDefaultNode(activationRoute));
             ctx.write(responseFrame, ctx.voidPromise());
             ctx.flush();
-            LOGGER.atTrace()
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
-                    .log("Router completed with response");
+            if (closeConnection) {
+                LOGGER.atDebug()
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("clientCorrelationId", clientCorrelationId)
+                        .log("Router completed with response and close");
+                ctx.channel().close();
+            }
+            else {
+                LOGGER.atTrace()
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("clientCorrelationId", clientCorrelationId)
+                        .log("Router completed with response");
+            }
         }
-        else if (result instanceof RouterResult.CompletedNoResponse) {
-            LOGGER.atTrace()
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
-                    .log("Router completed with no response (fire-and-forget)");
-        }
-        else if (result instanceof RouterResult.Disconnect) {
+        else if (closeConnection) {
             LOGGER.atDebug()
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("clientCorrelationId", clientCorrelationId)
                     .log("Router requested disconnect");
             ctx.channel().close();
+        }
+        else {
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", ccsm.sessionId())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .log("Router completed with no response (fire-and-forget)");
         }
     }
 
@@ -272,10 +286,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                     NodeIdResponseTranslator.translate(
                             frame.body(), frame.apiVersion(),
                             pending.nodeIdMapping(), pending.route());
-                    Response response = new ResponseImpl(
-                            (ResponseHeaderData) frame.header(),
-                            frame.body());
-                    pending.future().complete(response);
+                    pending.future().complete(frame.body());
                     LOGGER.atTrace()
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("clientCorrelationId", correlationId)

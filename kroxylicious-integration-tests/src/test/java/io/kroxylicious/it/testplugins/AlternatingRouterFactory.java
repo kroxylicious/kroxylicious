@@ -24,7 +24,7 @@ import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterResult;
+import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
  * A router that alternates PRODUCE requests between two routes in
@@ -73,22 +73,22 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
 
         return new Router() {
             @Override
-            public CompletionStage<RouterResult> onRequest(
-                                                           short apiVersion,
-                                                           ApiKeys apiKey,
-                                                           RequestHeaderData header,
-                                                           ApiMessage request,
-                                                           RouterContext routerContext) {
+            public CompletionStage<RouterResponse> onRequest(
+                                                             short apiVersion,
+                                                             ApiKeys apiKey,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
                     int nodeId = routerContext.anyNodeId(routeA);
                     return routerContext.sendRequestToNode(nodeId, header, request)
                             .thenApply(response -> {
-                                capProduceVersion(response.body());
+                                capProduceVersion(response);
                                 LOGGER.atDebug()
                                         .addKeyValue("sessionId", routerContext.sessionId())
                                         .addKeyValue("cappedMaxVersion", MAX_PRODUCE_VERSION)
                                         .log("Capped PRODUCE version in API_VERSIONS response");
-                                return new RouterResult.Completed(response);
+                                return routerContext.respondWith(response).build();
                             });
                 }
 
@@ -102,7 +102,7 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                         .log("Alternating router chose route based on batch index");
                 int nodeId = routerContext.anyNodeId(route);
                 return routerContext.sendRequestToNode(nodeId, header, request)
-                        .thenApply(RouterResult.Completed::new);
+                        .thenApply(response -> routerContext.respondWith(response).build());
             }
 
             @Override

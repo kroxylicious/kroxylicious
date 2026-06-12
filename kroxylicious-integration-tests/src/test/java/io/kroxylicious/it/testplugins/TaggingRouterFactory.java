@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterResult;
+import io.kroxylicious.proxy.router.RouterResponse;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -44,18 +44,18 @@ public class TaggingRouterFactory
     public Router createRouter(RouterFactoryContext context, Config config) {
         return new Router() {
             @Override
-            public CompletionStage<RouterResult> onRequest(short apiVersion,
-                                                           ApiKeys apiKey,
-                                                           RequestHeaderData header,
-                                                           ApiMessage request,
-                                                           RouterContext routerContext) {
+            public CompletionStage<RouterResponse> onRequest(short apiVersion,
+                                                             ApiKeys apiKey,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext routerContext) {
                 if (apiKey == ApiKeys.PRODUCE) {
                     request.unknownTaggedFields().add(
                             new RawTaggedField(BASE_TAG + config.tagOffset(), config.routerTag().getBytes(UTF_8)));
                 }
                 int nodeId = routerContext.anyNodeId(config.route());
                 return routerContext.sendRequestToNode(nodeId, header, request)
-                        .thenApply(RouterResult.Completed::new);
+                        .thenApply(response -> routerContext.respondWith(response).build());
             }
         };
     }

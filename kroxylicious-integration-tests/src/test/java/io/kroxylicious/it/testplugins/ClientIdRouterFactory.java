@@ -19,7 +19,7 @@ import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.RouterResult;
+import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
  * Routes PRODUCE requests to a route determined by the Kafka client
@@ -53,16 +53,16 @@ public class ClientIdRouterFactory
             private String resolvedRoute;
 
             @Override
-            public CompletionStage<RouterResult> onRequest(
-                                                           short apiVersion,
-                                                           ApiKeys apiKey,
-                                                           RequestHeaderData header,
-                                                           ApiMessage request,
-                                                           RouterContext routerContext) {
+            public CompletionStage<RouterResponse> onRequest(
+                                                             short apiVersion,
+                                                             ApiKeys apiKey,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext routerContext) {
                 String route = resolveRoute(header);
                 int nodeId = routerContext.anyNodeId(route);
                 return routerContext.sendRequestToNode(nodeId, header, request)
-                        .thenApply(RouterResult.Completed::new);
+                        .thenApply(response -> routerContext.respondWith(response).build());
             }
 
             private String resolveRoute(RequestHeaderData header) {

@@ -8,12 +8,11 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.micrometer.core.instrument.Timer;
 
-import io.kroxylicious.proxy.router.Response;
-
-record PendingResponse(CompletableFuture<Response> future,
+record PendingResponse(CompletableFuture<ApiMessage> future,
                        Timer.Sample timerSample,
                        String route,
                        ApiKeys apiKey,

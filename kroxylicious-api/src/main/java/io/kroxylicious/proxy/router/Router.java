@@ -66,11 +66,13 @@ public interface Router {
      *
      * <p>The implementation inspects the request, sends one or more requests
      * via {@link RouterContext#sendRequestToNode}, and returns a
-     * {@link RouterResult} encoding the outcome. Use
-     * {@link RouterResult.Completed Completed} to deliver a response,
-     * {@link RouterResult.CompletedNoResponse CompletedNoResponse} for
-     * acks=0 {@code Produce} requests, or {@link RouterResult.Disconnect Disconnect}
-     * to close the client connection.</p>
+     * {@link RouterResponse} encoding the outcome. Use the builder methods on
+     * {@link RouterContext} to construct results:
+     * {@link RouterContext#respondWith(ApiMessage) respondWith} to deliver a
+     * response, {@link RouterContext#respondWithoutReply() respondWithoutReply}
+     * for acks=0 {@code Produce} requests, or
+     * {@link RouterContext#respondWithError respondWithError} to generate an
+     * error response.</p>
      *
      * <p><strong>Threading model</strong></p>
      *
@@ -88,12 +90,12 @@ public interface Router {
      * @param context the router context for sending requests
      * @return a stage that completes with the routing outcome
      */
-    CompletionStage<RouterResult> onRequest(
-                                            short apiVersion,
-                                            ApiKeys apiKey,
-                                            RequestHeaderData header,
-                                            ApiMessage request,
-                                            RouterContext context);
+    CompletionStage<RouterResponse> onRequest(
+                                              short apiVersion,
+                                              ApiKeys apiKey,
+                                              RequestHeaderData header,
+                                              ApiMessage request,
+                                              RouterContext context);
 
     /**
      * Called by the runtime when the client connection is torn down.

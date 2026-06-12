@@ -146,7 +146,7 @@ public sealed interface RoutingEvent {
                     String route,
                     int routingCorrelationId,
                     ApiKeys apiKey,
-                    ResponseHeaderData header,
+                    @Nullable ResponseHeaderData header,
                     ApiMessage body)
             implements RoutingEvent {}
 }
