@@ -40,7 +40,7 @@ class AddClusterTest {
         stubBookkeepingSucceeds();
         stubBindSucceeds();
 
-        var result = new AddCluster(model, vcr, endpointRegistry).apply();
+        var result = new AddCluster(NAME, () -> model, vcr, endpointRegistry).apply();
 
         assertThat(result).isEmpty();
         var inOrder = inOrder(vcr, endpointRegistry);
@@ -57,7 +57,7 @@ class AddClusterTest {
         var cause = new IllegalStateException("bookkeeping failed");
         when(vcr.addVirtualCluster(model)).thenReturn(CompletableFuture.failedFuture(cause));
 
-        var result = new AddCluster(model, vcr, endpointRegistry).apply();
+        var result = new AddCluster(NAME, () -> model, vcr, endpointRegistry).apply();
 
         assertThat(result).hasValueSatisfying(e -> {
             assertThat(e.humanReadableIdentifier()).isEqualTo(NAME);
@@ -76,7 +76,7 @@ class AddClusterTest {
                 .thenReturn(CompletableFuture.failedStage(bindCause));
         stubDeregisterSucceeds();
 
-        var result = new AddCluster(model, vcr, endpointRegistry).apply();
+        var result = new AddCluster(NAME, () -> model, vcr, endpointRegistry).apply();
 
         assertThat(result).hasValueSatisfying(e -> {
             assertThat(e.humanReadableIdentifier()).isEqualTo(NAME);
@@ -98,7 +98,7 @@ class AddClusterTest {
         when(endpointRegistry.deregisterVirtualCluster(any(EndpointGateway.class)))
                 .thenReturn(CompletableFuture.failedStage(new IllegalStateException("rollback failure")));
 
-        var result = new AddCluster(model, vcr, endpointRegistry).apply();
+        var result = new AddCluster(NAME, () -> model, vcr, endpointRegistry).apply();
 
         assertThat(result).hasValueSatisfying(e -> assertThat(e.cause()).isSameAs(bindCause));
         verify(endpointRegistry).deregisterVirtualCluster(any(EndpointGateway.class));
@@ -117,7 +117,7 @@ class AddClusterTest {
         when(endpointRegistry.deregisterVirtualCluster(any(EndpointGateway.class)))
                 .thenReturn(pendingDeregister);
 
-        var applyFuture = CompletableFuture.supplyAsync(() -> new AddCluster(model, vcr, endpointRegistry).apply());
+        var applyFuture = CompletableFuture.supplyAsync(() -> new AddCluster(NAME, () -> model, vcr, endpointRegistry).apply());
 
         verify(endpointRegistry, timeout(2_000)).deregisterVirtualCluster(any(EndpointGateway.class));
         assertThat(applyFuture)
