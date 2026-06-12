@@ -129,7 +129,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     @NonNull
     public String getBootstrapAddress(String virtualCluster, String gateway) {
-        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig.get(), gateway);
+        return KroxyliciousConfigUtils.bootstrapAddressFor(
+                virtualCluster,
+                kroxyliciousConfig.get(),
+                gateway,
+                proxy instanceof KafkaProxy kp
+                        ? (bind, port) -> kp.listeningPort(bind.orElse(null), port)
+                        : (bind, port) -> port)
+                .toString();
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {

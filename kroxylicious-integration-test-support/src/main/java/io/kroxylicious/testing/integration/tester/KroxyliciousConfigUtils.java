@@ -7,11 +7,14 @@
 package io.kroxylicious.testing.integration.tester;
 
 import java.time.Duration;
+import java.util.Optional;
+import java.util.function.BiFunction;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -28,7 +31,7 @@ public class KroxyliciousConfigUtils {
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     public static final String DEFAULT_GATEWAY_NAME = "default";
 
-    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
+    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", EndpointRegistry.OS_ASSIGNED_PORT);
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
@@ -76,26 +79,28 @@ public class KroxyliciousConfigUtils {
     }
 
     /**
-     * Locate the bootstrap servers for a virtual cluster
-     * @param virtualCluster virtual cluster
-     * @param config config to retrieve the bootstrap from
-     * @param gateway gateway of the virtual cluster
-     * @return bootstrap address
-     * @throws IllegalStateException if we encounter an unknown endpoint config provider type for the virtualcluster
-     * @throws IllegalArgumentException if the virtualCluster is not in the kroxylicious config
+     * Resolves the bootstrap address for a named virtual cluster and gateway, using a caller-supplied
+     * port resolver to obtain the actual listening port.
+     *
+     * @param virtualCluster the virtual cluster name
+     * @param config the proxy configuration
+     * @param gateway the gateway name
+     * @param portResolver maps (bindAddress, configuredPort) to the actual port; for fixed ports, returns the port unchanged
+     * @return the bootstrap address with the resolved port
      */
-    static String bootstrapServersFor(String virtualCluster, Configuration config, String gateway) {
-        var cluster = config.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
-        if (cluster.isEmpty()) {
-            throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
-        }
-        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(
-                virtualClusterGateway -> virtualClusterGateway.buildNodeIdentificationStrategy(virtualCluster)).findFirst();
-        var nodeIdentificationStrategy = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
-        // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
-        // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
-        // config might not work.
-        return nodeIdentificationStrategy.getClusterBootstrapAddress().toString();
+    public static HostPort bootstrapAddressFor(String virtualCluster, Configuration config, String gateway,
+                                               BiFunction<Optional<String>, Integer, Integer> portResolver) {
+        var vc = config.virtualClusters().stream()
+                .filter(v -> v.name().equals(virtualCluster))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config"));
+        var strategy = vc.gateways().stream()
+                .filter(g -> g.name().equals(gateway))
+                .map(g -> g.buildNodeIdentificationStrategy(virtualCluster))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
+        var bootstrapAddress = strategy.getClusterBootstrapAddress();
+        return new HostPort(bootstrapAddress.host(), portResolver.apply(strategy.getBindAddress(), bootstrapAddress.port()));
     }
 
     public static VirtualClusterGatewayBuilder defaultGatewayBuilder() {

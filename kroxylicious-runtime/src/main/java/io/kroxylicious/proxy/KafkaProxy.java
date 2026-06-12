@@ -62,7 +62,6 @@ import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
-import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
@@ -519,8 +518,8 @@ public final class KafkaProxy implements AutoCloseable {
      * @return the actual local port the proxy is listening on
      */
     @VisibleForTesting
-    int listeningPort(@Nullable String bindAddress, int port) {
-        return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
+    public int listeningPort(@Nullable String bindAddress, int port) {
+        return endpointRegistry.localPortFor(Optional.ofNullable(bindAddress), port);
     }
 
     @Override

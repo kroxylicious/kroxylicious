@@ -111,4 +111,14 @@ public interface EndpointGateway {
      */
     String name();
 
+    /**
+     * Notifies the gateway of the actual port assigned by the OS when the configured port was 0.
+     * Called by the endpoint registry after the listening socket is bound.
+     * No-op when the configured port is non-zero.
+     *
+     * @param actualPort the actual port the OS assigned
+     */
+    default void resolveActualPort(int actualPort) {
+    }
+
 }

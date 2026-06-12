@@ -53,6 +53,7 @@ import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.micrometer.CommonTagsHook;
 import io.kroxylicious.proxy.micrometer.StandardBindersHook;
 import io.kroxylicious.proxy.service.HostPort;
@@ -93,7 +94,7 @@ class MetricsIT {
     private static final HostPort PORT_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("localhost", 9092);
     private static final String SNI_IDENTIFIES_BROKER_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
 
-    private static final HostPort SNI_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("bootstrap." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS, 9192);
+    private static final HostPort SNI_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("bootstrap." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS, EndpointRegistry.OS_ASSIGNED_PORT);
     private static final String SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS;
 
     static KafkaCluster cluster; // Injected once by KafkaClusterExtension
