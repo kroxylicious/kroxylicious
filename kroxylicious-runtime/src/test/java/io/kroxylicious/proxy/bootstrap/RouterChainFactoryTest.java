@@ -191,6 +191,26 @@ class RouterChainFactoryTest {
     }
 
     @Test
+    void shouldPassRouteNamesToContext() {
+        var capturedContext = new AtomicReference<RouterFactoryContext>();
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                capturedContext.set(context);
+                return super.initialize(context, config);
+            }
+        });
+        var routes = List.of(
+                new RouteDefinition("alpha", 0, null, new RouteTarget("c1", null)),
+                new RouteDefinition("beta", 1, null, new RouteTarget("c2", null)));
+        var rd = new RouterDefinition("myRouter", TestRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "myRouter");
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
+            assertThat(capturedContext.get().routeNames()).containsExactlyInAnyOrder("alpha", "beta");
+        }
+    }
+
+    @Test
     void shouldInitialiseSameRouterSeparatelyPerVirtualCluster() {
         var initCount = new AtomicInteger(0);
         var pfr = testPfrWith(new TestRouterFactory() {

@@ -21,10 +21,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TopicPartitionRouterFactoryTest {
 
     private final TopicPartitionRouterFactory factory = new TopicPartitionRouterFactory();
-    private final RouterFactoryContext context = testContext("testVc", "testRouter");
 
     @Test
     void shouldInitialiseWithDefaultRouteOnly() {
+        var context = testContext(Set.of("fallback"));
         var config = new TopicPartitionRouterConfig("fallback", List.of());
 
         var initData = factory.initialize(context, config);
@@ -34,6 +34,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldInitialiseWithTopicRoutes() {
+        var context = testContext(Set.of("cluster-a", "cluster-b", "default-route"));
         var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new RouteConfig("cluster-a", List.of("orders.", "payments.")),
                 new RouteConfig("cluster-b", List.of("logs."))));
@@ -49,6 +50,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldInitialiseWithExplicitTopics() {
+        var context = testContext(Set.of("cluster-a", "cluster-b", "default-route"));
         var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new RouteConfig("cluster-a", List.of("orders."), null, null),
                 new RouteConfig("cluster-b", null, List.of("special-topic"), null)));
@@ -64,6 +66,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldInitialiseWithSubjects() {
+        var context = testContext(Set.of("cluster-a", "cluster-b", "default-route"));
         var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new RouteConfig("cluster-a", List.of("a."), null, null),
                 new RouteConfig("cluster-b", List.of("b."), null, List.of("bob"))));
@@ -75,6 +78,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectNoRoutesAndNoDefault() {
+        var context = testContext(Set.of());
         var config = new TopicPartitionRouterConfig(null, List.of());
 
         assertThatThrownBy(() -> factory.initialize(context, config))
@@ -84,6 +88,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectDuplicatePrefixOnDifferentRoutes() {
+        var context = testContext(Set.of("a", "b", "default"));
         var config = new TopicPartitionRouterConfig("default", List.of(
                 new RouteConfig("a", List.of("orders.")),
                 new RouteConfig("b", List.of("orders."))));
@@ -96,6 +101,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectOverlappingPrefixesOnDifferentRoutes() {
+        var context = testContext(Set.of("a", "b", "default"));
         var config = new TopicPartitionRouterConfig("default", List.of(
                 new RouteConfig("a", List.of("orders.")),
                 new RouteConfig("b", List.of("orders.uk."))));
@@ -107,6 +113,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectDuplicateExplicitTopicOnDifferentRoutes() {
+        var context = testContext(Set.of("a", "b", "default"));
         var config = new TopicPartitionRouterConfig("default", List.of(
                 new RouteConfig("a", null, List.of("my-topic"), null),
                 new RouteConfig("b", null, List.of("my-topic"), null)));
@@ -119,6 +126,7 @@ class TopicPartitionRouterFactoryTest {
 
     @Test
     void shouldRejectDuplicateSubjectOnDifferentRoutes() {
+        var context = testContext(Set.of("a", "b", "default"));
         var config = new TopicPartitionRouterConfig("default", List.of(
                 new RouteConfig("a", List.of("a."), null, List.of("bob")),
                 new RouteConfig("b", List.of("b."), null, List.of("bob"))));
@@ -130,7 +138,33 @@ class TopicPartitionRouterFactoryTest {
     }
 
     @Test
+    void shouldRejectRouteConfigNameNotInRouteNames() {
+        var context = testContext(Set.of("cluster-a", "default"));
+        var config = new TopicPartitionRouterConfig("default", List.of(
+                new RouteConfig("cluster-a", List.of("a.")),
+                new RouteConfig("unknown-route", List.of("b."))));
+
+        assertThatThrownBy(() -> factory.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("unknown-route")
+                .hasMessageContaining("not defined");
+    }
+
+    @Test
+    void shouldRejectDefaultRouteNotInRouteNames() {
+        var context = testContext(Set.of("cluster-a"));
+        var config = new TopicPartitionRouterConfig("no-such-route", List.of(
+                new RouteConfig("cluster-a", List.of("a."))));
+
+        assertThatThrownBy(() -> factory.initialize(context, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessageContaining("no-such-route")
+                .hasMessageContaining("not defined");
+    }
+
+    @Test
     void shouldCreateRouter() {
+        var context = testContext(Set.of("cluster-a", "default-route"));
         var config = new TopicPartitionRouterConfig("default-route", List.of(
                 new RouteConfig("cluster-a", List.of("orders."))));
 
@@ -141,16 +175,21 @@ class TopicPartitionRouterFactoryTest {
         assertThat(router.staticRoutes()).isNotEmpty();
     }
 
-    private static RouterFactoryContext testContext(String vcName, String routerName) {
+    private static RouterFactoryContext testContext(Set<String> routeNames) {
         return new RouterFactoryContext() {
             @Override
             public String virtualClusterName() {
-                return vcName;
+                return "testVc";
             }
 
             @Override
             public String routerName() {
-                return routerName;
+                return "testRouter";
+            }
+
+            @Override
+            public Set<String> routeNames() {
+                return routeNames;
             }
 
             @Override
