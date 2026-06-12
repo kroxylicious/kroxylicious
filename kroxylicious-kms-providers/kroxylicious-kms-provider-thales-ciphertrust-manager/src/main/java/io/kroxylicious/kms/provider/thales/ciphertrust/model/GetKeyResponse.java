@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.provider.thales.ciphertrust.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -21,4 +23,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record GetKeyResponse(
                              @JsonProperty("id") String id,
                              @JsonProperty("name") String name,
-                             @JsonProperty("algorithm") String algorithm) {}
+                             @JsonProperty("algorithm") String algorithm) {
+
+    /**
+     * Constructs a get key response.
+     */
+    public GetKeyResponse {
+        Objects.requireNonNull(id, "id cannot be null");
+        Objects.requireNonNull(name, "name cannot be null");
+        Objects.requireNonNull(algorithm, "algorithm cannot be null");
+    }
+}
