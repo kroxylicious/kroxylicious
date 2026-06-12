@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
-import io.kroxylicious.proxy.config.TargetClusterDefinition;
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -77,8 +77,8 @@ class RoutingMultiBackendIT {
     }
 
     private ConfigurationBuilder routingConfig() {
-        var targetA = new TargetClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
-        var targetB = new TargetClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+        var targetA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var targetB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
 
         var routeA = new RouteDefinition("route-a", null, new RouteTarget("cluster-a", null));
         var routeB = new RouteDefinition("route-b", null, new RouteTarget("cluster-b", null));
