@@ -201,15 +201,14 @@ public class VirtualClusterRegistry implements AutoCloseable {
      *
      * <p>State handling matches the proxy-wide shutdown semantics:
      * <ul>
-     *   <li>{@code Serving} → start draining, then transition to {@code Stopped} once
-     *       connections have drained; fires {@link #onVirtualClusterStopped} with empty cause</li>
-     *   <li>{@code Draining} (e.g. concurrent shutdown / reconfigure) → join the existing
-     *       drain future, then transition to {@code Stopped}; fires callback with empty cause</li>
-     *   <li>{@code Failed} → transition to {@code Stopped} synchronously; fires callback with
+     *   <li>{@code Serving} → begin draining, then close on lifecycle thread when drain completes</li>
+     *   <li>{@code Draining} → join the existing drain (concurrent shutdown / hot-reload),
+     *       then close on lifecycle thread when drain completes</li>
+     *   <li>{@code Failed} → close synchronously on the caller's thread; callback fires with
      *       the prior failure cause</li>
-     *   <li>{@code Stopped} → no-op (cluster is already terminal)</li>
-     *   <li>{@code Initializing} → transition to {@code Stopped} synchronously; fires callback
-     *       with empty cause</li>
+     *   <li>{@code Initializing} → close synchronously on the caller's thread; callback fires
+     *       with no failure cause</li>
+     *   <li>{@code Stopped} → no-op (already terminal)</li>
      * </ul>
      *
      * <h2>Entries are retained in {@link #entriesByCluster} after reaching {@code Stopped}.</h2>
@@ -225,49 +224,43 @@ public class VirtualClusterRegistry implements AutoCloseable {
     private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
         var state = lifecycle.state();
         if (state instanceof VirtualClusterLifecycleState.Serving) {
-            // Dispatch the close + callback to the lifecycle executor. A connection's drain
-            // future completes on its Netty event loop and a default thenRun would inherit that
-            // thread; dispatching here makes "neither initialize nor close runs on a Netty event
-            // loop" a structural guarantee. FilterFactory.close() may do blocking work
-            // (closing KMS/HTTP clients) which would otherwise stall connection processing.
             return lifecycle.startDraining()
                     .thenRunAsync(() -> {
                         lifecycle.drainComplete();
-                        closeModel(clusterName);
-                        onVirtualClusterStopped.accept(clusterName, Optional.empty());
+                        closeAndFireStopped(clusterName, Optional.empty());
                     }, lifecycleExecutor);
         }
         else if (state instanceof VirtualClusterLifecycleState.Draining) {
-            // Pre-existing drain (e.g. concurrent shutdown or hot-reload) — join it rather
-            // than starting a new one. Same lifecycle-executor dispatch as the Serving path.
             return lifecycle.drainFuture()
                     .thenRunAsync(() -> {
                         lifecycle.drainComplete();
-                        closeModel(clusterName);
-                        onVirtualClusterStopped.accept(clusterName, Optional.empty());
+                        closeAndFireStopped(clusterName, Optional.empty());
                     }, lifecycleExecutor);
         }
         else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
-            // Every closeModel call runs on the same thread,
-            // regardless of which lifecycle state triggered it.
             lifecycle.stop();
-            return CompletableFuture.runAsync(() -> {
-                closeModel(clusterName);
-                onVirtualClusterStopped.accept(clusterName, Optional.of(failed.cause()));
-            }, lifecycleExecutor);
+            closeAndFireStopped(clusterName, Optional.of(failed.cause()));
+            return CompletableFuture.completedFuture(null);
         }
         else if (state instanceof VirtualClusterLifecycleState.Stopped) {
-            // Already stopped, no need to close() again
             return CompletableFuture.completedFuture(null);
         }
         else {
-            // Initializing — transition to Stopped via the dedicated stop() method.
+            // Initializing
             lifecycle.stop();
-            return CompletableFuture.runAsync(() -> {
-                closeModel(clusterName);
-                onVirtualClusterStopped.accept(clusterName, Optional.empty());
-            }, lifecycleExecutor);
+            closeAndFireStopped(clusterName, Optional.empty());
+            return CompletableFuture.completedFuture(null);
         }
+    }
+
+    /**
+     * The convergence point for every transition-to-{@code Stopped} branch of
+     * {@link #shutdownCluster}: closes the cluster's model (which calls
+     * {@code FilterFactory.close()}) and fires the {@link #onVirtualClusterStopped} callback.
+     */
+    private void closeAndFireStopped(String clusterName, Optional<Throwable> failureCause) {
+        closeModel(clusterName);
+        onVirtualClusterStopped.accept(clusterName, failureCause);
     }
 
     /**
