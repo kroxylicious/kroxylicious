@@ -426,7 +426,7 @@ class ConsumerGroupRoutingIT {
 
         var vc = new VirtualClusterBuilder()
                 .withName("demo")
-                .withRouter("topic-router")
+                .withTarget(new RouteTarget(null, "topic-router"))
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192")
                         .editPortIdentifiesNode()
                         .addToNodeIdRanges(new NamedRange("brokers", 0, 5))
@@ -435,7 +435,7 @@ class ConsumerGroupRoutingIT {
                 .build();
 
         return baseConfigurationBuilder()
-                .addToTargetClusters(targetA, targetB)
+                .addToClusterDefinitions(targetA, targetB)
                 .addToRouterDefinitions(routerDef)
                 .addToFilterDefinitions(saslFilter)
                 .addToDefaultFilters(saslFilter.name())
