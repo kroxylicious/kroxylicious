@@ -657,7 +657,7 @@ public class CipherTrustMockServer {
                 String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
                 String name = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
 
-                // Find the key with highest version for this name
+                // Find the key with the highest version for this name
                 GetKeyResponse keyResponse = keyStore.findKeyByNameWithHighestVersion(name);
 
                 if (keyResponse == null) {
@@ -894,6 +894,7 @@ public class CipherTrustMockServer {
          * Find the key with the highest version for a given name (handles rotation).
          * @return the key with highest version, or null if no key found
          */
+        @Nullable
         GetKeyResponse findKeyByNameWithHighestVersion(String name) {
             return keysById.values().stream()
                     .filter(m -> m.name.equals(name))
