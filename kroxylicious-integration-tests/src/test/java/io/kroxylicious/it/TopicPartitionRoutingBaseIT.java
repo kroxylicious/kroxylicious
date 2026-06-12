@@ -140,8 +140,8 @@ abstract class TopicPartitionRoutingBaseIT {
         var targetA = new ClusterDefinition("cluster-a", a.getBootstrapServers(), null);
         var targetB = new ClusterDefinition("cluster-b", b.getBootstrapServers(), null);
 
-        var routeA = new RouteDefinition("route-a", null, new RouteTarget("cluster-a", null));
-        var routeB = new RouteDefinition("route-b", null, new RouteTarget("cluster-b", null));
+        var routeA = new RouteDefinition("route-a", 0, null, new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, null, new RouteTarget("cluster-b", null));
 
         var routerConfig = new TopicPartitionRouterConfig(
                 "route-a",
