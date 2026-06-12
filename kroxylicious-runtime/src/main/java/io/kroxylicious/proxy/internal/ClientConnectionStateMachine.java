@@ -198,10 +198,10 @@ public class ClientConnectionStateMachine {
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
-        this(endpointBinding, transportSubjectBuilder, kafkaSession,
-                (remote, ccsm, vc, cn, ni) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn, ni));
+        this(endpointBinding, transportSubjectBuilder, kafkaSession, ServerConnectionStateMachine::new);
     }
 
+    @VisibleForTesting
     ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                  TransportSubjectBuilder transportSubjectBuilder,
                                  KafkaSession kafkaSession,

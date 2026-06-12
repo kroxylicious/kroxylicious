@@ -82,15 +82,8 @@ class KafkaProxyFrontendHandlerTest {
 
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession) {
-            @Override
-            ServerConnectionStateMachine createServerConnection(HostPort remote) {
-                return new ServerConnectionStateMachine(
-                        remote,
-                        this,
-                        virtualCluster(),
-                        clusterName(),
-                        nodeId()) {
+        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession,
+                (remote, ccsm, vc, cn, ni) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn, ni) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,
@@ -115,9 +108,7 @@ class KafkaProxyFrontendHandlerTest {
                         outboundChannel.pipeline().fireChannelRegistered();
                         return outboundChannel.newPromise();
                     }
-                };
-            }
-        };
+                });
     }
 
     private PluginFactoryRegistry pfr;
