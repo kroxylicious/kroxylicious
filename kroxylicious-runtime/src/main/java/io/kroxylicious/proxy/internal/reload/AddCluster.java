@@ -86,7 +86,7 @@ final class AddCluster implements ClusterOperation {
             model = modelSupplier.get();
         }
         catch (RuntimeException e) {
-            return Optional.of(reportFailure(CompletionExceptions.unwrap(e),
+            return Optional.of(reportFailure(e,
                     "reconfigure: failed to construct virtual cluster model"));
         }
 

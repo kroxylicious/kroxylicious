@@ -180,9 +180,7 @@ public record Configuration(
     }
 
     public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
-        var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
-                .stream()
-                .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
+        var filterDefinitionsByName = buildFilterDefinitionsByName();
 
         return virtualClusters.stream()
                 .map(virtualCluster -> {
@@ -202,9 +200,7 @@ public record Configuration(
      * @throws IllegalArgumentException if no virtual cluster with that name exists in this configuration
      */
     public VirtualClusterModel virtualClusterModel(PluginFactoryRegistry pfr, String clusterName) {
-        var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
-                .stream()
-                .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
+        var filterDefinitionsByName = buildFilterDefinitionsByName();
 
         return virtualClusters.stream()
                 .filter(virtualCluster -> virtualCluster.name().equals(clusterName))
@@ -214,6 +210,12 @@ public record Configuration(
                     return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
                 })
                 .orElseThrow(() -> new IllegalArgumentException("No virtual cluster named '" + clusterName + "' in this configuration"));
+    }
+
+    private Map<String, NamedFilterDefinition> buildFilterDefinitionsByName() {
+        return Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
+                .stream()
+                .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
     }
 
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,
