@@ -36,12 +36,12 @@ import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.EncryptRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.EncryptResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeyResponse;
-import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeysResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.RandomResponse;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.ErrorResponse;
+import io.kroxylicious.testing.kms.ciphertrust.model.GetKeysResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyResponse;
 
 import edu.umd.cs.findbugs.annotations.Nullable;

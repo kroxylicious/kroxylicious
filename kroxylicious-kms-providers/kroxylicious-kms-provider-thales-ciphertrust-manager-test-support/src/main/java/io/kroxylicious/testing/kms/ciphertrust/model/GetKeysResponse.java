@@ -4,12 +4,14 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.thales.ciphertrust.model;
+package io.kroxylicious.testing.kms.ciphertrust.model;
 
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeyResponse;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

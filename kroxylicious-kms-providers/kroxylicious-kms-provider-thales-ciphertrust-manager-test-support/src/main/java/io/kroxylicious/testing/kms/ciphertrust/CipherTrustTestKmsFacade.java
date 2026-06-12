@@ -33,7 +33,6 @@ import io.kroxylicious.kms.provider.thales.ciphertrust.config.UserCredentials;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeyResponse;
-import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeysResponse;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
@@ -41,6 +40,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
+import io.kroxylicious.testing.kms.ciphertrust.model.GetKeysResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyRequest;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 

@@ -5,11 +5,7 @@
  */
 
 /**
- * Model objects for CipherTrust Manager test facade operations.
- * <p>
- * Contains request/response records for test-specific API operations
- * not covered by the production model package.
- * </p>
+ * Model classes for CipherTrust Manager test support.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
