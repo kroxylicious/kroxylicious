@@ -21,6 +21,7 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetClusterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -49,7 +50,7 @@ class RoutingPassThroughIT {
         var targetCluster = new TargetClusterDefinition(TARGET_CLUSTER_NAME,
                 cluster.getBootstrapServers(), null);
 
-        var route = new RouteDefinition(ROUTE_NAME, null, TARGET_CLUSTER_NAME, null);
+        var route = new RouteDefinition(ROUTE_NAME, null, new RouteTarget(TARGET_CLUSTER_NAME, null));
 
         var routerConfig = new PassThroughRouterFactory.Config(ROUTE_NAME);
         var routerDef = new RouterDefinition(ROUTER_NAME,
