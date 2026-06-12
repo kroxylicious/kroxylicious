@@ -70,7 +70,7 @@
         <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
-        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.1.4</apicurio-schema-validation.version>
         <apicurio-registry.version>3.2.4</apicurio-registry.version>
         <kiota.version>0.0.35</kiota.version>
