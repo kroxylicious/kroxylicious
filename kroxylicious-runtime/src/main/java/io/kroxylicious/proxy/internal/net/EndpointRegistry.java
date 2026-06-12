@@ -221,6 +221,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                         rollbackRelatedBindings(virtualClusterModel, t, future);
                     }
                     else {
+                        if (key.port() == OS_ASSIGNED_PORT) {
+                            virtualClusterModel.resolveActualPort(localPortFor(key.bindingAddress(), key.port()));
+                        }
                         handleSuccessfulBinding(bootstrapEndpointFuture, future);
                     }
                 });
@@ -498,6 +501,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         return lcr.bindingStage().thenApply(acceptorChannel -> {
+            acceptorChannel.attr(Endpoint.CONFIGURED_ENDPOINT).setIfAbsent(key);
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
