@@ -1,0 +1,951 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.testing.kms.ciphertrust;
+
+import java.nio.file.Path;
+import java.security.KeyPair;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.extension.ResponseDefinitionTransformerV2;
+import com.github.tomakehurst.wiremock.http.ResponseDefinition;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
+
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptRequest;
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptResponse;
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.EncryptRequest;
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.EncryptResponse;
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeyResponse;
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.RandomResponse;
+import io.kroxylicious.testing.certificate.CertificateGenerator;
+import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
+import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyResponse;
+import io.kroxylicious.testing.kms.ciphertrust.model.ErrorResponse;
+import io.kroxylicious.testing.kms.ciphertrust.model.GetKeysResponse;
+import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyResponse;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
+import static com.github.tomakehurst.wiremock.client.WireMock.delete;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
+
+/**
+ * WireMock-based mock server simulating CipherTrust Manager REST API.
+ * <p>
+ * Implements real AES-GCM encryption/decryption for realistic testing.
+ * Stores KEKs in-memory and validates JWT tokens.
+ * </p>
+ */
+public class CipherTrustMockServer {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String MOCK_JWT_TOKEN = "mock-jwt-token";
+    private static final String MOCK_REFRESH_TOKEN = "mock-refresh-token";
+    private static final int TOKEN_DURATION = 300; // 5 minutes
+    private static final int GCM_TAG_LENGTH_BITS = 128;
+    private static final int GCM_IV_LENGTH_BYTES = 12;
+    private static final String AES_GCM_CIPHER = "AES/GCM/NoPadding";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String JSON_CONTENT_TYPE = "application/json";
+    private final WireMockServer server;
+    private final boolean useTls;
+
+    @Nullable
+    private X509Certificate serverCertificate;
+
+    /**
+     * Create a CipherTrust mock server using HTTP.
+     */
+    public CipherTrustMockServer() {
+        this(false);
+    }
+
+    /**
+     * Create a CipherTrust mock server with optional TLS support.
+     *
+     * @param useTls if true, configure HTTPS with self-signed certificate; if false, use HTTP
+     */
+    public CipherTrustMockServer(boolean useTls) {
+        this.useTls = useTls;
+        SecureRandom secureRandom;
+        try {
+            secureRandom = SecureRandom.getInstanceStrong();
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to initialize SecureRandom", e);
+        }
+
+        VersionedKeyStore keyStore = new VersionedKeyStore();
+        WireMockConfiguration config = WireMockConfiguration.options()
+                .extensions(
+                        new RandomBytesTransformer(secureRandom),
+                        new EncryptTransformer(keyStore, secureRandom),
+                        new DecryptTransformer(keyStore),
+                        new CreateKeyTransformer(keyStore),
+                        new QueryKeyTransformer(keyStore),
+                        new GetKeyByNameTransformer(keyStore),
+                        new RotateKeyTransformer(keyStore),
+                        new DeleteKeyTransformer(keyStore));
+
+        if (useTls) {
+            config.dynamicHttpsPort();
+            configureTls(config);
+        }
+        else {
+            config.dynamicPort();
+        }
+
+        this.server = new WireMockServer(config);
+    }
+
+    private void configureTls(WireMockConfiguration config) {
+        try {
+            KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+            X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+            this.serverCertificate = certificate; // Store for later access
+            String storePassword = "changeit";
+            String keyPassword = "keypass";
+            CertificateGenerator.KeyStore keyStore = CertificateGenerator.createJksKeystore(
+                    keyPair,
+                    certificate,
+                    storePassword,
+                    keyPassword);
+
+            config.keystorePath(keyStore.path().toString())
+                    .keystorePassword(storePassword)
+                    .keyManagerPassword(keyPassword);
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to configure TLS", e);
+        }
+    }
+
+    /**
+     * Start the mock server and configure endpoints.
+     */
+    public void start() {
+        server.start();
+        setupEndpoints();
+    }
+
+    /**
+     * Stop the mock server.
+     */
+    public void stop() {
+        if (server != null && server.isRunning()) {
+            server.stop();
+        }
+    }
+
+    /**
+     * Get the base URL of the mock server.
+     *
+     * @return base URL (http or https depending on TLS configuration)
+     */
+    public String getBaseUrl() {
+        String scheme = useTls ? "https" : "http";
+        int port = useTls ? server.httpsPort() : server.port();
+        return scheme + "://localhost:" + port;
+    }
+
+    /**
+     * Check if the mock server is using TLS.
+     *
+     * @return true if using HTTPS, false if using HTTP
+     */
+    public boolean isHttps() {
+        return useTls;
+    }
+
+    /**
+     * Get the server certificate used by the mock server.
+     *
+     * @return the X509 certificate
+     * @throws IllegalStateException if TLS is not enabled
+     */
+    public X509Certificate getServerCertificate() {
+        if (!useTls) {
+            throw new IllegalStateException("Mock server not configured with TLS");
+        }
+        return serverCertificate;
+    }
+
+    /**
+     * Get the server certificate as a PEM file.
+     *
+     * @return path to temporary PEM file containing the server certificate
+     * @throws IllegalStateException if TLS is not enabled
+     */
+    public Path getServerCertificatePem() {
+        return CertificateGenerator.generateCertPem(getServerCertificate());
+    }
+
+    private void setupEndpoints() {
+        setupAuthEndpoint();
+        setupRandomEndpoint();
+        setupEncryptEndpoint();
+        setupDecryptEndpoint();
+        setupKeyManagementEndpoints();
+
+        // Catch-all for debugging - log unmatched requests
+        server.stubFor(WireMock.any(anyUrl())
+                .atPriority(10) // Low priority so specific stubs match first
+                .willReturn(aResponse()
+                        .withStatus(404)
+                        .withBody("No matching stub found")));
+    }
+
+    private void setupAuthEndpoint() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/auth/tokens/"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(createAuthResponse())));
+    }
+
+    private String createAuthResponse() {
+        try {
+            AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
+            return OBJECT_MAPPER.writeValueAsString(response);
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to create auth response", e);
+        }
+    }
+
+    private void setupRandomEndpoint() {
+        server.stubFor(get(urlPathMatching("/api/v1/vault/random.*"))
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("random-bytes"))); // Transformer will set body and headers
+    }
+
+    private String getBearerToken() {
+        return "Bearer " + MOCK_JWT_TOKEN;
+    }
+
+    private void setupEncryptEndpoint() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/crypto/encrypt"))
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .withHeader(CONTENT_TYPE_HEADER, equalTo(JSON_CONTENT_TYPE))
+                .withRequestBody(matchingJsonPath("$.id"))
+                .withRequestBody(matchingJsonPath("$.plaintext"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("encrypt"))); // Transformer will set body and headers
+    }
+
+    private void setupDecryptEndpoint() {
+        server.stubFor(post(urlPathEqualTo("/api/v1/crypto/decrypt"))
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .withHeader(CONTENT_TYPE_HEADER, equalTo(JSON_CONTENT_TYPE))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("decrypt"))); // Transformer will set body and headers
+    }
+
+    private void setupKeyManagementEndpoints() {
+        // Rotate key by name (create new version) - high priority, specific pattern
+        server.stubFor(post(urlPathMatching("/api/v1/vault/keys2/[^/]+/versions/"))
+                .withQueryParam("type", equalTo("name"))
+                .atPriority(1)
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("rotate-key"))); // Transformer will set body and headers
+
+        // Create key - high priority, exact path
+        server.stubFor(post(urlPathEqualTo("/api/v1/vault/keys2/"))
+                .atPriority(1)
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("create-key"))); // Transformer will set body and headers
+
+        // Delete key by ID with type=id parameter - high priority, specific HTTP method
+        server.stubFor(delete(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
+                .withQueryParam("type", equalTo("id"))
+                .atPriority(1)
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .willReturn(aResponse()
+                        .withStatus(204)
+                        .withTransformers("delete-key"))); // Transformer will set body and headers
+
+        // Get key by name with type=name parameter - higher priority than general query
+        server.stubFor(get(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
+                .withQueryParam("type", equalTo("name"))
+                .atPriority(2)
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("get-key-by-name"))); // Transformer will set body and headers
+
+        // Query keys (by name or labels) - lower priority, broader pattern
+        server.stubFor(get(urlPathMatching("/api/v1/vault/keys2.*"))
+                .atPriority(5)
+                .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers("query-key"))); // Transformer will set body and headers
+    }
+
+    // Transformer implementations
+
+    /**
+     * Base class for transformers that need access to the key store.
+     */
+    private abstract static class KeyStoreTransformer implements ResponseDefinitionTransformerV2 {
+        final VersionedKeyStore keyStore;
+
+        KeyStoreTransformer(VersionedKeyStore keyStore) {
+            this.keyStore = keyStore;
+        }
+
+        @Override
+        public boolean applyGlobally() {
+            return false;
+        }
+    }
+
+    private static class RandomBytesTransformer implements ResponseDefinitionTransformerV2 {
+        private final SecureRandom secureRandom;
+
+        RandomBytesTransformer(SecureRandom secureRandom) {
+            this.secureRandom = secureRandom;
+        }
+
+        @Override
+        public boolean applyGlobally() {
+            return false;
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                String query = serveEvent.getRequest().getUrl();
+                int bytesParam = 32; // default
+                if (query.contains("bytes=")) {
+                    String bytesStr = query.substring(query.indexOf("bytes=") + 6);
+                    if (bytesStr.contains("&")) {
+                        bytesStr = bytesStr.substring(0, bytesStr.indexOf("&"));
+                    }
+                    bytesParam = Integer.parseInt(bytesStr);
+                }
+
+                byte[] randomBytes = new byte[bytesParam];
+                secureRandom.nextBytes(randomBytes);
+
+                RandomResponse response = new RandomResponse(randomBytes);
+                String json = OBJECT_MAPPER.writeValueAsString(response);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Random bytes generation failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "random-bytes";
+        }
+    }
+
+    private static class EncryptTransformer extends KeyStoreTransformer {
+        private final SecureRandom secureRandom;
+
+        EncryptTransformer(VersionedKeyStore keyStore, SecureRandom secureRandom) {
+            super(keyStore);
+            this.secureRandom = secureRandom;
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                EncryptRequest request = OBJECT_MAPPER.readValue(
+                        serveEvent.getRequest().getBody(), EncryptRequest.class);
+                String keyRef = request.id();
+                byte[] plaintext = request.plaintext();
+                String type = request.type();
+
+                // NOTE: This mock server requires type="name" and performs direct name-based lookup.
+                // The 'id' field must contain a key name, not a key ID.
+                // This eliminates ambiguity and matches the explicit type behavior of real CTM.
+                if (!"name".equals(type)) {
+                    ErrorResponse errorResponse = new ErrorResponse(
+                            "type field must be 'name' (got: %s)".formatted(type == null ? "null" : type));
+                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
+                    return aResponse()
+                            .withStatus(400)
+                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                            .withBody(errorJson)
+                            .build();
+                }
+
+                // Direct name lookup only
+                VersionedKeyStore.KeyMetadata metadata = keyStore.getKeyMetadataByName(keyRef);
+                if (metadata == null) {
+                    ErrorResponse errorResponse = new ErrorResponse("Key not found");
+                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
+                    return aResponse()
+                            .withStatus(404)
+                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                            .withBody(errorJson)
+                            .build();
+                }
+
+                SecretKey kek = metadata.secretKey;
+                String keyId = metadata.id;
+                int version = metadata.version;
+
+                // Encrypt with AES-GCM
+                byte[] iv = new byte[GCM_IV_LENGTH_BYTES];
+                secureRandom.nextBytes(iv);
+
+                Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+                GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+                cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
+
+                byte[] ciphertextWithTag = cipher.doFinal(plaintext);
+                // Split ciphertext and tag
+                int ciphertextLength = ciphertextWithTag.length - (GCM_TAG_LENGTH_BITS / 8);
+                byte[] ciphertext = new byte[ciphertextLength];
+                byte[] tag = new byte[GCM_TAG_LENGTH_BITS / 8];
+                System.arraycopy(ciphertextWithTag, 0, ciphertext, 0, ciphertextLength);
+                System.arraycopy(ciphertextWithTag, ciphertextLength, tag, 0, tag.length);
+
+                // Return the actual key ID and version (from the highest-version key)
+                EncryptResponse response = new EncryptResponse(
+                        ciphertext,
+                        tag,
+                        keyId,
+                        version,
+                        "gcm",
+                        iv);
+
+                String json = OBJECT_MAPPER.writeValueAsString(response);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Encryption failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "encrypt";
+        }
+    }
+
+    private static class DecryptTransformer extends KeyStoreTransformer {
+
+        DecryptTransformer(VersionedKeyStore keyStore) {
+            super(keyStore);
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                DecryptRequest request = OBJECT_MAPPER.readValue(
+                        serveEvent.getRequest().getBody(), DecryptRequest.class);
+                String keyId = request.id();
+                byte[] ciphertext = request.ciphertext();
+                byte[] tag = request.tag();
+                byte[] iv = request.iv();
+
+                // Get the KEK (version parameter is ignored in this simplified model)
+                SecretKey kek = keyStore.getKey(keyId);
+                if (kek == null) {
+                    ErrorResponse errorResponse = new ErrorResponse("Key version not found");
+                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
+                    return aResponse()
+                            .withStatus(404)
+                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                            .withBody(errorJson)
+                            .build();
+                }
+
+                // Combine ciphertext and tag for GCM
+                byte[] ciphertextWithTag = new byte[ciphertext.length + tag.length];
+                System.arraycopy(ciphertext, 0, ciphertextWithTag, 0, ciphertext.length);
+                System.arraycopy(tag, 0, ciphertextWithTag, ciphertext.length, tag.length);
+
+                Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+                GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+                cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
+
+                byte[] plaintext = cipher.doFinal(ciphertextWithTag);
+
+                DecryptResponse response = new DecryptResponse(plaintext);
+
+                String json = OBJECT_MAPPER.writeValueAsString(response);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Decryption failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "decrypt";
+        }
+    }
+
+    private static class CreateKeyTransformer extends KeyStoreTransformer {
+
+        CreateKeyTransformer(VersionedKeyStore keyStore) {
+            super(keyStore);
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                CreateKeyRequest request = OBJECT_MAPPER.readValue(
+                        serveEvent.getRequest().getBody(), CreateKeyRequest.class);
+                String name = request.name();
+                Map<String, String> labels = request.labels();
+                String keyId = UUID.randomUUID().toString();
+
+                // Create and store key at version 0 with labels
+                keyStore.createKey(keyId, name, labels != null ? labels : Map.of());
+
+                CreateKeyResponse response = new CreateKeyResponse(keyId, name, "aes");
+
+                String json = OBJECT_MAPPER.writeValueAsString(response);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Key creation failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "create-key";
+        }
+    }
+
+    private static class QueryKeyTransformer extends KeyStoreTransformer {
+
+        QueryKeyTransformer(VersionedKeyStore keyStore) {
+            super(keyStore);
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                String query = serveEvent.getRequest().getUrl();
+                String name = extractQueryParam(query, "name");
+                String labelFilter = extractQueryParam(query, "labels");
+                int skip = Integer.parseInt(extractQueryParam(query, "skip", "0"));
+                int limit = Integer.parseInt(extractQueryParam(query, "limit", "10"));
+
+                List<GetKeyResponse> matchingKeys;
+                if (name != null) {
+                    // Query by name
+                    matchingKeys = keyStore.findByName(name);
+                }
+                else if (labelFilter != null) {
+                    // Query by labels (format: key=value)
+                    matchingKeys = keyStore.findByLabels(labelFilter);
+                }
+                else {
+                    // Return all keys
+                    matchingKeys = keyStore.findAll();
+                }
+
+                // Apply pagination
+                int total = matchingKeys.size();
+                int endIndex = Math.min(skip + limit, total);
+                List<GetKeyResponse> page = matchingKeys.subList(skip, endIndex);
+
+                GetKeysResponse response = new GetKeysResponse(skip, limit, total, page.isEmpty() ? null : page);
+
+                String json = OBJECT_MAPPER.writeValueAsString(response);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Key query failed", e);
+            }
+        }
+
+        @Nullable
+        private String extractQueryParam(String query, String param) {
+            return extractQueryParam(query, param, null);
+        }
+
+        @Nullable
+        private String extractQueryParam(String query, String param, @Nullable String defaultValue) {
+            String searchStr = param + "=";
+            if (query.contains(searchStr)) {
+                String value = query.substring(query.indexOf(searchStr) + searchStr.length());
+                if (value.contains("&")) {
+                    value = value.substring(0, value.indexOf("&"));
+                }
+                return value;
+            }
+            return defaultValue;
+        }
+
+        @Override
+        public String getName() {
+            return "query-key";
+        }
+    }
+
+    private static class GetKeyByNameTransformer extends KeyStoreTransformer {
+
+        GetKeyByNameTransformer(VersionedKeyStore keyStore) {
+            super(keyStore);
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                // Extract name from URL path (last segment before query params)
+                String path = serveEvent.getRequest().getUrl();
+                // URL is like /api/v1/vault/keys2/{name}?type=name
+                String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
+                String name = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
+
+                // Find the key with the highest version for this name
+                GetKeyResponse keyResponse = keyStore.findKeyByNameWithHighestVersion(name);
+
+                if (keyResponse == null) {
+                    ErrorResponse errorResponse = new ErrorResponse("Key not found: " + name);
+                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
+                    return aResponse()
+                            .withStatus(404)
+                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                            .withBody(errorJson)
+                            .build();
+                }
+
+                String json = OBJECT_MAPPER.writeValueAsString(keyResponse);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Get key by name failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "get-key-by-name";
+        }
+    }
+
+    private static class RotateKeyTransformer extends KeyStoreTransformer {
+
+        RotateKeyTransformer(VersionedKeyStore keyStore) {
+            super(keyStore);
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                // Extract key name from URL path like /api/v1/vault/keys2/{name}/versions/?type=name
+                String path = serveEvent.getRequest().getUrl();
+                String name = path.substring(path.indexOf("/keys2/") + 7);
+                name = name.substring(0, name.indexOf("/versions/"));
+
+                String newKeyId = keyStore.rotateKeyByName(name);
+                if (newKeyId == null) {
+                    ErrorResponse errorResponse = new ErrorResponse("Key not found");
+                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
+                    return aResponse()
+                            .withStatus(404)
+                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                            .withBody(errorJson)
+                            .build();
+                }
+
+                // Return the new key ID
+                RotateKeyResponse response = new RotateKeyResponse(newKeyId);
+
+                String json = OBJECT_MAPPER.writeValueAsString(response);
+                return aResponse()
+                        .withStatus(200)
+                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                        .withBody(json)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Key rotation failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "rotate-key";
+        }
+    }
+
+    private static class DeleteKeyTransformer extends KeyStoreTransformer {
+
+        DeleteKeyTransformer(VersionedKeyStore keyStore) {
+            super(keyStore);
+        }
+
+        @Override
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                // Extract the key ID from URL path like '/api/v1/vault/keys2/{id}'
+                String path = serveEvent.getRequest().getUrl();
+                String keyId = path.substring(path.lastIndexOf("/") + 1);
+                if (keyId.contains("?")) {
+                    keyId = keyId.substring(0, keyId.indexOf("?"));
+                }
+
+                keyStore.deleteKey(keyId);
+
+                return aResponse()
+                        .withStatus(204)
+                        .build();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Key deletion failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return "delete-key";
+        }
+    }
+
+    /**
+     * Versioned key store for CTM key versioning support.
+     * Each key can have multiple versions, with version 0 being the initial version.
+     * Also stores key metadata including name and labels.
+     */
+    private static class VersionedKeyStore {
+        private static SecretKey generateAesKey() {
+            try {
+                KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+                keyGen.init(256);
+                return keyGen.generateKey();
+            }
+            catch (Exception e) {
+                throw new MockServerException("Failed to generate AES key", e);
+            }
+        }
+
+        private static class KeyMetadata {
+            final String id;
+            final String name;
+            final Map<String, String> labels;
+            final SecretKey secretKey; // Single key, not multiple versions
+            final int version; // Version number for this key
+
+            KeyMetadata(String id, String name, Map<String, String> labels, SecretKey secretKey, int version) {
+                this.id = id;
+                this.name = name;
+                this.labels = new HashMap<>(labels);
+                this.secretKey = secretKey;
+                this.version = version;
+            }
+        }
+
+        private final Map<String, KeyMetadata> keysById = new ConcurrentHashMap<>();
+
+        /**
+         * Create a new key at version 0 with metadata.
+         */
+        void createKey(String keyId, String name, Map<String, String> labels) {
+            SecretKey secretKey = generateAesKey();
+            keysById.put(keyId, new KeyMetadata(keyId, name, labels, secretKey, 0));
+        }
+
+        /**
+         * Rotate a key - creates a NEW key with NEW ID, SAME name, incremented version.
+         * @return the new key ID, or null if the old key doesn't exist
+         */
+        @Nullable
+        String rotateKey(String keyId) {
+            KeyMetadata oldKey = keysById.get(keyId);
+            if (oldKey == null) {
+                return null;
+            }
+
+            // Calculate new version: highest existing version for this name + 1
+            int newVersion = keysById.values().stream()
+                    .filter(m -> m.name.equals(oldKey.name))
+                    .mapToInt(m -> m.version)
+                    .max()
+                    .orElse(-1) + 1;
+
+            // Create completely NEW key with NEW ID, NEW secret, SAME name, higher version
+            String newKeyId = UUID.randomUUID().toString();
+            SecretKey newSecretKey = generateAesKey();
+            KeyMetadata newKey = new KeyMetadata(newKeyId, oldKey.name, oldKey.labels, newSecretKey, newVersion);
+
+            keysById.put(newKeyId, newKey);
+
+            return newKeyId;
+        }
+
+        /**
+         * Rotate a key by name - creates a NEW key with NEW ID, SAME name, incremented version.
+         * @param name the key name
+         * @return the new key ID, or null if no key with that name exists
+         */
+        @Nullable
+        String rotateKeyByName(String name) {
+            // Find the key with highest version for this name
+            KeyMetadata currentKey = keysById.values().stream()
+                    .filter(m -> m.name.equals(name))
+                    .max(Comparator.comparingInt(m -> m.version))
+                    .orElse(null);
+
+            if (currentKey == null) {
+                return null; // No key found with this name
+            }
+
+            // Delegate to existing rotateKey() method using the current key's ID
+            return rotateKey(currentKey.id);
+        }
+
+        /**
+         * Get the secret key for a given key ID.
+         */
+        @Nullable
+        SecretKey getKey(String keyId) {
+            KeyMetadata metadata = keysById.get(keyId);
+            return metadata != null ? metadata.secretKey : null;
+        }
+
+        /**
+         * Get key metadata by name (returns the highest version).
+         * @param name the key name
+         * @return the key metadata with the highest version, or null if not found
+         */
+        KeyMetadata getKeyMetadataByName(String name) {
+            return keysById.values().stream()
+                    .filter(m -> m.name.equals(name))
+                    .max(Comparator.comparingInt(m -> m.version))
+                    .orElse(null);
+        }
+
+        /**
+         * Find keys by name.
+         */
+        List<GetKeyResponse> findByName(String name) {
+            return keysById.values().stream()
+                    .filter(m -> m.name.equals(name))
+                    .map(this::toGetKeyResponse)
+                    .toList();
+        }
+
+        /**
+         * Find the key with the highest version for a given name (handles rotation).
+         * @return the key with highest version, or null if no key found
+         */
+        @Nullable
+        GetKeyResponse findKeyByNameWithHighestVersion(String name) {
+            return keysById.values().stream()
+                    .filter(m -> m.name.equals(name))
+                    .max(Comparator.comparingInt(m -> m.version))
+                    .map(this::toGetKeyResponse)
+                    .orElse(null);
+        }
+
+        /**
+         * Find keys by label filter (format: key=value).
+         */
+        List<GetKeyResponse> findByLabels(String labelFilter) {
+            // Parse label filter: key=value
+            int eqIndex = labelFilter.indexOf('=');
+            if (eqIndex < 0) {
+                return List.of();
+            }
+            String labelKey = labelFilter.substring(0, eqIndex);
+            String labelValue = labelFilter.substring(eqIndex + 1);
+
+            return keysById.values().stream()
+                    .filter(m -> labelValue.equals(m.labels.get(labelKey)))
+                    .map(this::toGetKeyResponse)
+                    .toList();
+        }
+
+        /**
+         * Find all keys.
+         */
+        List<GetKeyResponse> findAll() {
+            return keysById.values().stream()
+                    .map(this::toGetKeyResponse)
+                    .toList();
+        }
+
+        /**
+         * Delete a key and all its versions.
+         */
+        void deleteKey(String keyId) {
+            keysById.remove(keyId);
+        }
+
+        private GetKeyResponse toGetKeyResponse(KeyMetadata metadata) {
+            return new GetKeyResponse(metadata.id, metadata.name, "aes");
+        }
+    }
+
+    static class MockServerException extends RuntimeException {
+        MockServerException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+}
