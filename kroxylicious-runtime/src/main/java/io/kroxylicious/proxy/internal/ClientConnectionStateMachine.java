@@ -149,6 +149,7 @@ public class ClientConnectionStateMachine {
     @VisibleForTesting
     @Nullable
     Timer.Sample clientToProxyBackpressureTimer;
+    private final ServerConnectionFactory serverConnectionFactory;
 
     private final EndpointBinding endpointBinding;
 
@@ -197,9 +198,18 @@ public class ClientConnectionStateMachine {
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
+        this(endpointBinding, transportSubjectBuilder, kafkaSession, ServerConnectionStateMachine::new);
+    }
+
+    @VisibleForTesting
+    ClientConnectionStateMachine(EndpointBinding endpointBinding,
+                                 TransportSubjectBuilder transportSubjectBuilder,
+                                 KafkaSession kafkaSession,
+                                 ServerConnectionFactory serverConnectionFactory) {
         this.endpointBinding = endpointBinding;
         this.transportSubjectBuilder = transportSubjectBuilder;
         this.kafkaSession = kafkaSession;
+        this.serverConnectionFactory = serverConnectionFactory;
         var virtualCluster = endpointBinding.endpointGateway().virtualCluster();
 
         var nodeId = endpointBinding.nodeId();
@@ -784,14 +794,17 @@ public class ClientConnectionStateMachine {
                 .log("Upstream connection initiated for client");
     }
 
-    @VisibleForTesting
+    @FunctionalInterface
+    interface ServerConnectionFactory {
+        ServerConnectionStateMachine create(HostPort remote,
+                                            ClientConnectionStateMachine ccsm,
+                                            VirtualClusterModel virtualCluster,
+                                            String clusterName,
+                                            @Nullable Integer nodeId);
+    }
+
     ServerConnectionStateMachine createServerConnection(HostPort remote) {
-        return new ServerConnectionStateMachine(
-                remote,
-                this,
-                virtualCluster(),
-                clusterName(),
-                nodeId());
+        return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId());
     }
 
     /**
