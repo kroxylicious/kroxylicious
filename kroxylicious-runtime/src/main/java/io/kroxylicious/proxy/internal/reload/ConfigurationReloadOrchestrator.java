@@ -73,7 +73,7 @@ public class ConfigurationReloadOrchestrator {
                                            List<ChangeDetector> detectors) {
         this(initialConfiguration, detectors,
                 new OperationsPlanner(virtualClusterRegistry, endpointRegistry,
-                        config -> config.virtualClusterModel(pfr)));
+                        (config, clusterName) -> config.virtualClusterModel(pfr, clusterName)));
     }
 
     /**
