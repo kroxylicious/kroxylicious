@@ -33,13 +33,16 @@ being tested, not more setup.
 
 ## Given — minimum state, no assertions
 
-**Given provides only the minimum state needed to make When testable — nothing more.**
+**Given establishes the side effects the When block depends on — nothing more.** Ask: what
+does the When need to act on? Given should establish exactly that. Anything beyond it is
+characterising system behaviour, not establishing state.
+
 The confidence a test suite provides comes from two signals: the aggregate (many tests
 failing at once tells you something fundamental has snapped) and the individual (one test
-failing tells you precisely what is broken). A Given that does more than minimum setup
-corrupts both. It inflates the sea of red — tests that aren't about the broken thing start
-failing, making the aggregate harder to read. And it reduces the specificity of a single
-failure — you can no longer tell whether the precondition was wrong or the When produced
+failing tells you precisely what is broken). A Given that does more than establish the When's
+dependencies corrupts both. It inflates the sea of red — tests that aren't about the broken
+thing start failing, making the aggregate harder to read. And it reduces the specificity of a
+single failure — you can no longer tell whether the precondition was wrong or the When produced
 the wrong outcome.
 
 **Given must not contain assertions.** An assertion in Given gives the test two reasons to
