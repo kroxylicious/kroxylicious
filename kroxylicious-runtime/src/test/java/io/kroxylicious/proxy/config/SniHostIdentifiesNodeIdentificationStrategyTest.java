@@ -212,6 +212,17 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
+    void bootstrapPortZeroIsAccepted() {
+        var config = new SniHostIdentifiesNodeIdentificationStrategy("boot.kafka:0", "broker-$(nodeId).kafka");
+        assertThat(config.getBootstrapAddressPattern()).isEqualTo("boot.kafka");
+        assertThat(config.getAdvertisedPort()).isEqualTo(0);
+        var strategy = config.buildStrategy("cluster");
+        assertThat(strategy.getClusterBootstrapAddress()).isEqualTo(HostPort.parse("boot.kafka:0"));
+        assertThat(strategy.getBrokerAddress(0).port()).isEqualTo(0);
+        assertThat(strategy.getSharedPorts()).containsExactly(0);
+    }
+
+    @Test
     void containsOpenshiftRoutePlaceholderToken() {
         var strategy = new SniHostIdentifiesNodeIdentificationStrategy("one-bootstrap.$(unresolvedRouteHost):9291", "one-$(nodeId).$(unresolvedRouteHost):443");
 
