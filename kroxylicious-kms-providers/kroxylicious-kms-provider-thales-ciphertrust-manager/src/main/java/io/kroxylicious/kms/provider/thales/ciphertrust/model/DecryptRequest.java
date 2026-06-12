@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.provider.thales.ciphertrust.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -26,4 +28,16 @@ public record DecryptRequest(
                              @JsonProperty("id") String id,
                              @JsonProperty("version") int version,
                              @JsonProperty("mode") String mode,
-                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty("iv") byte[] iv) {}
+                             @SuppressWarnings("ArrayRecordComponent") @JsonProperty("iv") byte[] iv) {
+
+    /**
+     * Constructs a decrypt request.
+     */
+    public DecryptRequest {
+        Objects.requireNonNull(ciphertext, "ciphertext cannot be null");
+        Objects.requireNonNull(tag, "tag cannot be null");
+        Objects.requireNonNull(id, "id cannot be null");
+        Objects.requireNonNull(mode, "mode cannot be null");
+        Objects.requireNonNull(iv, "iv cannot be null");
+    }
+}
