@@ -1024,7 +1024,9 @@ class VirtualClusterRegistryTest {
         var registry = new VirtualClusterRegistry(List.of(), flakyResolver, noOpCallback);
 
         // when — first call fails, second call must still complete on the same thread
-        assertThatThrownBy(() -> registry.resolveModel(mock(Configuration.class), CLUSTER_A));
+        assertThatThrownBy(() -> registry.resolveModel(mock(Configuration.class), CLUSTER_A))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("first call fails");
         var result = registry.resolveModel(mock(Configuration.class), CLUSTER_B);
 
         // then — second call succeeded AND landed on the same thread as the first. Same-thread
