@@ -185,10 +185,22 @@ class KafkaProtocolFilterReconcilerIT {
                 .build());
 
         // then
-        assertAllConditionsTrue(filterOne);
-        String newChecksum = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
-                .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
-        assertThat(newChecksum).isNotEqualTo(checksum);
+        // Editing the referent doesn't change the filter's metadata.generation, so an observedGeneration check
+        // alone is satisfied by the pre-edit state. Poll until the referent checksum changes (the reliable signal
+        // that the referent-triggered reconciliation completed) while confirming the conditions still hold (see #4018).
+        AWAIT.alias("referent checksum updated and conditions still true").untilAsserted(() -> {
+            var kpf = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne));
+            assertThat(kpf.getStatus()).isNotNull();
+            KafkaProtocolFilterStatusAssert
+                    .assertThat(kpf.getStatus())
+                    .hasObservedGenerationInSyncWithMetadataOf(kpf)
+                    .conditionList()
+                    .singleElement()
+                    .isResolvedRefsTrue(kpf);
+            String newChecksum = kpf.getMetadata().getAnnotations()
+                    .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
+            assertThat(newChecksum).isNotEqualTo(checksum);
+        });
     }
 
     @Test
@@ -204,10 +216,22 @@ class KafkaProtocolFilterReconcilerIT {
                 .build());
 
         // then
-        assertAllConditionsTrue(filterOne);
-        String newChecksum = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
-                .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
-        assertThat(newChecksum).isNotEqualTo(checksum);
+        // Editing the referent doesn't change the filter's metadata.generation, so an observedGeneration check
+        // alone is satisfied by the pre-edit state. Poll until the referent checksum changes (the reliable signal
+        // that the referent-triggered reconciliation completed) while confirming the conditions still hold (see #4018).
+        AWAIT.alias("referent checksum updated and conditions still true").untilAsserted(() -> {
+            var kpf = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne));
+            assertThat(kpf.getStatus()).isNotNull();
+            KafkaProtocolFilterStatusAssert
+                    .assertThat(kpf.getStatus())
+                    .hasObservedGenerationInSyncWithMetadataOf(kpf)
+                    .conditionList()
+                    .singleElement()
+                    .isResolvedRefsTrue(kpf);
+            String newChecksum = kpf.getMetadata().getAnnotations()
+                    .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
+            assertThat(newChecksum).isNotEqualTo(checksum);
+        });
     }
 
     @Test
