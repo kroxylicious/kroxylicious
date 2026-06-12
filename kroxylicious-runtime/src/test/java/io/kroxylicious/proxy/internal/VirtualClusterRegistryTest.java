@@ -12,6 +12,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
@@ -957,6 +959,81 @@ class VirtualClusterRegistryTest {
         assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
         verify(model).close();
         verify(callback).accept(CLUSTER_A, Optional.empty());
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Threading contract for resolveModel
+    //
+    // The structural claim VCR makes to plugin authors is that FilterFactory.initialize() (called
+    // transitively from the rawResolver during resolveModel) never runs on a Netty event loop —
+    // it runs on the dedicated lifecycle thread.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void resolveModelRunsRawResolverOffCallerThread() {
+        // given — a resolver that captures the thread on which it executes
+        var callerThread = Thread.currentThread();
+        var capturedThread = new AtomicReference<Thread>();
+        BiFunction<Configuration, String, VirtualClusterModel> capturingResolver = (cfg, name) -> {
+            capturedThread.set(Thread.currentThread());
+            return mockModel(name);
+        };
+        var registry = new VirtualClusterRegistry(List.of(), capturingResolver, noOpCallback);
+
+        // when
+        registry.resolveModel(mock(Configuration.class), CLUSTER_A);
+
+        // then — the resolver ran on a thread that is NOT the caller's thread and DOES match the
+        // lifecycle-thread name prefix. This is the structural no-event-loop guarantee.
+        assertThat(capturedThread.get()).isNotSameAs(callerThread);
+        assertThat(capturedThread.get().getName()).startsWith(VirtualClusterRegistry.LIFECYCLE_THREAD_NAME_PREFIX);
+    }
+
+    @Test
+    void resolveModelPropagatesRuntimeExceptionUnwrapped() {
+        // given — a resolver that throws a specific RuntimeException
+        var cause = new IllegalStateException("plugin init failed");
+        BiFunction<Configuration, String, VirtualClusterModel> failingResolver = (cfg, name) -> {
+            throw cause;
+        };
+        var registry = new VirtualClusterRegistry(List.of(), failingResolver, noOpCallback);
+
+        // when / then — the same RuntimeException instance is rethrown, NOT wrapped in
+        // CompletionException. AddCluster relies on this for catch-by-type when surfacing
+        // per-cluster ReconfigureError causes.
+        assertThatThrownBy(() -> registry.resolveModel(mock(Configuration.class), CLUSTER_A))
+                .isSameAs(cause);
+    }
+
+    @Test
+    void resolveModelKeepsLifecycleThreadAliveAfterResolverError() {
+        // given — a resolver that throws on the first call and succeeds on every subsequent call.
+        // Capture the thread on both calls so we can prove the executor's single worker survives.
+        var callCount = new AtomicInteger();
+        var firstThread = new AtomicReference<Thread>();
+        var secondThread = new AtomicReference<Thread>();
+        BiFunction<Configuration, String, VirtualClusterModel> flakyResolver = (cfg, name) -> {
+            var n = callCount.incrementAndGet();
+            if (n == 1) {
+                firstThread.set(Thread.currentThread());
+                throw new RuntimeException("first call fails");
+            }
+            secondThread.set(Thread.currentThread());
+            return mockModel(name);
+        };
+        var registry = new VirtualClusterRegistry(List.of(), flakyResolver, noOpCallback);
+
+        // when — first call fails, second call must still complete on the same thread
+        assertThatThrownBy(() -> registry.resolveModel(mock(Configuration.class), CLUSTER_A));
+        var result = registry.resolveModel(mock(Configuration.class), CLUSTER_B);
+
+        // then — second call succeeded AND landed on the same thread as the first. Same-thread
+        // proves the executor's worker was not silently replaced (which would mask a Throwable
+        // escape that killed the original worker).
+        assertThat(result).isNotNull();
+        assertThat(secondThread.get())
+                .as("lifecycle thread should survive a resolver failure")
+                .isSameAs(firstThread.get());
     }
 
 }
