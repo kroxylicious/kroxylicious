@@ -42,6 +42,15 @@ public interface RouterFactoryContext {
     <P> P pluginInstance(Class<P> pluginClass, String implementationName);
 
     /**
+     * Returns the names of the routes configured for this router.
+     * These are the route names declared in the router definition,
+     * not route names that appear in the router's plugin configuration.
+     *
+     * @return an unmodifiable set of route names
+     */
+    Set<String> routeNames();
+
+    /**
      * Returns the implementation names of the registered instances
      * of the given plugin type.
      *

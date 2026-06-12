@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.router.topic;
 
 import java.time.Clock;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -100,6 +102,24 @@ public class TopicPartitionRouterFactory
                     }
                 }
             }
+        }
+
+        Set<String> configRouteNames = new LinkedHashSet<>();
+        if (config.routes() != null) {
+            for (var rc : config.routes()) {
+                configRouteNames.add(rc.name());
+            }
+        }
+        if (config.defaultRoute() != null) {
+            configRouteNames.add(config.defaultRoute());
+        }
+        Set<String> unknownRoutes = new LinkedHashSet<>(configRouteNames);
+        unknownRoutes.removeAll(context.routeNames());
+        if (!unknownRoutes.isEmpty()) {
+            throw new PluginConfigurationException(
+                    "Route names " + unknownRoutes
+                            + " are not defined in the router's routes; available routes: "
+                            + context.routeNames());
         }
 
         PrefixTopicRoutingTable routingTable = PrefixTopicRoutingTable.create(
