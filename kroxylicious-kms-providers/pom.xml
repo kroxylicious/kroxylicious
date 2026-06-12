@@ -36,6 +36,8 @@
         <module>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</module>
         <module>kroxylicious-kms-provider-hashicorp-vault</module>
         <module>kroxylicious-kms-provider-hashicorp-vault-test-support</module>
+        <module>kroxylicious-kms-provider-thales-ciphertrust-manager</module>
+        <module>kroxylicious-kms-provider-thales-ciphertrust-manager-test-support</module>
     </modules>
 
     <build>
@@ -67,6 +69,7 @@
                                         <include>io.kroxylicious:kroxylicious-kms-provider-fortanix-dsm</include>
                                         <include>io.kroxylicious:kroxylicious-kms-provider-kroxylicious-inmemory</include>
                                         <include>io.kroxylicious:kroxylicious-kms-provider-azure-key-vault-kms</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-provider-thales-ciphertrust-manager</include>
                                     </includes>
                                 </bannedDependencies>
                             </rules>

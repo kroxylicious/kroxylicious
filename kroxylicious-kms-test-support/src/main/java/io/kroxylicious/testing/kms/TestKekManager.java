@@ -29,7 +29,7 @@ public interface TestKekManager {
      * Removes a KEK from the KMS with given alias.
      *
      * @param alias kek alias
-     * @throws UnknownAliasException alias already exists
+     * @throws UnknownAliasException a KEK with the given alias is not found
      */
     void deleteKek(String alias);
 

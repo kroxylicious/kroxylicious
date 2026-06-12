@@ -387,6 +387,11 @@
                 </dependency>
                 <dependency>
                     <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-kms-provider-thales-ciphertrust-manager</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
                     <artifactId>kroxylicious-oauthbearer-validation</artifactId>
                     <scope>runtime</scope>
                 </dependency>

@@ -7,10 +7,14 @@
 package io.kroxylicious.testing.kms.tls;
 
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.net.http.HttpClient;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,7 +29,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +46,7 @@ import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.testing.certificate.PemParser;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -67,7 +72,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
         }
     }
 
-    private static final X509TrustManager INSECURE_TRUST_MANAGER = new InsecureTrustManager();
+    private static final X509ExtendedTrustManager INSECURE_TRUST_MANAGER = new InsecureTrustManager();
 
     private static final TrustManager[] INSECURE_TRUST_MANAGERS = { INSECURE_TRUST_MANAGER };
     @Nullable
@@ -113,6 +118,12 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
 
     private SSLParameters sslParameters() {
         var defaultSslParameters = PLATFORM_SSL_CONTEXT.getDefaultSSLParameters();
+
+        // Disable hostname verification if using insecure TLS
+        if (isInsecureTls()) {
+            defaultSslParameters.setEndpointIdentificationAlgorithm(null);
+        }
+
         if (tls == null || (tls.protocols() == null && tls.cipherSuites() == null)) {
             return defaultSslParameters;
         }
@@ -126,6 +137,28 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
         defaultSslParameters.setCipherSuites(cipherSuites);
 
         return defaultSslParameters;
+    }
+
+    private boolean isInsecureTls() {
+        if (tls == null || tls.trust() == null) {
+            return false;
+        }
+        return tls.trust().accept(new TrustProviderVisitor<>() {
+            @Override
+            public Boolean visit(TrustStore trustStore) {
+                return false;
+            }
+
+            @Override
+            public Boolean visit(InsecureTls insecureTls) {
+                return insecureTls.insecure();
+            }
+
+            @Override
+            public Boolean visit(PlatformTrustProvider platformTrustProvider) {
+                return false;
+            }
+        });
     }
 
     @NonNull
@@ -217,7 +250,28 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
             @Override
             public TrustManager[] visit(TrustStore trustStore) {
                 if (trustStore.isPemType()) {
-                    throw new SslConfigurationException("PEM trust not supported by vault yet");
+                    try {
+                        byte[] pemBytes = Files.readAllBytes(Paths.get(trustStore.storeFile()));
+                        X509Certificate[] certs = PemParser.parseCertificateChain(pemBytes);
+
+                        // Create in-memory KeyStore from PEM certificates
+                        KeyStore ks = KeyStore.getInstance("JKS");
+                        ks.load(null, null);
+                        for (int i = 0; i < certs.length; i++) {
+                            ks.setCertificateEntry("cert-" + i, certs[i]);
+                        }
+
+                        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
+                                TrustManagerFactory.getDefaultAlgorithm());
+                        tmf.init(ks);
+                        return tmf.getTrustManagers();
+                    }
+                    catch (IOException e) {
+                        throw new SslConfigurationException("Failed to read PEM trust store from " + trustStore.storeFile(), e);
+                    }
+                    catch (Exception e) {
+                        throw new SslConfigurationException("Failed to load PEM trust store", e);
+                    }
                 }
                 try {
                     KeyStore instance = KeyStore.getInstance(trustStore.getType());
