@@ -12,10 +12,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
@@ -23,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.internal.util.LifecycleExecutors;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -62,13 +65,24 @@ public class VirtualClusterRegistry implements AutoCloseable {
     private final BiFunction<Configuration, String, VirtualClusterModel> rawModelResolver;
 
     /**
-     * Dedicated single-threaded executor that owns every {@code FilterFactory.initialize()}
-     * and {@code FilterFactory.close()} invocation triggered through this registry — both the
-     * orchestrator's reconfigure-time VCM construction (via {@link #resolveModel}) and the
-     * close work in {@link #shutdownCluster}. Created here so the threading guarantee is a
-     * VCR-internal invariant: callers cannot bypass it. Shut down by {@link #close()}.
+     * Thread name prefix for the lifecycle executor.
      */
-    private final ExecutorService lifecycleExecutor = LifecycleExecutors.newLifecycleExecutor();
+    static final String LIFECYCLE_THREAD_NAME_PREFIX = "kroxylicious-vc-lifecycle";
+
+    private static final AtomicInteger LIFECYCLE_THREAD_COUNTER = new AtomicInteger();
+
+    /**
+     * Dedicated single-threaded executor that owns every {@code FilterFactory.initialize()}
+     * invocation triggered through this registry (via {@link #resolveModel}) and the close work
+     * for the Serving/Draining branches of {@link #shutdownCluster}. Created here so the
+     * threading guarantee is a VCR-internal invariant: nothing outside VCR can submit work to
+     * this executor. Shut down by {@link #close()}.
+     */
+    private final ExecutorService lifecycleExecutor = Executors.newSingleThreadExecutor(r -> {
+        var t = new Thread(r, LIFECYCLE_THREAD_NAME_PREFIX + "-" + LIFECYCLE_THREAD_COUNTER.incrementAndGet());
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * Creates a new VirtualClusterRegistry for the given set of virtual clusters.
@@ -107,12 +121,42 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * {@code initialize()} runs on a non-event-loop thread regardless of which thread invoked
      * {@code reconfigure()}.
      *
-     * @throws RuntimeException whatever the underlying model construction threw (rethrown
-     *         directly for RuntimeException; checked exceptions are wrapped in CompletionException
-     *         — see {@link LifecycleExecutors#runOnLifecycle})
+     * @throws RuntimeException the same RuntimeException the underlying resolver threw, or a
+     *         {@link CompletionException} wrapping a checked exception
      */
     public VirtualClusterModel resolveModel(Configuration config, String clusterName) {
-        return LifecycleExecutors.runOnLifecycle(lifecycleExecutor, () -> rawModelResolver.apply(config, clusterName));
+        return runOnLifecycle(() -> rawModelResolver.apply(config, clusterName));
+    }
+
+    /**
+     * Submits a task to the lifecycle executor and waits for its result. Errors thrown by the
+     * task are caught (not just Exception) so they're forwarded to the caller via the future
+     * rather than killing the single lifecycle thread.
+     */
+    @SuppressWarnings("java:S1181")
+    private <T> T runOnLifecycle(Callable<T> task) {
+        var future = new CompletableFuture<T>();
+        lifecycleExecutor.execute(() -> {
+            try {
+                future.complete(task.call());
+            }
+            catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        try {
+            return future.join();
+        }
+        catch (CompletionException e) {
+            var cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw new CompletionException(cause);
+        }
     }
 
     /**
