@@ -1519,9 +1519,9 @@ class ClientConnectionStateMachineTest {
 
         @BeforeEach
         void setUpRouting() {
-            var routeA = new RouteDescriptor("route-a",
+            var routeA = new RouteDescriptor("route-a", 0,
                     new TargetCluster("cluster-a:9092", Optional.empty()), null, List.of());
-            var routeB = new RouteDescriptor("route-b",
+            var routeB = new RouteDescriptor("route-b", 1,
                     new TargetCluster("cluster-b:9092", Optional.empty()), null, List.of());
             var routeDescriptors = Map.of("route-a", routeA, "route-b", routeB);
 
