@@ -8,7 +8,7 @@
 server:
   image:
     repository: "mirror.gcr.io/hashicorp/vault"
-    tag: 2.0.1@sha256:7553550027156b8f04e81f61a98c3f53a7bce57104f2a400e2012c851f66ac19
+    tag: 2.0.2@sha256:3fd53308acccd9e4e83fde3e6c6cf5b15e0f7fac1ff7510780b8b23f5e4c3de7
   dev:
     enabled: true
   ha:
