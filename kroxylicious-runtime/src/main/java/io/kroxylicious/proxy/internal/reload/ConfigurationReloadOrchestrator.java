@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
@@ -69,11 +68,9 @@ public class ConfigurationReloadOrchestrator {
     public ConfigurationReloadOrchestrator(Configuration initialConfiguration,
                                            VirtualClusterRegistry virtualClusterRegistry,
                                            EndpointRegistry endpointRegistry,
-                                           PluginFactoryRegistry pfr,
                                            List<ChangeDetector> detectors) {
         this(initialConfiguration, detectors,
-                new OperationsPlanner(virtualClusterRegistry, endpointRegistry,
-                        (config, clusterName) -> config.virtualClusterModel(pfr, clusterName)));
+                new OperationsPlanner(virtualClusterRegistry, endpointRegistry, virtualClusterRegistry::resolveModel));
     }
 
     /**
