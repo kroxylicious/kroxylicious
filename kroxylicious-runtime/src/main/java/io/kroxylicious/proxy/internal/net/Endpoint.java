@@ -11,6 +11,7 @@ import java.util.Optional;
 
 import io.netty.channel.Channel;
 import io.netty.channel.socket.ServerSocketChannel;
+import io.netty.util.AttributeKey;
 
 /**
  * Represents a network endpoint.  Network endpoints accepts Kafka protocol traffic on behalf of a virtual clusters.
@@ -20,6 +21,14 @@ import io.netty.channel.socket.ServerSocketChannel;
  * @param tls true if TLS is in use for this endpoint.
  */
 public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
+
+    /**
+     * Channel attribute key used to store the configured {@link Endpoint} on the server socket channel at bind time.
+     * Allows incoming connections to recover the configured endpoint (e.g. port 0) rather than the OS-assigned port,
+     * enabling direct lookup in the endpoint registry map.
+     */
+    public static final AttributeKey<Endpoint> CONFIGURED_ENDPOINT = AttributeKey.newInstance("configuredEndpoint");
+
     public Endpoint {
         Objects.requireNonNull(bindingAddress);
     }
@@ -27,6 +36,10 @@ public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
     public static Endpoint createEndpoint(Channel ch, boolean tls) {
         try {
             if (ch.parent() instanceof ServerSocketChannel serverSocketChannel) {
+                var configured = serverSocketChannel.attr(CONFIGURED_ENDPOINT).get();
+                if (configured != null) {
+                    return configured;
+                }
                 var serverSocketAddress = serverSocketChannel.localAddress();
                 var bindingAddress = serverSocketAddress.getAddress().isAnyLocalAddress() ? Optional.<String> empty()
                         : Optional.of(serverSocketAddress.getAddress().getHostAddress());

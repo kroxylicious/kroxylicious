@@ -46,6 +46,23 @@ class EndpointTest {
     }
 
     @Test
+    void shouldPreferConfiguredEndpointAttributeOverLocalAddress() {
+        var configuredEndpoint = Endpoint.createEndpoint(Optional.empty(), 0, true);
+        Channel ch = new EmbeddedChannel(new NioServerSocketChannel() {
+            {
+                attr(Endpoint.CONFIGURED_ENDPOINT).set(configuredEndpoint);
+            }
+
+            @Override
+            public InetSocketAddress localAddress() {
+                return new InetSocketAddress("localhost", 54321);
+            }
+        }, DefaultChannelId.newInstance(), true, false);
+
+        assertThat(Endpoint.createEndpoint(ch, false)).isEqualTo(configuredEndpoint);
+    }
+
+    @Test
     void shouldCreateEndpointFromPort() {
         // Given
         int port = 1234;
