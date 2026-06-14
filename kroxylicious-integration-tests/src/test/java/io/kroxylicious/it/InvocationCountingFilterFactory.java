@@ -80,18 +80,6 @@ public class InvocationCountingFilterFactory implements FilterFactory<Invocation
         return counter == null ? 0 : counter.get();
     }
 
-    /**
-     * Clears initialise/close counters without assertion. Use in {@code @BeforeEach}/{@code @AfterEach}
-     * when the test's contract cannot rely on perfect init/close balance — e.g. hot-reload tests
-     * where {@code OperationsPlanner.resolveByName} pre-constructs VCMs for every cluster in the
-     * new configuration as part of planning, leaving orphan initialisations for unchanged
-     * clusters that never reach the registry and therefore never see a matching close.
-     */
-    public static void resetCounts() {
-        initializeCounts.clear();
-        closeCounts.clear();
-    }
-
     public static void assertAllClosedAndResetCounts() {
         // Everything that was initialised gets closed
         for (var entry : initializeCounts.entrySet()) {

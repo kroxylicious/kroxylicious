@@ -475,6 +475,91 @@ class ConfigParserTest {
     }
 
     @Test
+    void virtualClusterModelByNameReturnsTheRequestedCluster() {
+        // Given: two virtual clusters in the configuration.
+        Configuration config = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: vc-a
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                  - name: vc-b
+                    targetCluster:
+                      bootstrapServers: kafka.example:5678
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster2:9292
+                """);
+
+        // When: the per-name builder is asked for vc-a.
+        var result = config.virtualClusterModel(null, "vc-a");
+
+        // Then: only vc-a's model is returned.
+        assertThat(result.getClusterName()).isEqualTo("vc-a");
+    }
+
+    @Test
+    void virtualClusterModelByNameThrowsForUnknownCluster() {
+        // Given: a configuration with one virtual cluster.
+        Configuration config = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: vc-a
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """);
+
+        // When/Then: asking for a name not in the config surfaces the framework-layer diagnostic.
+        assertThatThrownBy(() -> config.virtualClusterModel(null, "never-existed"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("never-existed");
+    }
+
+    @Test
+    void virtualClusterModelByNameDoesNotBuildUnrelatedClusters() {
+        // Given: a configuration where vc-a is valid but vc-bad has invalid TLS that would
+        // cause its VCM construction to throw. The list-form builder iterates every cluster
+        // and would surface that failure; the per-name builder must not.
+        Configuration config = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: vc-a
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                  - name: vc-bad
+                    targetCluster:
+                      bootstrapServers: kafka.example:5678
+                    gateways:
+                    - name: default
+                      tls: {}
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster2:9292
+                """);
+
+        // Sanity: building the full list throws because of vc-bad's missing TLS key.
+        assertThatThrownBy(() -> config.virtualClusterModel(null))
+                .as("list-form should surface vc-bad's configuration error")
+                .isInstanceOf(IllegalConfigurationException.class);
+
+        // When: the per-name builder is asked for vc-a (the valid one).
+        // Then: it returns vc-a's model and does NOT touch vc-bad. This is the load-bearing
+        // contract for issue #4091 — selective construction means orphan VCMs are not built
+        // for clusters the reconfigure isn't touching.
+        var result = config.virtualClusterModel(null, "vc-a");
+        assertThat(result.getClusterName()).isEqualTo("vc-a");
+    }
+
+    @Test
     void shouldRequireKeyIfDownstreamTlsObjectPresent() {
         // given
         Configuration configuration = configParser.parseConfiguration("""
