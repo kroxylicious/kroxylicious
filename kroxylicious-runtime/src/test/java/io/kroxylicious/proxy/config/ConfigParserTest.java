@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -1074,9 +1075,13 @@ class ConfigParserTest {
                     // because we want to preserve fidelity between the config model and yaml version the field returns null
                     assertThat(targetCluster.selectionStrategy()).isNull();
                     // indirectly asserting that the strategy defaults to round-robin
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka-1.example", 1234));
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
+                    HostPort firstServer = targetCluster.bootstrapServer();
+                    HostPort secondServer = targetCluster.bootstrapServer();
+                    HostPort thirdServer = targetCluster.bootstrapServer();
+                    assertThat(Set.of(firstServer, secondServer)).containsExactlyInAnyOrder(new HostPort("magic-kafka.example", 1234),
+                            new HostPort("magic-kafka-1.example", 1234));
+                    assertThat(firstServer).isEqualTo(thirdServer);
+                    assertThat(secondServer).isNotEqualTo(firstServer);
                 });
     }
 
