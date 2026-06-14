@@ -7,10 +7,15 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4073](https://github.com/kroxylicious/kroxylicious/pull/4073): refactor(runtime): move `FilterChainFactory` from a proxy-wide shared component to per-virtual-cluster ownership. Each virtual cluster now owns its filter chain — `FilterFactory.initialize()`/`close()` lifecycles are scoped per virtual cluster, with independent initialization data and configuration. This isolates filter resources between virtual clusters and enables safe hot-reload of filter chains (a virtual cluster's chain can be reconfigured without affecting other virtual clusters' filters). `FilterFactory.initialize()` and `close()` are now guaranteed to run on a non-Netty-event-loop thread, so blocking work (e.g. closing KMS/HTTP clients) is safe in either method
+* [#4070](https://github.com/kroxylicious/kroxylicious/pull/4070): fix(operator): KafkaService secondary→primary mappers no longer call the API server on every secondary event, preventing KafkaService from getting stuck when the API server is transiently unavailable
+* [#4064](https://github.com/kroxylicious/kroxylicious/pull/4064): fix(operator): VirtualKafkaCluster secondary→primary mappers no longer call the API server on every secondary event, preventing VKCs from getting stuck when the API server is transiently unavailable (follow-up to [#4044](https://github.com/kroxylicious/kroxylicious/pull/4044) by @Roshr2211)
+* [#4017](https://github.com/kroxylicious/kroxylicious/issues/4017): fix(operator): `KafkaProxy` secondary→primary mappers no longer call the API server on every secondary event, preventing `KafkaProxy` from getting stuck when the API server is transiently unavailable
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): feat(operator): report `DeprecationWarning` status condition on `KafkaProxy` resources with absent `spec`
 
 ### Changes, deprecations and removals
 
+* [#4073](https://github.com/kroxylicious/kroxylicious/pull/4073): **Behaviour change for plugin authors** — `FilterChainFactory` is now scoped per virtual cluster rather than shared across the whole proxy. A filter type used by N virtual clusters now sees N independent `FilterFactory.initialize()`/`close()` lifecycles — one per virtual cluster, each with its own initialization data. The threading model is also tightened: `close()` is now invoked on a non-Netty-event-loop thread (previously on the proxy shutdown caller's thread) after all connections to the virtual cluster have drained, so blocking work (e.g. closing KMS/HTTP clients) is safe in `close()`. Plugins that maintained cross-virtual-cluster state in a single `FilterFactory` instance, or relied on `close()` running on a specific thread, should be reviewed.
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): The operator now sets a `DeprecationWarning` status condition on `KafkaProxy` resources that have no `spec` field, complementing the existing log warning. Users should add an empty `spec: {}` to any `KafkaProxy` resource that lacks one. Support for spec-less `KafkaProxy` resources will be removed in a future release.
 
 ## 0.21.0

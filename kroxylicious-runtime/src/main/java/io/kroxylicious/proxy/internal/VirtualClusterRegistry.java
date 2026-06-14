@@ -6,13 +6,15 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.LinkedHashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
@@ -45,8 +47,13 @@ public class VirtualClusterRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterRegistry.class);
 
-    private final List<VirtualClusterModel> virtualClusterModels;
-    private final Map<String, VirtualClusterLifecycle> lifecyclesByCluster;
+    /**
+     * Pairs each tracked virtual cluster's static {@link VirtualClusterModel} with its mutable
+     * {@link VirtualClusterLifecycle}.
+     */
+    private record VirtualClusterEntry(VirtualClusterModel model, VirtualClusterLifecycle lifecycle) {}
+
+    private final Map<String, VirtualClusterEntry> entriesByCluster = new ConcurrentHashMap<>();
     private final BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped;
 
     /**
@@ -64,23 +71,28 @@ public class VirtualClusterRegistry {
                                   BiConsumer<String, Optional<Throwable>> onVirtualClusterStopped) {
         Objects.requireNonNull(virtualClusterModels, "virtualClusterModels must not be null");
         this.onVirtualClusterStopped = Objects.requireNonNull(onVirtualClusterStopped, "onVirtualClusterStopped must not be null");
-        this.virtualClusterModels = List.copyOf(virtualClusterModels);
-        this.lifecyclesByCluster = new LinkedHashMap<>();
-        for (var vcm : this.virtualClusterModels) {
+        for (var vcm : virtualClusterModels) {
             var name = vcm.getClusterName();
-            if (lifecyclesByCluster.containsKey(name)) {
+            if (entriesByCluster.containsKey(name)) {
                 throw new IllegalArgumentException("Duplicate cluster name: " + name);
             }
-            lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, vcm.drainTimeout()));
+            entriesByCluster.put(name, new VirtualClusterEntry(vcm, new VirtualClusterLifecycle(name, vcm.drainTimeout())));
         }
     }
 
     /**
-     * Returns the virtual cluster models this manager was constructed with.
-     * @return unmodifiable list of virtual cluster models
+     * Returns the currently-tracked virtual cluster models. The collection reflects the constructor-
+     * supplied models PLUS any added at runtime via {@link #addVirtualCluster(VirtualClusterModel)}.
+     *
+     * <p>Iteration order is unspecified (the backing map is concurrent). Callers that need
+     * order-stable output should sort the result themselves.
+     *
+     * @return weakly-consistent snapshot of currently-tracked virtual cluster models
      */
-    public List<VirtualClusterModel> virtualClusterModels() {
-        return virtualClusterModels;
+    public Collection<VirtualClusterModel> virtualClusterModels() {
+        return entriesByCluster.values().stream()
+                .map(VirtualClusterEntry::model)
+                .toList();
     }
 
     /**
@@ -121,8 +133,8 @@ public class VirtualClusterRegistry {
      * </ul>
      */
     public void shutdownAllClusters() {
-        var drainFutures = lifecyclesByCluster.entrySet().stream()
-                .map(e -> shutdownCluster(e.getKey(), e.getValue()))
+        var drainFutures = entriesByCluster.entrySet().stream()
+                .map(e -> shutdownCluster(e.getKey(), e.getValue().lifecycle()))
                 .toArray(CompletableFuture[]::new);
         CompletableFuture.allOf(drainFutures).join();
     }
@@ -145,40 +157,83 @@ public class VirtualClusterRegistry {
      *       with empty cause</li>
      * </ul>
      *
+     * <h2>Entries are retained in {@link #entriesByCluster} after reaching {@code Stopped}.</h2>
+     * The map is append-only — driving a cluster to {@code Stopped} never deletes its entry.
+     * No caller currently depends on this retention for correctness:
+     * {@link #registerConnection(String, ClientConnectionStateMachine)} and
+     * {@link #deregisterConnection(String, ClientConnectionStateMachine)} both tolerate a
+     * missing entry, and {@code RemoveCluster} receives its model from the planner at plan
+     * time rather than re-reading the registry after the lifecycle reaches {@code Stopped}.
+     *
      * @return a future that completes when the cluster has reached {@code Stopped}
      */
     private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
         var state = lifecycle.state();
         if (state instanceof VirtualClusterLifecycleState.Serving) {
+            // Dispatch the close + callback to a non-event-loop executor: a connection's drain
+            // future completes on its Netty event loop, and a default thenRun would inherit that
+            // thread. FilterFactory.close() is allowed to block (closing KMS/HTTP clients), so it
+            // must not run on an event loop.
             return lifecycle.startDraining()
-                    .thenRun(() -> {
+                    .thenRunAsync(() -> {
                         lifecycle.drainComplete();
+                        closeModel(clusterName);
                         onVirtualClusterStopped.accept(clusterName, Optional.empty());
-                    });
+                    }, ForkJoinPool.commonPool());
         }
         else if (state instanceof VirtualClusterLifecycleState.Draining) {
             // Pre-existing drain (e.g. concurrent shutdown or hot-reload) — join it rather
-            // than starting a new one.
+            // than starting a new one. Same non-event-loop dispatch as the Serving path above.
             return lifecycle.drainFuture()
-                    .thenRun(() -> {
+                    .thenRunAsync(() -> {
                         lifecycle.drainComplete();
+                        closeModel(clusterName);
                         onVirtualClusterStopped.accept(clusterName, Optional.empty());
-                    });
+                    }, ForkJoinPool.commonPool());
         }
         else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
             lifecycle.stop();
+            closeModel(clusterName);
             onVirtualClusterStopped.accept(clusterName, Optional.of(failed.cause()));
             return CompletableFuture.completedFuture(null);
         }
         else if (state instanceof VirtualClusterLifecycleState.Stopped) {
-            // Already dead, let sleeping dogs lie.
+            // Already stopped, no need to close() again
             return CompletableFuture.completedFuture(null);
         }
         else {
             // Initializing — transition to Stopped via the dedicated stop() method.
             lifecycle.stop();
+            closeModel(clusterName);
             onVirtualClusterStopped.accept(clusterName, Optional.empty());
             return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    /**
+     * Closes per-VC resources (FilterChainFactory, TLS credential supplier manager) at the
+     * moment the lifecycle transitions into {@code Stopped}. Called from every transition-
+     * into-Stopped branch of {@link #shutdownCluster}
+     *
+     * <p>If the model close throws, the failure is logged at WARN and swallowed — we don't
+     * want a noisy filter cleanup to stop us from firing {@link #onVirtualClusterStopped}
+     * or completing the shutdown future. The exception is recorded against the cluster name
+     * so operators can diagnose stuck cleanups.
+     */
+    private void closeModel(String clusterName) {
+        var entry = entriesByCluster.get(clusterName);
+        if (entry == null) {
+            return;
+        }
+        try {
+            entry.model().close();
+        }
+        catch (RuntimeException e) {
+            LOGGER.atWarn()
+                    .setCause(e)
+                    .addKeyValue("virtualCluster", clusterName)
+                    .addKeyValue("error", e.getMessage())
+                    .log("Failed to close virtual cluster resources on lifecycle transition to Stopped");
         }
     }
 
@@ -189,15 +244,63 @@ public class VirtualClusterRegistry {
      */
     @Nullable
     public VirtualClusterLifecycle lifecycleFor(String clusterName) {
-        return lifecyclesByCluster.get(clusterName);
+        var entry = entriesByCluster.get(clusterName);
+        return entry == null ? null : entry.lifecycle();
     }
 
+    /**
+     * Returns the model for the given virtual cluster name.
+     *
+     * @param clusterName the virtual cluster name
+     * @return the model, or {@code null} if no cluster with that name exists
+     */
+    @Nullable
+    public VirtualClusterModel modelFor(String clusterName) {
+        var entry = entriesByCluster.get(clusterName);
+        return entry == null ? null : entry.model();
+    }
+
+    /**
+     * Attempts to register a new connection for {@code clusterName}.
+     *
+     * @return {@code true} iff the cluster is known to this registry AND its lifecycle is in a
+     *         state that accepts new connections (i.e. {@code SERVING}). An unknown cluster is
+     *         treated as a rejection rather than an error so that {@code KafkaProxyInitializer}'s
+     *         existing {@code false → rejectConnection} path covers both "not serving" and "no
+     *         such cluster" without depending on the bookkeeping-vs-binding ordering invariant
+     *         being preserved by future changes.
+     */
     public boolean registerConnection(String clusterName, ClientConnectionStateMachine ccsm) {
-        return requireKnownCluster(clusterName).registerConnection(ccsm);
+        var entry = entriesByCluster.get(clusterName);
+        if (entry == null) {
+            // Unreachable under the current bookkeeping-before-binding ordering and append-only
+            // entry policy — log loudly so the broken invariant doesn't hide behind the clean
+            // false-return path.
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", clusterName)
+                    .log("registerConnection called for unknown virtual cluster; rejecting connection");
+            return false;
+        }
+        return entry.lifecycle().registerConnection(ccsm);
     }
 
+    /**
+     * Decrements the active-connections count for {@code clusterName} if
+     * the cluster is no longer known to this registry. Called from a Netty channel-close
+     * listener, which can race against entry removal in a future cleanup-on-{@code Stopped}
+     */
     public void deregisterConnection(String clusterName, ClientConnectionStateMachine ccsm) {
-        requireKnownCluster(clusterName).deregisterConnection(ccsm);
+        var entry = entriesByCluster.get(clusterName);
+        if (entry == null) {
+            // Unreachable under the current append-only entry policy — an entry that was present
+            // at registerConnection time must still be present at channel-close time. Logged so
+            // a future cleanup-on-Stopped change that violates this invariant is observable.
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", clusterName)
+                    .log("deregisterConnection called for unknown virtual cluster; ignoring");
+            return;
+        }
+        entry.lifecycle().deregisterConnection(ccsm);
     }
 
     @VisibleForTesting
@@ -209,6 +312,10 @@ public class VirtualClusterRegistry {
      * Drives an existing virtual cluster through {@code SERVING → DRAINING → STOPPED}.
      * Invoked by {@code ConfigurationReloadOrchestrator} for clusters present in the running
      * configuration but absent in the submitted one.
+     *
+     * <p>The cluster's entry is <strong>not</strong> removed from the registry on reaching
+     * {@code Stopped} — see {@link #shutdownCluster(String, VirtualClusterLifecycle)} for the
+     * rationale.
      *
      * @param clusterName the virtual cluster to remove; must name an existing cluster
      * @return a future that completes when the cluster has reached {@code Stopped}
@@ -224,61 +331,55 @@ public class VirtualClusterRegistry {
     }
 
     /**
-     * Drives an existing virtual cluster through {@code SERVING → DRAINING → INITIALIZING → SERVING}
-     * with the supplied new model. Invoked by {@code ConfigurationReloadOrchestrator} for
-     * clusters whose configuration differs between the running and submitted configurations.
-     *
-     * <p>Named by its <em>intent</em> (apply {@code newModel} to the cluster identified by
-     * {@code clusterName}) rather than its implementation; a future iteration may implement
-     * replace more surgically (filter-chain swap on existing connections, rolling handoff)
-     * without changing the caller's interface.
-     *
-     * @param clusterName the virtual cluster to replace; must name an existing cluster
-     * @param newModel    the new model to apply
-     * @return a future that completes when the replacement is finished
-     */
-    public CompletableFuture<Void> replaceVirtualCluster(String clusterName, VirtualClusterModel newModel) {
-        // TODO: implement SERVING -> DRAINING -> [drain] -> [deregister] -> INITIALIZING ->
-        // [register] -> SERVING in the follow-up PR. See removeVirtualCluster Javadoc.
-        LOGGER.atWarn()
-                .addKeyValue("virtualCluster", clusterName)
-                .addKeyValue("operation", "replaceVirtualCluster")
-                .log("reconfigure: per-VC lifecycle transitions not yet implemented; no-op stub invoked");
-        return CompletableFuture.completedFuture(null);
-    }
-
-    /**
      * Creates a {@link VirtualClusterLifecycle} in {@code INITIALIZING} for
      * the given model. Endpoint binding and the transition to {@code SERVING} are the
      * orchestrator's responsibility — once gateway registration succeeds it calls
      * {@link #initializationSucceeded(String)}; on failure it calls
      * {@link #initializationFailed(String, Throwable)} and rolls back the gateway bindings.
      *
-     * @param newModel the model for the new cluster; must not name a cluster already present
+     * <p>If an entry already exists for this name AND its lifecycle is {@code Stopped}, the
+     * entry is replaced — this is how {@code ReplaceCluster}'s add half re-establishes the
+     * cluster after the remove half drove it to {@code Stopped}. The retained-{@code Stopped}-
+     * entry policy (see {@link #shutdownCluster}) interacts with re-add by name reuse, and
+     * "replace the dead entry" is the natural reconciliation.
+     *
+     * @param newModel the model for the new cluster
      * @return an already-completed future (the operation is synchronous; the
      *         {@link CompletableFuture} shape is preserved for caller symmetry with
      *         {@link #removeVirtualCluster})
-     * @throws IllegalArgumentException if a cluster with this name already exists
+     * @throws IllegalStateException if an entry already exists AND its lifecycle is in any
+     *         state OTHER than {@code Stopped} — re-adding an actively-serving (or initializing,
+     *         draining, or failed) cluster would be a contract violation. The exception message
+     *         names the current state to aid diagnosis.
      */
     public CompletableFuture<Void> addVirtualCluster(VirtualClusterModel newModel) {
         Objects.requireNonNull(newModel, "newModel must not be null");
         String name = newModel.getClusterName();
-        if (lifecyclesByCluster.containsKey(name)) {
-            throw new IllegalArgumentException("Cluster already exists: " + name);
-        }
-        LOGGER.atInfo()
-                .addKeyValue("virtualCluster", name)
-                .addKeyValue("operation", "addVirtualCluster")
-                .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
-        lifecyclesByCluster.put(name, new VirtualClusterLifecycle(name, newModel.drainTimeout()));
+
+        entriesByCluster.compute(name, (key, existing) -> {
+            if (existing != null) {
+                var state = existing.lifecycle().state();
+                if (!(state instanceof VirtualClusterLifecycleState.Stopped)) {
+                    throw new IllegalStateException(
+                            "Cluster '" + name + "' already exists and its lifecycle is "
+                                    + state.getClass().getSimpleName() + "; re-add is only permitted from Stopped");
+                }
+            }
+            LOGGER.atInfo()
+                    .addKeyValue("virtualCluster", name)
+                    .addKeyValue("operation", "addVirtualCluster")
+                    .addKeyValue("replacingStoppedEntry", existing != null)
+                    .log("reconfigure: created lifecycle in INITIALIZING; gateway registration is the orchestrator's responsibility");
+            return new VirtualClusterEntry(newModel, new VirtualClusterLifecycle(name, newModel.drainTimeout()));
+        });
         return CompletableFuture.completedFuture(null);
     }
 
     private VirtualClusterLifecycle requireKnownCluster(String clusterName) {
-        var lifecycle = lifecyclesByCluster.get(clusterName);
-        if (lifecycle == null) {
+        var entry = entriesByCluster.get(clusterName);
+        if (entry == null) {
             throw new IllegalArgumentException("Unknown cluster: " + clusterName);
         }
-        return lifecycle;
+        return entry.lifecycle();
     }
 }

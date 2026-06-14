@@ -19,6 +19,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findAllKnownPrimariesInNamespace;
+
 class KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper implements SecondaryToPrimaryMapper<KafkaProxyIngress> {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper.class);
 
@@ -39,7 +41,7 @@ class KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper implements SecondaryTo
         }
         // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
         // the previously referenced proxy too.
-        Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, ingress, KafkaProxy.class, proxy -> true);
+        Set<ResourceID> proxyIds = findAllKnownPrimariesInNamespace(context, ingress);
         LOGGER.atDebug()
                 .addKeyValue("proxyIds", proxyIds)
                 .log("Event source KafkaProxyIngress SecondaryToPrimaryMapper");

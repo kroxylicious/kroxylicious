@@ -33,8 +33,13 @@ jobs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
       modules: ${{ steps.discover.outputs.modules }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: 'Discover ITs'
@@ -70,8 +75,13 @@ jobs:
     outputs:
       kroxylicious_image: ${{ steps.build_image.outputs.KROXYLICIOUS_IMAGE }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -127,6 +137,11 @@ jobs:
       matrix:
         tests: ${{ fromJson(needs.discover_integration_test_chunks.outputs.test_chunks) }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: Parse test specifications
         id: parse
         run: |
@@ -146,7 +161,7 @@ jobs:
       - name: Log tests to run
         run: echo "Running tests '${{ steps.parse.outputs.tests }}' in module '${{ steps.parse.outputs.module }}'"
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -260,8 +275,13 @@ jobs:
     needs: build_artifacts
     runs-on: ubuntu-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: Setup Java
@@ -288,19 +308,24 @@ jobs:
     permissions:
       actions: read
     steps:
-    - name: 'Check all matrix builds'
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
-          --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
-        if [ -z "$FAILED_JSON" ]; then
-          echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
-          echo "No failures detected."
-          exit 0
-        fi
-        echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
-        echo "The following instances failed:"
-        echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
-        echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
-        exit 1
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: 'Check all matrix builds'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FAILED_JSON=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs \
+            --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, url: .html_url}')
+          if [ -z "$FAILED_JSON" ]; then
+            echo "All jobs passed!" >> $GITHUB_STEP_SUMMARY
+            echo "No failures detected."
+            exit 0
+          fi
+          echo "Failed Matrix Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "The following instances failed:"
+          echo "$FAILED_JSON" | jq -r '"* [\(.name)](\(.url))"' >> $GITHUB_STEP_SUMMARY
+          echo "$FAILED_JSON" | jq -r '"\(.name): \(.url)"'
+          exit 1

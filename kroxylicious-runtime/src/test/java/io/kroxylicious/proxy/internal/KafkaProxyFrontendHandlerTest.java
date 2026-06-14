@@ -41,7 +41,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
@@ -83,7 +82,42 @@ class KafkaProxyFrontendHandlerTest {
 
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession);
+        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession) {
+            @Override
+            ServerConnectionStateMachine createServerConnection(HostPort remote) {
+                return new ServerConnectionStateMachine(
+                        remote,
+                        this,
+                        virtualCluster(),
+                        clusterName(),
+                        nodeId()) {
+                    @Override
+                    Bootstrap configureBootstrap(
+                                                 KafkaProxyBackendHandler capturedBackendHandler,
+                                                 Channel inboundChannel) {
+                        backendHandler = capturedBackendHandler;
+                        outboundChannel = new EmbeddedChannel();
+                        Bootstrap bootstrap = new Bootstrap();
+                        bootstrap.group(outboundChannel.eventLoop())
+                                .channel(outboundChannel.getClass())
+                                .handler(capturedBackendHandler)
+                                .option(ChannelOption.AUTO_READ, true)
+                                .option(ChannelOption.TCP_NODELAY, true);
+                        return bootstrap;
+                    }
+
+                    @Override
+                    ChannelFuture initConnection(
+                                                 String remoteHost,
+                                                 int remotePort,
+                                                 Bootstrap bootstrap) {
+                        outboundChannel.pipeline().addFirst(backendHandler);
+                        outboundChannel.pipeline().fireChannelRegistered();
+                        return outboundChannel.newPromise();
+                    }
+                };
+            }
+        };
     }
 
     private PluginFactoryRegistry pfr;
@@ -209,11 +243,14 @@ class KafkaProxyFrontendHandlerTest {
         assertStateIsClosed(clientConnectionStateMachine);
     }
 
-    private static VirtualClusterModel mockVirtualClusterModel(String cluster) {
+    private VirtualClusterModel mockVirtualClusterModel(String cluster) {
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         when(virtualClusterModel.getClusterName()).thenReturn(cluster);
         TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, cluster);
         when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
+        // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
+        // mock through the VC so verify(fcf).createFilters(...) still works.
+        when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
         return virtualClusterModel;
     }
 
@@ -303,41 +340,13 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(DelegatingDecodePredicate dp, ClientConnectionStateMachine clientConnectionStateMachine) {
-        var namedFilterDefs = List.<NamedFilterDefinition> of();
         return new KafkaProxyFrontendHandler(pfr,
-                fcf,
-                namedFilterDefs,
                 mock(EndpointReconciler.class),
                 new ApiVersionsServiceImpl(),
                 dp,
                 new DefaultSubjectBuilder(List.of()),
                 clientConnectionStateMachine,
-                Optional.empty()) {
-
-            @Override
-            Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
-                backendHandler = capturedBackendHandler;
-                outboundChannel = new EmbeddedChannel();
-                Bootstrap bootstrap = new Bootstrap();
-                bootstrap.group(outboundChannel.eventLoop())
-                        .channel(outboundChannel.getClass())
-                        .handler(capturedBackendHandler)
-                        .option(ChannelOption.AUTO_READ, true)
-                        .option(ChannelOption.TCP_NODELAY, true);
-                return bootstrap;
-            }
-
-            @Override
-            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
-                // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
-                // of a handler creating an outgoing connection and ends up
-                // trying to re-register the outbound channel => IllegalStateException
-                // So we override this method to short-circuit that
-                outboundChannel.pipeline().addFirst(backendHandler);
-                outboundChannel.pipeline().fireChannelRegistered();
-                return outboundChannel.newPromise();
-            }
-        };
+                Optional.empty());
     }
 
     /**
@@ -501,7 +510,7 @@ class KafkaProxyFrontendHandlerTest {
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
         assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
-        verify(fcf).createFilters(any(FilterFactoryContext.class), any(List.class));
+        verify(fcf).createFilters(any(FilterFactoryContext.class));
     }
 
     private List<String> outboundClientSoftwareNames() {

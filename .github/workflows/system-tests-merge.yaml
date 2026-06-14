@@ -50,8 +50,10 @@ jobs:
     outputs:
       test_clients: ${{ steps.discover.outputs.test_clients }}
     steps:
+      # StepSecurity harden-runner cannot be used here because of the limitation of running it on containers
+      # https://github.com/step-security/harden-runner/blob/main/docs/limitations.md
       - name: 'Check out repository'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           fetch-depth: 0
       - name: 'Discover STs'
@@ -88,6 +90,8 @@ jobs:
     permissions:
       actions: read
     steps:
+      # StepSecurity harden-runner cannot be used here because of the limitation of running it on containers
+      # https://github.com/step-security/harden-runner/blob/main/docs/limitations.md
       - name: 'Check all matrix builds'
         env:
           GH_TOKEN: ${{ github.token }}

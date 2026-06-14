@@ -17,13 +17,13 @@ import java.util.Set;
  * @param clustersToRemove names of virtual clusters present in old but not in new
  * @param clustersToModify names of virtual clusters whose configuration differs between old and new
  */
-public record ChangeResult(Set<String> clustersToAdd,
-                           Set<String> clustersToRemove,
-                           Set<String> clustersToModify) {
+record ChangeResult(Set<String> clustersToAdd,
+                    Set<String> clustersToRemove,
+                    Set<String> clustersToModify) {
 
-    public static final ChangeResult EMPTY = new ChangeResult(Set.of(), Set.of(), Set.of());
+    static final ChangeResult EMPTY = new ChangeResult(Set.of(), Set.of(), Set.of());
 
-    public ChangeResult {
+    ChangeResult {
         clustersToAdd = Set.copyOf(clustersToAdd);
         clustersToRemove = Set.copyOf(clustersToRemove);
         clustersToModify = Set.copyOf(clustersToModify);
@@ -32,7 +32,7 @@ public record ChangeResult(Set<String> clustersToAdd,
     /**
      * Whether this result represents any change at all.
      */
-    public boolean isEmpty() {
+    boolean isEmpty() {
         return clustersToAdd.isEmpty() && clustersToRemove.isEmpty() && clustersToModify.isEmpty();
     }
 
@@ -51,7 +51,7 @@ public record ChangeResult(Set<String> clustersToAdd,
      *         cluster name in more than one bucket; the message names the offending pair and
      *         the overlapping cluster names
      */
-    public ChangeResult merge(ChangeResult other) {
+    ChangeResult merge(ChangeResult other) {
         Set<String> mergedAdd = union(clustersToAdd, other.clustersToAdd);
         Set<String> mergedRemove = union(clustersToRemove, other.clustersToRemove);
         Set<String> mergedModify = union(clustersToModify, other.clustersToModify);

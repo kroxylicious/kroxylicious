@@ -349,6 +349,99 @@ public class ResourcesUtil {
                 });
     }
 
+    /**
+     * Like {@link #findReferrers(EventSourceContext, HasMetadata, Class, Function)} but resolves the referring
+     * resources from the controller's primary cache ({@link EventSourceContext#getPrimaryCache()}) rather than
+     * issuing a live {@code list} against the API server.
+     * <p>
+     * This is only valid when the referrers being searched for are the reconciler's <em>primary</em> resource type
+     * (i.e. {@code P} is the type the {@link EventSourceContext} is parameterised with), which is the case for all
+     * secondary&rarr;primary mappers. Reading from the cache avoids a per-event API round-trip and, crucially, avoids
+     * dropping the triggering event when that {@code list} fails transiently under load (see
+     * <a href="https://github.com/kroxylicious/kroxylicious/issues/4017">#4017</a>).
+     * @param context The event source context
+     * @param referent The referent
+     * @param refAccessor A function which returns the reference from a given primary.
+     * @return The ids of primaries which refer to the referent.
+     * @param <P> The type of the primary (reference owner)
+     * @param <R> The type of the referent
+     */
+    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOf(EventSourceContext<P> context,
+                                                                                                      R referent,
+                                                                                                      Function<P, Optional<LocalRef<R>>> refAccessor) {
+        return filteredPrimaryIdsInSameNamespace(context, referent,
+                primary -> refAccessor.apply(primary).map(lr -> isReferent(lr, referent)).orElse(false));
+    }
+
+    /**
+     * Like {@link #findReferrers(EventSourceContext, OwnerReference, HasMetadata, Class, Function)} but resolves the
+     * referring resources from the controller's primary cache rather than issuing a live {@code list}. See
+     * {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
+     * @param context The event source context
+     * @param referent The referent OwnerReference
+     * @param hasNamespace A resource bearing the namespace we wish to search
+     * @param refAccessor A function which returns the reference from a given primary.
+     * @return The ids of primaries which refer to the referent.
+     * @param <P> The type of the primary (reference owner)
+     * @param <R> The type of the referent
+     */
+    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOf(EventSourceContext<P> context,
+                                                                                                      OwnerReference referent,
+                                                                                                      HasMetadata hasNamespace,
+                                                                                                      Function<P, Optional<LocalRef<R>>> refAccessor) {
+        return filteredPrimaryIdsInSameNamespace(context, hasNamespace,
+                primary -> refAccessor.apply(primary)
+                        .map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind()))
+                        .orElse(false));
+    }
+
+    /**
+     * Like {@link #findReferrersMulti(EventSourceContext, HasMetadata, Class, Function)} but resolves the referring
+     * resources from the controller's primary cache rather than issuing a live {@code list}. See
+     * {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for the rationale and preconditions.
+     * @param context The event source context
+     * @param referent The potential referent
+     * @param refAccessor A function which returns the references from a given primary.
+     * @return The ids of primaries which refer to the referent.
+     * @param <P> The type of the primary (reference owner)
+     * @param <R> The type of the referent
+     */
+    public static <P extends HasMetadata, R extends HasMetadata> Set<ResourceID> findKnownPrimariesOfEach(EventSourceContext<P> context,
+                                                                                                          R referent,
+                                                                                                          Function<P, Collection<? extends LocalRef<R>>> refAccessor) {
+        return filteredPrimaryIdsInSameNamespace(context, referent, primary -> {
+            Collection<? extends LocalRef<R>> refs = refAccessor.apply(primary);
+            if (refs == null) {
+                return false;
+            }
+            return refs.stream().anyMatch(ref -> isReferent(ref, referent));
+        });
+    }
+
+    /**
+     * Returns the {@link ResourceID}s of all primaries in the same namespace as the given referent, regardless of
+     * whether the primary refers to the referent. This is useful for secondary&rarr;primary mappers where the secondary
+     * has no direct reference to the primary and therefore all primaries in the same namespace must be considered
+     * (e.g. filter-to-proxy mapping). See {@link #findKnownPrimariesOf(EventSourceContext, HasMetadata, Function)} for
+     * the rationale and preconditions.
+     * @param context The event source context
+     * @param referent A resource bearing the namespace we wish to search
+     * @return The ids of all known primaries in the same namespace as the referent.
+     * @param <P> The type of the primary
+     */
+    public static <P extends HasMetadata> Set<ResourceID> findAllKnownPrimariesInNamespace(EventSourceContext<P> context, HasMetadata referent) {
+        return filteredPrimaryIdsInSameNamespace(context, referent, ignored -> true);
+    }
+
+    private static <P extends HasMetadata> Set<ResourceID> filteredPrimaryIdsInSameNamespace(EventSourceContext<P> context,
+                                                                                             HasMetadata referent,
+                                                                                             Predicate<P> predicate) {
+        return context.getPrimaryCache()
+                .list(namespace(referent), predicate)
+                .map(ResourceID::fromResource)
+                .collect(Collectors.toSet());
+    }
+
     public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }

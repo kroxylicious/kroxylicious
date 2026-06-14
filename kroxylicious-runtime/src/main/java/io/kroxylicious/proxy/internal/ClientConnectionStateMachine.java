@@ -146,12 +146,6 @@ public class ClientConnectionStateMachine {
 
     private final ActivationToken clientToProxyConnectionToken;
 
-    // Server-side metrics (passed to SCSM at construction)
-    private final Counter proxyToServerConnectionCounter;
-    private final Counter proxyToServerErrorCounter;
-    private final Timer serverToProxyBackpressureMeter;
-    private final ActivationToken proxyToServerConnectionToken;
-
     @VisibleForTesting
     @Nullable
     Timer.Sample clientToProxyBackpressureTimer;
@@ -219,12 +213,8 @@ public class ClientConnectionStateMachine {
         clientToProxyDisconnectsDrainCompletedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_COMPLETED.label()).withTags();
         clientToProxyDisconnectsDrainTimeoutCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_TIMEOUT.label()).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
-        proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
-        proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
-        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
-        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
     }
 
     ClientConnectionState state() {
@@ -657,14 +647,6 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Temporary mechanism to route exception to SCSM
-     * TODO remove once KafkaProxyFrontendHandler is no longer responsible for backend connection work.
-     */
-    void notifyServerConnectionException(@Nullable Throwable cause) {
-        Objects.requireNonNull(serverConnectionStateMachine).onServerException(cause);
-    }
-
-    /**
      * Callback from {@link ServerConnectionStateMachine} when something exceptional and
      * un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
@@ -793,21 +775,23 @@ public class ClientConnectionStateMachine {
     private void toForwarding(Forwarding forwarding,
                               HostPort remote) {
         setState(forwarding);
-        boolean upstreamRequiresTls = virtualCluster().getUpstreamSslContext().isPresent();
-        serverConnectionStateMachine = new ServerConnectionStateMachine(
-                remote,
-                upstreamRequiresTls,
-                this,
-                proxyToServerConnectionCounter,
-                proxyToServerErrorCounter,
-                serverToProxyBackpressureMeter,
-                proxyToServerConnectionToken);
+        serverConnectionStateMachine = createServerConnection(remote);
         var frontend = Objects.requireNonNull(frontendHandler);
-        frontend.initiateBackendConnect(remote, serverConnectionStateMachine.backendHandler());
+        serverConnectionStateMachine.connect(Objects.requireNonNull(frontend.clientChannel()));
         log(Level.DEBUG)
                 .addKeyValue("remote", remote)
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
                 .log("Upstream connection initiated for client");
+    }
+
+    @VisibleForTesting
+    ServerConnectionStateMachine createServerConnection(HostPort remote) {
+        return new ServerConnectionStateMachine(
+                remote,
+                this,
+                virtualCluster(),
+                clusterName(),
+                nodeId());
     }
 
     /**

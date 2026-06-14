@@ -37,7 +37,7 @@ class KubernetesServicesSecondaryToVirtualKafkaClusterPrimaryMapper implements S
         Optional<OwnerReference> proxyOwner = extractOwnerRefFromKubernetesService(kubernetesService,
                 VirtualKafkaClusterReconciler.KAFKA_PROXY_KIND);
         if (proxyOwner.isPresent()) {
-            return ResourcesUtil.findReferrers(context, proxyOwner.get(), kubernetesService, VirtualKafkaCluster.class,
+            return ResourcesUtil.findKnownPrimariesOf(context, proxyOwner.get(), kubernetesService,
                     cluster -> Optional.of(cluster.getSpec().getProxyRef()));
         }
         else {

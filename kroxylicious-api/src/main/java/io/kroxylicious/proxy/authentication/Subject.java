@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  * <li>information obtained about the client from a trusted source, such as lookup up role or group information from a directory.</li>
  * </ul>
  *
- * @param principals
+ * @param principals the set of identifiers associated with this subject.
  */
 public record Subject(Set<Principal> principals) {
 

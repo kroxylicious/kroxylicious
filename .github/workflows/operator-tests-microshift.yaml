@@ -54,11 +54,16 @@ jobs:
     outputs:
       pull-secret-check: ${{ steps.pull-check.outputs.pullsecret }}
     steps:
-        - name: 'Test for presence of Red Hat pull-secret'
-          id: pull-check
-          env:
-            REDHAT_PULL_SECRET: ${{ secrets.REDHAT_PULL_SECRET }}
-          run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: 'Test for presence of Red Hat pull-secret'
+        id: pull-check
+        env:
+          REDHAT_PULL_SECRET: ${{ secrets.REDHAT_PULL_SECRET }}
+        run: echo "pullsecret=$(test ${REDHAT_PULL_SECRET} && echo true)" >> "$GITHUB_OUTPUT"
 
   operator-tests-microshift:
     name: Operator integration & system tests on MicroShift
@@ -68,6 +73,11 @@ jobs:
     if: needs.preflight.outputs.pull-secret-check == 'true' && (contains(fromJSON('["workflow_dispatch", "push"]'), github.event_name) || github.event.workflow_run.conclusion == 'success')
 
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
       - name: 'Test for Slack secret'
         env:
           KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
@@ -80,7 +90,7 @@ jobs:
           sudo apt-get -y install podman podman-remote
 
       - name: Checkout source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 

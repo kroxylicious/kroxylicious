@@ -29,9 +29,8 @@ class KafkaProtocolFilterSecondaryToVirtualKafkaClusterPrimaryMapper implements 
             VirtualKafkaClusterReconciler.logIgnoredEvent(filter);
             return Set.of();
         }
-        return ResourcesUtil.findReferrersMulti(context,
+        return ResourcesUtil.findKnownPrimariesOfEach(context,
                 filter,
-                VirtualKafkaCluster.class,
                 cluster -> cluster.getSpec().getFilterRefs());
     }
 }
