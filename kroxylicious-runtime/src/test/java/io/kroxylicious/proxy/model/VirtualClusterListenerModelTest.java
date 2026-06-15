@@ -104,6 +104,36 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
+    void getBrokerIdNormalisesResolvedOsPortToZeroBeforeDelegating() {
+        // Given - strategy configured with OS-assigned bootstrap port; OS resolves it to 54321
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 0));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        listener.resolveActualPort(54321);
+        var normalised = new HostPort("broker", 0);
+        when(strategy.getBrokerIdFromBrokerAddress(normalised)).thenReturn(1);
+
+        // When - caller supplies the OS-assigned port in the broker address
+        // Then - port is normalised back to 0 before delegation so the strategy sees a stable address
+        assertThat(listener.getBrokerIdFromBrokerAddress(new HostPort("broker", 54321))).isEqualTo(1);
+    }
+
+    @Test
+    void getBrokerIdPassesThroughAddressUnchangedWhenPortDoesNotMatchResolved() {
+        // Given - strategy configured with OS-assigned bootstrap port; OS resolves it to 54321
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 0));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        listener.resolveActualPort(54321);
+        var differentPort = new HostPort("broker", 9090);
+        when(strategy.getBrokerIdFromBrokerAddress(differentPort)).thenReturn(2);
+
+        // When - caller supplies a port that is not the OS-assigned port
+        // Then - address passes through unchanged
+        assertThat(listener.getBrokerIdFromBrokerAddress(differentPort)).isEqualTo(2);
+    }
+
+    @Test
     void delegatesToStrategyForServerNameIndication() {
         var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");

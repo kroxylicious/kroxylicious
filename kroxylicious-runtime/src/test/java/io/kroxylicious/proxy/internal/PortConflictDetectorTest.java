@@ -26,6 +26,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -153,6 +154,20 @@ class PortConflictDetectorTest {
                         Set.of("shared TLS bind of 192.168.0.1:9080 for gateway 'default' of virtual cluster 'one' is misconfigured, shared port bindings must use server name indication, or connections cannot be routed correctly"),
                         new HostPort(loopback, 9080),
                         List.of(createMockVirtualCluster("one", getVirtualClusterGatewayModel(Set.of(), Set.of(9080), privateUse, true, "default", false)))),
+                argumentSet("two OS-assigned (port 0) exclusive gateways - no conflict",
+                        Set.of(),
+                        null,
+                        List.of(createMockVirtualCluster("one", Set.of(0), Set.of(), any),
+                                createMockVirtualCluster("two", Set.of(0), Set.of(), any))),
+                argumentSet("OS-assigned (port 0) exclusive gateway alongside fixed-port gateway - no conflict",
+                        Set.of(),
+                        null,
+                        List.of(createMockVirtualCluster("one", Set.of(0), Set.of(), any),
+                                createMockVirtualCluster("two", Set.of(9080), Set.of(), any))),
+                argumentSet("OS-assigned (port 0) exclusive gateway vs other exclusive port - no conflict",
+                        Set.of(),
+                        new HostPort("0.0.0.0", 9080),
+                        List.of(createMockVirtualCluster("one", Set.of(0), Set.of(), any))),
                 argumentSet("any:single conflict within virtual cluster",
                         Set.of("exclusive TCP bind of <any>:9080 for gateway 'gateway1' of virtual cluster 'one' conflicts with exclusive TCP bind of <any>:9080 for gateway 'gateway2' of virtual cluster 'one': exclusive port collision"),
                         null,
@@ -212,8 +227,8 @@ class PortConflictDetectorTest {
         when(cluster.getExclusivePorts()).thenReturn(exclusivePorts);
         when(cluster.getSharedPorts()).thenReturn(sharedPorts);
         when(cluster.getBindAddress()).thenReturn(Optional.ofNullable(bindAddress));
-        when(cluster.isUseTls()).thenReturn(tls);
-        when(cluster.requiresServerNameIndication()).thenReturn(requiresServerNameIndication);
+        lenient().when(cluster.isUseTls()).thenReturn(tls);
+        lenient().when(cluster.requiresServerNameIndication()).thenReturn(requiresServerNameIndication);
         when(cluster.name()).thenReturn(gatewayName);
         return cluster;
     }

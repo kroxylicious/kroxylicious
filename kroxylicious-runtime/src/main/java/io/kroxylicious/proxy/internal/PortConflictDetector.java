@@ -51,6 +51,11 @@ public class PortConflictDetector {
 
     private record CandidateBinding(EndpointGateway gateway, int port, BindAddress bindAddress, BindingScope scope) {
         void validateNonConflicting(CandidateBinding other) {
+            // Port 0 means OS-assigned: the OS will bind to different ephemeral ports at runtime, so
+            // two port-0 gateways can never truly conflict and cannot be validated at configuration time.
+            if (port == 0 || other.port == 0) {
+                return;
+            }
             if (this.port == other.port && bindAddress.overlaps(other.bindAddress)) {
                 if (scope == BindingScope.EXCLUSIVE || other.scope == BindingScope.EXCLUSIVE) {
                     throw conflictException(other, "exclusive port collision");
