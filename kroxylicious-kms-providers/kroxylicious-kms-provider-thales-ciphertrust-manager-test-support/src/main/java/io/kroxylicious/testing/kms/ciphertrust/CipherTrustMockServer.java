@@ -354,14 +354,10 @@ public class CipherTrustMockServer {
         @Override
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
-                String query = serveEvent.getRequest().getUrl();
                 int bytesParam = 32; // default
-                if (query.contains("bytes=")) {
-                    String bytesStr = query.substring(query.indexOf("bytes=") + 6);
-                    if (bytesStr.contains("&")) {
-                        bytesStr = bytesStr.substring(0, bytesStr.indexOf("&"));
-                    }
-                    bytesParam = Integer.parseInt(bytesStr);
+                var bytesQueryParam = serveEvent.getRequest().queryParameter("bytes");
+                if (bytesQueryParam.isPresent()) {
+                    bytesParam = Integer.parseInt(bytesQueryParam.firstValue());
                 }
 
                 byte[] randomBytes = new byte[bytesParam];
