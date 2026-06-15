@@ -61,7 +61,8 @@ class UserCredentialsTest {
 
     @Test
     void usernameCannotBeEmpty() {
-        assertThatThrownBy(() -> new UserCredentials("", new InlinePassword("password")))
+        var password = new InlinePassword("password");
+        assertThatThrownBy(() -> new UserCredentials("", password))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("username cannot be empty");
     }
