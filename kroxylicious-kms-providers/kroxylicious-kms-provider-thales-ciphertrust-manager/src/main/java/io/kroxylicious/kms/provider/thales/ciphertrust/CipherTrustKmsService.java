@@ -9,6 +9,7 @@ package io.kroxylicious.kms.provider.thales.ciphertrust;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.thales.ciphertrust.auth.CachingBearerTokenService;
@@ -34,42 +35,40 @@ public class CipherTrustKmsService implements KmsService<Config, String, CipherT
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(20);
 
+
+    @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
+    @Nullable
+    private volatile Config config;
+
+    @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
+    @Nullable
+    private volatile BearerTokenService tokenService;
+
     /**
      * Creates a new CipherTrust KMS service.
      */
     public CipherTrustKmsService() {
+        // deliberately empty
     }
-
-    @Nullable
-    private volatile Config config;
-
-    @Nullable
-    private volatile BearerTokenService tokenService;
 
     @Override
     public void initialize(Config config) {
         Objects.requireNonNull(config, "config cannot be null");
         this.config = config;
+        this.tokenService = createTokenService(config);
     }
 
     @Override
     public Kms<String, CipherTrustEdek> buildKms() {
-        Objects.requireNonNull(config, "KMS service not initialized");
+        var c = Objects.requireNonNull(config, "KMS service not initialized");
+        var ts = Objects.requireNonNull(tokenService, "Bearer token server not initialized");
 
-        // Create token service if not already created
-        if (tokenService == null) {
-            synchronized (this) {
-                if (tokenService == null) {
-                    tokenService = createTokenService(config);
-                }
-            }
-        }
 
-        var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
+        var tlsConfigurator = new TlsHttpClientConfigurator(c.tls());
 
         return new CipherTrustKms(
-                config.endpointUrl(),
-                tokenService,
+                c.endpointUrl(),
+                ts,
                 DEFAULT_TIMEOUT,
                 tlsConfigurator);
     }
@@ -104,8 +103,6 @@ public class CipherTrustKmsService implements KmsService<Config, String, CipherT
 
     @Override
     public void close() {
-        if (tokenService != null) {
-            tokenService.close();
-        }
+        Optional.ofNullable(tokenService).ifPresent(BearerTokenService::close);
     }
 }

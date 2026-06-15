@@ -24,6 +24,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CipherTrustKmsServiceTest {
@@ -36,7 +37,6 @@ class CipherTrustKmsServiceTest {
     }
 
     @Test
-    @SuppressWarnings("resource")
     void initializeStoresConfig() {
         // Given
         service = new CipherTrustKmsService();
@@ -76,7 +76,7 @@ class CipherTrustKmsServiceTest {
         service.buildKms();
 
         // When/Then - close should not throw
-        service.close();
+        assertThatNoException().isThrownBy(() -> service.close());
     }
 
     @Test
