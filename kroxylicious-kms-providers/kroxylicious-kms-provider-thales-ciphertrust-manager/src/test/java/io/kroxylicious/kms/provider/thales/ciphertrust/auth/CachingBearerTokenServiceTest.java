@@ -62,10 +62,10 @@ class CachingBearerTokenServiceTest {
 
         // When
         assertThat(service.getBearerToken()).succeedsWithin(ofSeconds(1));
-        var cachedFuture = service.getBearerToken();
+        var cachedStage = service.getBearerToken();
 
         // Then
-        assertThat(cachedFuture).succeedsWithin(ofSeconds(1)).isEqualTo(token);
+        assertThat(cachedStage).succeedsWithin(ofSeconds(1)).isEqualTo(token);
         verify(delegate, times(1)).getBearerToken();
     }
 
@@ -86,15 +86,15 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock1);
 
         // When
-        var future1 = service.getBearerToken();
+        var stage1 = service.getBearerToken();
 
         Clock clock2 = Clock.fixed(secondCallTime, ZoneId.of("UTC"));
         service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock2);
-        var future2 = service.getBearerToken();
+        var stage2 = service.getBearerToken();
 
         // Then
-        assertThat(future1).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
-        assertThat(future2).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
+        assertThat(stage1).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
+        assertThat(stage2).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
         verify(delegate, times(2)).getBearerToken();
     }
 
@@ -109,10 +109,10 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
         // When
-        var future = service.getBearerToken();
+        var stage = service.getBearerToken();
 
         // Then
-        assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(currentToken);
+        assertThat(stage).succeedsWithin(ofSeconds(1)).isEqualTo(currentToken);
     }
 
     @Test
@@ -127,16 +127,16 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
         // When
-        var future = service.getBearerToken().toCompletableFuture();
+        var stage = service.getBearerToken().toCompletableFuture();
 
         // Then
-        assertThat(future).isNotDone();
-        assertThat(future).isSameAs(promise);
+        assertThat(stage).isNotDone();
+        assertThat(stage).isSameAs(promise);
 
         BearerToken newToken = new BearerToken("new", NOW, NOW.plus(TOKEN_LIFETIME));
         promise.complete(newToken);
 
-        assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(newToken);
+        assertThat(stage).succeedsWithin(ofSeconds(1)).isEqualTo(newToken);
     }
 
     @Test
@@ -175,11 +175,11 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
 
         // When
-        var future = service.getBearerToken().toCompletableFuture();
+        var stage = service.getBearerToken().toCompletableFuture();
 
         // Then
         Thread.sleep(200);
-        assertThat(future).isCompletedExceptionally();
+        assertThat(stage).isCompletedExceptionally();
         assertThat(service.getState()).isInstanceOf(CachingBearerTokenService.State.Initial.class);
     }
 
@@ -187,14 +187,14 @@ class CachingBearerTokenServiceTest {
     void shouldTransitionToClosedAndFailPendingRequests() {
         // Given
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
-        var future = service.getBearerToken();
+        var stage = service.getBearerToken();
 
         // When
         service.close();
 
         // Then
         assertThat(service.getState()).isInstanceOf(CachingBearerTokenService.State.Closed.class);
-        assertThat(future)
+        assertThat(stage)
                 .failsWithin(ofSeconds(1))
                 .withThrowableOfType(ExecutionException.class)
                 .havingCause()
@@ -210,10 +210,10 @@ class CachingBearerTokenServiceTest {
         service.close();
 
         // When
-        var future = service.getBearerToken();
+        var stage = service.getBearerToken();
 
         // Then
-        assertThat(future)
+        assertThat(stage)
                 .failsWithin(ofSeconds(1))
                 .withThrowableOfType(ExecutionException.class)
                 .havingCause()
