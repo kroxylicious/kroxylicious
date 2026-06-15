@@ -77,7 +77,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private static final String ENV_PASSWORD = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_PASSWORD";
     private static final String ENV_TLS_INSECURE = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_INSECURE";
     private static final String ENV_TLS_CA_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT";
-    private static final String VAULT_KEYS_PATH = "/api/v1/vault/keys2/";
+    private static final String VAULT_KEYS_PATH = "/api/v1/vault/keys2";
     private static final String ACCEPT_HEADER = "Accept";
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
@@ -288,7 +288,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
                     Map.of(TEST_RUN_LABEL, testRunInstance));
 
             String requestBody = encodeJson(createKeyRequest);
-            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH, requestBody);
+            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH + "/", requestBody);
             sendRequestNoResponse(request, 200, 201);
         }
 
@@ -297,14 +297,14 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             RotateKeyRequest rotateRequest = new RotateKeyRequest();
             String rotateBody = encodeJson(rotateRequest);
             // Use type=name parameter to explicitly pass key name instead of UUID
-            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH + alias + "/versions/?type=name", rotateBody);
+            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH + "/" + alias + "/versions/?type=name", rotateBody);
             sendRequestNoResponse(request, 200, 201);
         }
 
         @Override
         public void deleteKek(String alias) {
             // Query for ALL keys with this name (handles rotated versions)
-            HttpRequest queryRequest = buildAuthenticatedGetRequest("/api/v1/vault/keys2?name=" + alias);
+            HttpRequest queryRequest = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "?name=" + alias);
             GetKeysResponse keysResponse = sendRequest(queryRequest, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
 
             if (keysResponse.total() == 0 || keysResponse.resources() == null || keysResponse.resources().isEmpty()) {
@@ -313,7 +313,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
             // Delete each key version individually using type=id to be explicit
             for (GetKeyResponse key : keysResponse.resources()) {
-                HttpRequest deleteRequest = buildAuthenticatedDeleteRequest(VAULT_KEYS_PATH + key.id() + "?type=id");
+                HttpRequest deleteRequest = buildAuthenticatedDeleteRequest(VAULT_KEYS_PATH + "/" + key.id() + "?type=id");
                 sendRequestNoResponse(deleteRequest, 200, 204);
             }
         }
@@ -333,7 +333,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
          */
         private GetKeyResponse queryKeyByName(String alias) {
             // Use type=name parameter to explicitly query by name
-            HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + alias + "?type=name");
+            HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "/" + alias + "?type=name");
             return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, () -> new UnknownAliasException(alias), 200);
         }
     }
@@ -479,7 +479,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
         while (hasMore) {
             String queryParams = "?labels=" + labelFilter + "&skip=" + skip + "&limit=" + limit;
-            HttpRequest request = buildAuthenticatedGetRequest("/api/v1/vault/keys2" + queryParams);
+            HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + queryParams);
             GetKeysResponse paginatedResponse = sendRequest(request, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
 
             if (paginatedResponse.resources() != null && !paginatedResponse.resources().isEmpty()) {
@@ -499,7 +499,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
     private void deleteKeyById(String keyId) {
         try {
-            HttpRequest request = buildAuthenticatedDeleteRequest(VAULT_KEYS_PATH + keyId);
+            HttpRequest request = buildAuthenticatedDeleteRequest(VAULT_KEYS_PATH + "/" + keyId);
             sendRequestNoResponse(request, 200, 204);
         }
         catch (Exception e) {
