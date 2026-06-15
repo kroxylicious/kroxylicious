@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -27,6 +28,7 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.ResponseDefinitionTransformerV2;
+import com.github.tomakehurst.wiremock.http.Request;
 import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 
@@ -85,6 +87,34 @@ public class CipherTrustMockServer {
 
     @Nullable
     private X509Certificate serverCertificate;
+
+    /**
+     * Extract a query parameter value from a WireMock request with type conversion.
+     *
+     * @param request the WireMock request
+     * @param paramName the query parameter name
+     * @param defaultValue the default value if parameter is not present
+     * @param converter function to convert the string value to the desired type
+     * @param <T> the target type
+     * @return the converted value or default value if parameter is not present
+     */
+    private static <T> T getQueryParam(Request request, String paramName, T defaultValue, Function<String, T> converter) {
+        var queryParam = request.queryParameter(paramName);
+        return queryParam.isPresent() ? converter.apply(queryParam.firstValue()) : defaultValue;
+    }
+
+    /**
+     * Extract a string query parameter value from a WireMock request.
+     *
+     * @param request the WireMock request
+     * @param paramName the query parameter name
+     * @param defaultValue the default value if parameter is not present
+     * @return the string value or default value if parameter is not present
+     */
+    @Nullable
+    private static String getQueryParam(Request request, String paramName, @Nullable String defaultValue) {
+        return getQueryParam(request, paramName, defaultValue, Function.identity());
+    }
 
     /**
      * Create a CipherTrust mock server using HTTP.
@@ -354,11 +384,7 @@ public class CipherTrustMockServer {
         @Override
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
-                int bytesParam = 32; // default
-                var bytesQueryParam = serveEvent.getRequest().queryParameter("bytes");
-                if (bytesQueryParam.isPresent()) {
-                    bytesParam = Integer.parseInt(bytesQueryParam.firstValue());
-                }
+                int bytesParam = getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt);
 
                 byte[] randomBytes = new byte[bytesParam];
                 secureRandom.nextBytes(randomBytes);
@@ -579,10 +605,10 @@ public class CipherTrustMockServer {
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
                 var request = serveEvent.getRequest();
-                String name = request.queryParameter("name").isPresent() ? request.queryParameter("name").firstValue() : null;
-                String labelFilter = request.queryParameter("labels").isPresent() ? request.queryParameter("labels").firstValue() : null;
-                int skip = request.queryParameter("skip").isPresent() ? Integer.parseInt(request.queryParameter("skip").firstValue()) : 0;
-                int limit = request.queryParameter("limit").isPresent() ? Integer.parseInt(request.queryParameter("limit").firstValue()) : 10;
+                String name = getQueryParam(request, "name", null);
+                String labelFilter = getQueryParam(request, "labels", null);
+                int skip = getQueryParam(request, "skip", 0, Integer::parseInt);
+                int limit = getQueryParam(request, "limit", 10, Integer::parseInt);
 
                 List<GetKeyResponse> matchingKeys;
                 if (name != null) {
