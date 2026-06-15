@@ -77,6 +77,10 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private static final String ENV_PASSWORD = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_PASSWORD";
     private static final String ENV_TLS_INSECURE = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_INSECURE";
     private static final String ENV_TLS_CA_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT";
+    private static final String VAULT_KEYS_PATH = "/api/v1/vault/keys2/";
+    private static final String ACCEPT_HEADER = "Accept";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String TEST_RUN_LABEL = "kroxylicious-test-run";
     private static final String TEST_USERNAME = "testuser";
     @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
@@ -184,20 +188,15 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     }
 
     private void authenticateViaHttp() {
-        try {
-            AuthRequest authRequest = AuthRequest.withPassword(username, password);
-            String requestBody = encodeJson(authRequest);
-            HttpRequest request = buildAuthRequest("/api/v1/auth/tokens/", requestBody);
-            AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, null, 200);
-            this.jwtToken = authResponse.jwt();
+        AuthRequest authRequest = AuthRequest.withPassword(username, password);
+        String requestBody = encodeJson(authRequest);
+        HttpRequest request = buildAuthRequest("/api/v1/auth/tokens/", requestBody);
+        AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, null, 200);
+        this.jwtToken = authResponse.jwt();
 
-            LOGGER.atDebug()
-                    .addKeyValue("useReal", useReal)
-                    .log("Authenticated to CipherTrust Manager");
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to authenticate to CipherTrust Manager", e);
-        }
+        LOGGER.atDebug()
+                .addKeyValue("useReal", useReal)
+                .log("Authenticated to CipherTrust Manager");
     }
 
     @Override
@@ -282,58 +281,40 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
         @Override
         public void generateKek(String alias) {
-            try {
-                CreateKeyRequest createKeyRequest = new CreateKeyRequest(
-                        alias,
-                        "aes",
-                        12, // encrypt + decrypt
-                        Map.of(TEST_RUN_LABEL, testRunInstance));
+            CreateKeyRequest createKeyRequest = new CreateKeyRequest(
+                    alias,
+                    "aes",
+                    12, // encrypt + decrypt
+                    Map.of(TEST_RUN_LABEL, testRunInstance));
 
-                String requestBody = encodeJson(createKeyRequest);
-                HttpRequest request = buildAuthenticatedPostRequest("/api/v1/vault/keys2/", requestBody);
-                sendRequestNoResponse(request, 200, 201);
-            }
-            catch (Exception e) {
-                throw new RuntimeException("Failed to create key: " + alias, e);
-            }
+            String requestBody = encodeJson(createKeyRequest);
+            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH, requestBody);
+            sendRequestNoResponse(request, 200, 201);
         }
 
         @Override
         public void rotateKek(String alias) {
-            try {
-                RotateKeyRequest rotateRequest = new RotateKeyRequest();
-                String rotateBody = encodeJson(rotateRequest);
-                // Use type=name parameter to explicitly pass key name instead of UUID
-                HttpRequest request = buildAuthenticatedPostRequest("/api/v1/vault/keys2/" + alias + "/versions/?type=name", rotateBody);
-                sendRequestNoResponse(request, 200, 201);
-            }
-            catch (UnknownAliasException e) {
-                throw e;
-            }
-            catch (Exception e) {
-                throw new RuntimeException("Failed to rotate key: " + alias, e);
-            }
+            RotateKeyRequest rotateRequest = new RotateKeyRequest();
+            String rotateBody = encodeJson(rotateRequest);
+            // Use type=name parameter to explicitly pass key name instead of UUID
+            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH + alias + "/versions/?type=name", rotateBody);
+            sendRequestNoResponse(request, 200, 201);
         }
 
         @Override
         public void deleteKek(String alias) {
-            try {
-                // Query for ALL keys with this name (handles rotated versions)
-                HttpRequest queryRequest = buildAuthenticatedGetRequest("/api/v1/vault/keys2?name=" + alias);
-                GetKeysResponse keysResponse = sendRequest(queryRequest, GET_KEYS_RESPONSE_TYPE_REF,  null , 200);
+            // Query for ALL keys with this name (handles rotated versions)
+            HttpRequest queryRequest = buildAuthenticatedGetRequest("/api/v1/vault/keys2?name=" + alias);
+            GetKeysResponse keysResponse = sendRequest(queryRequest, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
 
-                if (keysResponse.total() == 0 || keysResponse.resources() == null || keysResponse.resources().isEmpty()) {
-                    throw new UnknownAliasException("Key not found: " + alias);
-                }
-
-                // Delete each key version individually using type=id to be explicit
-                for (GetKeyResponse key : keysResponse.resources()) {
-                    HttpRequest deleteRequest = buildAuthenticatedDeleteRequest("/api/v1/vault/keys2/" + key.id() + "?type=id");
-                    sendRequestNoResponse(deleteRequest, 200, 204);
-                }
+            if (keysResponse.total() == 0 || keysResponse.resources() == null || keysResponse.resources().isEmpty()) {
+                throw new UnknownAliasException("Key not found: " + alias);
             }
-            catch (Exception e) {
-                throw new RuntimeException("Failed to delete key: " + alias, e);
+
+            // Delete each key version individually using type=id to be explicit
+            for (GetKeyResponse key : keysResponse.resources()) {
+                HttpRequest deleteRequest = buildAuthenticatedDeleteRequest(VAULT_KEYS_PATH + key.id() + "?type=id");
+                sendRequestNoResponse(deleteRequest, 200, 204);
             }
         }
 
@@ -352,8 +333,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
          */
         private GetKeyResponse queryKeyByName(String alias) {
             // Use type=name parameter to explicitly query by name
-            HttpRequest request = buildAuthenticatedGetRequest("/api/v1/vault/keys2/" + alias + "?type=name");
-            return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, () -> new UnknownAliasException(alias) , 200);
+            HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + alias + "?type=name");
+            return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, () -> new UnknownAliasException(alias), 200);
         }
     }
 
@@ -375,7 +356,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
         }
     }
 
-    private <R> R sendRequest(HttpRequest request, TypeReference<R> valueTypeRef, @Nullable Supplier<KmsException> notFoundExceptionSupplier, int... acceptableStatusCodes) {
+    private <R> R sendRequest(HttpRequest request, TypeReference<R> valueTypeRef, @Nullable Supplier<KmsException> notFoundExceptionSupplier,
+                              int... acceptableStatusCodes) {
         try {
             HttpResponse<String> response = Objects.requireNonNull(httpClient).send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -404,8 +386,6 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
         }
     }
 
-
-
     private void sendRequestNoResponse(HttpRequest request, int... acceptableStatusCodes) {
         try {
             HttpResponse<String> response = Objects.requireNonNull(httpClient).send(request, HttpResponse.BodyHandlers.ofString());
@@ -431,8 +411,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private HttpRequest buildAuthRequest(String path, String jsonBody) {
         return HttpRequest.newBuilder()
                 .uri(Objects.requireNonNull(cipherTrustUrl).resolve(path))
-                .header("Content-Type", JSON_CONTENT_TYPE)
-                .header("Accept", JSON_CONTENT_TYPE)
+                .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                .header(ACCEPT_HEADER, JSON_CONTENT_TYPE)
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
     }
@@ -440,8 +420,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private HttpRequest buildAuthenticatedGetRequest(String path) {
         return HttpRequest.newBuilder()
                 .uri(Objects.requireNonNull(cipherTrustUrl).resolve(path))
-                .header("Accept", JSON_CONTENT_TYPE)
-                .header("Authorization", bearerHeader())
+                .header(ACCEPT_HEADER, JSON_CONTENT_TYPE)
+                .header(AUTHORIZATION_HEADER, bearerHeader())
                 .GET()
                 .build();
     }
@@ -453,9 +433,9 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private HttpRequest buildAuthenticatedPostRequest(String path, String jsonBody) {
         return HttpRequest.newBuilder()
                 .uri(Objects.requireNonNull(cipherTrustUrl).resolve(path))
-                .header("Content-Type", JSON_CONTENT_TYPE)
-                .header("Accept", JSON_CONTENT_TYPE)
-                .header("Authorization", bearerHeader())
+                .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                .header(ACCEPT_HEADER, JSON_CONTENT_TYPE)
+                .header(AUTHORIZATION_HEADER, bearerHeader())
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
     }
@@ -463,73 +443,63 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private HttpRequest buildAuthenticatedDeleteRequest(String path) {
         return HttpRequest.newBuilder()
                 .uri(Objects.requireNonNull(cipherTrustUrl).resolve(path))
-                .header("Authorization", bearerHeader())
+                .header(AUTHORIZATION_HEADER, bearerHeader())
                 .DELETE()
                 .build();
     }
 
     private void deleteTestKeks() {
-        try {
-            List<GetKeyResponse> keys = listKeysWithTestLabel();
-            LOGGER.atInfo()
-                    .addKeyValue("totalKeys", keys.size())
-                    .addKeyValue("testRunInstance", testRunInstance)
-                    .log("Retrieved keys for cleanup");
+        List<GetKeyResponse> keys = listKeysWithTestLabel();
+        LOGGER.atInfo()
+                .addKeyValue("totalKeys", keys.size())
+                .addKeyValue("testRunInstance", testRunInstance)
+                .log("Retrieved keys for cleanup");
 
-            for (GetKeyResponse key : keys) {
-                String keyId = key.id();
-                String keyName = key.name();
-                LOGGER.atInfo()
-                        .addKeyValue("keyId", keyId)
-                        .addKeyValue("keyName", keyName)
-                        .log("Deleting test key");
-                deleteKeyById(keyId);
-            }
+        for (GetKeyResponse key : keys) {
+            String keyId = key.id();
+            String keyName = key.name();
             LOGGER.atInfo()
-                    .addKeyValue("deletedCount", keys.size())
-                    .log("Deleted test keys");
+                    .addKeyValue("keyId", keyId)
+                    .addKeyValue("keyName", keyName)
+                    .log("Deleting test key");
+            deleteKeyById(keyId);
         }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to delete test keys", e);
-        }
+        LOGGER.atInfo()
+                .addKeyValue("deletedCount", keys.size())
+                .log("Deleted test keys");
     }
 
     private List<GetKeyResponse> listKeysWithTestLabel() {
-        try {
-            List<GetKeyResponse> allKeys = new java.util.ArrayList<>();
-            int skip = 0;
-            int limit = 100;
-            boolean hasMore = true;
+        List<GetKeyResponse> allKeys = new java.util.ArrayList<>();
+        int skip = 0;
+        int limit = 100;
+        boolean hasMore = true;
 
-            String labelFilter = TEST_RUN_LABEL + "=" + testRunInstance;
+        String labelFilter = TEST_RUN_LABEL + "=" + testRunInstance;
 
-            while (hasMore) {
-                String queryParams = "?labels=" + labelFilter + "&skip=" + skip + "&limit=" + limit;
-                HttpRequest request = buildAuthenticatedGetRequest("/api/v1/vault/keys2" + queryParams);
-                GetKeysResponse paginatedResponse = sendRequest(request, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
+        while (hasMore) {
+            String queryParams = "?labels=" + labelFilter + "&skip=" + skip + "&limit=" + limit;
+            HttpRequest request = buildAuthenticatedGetRequest("/api/v1/vault/keys2" + queryParams);
+            GetKeysResponse paginatedResponse = sendRequest(request, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
 
-                if (paginatedResponse.resources() != null && !paginatedResponse.resources().isEmpty()) {
-                    allKeys.addAll(paginatedResponse.resources());
-                    skip += paginatedResponse.resources().size();
+            if (paginatedResponse.resources() != null && !paginatedResponse.resources().isEmpty()) {
+                allKeys.addAll(paginatedResponse.resources());
+                skip += paginatedResponse.resources().size();
 
-                    // Check if there are more results
-                    hasMore = skip < paginatedResponse.total();
-                }
-                else {
-                    hasMore = false;
-                }
+                // Check if there are more results
+                hasMore = skip < paginatedResponse.total();
             }
+            else {
+                hasMore = false;
+            }
+        }
 
-            return allKeys;
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to list keys", e);
-        }
+        return allKeys;
     }
 
     private void deleteKeyById(String keyId) {
         try {
-            HttpRequest request = buildAuthenticatedDeleteRequest("/api/v1/vault/keys2/" + keyId);
+            HttpRequest request = buildAuthenticatedDeleteRequest(VAULT_KEYS_PATH + keyId);
             sendRequestNoResponse(request, 200, 204);
         }
         catch (Exception e) {
