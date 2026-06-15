@@ -199,19 +199,17 @@ public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
 
         // Step 1: Generate random DEK bytes
         return generateRandomBytes(DEK_SIZE_BYTES)
-                .thenCompose(plaintextDek -> {
-                    // Step 2: Encrypt DEK with KEK (CTM resolves name to current key version)
-                    return encryptDek(kekRef, plaintextDek)
-                            .thenApply(edek -> {
-                                // Step 3: Create DekPair
-                                SecretKey secretKey = DestroyableRawSecretKey.takeOwnershipOf(plaintextDek, AES_KEY_ALGO);
-                                LOGGER.atDebug()
-                                        .addKeyValue("kekRef", kekRef)
-                                        .addKeyValue("edekVersion", edek.version())
-                                        .log("DEK pair generated successfully");
-                                return new DekPair<>(edek, secretKey);
-                            });
-                });
+                // Step 2: Encrypt DEK with KEK (CTM resolves name to current key version)
+                .thenCompose(plaintextDek -> encryptDek(kekRef, plaintextDek)
+                        .thenApply(edek -> {
+                            // Step 3: Create DekPair
+                            SecretKey secretKey = DestroyableRawSecretKey.takeOwnershipOf(plaintextDek, AES_KEY_ALGO);
+                            LOGGER.atDebug()
+                                    .addKeyValue("kekRef", kekRef)
+                                    .addKeyValue("edekVersion", edek.version())
+                                    .log("DEK pair generated successfully");
+                            return new DekPair<>(edek, secretKey);
+                        }));
     }
 
     private CompletionStage<byte[]> generateRandomBytes(int numBytes) {

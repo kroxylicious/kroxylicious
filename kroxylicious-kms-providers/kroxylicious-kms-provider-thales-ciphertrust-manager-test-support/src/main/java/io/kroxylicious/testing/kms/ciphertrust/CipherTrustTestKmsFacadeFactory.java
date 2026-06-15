@@ -20,6 +20,7 @@ public class CipherTrustTestKmsFacadeFactory implements TestKmsFacadeFactory<Con
      * Creates a factory.
      */
     public CipherTrustTestKmsFacadeFactory() {
+        // Intentionally empty
     }
 
     @Override

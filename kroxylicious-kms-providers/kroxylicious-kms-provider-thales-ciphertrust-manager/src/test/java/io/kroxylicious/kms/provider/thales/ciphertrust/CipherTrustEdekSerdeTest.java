@@ -170,16 +170,17 @@ class CipherTrustEdekSerdeTest {
         var edekDifferentMode = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "cbc", new byte[]{ 6, 7, 8 });
         var edekDifferentIv = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 9 });
 
-        assertThat(edek1).isEqualTo(edek2);
-        assertThat(edek1).hasSameHashCodeAs(edek1);
-        assertThat(edek1).isNotEqualTo(null);
-        assertThat(edek1).isNotEqualTo("not an edek");
-        assertThat(edek1).isNotEqualTo(edekDifferentId);
-        assertThat(edek1).isNotEqualTo(edekDifferentCiphertext);
-        assertThat(edek1).isNotEqualTo(edekDifferentTag);
-        assertThat(edek1).isNotEqualTo(edekDifferentVersion);
-        assertThat(edek1).isNotEqualTo(edekDifferentMode);
-        assertThat(edek1).isNotEqualTo(edekDifferentIv);
+        assertThat(edek1)
+                .isEqualTo(edek2)
+                .hasSameHashCodeAs(edek1)
+                .isNotEqualTo(null)
+                .isNotEqualTo("not an edek")
+                .isNotEqualTo(edekDifferentId)
+                .isNotEqualTo(edekDifferentCiphertext)
+                .isNotEqualTo(edekDifferentTag)
+                .isNotEqualTo(edekDifferentVersion)
+                .isNotEqualTo(edekDifferentMode)
+                .isNotEqualTo(edekDifferentIv);
     }
 
     @Test
@@ -195,9 +196,10 @@ class CipherTrustEdekSerdeTest {
         var edek = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2 }, new byte[]{ 3 }, 1, "gcm", new byte[]{ 4, 5 });
         var toString = edek.toString();
 
-        assertThat(toString).contains(KEY_ID);
-        assertThat(toString).contains("gcm");
-        assertThat(toString).contains("version=1");
+        assertThat(toString)
+                .contains(KEY_ID)
+                .contains("gcm")
+                .contains("version=1");
     }
 
 }

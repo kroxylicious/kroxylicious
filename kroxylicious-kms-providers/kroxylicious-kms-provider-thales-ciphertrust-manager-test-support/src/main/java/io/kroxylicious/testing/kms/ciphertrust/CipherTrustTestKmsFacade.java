@@ -78,6 +78,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private static final String ENV_TLS_INSECURE = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_INSECURE";
     private static final String ENV_TLS_CA_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT";
     private static final String VAULT_KEYS_PATH = "/api/v1/vault/keys2";
+    private static final String AUTH_TOKENS_PATH = "/api/v1/auth/tokens/";
     private static final String ACCEPT_HEADER = "Accept";
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
@@ -190,7 +191,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private void authenticateViaHttp() {
         AuthRequest authRequest = AuthRequest.withPassword(username, password);
         String requestBody = encodeJson(authRequest);
-        HttpRequest request = buildAuthRequest("/api/v1/auth/tokens/", requestBody);
+        HttpRequest request = buildAuthRequest(AUTH_TOKENS_PATH, requestBody);
         AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, null, 200);
         this.jwtToken = authResponse.jwt();
 
@@ -336,6 +337,16 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "/" + alias + "?type=name");
             return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, () -> new UnknownAliasException(alias), 200);
         }
+
+        private HttpRequest buildAuthenticatedPostRequest(String path, String jsonBody) {
+            return HttpRequest.newBuilder()
+                    .uri(Objects.requireNonNull(cipherTrustUrl).resolve(path))
+                    .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                    .header(ACCEPT_HEADER, JSON_CONTENT_TYPE)
+                    .header(AUTHORIZATION_HEADER, bearerHeader())
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                    .build();
+        }
     }
 
     private String encodeJson(Object obj) {
@@ -428,16 +439,6 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
     private String bearerHeader() {
         return "Bearer " + jwtToken;
-    }
-
-    private HttpRequest buildAuthenticatedPostRequest(String path, String jsonBody) {
-        return HttpRequest.newBuilder()
-                .uri(Objects.requireNonNull(cipherTrustUrl).resolve(path))
-                .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                .header(ACCEPT_HEADER, JSON_CONTENT_TYPE)
-                .header(AUTHORIZATION_HEADER, bearerHeader())
-                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .build();
     }
 
     private HttpRequest buildAuthenticatedDeleteRequest(String path) {

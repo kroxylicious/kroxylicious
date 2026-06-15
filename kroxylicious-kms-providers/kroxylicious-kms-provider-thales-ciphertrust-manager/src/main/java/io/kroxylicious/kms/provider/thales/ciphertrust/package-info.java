@@ -16,10 +16,11 @@
  * so this implementation manually generates DEKs and wraps them using CTM's encryption API.
  * </p>
  *
- * TODO:
- * * support domains parameter
- * * implement authentication using client auth (https://docs-cybersec.thalesgroup.com/bundle/v2.14-cdsp-cm/page/admin/cm_admin/authentication/rest-api/index.html)
- * * reject(or warn) anything that's not a v1 api?
+ * <h2>Future Enhancements</h2>
+ * <ul>
+ * <li>Support CipherTrust Manager domains parameter (issue #4118)</li>
+ * <li>Implement client credentials authentication (issue #4117)</li>
+ * </ul>
  *
  */
 @ReturnValuesAreNonnullByDefault
