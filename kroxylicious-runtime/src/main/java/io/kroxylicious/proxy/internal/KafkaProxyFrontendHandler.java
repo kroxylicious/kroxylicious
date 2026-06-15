@@ -408,7 +408,8 @@ public class KafkaProxyFrontendHandler
                 routingRequestsCounter, routingErrorsCounter,
                 routingRequestDurationTimer, pendingResponseCount,
                 translator, sharedNodeAddresses, topicIdCache,
-                virtualNodeId);
+                virtualNodeId,
+                null);
         pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
 
         // Install any pending route filters (e.g. VC filters for "default" activation route)

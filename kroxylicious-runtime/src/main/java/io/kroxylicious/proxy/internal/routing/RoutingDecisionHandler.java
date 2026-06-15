@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -35,6 +37,8 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link ChannelDuplexHandler} that executes a {@link Router} as part
@@ -70,6 +74,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private final IntUnaryOperator virtualIdTranslator;
     private final Map<Integer, HostPort> sharedNodeAddresses;
     private final Map<Uuid, String> topicIdCache;
+    @Nullable
+    private final TopologyCache topologyCache;
 
     private final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
@@ -87,7 +93,8 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                                   IntUnaryOperator virtualIdTranslator,
                                   Map<Integer, HostPort> sharedNodeAddresses,
                                   Map<Uuid, String> topicIdCache,
-                                  OptionalInt virtualNodeId) {
+                                  OptionalInt virtualNodeId,
+                                  @Nullable TopologyCache topologyCache) {
         this.activationRoute = activationRoute;
         this.router = router;
         this.routes = routes;
@@ -102,6 +109,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         this.sharedNodeAddresses = sharedNodeAddresses;
         this.topicIdCache = topicIdCache;
         this.virtualNodeId = virtualNodeId;
+        this.topologyCache = topologyCache;
         RouterContextImpl.registerBootstrapAddresses(
                 routes, nodeIdMapping, sharedNodeAddresses, virtualIdTranslator);
     }
@@ -286,6 +294,9 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                     NodeIdResponseTranslator.translate(
                             frame.body(), frame.apiVersion(),
                             pending.nodeIdMapping(), pending.route());
+                    if (topologyCache != null) {
+                        updateTopologyCache(frame.body(), frame.apiVersion(), pending.route());
+                    }
                     pending.future().complete(frame.body());
                     LOGGER.atTrace()
                             .addKeyValue("sessionId", ccsm.sessionId())
@@ -310,6 +321,15 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     @Override
     public void deregister(int correlationId) {
         pendingResponses.remove(correlationId);
+    }
+
+    private void updateTopologyCache(ApiMessage body, short apiVersion, String route) {
+        if (body instanceof MetadataResponseData md) {
+            topologyCache.updateFromMetadata(route, md);
+        }
+        else if (body instanceof FindCoordinatorResponseData fc) {
+            topologyCache.updateFromFindCoordinator(route, fc, apiVersion);
+        }
     }
 
     // --- Helpers ---
