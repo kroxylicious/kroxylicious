@@ -13,4 +13,5 @@ package io.kroxylicious.testing.kms.ciphertrust.model;
  * The CipherTrust Manager API requires a POST with an empty body for key rotation.
  * </p>
  */
+@SuppressWarnings("java:S2094") // Intentionally empty object
 public record RotateKeyRequest() {}

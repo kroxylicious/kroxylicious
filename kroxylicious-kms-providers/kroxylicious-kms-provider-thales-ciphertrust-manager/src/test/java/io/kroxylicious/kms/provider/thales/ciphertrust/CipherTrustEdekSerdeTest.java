@@ -163,24 +163,29 @@ class CipherTrustEdekSerdeTest {
     void shouldImplementEqualsCorrectly() {
         var edek1 = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
         var edek2 = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
-        var edekDifferentId = new CipherTrustEdek("different", new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
-        var edekDifferentCiphertext = new CipherTrustEdek(KEY_ID, new byte[]{ 9 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
-        var edekDifferentTag = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 9 }, 1, "gcm", new byte[]{ 6, 7, 8 });
-        var edekDifferentVersion = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 2, "gcm", new byte[]{ 6, 7, 8 });
-        var edekDifferentMode = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "cbc", new byte[]{ 6, 7, 8 });
-        var edekDifferentIv = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 9 });
 
         assertThat(edek1)
                 .isEqualTo(edek2)
                 .hasSameHashCodeAs(edek1)
                 .isNotEqualTo(null)
-                .isNotEqualTo("not an edek")
-                .isNotEqualTo(edekDifferentId)
-                .isNotEqualTo(edekDifferentCiphertext)
-                .isNotEqualTo(edekDifferentTag)
-                .isNotEqualTo(edekDifferentVersion)
-                .isNotEqualTo(edekDifferentMode)
-                .isNotEqualTo(edekDifferentIv);
+                .isNotEqualTo("not an edek");
+    }
+
+    @ParameterizedTest
+    @MethodSource("notEqualEdeks")
+    void shouldNotBeEqualToDifferentEdeks(CipherTrustEdek other) {
+        var edek = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        assertThat(edek).isNotEqualTo(other);
+    }
+
+    static Stream<Arguments> notEqualEdeks() {
+        return Stream.of(
+                Arguments.argumentSet("different id", new CipherTrustEdek("different", new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 })),
+                Arguments.argumentSet("different ciphertext", new CipherTrustEdek(KEY_ID, new byte[]{ 9 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 })),
+                Arguments.argumentSet("different tag", new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 9 }, 1, "gcm", new byte[]{ 6, 7, 8 })),
+                Arguments.argumentSet("different version", new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 2, "gcm", new byte[]{ 6, 7, 8 })),
+                Arguments.argumentSet("different mode", new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "cbc", new byte[]{ 6, 7, 8 })),
+                Arguments.argumentSet("different iv", new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 9 })));
     }
 
     @Test
