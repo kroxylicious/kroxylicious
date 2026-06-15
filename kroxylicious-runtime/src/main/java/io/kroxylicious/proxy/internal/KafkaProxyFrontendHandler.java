@@ -401,6 +401,7 @@ public class KafkaProxyFrontendHandler
 
         // Install RoutingDecisionHandler
         String handlerName = "routingDecisionHandler-" + routerName;
+        var topologyService = routerChainFactory.topologyServiceFor(routerName, vc.getClusterName());
         var decisionHandler = new RoutingDecisionHandler(
                 activationRoute,
                 router, routeDescriptors, router.staticRoutes(),
@@ -409,7 +410,7 @@ public class KafkaProxyFrontendHandler
                 routingRequestDurationTimer, pendingResponseCount,
                 translator, sharedNodeAddresses, topicIdCache,
                 virtualNodeId,
-                null);
+                topologyService);
         pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
 
         // Install any pending route filters (e.g. VC filters for "default" activation route)

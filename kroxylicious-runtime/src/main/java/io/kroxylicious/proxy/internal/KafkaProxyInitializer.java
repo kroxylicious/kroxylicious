@@ -259,7 +259,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("frontendHandler", frontendHandler);
         if (virtualCluster.usesRouter() && routerChainFactory != null) {
             dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
-            var sharedNodeAddresses = new java.util.HashMap<Integer, io.kroxylicious.proxy.service.HostPort>();
+            var sharedNodeAddresses = routerChainFactory.sharedNodeAddressesFor(virtualCluster.routerName(), virtualCluster.getClusterName());
             var terminalHandler = new io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler(clientConnectionStateMachine);
             clientConnectionStateMachine.setUpstreamAddressResolver(
                     virtualNodeId -> Optional.ofNullable(sharedNodeAddresses.get(virtualNodeId))

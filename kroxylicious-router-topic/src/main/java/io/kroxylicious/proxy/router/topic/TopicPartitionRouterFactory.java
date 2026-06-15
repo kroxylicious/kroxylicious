@@ -20,6 +20,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.router.TopologyService;
 import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -52,7 +53,8 @@ public class TopicPartitionRouterFactory
                     FetchSessionCache fetchSessionCache,
                     Clock clock,
                     String virtualClusterName,
-                    String routerName) {}
+                    String routerName,
+                    TopologyService topologyService) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
@@ -161,7 +163,8 @@ public class TopicPartitionRouterFactory
                         context.virtualClusterName(), context.routerName()),
                 clock,
                 context.virtualClusterName(),
-                context.routerName());
+                context.routerName(),
+                context.topologyService());
     }
 
     @Override
@@ -175,7 +178,8 @@ public class TopicPartitionRouterFactory
                 initData.fetchSessionCache(),
                 initData.clock(),
                 initData.virtualClusterName(),
-                initData.routerName());
+                initData.routerName(),
+                initData.topologyService());
     }
 
     @Override

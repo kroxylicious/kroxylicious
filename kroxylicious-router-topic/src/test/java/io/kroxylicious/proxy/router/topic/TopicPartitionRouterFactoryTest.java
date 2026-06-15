@@ -6,13 +6,21 @@
 package io.kroxylicious.proxy.router.topic;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.Uuid;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.router.BrokerInfo;
+import io.kroxylicious.proxy.router.PartitionInfo;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.TopologyService;
+import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.router.topic.config.RouteConfig;
 import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
 
@@ -205,8 +213,49 @@ class TopicPartitionRouterFactoryTest {
 
             @Override
             public TopologyService topologyService() {
-                throw new UnsupportedOperationException();
+                return new NoOpTopologyService();
             }
         };
+    }
+
+    private static class NoOpTopologyService implements TopologyService {
+        @Override
+        public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
+            return CompletableFuture.completedFuture(Map.of());
+        }
+
+        @Override
+        public Optional<VirtualNode> leaderOf(String topicName, int partitionIndex) {
+            return Optional.empty();
+        }
+
+        @Override
+        public CompletionStage<Void> ensureLeadersCached(Map<String, Set<String>> topicsByRoute) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public Optional<VirtualNode> coordinatorOf(String route, byte keyType, String key) {
+            return Optional.empty();
+        }
+
+        @Override
+        public CompletionStage<VirtualNode> discoverCoordinator(String route, byte keyType, String key) {
+            return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        }
+
+        @Override
+        public Optional<PartitionInfo> partitionInfoFor(String topicName, int partitionIndex) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<BrokerInfo> brokerInfo(VirtualNode node) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void invalidateRoute(String route) {
+        }
     }
 }

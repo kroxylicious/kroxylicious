@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -82,10 +83,13 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
+import io.kroxylicious.proxy.router.BrokerInfo;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
+import io.kroxylicious.proxy.router.PartitionInfo;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.router.TerminalStage;
+import io.kroxylicious.proxy.router.TopologyService;
 import io.kroxylicious.proxy.router.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -96,14 +100,75 @@ class TopicPartitionRouterTest {
 
     record TestVirtualNode(int encodedId) implements VirtualNode {}
 
+    static class TestTopologyService implements TopologyService {
+
+        private final Map<String, Map<Integer, VirtualNode>> leaders = new HashMap<>();
+        private final Map<String, VirtualNode> coordinators = new HashMap<>();
+
+        void primeLeader(String topicName, int partition, VirtualNode leader) {
+            leaders.computeIfAbsent(topicName, k -> new HashMap<>()).put(partition, leader);
+        }
+
+        void primeCoordinator(String route, byte keyType, String key, VirtualNode node) {
+            coordinators.put(route + ":" + keyType + ":" + key, node);
+        }
+
+        @Override
+        public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
+            return CompletableFuture.completedFuture(Map.of());
+        }
+
+        @Override
+        public Optional<VirtualNode> leaderOf(String topicName, int partitionIndex) {
+            var partMap = leaders.get(topicName);
+            return partMap != null ? Optional.ofNullable(partMap.get(partitionIndex)) : Optional.empty();
+        }
+
+        @Override
+        public CompletionStage<Void> ensureLeadersCached(Map<String, Set<String>> topicsByRoute) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public Optional<VirtualNode> coordinatorOf(String route, byte keyType, String key) {
+            return Optional.ofNullable(coordinators.get(route + ":" + keyType + ":" + key));
+        }
+
+        @Override
+        public CompletionStage<VirtualNode> discoverCoordinator(String route, byte keyType, String key) {
+            var cached = coordinatorOf(route, keyType, key);
+            if (cached.isPresent()) {
+                return CompletableFuture.completedFuture(cached.get());
+            }
+            return CompletableFuture.failedFuture(new RuntimeException("coordinator not primed for " + route + ":" + keyType + ":" + key));
+        }
+
+        @Override
+        public Optional<PartitionInfo> partitionInfoFor(String topicName, int partitionIndex) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<BrokerInfo> brokerInfo(VirtualNode node) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void invalidateRoute(String route) {
+            // no-op in tests
+        }
+    }
+
     private TopicPartitionRouter router;
+    private TestTopologyService testTopologyService;
 
     @BeforeEach
     void setUp() {
+        testTopologyService = new TestTopologyService();
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a", "logs.", "cluster-b"), "default-route");
         router = new TopicPartitionRouter(table, "default-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
     }
 
     // --- close ---
@@ -114,7 +179,7 @@ class TopicPartitionRouterTest {
         var table = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), "default-route");
         var closeable = new TopicPartitionRouter(table, "default-route", Map.of(),
-                new ProducerIdManager(Duration.ofDays(7)), cache, Clock.systemUTC(), "testVc", "testRouter");
+                new ProducerIdManager(Duration.ofDays(7)), cache, Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = fetchRequest("orders.uk");
         request.setSessionId(0);
@@ -295,7 +360,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = produceRequest("orders.uk", "logs.app");
         var respA = produceResponse("orders.uk", 0, Errors.NONE);
@@ -393,7 +458,7 @@ class TopicPartitionRouterTest {
         var singleRouteTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "only-route"), null);
         var singleRouter = new TopicPartitionRouter(singleRouteTable, "only-route", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = new InitProducerIdRequestData()
                 .setTransactionTimeoutMs(60000);
@@ -482,6 +547,7 @@ class TopicPartitionRouterTest {
         var findCoordResp = findCoordinatorResponse(coordinatorNodeId);
         var initResp = initProducerIdResponse(300L, (short) 0);
 
+        testTopologyService.primeCoordinator("default-route", (byte) 1, "my-txn-id", new TestVirtualNode(coordinatorNodeId));
         var ctx = new SingleRouteInitCapturingContext("default-route", coordinatorNodeId,
                 findCoordResp, initResp) {
             @Override
@@ -773,7 +839,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = fetchRequest("orders.uk", "unknown.topic");
         request.setSessionId(0);
@@ -803,7 +869,7 @@ class TopicPartitionRouterTest {
         var sessionRouter = new TopicPartitionRouter(table, "default-route", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 10_000, "testVc", "testRouter"),
-                Clock.systemUTC(), "testVc", "testRouter");
+                Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         primeLeaderCache(sessionRouter, 1, "orders.uk");
         primeLeaderCache(sessionRouter, 2, "orders.de");
@@ -858,6 +924,7 @@ class TopicPartitionRouterTest {
         var request = listOffsetsRequest("orders.uk");
         var backendResp = listOffsetsResponse("orders.uk", 0, Errors.NONE);
 
+        primeLeaderCache(router, 1, "orders.uk");
         var ctx = new CapturingRouterContext(Map.of())
                 .withDefaultMetadataResponse(metadataResponseWithLeaders(1, "orders.uk"))
                 .withNodeResponses(Map.of(1, backendResp));
@@ -906,7 +973,7 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = listOffsetsRequest("orders.uk", "unknown.topic");
         var respA = listOffsetsResponse("orders.uk", 0, Errors.NONE);
@@ -932,6 +999,7 @@ class TopicPartitionRouterTest {
         var request = offsetCommitRequest("orders.uk");
         var backendResp = offsetCommitResponse("orders.uk", 0, Errors.NONE);
 
+        testTopologyService.primeCoordinator("cluster-a", (byte) 0, "test-group", new TestVirtualNode(1));
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1))
                 .withNodeResponses(Map.of(1, backendResp));
@@ -951,6 +1019,8 @@ class TopicPartitionRouterTest {
         var respA = offsetCommitResponse("orders.uk", 0, Errors.NONE);
         var respB = offsetCommitResponse("logs.app", 0, Errors.NONE);
 
+        testTopologyService.primeCoordinator("cluster-a", (byte) 0, "test-group", new TestVirtualNode(1));
+        testTopologyService.primeCoordinator("cluster-b", (byte) 0, "test-group", new TestVirtualNode(2));
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1, "cluster-b", 2))
                 .withNodeResponses(Map.of(1, respA, 2, respB));
@@ -982,11 +1052,12 @@ class TopicPartitionRouterTest {
         var noDefaultTable = PrefixTopicRoutingTable.create(
                 Map.of("orders.", "cluster-a"), null);
         var noDefaultRouter = new TopicPartitionRouter(noDefaultTable, "cluster-a", Map.of(), new ProducerIdManager(Duration.ofDays(7)),
-                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter");
+                new FetchSessionCache(1000, 0, "testVc", "testRouter"), Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = offsetCommitRequest("orders.uk", "unknown.topic");
         var respA = offsetCommitResponse("orders.uk", 0, Errors.NONE);
 
+        testTopologyService.primeCoordinator("cluster-a", (byte) 0, "test-group", new TestVirtualNode(1));
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1))
                 .withNodeResponses(Map.of(1, respA));
@@ -1098,7 +1169,7 @@ class TopicPartitionRouterTest {
         var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                Clock.systemUTC(), "testVc", "testRouter");
+                Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = new DescribeClusterRequestData()
                 .setIncludeClusterAuthorizedOperations(false);
@@ -1130,7 +1201,7 @@ class TopicPartitionRouterTest {
         var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                Clock.systemUTC(), "testVc", "testRouter");
+                Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = new DescribeClusterRequestData();
 
@@ -1161,7 +1232,7 @@ class TopicPartitionRouterTest {
         var twoRouteRouter = new TopicPartitionRouter(table, "cluster-a", Map.of(),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                Clock.systemUTC(), "testVc", "testRouter");
+                Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
 
         var request = new DescribeClusterRequestData();
 
@@ -1479,6 +1550,8 @@ class TopicPartitionRouterTest {
         respB.topics().add(new org.apache.kafka.common.message.OffsetFetchResponseData.OffsetFetchResponseTopic()
                 .setName("logs.errors"));
 
+        testTopologyService.primeCoordinator("cluster-a", (byte) 0, "my-group", new TestVirtualNode(1));
+        testTopologyService.primeCoordinator("cluster-b", (byte) 0, "my-group", new TestVirtualNode(2));
         var ctx = new CapturingRouterContext(Map.of())
                 .withFindCoordinatorNodeIds(Map.of("cluster-a", 1, "cluster-b", 2))
                 .withNodeResponses(Map.of(1, respA, 2, respB));
@@ -1502,7 +1575,7 @@ class TopicPartitionRouterTest {
                 Map.of("cg-user", mappedRoute),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                Clock.systemUTC(), "testVc", "testRouter");
+                Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
     }
 
     // --- transaction helpers ---
@@ -1516,7 +1589,7 @@ class TopicPartitionRouterTest {
                 Map.of("txn-user", mappedRoute),
                 new ProducerIdManager(Duration.ofDays(7)),
                 new FetchSessionCache(1000, 0, "testVc", "testRouter"),
-                Clock.systemUTC(), "testVc", "testRouter");
+                Clock.systemUTC(), "testVc", "testRouter", testTopologyService);
     }
 
     private void setupTransactionalProducer(TopicPartitionRouter txnRouter,
@@ -1747,10 +1820,12 @@ class TopicPartitionRouterTest {
         return metadataResponse(List.of(), List.of());
     }
 
-    private static void primeLeaderCache(TopicPartitionRouter router,
-                                         int nodeId,
-                                         String... topicNames) {
-        router.updateLeaderCache(metadataResponseWithLeaders(nodeId, topicNames), TestVirtualNode::new);
+    private void primeLeaderCache(TopicPartitionRouter router,
+                                  int nodeId,
+                                  String... topicNames) {
+        for (String topicName : topicNames) {
+            testTopologyService.primeLeader(topicName, 0, new TestVirtualNode(nodeId));
+        }
     }
 
     /**
