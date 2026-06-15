@@ -11,17 +11,24 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustKmsService;
+import io.kroxylicious.kms.provider.thales.ciphertrust.config.Config;
+import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.testing.kms.TestKekManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CipherTrustTestKmsFacadeTest {
 
     private CipherTrustTestKmsFacade facade;
+    private TestKekManager manager;
 
     @BeforeEach
     void setUp() {
         facade = new CipherTrustTestKmsFacade();
         facade.start();
+        manager = facade.getTestKekManager();
     }
 
     @AfterEach
@@ -32,9 +39,10 @@ class CipherTrustTestKmsFacadeTest {
     }
 
     @Test
-    void shouldProvideKmsServiceClass() {
+    void classAndConfig() {
         // When/Then
         assertThat(facade.getKmsServiceClass()).isEqualTo(CipherTrustKmsService.class);
+        assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
     }
 
     @Test
@@ -51,10 +59,43 @@ class CipherTrustTestKmsFacadeTest {
 
     @Test
     void shouldProvideTestKekManager() {
+        // When/Then
+        assertThat(manager).isNotNull();
+    }
+
+    @Test
+    void generateKek() {
+        // Given
+        String alias = "test-key";
+
         // When
-        var kekManager = facade.getTestKekManager();
+        manager.generateKek(alias);
 
         // Then
-        assertThat(kekManager).isNotNull();
+        assertThat(manager.read(alias)).isNotNull();
+    }
+
+    @Test
+    void rotateKek() {
+        // Given
+        String alias = "rotate-test-key";
+        manager.generateKek(alias);
+
+        // When/Then
+        assertThatNoException().isThrownBy(() -> manager.rotateKek(alias));
+    }
+
+    @Test
+    void deleteKek() {
+        // Given
+        String alias = "delete-test-key";
+        manager.generateKek(alias);
+
+        // When
+        manager.deleteKek(alias);
+
+        // Then
+        assertThatThrownBy(() -> manager.read(alias))
+                .isInstanceOf(UnknownAliasException.class);
     }
 }

@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ import io.kroxylicious.kms.provider.thales.ciphertrust.config.UserCredentials;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeyResponse;
+import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
@@ -186,7 +188,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             AuthRequest authRequest = AuthRequest.withPassword(username, password);
             String requestBody = encodeJson(authRequest);
             HttpRequest request = buildAuthRequest("/api/v1/auth/tokens/", requestBody);
-            AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, 200);
+            AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, null, 200);
             this.jwtToken = authResponse.jwt();
 
             LOGGER.atDebug()
@@ -318,7 +320,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             try {
                 // Query for ALL keys with this name (handles rotated versions)
                 HttpRequest queryRequest = buildAuthenticatedGetRequest("/api/v1/vault/keys2?name=" + alias);
-                GetKeysResponse keysResponse = sendRequest(queryRequest, GET_KEYS_RESPONSE_TYPE_REF, 200);
+                GetKeysResponse keysResponse = sendRequest(queryRequest, GET_KEYS_RESPONSE_TYPE_REF,  null , 200);
 
                 if (keysResponse.total() == 0 || keysResponse.resources() == null || keysResponse.resources().isEmpty()) {
                     throw new UnknownAliasException("Key not found: " + alias);
@@ -345,13 +347,13 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
          * CTM returns the key with the highest version for this name (handles rotation).
          *
          * @param alias key name to query
-         * @return the matching key (with highest version if multiple exist)
+         * @return the matching key (with the highest version if multiple exist)
          * @throws UnknownAliasException if no key found (404)
          */
         private GetKeyResponse queryKeyByName(String alias) {
             // Use type=name parameter to explicitly query by name
             HttpRequest request = buildAuthenticatedGetRequest("/api/v1/vault/keys2/" + alias + "?type=name");
-            return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, 200);
+            return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, () -> new UnknownAliasException(alias) , 200);
         }
     }
 
@@ -373,17 +375,21 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
         }
     }
 
-    private <R> R sendRequest(HttpRequest request, TypeReference<R> valueTypeRef, int... acceptableStatusCodes) {
+    private <R> R sendRequest(HttpRequest request, TypeReference<R> valueTypeRef, @Nullable Supplier<KmsException> notFoundExceptionSupplier, int... acceptableStatusCodes) {
         try {
             HttpResponse<String> response = Objects.requireNonNull(httpClient).send(request, HttpResponse.BodyHandlers.ofString());
 
             // Validate status code
+            int statusCode = response.statusCode();
             boolean statusOk = acceptableStatusCodes.length == 0
-                    ? response.statusCode() >= 200 && response.statusCode() < 300
-                    : IntStream.of(acceptableStatusCodes).anyMatch(code -> code == response.statusCode());
+                    ? statusCode >= 200 && statusCode < 300
+                    : IntStream.of(acceptableStatusCodes).anyMatch(code -> code == statusCode);
 
             if (!statusOk) {
-                throw new IllegalStateException("Request failed with status " + response.statusCode() + ": " + response.body());
+                if (statusCode == 404 && notFoundExceptionSupplier != null) {
+                    throw notFoundExceptionSupplier.get();
+                }
+                throw new IllegalStateException("Request failed with status " + statusCode + ": " + response.body());
             }
 
             // Deserialize response
@@ -397,6 +403,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             throw new IllegalStateException("Request interrupted", e);
         }
     }
+
+
 
     private void sendRequestNoResponse(HttpRequest request, int... acceptableStatusCodes) {
         try {
@@ -498,7 +506,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             while (hasMore) {
                 String queryParams = "?labels=" + labelFilter + "&skip=" + skip + "&limit=" + limit;
                 HttpRequest request = buildAuthenticatedGetRequest("/api/v1/vault/keys2" + queryParams);
-                GetKeysResponse paginatedResponse = sendRequest(request, GET_KEYS_RESPONSE_TYPE_REF, 200);
+                GetKeysResponse paginatedResponse = sendRequest(request, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
 
                 if (paginatedResponse.resources() != null && !paginatedResponse.resources().isEmpty()) {
                     allKeys.addAll(paginatedResponse.resources());
