@@ -77,6 +77,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private static final String ENV_TLS_CA_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT";
     private static final String TEST_RUN_LABEL = "kroxylicious-test-run";
     private static final String TEST_USERNAME = "testuser";
+    @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
     private static final String TEST_PASSWORD = "testpass";
     private static final String JSON_CONTENT_TYPE = "application/json";
 
@@ -103,6 +104,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     /**
      * Creates a CipherTrust test KMS facade.
      */
+    @SuppressWarnings("java:S2068") // Suppressed warning as this method uses a a test password
     public CipherTrustTestKmsFacade() {
         String urlStr = System.getenv(ENV_URL);
         if (urlStr != null && !urlStr.isEmpty()) {

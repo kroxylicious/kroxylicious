@@ -75,6 +75,11 @@ public class CipherTrustMockServer {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String JSON_CONTENT_TYPE = "application/json";
+
+    @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
+    private static final String STORE_PASSWORD = "changeit";
+    @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
+    private static final String KEY_PASSWORD = "keypass";
     private final WireMockServer server;
     private final boolean useTls;
 
@@ -131,8 +136,8 @@ public class CipherTrustMockServer {
             KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
             X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
             this.serverCertificate = certificate; // Store for later access
-            String storePassword = "changeit";
-            String keyPassword = "keypass";
+            String storePassword = STORE_PASSWORD;
+            String keyPassword = KEY_PASSWORD;
             CertificateGenerator.KeyStore keyStore = CertificateGenerator.createJksKeystore(
                     keyPair,
                     certificate,
