@@ -578,11 +578,11 @@ public class CipherTrustMockServer {
         @Override
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
-                String query = serveEvent.getRequest().getUrl();
-                String name = extractQueryParam(query, "name");
-                String labelFilter = extractQueryParam(query, "labels");
-                int skip = Integer.parseInt(extractQueryParam(query, "skip", "0"));
-                int limit = Integer.parseInt(extractQueryParam(query, "limit", "10"));
+                var request = serveEvent.getRequest();
+                String name = request.queryParameter("name").isPresent() ? request.queryParameter("name").firstValue() : null;
+                String labelFilter = request.queryParameter("labels").isPresent() ? request.queryParameter("labels").firstValue() : null;
+                int skip = request.queryParameter("skip").isPresent() ? Integer.parseInt(request.queryParameter("skip").firstValue()) : 0;
+                int limit = request.queryParameter("limit").isPresent() ? Integer.parseInt(request.queryParameter("limit").firstValue()) : 10;
 
                 List<GetKeyResponse> matchingKeys;
                 if (name != null) {
@@ -615,24 +615,6 @@ public class CipherTrustMockServer {
             catch (Exception e) {
                 throw new MockServerException("Key query failed", e);
             }
-        }
-
-        @Nullable
-        private String extractQueryParam(String query, String param) {
-            return extractQueryParam(query, param, null);
-        }
-
-        @Nullable
-        private String extractQueryParam(String query, String param, @Nullable String defaultValue) {
-            String searchStr = param + "=";
-            if (query.contains(searchStr)) {
-                String value = query.substring(query.indexOf(searchStr) + searchStr.length());
-                if (value.contains("&")) {
-                    value = value.substring(0, value.indexOf("&"));
-                }
-                return value;
-            }
-            return defaultValue;
         }
 
         @Override
