@@ -9,12 +9,13 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
@@ -41,7 +42,6 @@ import org.apache.kafka.common.message.EndTxnResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
@@ -84,6 +84,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.router.TopologyService;
 import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.router.topic.ProducerIdManager.ProducerIdEpoch;
 
@@ -113,12 +114,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *       {@code sendRequest} to the transaction coordinator.</li>
  * </ul>
  *
- * <h2>Leader/coordinator cache</h2>
+ * <h2>Topology cache</h2>
  *
- * <p>The router maintains a per-topic-partition leader cache ({@code partitionLeaders})
- * populated from every METADATA response that passes through. When a partition-leader
- * API arrives and the leader is not yet cached, the router sends an internal METADATA
- * request to the relevant route before dispatching.</p>
+ * <p>The router delegates leader and coordinator lookups to a
+ * {@link TopologyService} obtained from the factory context. The topology
+ * cache is populated as a side effect of METADATA responses flowing through
+ * the routing pipeline. When a partition-leader API arrives and the leader
+ * is not yet cached, the router calls
+ * {@link TopologyService#ensureLeadersCached} which sends METADATA
+ * requests internally.</p>
  *
  * <h2>Staleness handling</h2>
  *
@@ -127,8 +131,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <ol>
  *   <li>Returns the original error to the client <b>unchanged</b> — the client
  *       needs it to trigger its own metadata refresh.</li>
- *   <li>Fires a background METADATA (or FIND_COORDINATOR) request to refresh the
- *       cache for subsequent requests.</li>
+ *   <li>Invalidates the affected route in the topology cache via
+ *       {@link TopologyService#invalidateRoute}. No background refresh is
+ *       fired — the client drives the refresh via its own METADATA request,
+ *       which repopulates the cache as a side effect.</li>
  * </ol>
  *
  * <p>Suppressing the error and retrying silently would leave the client's metadata
@@ -206,24 +212,10 @@ class TopicPartitionRouter implements Router {
     private final ProducerIdManager producerIdManager;
     private final FetchSessionManager fetchSessionManager;
     private final Counter rejectedAssignmentsCounter;
-
-    // Coordinator caches for the non-subject-routed path only.
-    private final Map<String, VirtualNode> transactionCoordinators = new HashMap<>();
-    private final Map<String, VirtualNode> consumerGroupCoordinators = new HashMap<>();
-    /**
-     * Cached partition leaders: topicName → (partitionIndex → virtualLeaderNode).
-     * Nodes are virtual (translated by {@code NodeIdResponseTranslator} before the
-     * router sees them). Updated from every METADATA response that passes through
-     * the router. Plain {@code HashMap} because the router executes on a single
-     * Netty event loop thread (see {@link Router#onRequest} threading contract).
-     */
-    private final Map<String, Map<Integer, VirtualNode>> partitionLeaders = new HashMap<>();
+    private final TopologyService topologyService;
 
     @Nullable
     private String activeTransactionRoute;
-
-    private static final short INTERNAL_METADATA_API_VERSION = 12;
-    private static final short FIND_COORDINATOR_API_VERSION = 3;
 
     /**
      * @param routingTable determines which route owns each topic
@@ -233,6 +225,7 @@ class TopicPartitionRouter implements Router {
      *                          individual connections so that reconnecting producers retain
      *                          their per-route mappings
      * @param fetchSessionCache shared cache bounding the total number of client-side fetch sessions
+     * @param topologyService topology service for leader and coordinator lookups
      */
     TopicPartitionRouter(PrefixTopicRoutingTable routingTable,
                          String defaultRoute,
@@ -241,12 +234,14 @@ class TopicPartitionRouter implements Router {
                          FetchSessionCache fetchSessionCache,
                          Clock clock,
                          String virtualClusterName,
-                         String routerName) {
+                         String routerName,
+                         TopologyService topologyService) {
         this.routingTable = routingTable;
         this.defaultRoute = defaultRoute;
         this.subjectRoutes = subjectRoutes;
         this.producerIdManager = producerIdManager;
         this.fetchSessionManager = new FetchSessionManager(fetchSessionCache, clock);
+        this.topologyService = topologyService;
         this.staticRoutes = Arrays.stream(ApiKeys.values())
                 .filter(k -> !DYNAMICALLY_ROUTED.contains(k))
                 .collect(Collectors.toUnmodifiableMap(k -> k, k -> defaultRoute));
@@ -413,8 +408,8 @@ class TopicPartitionRouter implements Router {
                                     request, apiVersion)));
         }
 
-        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<VirtualNode, ProduceRequestData> byLeader = groupProduceByLeader(subRequests, request, context);
+        return topologyService.ensureLeadersCached(buildTopicsByRoute(subRequests)).thenCompose(v -> {
+            Map<VirtualNode, ProduceRequestData> byLeader = groupProduceByLeader(subRequests, request);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
@@ -512,56 +507,13 @@ class TopicPartitionRouter implements Router {
         });
     }
 
-    private CompletionStage<VirtualNode> discoverCoordinator(
-                                                             String route,
-                                                             byte keyType,
-                                                             String key,
-                                                             RouterContext context) {
-        var mdHeader = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
-        var mdReq = new MetadataRequestData();
-
-        return context.sendRequest(context.anyNode(route), mdHeader, mdReq).thenCompose(mdResponse -> {
-            updateLeaderCache((MetadataResponseData) mdResponse, context::nodeForId);
-            LOGGER.atDebug()
-                    .addKeyValue("sessionId", context.sessionId())
-                    .addKeyValue("route", route)
-                    .log("Broker discovery completed before coordinator lookup");
-
-            var findCoordHeader = new RequestHeaderData()
-                    .setRequestApiKey(ApiKeys.FIND_COORDINATOR.id)
-                    .setRequestApiVersion(FIND_COORDINATOR_API_VERSION);
-            var findCoordReq = new FindCoordinatorRequestData()
-                    .setKey(key)
-                    .setKeyType(keyType);
-
-            return context.sendRequest(context.anyNode(route), findCoordHeader, findCoordReq);
-        }).thenApply(coordResponse -> {
-            var resp = (FindCoordinatorResponseData) coordResponse;
-            if (resp.errorCode() != Errors.NONE.code()) {
-                throw new CoordinatorDiscoveryException(Errors.forCode(resp.errorCode()));
-            }
-            LOGGER.atDebug()
-                    .addKeyValue("sessionId", context.sessionId())
-                    .addKeyValue("route", route)
-                    .addKeyValue("coordinatorNodeId", resp.nodeId())
-                    .addKeyValue("key", key)
-                    .addKeyValue("keyType", keyType)
-                    .log("Discovered coordinator");
-            return context.nodeForId(resp.nodeId());
-        });
-    }
-
     private CompletionStage<RouterResponse> discoverCoordinatorAndInitProducerId(
                                                                                  RequestHeaderData header,
                                                                                  InitProducerIdRequestData request,
                                                                                  String txnRoute,
                                                                                  RouterContext context) {
-        return discoverCoordinator(txnRoute, (byte) 1, request.transactionalId(), context)
+        return topologyService.discoverCoordinator(txnRoute, (byte) 1, request.transactionalId())
                 .thenCompose(coordinatorNodeId -> {
-                    transactionCoordinators.put(txnRoute, coordinatorNodeId);
-
                     var initHeader = new RequestHeaderData()
                             .setRequestApiKey(ApiKeys.INIT_PRODUCER_ID.id)
                             .setRequestApiVersion(header.requestApiVersion());
@@ -610,19 +562,6 @@ class TopicPartitionRouter implements Router {
                             new InitProducerIdResponseData()
                                     .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
                 });
-    }
-
-    static final class CoordinatorDiscoveryException extends RuntimeException {
-        private final Errors error;
-
-        CoordinatorDiscoveryException(Errors error) {
-            super("Coordinator discovery failed: " + error);
-            this.error = error;
-        }
-
-        Errors error() {
-            return error;
-        }
     }
 
     private InitProducerIdRequestData rewriteInitProducerIdRequest(InitProducerIdRequestData original,
@@ -739,7 +678,6 @@ class TopicPartitionRouter implements Router {
             return context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
                         var md = (MetadataResponseData) response;
-                        updateLeaderCache(md, context::nodeForId);
                         logMergedMetadata(context, md);
                         return context.respondWith(response).build();
                     });
@@ -759,9 +697,7 @@ class TopicPartitionRouter implements Router {
         return collectAll(futures).thenApply(responses -> {
             Map<String, MetadataResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
-                var md = (MetadataResponseData) entry.getValue();
-                updateLeaderCache(md, context::nodeForId);
-                bodies.put(entry.getKey(), md);
+                bodies.put(entry.getKey(), (MetadataResponseData) entry.getValue());
             }
             MetadataResponseData merged = metadataDecomposer.recompose(
                     bodies, request, routingTable, defaultRoute);
@@ -816,8 +752,8 @@ class TopicPartitionRouter implements Router {
             return CompletableFuture.completedFuture(syntheticResult(context, clientResponse));
         }
 
-        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<VirtualNode, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest, context);
+        return topologyService.ensureLeadersCached(buildTopicsByRoute(subRequests)).thenCompose(v -> {
+            Map<VirtualNode, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest);
 
             Map<String, FetchRequestData> byLeaderStr = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
@@ -869,9 +805,9 @@ class TopicPartitionRouter implements Router {
             return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
-        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
+        return topologyService.ensureLeadersCached(buildTopicsByRoute(subRequests)).thenCompose(v -> {
             Map<VirtualNode, ListOffsetsRequestData> byLeader = groupListOffsetsByLeader(
-                    subRequests, request, context);
+                    subRequests, request);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
@@ -895,7 +831,7 @@ class TopicPartitionRouter implements Router {
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }
-                refreshCacheIfStaleLeaders(merged, subRequests, context);
+                invalidateStaleLeaderRoutes(merged);
                 return syntheticResult(context, merged);
             });
         });
@@ -936,15 +872,12 @@ class TopicPartitionRouter implements Router {
             return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
-        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
+        return topologyService.ensureLeadersCached(buildTopicsByRoute(subRequests)).thenCompose(v -> {
             Map<VirtualNode, OffsetForLeaderEpochRequestData> byLeader = new HashMap<>();
             for (var routeEntry : subRequests.entrySet()) {
                 for (var topic : routeEntry.getValue().topics()) {
                     for (var partition : topic.partitions()) {
-                        VirtualNode leader = leaderForPartition(topic.topic(), partition.partition());
-                        if (leader == null) {
-                            leader = context.nodeForId(-1);
-                        }
+                        VirtualNode leader = topologyService.leaderOf(topic.topic(), partition.partition()).orElseGet(() -> context.nodeForId(-1));
                         var leaderReq = byLeader.computeIfAbsent(leader, k -> new OffsetForLeaderEpochRequestData().setReplicaId(request.replicaId()));
                         var leaderTopic = findOrCreateOffsetForLeaderTopic(leaderReq, topic.topic());
                         leaderTopic.partitions().add(partition.duplicate());
@@ -1019,7 +952,7 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
-                    sendToGroupCoordinator(entry.getKey(), request.groupId(), header, entry.getValue(), context));
+                    sendToCoordinatorOrDiscover(entry.getKey(), (byte) 0, request.groupId(), header, entry.getValue(), context));
         }
 
         OffsetCommitResponseData capturedErrors = errorResponse;
@@ -1079,7 +1012,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("route", expectedRoute)
                 .log("OffsetCommit routed to consumer group coordinator");
 
-        return sendToGroupCoordinator(expectedRoute, request.groupId(), header, routeRequest, context)
+        return sendToCoordinatorOrDiscover(expectedRoute, (byte) 0, request.groupId(), header, routeRequest, context)
                 .thenApply(response -> {
                     if (errorResponse.topics().isEmpty()) {
                         return context.respondWith(response).build();
@@ -1283,9 +1216,9 @@ class TopicPartitionRouter implements Router {
             return CompletableFuture.completedFuture(syntheticResult(context, errorResponse));
         }
 
-        return ensureLeadersCached(subRequests, context).thenCompose(v -> {
+        return topologyService.ensureLeadersCached(buildTopicsByRoute(subRequests)).thenCompose(v -> {
             Map<VirtualNode, DeleteRecordsRequestData> byLeader = groupDeleteRecordsByLeader(
-                    subRequests, request, context);
+                    subRequests, request);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
@@ -1309,7 +1242,7 @@ class TopicPartitionRouter implements Router {
                 for (var tr : capturedErrors.topics()) {
                     merged.topics().add(tr.duplicate());
                 }
-                refreshCacheIfStaleLeadersDeleteRecords(merged, context);
+                invalidateStaleLeaderRoutesDeleteRecords(merged);
                 return syntheticResult(context, merged);
             });
         });
@@ -1380,8 +1313,8 @@ class TopicPartitionRouter implements Router {
             request.setV3AndBelowProducerEpoch(routeIds.producerEpoch());
         }
 
-        VirtualNode coordinatorNode = transactionCoordinators.get(expectedRoute);
-        if (coordinatorNode == null) {
+        Optional<VirtualNode> coordinatorNode = topologyService.coordinatorOf(expectedRoute, (byte) 1, request.v3AndBelowTransactionalId());
+        if (coordinatorNode.isEmpty()) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", expectedRoute)
@@ -1397,7 +1330,7 @@ class TopicPartitionRouter implements Router {
                 .log("ADD_PARTITIONS_TO_TXN routed to transaction coordinator");
 
         List<AddPartitionsToTxnTopicResult> capturedErrors = errorTopics;
-        return context.sendRequest(coordinatorNode, header, request)
+        return context.sendRequest(coordinatorNode.get(), header, request)
                 .thenApply(response -> {
                     if (!capturedErrors.isEmpty()) {
                         var body = (AddPartitionsToTxnResponseData) response;
@@ -1445,8 +1378,8 @@ class TopicPartitionRouter implements Router {
                                                                   RouterContext context) {
         String route = defaultRoute;
 
-        VirtualNode coordinatorNode = transactionCoordinators.get(route);
-        if (coordinatorNode == null) {
+        Optional<VirtualNode> coordinatorNode = topologyService.coordinatorOf(route, (byte) 1, request.transactionalId());
+        if (coordinatorNode.isEmpty()) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", route)
@@ -1470,11 +1403,11 @@ class TopicPartitionRouter implements Router {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
-                .addKeyValue("coordinatorNode", coordinatorNode)
+                .addKeyValue("coordinatorNode", coordinatorNode.get())
                 .addKeyValue("groupId", request.groupId())
                 .log("ADD_OFFSETS_TO_TXN routed to transaction coordinator");
 
-        return context.sendRequest(coordinatorNode, header, request)
+        return context.sendRequest(coordinatorNode.get(), header, request)
                 .<RouterResponse> thenApply(r -> context.respondWith(r).build())
                 .exceptionally(ex -> {
                     LOGGER.atWarn()
@@ -1515,7 +1448,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("groupId", request.groupId())
                 .log("TXN_OFFSET_COMMIT forwarded to group coordinator");
 
-        return sendToGroupCoordinator(route, request.groupId(), header, request, context)
+        return sendToCoordinatorOrDiscover(route, (byte) 0, request.groupId(), header, request, context)
                 .<RouterResponse> thenApply(r -> context.respondWith(r).build())
                 .exceptionally(ex -> {
                     LOGGER.atWarn()
@@ -1548,8 +1481,8 @@ class TopicPartitionRouter implements Router {
                                                          RouterContext context) {
         String route = defaultRoute;
 
-        VirtualNode coordinatorNode = transactionCoordinators.get(route);
-        if (coordinatorNode == null) {
+        Optional<VirtualNode> coordinatorNode = topologyService.coordinatorOf(route, (byte) 1, request.transactionalId());
+        if (coordinatorNode.isEmpty()) {
             return context.sendRequest(context.anyNode(route), header, request)
                     .thenApply(response -> {
                         activeTransactionRoute = null;
@@ -1576,13 +1509,13 @@ class TopicPartitionRouter implements Router {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
-                .addKeyValue("coordinatorNode", coordinatorNode)
+                .addKeyValue("coordinatorNode", coordinatorNode.get())
                 .addKeyValue("transactionalId", request.transactionalId())
                 .addKeyValue("committed", request.committed())
                 .log("END_TXN routed to transaction coordinator");
 
         short capturedPreRewriteEpoch = preRewriteRouteEpoch;
-        return context.sendRequest(coordinatorNode, header, request)
+        return context.sendRequest(coordinatorNode.get(), header, request)
                 .<RouterResponse> thenApply(response -> {
                     var endTxnResp = (EndTxnResponseData) response;
 
@@ -1682,16 +1615,15 @@ class TopicPartitionRouter implements Router {
                                                                          ConsumerGroupHeartbeatRequestData request,
                                                                          RouterContext context) {
         String route = defaultRoute;
-        VirtualNode cachedCoordinator = consumerGroupCoordinators.get(route);
+        Optional<VirtualNode> cachedCoordinator = topologyService.coordinatorOf(route, (byte) 0, request.groupId());
 
-        if (cachedCoordinator != null) {
+        if (cachedCoordinator.isPresent()) {
             return forwardToConsumerGroupCoordinator(
-                    cachedCoordinator, route, header, request, context);
+                    cachedCoordinator.get(), route, header, request, context);
         }
 
-        return discoverCoordinator(route, (byte) 0, request.groupId(), context)
+        return topologyService.discoverCoordinator(route, (byte) 0, request.groupId())
                 .thenCompose(coordinatorNodeId -> {
-                    consumerGroupCoordinators.put(route, coordinatorNodeId);
                     return forwardToConsumerGroupCoordinator(
                             coordinatorNodeId, route, header, request, context);
                 }).exceptionally(ex -> {
@@ -1740,7 +1672,7 @@ class TopicPartitionRouter implements Router {
                 .log("CONSUMER_GROUP_DESCRIBE forwarded to coordinator");
 
         String groupId = request.groupIds().isEmpty() ? "" : request.groupIds().get(0);
-        return sendToGroupCoordinator(route, groupId, header, request, context)
+        return sendToCoordinatorOrDiscover(route, (byte) 0, groupId, header, request, context)
                 .thenApply(response -> {
                     return context.respondWith(response).build();
                 });
@@ -1757,7 +1689,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", cgRoute)
                     .log("OffsetFetch routed to consumer group coordinator");
-            return sendToGroupCoordinator(cgRoute, request.groupId(), header, request, context)
+            return sendToCoordinatorOrDiscover(cgRoute, (byte) 0, request.groupId(), header, request, context)
                     .thenApply(response -> {
                         return context.respondWith(response).build();
                     });
@@ -1780,7 +1712,7 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
-                    sendToGroupCoordinator(entry.getKey(), request.groupId(), header, entry.getValue(), context));
+                    sendToCoordinatorOrDiscover(entry.getKey(), (byte) 0, request.groupId(), header, entry.getValue(), context));
         }
 
         OffsetFetchResponseData capturedErrors = errorResponse;
@@ -1895,66 +1827,22 @@ class TopicPartitionRouter implements Router {
     }
 
     /**
-     * Sends a request to the group coordinator for the given group on the specified route.
-     * Uses the cached coordinator if available; otherwise discovers it first.
+     * Sends a request to a coordinator, using the cached coordinator if available,
+     * otherwise discovering it first via the topology service.
      */
-    private CompletionStage<ApiMessage> sendToGroupCoordinator(
-                                                               String route,
-                                                               String groupId,
-                                                               RequestHeaderData header,
-                                                               ApiMessage request,
-                                                               RouterContext context) {
-        VirtualNode cached = consumerGroupCoordinators.get(route);
-        if (cached != null) {
-            return context.sendRequest(cached, header, request);
+    private CompletionStage<ApiMessage> sendToCoordinatorOrDiscover(
+                                                                    String route,
+                                                                    byte keyType,
+                                                                    String key,
+                                                                    RequestHeaderData header,
+                                                                    ApiMessage request,
+                                                                    RouterContext context) {
+        Optional<VirtualNode> cached = topologyService.coordinatorOf(route, keyType, key);
+        if (cached.isPresent()) {
+            return context.sendRequest(cached.get(), header, request);
         }
-        return discoverCoordinator(route, (byte) 0, groupId, context)
-                .thenCompose(coordinatorNode -> {
-                    consumerGroupCoordinators.put(route, coordinatorNode);
-                    return context.sendRequest(coordinatorNode, header, request);
-                });
-    }
-
-    /**
-     * Sends a request to the transaction coordinator for the given route.
-     * Uses the cached coordinator if available; otherwise discovers it first.
-     */
-    private CompletionStage<ApiMessage> sendToTxnCoordinator(
-                                                             String route,
-                                                             String transactionalId,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request,
-                                                             RouterContext context) {
-        VirtualNode cached = transactionCoordinators.get(route);
-        if (cached != null) {
-            return context.sendRequest(cached, header, request);
-        }
-        return discoverCoordinator(route, (byte) 1, transactionalId, context)
-                .thenCompose(coordinatorNode -> {
-                    transactionCoordinators.put(route, coordinatorNode);
-                    return context.sendRequest(coordinatorNode, header, request);
-                });
-    }
-
-    // package-private for testing
-    void updateLeaderCache(MetadataResponseData response, IntFunction<VirtualNode> nodeFactory) {
-        for (var topic : response.topics()) {
-            if (topic.errorCode() != Errors.NONE.code()) {
-                continue;
-            }
-            var partMap = partitionLeaders.computeIfAbsent(topic.name(), k -> new HashMap<>());
-            for (var partition : topic.partitions()) {
-                if (partition.errorCode() == Errors.NONE.code() && partition.leaderId() >= 0) {
-                    partMap.put(partition.partitionIndex(), nodeFactory.apply(partition.leaderId()));
-                }
-            }
-        }
-    }
-
-    @Nullable
-    private VirtualNode leaderForPartition(String topicName, int partitionIndex) {
-        var partMap = partitionLeaders.get(topicName);
-        return partMap != null ? partMap.get(partitionIndex) : null;
+        return topologyService.discoverCoordinator(route, keyType, key)
+                .thenCompose(coordinatorNode -> context.sendRequest(coordinatorNode, header, request));
     }
 
     private Map<VirtualNode, String> mapLeadersToRoutes(Map<String, ? extends ApiMessage> subRequestsByRoute) {
@@ -1970,157 +1858,32 @@ class TopicPartitionRouter implements Router {
         if (subRequest instanceof ProduceRequestData pr) {
             for (var topic : pr.topicData()) {
                 for (var partition : topic.partitionData()) {
-                    VirtualNode leader = leaderForPartition(topic.name(), partition.index());
-                    if (leader != null) {
-                        leaderToRoute.putIfAbsent(leader, route);
-                    }
+                    topologyService.leaderOf(topic.name(), partition.index())
+                            .ifPresent(leader -> leaderToRoute.putIfAbsent(leader, route));
                 }
             }
         }
         else if (subRequest instanceof FetchRequestData fr) {
             for (var topic : fr.topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaderForPartition(topic.topic(), partition.partition());
-                    if (leader != null) {
-                        leaderToRoute.putIfAbsent(leader, route);
-                    }
+                    topologyService.leaderOf(topic.topic(), partition.partition())
+                            .ifPresent(leader -> leaderToRoute.putIfAbsent(leader, route));
                 }
             }
         }
         else if (subRequest instanceof ListOffsetsRequestData lor) {
             for (var topic : lor.topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
-                    if (leader != null) {
-                        leaderToRoute.putIfAbsent(leader, route);
-                    }
+                    topologyService.leaderOf(topic.name(), partition.partitionIndex())
+                            .ifPresent(leader -> leaderToRoute.putIfAbsent(leader, route));
                 }
             }
         }
         else if (subRequest instanceof DeleteRecordsRequestData drr) {
             for (var topic : drr.topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
-                    if (leader != null) {
-                        leaderToRoute.putIfAbsent(leader, route);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Sends a METADATA request to the given route for the specified topics
-     * and updates the leader cache from the response.
-     */
-    private CompletionStage<Void> fetchMetadataForTopics(String route,
-                                                         List<String> topicNames,
-                                                         RouterContext context) {
-        var mdHeader = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
-        var mdReq = new MetadataRequestData();
-        for (var name : topicNames) {
-            mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic().setName(name));
-        }
-        return context.sendRequest(context.anyNode(route), mdHeader, mdReq).thenAccept(response -> {
-            updateLeaderCache((MetadataResponseData) response, context::nodeForId);
-        });
-    }
-
-    /**
-     * Fires a background METADATA request to refresh the leader cache.
-     * The response is not awaited — it updates the cache asynchronously
-     * on the same event loop thread when the future completes.
-     */
-    private void refreshLeaderCacheInBackground(String route,
-                                                List<String> topicNames,
-                                                RouterContext context) {
-        LOGGER.atDebug()
-                .addKeyValue("sessionId", context.sessionId())
-                .addKeyValue("route", route)
-                .addKeyValue("topicCount", topicNames.size())
-                .log("Refreshing leader cache after stale-leader error");
-        fetchMetadataForTopics(route, topicNames, context);
-    }
-
-    /**
-     * Ensures that leader info is cached for every topic-partition in the
-     * decomposed sub-requests. If any leaders are missing, sends METADATA
-     * to the relevant route(s) and waits for the response before returning.
-     */
-    private CompletionStage<Void> ensureLeadersCached(
-                                                      Map<String, ? extends ApiMessage> subRequestsByRoute,
-                                                      RouterContext context) {
-        Map<String, List<String>> uncachedByRoute = new HashMap<>();
-        for (var entry : subRequestsByRoute.entrySet()) {
-            String route = entry.getKey();
-            collectUncachedTopics(entry.getValue(), route, uncachedByRoute);
-        }
-        if (uncachedByRoute.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        List<CompletionStage<Void>> fetches = new ArrayList<>();
-        for (var entry : uncachedByRoute.entrySet()) {
-            fetches.add(fetchMetadataForTopics(entry.getKey(), entry.getValue(), context));
-        }
-        CompletableFuture<Void> combined = CompletableFuture.completedFuture(null);
-        for (var fetch : fetches) {
-            combined = combined.thenCombine(fetch, (a, b) -> null);
-        }
-        return combined;
-    }
-
-    private void collectUncachedTopics(ApiMessage subRequest,
-                                       String route,
-                                       Map<String, List<String>> uncachedByRoute) {
-        if (subRequest instanceof ListOffsetsRequestData lor) {
-            for (var topic : lor.topics()) {
-                for (var partition : topic.partitions()) {
-                    if (leaderForPartition(topic.name(), partition.partitionIndex()) == null) {
-                        uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.name());
-                        break;
-                    }
-                }
-            }
-        }
-        else if (subRequest instanceof DeleteRecordsRequestData drr) {
-            for (var topic : drr.topics()) {
-                for (var partition : topic.partitions()) {
-                    if (leaderForPartition(topic.name(), partition.partitionIndex()) == null) {
-                        uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.name());
-                        break;
-                    }
-                }
-            }
-        }
-        else if (subRequest instanceof ProduceRequestData pr) {
-            for (var topic : pr.topicData()) {
-                for (var partition : topic.partitionData()) {
-                    if (leaderForPartition(topic.name(), partition.index()) == null) {
-                        uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.name());
-                        break;
-                    }
-                }
-            }
-        }
-        else if (subRequest instanceof FetchRequestData fr) {
-            for (var topic : fr.topics()) {
-                for (var partition : topic.partitions()) {
-                    if (leaderForPartition(topic.topic(), partition.partition()) == null) {
-                        uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.topic());
-                        break;
-                    }
-                }
-            }
-        }
-        else if (subRequest instanceof OffsetForLeaderEpochRequestData oflr) {
-            for (var topic : oflr.topics()) {
-                for (var partition : topic.partitions()) {
-                    if (leaderForPartition(topic.topic(), partition.partition()) == null) {
-                        uncachedByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.topic());
-                        break;
-                    }
+                    topologyService.leaderOf(topic.name(), partition.partitionIndex())
+                            .ifPresent(leader -> leaderToRoute.putIfAbsent(leader, route));
                 }
             }
         }
@@ -2132,16 +1895,12 @@ class TopicPartitionRouter implements Router {
      */
     private Map<VirtualNode, ListOffsetsRequestData> groupListOffsetsByLeader(
                                                                               Map<String, ListOffsetsRequestData> subRequestsByRoute,
-                                                                              ListOffsetsRequestData original,
-                                                                              RouterContext context) {
+                                                                              ListOffsetsRequestData original) {
         Map<VirtualNode, ListOffsetsRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             for (var topic : routeEntry.getValue().topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
-                    if (leader == null) {
-                        leader = context.nodeForId(-1);
-                    }
+                    VirtualNode leader = topologyService.leaderOf(topic.name(), partition.partitionIndex()).orElse(null);
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new ListOffsetsRequestData()
                             .setReplicaId(original.replicaId())
                             .setIsolationLevel(original.isolationLevel()));
@@ -2166,25 +1925,15 @@ class TopicPartitionRouter implements Router {
         return t;
     }
 
-    /**
-     * Checks if any partition in the response has NOT_LEADER_OR_FOLLOWER or
-     * NOT_COORDINATOR, and if so, fires background METADATA refreshes for
-     * the affected topics. The original response is returned to the client
-     * unchanged.
-     */
     private Map<VirtualNode, ProduceRequestData> groupProduceByLeader(
                                                                       Map<String, ProduceRequestData> subRequestsByRoute,
-                                                                      ProduceRequestData original,
-                                                                      RouterContext context) {
+                                                                      ProduceRequestData original) {
         Map<VirtualNode, ProduceRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             var routeReq = routeEntry.getValue();
             for (var topic : routeReq.topicData()) {
                 for (var partition : topic.partitionData()) {
-                    VirtualNode leader = leaderForPartition(topic.name(), partition.index());
-                    if (leader == null) {
-                        leader = context.nodeForId(-1);
-                    }
+                    VirtualNode leader = topologyService.leaderOf(topic.name(), partition.index()).orElse(null);
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new ProduceRequestData()
                             .setAcks(original.acks())
                             .setTimeoutMs(original.timeoutMs())
@@ -2215,17 +1964,13 @@ class TopicPartitionRouter implements Router {
 
     private Map<VirtualNode, FetchRequestData> groupFetchByLeader(
                                                                   Map<String, FetchRequestData> subRequestsByRoute,
-                                                                  FetchRequestData original,
-                                                                  RouterContext context) {
+                                                                  FetchRequestData original) {
         Map<VirtualNode, FetchRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             var routeReq = routeEntry.getValue();
             for (var topic : routeReq.topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaderForPartition(topic.topic(), partition.partition());
-                    if (leader == null) {
-                        leader = context.nodeForId(-1);
-                    }
+                    VirtualNode leader = topologyService.leaderOf(topic.topic(), partition.partition()).orElse(null);
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new FetchRequestData()
                             .setMaxBytes(original.maxBytes())
                             .setMaxWaitMs(original.maxWaitMs())
@@ -2258,16 +2003,12 @@ class TopicPartitionRouter implements Router {
 
     private Map<VirtualNode, DeleteRecordsRequestData> groupDeleteRecordsByLeader(
                                                                                   Map<String, DeleteRecordsRequestData> subRequestsByRoute,
-                                                                                  DeleteRecordsRequestData original,
-                                                                                  RouterContext context) {
+                                                                                  DeleteRecordsRequestData original) {
         Map<VirtualNode, DeleteRecordsRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             for (var topic : routeEntry.getValue().topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
-                    if (leader == null) {
-                        leader = context.nodeForId(-1);
-                    }
+                    VirtualNode leader = topologyService.leaderOf(topic.name(), partition.partitionIndex()).orElse(null);
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new DeleteRecordsRequestData()
                             .setTimeoutMs(original.timeoutMs()));
                     var leaderTopic = findOrCreateDeleteRecordsTopic(leaderReq, topic.name());
@@ -2291,43 +2032,92 @@ class TopicPartitionRouter implements Router {
         return t;
     }
 
-    private void refreshCacheIfStaleLeadersDeleteRecords(DeleteRecordsResponseData response,
-                                                         RouterContext context) {
-        Map<String, List<String>> staleByRoute = new HashMap<>();
+    /**
+     * Checks if any partition in the response has NOT_LEADER_OR_FOLLOWER
+     * and if so, invalidates the affected routes in the topology service.
+     * The client drives the refresh via its own METADATA request.
+     */
+    private void invalidateStaleLeaderRoutesDeleteRecords(DeleteRecordsResponseData response) {
+        Set<String> staleRoutes = new HashSet<>();
         for (var topic : response.topics()) {
             for (var partition : topic.partitions()) {
                 if (partition.errorCode() == Errors.NOT_LEADER_OR_FOLLOWER.code()) {
                     String route = routingTable.routeForTopic(topic.name());
                     if (route != null) {
-                        staleByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.name());
+                        staleRoutes.add(route);
                     }
                     break;
                 }
             }
         }
-        for (var entry : staleByRoute.entrySet()) {
-            refreshLeaderCacheInBackground(entry.getKey(), entry.getValue(), context);
+        for (String route : staleRoutes) {
+            topologyService.invalidateRoute(route);
         }
     }
 
-    private void refreshCacheIfStaleLeaders(ListOffsetsResponseData response,
-                                            Map<String, ListOffsetsRequestData> subRequestsByRoute,
-                                            RouterContext context) {
-        Map<String, List<String>> staleByRoute = new HashMap<>();
+    /**
+     * Checks if any partition in the response has NOT_LEADER_OR_FOLLOWER
+     * and if so, invalidates the affected routes in the topology service.
+     * The client drives the refresh via its own METADATA request.
+     */
+    private void invalidateStaleLeaderRoutes(ListOffsetsResponseData response) {
+        Set<String> staleRoutes = new HashSet<>();
         for (var topic : response.topics()) {
             for (var partition : topic.partitions()) {
                 if (partition.errorCode() == Errors.NOT_LEADER_OR_FOLLOWER.code()) {
                     String route = routingTable.routeForTopic(topic.name());
                     if (route != null) {
-                        staleByRoute.computeIfAbsent(route, k -> new ArrayList<>()).add(topic.name());
+                        staleRoutes.add(route);
                     }
                     break;
                 }
             }
         }
-        for (var entry : staleByRoute.entrySet()) {
-            refreshLeaderCacheInBackground(entry.getKey(), entry.getValue(), context);
+        for (String route : staleRoutes) {
+            topologyService.invalidateRoute(route);
         }
+    }
+
+    /**
+     * Builds a map from route name to set of topic names for use with
+     * {@link TopologyService#ensureLeadersCached}.
+     */
+    private Map<String, Set<String>> buildTopicsByRoute(Map<String, ? extends ApiMessage> subRequestsByRoute) {
+        Map<String, Set<String>> result = new HashMap<>();
+        for (var entry : subRequestsByRoute.entrySet()) {
+            result.put(entry.getKey(), extractTopicNames(entry.getValue()));
+        }
+        return result;
+    }
+
+    private static Set<String> extractTopicNames(ApiMessage message) {
+        Set<String> topics = new HashSet<>();
+        if (message instanceof ProduceRequestData pr) {
+            for (var topic : pr.topicData()) {
+                topics.add(topic.name());
+            }
+        }
+        else if (message instanceof FetchRequestData fr) {
+            for (var topic : fr.topics()) {
+                topics.add(topic.topic());
+            }
+        }
+        else if (message instanceof ListOffsetsRequestData lor) {
+            for (var topic : lor.topics()) {
+                topics.add(topic.name());
+            }
+        }
+        else if (message instanceof DeleteRecordsRequestData drr) {
+            for (var topic : drr.topics()) {
+                topics.add(topic.name());
+            }
+        }
+        else if (message instanceof OffsetForLeaderEpochRequestData oflr) {
+            for (var topic : oflr.topics()) {
+                topics.add(topic.topic());
+            }
+        }
+        return topics;
     }
 
     private static <K> CompletionStage<Map<K, ApiMessage>> collectAll(

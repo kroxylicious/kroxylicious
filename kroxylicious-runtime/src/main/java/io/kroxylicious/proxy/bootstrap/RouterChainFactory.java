@@ -18,6 +18,8 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.internal.routing.TopologyCache;
+import io.kroxylicious.proxy.internal.routing.TopologyServiceImpl;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
@@ -85,6 +87,8 @@ public class RouterChainFactory implements AutoCloseable {
     }
 
     private final Map<VcRouter, Wrapper> initialized;
+    private final Map<VcRouter, TopologyServiceImpl> topologyServices = new LinkedHashMap<>();
+    private final Map<VcRouter, java.util.concurrent.ConcurrentHashMap<Integer, io.kroxylicious.proxy.service.HostPort>> sharedNodeAddressMaps = new LinkedHashMap<>();
     private final PluginFactoryRegistry pfr;
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -200,9 +204,32 @@ public class RouterChainFactory implements AutoCloseable {
 
             @Override
             public TopologyService topologyService() {
-                throw new UnsupportedOperationException("TopologyService not yet implemented");
+                return topologyServices.computeIfAbsent(
+                        new VcRouter(vcName, rd.name()),
+                        k -> new TopologyServiceImpl(new TopologyCache()));
             }
         };
+    }
+
+    /**
+     * Returns the {@link TopologyServiceImpl} for the given router level,
+     * or null if no router at that level opted in to topology caching.
+     */
+    @Nullable
+    public TopologyServiceImpl topologyServiceFor(String routerName, String virtualClusterName) {
+        return topologyServices.get(new VcRouter(virtualClusterName, routerName));
+    }
+
+    /**
+     * Returns the shared node address map for the given router level.
+     * The map is created on first access and shared across all connections.
+     * Thread-safe via {@link java.util.concurrent.ConcurrentHashMap}.
+     */
+    public java.util.concurrent.ConcurrentHashMap<Integer, io.kroxylicious.proxy.service.HostPort> sharedNodeAddressesFor(
+                                                                                                                          String routerName, String virtualClusterName) {
+        return sharedNodeAddressMaps.computeIfAbsent(
+                new VcRouter(virtualClusterName, routerName),
+                k -> new java.util.concurrent.ConcurrentHashMap<>());
     }
 
     @Override
