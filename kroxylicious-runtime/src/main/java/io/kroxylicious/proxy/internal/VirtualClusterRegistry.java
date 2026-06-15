@@ -65,24 +65,6 @@ public class VirtualClusterRegistry implements AutoCloseable {
     private final BiFunction<Configuration, String, VirtualClusterModel> rawModelResolver;
 
     /**
-     * Names of clusters whose current model has already been closed by {@link #closeModel}.
-     * Used to guard {@code closeModel} against double-invocation in cases where
-     * two concurrent {@code shutdownCluster} callers both observe a non-terminal state
-     * before either calls {@code stop()} and both dispatch close tasks to the lifecycle
-     * executor.
-     *
-     * <p>Cleaned up on re-add: when {@link #addVirtualCluster} replaces a {@code Stopped}
-     * entry with a fresh model, the name is removed so the new model can be closed when
-     * the cluster eventually transitions back to {@code Stopped}. This bounds the set's
-     * growth to {@code O(N currently-tracked clusters)} rather than
-     * {@code O(closures-over-time)}.
-     *
-     * <p>{@code ConcurrentHashMap.newKeySet()} because {@code closeModel} runs on the
-     * lifecycle thread while {@link #addVirtualCluster} runs on the reconfigure thread.
-     */
-    private final Set<String> closedClusters = ConcurrentHashMap.newKeySet();
-
-    /**
      * Thread name prefix for the lifecycle executor.
      */
     static final String LIFECYCLE_THREAD_NAME_PREFIX = "kroxylicious-vc-lifecycle";
@@ -263,13 +245,13 @@ public class VirtualClusterRegistry implements AutoCloseable {
      *
      * <p>State handling matches the proxy-wide shutdown semantics:
      * <ul>
-     *   <li>{@code Serving} → begin draining, then close on lifecycle thread when drain completes</li>
-     *   <li>{@code Draining} → join the existing drain (concurrent shutdown / hot-reload),
-     *       then close on lifecycle thread when drain completes</li>
-     *   <li>{@code Failed} → {@code stop()} synchronously on the caller's thread, then close
-     *       on the lifecycle thread with the prior failure cause</li>
-     *   <li>{@code Initializing} → {@code stop()} synchronously on the caller's thread, then
-     *       close on the lifecycle thread with no failure cause</li>
+     *   <li>{@code Serving} → begin draining; when drain completes, re-check state, transition
+     *       to {@code Stopped}, and close on the lifecycle thread</li>
+     *   <li>{@code Draining} → join the existing drain; same close-with-re-check tail as Serving</li>
+     *   <li>{@code Failed} → dispatch a re-check-and-close task to the lifecycle thread; on the
+     *       lifecycle thread, if state is still {@code Failed}, transition and close with the
+     *       prior failure cause</li>
+     *   <li>{@code Initializing} → same as Failed but with no failure cause</li>
      *   <li>{@code Stopped} → no-op (already terminal)</li>
      * </ul>
      *
@@ -287,34 +269,47 @@ public class VirtualClusterRegistry implements AutoCloseable {
         var state = lifecycle.state();
         if (state instanceof VirtualClusterLifecycleState.Serving) {
             return lifecycle.startDraining()
-                    .thenRunAsync(() -> {
-                        lifecycle.drainComplete();
-                        closeAndFireStopped(clusterName, Optional.empty());
-                    }, lifecycleExecutor);
+                    .thenRunAsync(() -> transitionToStoppedAndClose(clusterName, lifecycle), lifecycleExecutor);
         }
         else if (state instanceof VirtualClusterLifecycleState.Draining) {
             return lifecycle.drainFuture()
-                    .thenRunAsync(() -> {
-                        lifecycle.drainComplete();
-                        closeAndFireStopped(clusterName, Optional.empty());
-                    }, lifecycleExecutor);
-        }
-        else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
-            lifecycle.stop();
-            return CompletableFuture.runAsync(
-                    () -> closeAndFireStopped(clusterName, Optional.of(failed.cause())),
-                    lifecycleExecutor);
+                    .thenRunAsync(() -> transitionToStoppedAndClose(clusterName, lifecycle), lifecycleExecutor);
         }
         else if (state instanceof VirtualClusterLifecycleState.Stopped) {
             return CompletableFuture.completedFuture(null);
         }
         else {
-            // Initializing
-            lifecycle.stop();
+            // Failed or Initializing — dispatch the whole transition+close to the lifecycle
+            // thread. State is re-read inside the task; a concurrent task that beat us to
+            // Stopped will cause this one to no-op.
             return CompletableFuture.runAsync(
-                    () -> closeAndFireStopped(clusterName, Optional.empty()),
+                    () -> transitionToStoppedAndClose(clusterName, lifecycle),
                     lifecycleExecutor);
         }
+    }
+
+    /**
+     * Runs on the {@link #lifecycleExecutor}. Reads the current lifecycle state and performs the
+     * appropriate transition-to-{@code Stopped} plus close. Re-checking the state inside this
+     * method (rather than relying on what the caller observed before dispatch) is the
+     * serialization primitive: two concurrent {@code shutdownCluster} dispatches converge here,
+     * and the second arrival sees {@code Stopped} and silently no-ops.
+     */
+    private void transitionToStoppedAndClose(String clusterName, VirtualClusterLifecycle lifecycle) {
+        var current = lifecycle.state();
+        if (current instanceof VirtualClusterLifecycleState.Draining) {
+            lifecycle.drainComplete();
+            closeAndFireStopped(clusterName, Optional.empty());
+        }
+        else if (current instanceof VirtualClusterLifecycleState.Failed failed) {
+            lifecycle.stop();
+            closeAndFireStopped(clusterName, Optional.of(failed.cause()));
+        }
+        else if (current instanceof VirtualClusterLifecycleState.Initializing) {
+            lifecycle.stop();
+            closeAndFireStopped(clusterName, Optional.empty());
+        }
+        // Stopped or Serving (a concurrent path beat us / changed state) — silently no-op.
     }
 
     /**
@@ -340,12 +335,6 @@ public class VirtualClusterRegistry implements AutoCloseable {
     private void closeModel(String clusterName) {
         var entry = entriesByCluster.get(clusterName);
         if (entry == null) {
-            return;
-        }
-        if (!closedClusters.add(clusterName)) {
-            // Already closed by a prior call (e.g. a concurrent shutdownCluster that observed
-            // the same non-terminal state and dispatched its own close). Silent no-op —
-            // VCM.close() is not required to be idempotent.
             return;
         }
         try {
@@ -487,9 +476,6 @@ public class VirtualClusterRegistry implements AutoCloseable {
                             "Cluster '" + name + "' already exists and its lifecycle is "
                                     + state.getClass().getSimpleName() + "; re-add is only permitted from Stopped");
                 }
-                // Clear the closed-marker so the fresh model attached to this name can be
-                // closed when the cluster eventually transitions back to Stopped.
-                closedClusters.remove(name);
             }
             LOGGER.atInfo()
                     .addKeyValue("virtualCluster", name)
