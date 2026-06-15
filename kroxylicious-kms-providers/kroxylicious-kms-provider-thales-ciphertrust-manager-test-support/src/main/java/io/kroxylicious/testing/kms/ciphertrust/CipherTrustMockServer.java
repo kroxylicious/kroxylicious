@@ -89,34 +89,6 @@ public class CipherTrustMockServer {
     private X509Certificate serverCertificate;
 
     /**
-     * Extract a query parameter value from a WireMock request with type conversion.
-     *
-     * @param request the WireMock request
-     * @param paramName the query parameter name
-     * @param defaultValue the default value if parameter is not present
-     * @param converter function to convert the string value to the desired type
-     * @param <T> the target type
-     * @return the converted value or default value if parameter is not present
-     */
-    private static <T> T getQueryParam(Request request, String paramName, T defaultValue, Function<String, T> converter) {
-        var queryParam = request.queryParameter(paramName);
-        return queryParam.isPresent() ? converter.apply(queryParam.firstValue()) : defaultValue;
-    }
-
-    /**
-     * Extract a string query parameter value from a WireMock request.
-     *
-     * @param request the WireMock request
-     * @param paramName the query parameter name
-     * @param defaultValue the default value if parameter is not present
-     * @return the string value or default value if parameter is not present
-     */
-    @Nullable
-    private static String getQueryParam(Request request, String paramName, @Nullable String defaultValue) {
-        return getQueryParam(request, paramName, defaultValue, Function.identity());
-    }
-
-    /**
      * Create a CipherTrust mock server using HTTP.
      */
     public CipherTrustMockServer() {
@@ -947,6 +919,35 @@ public class CipherTrustMockServer {
         private GetKeyResponse toGetKeyResponse(KeyMetadata metadata) {
             return new GetKeyResponse(metadata.id, metadata.name, "aes");
         }
+    }
+
+    /**
+     * Extract a query parameter value from a WireMock request with type conversion.
+     *
+     * @param request the WireMock request
+     * @param paramName the query parameter name
+     * @param defaultValue the default value if parameter is not present
+     * @param converter function to convert the string value to the desired type
+     * @param <T> the target type
+     * @return the converted value or default value if parameter is not present
+     */
+    @Nullable
+    private static <T> T getQueryParam(Request request, String paramName, @Nullable T defaultValue, Function<String, T> converter) {
+        var queryParam = request.queryParameter(paramName);
+        return queryParam.isPresent() ? converter.apply(queryParam.firstValue()) : defaultValue;
+    }
+
+    /**
+     * Extract a string query parameter value from a WireMock request.
+     *
+     * @param request the WireMock request
+     * @param paramName the query parameter name
+     * @param defaultValue the default value if parameter is not present
+     * @return the string value or default value if parameter is not present
+     */
+    @Nullable
+    private static String getQueryParam(Request request, String paramName, @Nullable String defaultValue) {
+        return getQueryParam(request, paramName, defaultValue, Function.identity());
     }
 
     static class MockServerException extends RuntimeException {

@@ -38,6 +38,7 @@ import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyResponse;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for {@link CipherTrustMockServer}.
@@ -759,6 +760,56 @@ class CipherTrustMockServerTest {
 
             // Verify round-trip
             assertThat(decryptResponse.plaintext()).isEqualTo(plaintext);
+        }
+        finally {
+            tlsServer.stop();
+        }
+    }
+
+    @Test
+    void tlsServerProvidesCertificate() {
+        // Given
+        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
+        try {
+            tlsServer.start();
+
+            // When
+            var certificate = tlsServer.getServerCertificate();
+
+            // Then
+            assertThat(certificate).isNotNull();
+            assertThat(certificate.getSubjectX500Principal().getName()).contains("CN=localhost");
+        }
+        finally {
+            tlsServer.stop();
+        }
+    }
+
+    @Test
+    void httpServerThrowsWhenAccessingCertificate() {
+        // When/Then
+        assertThatThrownBy(() -> mockServer.getServerCertificate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Mock server not configured with TLS");
+    }
+
+    @Test
+    void tlsServerProvidesCertificatePem() {
+        // Given
+        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
+        try {
+            tlsServer.start();
+
+            // When
+            var certPemPath = tlsServer.getServerCertificatePem();
+
+            // Then
+            assertThat(certPemPath).isNotNull();
+            assertThat(certPemPath.toFile())
+                    .exists()
+                    .content()
+                    .startsWith("-----BEGIN CERTIFICATE-----")
+                    .endsWith("-----END CERTIFICATE-----\n");
         }
         finally {
             tlsServer.stop();
