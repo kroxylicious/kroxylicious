@@ -142,28 +142,23 @@ class CachingBearerTokenServiceTest {
     @Test
     void shouldHandleRefreshFailureWithExistingToken() throws Exception {
         // Given
-        BearerToken currentToken = new BearerToken("current", NOW, NOW.plus(TOKEN_LIFETIME));
-
-        CompletableFuture<BearerToken> delegateFuture = CompletableFuture.failedFuture(new RuntimeException("refresh failed"));
-        when(delegate.getBearerToken()).thenReturn(delegateFuture);
-
-        CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
-        BearerToken firstToken = new BearerToken("first", NOW, NOW.plus(TOKEN_LIFETIME));
-        when(delegate.getBearerToken()).thenReturn(CompletableFuture.completedFuture(firstToken))
+        BearerToken existingToken = new BearerToken("existing", NOW, NOW.plus(TOKEN_LIFETIME));
+        when(delegate.getBearerToken())
+                .thenReturn(CompletableFuture.completedFuture(existingToken))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("refresh failed")));
 
-        service = new CachingBearerTokenService(delegate, clock);
+        CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
         assertThat(service.getBearerToken()).succeedsWithin(ofSeconds(1));
 
         // When
-        service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock);
+        service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(existingToken), clock);
         service.getBearerToken();
 
         // Then
         Thread.sleep(200);
         assertThat(service.getState()).isInstanceOf(CachingBearerTokenService.State.Steady.class);
         CachingBearerTokenService.State.Steady steadyState = (CachingBearerTokenService.State.Steady) service.getState();
-        assertThat(steadyState.current()).isEqualTo(firstToken);
+        assertThat(steadyState.current()).isEqualTo(existingToken);
     }
 
     @Test
