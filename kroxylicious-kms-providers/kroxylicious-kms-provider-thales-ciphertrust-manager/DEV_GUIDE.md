@@ -1,9 +1,5 @@
 Here's some information that might be helpful when developing this module.
 
-~~# Prerequsites
-
-https://ec2-34-241-225-83.eu-west-1.compute.amazonaws.com/downloads/ksctl_images.zip~~
-
 # Running the ITs against a real instance of Thales Cipher Trust Manager
 
 ## Install and Setup
@@ -58,7 +54,7 @@ To exercise the path where the KMS (and test facade) authenticate as a user, do 
 
 ```shell
 export KROXYLICIOUS_KMS_FACADE_FACTORY_CLASS_NAME_FILTER=".*Cipher.*"
-export KROXYLICIOUS_KMS_THALES_CIPHERTRUST_ENDPOINT_URL=https://ec2-34-241-225-83.eu-west-1.compute.amazonaws.com
+export KROXYLICIOUS_KMS_THALES_CIPHERTRUST_API_ENDPOINT=<https://ec2-xx-xx-xx-xx.eu-west-1.compute.amazonaws.com>
 export KROXYLICIOUS_KMS_THALES_CIPHERTRUST_USERNAME=admin
 export KROXYLICIOUS_KMS_THALES_CIPHERTRUST_PASSWORD=your-password
 export KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT=/tmp/ctm-ca.pem
