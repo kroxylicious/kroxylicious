@@ -28,13 +28,14 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CachingBearerTokenServiceTest {
 
+    private static final ZoneId UTC = ZoneId.of("UTC");
     private static final Instant NOW = Instant.parse("2024-01-01T00:00:00Z");
     private static final Duration TOKEN_LIFETIME = Duration.ofMinutes(60);
 
     @Mock
     private BearerTokenService delegate;
 
-    private final Clock clock = Clock.fixed(NOW, ZoneId.of("UTC"));
+    private final Clock clock = Clock.fixed(NOW, UTC);
 
     @Test
     void shouldObtainInitialToken() {
@@ -82,13 +83,13 @@ class CachingBearerTokenServiceTest {
                 .thenReturn(CompletableFuture.completedFuture(firstToken))
                 .thenReturn(CompletableFuture.completedFuture(secondToken));
 
-        Clock clock1 = Clock.fixed(firstCallTime, ZoneId.of("UTC"));
+        Clock clock1 = Clock.fixed(firstCallTime, UTC);
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock1);
 
         // When
         var stage1 = service.getBearerToken();
 
-        Clock clock2 = Clock.fixed(secondCallTime, ZoneId.of("UTC"));
+        Clock clock2 = Clock.fixed(secondCallTime, UTC);
         service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock2);
         var stage2 = service.getBearerToken();
 
@@ -142,7 +143,7 @@ class CachingBearerTokenServiceTest {
     void shouldReturnExistingTokenWhenRefreshFailsButTokenStillValid() {
         // Given - a token that's near expiry (will trigger refresh) but not yet expired
         Instant nearExpiryTime = NOW.plus(Duration.ofMinutes(59).plusSeconds(30));
-        Clock nearExpiryClock = Clock.fixed(nearExpiryTime, ZoneId.of("UTC"));
+        Clock nearExpiryClock = Clock.fixed(nearExpiryTime, UTC);
         BearerToken existingToken = new BearerToken("existing", NOW, NOW.plus(TOKEN_LIFETIME));
 
         when(delegate.getBearerToken()).thenReturn(CompletableFuture.failedFuture(new RuntimeException("refresh failed")));
