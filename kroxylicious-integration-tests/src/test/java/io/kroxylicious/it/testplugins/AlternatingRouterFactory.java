@@ -25,6 +25,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.router.VirtualNode;
 
 /**
  * A router that alternates PRODUCE requests between two routes in
@@ -80,8 +81,8 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    int nodeId = routerContext.anyNodeId(routeA);
-                    return routerContext.sendRequestToNode(nodeId, header, request)
+                    VirtualNode node = routerContext.anyNode(routeA);
+                    return routerContext.sendRequest(node, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response);
                                 LOGGER.atDebug()
@@ -100,8 +101,8 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
                         .addKeyValue("batchIndex", index)
                         .addKeyValue("batchSize", batchSize)
                         .log("Alternating router chose route based on batch index");
-                int nodeId = routerContext.anyNodeId(route);
-                return routerContext.sendRequestToNode(nodeId, header, request)
+                VirtualNode node = routerContext.anyNode(route);
+                return routerContext.sendRequest(node, header, request)
                         .thenApply(response -> routerContext.respondWith(response).build());
             }
 

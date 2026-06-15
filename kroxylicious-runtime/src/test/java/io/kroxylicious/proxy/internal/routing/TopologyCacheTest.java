@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.List;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponsePartition;
@@ -206,122 +204,58 @@ class TopologyCacheTest {
     }
 
     @Nested
-    class UpdateFromFindCoordinator {
+    class PutCoordinator {
 
         @Test
-        void shouldCacheCoordinatorV4() {
-            // Given
-            var data = new FindCoordinatorResponseData();
-            data.coordinators().add(new Coordinator()
-                    .setKey("my-group")
-                    .setKeyType((byte) 0)
-                    .setNodeId(42)
-                    .setErrorCode(Errors.NONE.code()));
-
+        void shouldCacheCoordinator() {
             // When
-            cache.updateFromFindCoordinator(ROUTE_A, data, (short) 4);
+            cache.putCoordinator(ROUTE_A, (byte) 0, "my-group", 42);
 
             // Then
             assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-group")).isEqualTo(42);
         }
 
         @Test
-        void shouldCacheCoordinatorPreV4() {
-            // Given
-            var data = new FindCoordinatorResponseData()
-                    .setKey("my-txn")
-                    .setKeyType((byte) 1)
-                    .setNodeId(99)
-                    .setErrorCode(Errors.NONE.code());
-
+        void shouldCacheTransactionCoordinator() {
             // When
-            cache.updateFromFindCoordinator(ROUTE_A, data, (short) 3);
+            cache.putCoordinator(ROUTE_A, (byte) 1, "my-txn", 99);
 
             // Then
             assertThat(cache.coordinatorFor(ROUTE_A, (byte) 1, "my-txn")).isEqualTo(99);
         }
 
         @Test
-        void shouldSkipErrorCoordinatorV4() {
-            // Given
-            var data = new FindCoordinatorResponseData();
-            data.coordinators().add(new Coordinator()
-                    .setKey("my-group")
-                    .setKeyType((byte) 0)
-                    .setNodeId(42)
-                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
-
-            // When
-            cache.updateFromFindCoordinator(ROUTE_A, data, (short) 4);
-
-            // Then
-            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-group")).isNull();
-        }
-
-        @Test
-        void shouldSkipErrorCoordinatorPreV4() {
-            // Given
-            var data = new FindCoordinatorResponseData()
-                    .setKey("my-group")
-                    .setKeyType((byte) 0)
-                    .setNodeId(42)
-                    .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code());
-
-            // When
-            cache.updateFromFindCoordinator(ROUTE_A, data, (short) 3);
-
-            // Then
-            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-group")).isNull();
-        }
-
-        @Test
-        void shouldSkipNegativeNodeIdPreV4() {
-            // Given
-            var data = new FindCoordinatorResponseData()
-                    .setKey("my-group")
-                    .setKeyType((byte) 0)
-                    .setNodeId(-1)
-                    .setErrorCode(Errors.NONE.code());
-
-            // When
-            cache.updateFromFindCoordinator(ROUTE_A, data, (short) 3);
-
-            // Then
-            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-group")).isNull();
-        }
-
-        @Test
-        void shouldCacheMultipleCoordinatorsV4() {
-            // Given
-            var data = new FindCoordinatorResponseData();
-            data.coordinators().add(new Coordinator()
-                    .setKey("group-a").setKeyType((byte) 0).setNodeId(10).setErrorCode(Errors.NONE.code()));
-            data.coordinators().add(new Coordinator()
-                    .setKey("group-b").setKeyType((byte) 0).setNodeId(20).setErrorCode(Errors.NONE.code()));
-
-            // When
-            cache.updateFromFindCoordinator(ROUTE_A, data, (short) 4);
-
-            // Then
-            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "group-a")).isEqualTo(10);
-            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "group-b")).isEqualTo(20);
-        }
-
-        @Test
         void shouldScopeCoordinatorsByRoute() {
-            // Given
-            var dataA = new FindCoordinatorResponseData()
-                    .setKey("my-group").setKeyType((byte) 0).setNodeId(10).setErrorCode(Errors.NONE.code());
-            var dataB = new FindCoordinatorResponseData()
-                    .setKey("my-group").setKeyType((byte) 0).setNodeId(20).setErrorCode(Errors.NONE.code());
-
             // When
-            cache.updateFromFindCoordinator(ROUTE_A, dataA, (short) 3);
-            cache.updateFromFindCoordinator(ROUTE_B, dataB, (short) 3);
+            cache.putCoordinator(ROUTE_A, (byte) 0, "my-group", 10);
+            cache.putCoordinator(ROUTE_B, (byte) 0, "my-group", 20);
 
             // Then
             assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-group")).isEqualTo(10);
             assertThat(cache.coordinatorFor(ROUTE_B, (byte) 0, "my-group")).isEqualTo(20);
+        }
+
+        @Test
+        void shouldDistinguishKeyTypes() {
+            // When
+            cache.putCoordinator(ROUTE_A, (byte) 0, "my-id", 10);
+            cache.putCoordinator(ROUTE_A, (byte) 1, "my-id", 20);
+
+            // Then
+            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-id")).isEqualTo(10);
+            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 1, "my-id")).isEqualTo(20);
+        }
+
+        @Test
+        void shouldUpdateExistingCoordinator() {
+            // Given
+            cache.putCoordinator(ROUTE_A, (byte) 0, "my-group", 10);
+
+            // When
+            cache.putCoordinator(ROUTE_A, (byte) 0, "my-group", 20);
+
+            // Then
+            assertThat(cache.coordinatorFor(ROUTE_A, (byte) 0, "my-group")).isEqualTo(20);
         }
     }
 
@@ -345,12 +279,8 @@ class TopologyCacheTest {
         @Test
         void shouldClearCoordinatorsForRoute() {
             // Given
-            var dataA = new FindCoordinatorResponseData()
-                    .setKey("grp").setKeyType((byte) 0).setNodeId(10).setErrorCode(Errors.NONE.code());
-            var dataB = new FindCoordinatorResponseData()
-                    .setKey("grp").setKeyType((byte) 0).setNodeId(20).setErrorCode(Errors.NONE.code());
-            cache.updateFromFindCoordinator(ROUTE_A, dataA, (short) 3);
-            cache.updateFromFindCoordinator(ROUTE_B, dataB, (short) 3);
+            cache.putCoordinator(ROUTE_A, (byte) 0, "grp", 10);
+            cache.putCoordinator(ROUTE_B, (byte) 0, "grp", 20);
 
             // When
             cache.invalidateRoute(ROUTE_A);

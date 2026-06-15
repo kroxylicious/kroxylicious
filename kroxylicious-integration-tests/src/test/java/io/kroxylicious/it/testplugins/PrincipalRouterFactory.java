@@ -25,6 +25,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.router.VirtualNode;
 
 /**
  * Routes PRODUCE requests to a route determined by the authenticated
@@ -72,8 +73,8 @@ public class PrincipalRouterFactory
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    int nodeId = routerContext.anyNodeId(defaultRoute);
-                    return routerContext.sendRequestToNode(nodeId, header, request)
+                    VirtualNode node = routerContext.anyNode(defaultRoute);
+                    return routerContext.sendRequest(node, header, request)
                             .thenApply(response -> {
                                 capProduceVersion(response);
                                 return routerContext.respondWith(response).build();
@@ -81,8 +82,8 @@ public class PrincipalRouterFactory
                 }
 
                 String route = resolveRoute(routerContext);
-                int nodeId = routerContext.anyNodeId(route);
-                return routerContext.sendRequestToNode(nodeId, header, request)
+                VirtualNode node = routerContext.anyNode(route);
+                return routerContext.sendRequest(node, header, request)
                         .thenApply(response -> routerContext.respondWith(response).build());
             }
 

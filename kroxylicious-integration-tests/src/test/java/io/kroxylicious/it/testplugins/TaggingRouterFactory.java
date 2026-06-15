@@ -18,6 +18,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.router.VirtualNode;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -53,8 +54,8 @@ public class TaggingRouterFactory
                     request.unknownTaggedFields().add(
                             new RawTaggedField(BASE_TAG + config.tagOffset(), config.routerTag().getBytes(UTF_8)));
                 }
-                int nodeId = routerContext.anyNodeId(config.route());
-                return routerContext.sendRequestToNode(nodeId, header, request)
+                VirtualNode node = routerContext.anyNode(config.route());
+                return routerContext.sendRequest(node, header, request)
                         .thenApply(response -> routerContext.respondWith(response).build());
             }
         };

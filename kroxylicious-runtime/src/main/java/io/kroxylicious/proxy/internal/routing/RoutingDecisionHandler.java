@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -295,7 +294,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                             frame.body(), frame.apiVersion(),
                             pending.nodeIdMapping(), pending.route());
                     if (topologyCache != null) {
-                        updateTopologyCache(frame.body(), frame.apiVersion(), pending.route());
+                        updateTopologyCache(frame.body(), pending.route());
                     }
                     pending.future().complete(frame.body());
                     LOGGER.atTrace()
@@ -323,12 +322,9 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         pendingResponses.remove(correlationId);
     }
 
-    private void updateTopologyCache(ApiMessage body, short apiVersion, String route) {
+    private void updateTopologyCache(ApiMessage body, String route) {
         if (body instanceof MetadataResponseData md) {
             topologyCache.updateFromMetadata(route, md);
-        }
-        else if (body instanceof FindCoordinatorResponseData fc) {
-            topologyCache.updateFromFindCoordinator(route, fc, apiVersion);
         }
     }
 

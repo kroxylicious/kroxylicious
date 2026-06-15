@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -35,6 +36,7 @@ import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -119,23 +121,31 @@ class RouterContextImpl implements RouterContext {
     }
 
     @Override
-    public OptionalInt virtualNodeId() {
-        return virtualNodeId;
+    public Optional<VirtualNode> virtualNode() {
+        return virtualNodeId.isPresent()
+                ? Optional.of(new VirtualNodeImpl(virtualNodeId.getAsInt()))
+                : Optional.empty();
     }
 
     @Override
-    public int anyNodeId(String route) {
+    public VirtualNode anyNode(String route) {
         if (!routes.containsKey(route)) {
             throw new IllegalArgumentException("Unknown route: " + route);
         }
-        return nodeIdMapping.toVirtual(route, BOOTSTRAP_TARGET_NODE_ID);
+        return new VirtualNodeImpl(nodeIdMapping.toVirtual(route, BOOTSTRAP_TARGET_NODE_ID));
     }
 
     @Override
-    public CompletionStage<ApiMessage> sendRequestToNode(
-                                                         int virtualNodeId,
-                                                         RequestHeaderData header,
-                                                         ApiMessage request) {
+    public VirtualNode nodeForId(int virtualNodeId) {
+        return new VirtualNodeImpl(virtualNodeId);
+    }
+
+    @Override
+    public CompletionStage<ApiMessage> sendRequest(
+                                                   VirtualNode node,
+                                                   RequestHeaderData header,
+                                                   ApiMessage request) {
+        int virtualNodeId = ((VirtualNodeImpl) node).encodedId();
         NodeIdMapping.RouteAndNode ran = nodeIdMapping.fromVirtual(virtualNodeId);
         String route = ran.route();
         RouteDescriptor rd = routes.get(route);
