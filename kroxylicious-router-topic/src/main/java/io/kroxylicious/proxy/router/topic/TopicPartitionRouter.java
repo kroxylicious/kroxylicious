@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
@@ -83,6 +84,7 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.router.topic.ProducerIdManager.ProducerIdEpoch;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -96,19 +98,19 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <ul>
  *   <li><b>Any broker:</b> API_VERSIONS, METADATA, FIND_COORDINATOR, CREATE_TOPICS,
  *       DELETE_TOPICS, CREATE_PARTITIONS, DESCRIBE_CLUSTER — dispatched via
- *       {@link RouterContext#sendRequestToNode}
+ *       {@link RouterContext#sendRequest}
  *       to the route's bootstrap.</li>
  *   <li><b>Partition leader:</b> PRODUCE, LIST_OFFSETS, DELETE_RECORDS — dispatched
- *       via {@link RouterContext#sendRequestToNode} to the cached partition leader.
+ *       via {@link RouterContext#sendRequest} to the cached partition leader.
  *       FETCH is dispatched per-route (not per-leader) due to fetch session
  *       management constraints.</li>
  *   <li><b>Group coordinator:</b> OFFSET_COMMIT, OFFSET_FETCH,
  *       CONSUMER_GROUP_HEARTBEAT, CONSUMER_GROUP_DESCRIBE — dispatched via
- *       {@code sendRequestToNode} to the group coordinator discovered by
+ *       {@code sendRequest} to the group coordinator discovered by
  *       FIND_COORDINATOR.</li>
  *   <li><b>Transaction coordinator:</b> INIT_PRODUCER_ID, ADD_PARTITIONS_TO_TXN,
  *       ADD_OFFSETS_TO_TXN, END_TXN, TXN_OFFSET_COMMIT — dispatched via
- *       {@code sendRequestToNode} to the transaction coordinator.</li>
+ *       {@code sendRequest} to the transaction coordinator.</li>
  * </ul>
  *
  * <h2>Leader/coordinator cache</h2>
@@ -206,16 +208,16 @@ class TopicPartitionRouter implements Router {
     private final Counter rejectedAssignmentsCounter;
 
     // Coordinator caches for the non-subject-routed path only.
-    private final Map<String, Integer> transactionCoordinators = new HashMap<>();
-    private final Map<String, Integer> consumerGroupCoordinators = new HashMap<>();
+    private final Map<String, VirtualNode> transactionCoordinators = new HashMap<>();
+    private final Map<String, VirtualNode> consumerGroupCoordinators = new HashMap<>();
     /**
-     * Cached partition leaders: topicName → (partitionIndex → virtualLeaderNodeId).
-     * Node IDs are virtual (translated by {@code NodeIdResponseTranslator} before the
+     * Cached partition leaders: topicName → (partitionIndex → virtualLeaderNode).
+     * Nodes are virtual (translated by {@code NodeIdResponseTranslator} before the
      * router sees them). Updated from every METADATA response that passes through
      * the router. Plain {@code HashMap} because the router executes on a single
      * Netty event loop thread (see {@link Router#onRequest} threading contract).
      */
-    private final Map<String, Map<Integer, Integer>> partitionLeaders = new HashMap<>();
+    private final Map<String, Map<Integer, VirtualNode>> partitionLeaders = new HashMap<>();
 
     @Nullable
     private String activeTransactionRoute;
@@ -353,7 +355,7 @@ class TopicPartitionRouter implements Router {
             return handleDescribeCluster(header, request, context);
         }
 
-        return context.sendRequestToNode(context.anyNodeId(defaultRoute), header, request)
+        return context.sendRequest(context.anyNode(defaultRoute), header, request)
                 .thenApply(response -> context.respondWith(response).build());
     }
 
@@ -361,8 +363,8 @@ class TopicPartitionRouter implements Router {
                                                               RequestHeaderData header,
                                                               ApiMessage request,
                                                               RouterContext context) {
-        int targetNode = context.virtualNodeId().orElse(context.anyNodeId(defaultRoute));
-        return context.sendRequestToNode(targetNode, header, request)
+        VirtualNode targetNode = context.virtualNode().orElseGet(() -> context.anyNode(defaultRoute));
+        return context.sendRequest(targetNode, header, request)
                 .thenApply(response -> {
                     versionCapper.transform(
                             (org.apache.kafka.common.message.ApiVersionsResponseData) response);
@@ -403,7 +405,7 @@ class TopicPartitionRouter implements Router {
         // acks=0: fire-and-forget to route bootstrap
         if (isAcksZero) {
             for (var entry : subRequests.entrySet()) {
-                context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue());
+                context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue());
             }
             return CompletableFuture.completedFuture(
                     syntheticResult(context,
@@ -412,17 +414,17 @@ class TopicPartitionRouter implements Router {
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<Integer, ProduceRequestData> byLeader = groupProduceByLeader(subRequests, request);
+            Map<VirtualNode, ProduceRequestData> byLeader = groupProduceByLeader(subRequests, request, context);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("Produce dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
+            Map<VirtualNode, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
-                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
+                        context.sendRequest(entry.getKey(), header, entry.getValue()));
             }
 
             ProduceResponseData capturedErrors = errorResponse;
@@ -447,7 +449,7 @@ class TopicPartitionRouter implements Router {
                 && !request.transactionalId().isEmpty();
 
         if (allRoutes.size() == 1) {
-            return context.sendRequestToNode(context.anyNodeId(defaultRoute), header, request)
+            return context.sendRequest(context.anyNode(defaultRoute), header, request)
                     .thenApply(response -> {
                         return context.respondWith(response).build();
                     });
@@ -470,7 +472,7 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (String route : allRoutes) {
             InitProducerIdRequestData routeRequest = rewriteInitProducerIdRequest(request, route);
-            futures.put(route, context.sendRequestToNode(context.anyNodeId(route), header, routeRequest));
+            futures.put(route, context.sendRequest(context.anyNode(route), header, routeRequest));
         }
 
         return collectAll(futures).thenApply(responses -> {
@@ -510,18 +512,18 @@ class TopicPartitionRouter implements Router {
         });
     }
 
-    private CompletionStage<Integer> discoverCoordinator(
-                                                         String route,
-                                                         byte keyType,
-                                                         String key,
-                                                         RouterContext context) {
+    private CompletionStage<VirtualNode> discoverCoordinator(
+                                                             String route,
+                                                             byte keyType,
+                                                             String key,
+                                                             RouterContext context) {
         var mdHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.METADATA.id)
                 .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
         var mdReq = new MetadataRequestData();
 
-        return context.sendRequestToNode(context.anyNodeId(route), mdHeader, mdReq).thenCompose(mdResponse -> {
-            updateLeaderCache((MetadataResponseData) mdResponse);
+        return context.sendRequest(context.anyNode(route), mdHeader, mdReq).thenCompose(mdResponse -> {
+            updateLeaderCache((MetadataResponseData) mdResponse, context::nodeForId);
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", route)
@@ -534,7 +536,7 @@ class TopicPartitionRouter implements Router {
                     .setKey(key)
                     .setKeyType(keyType);
 
-            return context.sendRequestToNode(context.anyNodeId(route), findCoordHeader, findCoordReq);
+            return context.sendRequest(context.anyNode(route), findCoordHeader, findCoordReq);
         }).thenApply(coordResponse -> {
             var resp = (FindCoordinatorResponseData) coordResponse;
             if (resp.errorCode() != Errors.NONE.code()) {
@@ -547,7 +549,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("key", key)
                     .addKeyValue("keyType", keyType)
                     .log("Discovered coordinator");
-            return resp.nodeId();
+            return context.nodeForId(resp.nodeId());
         });
     }
 
@@ -564,7 +566,7 @@ class TopicPartitionRouter implements Router {
                             .setRequestApiKey(ApiKeys.INIT_PRODUCER_ID.id)
                             .setRequestApiVersion(header.requestApiVersion());
 
-                    return context.sendRequestToNode(coordinatorNodeId, initHeader, request)
+                    return context.sendRequest(coordinatorNodeId, initHeader, request)
                             .<RouterResponse> thenApply(initResponse -> {
                                 var initResp = (InitProducerIdResponseData) initResponse;
                                 if (initResp.errorCode() != Errors.NONE.code()) {
@@ -734,10 +736,10 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("route", entry.getKey())
                     .log("Metadata routed to single cluster");
 
-            return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
+            return context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
                         var md = (MetadataResponseData) response;
-                        updateLeaderCache(md);
+                        updateLeaderCache(md, context::nodeForId);
                         logMergedMetadata(context, md);
                         return context.respondWith(response).build();
                     });
@@ -751,14 +753,14 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
-                    context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
+                    context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue()));
         }
 
         return collectAll(futures).thenApply(responses -> {
             Map<String, MetadataResponseData> bodies = new HashMap<>();
             for (var entry : responses.entrySet()) {
                 var md = (MetadataResponseData) entry.getValue();
-                updateLeaderCache(md);
+                updateLeaderCache(md, context::nodeForId);
                 bodies.put(entry.getKey(), md);
             }
             MetadataResponseData merged = metadataDecomposer.recompose(
@@ -815,7 +817,7 @@ class TopicPartitionRouter implements Router {
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<Integer, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest);
+            Map<VirtualNode, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest, context);
 
             Map<String, FetchRequestData> byLeaderStr = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
@@ -829,10 +831,10 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("Fetch dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
+            Map<VirtualNode, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
-                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
+                        context.sendRequest(entry.getKey(), header, entry.getValue()));
             }
 
             FetchResponseData capturedErrors = errorResponse;
@@ -868,18 +870,18 @@ class TopicPartitionRouter implements Router {
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<Integer, ListOffsetsRequestData> byLeader = groupListOffsetsByLeader(
-                    subRequests, request);
+            Map<VirtualNode, ListOffsetsRequestData> byLeader = groupListOffsetsByLeader(
+                    subRequests, request, context);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("ListOffsets dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
+            Map<VirtualNode, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
-                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
+                        context.sendRequest(entry.getKey(), header, entry.getValue()));
             }
 
             ListOffsetsResponseData capturedErrors = errorResponse;
@@ -935,13 +937,13 @@ class TopicPartitionRouter implements Router {
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<Integer, OffsetForLeaderEpochRequestData> byLeader = new HashMap<>();
+            Map<VirtualNode, OffsetForLeaderEpochRequestData> byLeader = new HashMap<>();
             for (var routeEntry : subRequests.entrySet()) {
                 for (var topic : routeEntry.getValue().topics()) {
                     for (var partition : topic.partitions()) {
-                        Integer leader = leaderForPartition(topic.topic(), partition.partition());
+                        VirtualNode leader = leaderForPartition(topic.topic(), partition.partition());
                         if (leader == null) {
-                            leader = -1;
+                            leader = context.nodeForId(-1);
                         }
                         var leaderReq = byLeader.computeIfAbsent(leader, k -> new OffsetForLeaderEpochRequestData().setReplicaId(request.replicaId()));
                         var leaderTopic = findOrCreateOffsetForLeaderTopic(leaderReq, topic.topic());
@@ -955,10 +957,10 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("OffsetForLeaderEpoch dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
+            Map<VirtualNode, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
-                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
+                        context.sendRequest(entry.getKey(), header, entry.getValue()));
             }
 
             OffsetForLeaderEpochResponseData capturedErrors = errorResponse;
@@ -1123,7 +1125,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", entry.getKey())
                     .log("CreateTopics routed to single cluster");
-            return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
+            return context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
                         return context.respondWith(response).build();
                     });
@@ -1137,7 +1139,7 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
-                    context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
+                    context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue()));
         }
 
         CreateTopicsResponseData capturedErrors = errorResponse;
@@ -1174,7 +1176,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", entry.getKey())
                     .log("DeleteTopics routed to single cluster");
-            return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
+            return context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
                         return context.respondWith(response).build();
                     });
@@ -1188,7 +1190,7 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
-                    context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
+                    context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue()));
         }
 
         DeleteTopicsResponseData capturedErrors = errorResponse;
@@ -1236,7 +1238,7 @@ class TopicPartitionRouter implements Router {
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", entry.getKey())
                     .log("CreatePartitions routed to single cluster");
-            return context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue())
+            return context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue())
                     .thenApply(response -> {
                         return context.respondWith(response).build();
                     });
@@ -1250,7 +1252,7 @@ class TopicPartitionRouter implements Router {
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (var entry : subRequests.entrySet()) {
             futures.put(entry.getKey(),
-                    context.sendRequestToNode(context.anyNodeId(entry.getKey()), header, entry.getValue()));
+                    context.sendRequest(context.anyNode(entry.getKey()), header, entry.getValue()));
         }
 
         CreatePartitionsResponseData capturedErrors = errorResponse;
@@ -1282,18 +1284,18 @@ class TopicPartitionRouter implements Router {
         }
 
         return ensureLeadersCached(subRequests, context).thenCompose(v -> {
-            Map<Integer, DeleteRecordsRequestData> byLeader = groupDeleteRecordsByLeader(
-                    subRequests, request);
+            Map<VirtualNode, DeleteRecordsRequestData> byLeader = groupDeleteRecordsByLeader(
+                    subRequests, request, context);
 
             LOGGER.atDebug()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("leaderCount", byLeader.size())
                     .log("DeleteRecords dispatching to partition leaders");
 
-            Map<Integer, CompletionStage<ApiMessage>> futures = new HashMap<>();
+            Map<VirtualNode, CompletionStage<ApiMessage>> futures = new HashMap<>();
             for (var entry : byLeader.entrySet()) {
                 futures.put(entry.getKey(),
-                        context.sendRequestToNode(entry.getKey(), header, entry.getValue()));
+                        context.sendRequest(entry.getKey(), header, entry.getValue()));
             }
 
             DeleteRecordsResponseData capturedErrors = errorResponse;
@@ -1378,8 +1380,8 @@ class TopicPartitionRouter implements Router {
             request.setV3AndBelowProducerEpoch(routeIds.producerEpoch());
         }
 
-        Integer coordinatorNodeId = transactionCoordinators.get(expectedRoute);
-        if (coordinatorNodeId == null) {
+        VirtualNode coordinatorNode = transactionCoordinators.get(expectedRoute);
+        if (coordinatorNode == null) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", expectedRoute)
@@ -1395,7 +1397,7 @@ class TopicPartitionRouter implements Router {
                 .log("ADD_PARTITIONS_TO_TXN routed to transaction coordinator");
 
         List<AddPartitionsToTxnTopicResult> capturedErrors = errorTopics;
-        return context.sendRequestToNode(coordinatorNodeId, header, request)
+        return context.sendRequest(coordinatorNode, header, request)
                 .thenApply(response -> {
                     if (!capturedErrors.isEmpty()) {
                         var body = (AddPartitionsToTxnResponseData) response;
@@ -1443,8 +1445,8 @@ class TopicPartitionRouter implements Router {
                                                                   RouterContext context) {
         String route = defaultRoute;
 
-        Integer coordinatorNodeId = transactionCoordinators.get(route);
-        if (coordinatorNodeId == null) {
+        VirtualNode coordinatorNode = transactionCoordinators.get(route);
+        if (coordinatorNode == null) {
             LOGGER.atWarn()
                     .addKeyValue("sessionId", context.sessionId())
                     .addKeyValue("route", route)
@@ -1468,11 +1470,11 @@ class TopicPartitionRouter implements Router {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
-                .addKeyValue("coordinatorNodeId", coordinatorNodeId)
+                .addKeyValue("coordinatorNode", coordinatorNode)
                 .addKeyValue("groupId", request.groupId())
                 .log("ADD_OFFSETS_TO_TXN routed to transaction coordinator");
 
-        return context.sendRequestToNode(coordinatorNodeId, header, request)
+        return context.sendRequest(coordinatorNode, header, request)
                 .<RouterResponse> thenApply(r -> context.respondWith(r).build())
                 .exceptionally(ex -> {
                     LOGGER.atWarn()
@@ -1546,9 +1548,9 @@ class TopicPartitionRouter implements Router {
                                                          RouterContext context) {
         String route = defaultRoute;
 
-        Integer coordinatorNodeId = transactionCoordinators.get(route);
-        if (coordinatorNodeId == null) {
-            return context.sendRequestToNode(context.anyNodeId(route), header, request)
+        VirtualNode coordinatorNode = transactionCoordinators.get(route);
+        if (coordinatorNode == null) {
+            return context.sendRequest(context.anyNode(route), header, request)
                     .thenApply(response -> {
                         activeTransactionRoute = null;
                         return context.respondWith(response).build();
@@ -1574,13 +1576,13 @@ class TopicPartitionRouter implements Router {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
-                .addKeyValue("coordinatorNodeId", coordinatorNodeId)
+                .addKeyValue("coordinatorNode", coordinatorNode)
                 .addKeyValue("transactionalId", request.transactionalId())
                 .addKeyValue("committed", request.committed())
                 .log("END_TXN routed to transaction coordinator");
 
         short capturedPreRewriteEpoch = preRewriteRouteEpoch;
-        return context.sendRequestToNode(coordinatorNodeId, header, request)
+        return context.sendRequest(coordinatorNode, header, request)
                 .<RouterResponse> thenApply(response -> {
                     var endTxnResp = (EndTxnResponseData) response;
 
@@ -1641,7 +1643,7 @@ class TopicPartitionRouter implements Router {
                                                            RequestHeaderData header,
                                                            ApiMessage request,
                                                            RouterContext context) {
-        return context.sendRequestToNode(context.anyNodeId(route), header, request)
+        return context.sendRequest(context.anyNode(route), header, request)
                 .thenApply(response -> {
                     return context.respondWith(response).build();
                 });
@@ -1669,7 +1671,7 @@ class TopicPartitionRouter implements Router {
                 .addKeyValue("keyType", findCoordReq.keyType())
                 .log("FIND_COORDINATOR forwarded");
 
-        return context.sendRequestToNode(context.anyNodeId(route), header, request)
+        return context.sendRequest(context.anyNode(route), header, request)
                 .thenApply(response -> {
                     return context.respondWith(response).build();
                 });
@@ -1680,7 +1682,7 @@ class TopicPartitionRouter implements Router {
                                                                          ConsumerGroupHeartbeatRequestData request,
                                                                          RouterContext context) {
         String route = defaultRoute;
-        Integer cachedCoordinator = consumerGroupCoordinators.get(route);
+        VirtualNode cachedCoordinator = consumerGroupCoordinators.get(route);
 
         if (cachedCoordinator != null) {
             return forwardToConsumerGroupCoordinator(
@@ -1710,7 +1712,7 @@ class TopicPartitionRouter implements Router {
     }
 
     private CompletionStage<RouterResponse> forwardToConsumerGroupCoordinator(
-                                                                              int coordinatorNodeId,
+                                                                              VirtualNode coordinatorNode,
                                                                               String route,
                                                                               RequestHeaderData header,
                                                                               ApiMessage request,
@@ -1718,10 +1720,10 @@ class TopicPartitionRouter implements Router {
         LOGGER.atDebug()
                 .addKeyValue("sessionId", context.sessionId())
                 .addKeyValue("route", route)
-                .addKeyValue("coordinatorNodeId", coordinatorNodeId)
+                .addKeyValue("coordinatorNode", coordinatorNode)
                 .log("Consumer group request forwarded to coordinator");
 
-        return context.sendRequestToNode(coordinatorNodeId, header, request)
+        return context.sendRequest(coordinatorNode, header, request)
                 .thenApply(r -> context.respondWith(r).build());
     }
 
@@ -1826,7 +1828,7 @@ class TopicPartitionRouter implements Router {
         Set<String> allRoutes = routingTable.allRoutes();
 
         if (allRoutes.size() == 1) {
-            return context.sendRequestToNode(context.anyNodeId(defaultRoute), header, request)
+            return context.sendRequest(context.anyNode(defaultRoute), header, request)
                     .thenApply(response -> {
                         return context.respondWith(response).build();
                     });
@@ -1839,7 +1841,7 @@ class TopicPartitionRouter implements Router {
 
         Map<String, CompletionStage<ApiMessage>> futures = new HashMap<>();
         for (String route : allRoutes) {
-            futures.put(route, context.sendRequestToNode(context.anyNodeId(route), header, request));
+            futures.put(route, context.sendRequest(context.anyNode(route), header, request));
         }
 
         return collectAll(futures).thenApply(responses -> {
@@ -1902,14 +1904,14 @@ class TopicPartitionRouter implements Router {
                                                                RequestHeaderData header,
                                                                ApiMessage request,
                                                                RouterContext context) {
-        Integer cached = consumerGroupCoordinators.get(route);
+        VirtualNode cached = consumerGroupCoordinators.get(route);
         if (cached != null) {
-            return context.sendRequestToNode(cached, header, request);
+            return context.sendRequest(cached, header, request);
         }
         return discoverCoordinator(route, (byte) 0, groupId, context)
-                .thenCompose(coordinatorNodeId -> {
-                    consumerGroupCoordinators.put(route, coordinatorNodeId);
-                    return context.sendRequestToNode(coordinatorNodeId, header, request);
+                .thenCompose(coordinatorNode -> {
+                    consumerGroupCoordinators.put(route, coordinatorNode);
+                    return context.sendRequest(coordinatorNode, header, request);
                 });
     }
 
@@ -1923,19 +1925,19 @@ class TopicPartitionRouter implements Router {
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext context) {
-        Integer cached = transactionCoordinators.get(route);
+        VirtualNode cached = transactionCoordinators.get(route);
         if (cached != null) {
-            return context.sendRequestToNode(cached, header, request);
+            return context.sendRequest(cached, header, request);
         }
         return discoverCoordinator(route, (byte) 1, transactionalId, context)
-                .thenCompose(coordinatorNodeId -> {
-                    transactionCoordinators.put(route, coordinatorNodeId);
-                    return context.sendRequestToNode(coordinatorNodeId, header, request);
+                .thenCompose(coordinatorNode -> {
+                    transactionCoordinators.put(route, coordinatorNode);
+                    return context.sendRequest(coordinatorNode, header, request);
                 });
     }
 
     // package-private for testing
-    void updateLeaderCache(MetadataResponseData response) {
+    void updateLeaderCache(MetadataResponseData response, IntFunction<VirtualNode> nodeFactory) {
         for (var topic : response.topics()) {
             if (topic.errorCode() != Errors.NONE.code()) {
                 continue;
@@ -1943,20 +1945,20 @@ class TopicPartitionRouter implements Router {
             var partMap = partitionLeaders.computeIfAbsent(topic.name(), k -> new HashMap<>());
             for (var partition : topic.partitions()) {
                 if (partition.errorCode() == Errors.NONE.code() && partition.leaderId() >= 0) {
-                    partMap.put(partition.partitionIndex(), partition.leaderId());
+                    partMap.put(partition.partitionIndex(), nodeFactory.apply(partition.leaderId()));
                 }
             }
         }
     }
 
     @Nullable
-    private Integer leaderForPartition(String topicName, int partitionIndex) {
+    private VirtualNode leaderForPartition(String topicName, int partitionIndex) {
         var partMap = partitionLeaders.get(topicName);
         return partMap != null ? partMap.get(partitionIndex) : null;
     }
 
-    private Map<Integer, String> mapLeadersToRoutes(Map<String, ? extends ApiMessage> subRequestsByRoute) {
-        Map<Integer, String> leaderToRoute = new HashMap<>();
+    private Map<VirtualNode, String> mapLeadersToRoutes(Map<String, ? extends ApiMessage> subRequestsByRoute) {
+        Map<VirtualNode, String> leaderToRoute = new HashMap<>();
         for (var entry : subRequestsByRoute.entrySet()) {
             String route = entry.getKey();
             mapLeadersForMessage(entry.getValue(), route, leaderToRoute);
@@ -1964,11 +1966,11 @@ class TopicPartitionRouter implements Router {
         return leaderToRoute;
     }
 
-    private void mapLeadersForMessage(ApiMessage subRequest, String route, Map<Integer, String> leaderToRoute) {
+    private void mapLeadersForMessage(ApiMessage subRequest, String route, Map<VirtualNode, String> leaderToRoute) {
         if (subRequest instanceof ProduceRequestData pr) {
             for (var topic : pr.topicData()) {
                 for (var partition : topic.partitionData()) {
-                    Integer leader = leaderForPartition(topic.name(), partition.index());
+                    VirtualNode leader = leaderForPartition(topic.name(), partition.index());
                     if (leader != null) {
                         leaderToRoute.putIfAbsent(leader, route);
                     }
@@ -1978,7 +1980,7 @@ class TopicPartitionRouter implements Router {
         else if (subRequest instanceof FetchRequestData fr) {
             for (var topic : fr.topics()) {
                 for (var partition : topic.partitions()) {
-                    Integer leader = leaderForPartition(topic.topic(), partition.partition());
+                    VirtualNode leader = leaderForPartition(topic.topic(), partition.partition());
                     if (leader != null) {
                         leaderToRoute.putIfAbsent(leader, route);
                     }
@@ -1988,7 +1990,7 @@ class TopicPartitionRouter implements Router {
         else if (subRequest instanceof ListOffsetsRequestData lor) {
             for (var topic : lor.topics()) {
                 for (var partition : topic.partitions()) {
-                    Integer leader = leaderForPartition(topic.name(), partition.partitionIndex());
+                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
                     if (leader != null) {
                         leaderToRoute.putIfAbsent(leader, route);
                     }
@@ -1998,7 +2000,7 @@ class TopicPartitionRouter implements Router {
         else if (subRequest instanceof DeleteRecordsRequestData drr) {
             for (var topic : drr.topics()) {
                 for (var partition : topic.partitions()) {
-                    Integer leader = leaderForPartition(topic.name(), partition.partitionIndex());
+                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
                     if (leader != null) {
                         leaderToRoute.putIfAbsent(leader, route);
                     }
@@ -2021,8 +2023,8 @@ class TopicPartitionRouter implements Router {
         for (var name : topicNames) {
             mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic().setName(name));
         }
-        return context.sendRequestToNode(context.anyNodeId(route), mdHeader, mdReq).thenAccept(response -> {
-            updateLeaderCache((MetadataResponseData) response);
+        return context.sendRequest(context.anyNode(route), mdHeader, mdReq).thenAccept(response -> {
+            updateLeaderCache((MetadataResponseData) response, context::nodeForId);
         });
     }
 
@@ -2128,16 +2130,17 @@ class TopicPartitionRouter implements Router {
      * Groups LIST_OFFSETS partitions by their cached leader node ID.
      * The router table decomposition has already filtered to routable topics.
      */
-    private Map<Integer, ListOffsetsRequestData> groupListOffsetsByLeader(
-                                                                          Map<String, ListOffsetsRequestData> subRequestsByRoute,
-                                                                          ListOffsetsRequestData original) {
-        Map<Integer, ListOffsetsRequestData> byLeader = new HashMap<>();
+    private Map<VirtualNode, ListOffsetsRequestData> groupListOffsetsByLeader(
+                                                                              Map<String, ListOffsetsRequestData> subRequestsByRoute,
+                                                                              ListOffsetsRequestData original,
+                                                                              RouterContext context) {
+        Map<VirtualNode, ListOffsetsRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             for (var topic : routeEntry.getValue().topics()) {
                 for (var partition : topic.partitions()) {
-                    Integer leader = leaderForPartition(topic.name(), partition.partitionIndex());
+                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
                     if (leader == null) {
-                        leader = -1;
+                        leader = context.nodeForId(-1);
                     }
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new ListOffsetsRequestData()
                             .setReplicaId(original.replicaId())
@@ -2169,17 +2172,18 @@ class TopicPartitionRouter implements Router {
      * the affected topics. The original response is returned to the client
      * unchanged.
      */
-    private Map<Integer, ProduceRequestData> groupProduceByLeader(
-                                                                  Map<String, ProduceRequestData> subRequestsByRoute,
-                                                                  ProduceRequestData original) {
-        Map<Integer, ProduceRequestData> byLeader = new HashMap<>();
+    private Map<VirtualNode, ProduceRequestData> groupProduceByLeader(
+                                                                      Map<String, ProduceRequestData> subRequestsByRoute,
+                                                                      ProduceRequestData original,
+                                                                      RouterContext context) {
+        Map<VirtualNode, ProduceRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             var routeReq = routeEntry.getValue();
             for (var topic : routeReq.topicData()) {
                 for (var partition : topic.partitionData()) {
-                    Integer leader = leaderForPartition(topic.name(), partition.index());
+                    VirtualNode leader = leaderForPartition(topic.name(), partition.index());
                     if (leader == null) {
-                        leader = -1;
+                        leader = context.nodeForId(-1);
                     }
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new ProduceRequestData()
                             .setAcks(original.acks())
@@ -2209,17 +2213,18 @@ class TopicPartitionRouter implements Router {
         return t;
     }
 
-    private Map<Integer, FetchRequestData> groupFetchByLeader(
-                                                              Map<String, FetchRequestData> subRequestsByRoute,
-                                                              FetchRequestData original) {
-        Map<Integer, FetchRequestData> byLeader = new HashMap<>();
+    private Map<VirtualNode, FetchRequestData> groupFetchByLeader(
+                                                                  Map<String, FetchRequestData> subRequestsByRoute,
+                                                                  FetchRequestData original,
+                                                                  RouterContext context) {
+        Map<VirtualNode, FetchRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             var routeReq = routeEntry.getValue();
             for (var topic : routeReq.topics()) {
                 for (var partition : topic.partitions()) {
-                    Integer leader = leaderForPartition(topic.topic(), partition.partition());
+                    VirtualNode leader = leaderForPartition(topic.topic(), partition.partition());
                     if (leader == null) {
-                        leader = -1;
+                        leader = context.nodeForId(-1);
                     }
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new FetchRequestData()
                             .setMaxBytes(original.maxBytes())
@@ -2251,16 +2256,17 @@ class TopicPartitionRouter implements Router {
         return t;
     }
 
-    private Map<Integer, DeleteRecordsRequestData> groupDeleteRecordsByLeader(
-                                                                              Map<String, DeleteRecordsRequestData> subRequestsByRoute,
-                                                                              DeleteRecordsRequestData original) {
-        Map<Integer, DeleteRecordsRequestData> byLeader = new HashMap<>();
+    private Map<VirtualNode, DeleteRecordsRequestData> groupDeleteRecordsByLeader(
+                                                                                  Map<String, DeleteRecordsRequestData> subRequestsByRoute,
+                                                                                  DeleteRecordsRequestData original,
+                                                                                  RouterContext context) {
+        Map<VirtualNode, DeleteRecordsRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             for (var topic : routeEntry.getValue().topics()) {
                 for (var partition : topic.partitions()) {
-                    Integer leader = leaderForPartition(topic.name(), partition.partitionIndex());
+                    VirtualNode leader = leaderForPartition(topic.name(), partition.partitionIndex());
                     if (leader == null) {
-                        leader = -1;
+                        leader = context.nodeForId(-1);
                     }
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new DeleteRecordsRequestData()
                             .setTimeoutMs(original.timeoutMs()));

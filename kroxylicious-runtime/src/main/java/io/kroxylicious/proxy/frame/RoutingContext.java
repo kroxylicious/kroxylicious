@@ -24,7 +24,7 @@ public sealed interface RoutingContext {
 
     /**
      * Message is being forwarded along a Route, intended for a specific broker identified by virtual node ID.
-     * Used for {@code sendRequestToNode}.
+     * Used for {@code sendRequest}.
      */
     record RouteTargetNode(String route, int virtualNodeId) implements RoutingContext {}
 }

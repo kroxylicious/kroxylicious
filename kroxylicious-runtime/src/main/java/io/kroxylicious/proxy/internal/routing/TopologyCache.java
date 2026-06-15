@@ -5,15 +5,11 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.kafka.common.Uuid;
-import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.Errors;
 
@@ -39,14 +35,12 @@ public class TopologyCache {
     /**
      * Partition identity (topic name + partition index).
      */
-    record PartitionKey(String topicName, int partitionIndex) {
-    }
+    record PartitionKey(String topicName, int partitionIndex) {}
 
     /**
      * Cached partition data with the route it was learned from.
      */
-    record PartitionEntry(String route, PartitionInfo info) {
-    }
+    record PartitionEntry(String route, PartitionInfo info) {}
 
     /**
      * Partition topology: leader, replicas, and in-sync replicas.
@@ -63,8 +57,7 @@ public class TopologyCache {
     /**
      * Broker metadata: host, port, and optional rack.
      */
-    public record BrokerInfo(String host, int port, @Nullable String rack) {
-    }
+    public record BrokerInfo(String host, int port, @Nullable String rack) {}
 
     /**
      * Coordinator cache key: route-scoped by (route, keyType, key).
@@ -73,8 +66,7 @@ public class TopologyCache {
      * @param keyType 0 for group, 1 for transaction
      * @param key the group or transaction ID
      */
-    public record RouteCoordinatorKey(String route, byte keyType, String key) {
-    }
+    public record RouteCoordinatorKey(String route, byte keyType, String key) {}
 
     /**
      * Updates the cache from a translated METADATA response.
@@ -115,32 +107,19 @@ public class TopologyCache {
     }
 
     /**
-     * Updates the cache from a translated FIND_COORDINATOR response.
+     * Caches a coordinator node ID discovered via FIND_COORDINATOR.
+     * Called by the TopologyService (not by RoutingDecisionHandler),
+     * because the key type and key come from the request context,
+     * not from the response (the response lacks keyType, and v0-3
+     * responses lack the key entirely).
      *
-     * @param route the route this response came from
-     * @param data the FIND_COORDINATOR response data
-     * @param apiVersion the API version of the response
+     * @param route the route this coordinator belongs to
+     * @param keyType 0 for group, 1 for transaction
+     * @param key the group or transaction ID
+     * @param nodeId the coordinator's virtual node ID
      */
-    public void updateFromFindCoordinator(String route, FindCoordinatorResponseData data, short apiVersion) {
-        Objects.requireNonNull(route);
-        Objects.requireNonNull(data);
-
-        if (apiVersion >= 4) {
-            for (var coordinator : data.coordinators()) {
-                if (coordinator.errorCode() == Errors.NONE.code() && coordinator.nodeId() >= 0) {
-                    coordinators.put(
-                            new RouteCoordinatorKey(route, coordinator.keyType(), coordinator.key()),
-                            coordinator.nodeId());
-                }
-            }
-        }
-        else {
-            if (data.errorCode() == Errors.NONE.code() && data.nodeId() >= 0) {
-                coordinators.put(
-                        new RouteCoordinatorKey(route, data.keyType(), data.key()),
-                        data.nodeId());
-            }
-        }
+    public void putCoordinator(String route, byte keyType, String key, int nodeId) {
+        coordinators.put(new RouteCoordinatorKey(route, keyType, key), nodeId);
     }
 
     /**

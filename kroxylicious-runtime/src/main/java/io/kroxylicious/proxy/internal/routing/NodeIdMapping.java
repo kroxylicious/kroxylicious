@@ -23,7 +23,7 @@ public sealed interface NodeIdMapping permits BijectiveNodeIdMapping, IdentityNo
     /**
      * Translates a virtual node ID back to its target-cluster node ID,
      * given the route. The route is always supplied by the router via
-     * {@link io.kroxylicious.proxy.router.RouterContext#sendRequestToNode}.
+     * {@link io.kroxylicious.proxy.router.RouterContext#sendRequest}.
      *
      * @param route the route name
      * @param virtualNodeId the virtual node ID

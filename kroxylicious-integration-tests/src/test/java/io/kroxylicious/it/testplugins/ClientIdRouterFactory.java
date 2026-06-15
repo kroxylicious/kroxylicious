@@ -20,6 +20,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.router.VirtualNode;
 
 /**
  * Routes PRODUCE requests to a route determined by the Kafka client
@@ -60,8 +61,8 @@ public class ClientIdRouterFactory
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
                 String route = resolveRoute(header);
-                int nodeId = routerContext.anyNodeId(route);
-                return routerContext.sendRequestToNode(nodeId, header, request)
+                VirtualNode node = routerContext.anyNode(route);
+                return routerContext.sendRequest(node, header, request)
                         .thenApply(response -> routerContext.respondWith(response).build());
             }
 

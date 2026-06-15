@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalInt;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -86,12 +86,15 @@ import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.router.TerminalStage;
+import io.kroxylicious.proxy.router.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TopicPartitionRouterTest {
+
+    record TestVirtualNode(int encodedId) implements VirtualNode {}
 
     private TopicPartitionRouter router;
 
@@ -211,7 +214,7 @@ class TopicPartitionRouterTest {
                 .hasSize(1);
         assertThat(ctx.sentNodeRequests().get(0).virtualNodeId()).isEqualTo(42);
         assertThat(ctx.sentRequests())
-                .as("should not use anyNodeId path")
+                .as("should not use anyNode path")
                 .isEmpty();
     }
 
@@ -228,7 +231,7 @@ class TopicPartitionRouterTest {
 
         // Then
         assertThat(ctx.sentRequests())
-                .as("API_VERSIONS should use anyNodeId when virtualNodeId is empty")
+                .as("API_VERSIONS should use anyNode when virtualNode is empty")
                 .hasSize(1);
         assertThat(ctx.sentNodeRequests())
                 .as("should not use specific node path")
@@ -1747,7 +1750,7 @@ class TopicPartitionRouterTest {
     private static void primeLeaderCache(TopicPartitionRouter router,
                                          int nodeId,
                                          String... topicNames) {
-        router.updateLeaderCache(metadataResponseWithLeaders(nodeId, topicNames));
+        router.updateLeaderCache(metadataResponseWithLeaders(nodeId, topicNames), TestVirtualNode::new);
     }
 
     /**
@@ -1852,9 +1855,14 @@ class TopicPartitionRouterTest {
      * the response. Supports per-route backend responses for
      * fan-out testing.
      */
-    record SentNodeRequest(int virtualNodeId,
+    record SentNodeRequest(VirtualNode virtualNode,
                            RequestHeaderData header,
-                           ApiMessage body) {}
+                           ApiMessage body) {
+
+        int virtualNodeId() {
+            return ((TestVirtualNode) virtualNode).encodedId();
+        }
+    }
 
     /**
      * Test-specific router response that exposes the body for assertion.
@@ -1901,10 +1909,10 @@ class TopicPartitionRouterTest {
         private final List<SentRequest> sentRequests = new ArrayList<>();
         private final List<SentNodeRequest> sentNodeRequests = new ArrayList<>();
         private ApiMessage sentResponseBody;
-        private Map<Integer, ApiMessage> nodeResponses = Map.of();
+        private Map<VirtualNode, ApiMessage> nodeResponses = Map.of();
         private Subject subject = Subject.anonymous();
-        private OptionalInt virtualNodeId = OptionalInt.empty();
-        private final Map<String, Integer> routeAnyNodeIds = new HashMap<>();
+        private Optional<VirtualNode> virtualNode = Optional.empty();
+        private final Map<String, VirtualNode> routeAnyNodes = new HashMap<>();
 
         CapturingRouterContext(ApiMessage singleBackendResponse) {
             this.backendResponses = null;
@@ -1920,7 +1928,8 @@ class TopicPartitionRouterTest {
 
         CapturingRouterContext withNodeResponses(
                                                  Map<Integer, ? extends ApiMessage> nodeResponses) {
-            this.nodeResponses = new HashMap<>(nodeResponses);
+            this.nodeResponses = new HashMap<>();
+            nodeResponses.forEach((id, msg) -> this.nodeResponses.put(new TestVirtualNode(id), msg));
             return this;
         }
 
@@ -1930,7 +1939,7 @@ class TopicPartitionRouterTest {
         }
 
         CapturingRouterContext withVirtualNodeId(int nodeId) {
-            this.virtualNodeId = OptionalInt.of(nodeId);
+            this.virtualNode = Optional.of(new TestVirtualNode(nodeId));
             return this;
         }
 
@@ -1992,30 +2001,35 @@ class TopicPartitionRouterTest {
         }
 
         @Override
-        public OptionalInt virtualNodeId() {
-            return virtualNodeId;
+        public Optional<VirtualNode> virtualNode() {
+            return virtualNode;
         }
 
         @Override
-        public int anyNodeId(String route) {
-            return routeAnyNodeIds.computeIfAbsent(route,
-                    r -> ANY_NODE_SENTINEL + routeAnyNodeIds.size());
+        public VirtualNode anyNode(String route) {
+            return routeAnyNodes.computeIfAbsent(route,
+                    r -> new TestVirtualNode(ANY_NODE_SENTINEL + routeAnyNodes.size()));
         }
 
-        private String routeForAnyNodeId(int id) {
-            return routeAnyNodeIds.entrySet().stream()
-                    .filter(e -> e.getValue() == id)
+        @Override
+        public VirtualNode nodeForId(int virtualNodeId) {
+            return new TestVirtualNode(virtualNodeId);
+        }
+
+        private String routeForAnyNode(VirtualNode node) {
+            return routeAnyNodes.entrySet().stream()
+                    .filter(e -> e.getValue().equals(node))
                     .map(Map.Entry::getKey)
                     .findFirst()
                     .orElse(null);
         }
 
         @Override
-        public CompletionStage<ApiMessage> sendRequestToNode(
-                                                             int virtualNodeId,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request) {
-            String bootstrapRoute = routeForAnyNodeId(virtualNodeId);
+        public CompletionStage<ApiMessage> sendRequest(
+                                                       VirtualNode node,
+                                                       RequestHeaderData header,
+                                                       ApiMessage request) {
+            String bootstrapRoute = routeForAnyNode(node);
             if (bootstrapRoute != null) {
                 sentRequests.add(new SentRequest(bootstrapRoute, header, request));
                 if (request instanceof MetadataRequestData) {
@@ -2056,8 +2070,8 @@ class TopicPartitionRouterTest {
             }
             else {
                 sentNodeRequests.add(
-                        new SentNodeRequest(virtualNodeId, header, request));
-                ApiMessage body = nodeResponses.get(virtualNodeId);
+                        new SentNodeRequest(node, header, request));
+                ApiMessage body = nodeResponses.get(node);
                 if (body == null) {
                     body = new ProduceResponseData();
                 }
@@ -2084,11 +2098,11 @@ class TopicPartitionRouterTest {
     /**
      * Context for single-route transactional INIT_PRODUCER_ID which goes
      * through three stages: METADATA, FIND_COORDINATOR, INIT_PRODUCER_ID
-     * (via sendRequestToNode).
+     * (via sendRequest).
      */
     static class SingleRouteInitCapturingContext implements RouterContext {
 
-        private static final int ANY_NODE_SENTINEL = Integer.MIN_VALUE;
+        private static final VirtualNode ANY_NODE_SENTINEL_NODE = new TestVirtualNode(Integer.MIN_VALUE);
 
         private final FindCoordinatorResponseData findCoordResp;
         private final ApiMessage nodeResponse;
@@ -2152,21 +2166,26 @@ class TopicPartitionRouterTest {
         }
 
         @Override
-        public OptionalInt virtualNodeId() {
-            return OptionalInt.empty();
+        public Optional<VirtualNode> virtualNode() {
+            return Optional.empty();
         }
 
         @Override
-        public int anyNodeId(String route) {
-            return ANY_NODE_SENTINEL;
+        public VirtualNode anyNode(String route) {
+            return ANY_NODE_SENTINEL_NODE;
         }
 
         @Override
-        public CompletionStage<ApiMessage> sendRequestToNode(
-                                                             int virtualNodeId,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request) {
-            if (virtualNodeId == ANY_NODE_SENTINEL) {
+        public VirtualNode nodeForId(int virtualNodeId) {
+            return new TestVirtualNode(virtualNodeId);
+        }
+
+        @Override
+        public CompletionStage<ApiMessage> sendRequest(
+                                                       VirtualNode node,
+                                                       RequestHeaderData header,
+                                                       ApiMessage request) {
+            if (node.equals(ANY_NODE_SENTINEL_NODE)) {
                 sendRequestCount++;
                 ApiMessage body;
                 if (request instanceof MetadataRequestData) {

@@ -28,6 +28,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -134,29 +135,38 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldReturnEmptyVirtualNodeIdForBootstrapContext() {
+    void shouldReturnEmptyVirtualNodeForBootstrapContext() {
         var ctx = createContext(OptionalInt.empty());
-        assertThat(ctx.virtualNodeId()).isEmpty();
+        assertThat(ctx.virtualNode()).isEmpty();
     }
 
     @Test
-    void shouldReturnPresentVirtualNodeIdForBrokerContext() {
+    void shouldReturnPresentVirtualNodeForBrokerContext() {
         var ctx = createContext(OptionalInt.of(0));
-        assertThat(ctx.virtualNodeId()).hasValue(0);
+        assertThat(ctx.virtualNode()).isPresent();
+        assertThat(ctx.virtualNode().get()).isEqualTo(new VirtualNodeImpl(0));
     }
 
     @Test
-    void shouldComputeAnyNodeIdForKnownRoute() {
+    void shouldComputeAnyNodeForKnownRoute() {
         var ctx = createContext();
-        assertThat(ctx.anyNodeId("cluster-route")).isEqualTo(-1);
+        VirtualNode node = ctx.anyNode("cluster-route");
+        assertThat(node).isEqualTo(new VirtualNodeImpl(-1));
     }
 
     @Test
-    void shouldThrowForUnknownRouteInAnyNodeId() {
+    void shouldThrowForUnknownRouteInAnyNode() {
         var ctx = createContext();
-        assertThatThrownBy(() -> ctx.anyNodeId("nonexistent"))
+        assertThatThrownBy(() -> ctx.anyNode("nonexistent"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown route");
+    }
+
+    @Test
+    void shouldConvertNodeIdToVirtualNode() {
+        var ctx = createContext();
+        VirtualNode node = ctx.nodeForId(42);
+        assertThat(node).isEqualTo(new VirtualNodeImpl(42));
     }
 
     @Test
@@ -189,7 +199,7 @@ class RouterContextImplTest {
                 .setRequestApiVersion(API_VERSION);
         var body = new FetchRequestData();
 
-        var future = ctx.sendRequestToNode(0, header, body);
+        var future = ctx.sendRequest(ctx.nodeForId(0), header, body);
 
         assertThat(forwardedNodeId.get()).isEqualTo(0);
         assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
@@ -211,7 +221,7 @@ class RouterContextImplTest {
                 .setRequestApiVersion(API_VERSION);
         var body = new FetchRequestData();
 
-        ctx.sendRequestToNode(ctx.anyNodeId("cluster-route"), header, body);
+        ctx.sendRequest(ctx.anyNode("cluster-route"), header, body);
 
         assertThat(forwardedRoute.get()).isEqualTo("cluster-route");
         assertThat(forwardedNodeId.get())
@@ -221,7 +231,7 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldDeriveRouteFromVirtualNodeIdWithBijectiveMapping() {
+    void shouldDeriveRouteFromVirtualNodeWithBijectiveMapping() {
         // Given: two routes with bijective mapping
         var bijectiveRoutes = Map.of(
                 "route-a", new RouteDescriptor("route-a", 0, TARGET, null, List.of()),
@@ -251,7 +261,7 @@ class RouterContextImplTest {
                 .setRequestApiVersion(API_VERSION);
 
         // When: send to virtual node 3 (= route-b, target 1: V = 1 + 2*1 = 3)
-        ctx.sendRequestToNode(3, header, new FetchRequestData());
+        ctx.sendRequest(ctx.nodeForId(3), header, new FetchRequestData());
 
         // Then: route should be derived as "route-b"
         assertThat(forwardedRoute.get()).isEqualTo("route-b");
@@ -259,7 +269,7 @@ class RouterContextImplTest {
     }
 
     @Test
-    void shouldFailForUnknownRouteInSendRequestToNode() {
+    void shouldFailForUnknownRouteInSendRequest() {
         // IdentityNodeIdMapping returns ("cluster-route", virtualNodeId) for any ID,
         // so we need a bijective mapping that can produce an unknown route
         var singleRoute = Map.of(
@@ -281,7 +291,7 @@ class RouterContextImplTest {
                 sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
 
         // Virtual node 1 maps to route "phantom" which isn't in the routes map
-        var future = ctx.sendRequestToNode(1, new RequestHeaderData(), new FetchRequestData());
+        var future = ctx.sendRequest(ctx.nodeForId(1), new RequestHeaderData(), new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally()
@@ -297,7 +307,7 @@ class RouterContextImplTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
 
-        ctx.sendRequestToNode(0, header, new FetchRequestData());
+        ctx.sendRequest(ctx.nodeForId(0), header, new FetchRequestData());
 
         assertThat(pendingResponseCount.get()).isEqualTo(1);
     }
@@ -309,7 +319,7 @@ class RouterContextImplTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
 
-        ctx.sendRequestToNode(0, header, new FetchRequestData());
+        ctx.sendRequest(ctx.nodeForId(0), header, new FetchRequestData());
 
         var counter = meterRegistry.find("test_routing_requests").counter();
         assertThat(counter).isNotNull();
@@ -336,7 +346,7 @@ class RouterContextImplTest {
                 sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
 
         // Virtual node 1 maps to "phantom" which is unknown to routes
-        ctx.sendRequestToNode(1, new RequestHeaderData(), new FetchRequestData());
+        ctx.sendRequest(ctx.nodeForId(1), new RequestHeaderData(), new FetchRequestData());
 
         var counter = meterRegistry.find("test_routing_errors").counter();
         assertThat(counter).isNotNull();
@@ -366,8 +376,8 @@ class RouterContextImplTest {
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
 
-        var futureA = fanOutCtx.sendRequestToNode(0, headerA, new FetchRequestData());
-        var futureB = fanOutCtx.sendRequestToNode(0, headerB, new FetchRequestData());
+        var futureA = fanOutCtx.sendRequest(fanOutCtx.nodeForId(0), headerA, new FetchRequestData());
+        var futureB = fanOutCtx.sendRequest(fanOutCtx.nodeForId(0), headerB, new FetchRequestData());
 
         assertThat(forwardedFrames).hasSize(2);
 
@@ -383,7 +393,7 @@ class RouterContextImplTest {
     }
 
     @Test
-    void sendRequestToNodeShouldFailWhenForwarderThrows() {
+    void sendRequestShouldFailWhenForwarderThrows() {
         var ctx = new RouterContextImpl(
                 CORRELATION_ID, SESSION_ID, Subject.anonymous(),
                 routes,
@@ -404,7 +414,7 @@ class RouterContextImplTest {
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
-        var future = ctx.sendRequestToNode(0, header, new FetchRequestData());
+        var future = ctx.sendRequest(ctx.nodeForId(0), header, new FetchRequestData());
 
         assertThat(future.toCompletableFuture())
                 .isCompletedExceptionally();

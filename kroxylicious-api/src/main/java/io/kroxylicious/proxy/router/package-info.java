@@ -8,7 +8,7 @@
  * The router API.
  *
  * <p>A {@link io.kroxylicious.proxy.router.Router} is a plugin that decides which
- * {@linkplain io.kroxylicious.proxy.router.RouterContext#sendRequestToNode route}
+ * {@linkplain io.kroxylicious.proxy.router.RouterContext#sendRequest route}
  * should handle a given incoming Kafka request. Routes lead to targets &mdash;
  * either a backing Kafka cluster or another {@code Router}.
  * The routers defined in a proxy configuration are validated at startup

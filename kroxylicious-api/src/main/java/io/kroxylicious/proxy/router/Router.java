@@ -65,7 +65,7 @@ public interface Router {
      * Called for each incoming client request that is dynamically routed.
      *
      * <p>The implementation inspects the request, sends one or more requests
-     * via {@link RouterContext#sendRequestToNode}, and returns a
+     * via {@link RouterContext#sendRequest}, and returns a
      * {@link RouterResponse} encoding the outcome. Use the builder methods on
      * {@link RouterContext} to construct results:
      * {@link RouterContext#respondWith(ApiMessage) respondWith} to deliver a
@@ -77,9 +77,9 @@ public interface Router {
      * <p><strong>Threading model</strong></p>
      *
      * <p>All invocations of this method, all calls to
-     * {@link RouterContext#sendRequestToNode}, and all
+     * {@link RouterContext#sendRequest}, and all
      * {@link CompletionStage} callbacks chained on the futures returned
-     * by {@code sendRequestToNode}, execute on the same Netty event loop
+     * by {@code sendRequest}, execute on the same Netty event loop
      * thread. Router implementations do not need to synchronise access
      * to their own state.</p>
      *
