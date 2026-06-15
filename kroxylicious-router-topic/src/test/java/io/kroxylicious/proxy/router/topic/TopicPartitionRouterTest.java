@@ -85,7 +85,9 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.router.BrokerInfo;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
+import io.kroxylicious.proxy.router.Coordinators;
 import io.kroxylicious.proxy.router.PartitionInfo;
+import io.kroxylicious.proxy.router.PartitionLeaders;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.router.TerminalStage;
@@ -103,14 +105,31 @@ class TopicPartitionRouterTest {
     static class TestTopologyService implements TopologyService {
 
         private final Map<String, Map<Integer, VirtualNode>> leaders = new HashMap<>();
-        private final Map<String, VirtualNode> coordinators = new HashMap<>();
+        private final Map<String, VirtualNode> coordinatorMap = new HashMap<>();
 
         void primeLeader(String topicName, int partition, VirtualNode leader) {
             leaders.computeIfAbsent(topicName, k -> new HashMap<>()).put(partition, leader);
         }
 
         void primeCoordinator(String route, byte keyType, String key, VirtualNode node) {
-            coordinators.put(route + ":" + keyType + ":" + key, node);
+            coordinatorMap.put(route + ":" + keyType + ":" + key, node);
+        }
+
+        @Override
+        public CompletionStage<PartitionLeaders> leaders(Map<String, Set<String>> topicsByRoute) {
+            PartitionLeaders snapshot = (topicName, partitionIndex) -> {
+                var partMap = leaders.get(topicName);
+                return partMap != null ? Optional.ofNullable(partMap.get(partitionIndex)) : Optional.empty();
+            };
+            return CompletableFuture.completedFuture(snapshot);
+        }
+
+        @Override
+        public CompletionStage<Coordinators> coordinators(String route, byte keyType, Set<String> keys) {
+            Coordinators snapshot = key -> {
+                return Optional.ofNullable(coordinatorMap.get(route + ":" + keyType + ":" + key));
+            };
+            return CompletableFuture.completedFuture(snapshot);
         }
 
         @Override
@@ -119,32 +138,7 @@ class TopicPartitionRouterTest {
         }
 
         @Override
-        public Optional<VirtualNode> leaderOf(String topicName, int partitionIndex) {
-            var partMap = leaders.get(topicName);
-            return partMap != null ? Optional.ofNullable(partMap.get(partitionIndex)) : Optional.empty();
-        }
-
-        @Override
-        public CompletionStage<Void> ensureLeadersCached(Map<String, Set<String>> topicsByRoute) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public Optional<VirtualNode> coordinatorOf(String route, byte keyType, String key) {
-            return Optional.ofNullable(coordinators.get(route + ":" + keyType + ":" + key));
-        }
-
-        @Override
-        public CompletionStage<VirtualNode> discoverCoordinator(String route, byte keyType, String key) {
-            var cached = coordinatorOf(route, keyType, key);
-            if (cached.isPresent()) {
-                return CompletableFuture.completedFuture(cached.get());
-            }
-            return CompletableFuture.failedFuture(new RuntimeException("coordinator not primed for " + route + ":" + keyType + ":" + key));
-        }
-
-        @Override
-        public Optional<PartitionInfo> partitionInfoFor(String topicName, int partitionIndex) {
+        public Optional<PartitionInfo> partitionInfo(String topicName, int partitionIndex) {
             return Optional.empty();
         }
 

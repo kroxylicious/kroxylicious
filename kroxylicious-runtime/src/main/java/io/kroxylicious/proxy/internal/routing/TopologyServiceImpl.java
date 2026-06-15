@@ -26,7 +26,9 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.router.BrokerInfo;
+import io.kroxylicious.proxy.router.Coordinators;
 import io.kroxylicious.proxy.router.PartitionInfo;
+import io.kroxylicious.proxy.router.PartitionLeaders;
 import io.kroxylicious.proxy.router.TopologyService;
 import io.kroxylicious.proxy.router.VirtualNode;
 
@@ -34,15 +36,10 @@ import io.kroxylicious.proxy.router.VirtualNode;
  * Runtime implementation of {@link TopologyService}, backed by a
  * shared {@link TopologyCache}.
  *
- * <p>Read-only methods ({@link #leaderOf}, {@link #coordinatorOf},
- * {@link #partitionInfoFor}, {@link #brokerInfo}) delegate directly
- * to the cache.</p>
- *
- * <p>Methods that may send requests ({@link #ensureLeadersCached},
- * {@link #topicNames}, {@link #discoverCoordinator}) use a
- * {@link RequestSender} bound per-connection via
- * {@link #bindRequestSender}. The cache is populated as a side
- * effect of METADATA responses flowing through
+ * <p>Discovery methods ({@link #leaders}, {@link #coordinators},
+ * {@link #topicNames}) use a {@link RequestSender} bound
+ * per-connection via {@link #bindRequestSender}. The cache is
+ * populated as a side effect of responses flowing through
  * {@link RoutingDecisionHandler#write} — by the time the
  * {@code CompletionStage} returned by the sender completes,
  * the cache is guaranteed to be updated.</p>
@@ -57,8 +54,7 @@ public class TopologyServiceImpl implements TopologyService {
 
     /**
      * Sends a request to a route and returns a stage that completes
-     * with the response. Used by TopologyServiceImpl for internal
-     * METADATA and FIND_COORDINATOR requests.
+     * with the response.
      */
     @FunctionalInterface
     public interface RequestSender {
@@ -84,39 +80,16 @@ public class TopologyServiceImpl implements TopologyService {
     private RequestSender requireSender() {
         RequestSender s = requestSender;
         if (s == null) {
-            throw new IllegalStateException("No RequestSender bound — topology requests can only be sent during request processing");
+            throw new IllegalStateException(
+                    "No RequestSender bound — topology requests can only be sent during request processing");
         }
         return s;
     }
 
-    // --- Async methods (require bound RequestSender) ---
+    // --- Discovery methods ---
 
     @Override
-    public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
-        Set<Uuid> uncached = cache.uncachedTopicIds(topicIds);
-        if (uncached.isEmpty()) {
-            return CompletableFuture.completedFuture(resolveFromCache(topicIds));
-        }
-        // TODO: we need to know which route to send the METADATA request to.
-        // For now, this requires the caller to have resolved topic IDs to routes
-        // before calling. This will be addressed when the router migration
-        // establishes the pattern.
-        throw new UnsupportedOperationException("topicNames with cache miss not yet implemented — router should send METADATA directly for now");
-    }
-
-    private Map<Uuid, String> resolveFromCache(Set<Uuid> topicIds) {
-        var result = new HashMap<Uuid, String>();
-        for (var id : topicIds) {
-            String name = cache.topicNameFor(id);
-            if (name != null) {
-                result.put(id, name);
-            }
-        }
-        return result;
-    }
-
-    @Override
-    public CompletionStage<Void> ensureLeadersCached(Map<String, Set<String>> topicsByRoute) {
+    public CompletionStage<PartitionLeaders> leaders(Map<String, Set<String>> topicsByRoute) {
         RequestSender sender = requireSender();
         List<CompletionStage<Void>> fetches = new ArrayList<>();
 
@@ -140,25 +113,29 @@ public class TopologyServiceImpl implements TopologyService {
                 mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic().setName(name));
             }
 
-            // The METADATA response will populate the cache as a side
-            // effect in RoutingDecisionHandler.write() before this
-            // CompletionStage completes.
             fetches.add(sender.send(route, mdHeader, mdReq).thenAccept(resp -> {
             }));
         }
 
         if (fetches.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(snapshotLeaders(topicsByRoute));
         }
         CompletableFuture<Void> combined = CompletableFuture.completedFuture(null);
         for (var fetch : fetches) {
             combined = combined.thenCombine(fetch, (a, b) -> null);
         }
-        return combined;
+        return combined.thenApply(v -> snapshotLeaders(topicsByRoute));
+    }
+
+    private PartitionLeaders snapshotLeaders(Map<String, Set<String>> topicsByRoute) {
+        return (topicName, partitionIndex) -> {
+            Integer leader = cache.leaderFor(topicName, partitionIndex);
+            return leader != null ? Optional.of(new VirtualNodeImpl(leader)) : Optional.empty();
+        };
     }
 
     @Override
-    public CompletionStage<VirtualNode> discoverCoordinator(String route, byte keyType, String key) {
+    public CompletionStage<Coordinators> coordinators(String route, byte keyType, Set<String> keys) {
         RequestSender sender = requireSender();
 
         var mdHeader = new RequestHeaderData()
@@ -167,13 +144,20 @@ public class TopologyServiceImpl implements TopologyService {
         var mdReq = new MetadataRequestData();
 
         return sender.send(route, mdHeader, mdReq).thenCompose(mdResponse -> {
-            // Cache is already populated by side effect. Now send FIND_COORDINATOR.
             var fcHeader = new RequestHeaderData()
                     .setRequestApiKey(ApiKeys.FIND_COORDINATOR.id)
                     .setRequestApiVersion(FIND_COORDINATOR_API_VERSION);
             var fcReq = new FindCoordinatorRequestData()
-                    .setKey(key)
                     .setKeyType(keyType);
+
+            if (keys.size() == 1) {
+                fcReq.setKey(keys.iterator().next());
+            }
+            else {
+                for (var key : keys) {
+                    fcReq.coordinatorKeys().add(key);
+                }
+            }
 
             return sender.send(route, fcHeader, fcReq);
         }).thenApply(coordResponse -> {
@@ -181,29 +165,42 @@ public class TopologyServiceImpl implements TopologyService {
             if (resp.errorCode() != Errors.NONE.code()) {
                 throw new CoordinatorDiscoveryException(Errors.forCode(resp.errorCode()));
             }
-            // The coordinator is cached as a side effect in
-            // RoutingDecisionHandler.write() using the request-side
-            // context (keyType, key) carried by PendingResponse.
-            return (VirtualNode) new VirtualNodeImpl(resp.nodeId());
+            return snapshotCoordinators(route, keyType, keys);
         });
     }
 
-    // --- Synchronous read methods ---
-
-    @Override
-    public Optional<VirtualNode> leaderOf(String topicName, int partitionIndex) {
-        Integer leader = cache.leaderFor(topicName, partitionIndex);
-        return leader != null ? Optional.of(new VirtualNodeImpl(leader)) : Optional.empty();
+    private Coordinators snapshotCoordinators(String route, byte keyType, Set<String> keys) {
+        return key -> {
+            Integer nodeId = cache.coordinatorFor(route, keyType, key);
+            return nodeId != null ? Optional.of(new VirtualNodeImpl(nodeId)) : Optional.empty();
+        };
     }
 
     @Override
-    public Optional<VirtualNode> coordinatorOf(String route, byte keyType, String key) {
-        Integer nodeId = cache.coordinatorFor(route, keyType, key);
-        return nodeId != null ? Optional.of(new VirtualNodeImpl(nodeId)) : Optional.empty();
+    public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
+        Set<Uuid> uncached = cache.uncachedTopicIds(topicIds);
+        if (uncached.isEmpty()) {
+            return CompletableFuture.completedFuture(resolveFromCache(topicIds));
+        }
+        throw new UnsupportedOperationException(
+                "topicNames with cache miss not yet implemented — router should send METADATA directly for now");
     }
 
+    private Map<Uuid, String> resolveFromCache(Set<Uuid> topicIds) {
+        var result = new HashMap<Uuid, String>();
+        for (var id : topicIds) {
+            String name = cache.topicNameFor(id);
+            if (name != null) {
+                result.put(id, name);
+            }
+        }
+        return result;
+    }
+
+    // --- Supplementary lookups ---
+
     @Override
-    public Optional<PartitionInfo> partitionInfoFor(String topicName, int partitionIndex) {
+    public Optional<PartitionInfo> partitionInfo(String topicName, int partitionIndex) {
         TopologyCache.PartitionInfo info = cache.partitionInfoFor(topicName, partitionIndex);
         if (info == null) {
             return Optional.empty();

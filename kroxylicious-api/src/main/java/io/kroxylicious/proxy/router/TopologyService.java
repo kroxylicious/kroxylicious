@@ -24,19 +24,28 @@ import org.apache.kafka.common.Uuid;
  * underlying cache on first request. Routers that never call
  * {@code topologyService()} pay no cost.</p>
  *
+ * <h2>Discovery methods</h2>
+ *
+ * <p>The three discovery methods — {@link #leaders}, {@link #coordinators},
+ * {@link #topicNames} — are async and return self-contained result
+ * objects. They may send requests internally to warm the cache
+ * (METADATA for leaders and topic names, FIND_COORDINATOR for
+ * coordinators). The results are valid immediately upon completion
+ * and do not require further cache queries.</p>
+ *
  * <h2>Cache population</h2>
  *
- * <p>The cache is populated from two sources:</p>
+ * <p>The cache is populated as a <b>side effect</b> of responses
+ * flowing through the routing pipeline:</p>
  * <ul>
- *   <li><b>Side effect:</b> when any METADATA response flows through
- *       the routing pipeline (in response to a request sent via
- *       {@link RouterContext#sendRequest}), the runtime intercepts it
- *       and updates the topology cache before completing the router's
- *       {@code CompletionStage}.</li>
- *   <li><b>Explicitly:</b> methods like {@link #ensureLeadersCached}
- *       and {@link #topicNames} send METADATA requests internally
- *       when cache misses occur.</li>
+ *   <li>METADATA responses populate partition leaders, replicas,
+ *       ISR, broker info, and topicId→name mappings.</li>
+ *   <li>FIND_COORDINATOR responses populate coordinator mappings,
+ *       using request-side context (keyType, key) carried by the
+ *       runtime's {@code PendingResponse}.</li>
  * </ul>
+ * <p>By the time a discovery method's {@code CompletionStage}
+ * completes, the cache is guaranteed to reflect the response.</p>
  *
  * <h2>Cache scope</h2>
  *
@@ -45,6 +54,36 @@ import org.apache.kafka.common.Uuid;
  * topology view. The cache is thread-safe.</p>
  */
 public interface TopologyService {
+
+    /**
+     * Discovers partition leaders for the given topics on the given
+     * routes, sending METADATA requests as needed. Uncached topics
+     * are batched into one METADATA request per route.
+     *
+     * <p>The returned {@link PartitionLeaders} is a self-contained
+     * snapshot — callers should use it directly rather than querying
+     * the cache separately.</p>
+     *
+     * @param topicsByRoute map from route name to set of topic names
+     * @return a stage that completes with the discovered leaders
+     */
+    CompletionStage<PartitionLeaders> leaders(Map<String, Set<String>> topicsByRoute);
+
+    /**
+     * Discovers coordinators for the given keys on the given route,
+     * sending METADATA (if needed) then FIND_COORDINATOR. Supports
+     * batched lookup matching the FIND_COORDINATOR v4+ protocol.
+     *
+     * <p>The returned {@link Coordinators} is a self-contained
+     * snapshot — callers should use it directly rather than querying
+     * the cache separately.</p>
+     *
+     * @param route the route name
+     * @param keyType 0 for group, 1 for transaction
+     * @param keys the group or transaction IDs to discover
+     * @return a stage that completes with the discovered coordinators
+     */
+    CompletionStage<Coordinators> coordinators(String route, byte keyType, Set<String> keys);
 
     /**
      * Resolves topic IDs to topic names, batching cache misses into
@@ -60,74 +99,20 @@ public interface TopologyService {
     CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds);
 
     /**
-     * Returns the cached leader for a topic-partition, or empty if
-     * the leader is not cached.
-     *
-     * <p>Call {@link #ensureLeadersCached} first to warm the cache
-     * for the topics you need.</p>
-     *
-     * @param topicName the topic name
-     * @param partitionIndex the partition index
-     * @return the leader's virtual node, or empty if not cached
-     */
-    Optional<VirtualNode> leaderOf(String topicName, int partitionIndex);
-
-    /**
-     * Ensures leaders are cached for the given topics on the given
-     * routes, sending METADATA requests as needed. Uncached topics
-     * are batched into one METADATA request per route.
-     *
-     * <p>On success, subsequent calls to {@link #leaderOf} for the
-     * requested topics will return non-empty. On failure (e.g. METADATA
-     * request fails or returns topic-level errors), the stage completes
-     * exceptionally and topics with errors are not cached.</p>
-     *
-     * <p>This does not block the event loop — it sends METADATA
-     * requests asynchronously and the returned stage completes when
-     * the responses arrive.</p>
-     *
-     * @param topicsByRoute map from route name to set of topic names
-     * @return a stage that completes when the cache is warm
-     */
-    CompletionStage<Void> ensureLeadersCached(Map<String, Set<String>> topicsByRoute);
-
-    /**
-     * Returns the cached coordinator for the given key, or empty if
-     * not cached.
-     *
-     * <p>If this returns empty, the router should discover the
-     * coordinator using {@link #discoverCoordinator}.</p>
-     *
-     * @param route the route name
-     * @param keyType 0 for group, 1 for transaction
-     * @param key the group or transaction ID
-     * @return the coordinator's virtual node, or empty if not cached
-     */
-    Optional<VirtualNode> coordinatorOf(String route, byte keyType, String key);
-
-    /**
-     * Discovers and caches a coordinator by sending METADATA (if needed)
-     * then FIND_COORDINATOR to the given route.
-     *
-     * @param route the route name
-     * @param keyType 0 for group, 1 for transaction
-     * @param key the group or transaction ID
-     * @return a stage that completes with the coordinator's virtual node
-     */
-    CompletionStage<VirtualNode> discoverCoordinator(String route, byte keyType, String key);
-
-    /**
      * Returns full partition info (leader, replicas, ISR) for a
      * topic-partition, or empty if not cached.
      *
-     * <p>Useful for follower-fetch / AZ-aware routing where the
-     * router needs to find an in-sync replica in the local rack.</p>
+     * <p>This is a supplementary lookup for use cases like
+     * follower-fetch / AZ-aware routing where the router needs
+     * replica and rack information beyond what {@link PartitionLeaders}
+     * provides. If this returns empty, the router can fall back to
+     * the leader from {@link PartitionLeaders}.</p>
      *
      * @param topicName the topic name
      * @param partitionIndex the partition index
      * @return the partition info, or empty if not cached
      */
-    Optional<PartitionInfo> partitionInfoFor(String topicName, int partitionIndex);
+    Optional<PartitionInfo> partitionInfo(String topicName, int partitionIndex);
 
     /**
      * Returns broker metadata (host, port, rack) for a virtual node,
