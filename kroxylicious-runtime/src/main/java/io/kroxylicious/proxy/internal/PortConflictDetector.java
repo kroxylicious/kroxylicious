@@ -13,6 +13,9 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -23,6 +26,7 @@ import io.kroxylicious.proxy.service.HostPort;
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class PortConflictDetector {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PortConflictDetector.class);
     private static final String ANY_STRING = "<any>";
 
     private enum BindingScope {
@@ -87,9 +91,19 @@ public class PortConflictDetector {
      */
     public void validate(Collection<VirtualClusterModel> virtualClusterModelMap, Optional<HostPort> otherExclusivePort) {
         List<CandidateBinding> candidateBindings = candidateBindings(virtualClusterModelMap);
+        warnIfOsAssignedPorts(candidateBindings);
         validateCandidatesDoNotConflictWithOtherExclusivePort(candidateBindings, otherExclusivePort);
         validateSharedPortsRequireServerNameIndication(candidateBindings);
         validateCandidatesDoNotConflictWithEachOther(candidateBindings);
+    }
+
+    private static void warnIfOsAssignedPorts(List<CandidateBinding> candidateBindings) {
+        candidateBindings.stream()
+                .filter(binding -> binding.port() == 0)
+                .forEach(binding -> LOGGER.atWarn()
+                        .addKeyValue("virtualCluster", binding.gateway().virtualCluster().getClusterName())
+                        .addKeyValue("gateway", binding.gateway().name())
+                        .log("Gateway is configured with OS-assigned port (0). Advertised broker addresses will reflect the OS-assigned port rather than the configured value."));
     }
 
     private void validateSharedPortsRequireServerNameIndication(List<CandidateBinding> candidateBindings) {

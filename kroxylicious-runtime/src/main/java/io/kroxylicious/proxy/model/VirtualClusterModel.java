@@ -474,16 +474,6 @@ public class VirtualClusterModel implements AutoCloseable {
             validatePortUsage(nodeIdentificationStrategy);
             validateTLsSettings(nodeIdentificationStrategy, tls);
             this.downstreamSslContext = buildDownstreamSslContext();
-            warnIfOsAssignedPort(nodeIdentificationStrategy);
-        }
-
-        private void warnIfOsAssignedPort(NodeIdentificationStrategy strategy) {
-            if (strategy.getClusterBootstrapAddress().port() == 0) {
-                LOGGER.atWarn()
-                        .addKeyValue("virtualCluster", virtualCluster.getClusterName())
-                        .addKeyValue("gateway", name)
-                        .log("Gateway is configured with OS-assigned port (0). Advertised broker addresses will reflect the OS-assigned port rather than the configured value.");
-            }
         }
 
         private void validatePortUsage(NodeIdentificationStrategy nodeIdentificationStrategy) {

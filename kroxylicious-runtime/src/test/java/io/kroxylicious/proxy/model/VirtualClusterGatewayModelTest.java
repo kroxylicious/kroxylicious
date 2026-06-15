@@ -32,7 +32,7 @@ class VirtualClusterGatewayModelTest {
     private static final HostPort BOOTSTRAP_NON_ZERO = HostPort.parse("boot.kafka:9192");
     private static final HostPort BOOTSTRAP_PORT_ZERO = HostPort.parse("boot.kafka:0");
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private NodeIdentificationStrategy strategy;
 
     private VirtualClusterModel makeVirtualClusterModel() {

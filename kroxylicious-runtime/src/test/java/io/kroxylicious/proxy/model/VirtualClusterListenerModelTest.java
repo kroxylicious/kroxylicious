@@ -95,10 +95,11 @@ class VirtualClusterListenerModelTest {
 
     @Test
     void delegatesToStrategyForBrokerIdFromBrokerAddress() {
-        var mock = mock(NodeIdentificationStrategy.class);
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 9090));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
         var brokerAddress = new HostPort("broker", 55);
-        when(mock.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
+        when(strategy.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
         assertThat(listener.getBrokerIdFromBrokerAddress(brokerAddress)).isEqualTo(1);
     }
 
