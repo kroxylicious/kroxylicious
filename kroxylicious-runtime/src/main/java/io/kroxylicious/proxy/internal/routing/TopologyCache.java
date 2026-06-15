@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -162,6 +164,15 @@ public class TopologyCache {
     @Nullable
     public String topicNameFor(Uuid topicId) {
         return topicNames.get(topicId);
+    }
+
+    /**
+     * Returns the subset of the given topic IDs that are not cached.
+     */
+    public Set<Uuid> uncachedTopicIds(Set<Uuid> topicIds) {
+        return topicIds.stream()
+                .filter(id -> !topicNames.containsKey(id))
+                .collect(Collectors.toUnmodifiableSet());
     }
 
     /**

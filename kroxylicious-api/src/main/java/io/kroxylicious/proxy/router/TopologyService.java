@@ -15,15 +15,30 @@ import org.apache.kafka.common.Uuid;
 
 /**
  * Opt-in topology cache for routers that need leader, coordinator,
- * or topic ID resolution.
+ * broker, or topic ID information.
  *
  * <p>Routers that need topology information obtain a
  * {@code TopologyService} from
  * {@link RouterFactoryContext#topologyService()} during
  * {@link RouterFactory#initialize}. The runtime creates the
- * underlying cache on first request and populates it from METADATA
- * responses that flow through the routing pipeline. Routers that
- * never call {@code topologyService()} pay no cost.</p>
+ * underlying cache on first request. Routers that never call
+ * {@code topologyService()} pay no cost.</p>
+ *
+ * <h2>Cache population</h2>
+ *
+ * <p>The cache is populated from two sources:</p>
+ * <ul>
+ *   <li><b>Side effect:</b> when any METADATA response flows through
+ *       the routing pipeline (in response to a request sent via
+ *       {@link RouterContext#sendRequest}), the runtime intercepts it
+ *       and updates the topology cache before completing the router's
+ *       {@code CompletionStage}.</li>
+ *   <li><b>Explicitly:</b> methods like {@link #ensureLeadersCached}
+ *       and {@link #topicNames} send METADATA requests internally
+ *       when cache misses occur.</li>
+ * </ul>
+ *
+ * <h2>Cache scope</h2>
  *
  * <p>The cache is shared per router level (not per connection),
  * so all connections through the same router level share the same
@@ -33,7 +48,7 @@ public interface TopologyService {
 
     /**
      * Resolves topic IDs to topic names, batching cache misses into
-     * a single METADATA request.
+     * a single METADATA request per route.
      *
      * <p>Returns a map containing an entry for each topic ID that
      * was successfully resolved. Topic IDs that could not be resolved
@@ -79,6 +94,9 @@ public interface TopologyService {
     /**
      * Returns the cached coordinator for the given key, or empty if
      * not cached.
+     *
+     * <p>If this returns empty, the router should discover the
+     * coordinator using {@link #discoverCoordinator}.</p>
      *
      * @param route the route name
      * @param keyType 0 for group, 1 for transaction
@@ -130,7 +148,8 @@ public interface TopologyService {
      * <p>Called by the router when it observes staleness indicators
      * (e.g. {@code NOT_LEADER_OR_FOLLOWER}, {@code NOT_COORDINATOR})
      * in responses. No background refresh is fired — the client
-     * drives the refresh via its own METADATA request.</p>
+     * drives the refresh via its own METADATA request, which
+     * repopulates the cache as a side effect.</p>
      *
      * @param route the route to invalidate
      */

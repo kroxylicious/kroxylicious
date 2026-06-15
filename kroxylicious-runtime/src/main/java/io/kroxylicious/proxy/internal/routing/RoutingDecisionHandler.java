@@ -74,7 +74,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private final Map<Integer, HostPort> sharedNodeAddresses;
     private final Map<Uuid, String> topicIdCache;
     @Nullable
-    private final TopologyCache topologyCache;
+    private final TopologyServiceImpl topologyService;
 
     private final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
     private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
@@ -93,7 +93,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                                   Map<Integer, HostPort> sharedNodeAddresses,
                                   Map<Uuid, String> topicIdCache,
                                   OptionalInt virtualNodeId,
-                                  @Nullable TopologyCache topologyCache) {
+                                  @Nullable TopologyServiceImpl topologyService) {
         this.activationRoute = activationRoute;
         this.router = router;
         this.routes = routes;
@@ -108,7 +108,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         this.sharedNodeAddresses = sharedNodeAddresses;
         this.topicIdCache = topicIdCache;
         this.virtualNodeId = virtualNodeId;
-        this.topologyCache = topologyCache;
+        this.topologyService = topologyService;
         RouterContextImpl.registerBootstrapAddresses(
                 routes, nodeIdMapping, sharedNodeAddresses, virtualIdTranslator);
     }
@@ -202,6 +202,10 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 virtualIdTranslator,
                 topicIdCache);
 
+        if (topologyService != null) {
+            topologyService.bindRequestSender((route, header, request) -> routingContext.sendRequest(routingContext.anyNode(route), header, request));
+        }
+
         router.onRequest(
                 apiVersion,
                 apiKey,
@@ -293,7 +297,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                     NodeIdResponseTranslator.translate(
                             frame.body(), frame.apiVersion(),
                             pending.nodeIdMapping(), pending.route());
-                    if (topologyCache != null) {
+                    if (topologyService != null) {
                         updateTopologyCache(frame.body(), pending.route());
                     }
                     pending.future().complete(frame.body());
@@ -324,7 +328,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
 
     private void updateTopologyCache(ApiMessage body, String route) {
         if (body instanceof MetadataResponseData md) {
-            topologyCache.updateFromMetadata(route, md);
+            topologyService.cache().updateFromMetadata(route, md);
         }
     }
 

@@ -11,5 +11,4 @@ import io.kroxylicious.proxy.router.VirtualNode;
  * Runtime implementation of {@link VirtualNode} for the port-per-broker
  * networking model. Wraps the encoded virtual node ID integer.
  */
-record VirtualNodeImpl(int encodedId) implements VirtualNode {
-}
+record VirtualNodeImpl(int encodedId) implements VirtualNode {}
