@@ -136,17 +136,15 @@ public class CipherTrustMockServer {
             KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
             X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
             this.serverCertificate = certificate; // Store for later access
-            String storePassword = STORE_PASSWORD;
-            String keyPassword = KEY_PASSWORD;
             CertificateGenerator.KeyStore keyStore = CertificateGenerator.createJksKeystore(
                     keyPair,
                     certificate,
-                    storePassword,
-                    keyPassword);
+                    STORE_PASSWORD,
+                    KEY_PASSWORD);
 
             config.keystorePath(keyStore.path().toString())
-                    .keystorePassword(storePassword)
-                    .keyManagerPassword(keyPassword);
+                    .keystorePassword(STORE_PASSWORD)
+                    .keyManagerPassword(KEY_PASSWORD);
         }
         catch (Exception e) {
             throw new MockServerException("Failed to configure TLS", e);
