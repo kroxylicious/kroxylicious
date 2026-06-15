@@ -6,6 +6,8 @@
 
 package io.kroxylicious.testing.kms.ciphertrust;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustKmsService;
@@ -14,52 +16,45 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CipherTrustTestKmsFacadeTest {
 
-    @Test
-    void shouldStartAndStop() {
-        // Given
-        var facade = new CipherTrustTestKmsFacade();
+    private CipherTrustTestKmsFacade facade;
 
-        // When
+    @BeforeEach
+    void setUp() {
+        facade = new CipherTrustTestKmsFacade();
         facade.start();
+    }
 
-        // Then
+    @AfterEach
+    void tearDown() {
+        if (facade != null) {
+            facade.close();
+        }
+    }
+
+    @Test
+    void shouldProvideKmsServiceClass() {
+        // When/Then
         assertThat(facade.getKmsServiceClass()).isEqualTo(CipherTrustKmsService.class);
-        assertThat(facade.getKmsServiceConfig()).isNotNull();
-        assertThat(facade.getTestKekManager()).isNotNull();
-
-        // Cleanup
-        facade.close();
     }
 
     @Test
     void shouldGenerateValidConfig() {
-        // Given
-        var facade = new CipherTrustTestKmsFacade();
-        facade.start();
-
         // When
         var config = facade.getKmsServiceConfig();
 
         // Then
+        assertThat(config).isNotNull();
         assertThat(config.endpointUrl()).isNotNull();
         assertThat(config.userCredentials()).isNotNull();
         assertThat(config.userCredentials().username()).isNotEmpty();
-
-        facade.close();
     }
 
     @Test
     void shouldProvideTestKekManager() {
-        // Given
-        var facade = new CipherTrustTestKmsFacade();
-        facade.start();
-
         // When
         var kekManager = facade.getTestKekManager();
 
         // Then
         assertThat(kekManager).isNotNull();
-
-        facade.close();
     }
 }
