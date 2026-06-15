@@ -45,7 +45,7 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
 
         // When
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        var future = service.getBearerToken();
 
         // Then
         assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(expectedToken);
@@ -61,8 +61,8 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
 
         // When
-        assertThat(service.getBearerToken().toCompletableFuture()).succeedsWithin(ofSeconds(1));
-        CompletableFuture<BearerToken> cachedFuture = service.getBearerToken().toCompletableFuture();
+        assertThat(service.getBearerToken()).succeedsWithin(ofSeconds(1));
+        var cachedFuture = service.getBearerToken();
 
         // Then
         assertThat(cachedFuture).succeedsWithin(ofSeconds(1)).isEqualTo(token);
@@ -86,11 +86,11 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock1);
 
         // When
-        CompletableFuture<BearerToken> future1 = service.getBearerToken().toCompletableFuture();
+        var future1 = service.getBearerToken();
 
         Clock clock2 = Clock.fixed(secondCallTime, ZoneId.of("UTC"));
         service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock2);
-        CompletableFuture<BearerToken> future2 = service.getBearerToken().toCompletableFuture();
+        var future2 = service.getBearerToken();
 
         // Then
         assertThat(future1).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
@@ -109,7 +109,7 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
         // When
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        var future = service.getBearerToken();
 
         // Then
         assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(currentToken);
@@ -127,7 +127,7 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
         // When
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        var future = service.getBearerToken().toCompletableFuture();
 
         // Then
         assertThat(future).isNotDone();
@@ -153,7 +153,7 @@ class CachingBearerTokenServiceTest {
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("refresh failed")));
 
         service = new CachingBearerTokenService(delegate, clock);
-        assertThat(service.getBearerToken().toCompletableFuture()).succeedsWithin(ofSeconds(1));
+        assertThat(service.getBearerToken()).succeedsWithin(ofSeconds(1));
 
         // When
         service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock);
@@ -175,7 +175,7 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
 
         // When
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        var future = service.getBearerToken().toCompletableFuture();
 
         // Then
         Thread.sleep(200);
@@ -187,7 +187,7 @@ class CachingBearerTokenServiceTest {
     void shouldTransitionToClosedAndFailPendingRequests() {
         // Given
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        var future = service.getBearerToken();
 
         // When
         service.close();
@@ -210,7 +210,7 @@ class CachingBearerTokenServiceTest {
         service.close();
 
         // When
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        var future = service.getBearerToken();
 
         // Then
         assertThat(future)
