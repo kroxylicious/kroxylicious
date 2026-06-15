@@ -127,11 +127,11 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
         // When
-        var stage = service.getBearerToken().toCompletableFuture();
+        var stage = service.getBearerToken();
 
         // Then
-        assertThat(stage).isNotDone();
-        assertThat(stage).isSameAs(promise);
+        assertThat(stage.toCompletableFuture()).isNotDone();
+        assertThat(stage.toCompletableFuture()).isSameAs(promise);
 
         BearerToken newToken = new BearerToken("new", NOW, NOW.plus(TOKEN_LIFETIME));
         promise.complete(newToken);
