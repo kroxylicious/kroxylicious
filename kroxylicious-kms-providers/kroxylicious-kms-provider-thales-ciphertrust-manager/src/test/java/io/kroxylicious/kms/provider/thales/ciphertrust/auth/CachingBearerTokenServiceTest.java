@@ -118,43 +118,44 @@ class CachingBearerTokenServiceTest {
     @Test
     void shouldWaitForRefreshIfCurrentTokenExpired() {
         // Given
-        Instant expiredTime = NOW.minus(Duration.ofMinutes(10));
-        BearerToken expiredToken = new BearerToken("expired", expiredTime, NOW.minus(Duration.ofMinutes(1)));
+        var expiredCreation = NOW.minus(Duration.ofMinutes(10));
+        var expiredExpiry = NOW.minus(Duration.ofMinutes(1));
+        var expiredToken = new BearerToken("expired", expiredCreation, expiredExpiry);
+        var newToken = new BearerToken("new", NOW, NOW.plus(TOKEN_LIFETIME));
 
-        CompletableFuture<BearerToken> promise = new CompletableFuture<>();
+        CompletableFuture<BearerToken> future = new CompletableFuture<>();
         CachingBearerTokenService.State.Refreshing refreshingState = new CachingBearerTokenService.State.Refreshing(
-                expiredToken, promise, clock);
+                expiredToken, future, clock);
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
-        // When
         var stage = service.getBearerToken();
+        assertThat(stage).isNotDone().isSameAs(future);
+
+        // When
+        future.complete(newToken);
 
         // Then
-        assertThat(stage.toCompletableFuture()).isNotDone();
-        assertThat(stage.toCompletableFuture()).isSameAs(promise);
-
-        BearerToken newToken = new BearerToken("new", NOW, NOW.plus(TOKEN_LIFETIME));
-        promise.complete(newToken);
-
         assertThat(stage).succeedsWithin(ofSeconds(1)).isEqualTo(newToken);
     }
 
     @Test
-    void shouldHandleRefreshFailureWithExistingToken() {
-        // Given
+    void shouldReturnExistingTokenWhenRefreshFailsButTokenStillValid() {
+        // Given - a token that's near expiry (will trigger refresh) but not yet expired
+        Instant nearExpiryTime = NOW.plus(Duration.ofMinutes(59).plusSeconds(30));
+        Clock nearExpiryClock = Clock.fixed(nearExpiryTime, ZoneId.of("UTC"));
         BearerToken existingToken = new BearerToken("existing", NOW, NOW.plus(TOKEN_LIFETIME));
-        when(delegate.getBearerToken())
-                .thenReturn(CompletableFuture.completedFuture(existingToken))
-                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("refresh failed")));
 
-        CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
-        assertThat(service.getBearerToken()).succeedsWithin(ofSeconds(1));
+        when(delegate.getBearerToken()).thenReturn(CompletableFuture.failedFuture(new RuntimeException("refresh failed")));
 
-        // When
-        service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(existingToken), clock);
+        CachingBearerTokenService service = new CachingBearerTokenService(
+                delegate,
+                new CachingBearerTokenService.State.Steady(existingToken),
+                nearExpiryClock);
+
+        // When - refresh is triggered but fails
         var stage = service.getBearerToken();
 
-        // Then
+        // Then - should still return the existing valid token and remain in Steady state
         assertThat(stage).succeedsWithin(ofSeconds(1)).isEqualTo(existingToken);
         assertThat(service.getState()).isInstanceOf(CachingBearerTokenService.State.Steady.class);
         CachingBearerTokenService.State.Steady steadyState = (CachingBearerTokenService.State.Steady) service.getState();
@@ -217,7 +218,7 @@ class CachingBearerTokenServiceTest {
 
     @Test
     void shouldRejectNullDelegate() {
-        assertThatThrownBy(() -> new CachingBearerTokenService(null, Clock.systemUTC()))
+        assertThatThrownBy(() -> new CachingBearerTokenService(null, clock))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("delegate cannot be null");
     }
@@ -231,7 +232,7 @@ class CachingBearerTokenServiceTest {
 
     @Test
     void shouldRejectNullState() {
-        assertThatThrownBy(() -> new CachingBearerTokenService(delegate, null, Clock.systemUTC()))
+        assertThatThrownBy(() -> new CachingBearerTokenService(delegate, null, clock))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("state cannot be null");
     }
