@@ -143,6 +143,29 @@ class ConfigParseTest {
         assertThat(((InsecureTls) config.tls().trust()).insecure()).isTrue();
     }
 
+    @Test
+    void cannotSpecifyBothCredentialTypes() {
+        assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "endpointUrl": "https://ctm.example.com",
+                        "userCredentials": {
+                            "username": "testuser",
+                            "password": { "password": "testpass" }
+                        },
+                        "clientCredentials": {
+                            "clientId": "client-id",
+                            "clientSecret": { "password": "secret" }
+                        }
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .cause()
+                .isInstanceOf(KmsException.class)
+                .hasMessageContaining("Cannot specify both userCredentials and clientCredentials");
+    }
+
     private Config readConfig(String json) throws IOException {
         return MAPPER.reader().readValue(json, Config.class);
     }

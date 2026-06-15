@@ -59,4 +59,11 @@ class UserCredentialsTest {
         }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("password");
     }
 
+    @Test
+    void usernameCannotBeEmpty() {
+        assertThatThrownBy(() -> new UserCredentials("", new InlinePassword("password")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("username cannot be empty");
+    }
+
 }
