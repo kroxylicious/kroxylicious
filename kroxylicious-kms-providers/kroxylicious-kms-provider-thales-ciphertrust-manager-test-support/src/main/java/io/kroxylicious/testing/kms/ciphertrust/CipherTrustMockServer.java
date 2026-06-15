@@ -229,20 +229,17 @@ public class CipherTrustMockServer {
     }
 
     private void setupAuthEndpoint() {
-        server.stubFor(post(urlPathEqualTo("/api/v1/auth/tokens/"))
-                .willReturn(aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(createAuthResponse())));
-    }
-
-    private String createAuthResponse() {
         try {
             AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
-            return OBJECT_MAPPER.writeValueAsString(response);
+            String json = OBJECT_MAPPER.writeValueAsString(response);
+            server.stubFor(post(urlPathEqualTo("/api/v1/auth/tokens/"))
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                            .withBody(json)));
         }
         catch (Exception e) {
-            throw new MockServerException("Failed to create auth response", e);
+            throw new MockServerException("Failed to setup auth endpoint", e);
         }
     }
 
@@ -362,12 +359,7 @@ public class CipherTrustMockServer {
                 secureRandom.nextBytes(randomBytes);
 
                 RandomResponse response = new RandomResponse(randomBytes);
-                String json = OBJECT_MAPPER.writeValueAsString(response);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(response, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Random bytes generation failed", e);
@@ -391,8 +383,7 @@ public class CipherTrustMockServer {
         @Override
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
-                EncryptRequest request = OBJECT_MAPPER.readValue(
-                        serveEvent.getRequest().getBody(), EncryptRequest.class);
+                EncryptRequest request = parseJsonRequest(serveEvent.getRequest(), EncryptRequest.class);
                 String keyRef = request.id();
                 byte[] plaintext = request.plaintext();
                 String type = request.type();
@@ -403,24 +394,14 @@ public class CipherTrustMockServer {
                 if (!"name".equals(type)) {
                     ErrorResponse errorResponse = new ErrorResponse(
                             "type field must be 'name' (got: %s)".formatted(type == null ? "null" : type));
-                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
-                    return aResponse()
-                            .withStatus(400)
-                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                            .withBody(errorJson)
-                            .build();
+                    return jsonResponse(errorResponse, 400);
                 }
 
                 // Direct name lookup only
                 VersionedKeyStore.KeyMetadata metadata = keyStore.getKeyMetadataByName(keyRef);
                 if (metadata == null) {
                     ErrorResponse errorResponse = new ErrorResponse("Key not found");
-                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
-                    return aResponse()
-                            .withStatus(404)
-                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                            .withBody(errorJson)
-                            .build();
+                    return jsonResponse(errorResponse, 404);
                 }
 
                 SecretKey kek = metadata.secretKey;
@@ -452,12 +433,7 @@ public class CipherTrustMockServer {
                         "gcm",
                         iv);
 
-                String json = OBJECT_MAPPER.writeValueAsString(response);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(response, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Encryption failed", e);
@@ -479,8 +455,7 @@ public class CipherTrustMockServer {
         @Override
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
-                DecryptRequest request = OBJECT_MAPPER.readValue(
-                        serveEvent.getRequest().getBody(), DecryptRequest.class);
+                DecryptRequest request = parseJsonRequest(serveEvent.getRequest(), DecryptRequest.class);
                 String keyId = request.id();
                 byte[] ciphertext = request.ciphertext();
                 byte[] tag = request.tag();
@@ -490,12 +465,7 @@ public class CipherTrustMockServer {
                 SecretKey kek = keyStore.getKey(keyId);
                 if (kek == null) {
                     ErrorResponse errorResponse = new ErrorResponse("Key version not found");
-                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
-                    return aResponse()
-                            .withStatus(404)
-                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                            .withBody(errorJson)
-                            .build();
+                    return jsonResponse(errorResponse, 404);
                 }
 
                 // Combine ciphertext and tag for GCM
@@ -510,13 +480,7 @@ public class CipherTrustMockServer {
                 byte[] plaintext = cipher.doFinal(ciphertextWithTag);
 
                 DecryptResponse response = new DecryptResponse(plaintext);
-
-                String json = OBJECT_MAPPER.writeValueAsString(response);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(response, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Decryption failed", e);
@@ -538,8 +502,7 @@ public class CipherTrustMockServer {
         @Override
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
-                CreateKeyRequest request = OBJECT_MAPPER.readValue(
-                        serveEvent.getRequest().getBody(), CreateKeyRequest.class);
+                CreateKeyRequest request = parseJsonRequest(serveEvent.getRequest(), CreateKeyRequest.class);
                 String name = request.name();
                 Map<String, String> labels = request.labels();
                 String keyId = UUID.randomUUID().toString();
@@ -548,13 +511,7 @@ public class CipherTrustMockServer {
                 keyStore.createKey(keyId, name, labels != null ? labels : Map.of());
 
                 CreateKeyResponse response = new CreateKeyResponse(keyId, name, "aes");
-
-                String json = OBJECT_MAPPER.writeValueAsString(response);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(response, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Key creation failed", e);
@@ -602,13 +559,7 @@ public class CipherTrustMockServer {
                 List<GetKeyResponse> page = matchingKeys.subList(skip, endIndex);
 
                 GetKeysResponse response = new GetKeysResponse(skip, limit, total, page.isEmpty() ? null : page);
-
-                String json = OBJECT_MAPPER.writeValueAsString(response);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(response, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Key query failed", e);
@@ -641,20 +592,10 @@ public class CipherTrustMockServer {
 
                 if (keyResponse == null) {
                     ErrorResponse errorResponse = new ErrorResponse("Key not found: " + name);
-                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
-                    return aResponse()
-                            .withStatus(404)
-                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                            .withBody(errorJson)
-                            .build();
+                    return jsonResponse(errorResponse, 404);
                 }
 
-                String json = OBJECT_MAPPER.writeValueAsString(keyResponse);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(keyResponse, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Get key by name failed", e);
@@ -684,23 +625,12 @@ public class CipherTrustMockServer {
                 String newKeyId = keyStore.rotateKeyByName(name);
                 if (newKeyId == null) {
                     ErrorResponse errorResponse = new ErrorResponse("Key not found");
-                    String errorJson = OBJECT_MAPPER.writeValueAsString(errorResponse);
-                    return aResponse()
-                            .withStatus(404)
-                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                            .withBody(errorJson)
-                            .build();
+                    return jsonResponse(errorResponse, 404);
                 }
 
                 // Return the new key ID
                 RotateKeyResponse response = new RotateKeyResponse(newKeyId);
-
-                String json = OBJECT_MAPPER.writeValueAsString(response);
-                return aResponse()
-                        .withStatus(200)
-                        .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                        .withBody(json)
-                        .build();
+                return jsonResponse(response, 200);
             }
             catch (Exception e) {
                 throw new MockServerException("Key rotation failed", e);
@@ -948,6 +878,44 @@ public class CipherTrustMockServer {
     @Nullable
     private static String getQueryParam(Request request, String paramName, @Nullable String defaultValue) {
         return getQueryParam(request, paramName, defaultValue, Function.identity());
+    }
+
+    /**
+     * Build a JSON response with the given object and status code.
+     *
+     * @param body the response body object to serialize
+     * @param statusCode the HTTP status code
+     * @return a response definition
+     */
+    private static ResponseDefinition jsonResponse(Object body, int statusCode) {
+        try {
+            String json = OBJECT_MAPPER.writeValueAsString(body);
+            return aResponse()
+                    .withStatus(statusCode)
+                    .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                    .withBody(json)
+                    .build();
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to serialize response body", e);
+        }
+    }
+
+    /**
+     * Parse the request body as JSON.
+     *
+     * @param request the WireMock request
+     * @param clazz the target class
+     * @param <T> the target type
+     * @return the parsed object
+     */
+    private static <T> T parseJsonRequest(Request request, Class<T> clazz) {
+        try {
+            return OBJECT_MAPPER.readValue(request.getBody(), clazz);
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to parse request body as " + clazz.getSimpleName(), e);
+        }
     }
 
     static class MockServerException extends RuntimeException {
