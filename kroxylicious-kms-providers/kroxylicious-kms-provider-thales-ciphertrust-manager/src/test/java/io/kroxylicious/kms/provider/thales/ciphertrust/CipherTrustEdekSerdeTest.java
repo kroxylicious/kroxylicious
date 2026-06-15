@@ -89,4 +89,115 @@ class CipherTrustEdekSerdeTest {
                 .isInstanceOf(RuntimeException.class); // Can be IllegalArgumentException, BufferUnderflowException, or StringIndexOutOfBoundsException
     }
 
+    @Test
+    void shouldRejectNullId() {
+        assertThatThrownBy(() -> new CipherTrustEdek(null, new byte[]{ 1 }, new byte[]{ 2 }, 1, "gcm", new byte[]{ 3 }))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("id cannot be null");
+    }
+
+    @Test
+    void shouldRejectEmptyId() {
+        assertThatThrownBy(() -> new CipherTrustEdek("", new byte[]{ 1 }, new byte[]{ 2 }, 1, "gcm", new byte[]{ 3 }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("id cannot be empty");
+    }
+
+    @Test
+    void shouldRejectNullCiphertext() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, null, new byte[]{ 2 }, 1, "gcm", new byte[]{ 3 }))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("ciphertext cannot be null");
+    }
+
+    @Test
+    void shouldRejectEmptyCiphertext() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{}, new byte[]{ 2 }, 1, "gcm", new byte[]{ 3 }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ciphertext cannot be empty");
+    }
+
+    @Test
+    void shouldRejectNullTag() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{ 1 }, null, 1, "gcm", new byte[]{ 3 }))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("tag cannot be null");
+    }
+
+    @Test
+    void shouldRejectEmptyTag() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{ 1 }, new byte[]{}, 1, "gcm", new byte[]{ 3 }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("tag cannot be empty");
+    }
+
+    @Test
+    void shouldRejectNullMode() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{ 1 }, new byte[]{ 2 }, 1, null, new byte[]{ 3 }))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("mode cannot be null");
+    }
+
+    @Test
+    void shouldRejectEmptyMode() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{ 1 }, new byte[]{ 2 }, 1, "", new byte[]{ 3 }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("mode cannot be empty");
+    }
+
+    @Test
+    void shouldRejectNullIv() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{ 1 }, new byte[]{ 2 }, 1, "gcm", null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("iv cannot be null");
+    }
+
+    @Test
+    void shouldRejectEmptyIv() {
+        assertThatThrownBy(() -> new CipherTrustEdek(KEY_ID, new byte[]{ 1 }, new byte[]{ 2 }, 1, "gcm", new byte[]{}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("iv cannot be empty");
+    }
+
+    @Test
+    void shouldImplementEqualsCorrectly() {
+        var edek1 = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        var edek2 = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        var edekDifferentId = new CipherTrustEdek("different", new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        var edekDifferentCiphertext = new CipherTrustEdek(KEY_ID, new byte[]{ 9 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        var edekDifferentTag = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 9 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        var edekDifferentVersion = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 2, "gcm", new byte[]{ 6, 7, 8 });
+        var edekDifferentMode = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "cbc", new byte[]{ 6, 7, 8 });
+        var edekDifferentIv = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 9 });
+
+        assertThat(edek1).isEqualTo(edek2);
+        assertThat(edek1).hasSameHashCodeAs(edek1);
+        assertThat(edek1).isNotEqualTo(null);
+        assertThat(edek1).isNotEqualTo("not an edek");
+        assertThat(edek1).isNotEqualTo(edekDifferentId);
+        assertThat(edek1).isNotEqualTo(edekDifferentCiphertext);
+        assertThat(edek1).isNotEqualTo(edekDifferentTag);
+        assertThat(edek1).isNotEqualTo(edekDifferentVersion);
+        assertThat(edek1).isNotEqualTo(edekDifferentMode);
+        assertThat(edek1).isNotEqualTo(edekDifferentIv);
+    }
+
+    @Test
+    void shouldImplementHashCodeCorrectly() {
+        var edek1 = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+        var edek2 = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5 }, 1, "gcm", new byte[]{ 6, 7, 8 });
+
+        assertThat(edek1).hasSameHashCodeAs(edek2);
+    }
+
+    @Test
+    void shouldImplementToString() {
+        var edek = new CipherTrustEdek(KEY_ID, new byte[]{ 1, 2 }, new byte[]{ 3 }, 1, "gcm", new byte[]{ 4, 5 });
+        var toString = edek.toString();
+
+        assertThat(toString).contains(KEY_ID);
+        assertThat(toString).contains("gcm");
+        assertThat(toString).contains("version=1");
+    }
+
 }

@@ -35,7 +35,6 @@ public class CipherTrustKmsService implements KmsService<Config, String, CipherT
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(20);
 
-
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
     @Nullable
     private volatile Config config;
@@ -62,7 +61,6 @@ public class CipherTrustKmsService implements KmsService<Config, String, CipherT
     public Kms<String, CipherTrustEdek> buildKms() {
         var c = Objects.requireNonNull(config, "KMS service not initialized");
         var ts = Objects.requireNonNull(tokenService, "Bearer token server not initialized");
-
 
         var tlsConfigurator = new TlsHttpClientConfigurator(c.tls());
 
