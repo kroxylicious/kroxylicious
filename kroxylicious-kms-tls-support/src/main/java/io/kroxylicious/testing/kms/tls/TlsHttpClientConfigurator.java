@@ -244,74 +244,74 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
 
     @VisibleForTesting
     static TrustManager[] getTrustManagers(TrustProvider trust) {
-
         return trust.accept(new TrustProviderVisitor<>() {
             @SuppressFBWarnings("PATH_TRAVERSAL_IN")
             @Override
             public TrustManager[] visit(TrustStore trustStore) {
-                if (trustStore.isPemType()) {
-                    try {
-                        byte[] pemBytes = Files.readAllBytes(Paths.get(trustStore.storeFile()));
-                        X509Certificate[] certs = PemParser.parseCertificateChain(pemBytes);
-
-                        // Create in-memory KeyStore from PEM certificates
-                        KeyStore ks = KeyStore.getInstance("JKS");
-                        ks.load(null, null);
-                        for (int i = 0; i < certs.length; i++) {
-                            ks.setCertificateEntry("cert-" + i, certs[i]);
-                        }
-
-                        TrustManagerFactory tmf = TrustManagerFactory.getInstance(
-                                TrustManagerFactory.getDefaultAlgorithm());
-                        tmf.init(ks);
-                        return tmf.getTrustManagers();
-                    }
-                    catch (IOException e) {
-                        throw new SslConfigurationException("Failed to read PEM trust store from " + trustStore.storeFile(), e);
-                    }
-                    catch (Exception e) {
-                        throw new SslConfigurationException("Failed to load PEM trust store", e);
-                    }
-                }
-                try {
-                    KeyStore instance = KeyStore.getInstance(trustStore.getType());
-                    char[] charArray = trustStore.storePasswordProvider() != null ? trustStore.storePasswordProvider().getProvidedPassword().toCharArray() : null;
-                    instance.load(new FileInputStream(trustStore.storeFile()), charArray);
-                    TrustManagerFactory managerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                    managerFactory.init(instance);
-                    return managerFactory.getTrustManagers();
-                }
-                catch (Exception e) {
-                    throw new SslConfigurationException(e);
-                }
+                return trustStore.isPemType() ? loadPemTrustStore(trustStore) : loadJksTrustStore(trustStore);
             }
 
             @Override
             public TrustManager[] visit(InsecureTls insecureTls) {
-                if (insecureTls.insecure()) {
-                    return INSECURE_TRUST_MANAGERS;
-                }
-                else {
-                    return getDefaultTrustManagers();
-                }
+                return insecureTls.insecure() ? INSECURE_TRUST_MANAGERS : getDefaultTrustManagers();
             }
 
             @Override
             public TrustManager[] visit(PlatformTrustProvider platformTrustProviderTls) {
                 return getDefaultTrustManagers();
             }
-
-            private static TrustManager[] getDefaultTrustManagers() {
-                try {
-                    TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                    factory.init((KeyStore) null);
-                    return factory.getTrustManagers();
-                }
-                catch (Exception e) {
-                    throw new SslConfigurationException(e);
-                }
-            }
         });
+    }
+
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+    private static TrustManager[] loadPemTrustStore(TrustStore trustStore) {
+        try {
+            byte[] pemBytes = Files.readAllBytes(Paths.get(trustStore.storeFile()));
+            X509Certificate[] certs = PemParser.parseCertificateChain(pemBytes);
+
+            // Create in-memory KeyStore from PEM certificates
+            KeyStore ks = KeyStore.getInstance("JKS");
+            ks.load(null, null);
+            for (int i = 0; i < certs.length; i++) {
+                ks.setCertificateEntry("cert-" + i, certs[i]);
+            }
+
+            TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            tmf.init(ks);
+            return tmf.getTrustManagers();
+        }
+        catch (IOException e) {
+            throw new SslConfigurationException("Failed to read PEM trust store from " + trustStore.storeFile(), e);
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException("Failed to load PEM trust store", e);
+        }
+    }
+
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+    private static TrustManager[] loadJksTrustStore(TrustStore trustStore) {
+        try {
+            KeyStore instance = KeyStore.getInstance(trustStore.getType());
+            char[] charArray = trustStore.storePasswordProvider() != null ? trustStore.storePasswordProvider().getProvidedPassword().toCharArray() : null;
+            instance.load(new FileInputStream(trustStore.storeFile()), charArray);
+            TrustManagerFactory managerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            managerFactory.init(instance);
+            return managerFactory.getTrustManagers();
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException(e);
+        }
+    }
+
+    private static TrustManager[] getDefaultTrustManagers() {
+        try {
+            TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            factory.init((KeyStore) null);
+            return factory.getTrustManagers();
+        }
+        catch (Exception e) {
+            throw new SslConfigurationException(e);
+        }
     }
 
     /**

@@ -196,6 +196,7 @@ public class CipherTrustMockServer {
      * @return the X509 certificate
      * @throws IllegalStateException if TLS is not enabled
      */
+    @Nullable
     public X509Certificate getServerCertificate() {
         if (!useTls) {
             throw new IllegalStateException("Mock server not configured with TLS");
@@ -508,7 +509,7 @@ public class CipherTrustMockServer {
                 String keyId = UUID.randomUUID().toString();
 
                 // Create and store key at version 0 with labels
-                keyStore.createKey(keyId, name, labels != null ? labels : Map.of());
+                keyStore.createKey(keyId, name, labels);
 
                 CreateKeyResponse response = new CreateKeyResponse(keyId, name, "aes");
                 return jsonResponse(response, 200);
@@ -534,10 +535,10 @@ public class CipherTrustMockServer {
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
                 var request = serveEvent.getRequest();
-                String name = getQueryParam(request, "name", null);
-                String labelFilter = getQueryParam(request, "labels", null);
-                int skip = getQueryParam(request, "skip", 0, Integer::parseInt);
-                int limit = getQueryParam(request, "limit", 10, Integer::parseInt);
+                var name = getQueryParam(request, "name", null, Function.identity());
+                var labelFilter = getQueryParam(request, "labels", null, Function.identity());
+                var skip = getQueryParam(request, "skip", 0, Integer::parseInt);
+                var limit = getQueryParam(request, "limit", 10, Integer::parseInt);
 
                 List<GetKeyResponse> matchingKeys;
                 if (name != null) {
@@ -782,6 +783,7 @@ public class CipherTrustMockServer {
          * @param name the key name
          * @return the key metadata with the highest version, or null if not found
          */
+        @Nullable
         KeyMetadata getKeyMetadataByName(String name) {
             return keysById.values().stream()
                     .filter(m -> m.name.equals(name))
@@ -865,19 +867,6 @@ public class CipherTrustMockServer {
     private static <T> T getQueryParam(Request request, String paramName, @Nullable T defaultValue, Function<String, T> converter) {
         var queryParam = request.queryParameter(paramName);
         return queryParam.isPresent() ? converter.apply(queryParam.firstValue()) : defaultValue;
-    }
-
-    /**
-     * Extract a string query parameter value from a WireMock request.
-     *
-     * @param request the WireMock request
-     * @param paramName the query parameter name
-     * @param defaultValue the default value if parameter is not present
-     * @return the string value or default value if parameter is not present
-     */
-    @Nullable
-    private static String getQueryParam(Request request, String paramName, @Nullable String defaultValue) {
-        return getQueryParam(request, paramName, defaultValue, Function.identity());
     }
 
     /**
