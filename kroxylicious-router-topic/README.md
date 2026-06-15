@@ -40,6 +40,17 @@ Requests are handled in one of three ways depending on the API key and whether t
 
 **Dynamic decomposition** — Topic-addressed API keys (PRODUCE, FETCH, LIST_OFFSETS, METADATA, CREATE_TOPICS, DELETE_TOPICS, CREATE_PARTITIONS, DELETE_RECORDS, OFFSET_FOR_LEADER_EPOCH, DESCRIBE_CLUSTER) and API_VERSIONS are handled by dedicated per-API-key logic that may decompose the request by topic, fan out to multiple routes, and recompose the responses.
 
+## Topology management
+
+The router uses `TopologyService` (obtained from `RouterFactoryContext.topologyService()` during initialization) for all topology queries:
+
+- **Leader lookup**: `topologyService.leaderOf(topicName, partitionIndex)` replaces the router's former internal `partitionLeaders` cache.
+- **Cache warming**: `topologyService.ensureLeadersCached(topicsByRoute)` sends METADATA internally for uncached topics, batched one request per route.
+- **Coordinator lookup**: `topologyService.coordinatorOf(route, keyType, key)` with fallback to `topologyService.discoverCoordinator(route, keyType, key)` replaces the former internal coordinator caches.
+- **Staleness handling**: When the router observes `NOT_LEADER_OR_FOLLOWER` in a response, it calls `topologyService.invalidateRoute(route)`. No background METADATA refresh is fired — the client's own METADATA request (triggered by the error) repopulates the cache.
+
+The `TopologyCache` backing the service is shared per router level (not per connection). This means a leader discovered by connection A is immediately available to connection B. The cache is populated as a side effect of METADATA responses flowing through `RoutingDecisionHandler.write()`.
+
 ## Request decomposition
 
 Each dynamically routed API key has a `RequestDecomposer<Req, Resp>` implementation that handles:

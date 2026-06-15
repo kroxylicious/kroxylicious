@@ -40,24 +40,53 @@ Kafka clients use pipelining - they send multiple requests before receiving resp
 
 ## Router Dispatch
 
-When a virtual cluster targets a router, `RouterDispatchHandler` replaces `FilterChainCompletionHandler` at the end of the filter chain. It handles static routes (opaque forwarding by API key) and dynamic routes (deserialised, dispatched to `Router.onRequest`).
+When a virtual cluster targets a router, `RoutingDecisionHandler` is installed in the pipeline. It handles static routes (opaque forwarding by API key) and dynamic routes (deserialised, dispatched to `Router.onRequest`).
 
 **Key classes:**
-- `RouterDispatchHandler` — Netty handler; owns the per-connection router lifecycle, response sequencer, and nested router cache
-- `RouterContextImpl` — per-request context passed to `Router.onRequest`; implements `sendRequestToNode` for both cluster and router targets
+- `RoutingDecisionHandler` — Netty handler; one per router level, installed in topological order. Owns pending response tracking, topology cache population, and request sender binding.
+- `RouterContextImpl` — per-request context passed to `Router.onRequest`; implements `sendRequest` using opaque `VirtualNode` references
 - `NodeIdMapping` — translates between target-cluster node IDs and virtual node IDs (`BijectiveNodeIdMapping` for multi-route, `IdentityNodeIdMapping` for single-route)
+- `VirtualNodeImpl` — runtime implementation of `VirtualNode`; wraps the encoded integer for the port-per-broker model
+- `TopologyCache` — thread-safe per-router-level cache of partition leaders, replicas, ISR, brokers, coordinators, and topic ID→name mappings
+- `TopologyServiceImpl` — implements `TopologyService`; read-only queries delegate to `TopologyCache`, active methods use a bound `RequestSender`
+
+### VirtualNode and NodeIdMapping
+
+`VirtualNode` is the public API type for node identity. The runtime implementation (`VirtualNodeImpl`) wraps an encoded integer. `RouterContextImpl` translates between `VirtualNode` and the internal integer representation at the API boundary:
+- `virtualNode()` wraps `OptionalInt` in `Optional<VirtualNode>`
+- `anyNode(route)` computes the bootstrap virtual ID and wraps it
+- `nodeForId(int)` wraps a protocol integer
+- `sendRequest(VirtualNode, ...)` unwraps to `int` and delegates to the existing forwarding machinery
+
+### TopologyCache and side-effect population
+
+`TopologyCache` is shared per router level (not per connection). It is populated as a side effect in `RoutingDecisionHandler.write()`: after `NodeIdResponseTranslator` translates node IDs, and before the router's `CompletionStage` is completed, `TopologyCache.updateFromMetadata()` is called. This guarantees the cache reflects the response by the time the router's callback fires.
+
+**Why side-effect?** The alternative (giving `TopologyService` request-sending capability for all cache operations) creates lifecycle complexity — the service is created at init time but needs per-connection infrastructure to send requests. The side-effect model keeps cache population simple and automatic: any METADATA response from any connection updates the shared cache.
+
+**Coordinator caching** is different: the FIND_COORDINATOR response lacks `keyType`, and pre-v4 responses lack the `key` field. So coordinators cannot be cached from the response alone — the `TopologyServiceImpl.discoverCoordinator()` method caches them explicitly using request-side context.
+
+### TopologyServiceImpl and RequestSender
+
+`TopologyServiceImpl` wraps `TopologyCache` and implements `TopologyService`. Methods that may send requests (`ensureLeadersCached`, `discoverCoordinator`, `topicNames`) use a `RequestSender` functional interface bound per-connection via `bindRequestSender()`. The binding happens in `RoutingDecisionHandler.dispatchDynamically()` before each `router.onRequest()` call — the sender lambda captures the per-request `RouterContextImpl`.
+
+The `TopologyServiceImpl` is shared per router level (lives in `RouterChainFactory`). The `RequestSender` is set via a volatile field. This is safe because all calls to `TopologyService` methods happen on the event loop thread during `onRequest` processing.
+
+### Shared node address map
+
+Broker addresses (`sharedNodeAddresses`) are shared per router level via `ConcurrentHashMap`, stored in `RouterChainFactory`. This is necessary because the `TopologyCache` is shared — a leader cached from connection A's METADATA must be resolvable on connection B. If addresses were per-connection, connection B would skip METADATA (cache is warm) but then fail to resolve the leader's address.
+
+The address map is populated from two sources:
+- `RouterContextImpl.registerBootstrapAddresses()` — at handler installation time, adds bootstrap addresses for cluster-targeting routes
+- `MetadataAddressCacher.cacheIfMetadata()` — from METADATA responses, adds broker addresses
 
 ### Nested routers
 
-A route can target another router instead of a cluster. When `sendRequestToNode` is called for such a route, `RouterContextImpl.dispatchToNestedRouter` creates a nested `RouterContextImpl` with its own `NodeIdMapping` and invokes the inner router's `onRequest`.
-
-Virtual node IDs from the nested level are translated to the outer level via `outerMapping.toVirtual(outerRoute, nestedVirtual)` before reaching the CCSM's address resolver. This reuses the outer route's slot in the bijective mapping, guaranteeing no collisions. Address caching from METADATA responses uses the translated IDs; response translation uses the nested mapping (so the inner router sees its own virtual space).
-
-Nested `Router` instances are cached per connection in `RouterDispatchHandler` and closed in `handlerRemoved`.
+A route can target another router instead of a cluster. Virtual node IDs from the nested level are translated to the outer level via `outerMapping.toVirtual(outerRoute, nestedVirtual)` before reaching the CCSM's address resolver. Each router level has its own `VirtualNode` space — the opaque type makes this composition more natural than integer arithmetic.
 
 ### Response handling for routed requests
 
-`PendingResponse` carries a per-response `NodeIdMapping` and `MetadataAddressCacher`. In `onResponse`, addresses are cached **before** `NodeIdResponseTranslator` runs (while node IDs are still target IDs), using the cacher to map to the correct virtual space for the CCSM.
+`PendingResponse` carries a per-response `NodeIdMapping` and `MetadataAddressCacher`. In `write()`, addresses are cached **before** `NodeIdResponseTranslator` runs (while node IDs are still target IDs), then node IDs are translated, then the `TopologyCache` is updated (with translated IDs), then the router's future is completed.
 
 ## FilterHandler Async Processing
 
