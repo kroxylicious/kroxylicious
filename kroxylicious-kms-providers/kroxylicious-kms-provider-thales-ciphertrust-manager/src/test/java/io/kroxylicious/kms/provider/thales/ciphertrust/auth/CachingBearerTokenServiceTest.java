@@ -12,13 +12,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static java.time.Duration.ofSeconds;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.times;
@@ -37,7 +37,7 @@ class CachingBearerTokenServiceTest {
     private final Clock clock = Clock.fixed(NOW, ZoneId.of("UTC"));
 
     @Test
-    void shouldObtainInitialToken() throws Exception {
+    void shouldObtainInitialToken() {
         // Given
         BearerToken expectedToken = new BearerToken("jwt-token", NOW, NOW.plus(TOKEN_LIFETIME));
         when(delegate.getBearerToken()).thenReturn(CompletableFuture.completedFuture(expectedToken));
@@ -45,15 +45,15 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
 
         // When
-        BearerToken token = service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
+        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
 
         // Then
-        assertThat(token).isEqualTo(expectedToken);
+        assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(expectedToken);
         verify(delegate, times(1)).getBearerToken();
     }
 
     @Test
-    void shouldReturnCachedTokenWhenNotNearExpiry() throws Exception {
+    void shouldReturnCachedTokenWhenNotNearExpiry() {
         // Given
         BearerToken token = new BearerToken("jwt-token", NOW, NOW.plus(TOKEN_LIFETIME));
         when(delegate.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
@@ -61,16 +61,16 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock);
 
         // When
-        service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
-        BearerToken cachedToken = service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
+        assertThat(service.getBearerToken().toCompletableFuture()).succeedsWithin(ofSeconds(1));
+        CompletableFuture<BearerToken> cachedFuture = service.getBearerToken().toCompletableFuture();
 
         // Then
-        assertThat(cachedToken).isEqualTo(token);
+        assertThat(cachedFuture).succeedsWithin(ofSeconds(1)).isEqualTo(token);
         verify(delegate, times(1)).getBearerToken();
     }
 
     @Test
-    void shouldRefreshTokenWhenNearExpiry() throws Exception {
+    void shouldRefreshTokenWhenNearExpiry() {
         // Given
         Instant firstCallTime = NOW;
         Instant secondCallTime = NOW.plus(Duration.ofMinutes(59).plusSeconds(30));
@@ -86,20 +86,20 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, clock1);
 
         // When
-        BearerToken token1 = service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
+        CompletableFuture<BearerToken> future1 = service.getBearerToken().toCompletableFuture();
 
         Clock clock2 = Clock.fixed(secondCallTime, ZoneId.of("UTC"));
         service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock2);
-        BearerToken token2 = service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
+        CompletableFuture<BearerToken> future2 = service.getBearerToken().toCompletableFuture();
 
         // Then
-        assertThat(token1).isEqualTo(firstToken);
-        assertThat(token2).isEqualTo(firstToken);
+        assertThat(future1).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
+        assertThat(future2).succeedsWithin(ofSeconds(1)).isEqualTo(firstToken);
         verify(delegate, times(2)).getBearerToken();
     }
 
     @Test
-    void shouldReturnCurrentTokenDuringRefreshIfNotExpired() throws Exception {
+    void shouldReturnCurrentTokenDuringRefreshIfNotExpired() {
         // Given
         BearerToken currentToken = new BearerToken("current", NOW, NOW.plus(TOKEN_LIFETIME));
 
@@ -109,14 +109,14 @@ class CachingBearerTokenServiceTest {
         CachingBearerTokenService service = new CachingBearerTokenService(delegate, refreshingState, clock);
 
         // When
-        BearerToken token = service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
+        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
 
         // Then
-        assertThat(token).isEqualTo(currentToken);
+        assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(currentToken);
     }
 
     @Test
-    void shouldWaitForRefreshIfCurrentTokenExpired() throws Exception {
+    void shouldWaitForRefreshIfCurrentTokenExpired() {
         // Given
         Instant expiredTime = NOW.minus(Duration.ofMinutes(10));
         BearerToken expiredToken = new BearerToken("expired", expiredTime, NOW.minus(Duration.ofMinutes(1)));
@@ -136,7 +136,7 @@ class CachingBearerTokenServiceTest {
         BearerToken newToken = new BearerToken("new", NOW, NOW.plus(TOKEN_LIFETIME));
         promise.complete(newToken);
 
-        assertThat(future.get(1, TimeUnit.SECONDS)).isEqualTo(newToken);
+        assertThat(future).succeedsWithin(ofSeconds(1)).isEqualTo(newToken);
     }
 
     @Test
@@ -153,11 +153,11 @@ class CachingBearerTokenServiceTest {
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("refresh failed")));
 
         service = new CachingBearerTokenService(delegate, clock);
-        service.getBearerToken().toCompletableFuture().get(1, TimeUnit.SECONDS);
+        assertThat(service.getBearerToken().toCompletableFuture()).succeedsWithin(ofSeconds(1));
 
         // When
         service = new CachingBearerTokenService(delegate, new CachingBearerTokenService.State.Steady(firstToken), clock);
-        CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
+        service.getBearerToken();
 
         // Then
         Thread.sleep(200);
@@ -194,10 +194,12 @@ class CachingBearerTokenServiceTest {
 
         // Then
         assertThat(service.getState()).isInstanceOf(CachingBearerTokenService.State.Closed.class);
-        assertThatThrownBy(() -> future.get(1, TimeUnit.SECONDS))
-                .isInstanceOf(ExecutionException.class)
-                .hasCauseInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("token service closed");
+        assertThat(future)
+                .failsWithin(ofSeconds(1))
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause()
+                .isInstanceOf(IllegalStateException.class)
+                .withMessageContaining("token service closed");
         verify(delegate).close();
     }
 
@@ -211,10 +213,12 @@ class CachingBearerTokenServiceTest {
         CompletableFuture<BearerToken> future = service.getBearerToken().toCompletableFuture();
 
         // Then
-        assertThatThrownBy(() -> future.get(1, TimeUnit.SECONDS))
-                .isInstanceOf(ExecutionException.class)
-                .hasCauseInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("service is closed");
+        assertThat(future)
+                .failsWithin(ofSeconds(1))
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause()
+                .isInstanceOf(IllegalStateException.class)
+                .withMessageContaining("service is closed");
     }
 
     @Test
