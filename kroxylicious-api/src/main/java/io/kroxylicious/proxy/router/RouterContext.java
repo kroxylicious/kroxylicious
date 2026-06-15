@@ -9,15 +9,12 @@ package io.kroxylicious.proxy.router;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.authentication.Subject;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Context passed to {@link Router#onRequest} for issuing requests
@@ -142,22 +139,6 @@ public interface RouterContext {
      * @return the client subject
      */
     Subject authenticatedSubject();
-
-    /**
-     * Resolves a topic ID to its topic name.
-     *
-     * <p>The runtime guarantees that all topic IDs present in the current
-     * request have been resolved before {@link Router#onRequest} is called,
-     * so this method returns synchronously. It reads from a per-connection
-     * cache populated by an internal filter that sends METADATA requests
-     * on cache miss.</p>
-     *
-     * @param topicId the topic ID to resolve
-     * @return the topic name, or {@code null} if the topic ID could not
-     *         be resolved (e.g. the topic was deleted)
-     */
-    @Nullable
-    String topicName(Uuid topicId);
 
     /**
      * Begins building a router response that delivers the given response

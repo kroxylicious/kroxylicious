@@ -290,11 +290,6 @@ class RouterContextImpl implements RouterContext {
     }
 
     @Override
-    public String topicName(Uuid topicId) {
-        return topicIdCache.get(topicId);
-    }
-
-    @Override
     public CloseOrTerminalStage respondWith(ApiMessage body) {
         Objects.requireNonNull(body);
         return new RouterResultBuilderImpl(null, body);
