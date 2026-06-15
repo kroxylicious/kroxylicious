@@ -17,6 +17,7 @@ import java.util.function.IntUnaryOperator;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -38,6 +39,8 @@ import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
@@ -195,9 +198,11 @@ class RouterContextImpl implements RouterContext {
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         Timer.Sample timerSample = Timer.start();
+        var coordinatorContext = extractCoordinatorContext(apiKey, request);
         var pendingResponse = new PendingResponse(
                 future, timerSample, route, apiKey,
-                nodeIdMapping, createMetadataAddressCacher(route));
+                nodeIdMapping, createMetadataAddressCacher(route),
+                coordinatorContext);
         pendingResponseRegistry.register(routingCorrelationId, pendingResponse);
         pendingResponseCount.incrementAndGet();
 
@@ -264,6 +269,14 @@ class RouterContextImpl implements RouterContext {
         else {
             nodeForwarder.forward(virtualNodeId, ran.route(), frame);
         }
+    }
+
+    @Nullable
+    private static PendingResponse.CoordinatorRequestContext extractCoordinatorContext(ApiKeys apiKey, ApiMessage request) {
+        if (apiKey == ApiKeys.FIND_COORDINATOR && request instanceof FindCoordinatorRequestData fc) {
+            return new PendingResponse.CoordinatorRequestContext(fc.keyType(), fc.key());
+        }
+        return null;
     }
 
     @Override

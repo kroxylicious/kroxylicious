@@ -181,9 +181,10 @@ public class TopologyServiceImpl implements TopologyService {
             if (resp.errorCode() != Errors.NONE.code()) {
                 throw new CoordinatorDiscoveryException(Errors.forCode(resp.errorCode()));
             }
-            VirtualNode node = new VirtualNodeImpl(resp.nodeId());
-            cache.putCoordinator(route, keyType, key, resp.nodeId());
-            return node;
+            // The coordinator is cached as a side effect in
+            // RoutingDecisionHandler.write() using the request-side
+            // context (keyType, key) carried by PendingResponse.
+            return (VirtualNode) new VirtualNodeImpl(resp.nodeId());
         });
     }
 

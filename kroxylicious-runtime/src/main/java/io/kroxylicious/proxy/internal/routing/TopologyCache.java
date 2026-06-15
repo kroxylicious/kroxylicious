@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.Errors;
 
@@ -109,11 +110,7 @@ public class TopologyCache {
     }
 
     /**
-     * Caches a coordinator node ID discovered via FIND_COORDINATOR.
-     * Called by the TopologyService (not by RoutingDecisionHandler),
-     * because the key type and key come from the request context,
-     * not from the response (the response lacks keyType, and v0-3
-     * responses lack the key entirely).
+     * Caches a coordinator node ID explicitly.
      *
      * @param route the route this coordinator belongs to
      * @param keyType 0 for group, 1 for transaction
@@ -122,6 +119,48 @@ public class TopologyCache {
      */
     public void putCoordinator(String route, byte keyType, String key, int nodeId) {
         coordinators.put(new RouteCoordinatorKey(route, keyType, key), nodeId);
+    }
+
+    /**
+     * Updates the cache from a translated FIND_COORDINATOR response,
+     * using the key type from the original request.
+     *
+     * <p>The response itself lacks {@code keyType} (and pre-v4
+     * responses lack {@code key}), so the key type must be supplied
+     * from the request context. For v0-3 (single-coordinator), the
+     * key is also taken from the request. For v4+ (batched), the
+     * response carries each coordinator's key.</p>
+     *
+     * @param route the route this response came from
+     * @param data the FIND_COORDINATOR response data
+     * @param apiVersion the API version of the response
+     * @param requestKeyType the key type from the original request
+     * @param requestKey the key from the original request (used for v0-3)
+     */
+    public void updateFromFindCoordinator(String route,
+                                          FindCoordinatorResponseData data,
+                                          short apiVersion,
+                                          byte requestKeyType,
+                                          String requestKey) {
+        Objects.requireNonNull(route);
+        Objects.requireNonNull(data);
+
+        if (apiVersion >= 4) {
+            for (var coordinator : data.coordinators()) {
+                if (coordinator.errorCode() == Errors.NONE.code() && coordinator.nodeId() >= 0) {
+                    coordinators.put(
+                            new RouteCoordinatorKey(route, requestKeyType, coordinator.key()),
+                            coordinator.nodeId());
+                }
+            }
+        }
+        else {
+            if (data.errorCode() == Errors.NONE.code() && data.nodeId() >= 0) {
+                coordinators.put(
+                        new RouteCoordinatorKey(route, requestKeyType, requestKey),
+                        data.nodeId());
+            }
+        }
     }
 
     /**
