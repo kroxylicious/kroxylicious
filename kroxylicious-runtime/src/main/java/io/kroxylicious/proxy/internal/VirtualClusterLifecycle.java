@@ -121,10 +121,16 @@ public class VirtualClusterLifecycle {
     }
 
     /**
-     * Transitions to {@link Stopped} from {@link Failed} or {@link Initializing}.
+     * Transitions to {@link Stopped} from {@link Failed} or {@link Initializing}. Idempotent:
+     * a call when already {@link Stopped} is a silent no-op, so two concurrent shutdown paths
+     * that both observe a non-terminal state and race to call {@code stop()} cannot fail —
+     * the second caller's transition simply finds the state already terminal.
      */
     public void stop() {
         transition(current -> {
+            if (current instanceof Stopped) {
+                return current;
+            }
             if (current instanceof Failed s) {
                 return s.toStopped();
             }

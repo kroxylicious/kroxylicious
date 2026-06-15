@@ -926,6 +926,29 @@ class VirtualClusterRegistryTest {
     }
 
     @Test
+    void shouldCloseFreshModelAfterReAddOfStoppedCluster() {
+        // Hot-reload scenario: cluster goes Serving → Stopped (model M1 closed and tracked as
+        // closed by name), then a re-add via addVirtualCluster replaces the entry with a fresh
+        // model M2. A subsequent shutdown of the re-added cluster MUST close M2 — the
+        // closedClusters guard must not block it just because the same cluster name was
+        // previously closed.
+        var firstModel = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(firstModel), NO_OP_RESOLVER, noOpCallback);
+        registry.initializationSucceeded(CLUSTER_A);
+        registry.removeVirtualCluster(CLUSTER_A).join();
+        verify(firstModel).close();
+
+        // Re-add with a fresh model under the same cluster name (ReplaceCluster's add half).
+        var freshModel = mockModel(CLUSTER_A);
+        registry.addVirtualCluster(freshModel);
+        registry.initializationSucceeded(CLUSTER_A);
+
+        // Drive the re-added cluster to Stopped — its fresh model must be closed.
+        registry.removeVirtualCluster(CLUSTER_A).join();
+        verify(freshModel).close();
+    }
+
+    @Test
     void shouldNotCloseAlreadyStoppedModelOnRedundantShutdown() {
         // The Stopped→Stopped no-op branch must not invoke close again. Without this guarantee,
         // the FCF's per-Wrapper AtomicBoolean would absorb the double-close, but the

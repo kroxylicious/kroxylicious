@@ -65,6 +65,24 @@ public class VirtualClusterRegistry implements AutoCloseable {
     private final BiFunction<Configuration, String, VirtualClusterModel> rawModelResolver;
 
     /**
+     * Names of clusters whose current model has already been closed by {@link #closeModel}.
+     * Used to guard {@code closeModel} against double-invocation in cases where
+     * two concurrent {@code shutdownCluster} callers both observe a non-terminal state
+     * before either calls {@code stop()} and both dispatch close tasks to the lifecycle
+     * executor.
+     *
+     * <p>Cleaned up on re-add: when {@link #addVirtualCluster} replaces a {@code Stopped}
+     * entry with a fresh model, the name is removed so the new model can be closed when
+     * the cluster eventually transitions back to {@code Stopped}. This bounds the set's
+     * growth to {@code O(N currently-tracked clusters)} rather than
+     * {@code O(closures-over-time)}.
+     *
+     * <p>{@code ConcurrentHashMap.newKeySet()} because {@code closeModel} runs on the
+     * lifecycle thread while {@link #addVirtualCluster} runs on the reconfigure thread.
+     */
+    private final Set<String> closedClusters = ConcurrentHashMap.newKeySet();
+
+    /**
      * Thread name prefix for the lifecycle executor.
      */
     static final String LIFECYCLE_THREAD_NAME_PREFIX = "kroxylicious-vc-lifecycle";
@@ -248,10 +266,10 @@ public class VirtualClusterRegistry implements AutoCloseable {
      *   <li>{@code Serving} → begin draining, then close on lifecycle thread when drain completes</li>
      *   <li>{@code Draining} → join the existing drain (concurrent shutdown / hot-reload),
      *       then close on lifecycle thread when drain completes</li>
-     *   <li>{@code Failed} → close synchronously on the caller's thread; callback fires with
-     *       the prior failure cause</li>
-     *   <li>{@code Initializing} → close synchronously on the caller's thread; callback fires
-     *       with no failure cause</li>
+     *   <li>{@code Failed} → {@code stop()} synchronously on the caller's thread, then close
+     *       on the lifecycle thread with the prior failure cause</li>
+     *   <li>{@code Initializing} → {@code stop()} synchronously on the caller's thread, then
+     *       close on the lifecycle thread with no failure cause</li>
      *   <li>{@code Stopped} → no-op (already terminal)</li>
      * </ul>
      *
@@ -283,8 +301,9 @@ public class VirtualClusterRegistry implements AutoCloseable {
         }
         else if (state instanceof VirtualClusterLifecycleState.Failed failed) {
             lifecycle.stop();
-            closeAndFireStopped(clusterName, Optional.of(failed.cause()));
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.runAsync(
+                    () -> closeAndFireStopped(clusterName, Optional.of(failed.cause())),
+                    lifecycleExecutor);
         }
         else if (state instanceof VirtualClusterLifecycleState.Stopped) {
             return CompletableFuture.completedFuture(null);
@@ -292,8 +311,9 @@ public class VirtualClusterRegistry implements AutoCloseable {
         else {
             // Initializing
             lifecycle.stop();
-            closeAndFireStopped(clusterName, Optional.empty());
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.runAsync(
+                    () -> closeAndFireStopped(clusterName, Optional.empty()),
+                    lifecycleExecutor);
         }
     }
 
@@ -320,6 +340,12 @@ public class VirtualClusterRegistry implements AutoCloseable {
     private void closeModel(String clusterName) {
         var entry = entriesByCluster.get(clusterName);
         if (entry == null) {
+            return;
+        }
+        if (!closedClusters.add(clusterName)) {
+            // Already closed by a prior call (e.g. a concurrent shutdownCluster that observed
+            // the same non-terminal state and dispatched its own close). Silent no-op —
+            // VCM.close() is not required to be idempotent.
             return;
         }
         try {
@@ -461,6 +487,9 @@ public class VirtualClusterRegistry implements AutoCloseable {
                             "Cluster '" + name + "' already exists and its lifecycle is "
                                     + state.getClass().getSimpleName() + "; re-add is only permitted from Stopped");
                 }
+                // Clear the closed-marker so the fresh model attached to this name can be
+                // closed when the cluster eventually transitions back to Stopped.
+                closedClusters.remove(name);
             }
             LOGGER.atInfo()
                     .addKeyValue("virtualCluster", name)

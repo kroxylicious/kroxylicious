@@ -144,6 +144,21 @@ class VirtualClusterLifecycleTest {
     }
 
     @Test
+    void stopIsIdempotentWhenAlreadyStopped() {
+        // given — drive to Stopped via Initializing
+        manager.stop();
+        var initialState = manager.state();
+
+        // when — a second stop() (e.g. from a concurrent shutdown path that lost the race)
+        // must NOT throw. Pinned because the registry relies on this to avoid
+        // IllegalStateException when two callers race on Failed/Initializing.
+        manager.stop();
+
+        // then — state unchanged
+        assertThat(manager.state()).isSameAs(initialState);
+    }
+
+    @Test
     void shouldHaveNoPriorFailureCauseWhenStoppedFromDraining() {
         // given
         manager.initializationSucceeded();
