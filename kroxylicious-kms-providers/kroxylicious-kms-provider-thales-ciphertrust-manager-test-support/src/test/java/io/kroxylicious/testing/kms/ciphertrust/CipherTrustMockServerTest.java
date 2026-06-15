@@ -33,6 +33,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.GetKeysResponse;
+import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyRequest;
 import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyResponse;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
@@ -402,8 +403,9 @@ class CipherTrustMockServerTest {
         var key1Id = createKey(keyName);
 
         // Rotate the key - creates NEW key with NEW ID
+        var rotateRequestBody = OBJECT_MAPPER.writeValueAsString(new RotateKeyRequest());
         var rotateRequest = authorizedRequest("/api/v1/vault/keys2/rotate-test/versions/?type=name")
-                .POST(HttpRequest.BodyPublishers.noBody())
+                .POST(HttpRequest.BodyPublishers.ofString(rotateRequestBody))
                 .build();
 
         var rotateResponse = client.send(rotateRequest, HttpResponse.BodyHandlers.ofString());
