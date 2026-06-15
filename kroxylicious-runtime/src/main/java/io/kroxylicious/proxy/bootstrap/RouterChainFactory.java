@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.router.TopologyService;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -195,6 +196,11 @@ public class RouterChainFactory implements AutoCloseable {
             @Override
             public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
                 return pfr.pluginFactory(pluginClass).registeredInstanceNames();
+            }
+
+            @Override
+            public TopologyService topologyService() {
+                throw new UnsupportedOperationException("TopologyService not yet implemented");
             }
         };
     }

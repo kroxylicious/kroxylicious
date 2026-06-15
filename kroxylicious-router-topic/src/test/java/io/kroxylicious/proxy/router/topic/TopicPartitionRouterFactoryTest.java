@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
+import io.kroxylicious.proxy.router.TopologyService;
 import io.kroxylicious.proxy.router.topic.config.RouteConfig;
 import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
 
@@ -199,6 +200,11 @@ class TopicPartitionRouterFactoryTest {
 
             @Override
             public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public TopologyService topologyService() {
                 throw new UnsupportedOperationException();
             }
         };

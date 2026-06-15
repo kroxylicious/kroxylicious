@@ -59,4 +59,20 @@ public interface RouterFactoryContext {
      * @return the set of known implementation names
      */
     <P> Set<String> pluginImplementationNames(Class<P> pluginClass);
+
+    /**
+     * Returns a {@link TopologyService} for this router level.
+     *
+     * <p>The runtime creates the underlying topology cache on first
+     * call and populates it from METADATA responses flowing through
+     * the routing pipeline. If no router at a level calls this method,
+     * no cache is created and no cost is incurred.</p>
+     *
+     * <p>The returned service should be stored in the factory's
+     * initialization data so it survives connection reconnects and
+     * is available to {@link RouterFactory#createRouter}.</p>
+     *
+     * @return the topology service for this router level
+     */
+    TopologyService topologyService();
 }
