@@ -363,6 +363,7 @@ public class CipherTrustMockServer {
 
         @Override
         @SuppressFBWarnings("HARD_CODE_PASSWORD") // Test password comparison
+        @SuppressWarnings("java:S2068") // allow hardcoded password as this is a test server
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
                 AuthRequest request = parseJsonRequest(serveEvent.getRequest(), AuthRequest.class);
@@ -385,6 +386,9 @@ public class CipherTrustMockServer {
                         ErrorResponse errorResponse = new ErrorResponse("Invalid credentials");
                         return jsonResponse(errorResponse, 401);
                     }
+                }
+                else {
+                    throw new IllegalStateException("Unexpected grant type: " + request.grantType());
                 }
 
                 // Successful authentication
