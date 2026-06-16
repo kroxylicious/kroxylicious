@@ -6,13 +6,10 @@
 
 package io.kroxylicious.testing.operator;
 
-import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Simulates an external Kubernetes controller that updates status subresources.
@@ -28,7 +25,7 @@ public class ExternalOperator {
     private final KubernetesClient client;
     private final String namespace;
 
-    ExternalOperator(@NonNull KubernetesClient client, @NonNull String namespace) {
+    ExternalOperator(KubernetesClient client, String namespace) {
         this.client = client;
         this.namespace = namespace;
     }
@@ -42,13 +39,13 @@ public class ExternalOperator {
      * @param name          resource name
      * @param statusMutator sets status on the fresh resource and returns it
      * @return the resource after status patch
-     * @throws NullPointerException if the named resource does not exist
+     * @throws IllegalStateException if the named resource does not exist
      */
-    @NonNull
-    public <T extends HasMetadata> T updateStatus(@NonNull Class<T> type, @NonNull String name, @NonNull UnaryOperator<T> statusMutator) {
-        T fresh = Objects.requireNonNull(
-                client.resources(type).inNamespace(namespace).withName(name).get(),
-                () -> "expected %s '%s' to exist".formatted(type.getSimpleName(), name));
+    public <T extends HasMetadata> T updateStatus(Class<T> type, String name, UnaryOperator<T> statusMutator) {
+        T fresh = client.resources(type).inNamespace(namespace).withName(name).get();
+        if (fresh == null) {
+            throw new IllegalStateException("expected %s '%s' to exist".formatted(type.getSimpleName(), name));
+        }
         T mutated = statusMutator.apply(fresh);
         return client.resource(mutated).inNamespace(namespace).patchStatus();
     }
