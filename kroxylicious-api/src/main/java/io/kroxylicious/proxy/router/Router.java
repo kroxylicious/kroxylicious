@@ -83,16 +83,15 @@ public interface Router {
      * thread. Router implementations do not need to synchronise access
      * to their own state.</p>
      *
-     * @param apiVersion the API version of the request
      * @param apiKey the API key identifying the request type
+     * @param apiVersion the API version of the request
      * @param header the request header
      * @param request the request body
      * @param context the router context for sending requests
      * @return a stage that completes with the routing outcome
      */
-    CompletionStage<RouterResponse> onRequest(
+    CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                               short apiVersion,
-                                              ApiKeys apiKey,
                                               RequestHeaderData header,
                                               ApiMessage request,
                                               RouterContext context);

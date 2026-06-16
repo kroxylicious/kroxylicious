@@ -203,8 +203,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         }
 
         router.onRequest(
-                apiVersion,
-                apiKey,
+                apiKey, apiVersion,
                 frame.header(),
                 frame.body(),
                 routingContext).whenComplete((result, error) -> {

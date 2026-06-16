@@ -75,11 +75,10 @@ public class AlternatingRouterFactory implements RouterFactory<AlternatingRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(
-                                                             short apiVersion,
-                                                             ApiKeys apiKey,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request,
-                                                             RouterContext routerContext) {
+                    ApiKeys apiKey, short apiVersion,
+                    RequestHeaderData header,
+                    ApiMessage request,
+                    RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
                     VirtualNode node = routerContext.anyNode(routeA);
                     return routerContext.sendRequest(node, header, request)

@@ -267,8 +267,7 @@ class TopicPartitionRouter implements Router {
 
     @Override
     public CompletionStage<RouterResponse> onRequest(
-                                                     short apiVersion,
-                                                     ApiKeys apiKey,
+                                                     ApiKeys apiKey, short apiVersion,
                                                      RequestHeaderData header,
                                                      ApiMessage request,
                                                      RouterContext context) {
