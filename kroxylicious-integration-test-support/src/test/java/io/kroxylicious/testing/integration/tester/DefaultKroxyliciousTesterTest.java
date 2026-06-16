@@ -330,7 +330,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForEvictsOnlyTheNamedClustersClients() {
         // Given — touch every cluster so each has a cached KroxyliciousClients in the tester.
@@ -368,7 +367,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForIsNoOpWhenClusterHasNoCachedClient() {
         try (var tester = buildTester()) {
@@ -745,7 +743,11 @@ class DefaultKroxyliciousTesterTest {
     private KroxyliciousTester buildTester() {
         return new KroxyliciousTesterBuilder()
                 .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory)
+                // Multiple PortIdentifiesNode clusters on port 0 can't share an endpoint binding, and these
+                // tests exercise tester lifecycle via mocks — they don't need real port bindings.
+                .setKroxyliciousFactory((config, features) -> () -> {
+                })
+                .setClientFactory(clientFactory)
                 .createDefaultKroxyliciousTester();
     }
 
