@@ -83,16 +83,16 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
-import io.kroxylicious.proxy.router.BrokerInfo;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
-import io.kroxylicious.proxy.router.Coordinators;
-import io.kroxylicious.proxy.router.PartitionInfo;
-import io.kroxylicious.proxy.router.PartitionLeaders;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.router.TerminalStage;
-import io.kroxylicious.proxy.router.TopologyService;
-import io.kroxylicious.proxy.router.VirtualNode;
+import io.kroxylicious.proxy.topology.BrokerInfo;
+import io.kroxylicious.proxy.topology.Coordinators;
+import io.kroxylicious.proxy.topology.PartitionInfo;
+import io.kroxylicious.proxy.topology.PartitionLeaders;
+import io.kroxylicious.proxy.topology.TopologyService;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -2154,11 +2154,6 @@ class TopicPartitionRouterTest {
         }
 
         @Override
-        public String topicName(Uuid topicId) {
-            return null;
-        }
-
-        @Override
         public Subject authenticatedSubject() {
             return subject;
         }
@@ -2276,11 +2271,6 @@ class TopicPartitionRouterTest {
         @Override
         public String sessionId() {
             return "test-session";
-        }
-
-        @Override
-        public String topicName(Uuid topicId) {
-            return null;
         }
 
         @Override

@@ -20,8 +20,8 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
-import io.kroxylicious.proxy.router.TopologyService;
 import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
+import io.kroxylicious.proxy.topology.TopologyService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;

@@ -5,7 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import io.kroxylicious.proxy.router.VirtualNode;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
  * Runtime implementation of {@link VirtualNode} for the port-per-broker

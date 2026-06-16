@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.proxy.router;
+package io.kroxylicious.proxy.topology;
 
 /**
  * Opaque reference to a node in the virtual cluster topology.
