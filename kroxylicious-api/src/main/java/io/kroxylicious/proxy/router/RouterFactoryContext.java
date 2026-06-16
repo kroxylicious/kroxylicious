@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.router;
 import java.util.Set;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
+import io.kroxylicious.proxy.topology.TopologyService;
 
 /**
  * Context for {@link RouterFactory} initialisation and router creation,

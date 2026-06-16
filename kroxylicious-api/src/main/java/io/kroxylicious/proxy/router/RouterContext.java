@@ -15,6 +15,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
  * Context passed to {@link Router#onRequest} for issuing requests

@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
-import io.kroxylicious.proxy.router.VirtualNode;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
  * Routes PRODUCE requests to a route determined by the Kafka client

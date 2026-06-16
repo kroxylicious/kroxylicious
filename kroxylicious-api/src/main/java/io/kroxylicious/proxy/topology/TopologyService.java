@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.router;
+package io.kroxylicious.proxy.topology;
 
 import java.util.Map;
 import java.util.Optional;
@@ -19,8 +19,8 @@ import org.apache.kafka.common.Uuid;
  *
  * <p>Routers that need topology information obtain a
  * {@code TopologyService} from
- * {@link RouterFactoryContext#topologyService()} during
- * {@link RouterFactory#initialize}. The runtime creates the
+ * {@link io.kroxylicious.proxy.router.RouterFactoryContext#topologyService()} during
+ * {@link io.kroxylicious.proxy.router.RouterFactory#initialize}. The runtime creates the
  * underlying cache on first request. Routers that never call
  * {@code topologyService()} pay no cost.</p>
  *

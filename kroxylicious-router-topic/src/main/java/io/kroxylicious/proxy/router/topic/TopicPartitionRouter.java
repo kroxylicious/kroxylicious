@@ -81,13 +81,13 @@ import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformer;
 import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformers;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
-import io.kroxylicious.proxy.router.PartitionLeaders;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterContext;
 import io.kroxylicious.proxy.router.RouterResponse;
-import io.kroxylicious.proxy.router.TopologyService;
-import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.router.topic.ProducerIdManager.ProducerIdEpoch;
+import io.kroxylicious.proxy.topology.PartitionLeaders;
+import io.kroxylicious.proxy.topology.TopologyService;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

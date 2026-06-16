@@ -25,12 +25,12 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
-import io.kroxylicious.proxy.router.BrokerInfo;
-import io.kroxylicious.proxy.router.Coordinators;
-import io.kroxylicious.proxy.router.PartitionInfo;
-import io.kroxylicious.proxy.router.PartitionLeaders;
-import io.kroxylicious.proxy.router.TopologyService;
-import io.kroxylicious.proxy.router.VirtualNode;
+import io.kroxylicious.proxy.topology.BrokerInfo;
+import io.kroxylicious.proxy.topology.Coordinators;
+import io.kroxylicious.proxy.topology.PartitionInfo;
+import io.kroxylicious.proxy.topology.PartitionLeaders;
+import io.kroxylicious.proxy.topology.TopologyService;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
  * Runtime implementation of {@link TopologyService}, backed by a
@@ -178,12 +178,7 @@ public class TopologyServiceImpl implements TopologyService {
 
     @Override
     public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
-        Set<Uuid> uncached = cache.uncachedTopicIds(topicIds);
-        if (uncached.isEmpty()) {
-            return CompletableFuture.completedFuture(resolveFromCache(topicIds));
-        }
-        throw new UnsupportedOperationException(
-                "topicNames with cache miss not yet implemented — router should send METADATA directly for now");
+        return CompletableFuture.completedFuture(resolveFromCache(topicIds));
     }
 
     private Map<Uuid, String> resolveFromCache(Set<Uuid> topicIds) {
