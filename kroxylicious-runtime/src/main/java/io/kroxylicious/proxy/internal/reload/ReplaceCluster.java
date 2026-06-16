@@ -68,6 +68,11 @@ final class ReplaceCluster implements ClusterOperation {
     }
 
     @Override
+    public Operation operation() {
+        return Operation.MODIFY;
+    }
+
+    @Override
     public Optional<ReconfigureError> apply() {
         var removeError = new RemoveCluster(oldModel, virtualClusterRegistry, endpointRegistry).apply();
         if (removeError.isPresent()) {

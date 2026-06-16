@@ -42,6 +42,13 @@ public class Metrics {
     public static final String API_VERSION_LABEL = "api_version";
     public static final String DECODED_LABEL = "decoded";
 
+    // Hot-reload / lifecycle labels
+    public static final String OUTCOME_LABEL = "outcome";
+    public static final String OPERATION_LABEL = "operation";
+    public static final String STATE_LABEL = "state";
+    public static final String FROM_STATE_LABEL = "from";
+    public static final String TO_STATE_LABEL = "to";
+
     // Base Metric Names
 
     private static final String CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME = "kroxylicious_client_to_proxy_request";
@@ -58,6 +65,18 @@ public class Metrics {
     private static final String CLIENT_TO_PROXY_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_active_connections";
     private static final String PROXY_TO_SERVER_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_active_connections";
     private static final String SIZE_SUFFIX = "_size";
+
+    // Hot-reload metric names
+    private static final String RECONFIGURE_COUNTER_NAME = "kroxylicious_reconfigure_total";
+    private static final String RECONFIGURE_DURATION_NAME = "kroxylicious_reconfigure_duration_seconds";
+    private static final String RECONFIGURE_CLUSTERS_AFFECTED_COUNTER_NAME = "kroxylicious_reconfigure_clusters_affected_total";
+    private static final String DRAIN_DURATION_NAME = "kroxylicious_drain_duration_seconds";
+    private static final String DRAIN_FORCE_CLOSED_COUNTER_NAME = "kroxylicious_drain_connections_force_closed_total";
+
+    // Virtual cluster lifecycle metric names
+    private static final String VIRTUAL_CLUSTER_STATE_NAME = "kroxylicious_virtual_cluster_state";
+    private static final String VIRTUAL_CLUSTER_STATE_DURATION_NAME = "kroxylicious_virtual_cluster_state_duration_seconds";
+    private static final String VIRTUAL_CLUSTER_TRANSITIONS_COUNTER_NAME = "kroxylicious_virtual_cluster_transitions_total";
 
     /**
      * Name of the build_info metric.  Note that the {@code .info} suffix is significant
@@ -77,6 +96,12 @@ public class Metrics {
      * This is used to provide metrics on the number of active connections per virtual cluster node.
      */
     private static final ConcurrentHashMap<VirtualClusterNode, AtomicInteger> PROXY_TO_SERVER_CONNECTION_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * Backs the {@code kroxylicious_virtual_cluster_state} state-set gauge: cluster name to
+     * (state name to its 0/1 gauge value). Exactly one state per cluster reads 1 at any time.
+     */
+    private static final ConcurrentHashMap<String, ConcurrentHashMap<String, AtomicInteger>> VIRTUAL_CLUSTER_STATE_CACHE = new ConcurrentHashMap<>();
 
     private Metrics() {
         // unused
@@ -308,9 +333,125 @@ public class Metrics {
                 .register(globalRegistry);
     }
 
+    // --- Hot-reload ---
+
+    /**
+     * Counter of {@code reconfigure()} invocations that got past pre-flight validation, tagged
+     * by {@code outcome} ({@code success}, {@code partial_failure}, {@code catastrophic}).
+     * Pre-attempt rejections (concurrent / static-section change) are deliberately not counted
+     * here — they surface as distinct exceptions and would otherwise pollute failure alerting.
+     */
+    public static Counter reconfigureCounter(String outcome) {
+        return Counter.builder(RECONFIGURE_COUNTER_NAME)
+                .description("Count of reconfigure() invocations by outcome.")
+                .tag(OUTCOME_LABEL, outcome)
+                .register(globalRegistry);
+    }
+
+    /**
+     * Timer for end-to-end reconfigure duration. Percentile histogram is published because
+     * reconfigures are rare events, so the extra bucket series are cheap and make the
+     * distribution queryable in Prometheus.
+     */
+    public static Timer reconfigureDurationTimer() {
+        return Timer.builder(RECONFIGURE_DURATION_NAME)
+                .description("End-to-end duration of a reconfigure() invocation.")
+                .publishPercentileHistogram()
+                .register(globalRegistry);
+    }
+
+    /**
+     * Counter of per-virtual-cluster operations applied during reconfigures, tagged by
+     * {@code operation} ({@code add}, {@code remove}, {@code modify}) and {@code outcome}
+     * ({@code success}, {@code failure}).
+     */
+    public static Counter reconfigureClustersAffectedCounter(String operation, String outcome) {
+        return Counter.builder(RECONFIGURE_CLUSTERS_AFFECTED_COUNTER_NAME)
+                .description("Count of per-virtual-cluster operations during reconfigures.")
+                .tag(OPERATION_LABEL, operation)
+                .tag(OUTCOME_LABEL, outcome)
+                .register(globalRegistry);
+    }
+
+    /**
+     * Timer for per-virtual-cluster connection drain duration. The {@code virtual_cluster}
+     * label (absent from the Proposal 083 table) is included so a slow drain can be attributed
+     * to a specific cluster, which the metric's stated purpose requires.
+     */
+    public static Timer drainDurationTimer(String clusterName) {
+        return Timer.builder(DRAIN_DURATION_NAME)
+                .description("Duration of a virtual cluster's connection drain.")
+                .publishPercentileHistogram()
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .register(globalRegistry);
+    }
+
+    /**
+     * Counter of connections force-closed after the drain timeout expired. Parallels the
+     * existing {@code kroxylicious_client_to_proxy_disconnects{cause="drain_timeout"}} signal;
+     * both are incremented for the same event by design — keep them in sync.
+     */
+    public static Counter drainConnectionsForceClosedCounter(String clusterName) {
+        return Counter.builder(DRAIN_FORCE_CLOSED_COUNTER_NAME)
+                .description("Count of connections force-closed after the drain timeout expired.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .register(globalRegistry);
+    }
+
+    // --- Virtual cluster lifecycle ---
+
+    /**
+     * Updates the {@code kroxylicious_virtual_cluster_state} state-set gauge so the series for
+     * {@code state} reads 1 and every other state for {@code clusterName} reads 0. Series are
+     * created lazily as states are first entered.
+     */
+    public static void updateVirtualClusterState(String clusterName, String state) {
+        var perCluster = VIRTUAL_CLUSTER_STATE_CACHE.computeIfAbsent(clusterName, c -> new ConcurrentHashMap<>());
+        perCluster.computeIfAbsent(state, s -> registerVirtualClusterStateGauge(clusterName, s));
+        perCluster.forEach((s, value) -> value.set(s.equals(state) ? 1 : 0));
+    }
+
+    private static AtomicInteger registerVirtualClusterStateGauge(String clusterName, String state) {
+        AtomicInteger value = new AtomicInteger();
+        Gauge.builder(VIRTUAL_CLUSTER_STATE_NAME, value, AtomicInteger::get)
+                .strongReference(true)
+                .description("Current lifecycle state of the virtual cluster (1 for the active state, 0 otherwise).")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(STATE_LABEL, state)
+                .register(globalRegistry);
+        return value;
+    }
+
+    /**
+     * Timer for the time a virtual cluster spent in a given lifecycle state (recorded when it
+     * leaves that state). Percentile histogram is published — lifecycle transitions are rare.
+     */
+    public static Timer virtualClusterStateDurationTimer(String clusterName, String state) {
+        return Timer.builder(VIRTUAL_CLUSTER_STATE_DURATION_NAME)
+                .description("Time a virtual cluster spent in a lifecycle state.")
+                .publishPercentileHistogram()
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(STATE_LABEL, state)
+                .register(globalRegistry);
+    }
+
+    /**
+     * Counter of virtual cluster lifecycle state transitions, tagged by {@code from} and
+     * {@code to} state.
+     */
+    public static Counter virtualClusterTransitionsCounter(String clusterName, String from, String to) {
+        return Counter.builder(VIRTUAL_CLUSTER_TRANSITIONS_COUNTER_NAME)
+                .description("Count of virtual cluster lifecycle state transitions.")
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(FROM_STATE_LABEL, from)
+                .tag(TO_STATE_LABEL, to)
+                .register(globalRegistry);
+    }
+
     public static void clear() {
         CLIENT_TO_PROXY_CONNECTION_CACHE.clear();
         PROXY_TO_SERVER_CONNECTION_CACHE.clear();
+        VIRTUAL_CLUSTER_STATE_CACHE.clear();
     }
 
     public static void bindNettyEventExecutorMetrics(final EventLoopGroup... eventLoopGroups) {

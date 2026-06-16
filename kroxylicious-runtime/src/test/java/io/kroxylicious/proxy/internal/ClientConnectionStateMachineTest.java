@@ -1253,6 +1253,8 @@ class ClientConnectionStateMachineTest {
             assertThat(closedFuture).isCompleted();
             assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_disconnects")
                     .tag("cause", "drain_timeout").counter().count()).isEqualTo(1.0);
+            assertThat(Metrics.globalRegistry.get("kroxylicious_drain_connections_force_closed_total")
+                    .counter().count()).isEqualTo(1.0);
         }
 
         @Test

@@ -17,4 +17,14 @@ public class PrometheusMetricsConfig {
         // explicit default constructor for javadoc
     }
 
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof PrometheusMetricsConfig;
+    }
+
+    @Override
+    public int hashCode() {
+        return PrometheusMetricsConfig.class.hashCode();
+    }
+
 }

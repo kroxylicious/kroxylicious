@@ -75,6 +75,11 @@ final class AddCluster implements ClusterOperation {
     }
 
     @Override
+    public Operation operation() {
+        return Operation.ADD;
+    }
+
+    @Override
     public Optional<ReconfigureError> apply() {
         // Construct the model lazily: the supplier closes over (Configuration, clusterName) and
         // calling get() triggers VCM construction including each filter's initialize(). Failures

@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.it.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.reload.ReconfigureError;
@@ -40,6 +41,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
+import io.kroxylicious.testing.integration.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeystoreManager;
@@ -91,6 +93,7 @@ class HotReloadIT extends BaseIT {
     private static final int PORT_BLOCK_MODIFY_SAME_PORT = PORT_BLOCK_BASE + 500; // shouldModifyPortAddressedVcWithSamePort
     private static final int PORT_BLOCK_MODIFY_DIFF_PORT = PORT_BLOCK_BASE + 600; // shouldModifyPortAddressedVcWithDifferentPort
     private static final int PORT_BLOCK_MODIFY_FAIL = PORT_BLOCK_BASE + 700; // shouldSurfaceModifyFailureAsReconfigureError
+    private static final int PORT_BLOCK_METRICS = PORT_BLOCK_BASE + 800; // shouldExposeReconfigureAndLifecycleMetricsViaScrape
 
     static {
         // Log the chosen base so a CI failure with EADDRINUSE can be reproduced (and the
@@ -606,6 +609,63 @@ class HotReloadIT extends BaseIT {
             // Modified VC continues to serve.
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, topic, "phase3-modify");
         }
+    }
+
+    @Test
+    void shouldExposeReconfigureAndLifecycleMetricsViaScrape(@BrokerCluster KafkaCluster cluster) {
+        int initialPort = PORT_BLOCK_METRICS;
+        int addedPort = PORT_BLOCK_METRICS + PORT_STRIDE;
+
+        var startingConfig = portConfigBuilderWithMetrics(portVc(cluster, "vc-metrics-initial", initialPort)).build();
+        var afterConfig = new ConfigurationBuilder(startingConfig)
+                .addToVirtualClusters(portVc(cluster, "vc-metrics-added", addedPort))
+                .build();
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new ConfigurationBuilder(startingConfig)).createDefaultKroxyliciousTester();
+                var management = tester.getManagementClient()) {
+
+            // When — a reconfigure adds a virtual cluster.
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
+
+            // Then — the reconfigure and lifecycle metrics surface on the Prometheus /metrics endpoint.
+            await("reconfigure + lifecycle metrics exposed on /metrics")
+                    .atMost(Duration.ofSeconds(10))
+                    .pollInterval(Duration.ofMillis(200))
+                    .untilAsserted(() -> {
+                        var metrics = management.scrapeMetrics();
+                        SimpleMetricAssert.assertThat(metrics)
+                                .withUniqueMetric("kroxylicious_reconfigure_total", Map.of("outcome", "success"))
+                                .value().isEqualTo(1.0);
+                        SimpleMetricAssert.assertThat(metrics)
+                                .withUniqueMetric("kroxylicious_reconfigure_clusters_affected_total",
+                                        Map.of("operation", "add", "outcome", "success"))
+                                .value().isEqualTo(1.0);
+                        SimpleMetricAssert.assertThat(metrics)
+                                .withUniqueMetric("kroxylicious_virtual_cluster_state",
+                                        Map.of("virtual_cluster", "vc-metrics-added", "state", "serving"))
+                                .value().isEqualTo(1.0);
+                        SimpleMetricAssert.assertThat(metrics)
+                                .withUniqueMetric("kroxylicious_virtual_cluster_transitions_total",
+                                        Map.of("virtual_cluster", "vc-metrics-added", "from", "initializing", "to", "serving"))
+                                .value().isEqualTo(1.0);
+                    });
+        }
+    }
+
+    private static ConfigurationBuilder portConfigBuilderWithMetrics(VirtualCluster... vcs) {
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+        for (var vc : vcs) {
+            builder.addToVirtualClusters(vc);
+        }
+        return builder;
     }
 
     private static VirtualCluster portVc(KafkaCluster cluster, String name, int port) {

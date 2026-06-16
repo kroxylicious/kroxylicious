@@ -141,6 +141,7 @@ public class ClientConnectionStateMachine {
     private final Counter clientToProxyDisconnectsServerClosedCounter;
     private final Counter clientToProxyDisconnectsDrainCompletedCounter;
     private final Counter clientToProxyDisconnectsDrainTimeoutCounter;
+    private final Counter drainForceClosedCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Timer clientToProxyBackPressureMeter;
 
@@ -222,6 +223,7 @@ public class ClientConnectionStateMachine {
         clientToProxyDisconnectsServerClosedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.SERVER_CLOSED.label()).withTags();
         clientToProxyDisconnectsDrainCompletedCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_COMPLETED.label()).withTags();
         clientToProxyDisconnectsDrainTimeoutCounter = Metrics.clientToProxyDisconnectsCounter(clusterName, nodeId, DisconnectCause.DRAIN_TIMEOUT.label()).withTags();
+        drainForceClosedCounter = Metrics.drainConnectionsForceClosedCounter(clusterName);
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
@@ -647,6 +649,7 @@ public class ClientConnectionStateMachine {
      */
     private void onDrainTimeout() {
         if (state instanceof ClientConnectionState.Draining) {
+            drainForceClosedCounter.increment();
             LOGGER.atWarn()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())

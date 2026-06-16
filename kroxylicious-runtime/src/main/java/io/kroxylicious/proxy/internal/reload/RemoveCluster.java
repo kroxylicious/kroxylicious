@@ -59,6 +59,11 @@ final class RemoveCluster implements ClusterOperation {
     }
 
     @Override
+    public Operation operation() {
+        return Operation.REMOVE;
+    }
+
+    @Override
     public Optional<ReconfigureError> apply() {
         try {
             virtualClusterRegistry.removeVirtualCluster(clusterName()).join();

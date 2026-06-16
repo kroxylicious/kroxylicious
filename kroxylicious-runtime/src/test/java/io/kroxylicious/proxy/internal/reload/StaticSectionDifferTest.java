@@ -21,7 +21,9 @@ import io.kroxylicious.proxy.config.ProxyProtocolMode;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +44,19 @@ class StaticSectionDifferTest {
         var oldConfig = baseConfig();
         var newConfig = withManagement(oldConfig, new ManagementConfiguration(null, null, null));
         assertThat(differ.diff(oldConfig, newConfig)).containsExactly("management");
+    }
+
+    @Test
+    void managementSectionsWithEquivalentPrometheusConfigsDoNotDiff() {
+        // A reconfigure that re-parses configuration produces a fresh PrometheusMetricsConfig
+        // instance. Unless that marker config has value equality, the management section would be
+        // flagged as a static change on every reconfigure of a metrics-enabled proxy, rejecting
+        // otherwise-valid hot reloads.
+        var oldConfig = withManagement(baseConfig(),
+                new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())));
+        var newConfig = withManagement(baseConfig(),
+                new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())));
+        assertThat(differ.diff(oldConfig, newConfig)).isEmpty();
     }
 
     @Test
