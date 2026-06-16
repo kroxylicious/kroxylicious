@@ -108,15 +108,8 @@ class ClientConnectionStateMachineEndToEndTest {
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding binding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         // Override createServerConnection to substitute EmbeddedChannels for real TCP connections
-        return new ClientConnectionStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession) {
-            @Override
-            ServerConnectionStateMachine createServerConnection(HostPort remote) {
-                return new ServerConnectionStateMachine(
-                        remote,
-                        this,
-                        virtualCluster(),
-                        clusterName(),
-                        nodeId()) {
+        return new ClientConnectionStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession,
+                (remote, ccsm, vc, cn, ni) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn, ni) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,
@@ -145,9 +138,7 @@ class ClientConnectionStateMachineEndToEndTest {
                         }
                         return outboundChannel.newPromise();
                     }
-                };
-            }
-        };
+                });
     }
 
     @AfterEach
