@@ -18,9 +18,12 @@ import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
     @Override
+    @Nullable
     protected <A extends Annotation> A _findAnnotation(Annotated ann,
                                                        Class<A> annoClass) {
         if (annoClass == JsonTypeIdResolver.class) {
@@ -127,6 +130,11 @@ class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
         @Override
         public OptBoolean requireTypeIdForSubtypes() {
+            return OptBoolean.DEFAULT;
+        }
+
+        @Override
+        public OptBoolean writeTypeIdForDefaultImpl() {
             return OptBoolean.DEFAULT;
         }
     }
