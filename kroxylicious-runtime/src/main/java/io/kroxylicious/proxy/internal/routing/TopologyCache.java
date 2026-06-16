@@ -27,6 +27,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>Only METADATA responses populate partition and broker data.
  * DESCRIBE_CLUSTER is intentionally excluded to avoid inconsistency
  * between broker lists and partition leader assignments.</p>
+ *
+ * <p><b>Authorization safety:</b> the cache is not scoped by
+ * authenticated subject. When Kafka ACLs filter METADATA responses,
+ * different connections contribute different subsets of topics. The
+ * cache uses additive (union) semantics: each response adds or
+ * updates entries for topics present, without removing entries for
+ * topics absent from the response. This is safe because the cache
+ * is used only for routing (leader selection, coordinator discovery),
+ * not authorization. Backend brokers enforce ACLs on the actual
+ * requests (PRODUCE, FETCH, etc.).</p>
  */
 public class TopologyCache {
 
@@ -75,6 +85,13 @@ public class TopologyCache {
      * Updates the cache from a translated METADATA response.
      * The response must have already been through
      * {@link NodeIdResponseTranslator} so that all node IDs are virtual.
+     *
+     * <p><b>Additive semantics:</b> this method adds or overwrites
+     * entries for topics present in the response but does not remove
+     * entries for topics absent from the response. This means
+     * ACL-filtered METADATA responses (which omit unauthorized topics)
+     * do not corrupt the cache — they simply contribute a subset of
+     * entries.</p>
      *
      * @param route the route this response came from
      * @param data the METADATA response data

@@ -52,6 +52,43 @@ import org.apache.kafka.common.Uuid;
  * <p>The cache is shared per router level (not per connection),
  * so all connections through the same router level share the same
  * topology view. The cache is thread-safe.</p>
+ *
+ * <h2>Authorization and cache scope</h2>
+ *
+ * <p>The topology cache is <b>not scoped by authenticated subject</b>.
+ * When Kafka brokers filter METADATA responses based on ACLs, different
+ * connections may receive different subsets of topics. Because the cache
+ * is shared, it converges toward the <b>union</b> of all connections'
+ * views: each METADATA response adds or updates entries for topics
+ * present in the response, but does not remove entries for topics
+ * absent from the response.</p>
+ *
+ * <p>This is safe because the cache is a <b>routing optimization</b>,
+ * not an access-control mechanism:</p>
+ * <ul>
+ *   <li>The cache stores <i>where</i> to send requests (partition
+ *       leaders, coordinator nodes, broker addresses), not <i>whether</i>
+ *       a client is authorized.</li>
+ *   <li>Backend brokers enforce ACLs on every request. A client that
+ *       resolves a leader from the cache but lacks permission to
+ *       produce or fetch will receive an authorization error from the
+ *       broker, exactly as it would without the proxy.</li>
+ *   <li>Cache misses trigger discovery requests on the current
+ *       connection's sender, which carries that connection's
+ *       authentication context. A low-privilege connection's filtered
+ *       METADATA response adds a subset of entries without corrupting
+ *       entries populated by other connections.</li>
+ * </ul>
+ *
+ * <p><b>Router authors must not use the topology cache for
+ * authorization decisions.</b> The cache may contain entries
+ * populated by connections with different privileges. Routers
+ * should use the cache only for routing (leader selection,
+ * coordinator discovery, broker address resolution) and rely on
+ * backend broker ACL enforcement for access control. If a router
+ * needs to make authorization decisions, it should use
+ * {@link io.kroxylicious.proxy.router.RouterContext#authenticatedSubject()}
+ * and consult an external authorization service.</p>
  */
 public interface TopologyService {
 
