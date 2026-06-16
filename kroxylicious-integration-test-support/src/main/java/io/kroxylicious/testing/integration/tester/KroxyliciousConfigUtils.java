@@ -60,7 +60,7 @@ public class KroxyliciousConfigUtils {
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP)
                             .build());
             configurationBuilder
                     .addToVirtualClusters(vcb.build());
