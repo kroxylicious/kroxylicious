@@ -31,7 +31,7 @@ public class TestRouterFactory implements RouterFactory<Void, Void> {
     public Router createRouter(RouterFactoryContext context, Void initializationData) {
         return new Router() {
             @Override
-            public CompletionStage<RouterResponse> onRequest(short apiVersion, ApiKeys apiKey,
+            public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
                                                              RequestHeaderData header, ApiMessage request,
                                                              RouterContext routerContext) {
                 return routerContext.respondWithoutReply().withCloseConnection().completed();

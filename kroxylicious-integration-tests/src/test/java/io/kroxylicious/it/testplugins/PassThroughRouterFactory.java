@@ -51,11 +51,10 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(
-                                                             short apiVersion,
-                                                             ApiKeys apiKey,
-                                                             RequestHeaderData header,
-                                                             ApiMessage request,
-                                                             RouterContext routerContext) {
+                    ApiKeys apiKey, short apiVersion,
+                    RequestHeaderData header,
+                    ApiMessage request,
+                    RouterContext routerContext) {
                 VirtualNode node = routerContext.anyNode(route);
                 return routerContext.sendRequest(node, header, request)
                         .thenApply(response -> routerContext.respondWith(response).build());

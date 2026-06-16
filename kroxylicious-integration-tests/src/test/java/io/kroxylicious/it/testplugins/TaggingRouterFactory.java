@@ -45,8 +45,7 @@ public class TaggingRouterFactory
     public Router createRouter(RouterFactoryContext context, Config config) {
         return new Router() {
             @Override
-            public CompletionStage<RouterResponse> onRequest(short apiVersion,
-                                                             ApiKeys apiKey,
+            public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext routerContext) {

@@ -360,7 +360,7 @@ class RouterChainFactoryTest {
 
         @Override
         public Router createRouter(RouterFactoryContext context, Object initializationData) {
-            return (apiVersion, apiKey, header, request, routingContext) -> CompletableFuture.completedFuture(null);
+            return (apiKey, apiVersion, header, request, routingContext) -> CompletableFuture.completedFuture(null);
         }
 
         @Override
