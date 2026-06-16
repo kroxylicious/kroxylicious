@@ -699,7 +699,8 @@ class DefaultKroxyliciousTesterTest {
         // Multiple gateways on port 0 can't share an endpoint binding, and these tests exercise
         // tester client routing via mocks — they don't need real port bindings.
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
-                .setKroxyliciousFactory((config, features) -> () -> {})
+                .setKroxyliciousFactory((config, features) -> () -> {
+                })
                 .setClientFactory(clientFactory)
                 .createDefaultKroxyliciousTester();
     }
