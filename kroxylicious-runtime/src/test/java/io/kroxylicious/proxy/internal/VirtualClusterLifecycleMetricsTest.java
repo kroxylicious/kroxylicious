@@ -47,12 +47,15 @@ class VirtualClusterLifecycleMetricsTest {
     }
 
     @Test
-    void newLifecycleReportsInitializingState() {
-        // when
+    void stateGaugeIsDeferredUntilFirstTransition() {
+        // when — a lifecycle is constructed but no transition has happened yet
         new VirtualClusterLifecycle(CLUSTER, DRAIN_TIMEOUT);
 
-        // then
-        assertThat(stateGauge("initializing")).isEqualTo(1.0);
+        // then — no state series is registered yet. Emission is deferred to the first transition
+        // so it happens after the proxy's common-tags micrometer hook is installed (see
+        // VirtualClusterLifecycle constructor).
+        assertThat(meterRegistry.find("kroxylicious_virtual_cluster_state")
+                .tag("virtual_cluster", CLUSTER).gauges()).isEmpty();
     }
 
     @Test

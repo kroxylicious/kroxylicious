@@ -79,7 +79,6 @@ public class VirtualClusterLifecycle {
         this.drainTimeout = drainTimeout;
         this.clock = Objects.requireNonNull(clock);
         this.stateEnteredNanos = clock.monotonicTime();
-        Metrics.updateVirtualClusterState(clusterName, stateLabel(state));
     }
 
     /**

@@ -79,6 +79,14 @@ public class Metrics {
     private static final String VIRTUAL_CLUSTER_TRANSITIONS_COUNTER_NAME = "kroxylicious_virtual_cluster_transitions_total";
 
     /**
+     * Canonical lifecycle state label values (lower-cased {@code VirtualClusterLifecycleState}
+     * record names). The whole set is registered together so every
+     * {@code kroxylicious_virtual_cluster_state} series for a cluster shares an identical tag-key
+     * set — required by {@code MeterRegistries}' tag-name-consistency guard.
+     */
+    private static final List<String> VIRTUAL_CLUSTER_STATES = List.of("initializing", "serving", "draining", "failed", "stopped");
+
+    /**
      * Name of the build_info metric.  Note that the {@code .info} suffix is significant
      * to Micrometer and is used to indicate an 'info' metric to it.  The metric
      * name emitted by Prometheus will be called {@code kroxylicious_build_info}.
@@ -402,13 +410,21 @@ public class Metrics {
 
     /**
      * Updates the {@code kroxylicious_virtual_cluster_state} state-set gauge so the series for
-     * {@code state} reads 1 and every other state for {@code clusterName} reads 0. Series are
-     * created lazily as states are first entered.
+     * {@code state} reads 1 and every other state for {@code clusterName} reads 0.
+     *
+     * <p>The first call for a cluster registers the whole {@link #VIRTUAL_CLUSTER_STATES} set at
+     * once. This must only be invoked once the proxy is past startup (i.e. on a lifecycle
+     * transition, not at lifecycle construction)
      */
     public static void updateVirtualClusterState(String clusterName, String state) {
-        var perCluster = VIRTUAL_CLUSTER_STATE_CACHE.computeIfAbsent(clusterName, c -> new ConcurrentHashMap<>());
-        perCluster.computeIfAbsent(state, s -> registerVirtualClusterStateGauge(clusterName, s));
+        var perCluster = VIRTUAL_CLUSTER_STATE_CACHE.computeIfAbsent(clusterName, Metrics::registerVirtualClusterStateGauges);
         perCluster.forEach((s, value) -> value.set(s.equals(state) ? 1 : 0));
+    }
+
+    private static ConcurrentHashMap<String, AtomicInteger> registerVirtualClusterStateGauges(String clusterName) {
+        var perState = new ConcurrentHashMap<String, AtomicInteger>();
+        VIRTUAL_CLUSTER_STATES.forEach(state -> perState.put(state, registerVirtualClusterStateGauge(clusterName, state)));
+        return perState;
     }
 
     private static AtomicInteger registerVirtualClusterStateGauge(String clusterName, String state) {
