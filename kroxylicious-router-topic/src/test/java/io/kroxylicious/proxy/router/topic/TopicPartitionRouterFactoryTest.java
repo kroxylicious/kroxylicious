@@ -217,6 +217,10 @@ class TopicPartitionRouterFactoryTest {
             public TopologyService topologyService() {
                 return new NoOpTopologyService();
             }
+
+            @Override
+            public void allowSharedClusterTargets() {
+            }
         };
     }
 

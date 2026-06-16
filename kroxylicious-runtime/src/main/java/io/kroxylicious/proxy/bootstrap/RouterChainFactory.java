@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.RouteDefinition;
@@ -140,7 +142,7 @@ public class RouterChainFactory implements AutoCloseable {
                             + configType.getName() + " but provided with config of type "
                             + rd.config().getClass().getName());
         }
-        RouterFactoryContext context = createContext(vcName, rd);
+        InitContext context = createContext(vcName, rd);
         Wrapper wrapper = new Wrapper(context, rd, factory);
         initialized.put(key, wrapper);
 
@@ -149,6 +151,46 @@ public class RouterChainFactory implements AutoCloseable {
                 initializeRouterGraph(vcName, route.router(), routersByName, pluginFactory);
             }
         }
+
+        if (!context.isSharedClusterTargetsAllowed()) {
+            validateDisjointClusterTargets(rd, routersByName);
+        }
+    }
+
+    private static void validateDisjointClusterTargets(RouterDefinition rd,
+                                                       Map<String, RouterDefinition> routersByName) {
+        Set<String> seen = new HashSet<>();
+        for (RouteDefinition route : rd.routes()) {
+            Set<String> reachable = reachableClusters(route, routersByName);
+            for (String cluster : reachable) {
+                if (!seen.add(cluster)) {
+                    throw new IllegalConfigurationException(
+                            "Router '" + rd.name() + "' has multiple routes that reach cluster '"
+                                    + cluster + "'. If this is intentional, the router factory "
+                                    + "must call allowSharedClusterTargets() during initialize().");
+                }
+            }
+        }
+    }
+
+    private static Set<String> reachableClusters(RouteDefinition route,
+                                                 Map<String, RouterDefinition> routersByName) {
+        if (route.cluster() != null) {
+            return Set.of(route.cluster());
+        }
+        String nestedRouterName = route.router();
+        if (nestedRouterName == null) {
+            return Set.of();
+        }
+        RouterDefinition nested = routersByName.get(nestedRouterName);
+        if (nested == null) {
+            return Set.of();
+        }
+        Set<String> clusters = new HashSet<>();
+        for (RouteDefinition nestedRoute : nested.routes()) {
+            clusters.addAll(reachableClusters(nestedRoute, routersByName));
+        }
+        return clusters;
     }
 
     /**
@@ -171,44 +213,72 @@ public class RouterChainFactory implements AutoCloseable {
         return wrapper.create(context);
     }
 
-    private RouterFactoryContext createContext(String vcName, RouterDefinition rd) {
-        Set<String> routeNames = rd.routes().stream()
-                .map(RouteDefinition::name)
-                .collect(Collectors.toUnmodifiableSet());
-        return new RouterFactoryContext() {
-            @Override
-            public String virtualClusterName() {
-                return vcName;
-            }
+    private static final class InitContext implements RouterFactoryContext {
 
-            @Override
-            public String routerName() {
-                return rd.name();
-            }
+        private final String vcName;
+        private final RouterDefinition rd;
+        private final Set<String> routeNames;
+        private final PluginFactoryRegistry pfr;
+        private final Map<VcRouter, TopologyServiceImpl> topologyServices;
+        private boolean sharedClusterTargetsAllowed;
 
-            @Override
-            public Set<String> routeNames() {
-                return routeNames;
-            }
+        private InitContext(String vcName, RouterDefinition rd,
+                            PluginFactoryRegistry pfr,
+                            Map<VcRouter, TopologyServiceImpl> topologyServices) {
+            this.vcName = vcName;
+            this.rd = rd;
+            this.pfr = pfr;
+            this.topologyServices = topologyServices;
+            this.routeNames = rd.routes().stream()
+                    .map(RouteDefinition::name)
+                    .collect(Collectors.toUnmodifiableSet());
+        }
 
-            @Override
-            public <P> P pluginInstance(Class<P> pluginClass,
-                                        String implementationName) {
-                return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
-            }
+        @Override
+        public String virtualClusterName() {
+            return vcName;
+        }
 
-            @Override
-            public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
-                return pfr.pluginFactory(pluginClass).registeredInstanceNames();
-            }
+        @Override
+        public String routerName() {
+            return rd.name();
+        }
 
-            @Override
-            public TopologyService topologyService() {
-                return topologyServices.computeIfAbsent(
-                        new VcRouter(vcName, rd.name()),
-                        k -> new TopologyServiceImpl(new TopologyCache()));
-            }
-        };
+        @Override
+        public Set<String> routeNames() {
+            return routeNames;
+        }
+
+        @Override
+        public <P> P pluginInstance(Class<P> pluginClass,
+                                    String implementationName) {
+            return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
+        }
+
+        @Override
+        public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
+            return pfr.pluginFactory(pluginClass).registeredInstanceNames();
+        }
+
+        @Override
+        public TopologyService topologyService() {
+            return topologyServices.computeIfAbsent(
+                    new VcRouter(vcName, rd.name()),
+                    k -> new TopologyServiceImpl(new TopologyCache()));
+        }
+
+        @Override
+        public void allowSharedClusterTargets() {
+            this.sharedClusterTargetsAllowed = true;
+        }
+
+        boolean isSharedClusterTargetsAllowed() {
+            return sharedClusterTargetsAllowed;
+        }
+    }
+
+    private InitContext createContext(String vcName, RouterDefinition rd) {
+        return new InitContext(vcName, rd, pfr, topologyServices);
     }
 
     /**
