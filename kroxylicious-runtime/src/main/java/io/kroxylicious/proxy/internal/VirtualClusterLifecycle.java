@@ -43,8 +43,16 @@ public class VirtualClusterLifecycle {
     private final Duration drainTimeout;
     private VirtualClusterLifecycleState state = new Initializing();
     private final Set<ClientConnectionStateMachine> activeConnections = new HashSet<>();
+    /**
+     * Assigned in {@link #startDraining()} after the synchronized state transition, then read by
+     * {@link #drainFuture()}. {@code volatile} so a reader that observes {@code Draining} via
+     * the synchronized {@link #state()} getter always sees the write (the synchronized state
+     * read alone gives happens-before with writes inside the synchronized block but not with
+     * this write, which is intentionally outside the lock to keep the lock window tight).
+     */
+    @SuppressWarnings("java:S3077")
     @Nullable
-    private CompletableFuture<Void> drainFuture;
+    private volatile CompletableFuture<Void> drainFuture;
 
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
@@ -121,10 +129,16 @@ public class VirtualClusterLifecycle {
     }
 
     /**
-     * Transitions to {@link Stopped} from {@link Failed} or {@link Initializing}.
+     * Transitions to {@link Stopped} from {@link Failed} or {@link Initializing}. Idempotent:
+     * a call when already {@link Stopped} is a silent no-op, so two concurrent shutdown paths
+     * that both observe a non-terminal state and race to call {@code stop()} cannot fail —
+     * the second caller's transition simply finds the state already terminal.
      */
     public void stop() {
         transition(current -> {
+            if (current instanceof Stopped) {
+                return current;
+            }
             if (current instanceof Failed s) {
                 return s.toStopped();
             }
