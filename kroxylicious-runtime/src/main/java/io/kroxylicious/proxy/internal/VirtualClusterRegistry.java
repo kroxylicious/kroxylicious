@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,17 +244,19 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * which non-terminal state it is currently in. Shared by {@link #shutdownAllClusters()}
      * (which drives every cluster) and {@link #removeVirtualCluster(String)} (which drives one).
      *
-     * <p>State handling matches the proxy-wide shutdown semantics:
-     * <ul>
-     *   <li>{@code Serving} → begin draining; when drain completes, re-check state, transition
-     *       to {@code Stopped}, and close on the lifecycle thread</li>
-     *   <li>{@code Draining} → join the existing drain; same close-with-re-check tail as Serving</li>
-     *   <li>{@code Failed} → dispatch a re-check-and-close task to the lifecycle thread; on the
-     *       lifecycle thread, if state is still {@code Failed}, transition and close with the
-     *       prior failure cause</li>
-     *   <li>{@code Initializing} → same as Failed but with no failure cause</li>
-     *   <li>{@code Stopped} → no-op (already terminal)</li>
-     * </ul>
+     * <p>Every state-mutating operation runs on the {@link #lifecycleExecutor}. The flow is:
+     * <ol>
+     *   <li>{@link #initiateDrain} dispatched to the lifecycle thread: reads state, and if
+     *       {@code Serving} performs the {@code Serving → Draining} transition (via
+     *       {@link VirtualClusterLifecycle#startDraining()}); if {@code Draining} joins the
+     *       in-flight drain. Returns the drain future, or a completed future for
+     *       {@code Failed}/{@code Initializing} where no drain is needed.</li>
+     *   <li>The chain {@code .thenCompose} waits for the drain future (drain itself happens on
+     *       Netty event-loop threads — not on the lifecycle executor).</li>
+     *   <li>{@link #transitionToStoppedAndClose} dispatched to the lifecycle thread: re-reads
+     *       state and performs the appropriate {@code → Stopped} transition plus close.</li>
+     * </ol>
+     *
      *
      * <h2>Entries are retained in {@link #entriesByCluster} after reaching {@code Stopped}.</h2>
      * The map is append-only — driving a cluster to {@code Stopped} never deletes its entry.
@@ -266,26 +269,29 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * @return a future that completes when the cluster has reached {@code Stopped}
      */
     private CompletableFuture<Void> shutdownCluster(String clusterName, VirtualClusterLifecycle lifecycle) {
-        var state = lifecycle.state();
-        if (state instanceof VirtualClusterLifecycleState.Serving) {
-            return lifecycle.startDraining()
-                    .thenRunAsync(() -> transitionToStoppedAndClose(clusterName, lifecycle), lifecycleExecutor);
-        }
-        else if (state instanceof VirtualClusterLifecycleState.Draining) {
-            return lifecycle.drainFuture()
-                    .thenRunAsync(() -> transitionToStoppedAndClose(clusterName, lifecycle), lifecycleExecutor);
-        }
-        else if (state instanceof VirtualClusterLifecycleState.Stopped) {
+        if (lifecycle.state() instanceof VirtualClusterLifecycleState.Stopped) {
             return CompletableFuture.completedFuture(null);
         }
-        else {
-            // Failed or Initializing — dispatch the whole transition+close to the lifecycle
-            // thread. State is re-read inside the task; a concurrent task that beat us to
-            // Stopped will cause this one to no-op.
-            return CompletableFuture.runAsync(
-                    () -> transitionToStoppedAndClose(clusterName, lifecycle),
-                    lifecycleExecutor);
+        return CompletableFuture.supplyAsync(() -> initiateDrain(lifecycle), lifecycleExecutor)
+                .thenCompose(Function.identity())
+                .thenRunAsync(() -> transitionToStoppedAndClose(clusterName, lifecycle), lifecycleExecutor);
+    }
+
+    /**
+     * Runs on the {@link #lifecycleExecutor}. Performs the {@code Serving → Draining} transition
+     * if applicable and returns the drain future to be awaited. For states with no drain
+     * ({@code Failed}, {@code Initializing}), returns a completed future so the chain proceeds
+     * straight to {@link #transitionToStoppedAndClose}.
+     */
+    private CompletableFuture<Void> initiateDrain(VirtualClusterLifecycle lifecycle) {
+        var state = lifecycle.state();
+        if (state instanceof VirtualClusterLifecycleState.Serving) {
+            return lifecycle.startDraining();
         }
+        if (state instanceof VirtualClusterLifecycleState.Draining) {
+            return lifecycle.drainFuture();
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -309,7 +315,18 @@ public class VirtualClusterRegistry implements AutoCloseable {
             lifecycle.stop();
             closeAndFireStopped(clusterName, Optional.empty());
         }
-        // Stopped or Serving (a concurrent path beat us / changed state) — silently no-op.
+        else if (current instanceof VirtualClusterLifecycleState.Stopped) {
+            // Expected — a concurrent dispatch already drove this cluster to Stopped.
+        }
+        else {
+            // Unexpected: by the time this task runs, no other code path should put a cluster
+            // back into a non-terminal state. Most likely {@code initializationSucceeded()}
+            // raced with our dispatch — log so the race shows up in operator diagnostics.
+            LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", clusterName)
+                    .addKeyValue("state", current.getClass().getSimpleName())
+                    .log("transitionToStoppedAndClose observed unexpected state; no-op");
+        }
     }
 
     /**

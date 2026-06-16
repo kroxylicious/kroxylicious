@@ -44,7 +44,14 @@ public class VirtualClusterLifecycle {
     private VirtualClusterLifecycleState state = new Initializing();
     private final Set<ClientConnectionStateMachine> activeConnections = new HashSet<>();
     @Nullable
-    private CompletableFuture<Void> drainFuture;
+    /**
+     * Assigned in {@link #startDraining()} after the synchronized state transition, then read by
+     * {@link #drainFuture()}. {@code volatile} so a reader that observes {@code Draining} via
+     * the synchronized {@link #state()} getter always sees the write (the synchronized state
+     * read alone gives happens-before with writes inside the synchronized block but not with
+     * this write, which is intentionally outside the lock to keep the lock window tight).
+     */
+    private volatile CompletableFuture<Void> drainFuture;
 
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this.clusterName = Objects.requireNonNull(clusterName);
