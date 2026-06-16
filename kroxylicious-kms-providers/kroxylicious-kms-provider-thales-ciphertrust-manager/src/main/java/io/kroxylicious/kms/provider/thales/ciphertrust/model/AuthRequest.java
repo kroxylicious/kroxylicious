@@ -69,6 +69,7 @@ public record AuthRequest(
     }
 
     @Override
+    @SuppressWarnings("java:S2068")
     public String toString() {
         return "AuthRequest{" +
                 "username='" + username + '\'' +

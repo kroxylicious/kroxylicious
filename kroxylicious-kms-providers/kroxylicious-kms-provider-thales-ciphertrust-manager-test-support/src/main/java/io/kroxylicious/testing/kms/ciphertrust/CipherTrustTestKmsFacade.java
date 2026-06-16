@@ -86,9 +86,6 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String TEST_RUN_LABEL = "kroxylicious-test-run";
-    private static final String TEST_USERNAME = "testuser";
-    @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
-    private static final String TEST_PASSWORD = "testpass";
     private static final String JSON_CONTENT_TYPE = "application/json";
 
     private final boolean useReal;
@@ -121,8 +118,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             // Use real instance
             this.useReal = true;
             this.cipherTrustUrl = URI.create(urlStr);
-            this.username = System.getenv().getOrDefault(ENV_USERNAME, TEST_USERNAME);
-            this.password = System.getenv().getOrDefault(ENV_PASSWORD, TEST_PASSWORD);
+            this.username = System.getenv().getOrDefault(ENV_USERNAME, CipherTrustMockServer.TEST_USERNAME);
+            this.password = System.getenv().getOrDefault(ENV_PASSWORD, CipherTrustMockServer.TEST_PASSWORD);
             this.tlsInsecure = Boolean.parseBoolean(System.getenv().getOrDefault(ENV_TLS_INSECURE, "false"));
             this.tlsCaCertPath = System.getenv(ENV_TLS_CA_CERT);
             this.mockServer = null;
@@ -131,8 +128,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             // Use mock
             this.useReal = false;
             this.cipherTrustUrl = null; // Will be set after mockServer.start()
-            this.username = TEST_USERNAME;
-            this.password = TEST_PASSWORD;
+            this.username = CipherTrustMockServer.TEST_USERNAME;
+            this.password = CipherTrustMockServer.TEST_PASSWORD;
             this.tlsInsecure = false;
             this.tlsCaCertPath = null;
             this.mockServer = null; // Will be created in start()
@@ -237,7 +234,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             throw new IllegalStateException("CipherTrust facade not started");
         }
         UserCredentials userCredentials = new UserCredentials(username, new InlinePassword(password));
-        return new Config(cipherTrustUrl, userCredentials, null, getTlsConfig());
+        return new Config(cipherTrustUrl, userCredentials, getTlsConfig());
     }
 
     @Override
@@ -377,9 +374,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
             // Validate status code
             int statusCode = response.statusCode();
-            boolean statusOk = acceptableStatusCodes.length == 0
-                    ? statusCode >= 200 && statusCode < 300
-                    : IntStream.of(acceptableStatusCodes).anyMatch(code -> code == statusCode);
+            var statusOk = isStatusOk(acceptableStatusCodes, statusCode);
 
             if (!statusOk) {
                 if (statusCode == 404 && notFoundExceptionSupplier != null) {
@@ -404,10 +399,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
         try {
             HttpResponse<String> response = Objects.requireNonNull(httpClient).send(request, HttpResponse.BodyHandlers.ofString());
 
-            // Validate status code
-            boolean statusOk = acceptableStatusCodes.length == 0
-                    ? response.statusCode() >= 200 && response.statusCode() < 300
-                    : IntStream.of(acceptableStatusCodes).anyMatch(code -> code == response.statusCode());
+            var statusOk = isStatusOk(acceptableStatusCodes, response.statusCode());
 
             if (!statusOk) {
                 throw new IllegalStateException("Request failed with status " + response.statusCode() + ": " + response.body());
@@ -420,6 +412,13 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Request interrupted", e);
         }
+    }
+
+    private boolean isStatusOk(int[] acceptableStatusCodes, int statusCode) {
+        // Validate status code
+        return acceptableStatusCodes.length == 0
+                ? statusCode >= 200 && statusCode < 300
+                : IntStream.of(acceptableStatusCodes).anyMatch(code -> code == statusCode);
     }
 
     private HttpRequest buildAuthRequest(String path, String jsonBody) {

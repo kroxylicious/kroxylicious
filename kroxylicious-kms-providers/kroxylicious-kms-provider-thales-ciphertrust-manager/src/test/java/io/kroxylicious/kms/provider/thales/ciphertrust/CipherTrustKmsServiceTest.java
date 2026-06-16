@@ -43,7 +43,6 @@ class CipherTrustKmsServiceTest {
         var config = new Config(
                 URI.create("https://ctm.example.com"),
                 new UserCredentials("user", new InlinePassword("pass")),
-                null,
                 null);
 
         // When
@@ -68,7 +67,6 @@ class CipherTrustKmsServiceTest {
         var config = new Config(
                 URI.create("https://ctm.example.com"),
                 new UserCredentials("user", new InlinePassword("pass")),
-                null,
                 null);
         service.initialize(config);
 
@@ -85,7 +83,6 @@ class CipherTrustKmsServiceTest {
         var config = new Config(
                 URI.create("https://ctm.example.com"),
                 new UserCredentials("user", new InlinePassword("pass")),
-                null,
                 new Tls(null, null, new AllowDeny<>(
                         List.of(validButUnusualCipherSuite), null), null, null));
 

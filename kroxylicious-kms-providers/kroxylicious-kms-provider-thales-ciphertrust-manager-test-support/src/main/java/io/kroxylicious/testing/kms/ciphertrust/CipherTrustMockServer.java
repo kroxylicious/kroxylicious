@@ -19,6 +19,9 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -28,6 +31,7 @@ import com.github.tomakehurst.wiremock.http.Request;
 import com.github.tomakehurst.wiremock.http.ResponseDefinition;
 import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptResponse;
@@ -43,6 +47,7 @@ import io.kroxylicious.testing.kms.ciphertrust.model.GetKeysResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyResponse;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
@@ -63,6 +68,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
  */
 public class CipherTrustMockServer {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CipherTrustMockServer.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String MOCK_JWT_TOKEN = "mock-jwt-token";
     private static final String MOCK_REFRESH_TOKEN = "mock-refresh-token";
@@ -73,10 +79,22 @@ public class CipherTrustMockServer {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String JSON_CONTENT_TYPE = "application/json";
+    private static final String TRANSFORMER_AUTH = "auth";
     private static final String TRANSFORMER_ENCRYPT = "encrypt";
     private static final String TRANSFORMER_DECRYPT = "decrypt";
     private static final String TRANSFORMER_GET_KEY = "get-key";
     private static final String TRANSFORMER_RANDOM_BYTES = "random-bytes";
+
+    /**
+     * Test username for mock authentication.
+     */
+    public static final String TEST_USERNAME = "testuser";
+
+    /**
+     * Test password for mock authentication.
+     */
+    @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
+    public static final String TEST_PASSWORD = "testpass";
 
     @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
     private static final String STORE_PASSWORD = "changeit";
@@ -113,6 +131,7 @@ public class CipherTrustMockServer {
         VersionedKeyStore keyStore = new VersionedKeyStore();
         WireMockConfiguration config = WireMockConfiguration.options()
                 .extensions(
+                        new AuthTransformer(),
                         new RandomBytesTransformer(secureRandom),
                         new EncryptTransformer(keyStore, secureRandom),
                         new DecryptTransformer(keyStore),
@@ -230,18 +249,10 @@ public class CipherTrustMockServer {
     }
 
     private void setupAuthEndpoint() {
-        try {
-            AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
-            String json = OBJECT_MAPPER.writeValueAsString(response);
-            server.stubFor(post(urlPathEqualTo("/api/v1/auth/tokens/"))
-                    .willReturn(aResponse()
-                            .withStatus(200)
-                            .withHeader(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
-                            .withBody(json)));
-        }
-        catch (Exception e) {
-            throw new MockServerException("Failed to setup auth endpoint", e);
-        }
+        server.stubFor(post(urlPathEqualTo("/api/v1/auth/tokens/"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withTransformers(TRANSFORMER_AUTH))); // Transformer will validate credentials and set body
     }
 
     private void setupRandomEndpoint() {
@@ -339,6 +350,54 @@ public class CipherTrustMockServer {
         }
     }
 
+    private static class AuthTransformer implements ResponseDefinitionTransformerV2 {
+
+        @Override
+        public boolean applyGlobally() {
+            return false;
+        }
+
+        @Override
+        @SuppressFBWarnings("HARD_CODE_PASSWORD") // Test password comparison
+        public ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                AuthRequest request = parseJsonRequest(serveEvent.getRequest(), AuthRequest.class);
+
+                String username = request.username();
+                String password = request.password();
+
+                LOGGER.atDebug()
+                        .addKeyValue("username", username)
+                        .addKeyValue("grantType", request.grantType())
+                        .log("Processing auth request");
+
+                // Validate credentials for password grant type
+                if ("password".equals(request.grantType())) {
+                    if (!TEST_USERNAME.equals(username) || !TEST_PASSWORD.equals(password)) {
+                        LOGGER.atDebug()
+                                .addKeyValue("username", username)
+                                .log("Authentication failed: invalid credentials");
+
+                        ErrorResponse errorResponse = new ErrorResponse("Invalid credentials");
+                        return jsonResponse(errorResponse, 401);
+                    }
+                }
+
+                // Successful authentication
+                AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
+                return jsonResponse(response, 200);
+            }
+            catch (Exception e) {
+                throw new MockServerException("Authentication failed", e);
+            }
+        }
+
+        @Override
+        public String getName() {
+            return TRANSFORMER_AUTH;
+        }
+    }
+
     private static class RandomBytesTransformer implements ResponseDefinitionTransformerV2 {
         private final SecureRandom secureRandom;
 
@@ -355,6 +414,10 @@ public class CipherTrustMockServer {
         public ResponseDefinition transform(ServeEvent serveEvent) {
             try {
                 int bytesParam = getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt);
+
+                LOGGER.atDebug()
+                        .addKeyValue("bytes", bytesParam)
+                        .log("Processing random bytes request");
 
                 byte[] randomBytes = new byte[bytesParam];
                 secureRandom.nextBytes(randomBytes);
@@ -388,6 +451,12 @@ public class CipherTrustMockServer {
                 String keyRef = request.id();
                 byte[] plaintext = request.plaintext();
                 String type = request.type();
+
+                LOGGER.atDebug()
+                        .addKeyValue("keyRef", keyRef)
+                        .addKeyValue("type", type)
+                        .addKeyValue("plaintextLength", plaintext.length)
+                        .log("Processing encrypt request");
 
                 // NOTE: This mock server requires type="name" and performs direct name-based lookup.
                 // The 'id' field must contain a key name, not a key ID.
@@ -462,6 +531,11 @@ public class CipherTrustMockServer {
                 byte[] tag = request.tag();
                 byte[] iv = request.iv();
 
+                LOGGER.atDebug()
+                        .addKeyValue("keyId", keyId)
+                        .addKeyValue("version", request.version())
+                        .log("Processing decrypt request");
+
                 // Get the KEK (version parameter is ignored in this simplified model)
                 SecretKey kek = keyStore.getKey(keyId);
                 if (kek == null) {
@@ -508,6 +582,11 @@ public class CipherTrustMockServer {
                 Map<String, String> labels = request.labels();
                 String keyId = UUID.randomUUID().toString();
 
+                LOGGER.atDebug()
+                        .addKeyValue("name", name)
+                        .addKeyValue("keyId", keyId)
+                        .log("Processing create key request");
+
                 // Create and store key at version 0 with labels
                 keyStore.createKey(keyId, name, labels);
 
@@ -539,6 +618,13 @@ public class CipherTrustMockServer {
                 var labelFilter = getQueryParam(request, "labels", null, Function.identity());
                 var skip = getQueryParam(request, "skip", 0, Integer::parseInt);
                 var limit = getQueryParam(request, "limit", 10, Integer::parseInt);
+
+                LOGGER.atDebug()
+                        .addKeyValue("name", name)
+                        .addKeyValue("labelFilter", labelFilter)
+                        .addKeyValue("skip", skip)
+                        .addKeyValue("limit", limit)
+                        .log("Processing query key request");
 
                 List<GetKeyResponse> matchingKeys;
                 if (name != null) {
@@ -588,6 +674,10 @@ public class CipherTrustMockServer {
                 String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
                 String name = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
 
+                LOGGER.atDebug()
+                        .addKeyValue("name", name)
+                        .log("Processing get key by name request");
+
                 // Find the key with the highest version for this name
                 GetKeyResponse keyResponse = keyStore.findKeyByNameWithHighestVersion(name);
 
@@ -622,6 +712,10 @@ public class CipherTrustMockServer {
                 String path = serveEvent.getRequest().getUrl();
                 String name = path.substring(path.indexOf("/keys2/") + 7);
                 name = name.substring(0, name.indexOf("/versions/"));
+
+                LOGGER.atDebug()
+                        .addKeyValue("name", name)
+                        .log("Processing rotate key request");
 
                 String newKeyId = keyStore.rotateKeyByName(name);
                 if (newKeyId == null) {
@@ -659,6 +753,10 @@ public class CipherTrustMockServer {
                 if (keyId.contains("?")) {
                     keyId = keyId.substring(0, keyId.indexOf("?"));
                 }
+
+                LOGGER.atDebug()
+                        .addKeyValue("keyId", keyId)
+                        .log("Processing delete key request");
 
                 keyStore.deleteKey(keyId);
 

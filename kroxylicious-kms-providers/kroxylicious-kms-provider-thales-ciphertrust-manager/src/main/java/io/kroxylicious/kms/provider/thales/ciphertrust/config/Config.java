@@ -11,7 +11,6 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.config.tls.Tls;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -20,14 +19,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Configuration for the Thales CipherTrust Manager KMS service.
  *
  * @param endpointUrl URL of the CipherTrust Manager instance e.g. {@code https://ctm.example.com}
- * @param userCredentials user credentials for authentication (mutually exclusive with clientCredentials)
- * @param clientCredentials client credentials for authentication (mutually exclusive with userCredentials)
+ * @param userCredentials user credentials for authentication
  * @param tls TLS configuration
  */
 public record Config(
                      @JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty("userCredentials") @Nullable UserCredentials userCredentials,
-                     @JsonProperty("clientCredentials") @Nullable ClientCredentials clientCredentials,
+                     @JsonProperty(value = "userCredentials", required = true) UserCredentials userCredentials,
                      @JsonProperty(value = "tls", required = false) @Nullable Tls tls) {
 
     /**
@@ -35,13 +32,6 @@ public record Config(
      */
     public Config {
         Objects.requireNonNull(endpointUrl, "endpointUrl cannot be null");
-
-        // Exactly one credential type must be specified
-        if (userCredentials == null && clientCredentials == null) {
-            throw new KmsException("Either userCredentials or clientCredentials must be specified");
-        }
-        if (userCredentials != null && clientCredentials != null) {
-            throw new KmsException("Cannot specify both userCredentials and clientCredentials");
-        }
+        Objects.requireNonNull(userCredentials, "userCredentials cannot be null");
     }
 }

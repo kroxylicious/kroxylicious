@@ -15,7 +15,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
-import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +39,6 @@ class ConfigParseTest {
         assertThat(config.userCredentials()).isNotNull();
         assertThat(config.userCredentials().username()).isEqualTo("testuser");
         assertThat(config.userCredentials().password().getProvidedPassword()).isEqualTo("testpass");
-        assertThat(config.clientCredentials()).isNull();
     }
 
     @Test
@@ -83,10 +81,8 @@ class ConfigParseTest {
                     }
                     """;
             readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .cause()
-                .isInstanceOf(KmsException.class)
-                .hasMessageContaining("Either userCredentials or clientCredentials must be specified");
+        }).isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("userCredentials");
     }
 
     @Test
@@ -141,29 +137,6 @@ class ConfigParseTest {
         assertThat(config.tls()).isNotNull();
         assertThat(config.tls().trust()).isInstanceOf(InsecureTls.class);
         assertThat(((InsecureTls) config.tls().trust()).insecure()).isTrue();
-    }
-
-    @Test
-    void cannotSpecifyBothCredentialTypes() {
-        assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "endpointUrl": "https://ctm.example.com",
-                        "userCredentials": {
-                            "username": "testuser",
-                            "password": { "password": "testpass" }
-                        },
-                        "clientCredentials": {
-                            "clientId": "client-id",
-                            "clientSecret": { "password": "secret" }
-                        }
-                    }
-                    """;
-            readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .cause()
-                .isInstanceOf(KmsException.class)
-                .hasMessageContaining("Cannot specify both userCredentials and clientCredentials");
     }
 
     private Config readConfig(String json) throws IOException {

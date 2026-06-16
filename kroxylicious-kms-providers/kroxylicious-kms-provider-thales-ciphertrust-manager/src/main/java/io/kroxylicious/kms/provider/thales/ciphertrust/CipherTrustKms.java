@@ -176,12 +176,18 @@ public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
                 .thenApply(token -> buildGetRequest(uri, token.token()));
     }
 
+    private CompletionStage<HttpResponse<byte[]>> executeRequest(HttpRequest request,
+                                                                 String operation,
+                                                                 @Nullable Supplier<KmsException> notFoundExceptionSupplier) {
+        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(response -> checkResponseStatus(response, operation, notFoundExceptionSupplier));
+    }
+
     private <T> CompletionStage<T> sendAsync(HttpRequest request,
                                              TypeReference<T> valueTypeRef,
                                              String operation,
                                              @Nullable Supplier<KmsException> notFoundExceptionSupplier) {
-        return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(response -> checkResponseStatus(response, operation, notFoundExceptionSupplier))
+        return executeRequest(request, operation, notFoundExceptionSupplier)
                 .thenApply(HttpResponse::body)
                 .thenApply(body -> decodeJson(valueTypeRef, body));
     }
@@ -253,8 +259,7 @@ public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
 
         String keyId = edek.id();
         return createPostRequest(decryptRequest, decryptUri)
-                .thenCompose(request -> client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray()))
-                .thenApply(response -> checkResponseStatus(response, "decryption",
+                .thenCompose(request -> executeRequest(request, "decryption",
                         () -> new UnknownKeyException("key '%s' not found".formatted(keyId))))
                 .thenApply(HttpResponse::body)
                 .thenApply(bytes -> {

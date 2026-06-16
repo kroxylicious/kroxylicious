@@ -72,28 +72,16 @@ public class CipherTrustKmsService implements KmsService<Config, String, CipherT
     }
 
     private BearerTokenService createTokenService(Config config) {
-        BearerTokenService delegate;
+        // User authentication
+        var userCreds = config.userCredentials();
+        var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
 
-        if (config.userCredentials() != null) {
-            // User authentication
-            var userCreds = config.userCredentials();
-            var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
-
-            delegate = new UserAuthenticationTokenService(
-                    config.endpointUrl(),
-                    userCreds.username(),
-                    userCreds.password().getProvidedPassword(),
-                    DEFAULT_TIMEOUT,
-                    tlsConfigurator);
-        }
-        else if (config.clientCredentials() != null) {
-            // Client authentication - not yet implemented
-            throw new UnsupportedOperationException("Client authentication is not yet implemented");
-        }
-        else {
-            // Should not reach here due to Config validation, but belt-and-suspenders
-            throw new IllegalStateException("No credentials configured");
-        }
+        BearerTokenService delegate = new UserAuthenticationTokenService(
+                config.endpointUrl(),
+                userCreds.username(),
+                userCreds.password().getProvidedPassword(),
+                DEFAULT_TIMEOUT,
+                tlsConfigurator);
 
         // Wrap with caching token service for automatic token refresh
         return new CachingBearerTokenService(delegate, Clock.systemUTC());
