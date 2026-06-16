@@ -23,7 +23,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,7 +39,7 @@ class ExternalOperatorTest {
     void updateStatusThrowsWhenResourceNotFound() {
         var stub = new ExternalOperator(client, NAMESPACE);
 
-        assertThatNullPointerException()
+        assertThatIllegalStateException()
                 .isThrownBy(() -> stub.updateStatus(KafkaProxy.class, "missing", r -> r))
                 .withMessageContaining("KafkaProxy")
                 .withMessageContaining("missing");
