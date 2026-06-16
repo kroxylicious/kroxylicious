@@ -64,7 +64,7 @@ static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorEx
 
 ## What belongs in each actor
 
-Integration tests are documentation as much as they are verification. A test should tell its reader a coherent story: a user did X, an external system did Y, and the operator-under-test produced Z. The three-actor model exists to make that story legible — it is a convention for test *readers*, not a technical enforcement.
+We treat tests as executable specifications — each test tells a coherent story: a user did X, an external system did Y, and the operator-under-test produced Z. The three-actor model exists to make that story legible to test *readers*; it is a convention, not a technical enforcement.
 
 The `operator` extension field has Kubernetes access internally (it needs it to manage the test lifecycle), but using it directly in test bodies breaks the story. A reader who sees `operator.someKubeCall()` cannot tell whether that represents a user action, an external controller, or internal test plumbing. Code that goes through the cluster user (`ClusterUser`) is a user action; code that goes through the external operator (`ExternalOperator`) is an external controller; everything else disappears into the background.
 
