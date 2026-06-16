@@ -552,6 +552,7 @@ public class VirtualClusterModel implements AutoCloseable {
         @Override
         public void resolveActualPort(int actualPort) {
             resolvedPort.set(actualPort);
+            nodeIdentificationStrategy.notifyBootstrapPortResolved(actualPort);
         }
 
         @Override

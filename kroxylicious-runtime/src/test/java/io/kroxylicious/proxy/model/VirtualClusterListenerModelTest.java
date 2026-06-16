@@ -44,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class VirtualClusterListenerModelTest {
@@ -101,6 +102,18 @@ class VirtualClusterListenerModelTest {
         var brokerAddress = new HostPort("broker", 55);
         when(strategy.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
         assertThat(listener.getBrokerIdFromBrokerAddress(brokerAddress)).isEqualTo(1);
+    }
+
+    @Test
+    void resolveActualPortNotifiesStrategy() {
+        // Given
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 0));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        // When
+        listener.resolveActualPort(54321);
+        // Then - strategy is notified so it can compute relative node ports
+        verify(strategy).notifyBootstrapPortResolved(54321);
     }
 
     @Test

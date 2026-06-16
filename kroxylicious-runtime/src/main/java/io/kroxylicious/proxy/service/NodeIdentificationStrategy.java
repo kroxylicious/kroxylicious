@@ -73,6 +73,17 @@ public interface NodeIdentificationStrategy {
     }
 
     /**
+     * Notifies the strategy of the actual port the bootstrap endpoint was bound to.  Called
+     * after an OS-assigned (port 0) bootstrap endpoint is bound and the OS has allocated a port.
+     * Strategies that compute node ports relative to the bootstrap port use this to resolve
+     * those ports.  The default implementation is a no-op.
+     *
+     * @param resolvedPort the actual OS-assigned port the bootstrap endpoint was bound to
+     */
+    default void notifyBootstrapPortResolved(int resolvedPort) {
+    }
+
+    /**
      * Gets the bind address used when binding socket.  Used to restrict
      * listening to particular network interfaces.
      * @return bind address such as "127.0.0.1" or {@code }Optional.empty()} if all address should be bound.

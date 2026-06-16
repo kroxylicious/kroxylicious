@@ -202,33 +202,46 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
-        // bind any discovery binding to the bootstrap address
-        var discoveryAddressesMapStage = allOfStage(virtualClusterModel.discoveryAddressMap()
-                .entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
-                .map(e -> {
-                    var nodeId = e.getKey();
-                    var bhp = e.getValue();
-                    return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
-                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
-                }));
+        // When bootstrap is OS-assigned the node ports are relative to the resolved bootstrap port
+        // and cannot be computed until after the bootstrap binds. Sequence: bind bootstrap → resolve
+        // port (which notifies the strategy) → bind discovery addresses. For fixed-port bootstrap
+        // both steps can run in parallel since the node ports are known upfront.
+        CompletionStage<Void> discoveryBindingsStage;
+        if (key.port() == OS_ASSIGNED_PORT) {
+            discoveryBindingsStage = bootstrapEndpointFuture.thenCompose(ch -> {
+                virtualClusterModel.resolveActualPort(localPortFor(key.bindingAddress(), key.port()));
+                return bindDiscoveryAddresses(virtualClusterModel);
+            });
+        }
+        else {
+            discoveryBindingsStage = bindDiscoveryAddresses(virtualClusterModel);
+        }
 
-        bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
+        bootstrapEndpointFuture.thenCombine(discoveryBindingsStage, (bef, bps) -> bef)
                 .whenComplete((u, t) -> {
                     var future = vcr.registrationStage.toCompletableFuture();
                     if (t != null) {
                         rollbackRelatedBindings(virtualClusterModel, t, future);
                     }
                     else {
-                        if (key.port() == OS_ASSIGNED_PORT) {
-                            virtualClusterModel.resolveActualPort(localPortFor(key.bindingAddress(), key.port()));
-                        }
                         handleSuccessfulBinding(bootstrapEndpointFuture, future);
                     }
                 });
 
         return vcr.registrationStage();
+    }
+
+    private CompletionStage<Void> bindDiscoveryAddresses(EndpointGateway virtualClusterModel) {
+        return allOfStage(virtualClusterModel.discoveryAddressMap()
+                .entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> {
+                    var nodeId = e.getKey();
+                    var bhp = e.getValue();
+                    return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
+                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
+                }));
     }
 
     private static void handleSuccessfulBinding(CompletableFuture<Endpoint> bootstrapEndpointFuture, CompletableFuture<Endpoint> future) {

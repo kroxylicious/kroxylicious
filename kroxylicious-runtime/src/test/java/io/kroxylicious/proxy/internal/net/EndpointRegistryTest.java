@@ -43,7 +43,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -96,6 +98,33 @@ class EndpointRegistryTest {
         verifyVirtualClusterRegisterFuture(DOWNSTREAM_BOOTSTRAP.port(), false, rf);
 
         assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldBindBrokerPortsAfterBootstrapResolved() throws Exception {
+        // Given - bootstrap is OS-assigned (port 0); discovery addresses are unknown until bootstrap resolves
+        var osAssignedBootstrap = new HostPort("downstream-bootstrap", 0);
+        var resolvedBroker0 = new HostPort("downstream-broker0", 54322);
+        var resolvedBroker1 = new HostPort("downstream-broker1", 54323);
+        configureVirtualClusterMock(virtualClusterModel1, osAssignedBootstrap, UPSTREAM_BOOTSTRAP, false, false,
+                Map.of(), new FixedBootstrapSelectionStrategy(0));
+        // When bootstrap resolves, simulate the strategy updating its discovery map
+        doAnswer(invocation -> {
+            when(virtualClusterModel1.discoveryAddressMap()).thenReturn(Map.of(0, resolvedBroker0, 1, resolvedBroker1));
+            return null;
+        }).when(virtualClusterModel1).resolveActualPort(anyInt());
+
+        // When
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+
+        // Then: only the OS-assigned bootstrap bind is queued initially (discovery map is empty)
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(0, false));
+        // After the bootstrap binds, resolveActualPort fires → discovery addresses become known → those bind next
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(resolvedBroker0.port(), false),
+                createTestNetworkBindRequest(resolvedBroker1.port(), false));
+        assertThat(rf).isCompleted();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
     }
 
