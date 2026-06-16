@@ -45,16 +45,11 @@ public class OperatorTestUtils {
 
     @VisibleForTesting
     static boolean isKubeClientAvailable(KubernetesClientBuilder builder) {
-        KubernetesClient client = null;
-        try {
-            client = builder.build();
+        try (KubernetesClient client = builder.build()) {
             client.namespaces().list();
             return true;
         }
         catch (RuntimeException e) {
-            if (client != null) {
-                client.close();
-            }
             return false;
         }
     }
