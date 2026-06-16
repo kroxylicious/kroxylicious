@@ -60,8 +60,10 @@ class ClusterUserTest {
 
         KafkaProxy result = user.get(KafkaProxy.class, "my-proxy");
 
-        assertThat(result).isNotNull();
-        assertThat(result.getMetadata().getName()).isEqualTo("my-proxy");
+        assertThat(result)
+                .isNotNull()
+                .extracting(r -> r.getMetadata().getName())
+                .isEqualTo("my-proxy");
     }
 
     @Test
@@ -103,10 +105,10 @@ class ClusterUserTest {
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
         client.resource(proxy).inNamespace(NAMESPACE).create();
 
-        var items = user.resources(KafkaProxy.class).list().getItems();
-
-        assertThat(items).hasSize(1);
-        assertThat(items.get(0).getMetadata().getName()).isEqualTo("my-proxy");
+        assertThat(user.resources(KafkaProxy.class).list().getItems())
+                .singleElement()
+                .extracting(item -> item.getMetadata().getName())
+                .isEqualTo("my-proxy");
     }
 
     @Nested
