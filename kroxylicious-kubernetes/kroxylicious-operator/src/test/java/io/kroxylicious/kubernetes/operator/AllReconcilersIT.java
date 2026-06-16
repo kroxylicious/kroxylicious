@@ -35,6 +35,8 @@ import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.strimzi.api.kafka.Crds;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -65,9 +67,12 @@ import io.kroxylicious.kubernetes.operator.reconciler.kafkaservice.KafkaServiceR
 import io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster.VirtualKafkaClusterReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.testing.operator.ClusterUser;
+import io.kroxylicious.testing.operator.ExternalOperator;
 import io.kroxylicious.testing.operator.LocalKroxyliciousOperatorExtension;
 import io.kroxylicious.testing.operator.OperatorTestUtils;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_BUNDLE;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -88,6 +93,7 @@ class AllReconcilersIT {
     private static final String CLUSTER_FOO_CLUSTER_IP_INGRESS = "foo-cluster-ip";
     private static final String CLUSTER_FOO_SERVICE = "foo-service";
     private static final String CLUSTER_FOO_FILTER = "foo-filter";
+    private static final String STRIMZI_TLS_LISTENER = "tls";
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
@@ -113,13 +119,16 @@ class AllReconcilersIT {
                     client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
                 }
             })
+            .withAdditionalCleanupTypes(Kafka.class)
             .build();
 
     private ClusterUser clusterUser;
+    private ExternalOperator externalOperator;
 
     @BeforeEach
     void setUp() {
         clusterUser = operator.clusterUser();
+        externalOperator = operator.externalOperator();
     }
 
     @Test
@@ -418,6 +427,87 @@ class AllReconcilersIT {
         // Then
         assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
         assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+    }
+
+    @Test
+    void upstreamTlsFromStrimziKafkaRef() {
+        // Given
+        String kafkaName = "my-cluster";
+        // @formatter:off
+        clusterUser.create(new KafkaBuilder()
+                .withNewMetadata()
+                    .withName(kafkaName)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewKafka()
+                        .addNewListener()
+                            .withName(STRIMZI_TLS_LISTENER)
+                            .withTls(true)
+                        .endListener()
+                    .endKafka()
+                .endSpec()
+                .build());
+
+        // Patch the Kafka status to simulate what the Strimzi operator would do.
+        // The Strimzi operator manages the status subresource of Kafka CRs, populating
+        // listener addresses and other runtime state. In tests, we must manually set
+        // this status since the Strimzi operator is not running.
+        externalOperator.updateStatus(Kafka.class, kafkaName, fresh -> new KafkaBuilder(fresh)
+                .withNewStatus()
+                    .addNewListener()
+                        .withName(STRIMZI_TLS_LISTENER)
+                        .addNewAddress()
+                                .withHost("kafka.example.com")
+                                .withPort(9093)
+                        .endAddress()
+                    .endListener()
+                .endStatus()
+                .build());
+
+        clusterUser.create(new SecretBuilder()
+                .withNewMetadata()
+                    .withName(kafkaName + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX)
+                .endMetadata()
+                .addToData(STRIMZI_CLUSTER_CA_BUNDLE, "dGVzdC1jYQ==")
+                .build());
+
+        var myService = editableStrimziService(CLUSTER_FOO_SERVICE, kafkaName, STRIMZI_TLS_LISTENER).build();
+        var myProxy = editableProxy(PROXY_A).build();
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+                .editOrNewSpec()
+                    .withNewClusterIP()
+                        .withProtocol(Protocol.TCP)
+                    .endClusterIP()
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        var myCluster = editableVirtualCluster(CLUSTER_FOO, myProxy, myService, List.of(myIngress), List.of()).build();
+
+        // When
+        createAll(myProxy, myCluster, myIngress, myService);
+
+        // Then
+        assertResourcesAttainCondition(AllReconcilersIT::resourceReady, myProxy);
+        assertResourcesAttainCondition(AllReconcilersIT::refsResolved, myCluster, myIngress, myService);
+    }
+
+    private static KafkaServiceBuilder editableStrimziService(String name, String kafkaName, String listenerName) {
+        // @formatter:off
+        return new KafkaServiceBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewStrimziKafkaRef()
+                        .withListenerName(listenerName)
+                        .withTrustStrimziCaCertificate(true)
+                        .withNewRef()
+                            .withName(kafkaName)
+                        .endRef()
+                    .endStrimziKafkaRef()
+                .endSpec();
+        // @formatter:on
     }
 
     private void createAll(HasMetadata... resources) {
