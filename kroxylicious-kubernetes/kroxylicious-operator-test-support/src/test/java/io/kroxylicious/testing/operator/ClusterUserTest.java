@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -36,7 +37,7 @@ class ClusterUserTest {
 
     @BeforeEach
     void createNamespace() {
-        client.namespaces().resource(new io.fabric8.kubernetes.api.model.NamespaceBuilder()
+        client.namespaces().resource(new NamespaceBuilder()
                 .withNewMetadata().withName(NAMESPACE).endMetadata().build()).create();
     }
 

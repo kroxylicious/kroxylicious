@@ -44,7 +44,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * A JUnit 5 extension that runs a Kroxylicious operator locally for integration testing.
+ * A JUnit Jupiter extension that runs a Kroxylicious operator locally for integration testing.
  * <p>
  * It manages the full lifecycle per test class: RBAC setup, namespace creation, CRD application,
  * operator startup, operator shutdown, and cleanup. It also exposes resource management methods
@@ -215,7 +215,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     }
 
     @VisibleForTesting
-    static String resolveOperandImage(String envImage, Supplier<InputStream> propertiesSupplier) {
+    static String resolveOperandImage(@Nullable String envImage, Supplier<InputStream> propertiesSupplier) {
         if (envImage != null && !envImage.isBlank()) {
             envImage = sanitiseImageRef(envImage);
             LOGGER.info("Using Kroxylicious operand image ({}) from environment variable {}", envImage, KROXYLICIOUS_IMAGE_ENV_VAR);

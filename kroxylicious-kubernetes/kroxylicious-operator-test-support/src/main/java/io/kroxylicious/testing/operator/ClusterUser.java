@@ -33,7 +33,7 @@ public class ClusterUser {
     private final KubernetesClient client;
     private final String namespace;
 
-    ClusterUser(@NonNull KubernetesClient client, @NonNull String namespace) {
+    ClusterUser(KubernetesClient client, String namespace) {
         this.client = client;
         this.namespace = namespace;
     }
