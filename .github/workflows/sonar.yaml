@@ -28,7 +28,6 @@ jobs:
         uses: dawidd6/action-download-artifact@b6e2e70617bc3265edd6dab6c906732b2f1ae151
         if: env.SONAR_TOKEN_SET == 'true'
         with:
-          workflow: Build
           run_id: ${{ github.event.workflow_run.id }}
           name: PR_NUMBER
       - name: Read PR_NUMBER.txt
