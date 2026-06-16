@@ -109,12 +109,15 @@ public interface Router {
     }
 
     /**
-     * Declares API keys that are always forwarded to a fixed named route
+     * <p>Declares API keys that are always forwarded to a fixed named route
      * without deserialisation. For these API keys the runtime forwards
      * frames directly (opaque or decoded) without calling
      * {@link #onRequest}. API keys absent from this map are
      * considered dynamically routed and will be decoded so that
-     * {@code onRequest} can inspect them.
+     * {@code onRequest} can inspect them.</p>
+     *
+     * <p>This method may only be called once in the lifetime of a Router.
+     * The runtime is free to call it once and cache the result.</p>
      *
      * @return a map from API key to route name; empty means all API keys
      *         are dynamically routed (the default)
