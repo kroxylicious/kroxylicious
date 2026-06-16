@@ -80,10 +80,14 @@ public class CipherTrustMockServer {
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String JSON_CONTENT_TYPE = "application/json";
     private static final String TRANSFORMER_AUTH = "auth";
+    private static final String TRANSFORMER_CREATE_KEY = "create-key";
     private static final String TRANSFORMER_ENCRYPT = "encrypt";
     private static final String TRANSFORMER_DECRYPT = "decrypt";
-    private static final String TRANSFORMER_GET_KEY = "get-key";
+    private static final String TRANSFORMER_DELETE_KEY = "delete-key";
+    private static final String TRANSFORMER_GET_KEY_BY_NAME = "get-key-by-name";
+    private static final String TRANSFORMER_QUERY_KEY = "query-key";
     private static final String TRANSFORMER_RANDOM_BYTES = "random-bytes";
+    private static final String TRANSFORMER_ROTATE_KEY = "rotate-key";
 
     /**
      * Test username for mock authentication.
@@ -295,7 +299,7 @@ public class CipherTrustMockServer {
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("rotate-key"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_ROTATE_KEY))); // Transformer will set body and headers
 
         // Create key - high priority, exact path
         server.stubFor(post(urlPathEqualTo("/api/v1/vault/keys2/"))
@@ -303,7 +307,7 @@ public class CipherTrustMockServer {
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("create-key"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_CREATE_KEY))); // Transformer will set body and headers
 
         // Delete key by ID with type=id parameter - high priority, specific HTTP method
         server.stubFor(delete(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
@@ -312,7 +316,7 @@ public class CipherTrustMockServer {
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
                 .willReturn(aResponse()
                         .withStatus(204)
-                        .withTransformers("delete-key"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_DELETE_KEY))); // Transformer will set body and headers
 
         // Get key by name with type=name parameter - higher priority than general query
         server.stubFor(get(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
@@ -321,7 +325,7 @@ public class CipherTrustMockServer {
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("get-key-by-name"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_GET_KEY_BY_NAME))); // Transformer will set body and headers
 
         // Query keys (by name or labels) - lower priority, broader pattern
         server.stubFor(get(urlPathMatching("/api/v1/vault/keys2.*"))
@@ -329,7 +333,7 @@ public class CipherTrustMockServer {
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("query-key"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_QUERY_KEY))); // Transformer will set body and headers
     }
 
     // Transformer implementations
@@ -600,7 +604,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "create-key";
+            return TRANSFORMER_CREATE_KEY;
         }
     }
 
@@ -655,7 +659,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "query-key";
+            return TRANSFORMER_QUERY_KEY;
         }
     }
 
@@ -695,7 +699,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "get-key-by-name";
+            return TRANSFORMER_GET_KEY_BY_NAME;
         }
     }
 
@@ -734,7 +738,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "rotate-key";
+            return TRANSFORMER_ROTATE_KEY;
         }
     }
 
@@ -771,7 +775,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "delete-key";
+            return TRANSFORMER_DELETE_KEY;
         }
     }
 
