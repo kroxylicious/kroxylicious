@@ -43,23 +43,29 @@ class ClusterUserTest {
 
     @Test
     void createPersistsResourceInNamespace() {
+        // Given
         var user = new ClusterUser(client, NAMESPACE);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
 
+        // When
         user.create(proxy);
 
+        // Then
         assertThat(client.resources(KafkaProxy.class).inNamespace(NAMESPACE).withName("my-proxy").get())
                 .isNotNull();
     }
 
     @Test
     void getReturnsResourceByName() {
+        // Given
         var user = new ClusterUser(client, NAMESPACE);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
         client.resource(proxy).inNamespace(NAMESPACE).create();
 
+        // When
         KafkaProxy result = user.get(KafkaProxy.class, "my-proxy");
 
+        // Then
         assertThat(result)
                 .isNotNull()
                 .extracting(r -> r.getMetadata().getName())
@@ -68,44 +74,60 @@ class ClusterUserTest {
 
     @Test
     void getMissingResourceReturnsNull() {
+        // Given
         var user = new ClusterUser(client, NAMESPACE);
 
-        assertThat(user.get(KafkaProxy.class, "does-not-exist")).isNull();
+        // When
+        KafkaProxy result = user.get(KafkaProxy.class, "does-not-exist");
+
+        // Then
+        assertThat(result).isNull();
     }
 
     @Test
     void replaceUpdatesExistingResource() {
+        // Given
         var user = new ClusterUser(client, NAMESPACE);
         Secret secret = new SecretBuilder().withNewMetadata().withName("my-secret").endMetadata()
                 .addToStringData("key", "original").build();
         client.resource(secret).inNamespace(NAMESPACE).create();
-
         Secret updated = new SecretBuilder(secret).addToStringData("key", "updated").build();
+
+        // When
         user.replace(updated);
 
+        // Then
         Secret fetched = client.resources(Secret.class).inNamespace(NAMESPACE).withName("my-secret").get();
         assertThat(fetched.getStringData()).containsEntry("key", "updated");
     }
 
     @Test
     void deleteRemovesResourceFromNamespace() {
+        // Given
         var user = new ClusterUser(client, NAMESPACE);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
         client.resource(proxy).inNamespace(NAMESPACE).create();
 
+        // When
         user.delete(proxy);
 
+        // Then
         assertThat(client.resources(KafkaProxy.class).inNamespace(NAMESPACE).withName("my-proxy").get())
                 .isNull();
     }
 
     @Test
     void resourcesReturnsNamespaceScopedOperation() {
+        // Given
         var user = new ClusterUser(client, NAMESPACE);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
         client.resource(proxy).inNamespace(NAMESPACE).create();
 
-        assertThat(user.resources(KafkaProxy.class).list().getItems())
+        // When
+        var items = user.resources(KafkaProxy.class).list().getItems();
+
+        // Then
+        assertThat(items)
                 .singleElement()
                 .extracting(item -> item.getMetadata().getName())
                 .isEqualTo("my-proxy");
@@ -117,15 +139,16 @@ class ClusterUserTest {
         @SuppressWarnings("unchecked")
         @Test
         void createWrapsExceptionWithResourceContext() {
+            // Given
             KubernetesClient mockClient = mock(KubernetesClient.class);
             NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
             when(mockClient.resource(any(KafkaProxy.class))).thenReturn(mockResource);
             when(mockResource.inNamespace(NAMESPACE)).thenReturn(mockResource);
             when(mockResource.create()).thenThrow(new KubernetesClientException("forbidden"));
-
             var user = new ClusterUser(mockClient, NAMESPACE);
             KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
 
+            // When / Then
             assertThatThrownBy(() -> user.create(proxy))
                     .isInstanceOf(KubernetesClientException.class)
                     .hasMessageContaining("ClusterUser")
@@ -138,15 +161,16 @@ class ClusterUserTest {
         @SuppressWarnings("unchecked")
         @Test
         void replaceWrapsExceptionWithResourceContext() {
+            // Given
             KubernetesClient mockClient = mock(KubernetesClient.class);
             NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
             when(mockClient.resource(any(KafkaProxy.class))).thenReturn(mockResource);
             when(mockResource.inNamespace(NAMESPACE)).thenReturn(mockResource);
             when(mockResource.update()).thenThrow(new KubernetesClientException("conflict"));
-
             var user = new ClusterUser(mockClient, NAMESPACE);
             KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
 
+            // When / Then
             assertThatThrownBy(() -> user.replace(proxy))
                     .isInstanceOf(KubernetesClientException.class)
                     .hasMessageContaining("ClusterUser")
@@ -159,15 +183,16 @@ class ClusterUserTest {
         @SuppressWarnings("unchecked")
         @Test
         void deleteWrapsExceptionWithResourceContext() {
+            // Given
             KubernetesClient mockClient = mock(KubernetesClient.class);
             NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
             when(mockClient.resource(any(KafkaProxy.class))).thenReturn(mockResource);
             when(mockResource.inNamespace(NAMESPACE)).thenReturn(mockResource);
             when(mockResource.delete()).thenThrow(new KubernetesClientException("not found"));
-
             var user = new ClusterUser(mockClient, NAMESPACE);
             KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
 
+            // When / Then
             assertThatThrownBy(() -> user.delete(proxy))
                     .isInstanceOf(KubernetesClientException.class)
                     .hasMessageContaining("ClusterUser")
