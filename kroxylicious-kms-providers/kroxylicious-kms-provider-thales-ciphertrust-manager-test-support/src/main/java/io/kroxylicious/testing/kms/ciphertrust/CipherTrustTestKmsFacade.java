@@ -80,7 +80,9 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     private static final String ENV_PASSWORD = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_PASSWORD";
     private static final String ENV_TLS_INSECURE = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_INSECURE";
     private static final String ENV_TLS_CA_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT";
+    @SuppressWarnings("java:S1075") // Ignore URIs should not be hardcoded as this path is defined by API contact
     private static final String VAULT_KEYS_PATH = "/api/v1/vault/keys2";
+    @SuppressWarnings("java:S1075") // Ignore URIs should not be hardcoded as this path is defined by API contact
     private static final String AUTH_TOKENS_PATH = "/api/v1/auth/tokens/";
     private static final String ACCEPT_HEADER = "Accept";
     private static final String AUTHORIZATION_HEADER = "Authorization";
