@@ -27,6 +27,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -1113,11 +1114,11 @@ class VirtualClusterRegistryTest {
         // given
         var registry = new VirtualClusterRegistry(List.of(), NO_OP_RESOLVER, noOpCallback);
 
-        // when / then — close completes without throwing
-        registry.close();
+        // when / then — first close completes without throwing
+        assertThatCode(registry::close).doesNotThrowAnyException();
 
         // second close is a no-op (already-shutdown executor's shutdown call is idempotent)
-        registry.close();
+        assertThatCode(registry::close).doesNotThrowAnyException();
     }
 
 }

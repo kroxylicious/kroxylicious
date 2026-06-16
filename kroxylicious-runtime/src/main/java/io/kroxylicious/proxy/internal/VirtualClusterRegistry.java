@@ -317,8 +317,8 @@ public class VirtualClusterRegistry implements AutoCloseable {
         }
         else {
             // Unexpected: by the time this task runs, no other code path should put a cluster
-            // back into a non-terminal state. Most likely {@code initializationSucceeded()}
-            // raced with our dispatch — log so the race shows up in operator diagnostics.
+            // back into a non-terminal state. Most likely initializationSucceeded raced with
+            // our dispatch — log so the race shows up in operator diagnostics.
             LOGGER.atWarn()
                     .addKeyValue("virtualCluster", clusterName)
                     .addKeyValue("state", current.getClass().getSimpleName())
