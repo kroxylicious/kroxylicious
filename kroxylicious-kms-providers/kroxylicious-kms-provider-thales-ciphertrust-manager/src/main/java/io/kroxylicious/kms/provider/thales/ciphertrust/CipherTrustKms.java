@@ -357,11 +357,15 @@ public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
         }
         else if (statusCode != 200) {
             String body = new String(response.body(), StandardCharsets.UTF_8);
-            LOGGER.atWarn()
+            var logBuilder = LOGGER.atWarn()
                     .addKeyValue("operation", operation)
-                    .addKeyValue("statusCode", statusCode)
-                    .addKeyValue("responseBody", body)
-                    .log("{} failed", operation);
+                    .addKeyValue("statusCode", statusCode);
+            if (LOGGER.isDebugEnabled()) {
+                logBuilder = logBuilder.addKeyValue("responseBody", body);
+            }
+            logBuilder.log(LOGGER.isDebugEnabled()
+                    ? "KMS operation failed"
+                    : "KMS operation failed, increase log level to DEBUG for response body");
             throw new KmsException("%s failed with HTTP %d".formatted(operation, statusCode));
         }
 

@@ -131,10 +131,15 @@ public class UserAuthenticationTokenService implements BearerTokenService {
                         }
                         else {
                             String body = new String(response.body(), StandardCharsets.UTF_8);
-                            LOGGER.atWarn()
-                                    .addKeyValue("statusCode", response.statusCode())
-                                    .addKeyValue("responseBody", body)
-                                    .log("{} failed", operationType);
+                            var logBuilder = LOGGER.atWarn()
+                                    .addKeyValue("operation", operationType)
+                                    .addKeyValue("statusCode", response.statusCode());
+                            if (LOGGER.isDebugEnabled()) {
+                                logBuilder = logBuilder.addKeyValue("responseBody", body);
+                            }
+                            logBuilder.log(LOGGER.isDebugEnabled()
+                                    ? "authentication operation failed"
+                                    : "authentication operation failed, increase log level to DEBUG for response body");
                             throw new KmsException("%s failed with HTTP %d".formatted(operationType, response.statusCode()));
                         }
                     })
@@ -169,10 +174,14 @@ public class UserAuthenticationTokenService implements BearerTokenService {
         }
         catch (IOException e) {
             String responseBody = new String(bytes, StandardCharsets.UTF_8);
-            LOGGER.atWarn()
-                    .setCause(e)
-                    .addKeyValue("responseBody", responseBody)
-                    .log("failed to parse authentication response");
+            var logBuilder = LOGGER.atWarn()
+                    .setCause(e);
+            if (LOGGER.isDebugEnabled()) {
+                logBuilder = logBuilder.addKeyValue("responseBody", responseBody);
+            }
+            logBuilder.log(LOGGER.isDebugEnabled()
+                    ? "failed to parse authentication response"
+                    : "failed to parse authentication response, increase log level to DEBUG for response body");
             throw new UncheckedIOException("Failed to parse authentication response", e);
         }
     }

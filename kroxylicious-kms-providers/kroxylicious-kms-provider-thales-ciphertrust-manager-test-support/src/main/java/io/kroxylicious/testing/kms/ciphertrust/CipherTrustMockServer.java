@@ -77,6 +77,10 @@ public class CipherTrustMockServer {
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String CONTENT_TYPE_HEADER = "Content-Type";
     private static final String JSON_CONTENT_TYPE = "application/json";
+    private static final String TRANSFORMER_ENCRYPT = "encrypt";
+    private static final String TRANSFORMER_DECRYPT = "decrypt";
+    private static final String TRANSFORMER_GET_KEY = "get-key";
+    private static final String TRANSFORMER_RANDOM_BYTES = "random-bytes";
 
     @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
     private static final String STORE_PASSWORD = "changeit";
@@ -249,7 +253,7 @@ public class CipherTrustMockServer {
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("random-bytes"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_RANDOM_BYTES))); // Transformer will set body and headers
     }
 
     private String getBearerToken() {
@@ -264,7 +268,7 @@ public class CipherTrustMockServer {
                 .withRequestBody(matchingJsonPath("$.plaintext"))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("encrypt"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_ENCRYPT))); // Transformer will set body and headers
     }
 
     private void setupDecryptEndpoint() {
@@ -273,7 +277,7 @@ public class CipherTrustMockServer {
                 .withHeader(CONTENT_TYPE_HEADER, equalTo(JSON_CONTENT_TYPE))
                 .willReturn(aResponse()
                         .withStatus(200)
-                        .withTransformers("decrypt"))); // Transformer will set body and headers
+                        .withTransformers(TRANSFORMER_DECRYPT))); // Transformer will set body and headers
     }
 
     private void setupKeyManagementEndpoints() {
@@ -369,7 +373,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "random-bytes";
+            return TRANSFORMER_RANDOM_BYTES;
         }
     }
 
@@ -443,7 +447,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "encrypt";
+            return TRANSFORMER_ENCRYPT;
         }
     }
 
@@ -490,7 +494,7 @@ public class CipherTrustMockServer {
 
         @Override
         public String getName() {
-            return "decrypt";
+            return TRANSFORMER_DECRYPT;
         }
     }
 
@@ -715,7 +719,7 @@ public class CipherTrustMockServer {
         /**
          * Create a new key at version 0 with metadata.
          */
-        void createKey(String keyId, String name, Map<String, String> labels) {
+        synchronized void createKey(String keyId, String name, Map<String, String> labels) {
             SecretKey secretKey = generateAesKey();
             keysById.put(keyId, new KeyMetadata(keyId, name, labels, secretKey, 0));
         }
@@ -725,7 +729,7 @@ public class CipherTrustMockServer {
          * @return the new key ID, or null if the old key doesn't exist
          */
         @Nullable
-        String rotateKey(String keyId) {
+        synchronized String rotateKey(String keyId) {
             KeyMetadata oldKey = keysById.get(keyId);
             if (oldKey == null) {
                 return null;
@@ -754,8 +758,8 @@ public class CipherTrustMockServer {
          * @return the new key ID, or null if no key with that name exists
          */
         @Nullable
-        String rotateKeyByName(String name) {
-            // Find the key with highest version for this name
+        synchronized String rotateKeyByName(String name) {
+            // Find the key with the highest version for this name
             KeyMetadata currentKey = keysById.values().stream()
                     .filter(m -> m.name.equals(name))
                     .max(Comparator.comparingInt(m -> m.version))

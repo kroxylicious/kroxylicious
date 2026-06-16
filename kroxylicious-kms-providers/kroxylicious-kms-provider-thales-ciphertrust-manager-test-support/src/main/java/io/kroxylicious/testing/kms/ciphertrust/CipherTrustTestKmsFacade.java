@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -471,7 +472,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
     }
 
     private List<GetKeyResponse> listKeysWithTestLabel() {
-        List<GetKeyResponse> allKeys = new java.util.ArrayList<>();
+        List<GetKeyResponse> allKeys = new ArrayList<>();
         int skip = 0;
         int limit = 100;
         boolean hasMore = true;

@@ -67,4 +67,23 @@ public record AuthRequest(
     public static AuthRequest withRefreshToken(String refreshToken) {
         return new AuthRequest(null, null, refreshToken, "refresh_token", null, null, null, null, null, null, null, null, null);
     }
+
+    @Override
+    public String toString() {
+        return "AuthRequest{" +
+                "username='" + username + '\'' +
+                ", password='********'" +
+                ", refreshToken='********'" +
+                ", grantType='" + grantType + '\'' +
+                ", refreshTokenLifetime=" + refreshTokenLifetime +
+                ", refreshTokenRevokeUnusedIn=" + refreshTokenRevokeUnusedIn +
+                ", renewRefreshToken=" + renewRefreshToken +
+                ", authDomain='" + authDomain + '\'' +
+                ", clientId='" + clientId + '\'' +
+                ", connection='" + connection + '\'' +
+                ", cookies=" + cookies +
+                ", domain='" + domain + '\'' +
+                ", labels=" + labels +
+                '}';
+    }
 }

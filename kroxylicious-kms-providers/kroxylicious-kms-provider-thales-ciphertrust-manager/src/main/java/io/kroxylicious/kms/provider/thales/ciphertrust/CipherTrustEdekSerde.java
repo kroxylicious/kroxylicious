@@ -24,6 +24,7 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  */
 class CipherTrustEdekSerde implements Serde<CipherTrustEdek> {
 
+    private static final byte VERSION_0 = 0;
     private static final Serde<CipherTrustEdek> INSTANCE = new CipherTrustEdekSerde();
 
     static Serde<CipherTrustEdek> instance() {
@@ -35,7 +36,8 @@ class CipherTrustEdekSerde implements Serde<CipherTrustEdek> {
         int idLength = utf8Length(edek.id());
         int modeLength = utf8Length(edek.mode());
 
-        return sizeOfUnsignedVarint(idLength)
+        return 1 // version byte
+                + sizeOfUnsignedVarint(idLength)
                 + idLength
                 + sizeOfUnsignedVarint(edek.version())
                 + sizeOfUnsignedVarint(modeLength)
@@ -50,6 +52,9 @@ class CipherTrustEdekSerde implements Serde<CipherTrustEdek> {
 
     @Override
     public void serialize(CipherTrustEdek edek, ByteBuffer buffer) {
+        // Serialize version
+        buffer.put(VERSION_0);
+
         // Serialize id
         byte[] idBytes = edek.id().getBytes(StandardCharsets.UTF_8);
         writeUnsignedVarint(idBytes.length, buffer);
@@ -78,12 +83,18 @@ class CipherTrustEdekSerde implements Serde<CipherTrustEdek> {
 
     @Override
     public CipherTrustEdek deserialize(ByteBuffer buffer) {
+        // Deserialize serialization format version
+        byte serdeVersion = buffer.get();
+        if (serdeVersion != VERSION_0) {
+            throw new IllegalArgumentException("Unknown EDEK serialization version: " + serdeVersion);
+        }
+
         // Deserialize id
         int idLength = toIntExact(readUnsignedVarint(buffer));
         String id = utf8(buffer, idLength);
         buffer.position(buffer.position() + idLength);
 
-        // Deserialize version
+        // Deserialize key version
         int version = toIntExact(readUnsignedVarint(buffer));
 
         // Deserialize mode
