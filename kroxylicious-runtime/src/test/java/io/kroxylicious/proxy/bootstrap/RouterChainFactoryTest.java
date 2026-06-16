@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -269,7 +270,87 @@ class RouterChainFactoryTest {
         }
     }
 
+    @Test
+    void shouldRejectSharedClusterTargets() {
+        // Given
+        var routes = List.of(
+                new RouteDefinition("r1", 0, null, new RouteTarget("clusterA", null)),
+                new RouteDefinition("r2", 1, null, new RouteTarget("clusterA", null)));
+        var rd = new RouterDefinition("myRouter", TestRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "myRouter");
+
+        // When / Then
+        assertThatThrownBy(() -> new RouterChainFactory(testPfr(), List.of(vc), List.of(rd)))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("myRouter")
+                .hasMessageContaining("clusterA");
+    }
+
+    @Test
+    void shouldAllowSharedClusterTargetsWhenOptedIn() {
+        // Given
+        var routes = List.of(
+                new RouteDefinition("r1", 0, null, new RouteTarget("clusterA", null)),
+                new RouteDefinition("r2", 1, null, new RouteTarget("clusterA", null)));
+        var rd = new RouterDefinition("myRouter", SharedClusterRouterFactory.class.getName(), null, routes);
+        var vc = testVc(VC_NAME, "myRouter");
+        var pfr = testPfrWith(new SharedClusterRouterFactory());
+
+        // When / Then
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
+            assertThat(factory.createRouter("myRouter", VC_NAME)).isNotNull();
+        }
+    }
+
+    @Test
+    void shouldRejectTransitiveSharedClusterTargets() {
+        // Given: outer router has route→clusterA and route→childRouter, where childRouter→clusterA
+        var childRoutes = List.of(
+                new RouteDefinition("cr1", 0, null, new RouteTarget("clusterA", null)));
+        var rdChild = new RouterDefinition("child", TestRouterFactory.class.getName(), null, childRoutes);
+
+        var outerRoutes = List.of(
+                new RouteDefinition("r1", 0, null, new RouteTarget("clusterA", null)),
+                new RouteDefinition("r2", 1, null, new RouteTarget(null, "child")));
+        var rdOuter = new RouterDefinition("outer", TestRouterFactory.class.getName(), null, outerRoutes);
+        var vc = testVc(VC_NAME, "outer");
+
+        // When / Then
+        assertThatThrownBy(() -> new RouterChainFactory(testPfr(), List.of(vc), List.of(rdOuter, rdChild)))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("outer")
+                .hasMessageContaining("clusterA");
+    }
+
+    @Test
+    void shouldAllowTransitiveSharedClusterTargetsWhenOptedIn() {
+        // Given
+        var childRoutes = List.of(
+                new RouteDefinition("cr1", 0, null, new RouteTarget("clusterA", null)));
+        var rdChild = new RouterDefinition("child", TestRouterFactory.class.getName(), null, childRoutes);
+
+        var outerRoutes = List.of(
+                new RouteDefinition("r1", 0, null, new RouteTarget("clusterA", null)),
+                new RouteDefinition("r2", 1, null, new RouteTarget(null, "child")));
+        var rdOuter = new RouterDefinition("outer", SharedClusterRouterFactory.class.getName(), null, outerRoutes);
+        var vc = testVc(VC_NAME, "outer");
+        var pfr = testPfrWithMultiple(new SharedClusterRouterFactory(), new TestRouterFactory());
+
+        // When / Then
+        try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rdOuter, rdChild))) {
+            assertThat(factory.createRouter("outer", VC_NAME)).isNotNull();
+        }
+    }
+
     // -- test helpers --
+
+    static class SharedClusterRouterFactory extends TestRouterFactory {
+        @Override
+        public Object initialize(RouterFactoryContext context, Object config) {
+            context.allowSharedClusterTargets();
+            return super.initialize(context, config);
+        }
+    }
 
     static class TestRouterFactory implements RouterFactory<Object, Object> {
         @Override

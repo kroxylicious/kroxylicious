@@ -76,4 +76,18 @@ public interface RouterFactoryContext {
      * @return the topology service for this router level
      */
     TopologyService topologyService();
+
+    /**
+     * Declares that this router supports routes targeting the same
+     * cluster.
+     *
+     * <p>By default, the runtime rejects configurations where two
+     * routes in the same router resolve to the same cluster (directly
+     * or transitively via nested routers), because most routers assume
+     * each route is a distinct destination and will produce incorrect
+     * results otherwise. Routers that handle this call this method
+     * during {@link RouterFactory#initialize} to suppress the
+     * check.</p>
+     */
+    void allowSharedClusterTargets();
 }
