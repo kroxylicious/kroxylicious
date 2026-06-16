@@ -40,7 +40,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -692,13 +691,15 @@ class DefaultKroxyliciousTesterTest {
                 .addToGateways(new VirtualClusterGatewayBuilder()
                         .withName(CUSTOM_GATEWAY_NAME)
                         .withNewPortIdentifiesNode()
-                        .withBootstrapAddress(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + 10))
+                        .withBootstrapAddress(DEFAULT_PROXY_BOOTSTRAP)
                         .endPortIdentifiesNode()
                         .build());
         configurationBuilder
                 .addToVirtualClusters(vcb.build());
+        // Multiple gateways on port 0 can't share an endpoint binding, and these tests exercise
+        // tester client routing via mocks — they don't need real port bindings.
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                .setKroxyliciousFactory((config, features) -> () -> {})
                 .setClientFactory(clientFactory)
                 .createDefaultKroxyliciousTester();
     }
