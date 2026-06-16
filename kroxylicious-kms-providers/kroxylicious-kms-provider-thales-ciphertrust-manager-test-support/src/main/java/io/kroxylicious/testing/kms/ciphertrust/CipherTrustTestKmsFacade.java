@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,7 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
@@ -252,8 +254,8 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
         // Priority 2: For mock server, use its self-signed certificate
         if (mockServer != null && mockServer.isHttps()) {
-            java.nio.file.Path caCertPem = mockServer.getServerCertificatePem();
-            io.kroxylicious.proxy.config.tls.TrustStore trustStore = new io.kroxylicious.proxy.config.tls.TrustStore(
+            Path caCertPem = mockServer.getServerCertificatePem();
+            TrustStore trustStore = new TrustStore(
                     caCertPem.toString(),
                     null, // No password for PEM trust store
                     Tls.PEM,
@@ -263,7 +265,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, C
 
         // Priority 3: For real server with custom CA cert (self-signed)
         if (tlsCaCertPath != null && !tlsCaCertPath.isEmpty()) {
-            io.kroxylicious.proxy.config.tls.TrustStore trustStore = new io.kroxylicious.proxy.config.tls.TrustStore(
+            TrustStore trustStore = new TrustStore(
                     tlsCaCertPath,
                     null, // No password for PEM trust store
                     Tls.PEM,
