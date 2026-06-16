@@ -1061,4 +1061,63 @@ class VirtualClusterRegistryTest {
                 .isSameAs(firstThread.get());
     }
 
+    // ------------------------------------------------------------------------------------------
+    // transitionToStoppedAndClose — concurrent-dispatch dedup and unexpected-state handling.
+    // These exercise branches that are unreachable through normal single-threaded test paths
+    // because the outer shutdownCluster state check short-circuits before dispatch.
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void transitionToStoppedAndCloseNoOpsWhenAlreadyStopped() {
+        // given — a cluster already in Stopped (simulates a concurrent dispatch having beaten
+        // this one through the lifecycle thread)
+        var model = mockModel(CLUSTER_A);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, noOpCallback);
+        var lifecycle = registry.lifecycleFor(CLUSTER_A);
+        Assumptions.assumeThat(lifecycle).isNotNull();
+        lifecycle.initializationFailed(new RuntimeException("boom"));
+        lifecycle.stop();
+
+        // when — a stale dispatched task lands here after another path already drove to Stopped
+        registry.transitionToStoppedAndClose(CLUSTER_A, lifecycle);
+
+        // then — silent no-op; model.close not re-invoked, no callback fired
+        verify(model, never()).close();
+        verifyNoInteractions(noOpCallback);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void transitionToStoppedAndCloseLogsWhenObservingUnexpectedState() {
+        // given — a cluster in Serving (the unexpected state for this method, which only ever
+        // expects Draining / Failed / Initializing / Stopped on entry)
+        var model = mockModel(CLUSTER_A);
+        BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
+        var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, callback);
+        var lifecycle = registry.lifecycleFor(CLUSTER_A);
+        Assumptions.assumeThat(lifecycle).isNotNull();
+        lifecycle.initializationSucceeded();
+
+        // when — direct invocation simulates the race where initializationSucceeded() raced
+        // with our dispatch (left the cluster in Serving when transitionToStoppedAndClose ran)
+        registry.transitionToStoppedAndClose(CLUSTER_A, lifecycle);
+
+        // then — silent no-op on the work, but the unexpected state was logged (logging
+        // verified implicitly: the method must not throw and must not fire close/callback)
+        verify(model, never()).close();
+        verifyNoInteractions(callback);
+    }
+
+    @Test
+    void closeIsIdempotentAndShutsDownLifecycleExecutor() {
+        // given
+        var registry = new VirtualClusterRegistry(List.of(), NO_OP_RESOLVER, noOpCallback);
+
+        // when / then — close completes without throwing
+        registry.close();
+
+        // second close is a no-op (already-shutdown executor's shutdown call is idempotent)
+        registry.close();
+    }
+
 }

@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,24 +122,23 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * {@code initialize()} runs on a non-event-loop thread regardless of which thread invoked
      * {@code reconfigure()}.
      *
-     * @throws RuntimeException the same RuntimeException the underlying resolver threw, or a
-     *         {@link CompletionException} wrapping a checked exception
+     * @throws RuntimeException the same RuntimeException the underlying resolver threw
      */
     public VirtualClusterModel resolveModel(Configuration config, String clusterName) {
         return runOnLifecycle(() -> rawModelResolver.apply(config, clusterName));
     }
 
     /**
-     * Submits a task to the lifecycle executor and waits for its result. Errors thrown by the
-     * task are caught (not just Exception) so they're forwarded to the caller via the future
-     * rather than killing the single lifecycle thread.
+     * Submits a task to the lifecycle executor and waits for its result. {@code Throwable}
+     * thrown by the task is caught (not just {@code Exception}) so {@link Error} instances are
+     * forwarded to the caller via the future rather than killing the single lifecycle thread.
      */
     @SuppressWarnings("java:S1181")
-    private <T> T runOnLifecycle(Callable<T> task) {
+    private <T> T runOnLifecycle(Supplier<T> task) {
         var future = new CompletableFuture<T>();
         lifecycleExecutor.execute(() -> {
             try {
-                future.complete(task.call());
+                future.complete(task.get());
             }
             catch (Throwable t) {
                 future.completeExceptionally(t);
@@ -150,13 +149,10 @@ public class VirtualClusterRegistry implements AutoCloseable {
         }
         catch (CompletionException e) {
             var cause = e.getCause();
-            if (cause instanceof RuntimeException re) {
-                throw re;
-            }
             if (cause instanceof Error err) {
                 throw err;
             }
-            throw new CompletionException(cause);
+            throw cause instanceof RuntimeException re ? re : e;
         }
     }
 
@@ -301,7 +297,8 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * serialization primitive: two concurrent {@code shutdownCluster} dispatches converge here,
      * and the second arrival sees {@code Stopped} and silently no-ops.
      */
-    private void transitionToStoppedAndClose(String clusterName, VirtualClusterLifecycle lifecycle) {
+    @VisibleForTesting
+    void transitionToStoppedAndClose(String clusterName, VirtualClusterLifecycle lifecycle) {
         var current = lifecycle.state();
         if (current instanceof VirtualClusterLifecycleState.Draining) {
             lifecycle.drainComplete();
