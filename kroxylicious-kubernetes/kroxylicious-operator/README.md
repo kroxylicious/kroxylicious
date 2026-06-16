@@ -189,6 +189,8 @@ Single-reconciler ITs register only the reconciler under test and use `ExternalO
 
 See [kroxylicious-operator-test-support/README.md](../kroxylicious-operator-test-support/README.md) for full documentation of the testing philosophy and setup patterns.
 
+**System tests** are end-to-end tests that run against a real Kafka cluster deployed via the operator. They live in a separate system-test module and verify full proxy behaviour — producing and consuming through a proxied cluster — rather than operator reconciliation logic in isolation.
+
 ## Operator Lifecycle
 
 **Startup:**
