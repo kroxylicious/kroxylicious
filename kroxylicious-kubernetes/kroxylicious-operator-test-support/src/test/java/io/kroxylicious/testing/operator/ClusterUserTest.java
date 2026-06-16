@@ -42,7 +42,7 @@ class ClusterUserTest {
     }
 
     @Test
-    void createPersistsResourceInNamespace() {
+    void shouldCreateResourceInNamespace() {
         // Given
         var user = new ClusterUser(client, NAMESPACE);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
@@ -56,11 +56,18 @@ class ClusterUserTest {
     }
 
     @Test
-    void getReturnsResourceByName() {
+    void shouldFindResourceInNamespace() {
         // Given
+        String otherNamespace = "other-ns";
+        client.namespaces().resource(new NamespaceBuilder()
+                .withNewMetadata().withName(otherNamespace).endMetadata().build()).create();
         var user = new ClusterUser(client, NAMESPACE);
-        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
-        client.resource(proxy).inNamespace(NAMESPACE).create();
+        client.resource(new KafkaProxyBuilder().withNewMetadata().withName("my-proxy")
+                .addToAnnotations("origin", NAMESPACE).endMetadata().build())
+                .inNamespace(NAMESPACE).create();
+        client.resource(new KafkaProxyBuilder().withNewMetadata().withName("my-proxy")
+                .addToAnnotations("origin", otherNamespace).endMetadata().build())
+                .inNamespace(otherNamespace).create();
 
         // When
         KafkaProxy result = user.get(KafkaProxy.class, "my-proxy");
@@ -68,12 +75,12 @@ class ClusterUserTest {
         // Then
         assertThat(result)
                 .isNotNull()
-                .extracting(r -> r.getMetadata().getName())
-                .isEqualTo("my-proxy");
+                .extracting(r -> r.getMetadata().getAnnotations().get("origin"))
+                .isEqualTo(NAMESPACE);
     }
 
     @Test
-    void getMissingResourceReturnsNull() {
+    void shouldReturnNullWhenResourceAbsent() {
         // Given
         var user = new ClusterUser(client, NAMESPACE);
 
@@ -85,7 +92,7 @@ class ClusterUserTest {
     }
 
     @Test
-    void replaceUpdatesExistingResource() {
+    void shouldUpdateResourceInNamespace() {
         // Given
         var user = new ClusterUser(client, NAMESPACE);
         Secret secret = new SecretBuilder().withNewMetadata().withName("my-secret").endMetadata()
@@ -102,11 +109,15 @@ class ClusterUserTest {
     }
 
     @Test
-    void deleteRemovesResourceFromNamespace() {
+    void shouldRemoveResourceFromNamespace() {
         // Given
+        String otherNamespace = "other-ns";
+        client.namespaces().resource(new NamespaceBuilder()
+                .withNewMetadata().withName(otherNamespace).endMetadata().build()).create();
         var user = new ClusterUser(client, NAMESPACE);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
         client.resource(proxy).inNamespace(NAMESPACE).create();
+        client.resource(proxy).inNamespace(otherNamespace).create();
 
         // When
         user.delete(proxy);
@@ -114,14 +125,21 @@ class ClusterUserTest {
         // Then
         assertThat(client.resources(KafkaProxy.class).inNamespace(NAMESPACE).withName("my-proxy").get())
                 .isNull();
+        assertThat(client.resources(KafkaProxy.class).inNamespace(otherNamespace).withName("my-proxy").get())
+                .isNotNull();
     }
 
     @Test
-    void resourcesReturnsNamespaceScopedOperation() {
+    void shouldOnlyListResourcesInConfiguredNamespace() {
         // Given
+        String otherNamespace = "other-ns";
+        client.namespaces().resource(new NamespaceBuilder()
+                .withNewMetadata().withName(otherNamespace).endMetadata().build()).create();
         var user = new ClusterUser(client, NAMESPACE);
-        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build();
-        client.resource(proxy).inNamespace(NAMESPACE).create();
+        client.resource(new KafkaProxyBuilder().withNewMetadata().withName("my-proxy").endMetadata().build())
+                .inNamespace(NAMESPACE).create();
+        client.resource(new KafkaProxyBuilder().withNewMetadata().withName("other-proxy").endMetadata().build())
+                .inNamespace(otherNamespace).create();
 
         // When
         var items = user.resources(KafkaProxy.class).list().getItems();
@@ -138,7 +156,7 @@ class ClusterUserTest {
 
         @SuppressWarnings("unchecked")
         @Test
-        void createWrapsExceptionWithResourceContext() {
+        void shouldIncludeResourceContextInCreateException() {
             // Given
             KubernetesClient mockClient = mock(KubernetesClient.class);
             NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
@@ -160,7 +178,7 @@ class ClusterUserTest {
 
         @SuppressWarnings("unchecked")
         @Test
-        void replaceWrapsExceptionWithResourceContext() {
+        void shouldIncludeResourceContextInReplaceException() {
             // Given
             KubernetesClient mockClient = mock(KubernetesClient.class);
             NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
@@ -182,7 +200,7 @@ class ClusterUserTest {
 
         @SuppressWarnings("unchecked")
         @Test
-        void deleteWrapsExceptionWithResourceContext() {
+        void shouldIncludeResourceContextInDeleteException() {
             // Given
             KubernetesClient mockClient = mock(KubernetesClient.class);
             NamespaceableResource<KafkaProxy> mockResource = mock(NamespaceableResource.class);
