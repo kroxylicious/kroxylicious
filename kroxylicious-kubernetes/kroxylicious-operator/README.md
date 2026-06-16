@@ -177,21 +177,21 @@ deployment.getMetadata().setOwnerReferences(List.of(
 
 ## Operator-Specific Testing
 
-The operator has three layers of tests, each with a distinct scope.
+The operator has three test layers, each documenting a wider scope of value. The technical characteristics of each layer follow from that scope — they are not the defining property.
 
-**Unit tests** test one reconciler's logic in isolation — given this input resource, does the reconciler produce the right Kubernetes output? They run without a real cluster, using Mockito or the fabric8 mock client to stub API calls.
+**Unit tests** document the value a single reconciler is responsible for: given these input resources, does it produce the correct Kubernetes output? The scope is one component's logic; the infrastructure around it is stubbed with Mockito or the fabric8 mock client because it is not part of the value claim.
 
-**Integration tests** (`*IT` classes) run against a real cluster and test that the reconciler interacts with Kubernetes correctly over time: does it set the right status conditions? does it react to resource changes? They use a three-actor model to keep test intent explicit:
+**Integration tests** (`*IT` classes) widen the scope to include the reconciler's interaction with a real Kubernetes cluster. The value claim now covers status propagation, resource watches, and eventual consistency — things that only manifest against a real API server. They use a three-actor model to keep test intent explicit:
 
 - The **operator under test** is managed by `LocalKroxyliciousOperatorExtension`, which handles RBAC, namespace, CRD installation, and cleanup.
 - The **cluster user** (`ClusterUser`) represents an end user — it creates, modifies, and deletes custom resources. Code that goes through `ClusterUser` is a user action.
 - The **external operator** (`ExternalOperator`) drives status state that a reconciler outside the one under test would normally produce — either a sibling Kroxylicious reconciler or a truly external controller such as Strimzi. This ensures that dependent preconditions are exactly what the test needs without relying on other reconcilers to run.
 
-Most ITs register only the single reconciler under test, using `ExternalOperator` to supply any dependent state produced by sibling reconcilers. `AllReconcilersIT` registers all reconcilers together and focuses on end-to-end status conditions — verifying that the reconcilers work correctly as a whole rather than testing each in depth.
+Most ITs register only the single reconciler under test, using `ExternalOperator` to supply any dependent state produced by sibling reconcilers. `AllReconcilersIT` registers all reconcilers together and widens the scope further — verifying that the reconcilers deliver their combined value correctly, rather than testing each in depth.
 
 See [kroxylicious-operator-test-support/README.md](../kroxylicious-operator-test-support/README.md) for the module's API and setup patterns.
 
-**System tests** are end-to-end tests that run against a real Kafka cluster deployed via the operator. They live in a separate system-test module and verify full proxy behaviour — producing and consuming through a proxied cluster — rather than operator reconciliation logic in isolation.
+**System tests** widen the scope to the full user-visible value: does the proxy, deployed by the operator, correctly proxy Kafka traffic end-to-end? They live in a separate system-test module and verify producing and consuming through a real proxied cluster.
 
 ## Operator Lifecycle
 
