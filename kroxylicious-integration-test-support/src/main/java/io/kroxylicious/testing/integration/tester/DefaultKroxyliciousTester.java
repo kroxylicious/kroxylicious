@@ -41,15 +41,11 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
-import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -314,71 +310,41 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public void restartProxy() {
         try {
-            // Capture resolved ports before closing the proxy. Port 0 (OS-assigned) gets a new
-            // ephemeral port on each bind; existing clients hold the first resolved port and cannot
-            // reconnect if the restarted proxy lands on a different one. Capturing while the proxy
-            // is still running avoids the TOCTOU that would arise from finding a free port and then
-            // releasing it before the proxy starts.
-            Configuration configForRestart = currentConfig();
+            // Existing clients hold the originally resolved port. With OS-assigned (port 0) gateways
+            // the restarted proxy binds to a different ephemeral port, leaving those clients unable to
+            // reconnect. There is no safe transparent fix: the caller must use fixed ports when both
+            // restart and client reuse are required.
+            boolean hasOsAssignedPort = kroxyliciousConfig.get().virtualClusters().stream()
+                    .flatMap(vc -> vc.gateways().stream().map(g -> g.buildNodeIdentificationStrategy(vc.name())))
+                    .anyMatch(s -> s.getClusterBootstrapAddress().port() == 0);
+            if (hasOsAssignedPort) {
+                throw new IllegalStateException(
+                        "Cannot restart a proxy that uses OS-assigned (port 0) bootstrap ports: the restarted " +
+                        "proxy will bind to a different ephemeral port and existing clients will be unable to " +
+                        "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
+            }
             proxy.close();
-            proxy = spawnProxy(configForRestart, Features.defaultFeatures());
-            kroxyliciousConfig.set(configForRestart);
+            proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
+        }
+        catch (IllegalStateException e) {
+            throw e;
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
         }
     }
 
-    private Configuration currentConfig() {
-        return proxy instanceof KafkaProxy kp
-                ? replaceOsAssignedWithCurrentlyBoundPort(kroxyliciousConfig.get(), kp)
-                : kroxyliciousConfig.get();
-    }
-
-    private static Configuration replaceOsAssignedWithCurrentlyBoundPort(Configuration config, KafkaProxy kp) {
-        var updatedClusters = config.virtualClusters().stream()
-                .map(vc -> replaceOsAssignedWithCurrentlyBoundPort(vc, kp))
-                .toList();
-        if (updatedClusters.equals(config.virtualClusters())) {
-            return config;
+    @Override
+    public void restartProxy(ConfigurationBuilder configForRestart) {
+        try {
+            var config = configForRestart.build();
+            proxy.close();
+            proxy = spawnProxy(config, Features.defaultFeatures());
+            kroxyliciousConfig.set(config);
         }
-        return new Configuration(config.management(), config.filterDefinitions(), config.defaultFilters(),
-                updatedClusters, config.micrometer(), config.useIoUring(), config.development(),
-                config.network(), config.proxyProtocol());
-    }
-
-    private static VirtualCluster replaceOsAssignedWithCurrentlyBoundPort(VirtualCluster vc, KafkaProxy kp) {
-        var updatedGateways = vc.gateways().stream()
-                .map(gateway -> withOsAssignedPortResolved(gateway, kp))
-                .toList();
-        if (updatedGateways.equals(vc.gateways())) {
-            return vc;
+        catch (Exception e) {
+            throw new IllegalStateException(e);
         }
-        return new VirtualCluster(vc.name(), vc.targetCluster(), updatedGateways,
-                vc.logNetwork(), vc.logFrames(), vc.filters(), vc.subjectBuilder(),
-                vc.topicNameCache(), vc.drainTimeout());
-    }
-
-    private static VirtualClusterGateway withOsAssignedPortResolved(VirtualClusterGateway gateway, KafkaProxy kp) {
-        if (gateway.portIdentifiesNode() != null) {
-            var pin = gateway.portIdentifiesNode();
-            var configured = pin.getBootstrapAddress();
-            int resolved = kp.listeningPort(null, configured.port());
-            return new VirtualClusterGateway(gateway.name(),
-                    new PortIdentifiesNodeIdentificationStrategy(new HostPort(configured.host(), resolved),
-                            pin.getAdvertisedBrokerAddressPattern(), pin.getNodeStartPort(), pin.getNodeIdRanges()),
-                    null, gateway.tls());
-        }
-        if (gateway.sniHostIdentifiesNode() != null) {
-            var sni = gateway.sniHostIdentifiesNode();
-            var configured = HostPort.parse(sni.getBootstrapAddress());
-            int resolved = kp.listeningPort(null, configured.port());
-            return new VirtualClusterGateway(gateway.name(), null,
-                    new SniHostIdentifiesNodeIdentificationStrategy(configured.host() + ":" + resolved,
-                            sni.getAdvertisedBrokerAddressPattern()),
-                    gateway.tls());
-        }
-        return gateway;
     }
 
     @Override
