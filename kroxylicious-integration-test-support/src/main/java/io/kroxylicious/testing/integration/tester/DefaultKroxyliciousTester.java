@@ -320,8 +320,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             if (hasOsAssignedPort) {
                 throw new IllegalStateException(
                         "Cannot restart a proxy that uses OS-assigned (port 0) bootstrap ports: the restarted " +
-                        "proxy will bind to a different ephemeral port and existing clients will be unable to " +
-                        "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
+                                "proxy will bind to a different ephemeral port and existing clients will be unable to " +
+                                "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
             }
             proxy.close();
             proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
