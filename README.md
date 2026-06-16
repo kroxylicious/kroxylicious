@@ -167,6 +167,21 @@ Other modules, such as `kroxylicious-runtime`, are implementation. These can be 
 
 ## Testing
 
+### Philosophy
+
+Tests are documentation as much as they are verification. A test that passes tells you the system works; a test that fails tells you exactly what broke; and a test that is read tells the next developer what the system is supposed to do. All three matter.
+
+This is an aspirational standard — the existing codebase has a mix of styles — but it is the direction new tests should move in.
+
+Every test should tell a coherent story on its own, without requiring the reader to consult surrounding context or class Javadoc. The test name names the scenario; the test body narrates it using three labelled sections:
+
+- **Given** — minimum state required for the action to be meaningful. Establishes preconditions only; contains no assertions. If a precondition is worth asserting, it belongs in its own dedicated test.
+- **When** — the single action whose effects the test is observing. There is exactly one `When` per test. The code in this block should be self-evident through intention-revealing names; if you feel the urge to describe it in the comment, the code needs refactoring.
+- **Then** — assertions on the post-`When` state. A test has one reason to fail: the `When` did not produce the expected outcome.
+
+### Test support modules
+
 - **`kroxylicious-filter-test-support`**: Utilities for unit testing filters in isolation
 - **`kroxylicious-integration-test-support`**: Infrastructure for integration tests with real Kafka clusters
-- **Example patterns**: Study existing filter tests in `kroxylicious-filters` modules for patterns
+- **`kroxylicious-operator-test-support`**: Three-actor model for operator integration tests — see [kroxylicious-kubernetes/kroxylicious-operator/README.md](kroxylicious-kubernetes/kroxylicious-operator/README.md)
+- **Example patterns**: Study existing tests for patterns; the operator ITs are the clearest expression of the documentation-first approach
