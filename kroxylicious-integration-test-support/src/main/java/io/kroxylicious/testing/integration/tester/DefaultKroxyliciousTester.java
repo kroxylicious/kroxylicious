@@ -41,11 +41,15 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -310,12 +314,71 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public void restartProxy() {
         try {
+            // Capture resolved ports before closing the proxy. Port 0 (OS-assigned) gets a new
+            // ephemeral port on each bind; existing clients hold the first resolved port and cannot
+            // reconnect if the restarted proxy lands on a different one. Capturing while the proxy
+            // is still running avoids the TOCTOU that would arise from finding a free port and then
+            // releasing it before the proxy starts.
+            Configuration configForRestart = currentConfig();
             proxy.close();
-            proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
+            proxy = spawnProxy(configForRestart, Features.defaultFeatures());
+            kroxyliciousConfig.set(configForRestart);
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private Configuration currentConfig() {
+        return proxy instanceof KafkaProxy kp
+                ? replaceOsAssignedWithCurrentlyBoundPort(kroxyliciousConfig.get(), kp)
+                : kroxyliciousConfig.get();
+    }
+
+    private static Configuration replaceOsAssignedWithCurrentlyBoundPort(Configuration config, KafkaProxy kp) {
+        var updatedClusters = config.virtualClusters().stream()
+                .map(vc -> replaceOsAssignedWithCurrentlyBoundPort(vc, kp))
+                .toList();
+        if (updatedClusters.equals(config.virtualClusters())) {
+            return config;
+        }
+        return new Configuration(config.management(), config.filterDefinitions(), config.defaultFilters(),
+                updatedClusters, config.micrometer(), config.useIoUring(), config.development(),
+                config.network(), config.proxyProtocol());
+    }
+
+    private static VirtualCluster replaceOsAssignedWithCurrentlyBoundPort(VirtualCluster vc, KafkaProxy kp) {
+        var updatedGateways = vc.gateways().stream()
+                .map(gateway -> withOsAssignedPortResolved(gateway, kp))
+                .toList();
+        if (updatedGateways.equals(vc.gateways())) {
+            return vc;
+        }
+        return new VirtualCluster(vc.name(), vc.targetCluster(), updatedGateways,
+                vc.logNetwork(), vc.logFrames(), vc.filters(), vc.subjectBuilder(),
+                vc.topicNameCache(), vc.drainTimeout());
+    }
+
+    private static VirtualClusterGateway withOsAssignedPortResolved(VirtualClusterGateway gateway, KafkaProxy kp) {
+        if (gateway.portIdentifiesNode() != null) {
+            var pin = gateway.portIdentifiesNode();
+            var configured = pin.getBootstrapAddress();
+            int resolved = kp.listeningPort(null, configured.port());
+            return new VirtualClusterGateway(gateway.name(),
+                    new PortIdentifiesNodeIdentificationStrategy(new HostPort(configured.host(), resolved),
+                            pin.getAdvertisedBrokerAddressPattern(), pin.getNodeStartPort(), pin.getNodeIdRanges()),
+                    null, gateway.tls());
+        }
+        if (gateway.sniHostIdentifiesNode() != null) {
+            var sni = gateway.sniHostIdentifiesNode();
+            var configured = HostPort.parse(sni.getBootstrapAddress());
+            int resolved = kp.listeningPort(null, configured.port());
+            return new VirtualClusterGateway(gateway.name(), null,
+                    new SniHostIdentifiesNodeIdentificationStrategy(configured.host() + ":" + resolved,
+                            sni.getAdvertisedBrokerAddressPattern()),
+                    gateway.tls());
+        }
+        return gateway;
     }
 
     @Override
