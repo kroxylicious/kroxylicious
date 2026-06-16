@@ -1,6 +1,8 @@
 # Kroxylicious Operator Test Support
 
-JUnit Jupiter extensions and utilities that implement the three-actor testing model for Kroxylicious operator integration tests. See the [operator README](../kroxylicious-operator/README.md) for the philosophy behind this model.
+JUnit Jupiter extensions and utilities for writing Kroxylicious operator integration tests. They implement a three-actor model in which the **operator under test** runs under `LocalKroxyliciousOperatorExtension`, a **cluster user** (`ClusterUser`) performs user-side CR interactions, and an **external operator** (`ExternalOperator`) drives status state that sibling or external controllers would normally produce. This separation makes each test readable as a self-contained story of who did what and what the operator produced in response.
+
+See the [operator README](../kroxylicious-operator/README.md) for the testing philosophy, including when to use each test layer and why the actor model exists.
 
 ## Setting up an IT
 
@@ -64,7 +66,7 @@ static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorEx
 
 Integration tests are documentation as much as they are verification. A test should tell its reader a coherent story: a user did X, an external system did Y, and the operator-under-test produced Z. The three-actor model exists to make that story legible — it is a convention for test *readers*, not a technical enforcement.
 
-The `operator` extension field has Kubernetes access internally (it needs it to manage the test lifecycle), but using it directly in test bodies breaks the story. A reader who sees `operator.someKubeCall()` cannot tell whether that represents a user action, an external controller, or internal test plumbing. Code that goes through `ClusterUser` is a user action; code that goes through `ExternalOperator` is an external controller; everything else disappears into the background.
+The `operator` extension field has Kubernetes access internally (it needs it to manage the test lifecycle), but using it directly in test bodies breaks the story. A reader who sees `operator.someKubeCall()` cannot tell whether that represents a user action, an external controller, or internal test plumbing. Code that goes through the cluster user (`ClusterUser`) is a user action; code that goes through the external operator (`ExternalOperator`) is an external controller; everything else disappears into the background.
 
 | What you're doing | Use |
 |---|---|

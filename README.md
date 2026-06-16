@@ -169,7 +169,7 @@ Other modules, such as `kroxylicious-runtime`, are implementation. These can be 
 
 ### Philosophy
 
-Tests are documentation as much as they are verification. A test that passes tells you the system works; a test that fails tells you exactly what broke; and a test that is read tells the next developer what the system is supposed to do. All three matter.
+Tests are documentation as much as they are verification. A test that passes tells you the system works; a test that fails tells you exactly what broke; and a test that is read tells the next developer what the system is supposed to do. All three matter. We call this the **documentation-first** approach to testing.
 
 This is an aspirational standard — the existing codebase has a mix of styles — but it is the direction new tests should move in.
 
@@ -183,5 +183,5 @@ Every test should tell a coherent story on its own, without requiring the reader
 
 - **`kroxylicious-filter-test-support`**: Utilities for unit testing filters in isolation
 - **`kroxylicious-integration-test-support`**: Infrastructure for integration tests with real Kafka clusters
-- **`kroxylicious-operator-test-support`**: Three-actor model for operator integration tests — see [kroxylicious-kubernetes/kroxylicious-operator/README.md](kroxylicious-kubernetes/kroxylicious-operator/README.md)
+- **`kroxylicious-operator-test-support`**: Three-actor model for operator integration tests — see [kroxylicious-kubernetes/kroxylicious-operator-test-support/README.md](kroxylicious-kubernetes/kroxylicious-operator-test-support/README.md)
 - **Example patterns**: Study existing tests for patterns; the operator ITs are the clearest expression of the documentation-first approach
