@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import java.util.function.IntUnaryOperator;
 
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -37,8 +36,8 @@ import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -68,7 +67,6 @@ class RouterContextImpl implements RouterContext {
     private final PendingResponseRegistry pendingResponseRegistry;
     private final Map<Integer, HostPort> sharedNodeAddresses;
     private final IntUnaryOperator virtualIdTranslator;
-    private final Map<Uuid, String> topicIdCache;
 
     /**
      * Callback interface for forwarding requests to a route's bootstrap server.
@@ -102,8 +100,7 @@ class RouterContextImpl implements RouterContext {
                       AtomicInteger pendingResponseCount,
                       PendingResponseRegistry pendingResponseRegistry,
                       Map<Integer, HostPort> sharedNodeAddresses,
-                      IntUnaryOperator virtualIdTranslator,
-                      Map<Uuid, String> topicIdCache) {
+                      IntUnaryOperator virtualIdTranslator) {
         this.clientCorrelationId = clientCorrelationId;
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
@@ -120,7 +117,6 @@ class RouterContextImpl implements RouterContext {
         this.pendingResponseRegistry = Objects.requireNonNull(pendingResponseRegistry);
         this.sharedNodeAddresses = Objects.requireNonNull(sharedNodeAddresses);
         this.virtualIdTranslator = Objects.requireNonNull(virtualIdTranslator);
-        this.topicIdCache = Objects.requireNonNull(topicIdCache);
     }
 
     @Override
