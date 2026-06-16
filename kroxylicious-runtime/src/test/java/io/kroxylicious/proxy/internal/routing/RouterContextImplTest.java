@@ -28,8 +28,8 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.router.VirtualNode;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -118,8 +118,7 @@ class RouterContextImplTest {
                 pendingResponseCount,
                 testPendingResponseRegistry,
                 sharedNodeAddresses,
-                IntUnaryOperator.identity(),
-                java.util.Map.of());
+                IntUnaryOperator.identity());
     }
 
     @Test
@@ -255,7 +254,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount, testPendingResponseRegistry,
-                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+                sharedNodeAddresses, IntUnaryOperator.identity());
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion(API_VERSION);
@@ -288,7 +287,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount, testPendingResponseRegistry,
-                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+                sharedNodeAddresses, IntUnaryOperator.identity());
 
         // Virtual node 1 maps to route "phantom" which isn't in the routes map
         var future = ctx.sendRequest(ctx.nodeForId(1), new RequestHeaderData(), new FetchRequestData());
@@ -343,7 +342,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount, testPendingResponseRegistry,
-                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+                sharedNodeAddresses, IntUnaryOperator.identity());
 
         // Virtual node 1 maps to "phantom" which is unknown to routes
         ctx.sendRequest(ctx.nodeForId(1), new RequestHeaderData(), new FetchRequestData());
@@ -367,7 +366,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount, testPendingResponseRegistry,
-                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+                sharedNodeAddresses, IntUnaryOperator.identity());
 
         var headerA = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
@@ -409,7 +408,7 @@ class RouterContextImplTest {
                 Counter.builder("test_routing_errors").withRegistry(meterRegistry),
                 Timer.builder("test_routing_duration").withRegistry(meterRegistry),
                 pendingResponseCount, testPendingResponseRegistry,
-                sharedNodeAddresses, IntUnaryOperator.identity(), Map.of());
+                sharedNodeAddresses, IntUnaryOperator.identity());
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)

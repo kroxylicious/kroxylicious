@@ -33,8 +33,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Enriches backend responses with topic names resolved from topicIds.
- * Works in tandem with {@link TopicIdRequestEnrichmentFilter}, which
- * enriches client requests.
  *
  * <p>On cache miss, sends an internal METADATA-by-topicId request
  * through the topology, waits for the response, caches the result,
@@ -42,9 +40,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * <p>The cache is shared across all connections (factory-scoped,
  * stored on the virtual cluster model). This is safe because the
- * filter sees raw backend names before any subject-dependent transforms.
- * See {@link TopicIdRequestEnrichmentFilter} for cache poisoning
- * considerations on the request side.</p>
+ * filter sees raw backend names before any subject-dependent transforms.</p>
  */
 @ThreadSafe
 public class TopicIdResponseEnrichmentFilter implements ResponseFilter {

@@ -11,7 +11,6 @@ import java.util.OptionalInt;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntUnaryOperator;
 
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -73,7 +72,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
     private final AtomicInteger pendingResponseCount;
     private final IntUnaryOperator virtualIdTranslator;
     private final Map<Integer, HostPort> sharedNodeAddresses;
-    private final Map<Uuid, String> topicIdCache;
     @Nullable
     private final TopologyServiceImpl topologyService;
 
@@ -92,7 +90,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                                   AtomicInteger pendingResponseCount,
                                   IntUnaryOperator virtualIdTranslator,
                                   Map<Integer, HostPort> sharedNodeAddresses,
-                                  Map<Uuid, String> topicIdCache,
                                   OptionalInt virtualNodeId,
                                   @Nullable TopologyServiceImpl topologyService) {
         this.activationRoute = activationRoute;
@@ -107,7 +104,6 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
         this.pendingResponseCount = pendingResponseCount;
         this.virtualIdTranslator = virtualIdTranslator;
         this.sharedNodeAddresses = sharedNodeAddresses;
-        this.topicIdCache = topicIdCache;
         this.virtualNodeId = virtualNodeId;
         this.topologyService = topologyService;
         RouterContextImpl.registerBootstrapAddresses(
@@ -200,8 +196,7 @@ public class RoutingDecisionHandler extends ChannelDuplexHandler implements Pend
                 pendingResponseCount,
                 this,
                 sharedNodeAddresses,
-                virtualIdTranslator,
-                topicIdCache);
+                virtualIdTranslator);
 
         if (topologyService != null) {
             topologyService.bindRequestSender((route, header, request) -> routingContext.sendRequest(routingContext.anyNode(route), header, request));

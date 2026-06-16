@@ -9,7 +9,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -24,7 +23,6 @@ import java.util.stream.Collectors;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
 
-import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +58,6 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
-import io.kroxylicious.proxy.internal.filter.impl.TopicIdRequestEnrichmentFilter;
 import io.kroxylicious.proxy.internal.filter.impl.TopicIdResponseEnrichmentFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -291,8 +288,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private void inClientActiveWithoutRouting(Channel clientChannel) {
-        var topicIdCache = new HashMap<Uuid, String>();
-        List<FilterAndInvoker> filters = buildFilters(true, topicIdCache);
+        List<FilterAndInvoker> filters = buildFilters(true);
         addFiltersToPipeline(filters, clientCtx().pipeline(), clientChannel);
         dp.setDelegate(DecodePredicate.forFilters(filters));
         clientChannel.config().setAutoRead(false);
@@ -306,8 +302,7 @@ public class KafkaProxyFrontendHandler
         var vc = clientConnectionStateMachine.virtualCluster();
 
         // 1. Build and install internal-only filters
-        var topicIdCache = new HashMap<Uuid, String>();
-        List<FilterAndInvoker> internalFilters = buildFilters(false, topicIdCache);
+        List<FilterAndInvoker> internalFilters = buildFilters(false);
         addFiltersToPipeline(internalFilters, pipeline, clientChannel);
         allFilters.addAll(internalFilters);
 
@@ -331,7 +326,6 @@ public class KafkaProxyFrontendHandler
                 IntUnaryOperator.identity(),
                 vcFilters,
                 filterContext, pipeline, clientChannel, allFilters,
-                topicIdCache,
                 topLevelVirtualNodeId);
 
         // 4a. Install unscoped topicId response enrichment immediately before
@@ -371,7 +365,6 @@ public class KafkaProxyFrontendHandler
                                     ChannelPipeline pipeline,
                                     Channel clientChannel,
                                     List<FilterAndInvoker> allFilters,
-                                    Map<Uuid, String> topicIdCache,
                                     OptionalInt virtualNodeId) {
         var vc = clientConnectionStateMachine.virtualCluster();
         var allRouteDescriptors = vc.allRouteDescriptors();
@@ -408,7 +401,7 @@ public class KafkaProxyFrontendHandler
                 clientConnectionStateMachine, nodeIdMapping,
                 routingRequestsCounter, routingErrorsCounter,
                 routingRequestDurationTimer, pendingResponseCount,
-                translator, sharedNodeAddresses, topicIdCache,
+                translator, sharedNodeAddresses,
                 virtualNodeId,
                 topologyService);
         pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
@@ -443,7 +436,7 @@ public class KafkaProxyFrontendHandler
                         .findFirst();
                 installRouterGraph(rd.routerName(), routeName, nestedTranslator,
                         routeFilters, filterContext, pipeline, clientChannel,
-                        allFilters, topicIdCache, nestedVirtualNodeId);
+                        allFilters, nestedVirtualNodeId);
             }
             else {
                 // Cluster-targeting route: install route filters before terminal
@@ -459,14 +452,11 @@ public class KafkaProxyFrontendHandler
 
     /**
      * @param includeUserFilters whether to include user-configured VC filters
-     * @param topicIdCache per-connection cache shared with {@link io.kroxylicious.proxy.router.RouterContext#topicName}
      */
-    private List<FilterAndInvoker> buildFilters(boolean includeUserFilters,
-                                                Map<Uuid, String> topicIdCache) {
+    private List<FilterAndInvoker> buildFilters(boolean includeUserFilters) {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
-        filterAndInvokers.addAll(FilterAndInvoker.build("TopicIdRequestEnrichment (internal)", new TopicIdRequestEnrichmentFilter(topicIdCache)));
 
         if (includeUserFilters) {
             NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
@@ -483,8 +473,6 @@ public class KafkaProxyFrontendHandler
         List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)",
                 new BrokerAddressFilter(clientConnectionStateMachine.endpointGateway(), endpointReconciler));
         filterAndInvokers.addAll(brokerAddressFilters);
-        filterAndInvokers.addAll(FilterAndInvoker.build("TopicIdResponseEnrichment (internal)",
-                new TopicIdResponseEnrichmentFilter(clientConnectionStateMachine.virtualCluster().getTopicIdResponseCache())));
 
         return filterAndInvokers;
     }
