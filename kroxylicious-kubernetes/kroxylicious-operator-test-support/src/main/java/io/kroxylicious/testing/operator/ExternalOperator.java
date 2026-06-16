@@ -12,11 +12,13 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
 /**
- * Simulates an external Kubernetes controller that updates status subresources.
+ * Drives the status state that a reconciler external to the one under test would produce.
  * <p>
- * In production, some resources (e.g. Strimzi {@code Kafka}) have their status set by their
- * own operator. In integration tests, this class stands in for those external controllers,
- * providing the status preconditions that the operator-under-test observes.
+ * "External" here means external to the reconciler being tested — this includes both
+ * truly external controllers (e.g. Strimzi setting status on a {@code Kafka} resource)
+ * and sibling Kroxylicious reconcilers whose output the reconciler-under-test depends on.
+ * Using this class in tests ensures that dependent state is exactly as required, without
+ * relying on other reconcilers to run.
  * <p>
  * Obtain instances via {@link LocalKroxyliciousOperatorExtension#externalOperator()}.
  */
