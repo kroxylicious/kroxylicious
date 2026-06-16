@@ -67,9 +67,11 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
                         .log("Binding");
                 bind = serverBootstrap.bind(port);
             }
+            var address = bindingAddress.orElse("<any>");
             bind.addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {
                 if (channelFuture.cause() != null) {
-                    future.completeExceptionally(channelFuture.cause());
+                    future.completeExceptionally(new RuntimeException(
+                            "Failed to bind to " + address + ":" + port, channelFuture.cause()));
                 }
                 else {
                     future.complete(channelFuture.channel());
