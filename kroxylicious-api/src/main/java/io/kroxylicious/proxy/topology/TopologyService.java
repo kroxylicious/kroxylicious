@@ -89,6 +89,27 @@ import org.apache.kafka.common.Uuid;
  * needs to make authorization decisions, it should use
  * {@link io.kroxylicious.proxy.router.RouterContext#authenticatedSubject()}
  * and consult an external authorization service.</p>
+ *
+ * <h2>Cache consistency and staleness</h2>
+ *
+ * <p>The cache uses <b>additive semantics</b>: responses add or
+ * update entries but never remove entries for topics absent from
+ * the response. The cache does not observe topic lifecycle events
+ * (deletion, recreation) independently — it only learns about
+ * cluster state from responses that flow through the proxy. Stale
+ * entries can therefore persist, for example partition leaders for a
+ * topic that has been deleted and recreated with different partition
+ * assignments.</p>
+ *
+ * <p>Staleness is safe because the cache is a <b>routing
+ * optimization</b>, not an authoritative source of cluster state.
+ * Stale routing decisions (including incorrect fan-out grouping)
+ * produce broker error codes ({@code NOT_LEADER_OR_FOLLOWER},
+ * {@code UNKNOWN_TOPIC_OR_PARTITION}), never silent misdirection
+ * or data corruption — the broker validates every request against
+ * its own authoritative state. Routers should treat these errors
+ * as staleness indicators and call {@link #invalidateRoute} to
+ * trigger cache repopulation from subsequent responses.</p>
  */
 public interface TopologyService {
 
