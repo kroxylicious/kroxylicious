@@ -119,7 +119,7 @@ class ClientConnectionStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni) -> serverConnectionStateMachine);
+                (remote, ccsm, vc, cn, ni, a, b, c) -> serverConnectionStateMachine);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
         when(frontendHandler.remotePort()).thenReturn(9476);
