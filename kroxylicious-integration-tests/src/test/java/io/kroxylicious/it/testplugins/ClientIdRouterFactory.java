@@ -55,10 +55,10 @@ public class ClientIdRouterFactory
 
             @Override
             public CompletionStage<RouterResponse> onRequest(
-                    ApiKeys apiKey, short apiVersion,
-                    RequestHeaderData header,
-                    ApiMessage request,
-                    RouterContext routerContext) {
+                                                             ApiKeys apiKey, short apiVersion,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext routerContext) {
                 String route = resolveRoute(header);
                 VirtualNode node = routerContext.anyNode(route);
                 return routerContext.sendRequest(node, header, request)
