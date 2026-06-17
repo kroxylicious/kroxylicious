@@ -9,8 +9,8 @@ package io.kroxylicious.proxy.topology;
  * Opaque reference to a node in the virtual cluster topology.
  *
  * <p>Routers obtain {@code VirtualNode} instances from
- * {@link RouterContext} methods and pass them back to
- * {@link RouterContext#sendRequest}. Implementations provide
+ * {@link io.kroxylicious.proxy.router.RouterContext RouterContext} methods and pass them back to
+ * {@link io.kroxylicious.proxy.router.RouterContext#sendRequest RouterContext.sendRequest}. Implementations provide
  * {@code equals}/{@code hashCode} so that {@code VirtualNode}
  * instances can be used as map keys.</p>
  *

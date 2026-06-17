@@ -30,14 +30,26 @@ public record Subject(Set<Principal> principals) {
 
     private static final Subject ANONYMOUS = new Subject(Set.of());
 
+    /**
+     * Returns the anonymous subject (no principals).
+     * @return the anonymous subject
+     */
     public static Subject anonymous() {
         return ANONYMOUS;
     }
 
+    /**
+     * Creates a subject from the given principals.
+     * @param principals the principals
+     */
     public Subject(Principal... principals) {
         this(Set.of(principals));
     }
 
+    /**
+     * Creates a subject from the given principal set. Validates that non-empty subjects have exactly one {@link User} principal.
+     * @param principals the principals
+     */
     public Subject(Set<Principal> principals) {
         principals.stream()
                 .collect(Collectors.groupingBy(Object::getClass))
@@ -55,10 +67,20 @@ public record Subject(Set<Principal> principals) {
         this.principals = Set.copyOf(principals);
     }
 
+    /**
+     * Returns the unique principal of the given type, if present.
+     * @param uniquePrincipalType the principal type, which must be annotated with {@link Unique}
+     * @param <P> the principal type
+     * @return the principal, or empty
+     */
     public <P extends Principal> Optional<P> uniquePrincipalOfType(Class<P> uniquePrincipalType) {
         return uniquePrincipalOfType(this.principals, uniquePrincipalType);
     }
 
+    /**
+     * Returns whether this is the anonymous subject.
+     * @return true if this subject has no principals
+     */
     public boolean isAnonymous() {
         return this.principals.isEmpty();
     }
@@ -75,6 +97,12 @@ public record Subject(Set<Principal> principals) {
         }
     }
 
+    /**
+     * Returns all principals of the given type.
+     * @param principalType the principal type
+     * @param <P> the principal type
+     * @return the matching principals
+     */
     public <P extends Principal> Set<P> allPrincipalsOfType(Class<P> principalType) {
         return this.principals.stream()
                 .filter(principalType::isInstance)
