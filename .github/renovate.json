@@ -142,7 +142,7 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/filter/validation/JsonSchemaRecordValidation.*IT.java/"
+        "/kroxylicious-integration-tests/src/test/java/io/kroxylicious/it/filter/validation/RecordSchemaValidationBaseIT.java/"
       ],
       "matchStrings": [
         "(?<depName>quay.io/apicurio/apicurio-registry):(?<currentValue>\\d+\\.\\d+\\.\\d+)@(?<currentDigest>sha256:[a-f0-9]{64})"
