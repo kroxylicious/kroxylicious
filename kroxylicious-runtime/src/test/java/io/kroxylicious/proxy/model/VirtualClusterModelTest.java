@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.model;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,6 +35,7 @@ import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -42,6 +44,7 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
@@ -194,6 +197,29 @@ class VirtualClusterModelTest {
                 .cause()
                 .isExactlyInstanceOf(RuntimeException.class)
                 .hasMessage("init kaboom");
+    }
+
+    @Test
+    void routerBasedVcmHasNullTargetClusterAndEmptyUpstreamSslContext() {
+        var routeDescriptors = Map.of("route1",
+                new RouteDescriptor("route1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+
+        VirtualClusterModel model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", routeDescriptors);
+
+        assertThat(model.targetCluster()).isNull();
+        assertThat(model.usesRouter()).isTrue();
+        assertThat(model.routerName()).isEqualTo("myrouter");
+        assertThat(model.routeDescriptors()).containsKey("route1");
+        assertThat(model.getUpstreamSslContext()).isEmpty();
+    }
+
+    @Test
+    void logVirtualClusterSummaryHandlesNullTargetCluster() {
+        VirtualClusterModel model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", null);
+
+        assertThatCode(model::logVirtualClusterSummary).doesNotThrowAnyException();
     }
 
     @Test
