@@ -33,8 +33,13 @@ import io.kroxylicious.proxy.topology.TopologyService;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
- * Runtime implementation of {@link TopologyService}, backed by a
- * shared {@link TopologyCache}.
+ * Per-connection implementation of {@link TopologyService}, backed
+ * by a shared {@link TopologyCache}.
+ *
+ * <p>One instance is created per client connection in
+ * {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory#createRouter}.
+ * All access happens on the single Netty event loop thread assigned
+ * to that connection — no synchronisation is needed.</p>
  *
  * <p>Discovery methods ({@link #leaders}, {@link #coordinators},
  * {@link #topicNames}) use a {@link RequestSender} bound
@@ -50,7 +55,7 @@ public class TopologyServiceImpl implements TopologyService {
     private static final short FIND_COORDINATOR_API_VERSION = 3;
 
     private final TopologyCache cache;
-    private volatile RequestSender requestSender;
+    private RequestSender requestSender;
 
     /**
      * Sends a request to a route and returns a stage that completes
@@ -71,7 +76,8 @@ public class TopologyServiceImpl implements TopologyService {
 
     /**
      * Binds the request-sending capability for this connection.
-     * Called once per connection from {@link RoutingDecisionHandler}.
+     * Called before each {@link RoutingDecisionHandler#channelRead}
+     * dispatch on the connection's event loop thread.
      */
     public void bindRequestSender(RequestSender sender) {
         this.requestSender = Objects.requireNonNull(sender);

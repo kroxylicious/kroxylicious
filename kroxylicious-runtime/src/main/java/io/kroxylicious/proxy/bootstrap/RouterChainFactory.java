@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -41,6 +42,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class RouterChainFactory implements AutoCloseable {
 
     record VcRouter(String virtualClusterName, String routerName) {}
+
+    /**
+     * Pairs a newly created {@link Router} with the per-connection
+     * {@link TopologyServiceImpl} that should be used by its
+     * {@link io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler}.
+     */
+    public record RouterAndTopology(Router router, @Nullable TopologyServiceImpl topologyService) {}
 
     private static final class Wrapper {
 
@@ -89,7 +97,7 @@ public class RouterChainFactory implements AutoCloseable {
     }
 
     private final Map<VcRouter, Wrapper> initialized;
-    private final Map<VcRouter, TopologyServiceImpl> topologyServices = new LinkedHashMap<>();
+    private final Map<VcRouter, TopologyCache> topologyCaches = new ConcurrentHashMap<>();
     private final Map<VcRouter, java.util.concurrent.ConcurrentHashMap<Integer, io.kroxylicious.proxy.service.HostPort>> sharedNodeAddressMaps = new LinkedHashMap<>();
     private final PluginFactoryRegistry pfr;
 
@@ -194,14 +202,15 @@ public class RouterChainFactory implements AutoCloseable {
     }
 
     /**
-     * Creates a new router instance for the given router name and virtual cluster.
+     * Creates a new router instance and its per-connection topology service
+     * for the given router name and virtual cluster.
      *
      * @param routerName the name of the router definition
      * @param virtualClusterName the name of the virtual cluster
-     * @return the created router instance
+     * @return the created router paired with its per-connection topology service
      */
-    public Router createRouter(String routerName,
-                               String virtualClusterName) {
+    public RouterAndTopology createRouter(String routerName,
+                                          String virtualClusterName) {
         var key = new VcRouter(virtualClusterName, routerName);
         Wrapper wrapper = initialized.get(key);
         if (wrapper == null) {
@@ -209,8 +218,11 @@ public class RouterChainFactory implements AutoCloseable {
                     "No router definition found for name: " + routerName
                             + " in virtual cluster: " + virtualClusterName);
         }
-        RouterFactoryContext context = createContext(virtualClusterName, wrapper.routerDefinition);
-        return wrapper.create(context);
+        TopologyCache cache = topologyCaches.get(key);
+        TopologyServiceImpl perConnectionTs = cache != null ? new TopologyServiceImpl(cache) : null;
+        InitContext context = createContextForCreate(virtualClusterName, wrapper.routerDefinition, perConnectionTs);
+        Router router = wrapper.create(context);
+        return new RouterAndTopology(router, context.createdTopologyService());
     }
 
     private static final class InitContext implements RouterFactoryContext {
@@ -219,16 +231,20 @@ public class RouterChainFactory implements AutoCloseable {
         private final RouterDefinition rd;
         private final Set<String> routeNames;
         private final PluginFactoryRegistry pfr;
-        private final Map<VcRouter, TopologyServiceImpl> topologyServices;
+        private final Map<VcRouter, TopologyCache> topologyCaches;
+        private final @Nullable TopologyServiceImpl perConnectionTopologyService;
         private boolean sharedClusterTargetsAllowed;
+        private @Nullable TopologyServiceImpl createdTopologyService;
 
         private InitContext(String vcName, RouterDefinition rd,
                             PluginFactoryRegistry pfr,
-                            Map<VcRouter, TopologyServiceImpl> topologyServices) {
+                            Map<VcRouter, TopologyCache> topologyCaches,
+                            @Nullable TopologyServiceImpl perConnectionTopologyService) {
             this.vcName = vcName;
             this.rd = rd;
             this.pfr = pfr;
-            this.topologyServices = topologyServices;
+            this.topologyCaches = topologyCaches;
+            this.perConnectionTopologyService = perConnectionTopologyService;
             this.routeNames = rd.routes().stream()
                     .map(RouteDefinition::name)
                     .collect(Collectors.toUnmodifiableSet());
@@ -262,9 +278,16 @@ public class RouterChainFactory implements AutoCloseable {
 
         @Override
         public TopologyService topologyService() {
-            return topologyServices.computeIfAbsent(
+            if (perConnectionTopologyService != null) {
+                createdTopologyService = perConnectionTopologyService;
+                return perConnectionTopologyService;
+            }
+            TopologyCache cache = topologyCaches.computeIfAbsent(
                     new VcRouter(vcName, rd.name()),
-                    k -> new TopologyServiceImpl(new TopologyCache()));
+                    k -> new TopologyCache());
+            var svc = new TopologyServiceImpl(cache);
+            createdTopologyService = svc;
+            return svc;
         }
 
         @Override
@@ -275,19 +298,20 @@ public class RouterChainFactory implements AutoCloseable {
         boolean isSharedClusterTargetsAllowed() {
             return sharedClusterTargetsAllowed;
         }
+
+        @Nullable
+        TopologyServiceImpl createdTopologyService() {
+            return createdTopologyService;
+        }
     }
 
     private InitContext createContext(String vcName, RouterDefinition rd) {
-        return new InitContext(vcName, rd, pfr, topologyServices);
+        return new InitContext(vcName, rd, pfr, topologyCaches, null);
     }
 
-    /**
-     * Returns the {@link TopologyServiceImpl} for the given router level,
-     * or null if no router at that level opted in to topology caching.
-     */
-    @Nullable
-    public TopologyServiceImpl topologyServiceFor(String routerName, String virtualClusterName) {
-        return topologyServices.get(new VcRouter(virtualClusterName, routerName));
+    private InitContext createContextForCreate(String vcName, RouterDefinition rd,
+                                               @Nullable TopologyServiceImpl perConnectionTs) {
+        return new InitContext(vcName, rd, pfr, topologyCaches, perConnectionTs);
     }
 
     /**

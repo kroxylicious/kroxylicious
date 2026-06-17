@@ -62,7 +62,7 @@ class RouterChainFactoryTest {
                 null, DUMMY_ROUTES);
         var vc = testVc(VC_NAME, "myRouter");
         try (var factory = new RouterChainFactory(testPfr(), List.of(vc), List.of(rd))) {
-            Router router = factory.createRouter("myRouter", VC_NAME);
+            Router router = factory.createRouter("myRouter", VC_NAME).router();
             assertThat(router).isNotNull();
         }
     }
@@ -226,8 +226,8 @@ class RouterChainFactoryTest {
         var vc2 = testVc("vc2", "shared");
         try (var factory = new RouterChainFactory(pfr, List.of(vc1, vc2), List.of(rd))) {
             assertThat(initCount.get()).isEqualTo(2);
-            assertThat(factory.createRouter("shared", "vc1")).isNotNull();
-            assertThat(factory.createRouter("shared", "vc2")).isNotNull();
+            assertThat(factory.createRouter("shared", "vc1").router()).isNotNull();
+            assertThat(factory.createRouter("shared", "vc2").router()).isNotNull();
         }
     }
 
@@ -265,8 +265,8 @@ class RouterChainFactoryTest {
         var vc = testVc(VC_NAME, "parent");
         try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rdParent, rdChild))) {
             assertThat(initCount.get()).isEqualTo(2);
-            assertThat(factory.createRouter("parent", VC_NAME)).isNotNull();
-            assertThat(factory.createRouter("child", VC_NAME)).isNotNull();
+            assertThat(factory.createRouter("parent", VC_NAME).router()).isNotNull();
+            assertThat(factory.createRouter("child", VC_NAME).router()).isNotNull();
         }
     }
 
@@ -298,7 +298,7 @@ class RouterChainFactoryTest {
 
         // When / Then
         try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
-            assertThat(factory.createRouter("myRouter", VC_NAME)).isNotNull();
+            assertThat(factory.createRouter("myRouter", VC_NAME).router()).isNotNull();
         }
     }
 
@@ -338,7 +338,7 @@ class RouterChainFactoryTest {
 
         // When / Then
         try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rdOuter, rdChild))) {
-            assertThat(factory.createRouter("outer", VC_NAME)).isNotNull();
+            assertThat(factory.createRouter("outer", VC_NAME).router()).isNotNull();
         }
     }
 

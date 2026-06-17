@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.topic.config.TopicPartitionRouterConfig;
-import io.kroxylicious.proxy.topology.TopologyService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -53,8 +52,7 @@ public class TopicPartitionRouterFactory
                     FetchSessionCache fetchSessionCache,
                     Clock clock,
                     String virtualClusterName,
-                    String routerName,
-                    TopologyService topologyService) {}
+                    String routerName) {}
 
     @Override
     public InitData initialize(RouterFactoryContext context,
@@ -156,6 +154,10 @@ public class TopicPartitionRouterFactory
             clock = Clock.systemUTC();
         }
 
+        // Trigger topology cache creation (opt-in side effect).
+        // The per-connection TopologyService is obtained in createRouter().
+        context.topologyService();
+
         return new InitData(routingTable, config.defaultRoute(),
                 subjectRoutes,
                 new ProducerIdManager(ttl),
@@ -163,8 +165,7 @@ public class TopicPartitionRouterFactory
                         context.virtualClusterName(), context.routerName()),
                 clock,
                 context.virtualClusterName(),
-                context.routerName(),
-                context.topologyService());
+                context.routerName());
     }
 
     @Override
@@ -179,7 +180,7 @@ public class TopicPartitionRouterFactory
                 initData.clock(),
                 initData.virtualClusterName(),
                 initData.routerName(),
-                initData.topologyService());
+                context.topologyService());
     }
 
     @Override
