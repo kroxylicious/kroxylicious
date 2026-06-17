@@ -116,6 +116,13 @@
                     </delimiters>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-archetype-plugin</artifactId>
+                <configuration>
+                    <skip>${skipTests}</skip>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
     <profiles>
@@ -184,7 +191,6 @@
                         <artifactId>maven-archetype-plugin</artifactId>
                         <configuration>
                             <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
-                            <skip>${skipITs}</skip>
                         </configuration>
                     </plugin>
                 </plugins>
