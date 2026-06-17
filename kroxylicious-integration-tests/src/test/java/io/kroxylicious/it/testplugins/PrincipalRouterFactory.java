@@ -67,10 +67,10 @@ public class PrincipalRouterFactory
 
             @Override
             public CompletionStage<RouterResponse> onRequest(
-                    ApiKeys apiKey, short apiVersion,
-                    RequestHeaderData header,
-                    ApiMessage request,
-                    RouterContext routerContext) {
+                                                             ApiKeys apiKey, short apiVersion,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext routerContext) {
                 if (apiKey == ApiKeys.API_VERSIONS) {
                     VirtualNode node = routerContext.anyNode(defaultRoute);
                     return routerContext.sendRequest(node, header, request)

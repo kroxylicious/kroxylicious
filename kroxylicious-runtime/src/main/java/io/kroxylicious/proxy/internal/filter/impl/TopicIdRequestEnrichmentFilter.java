@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.filter.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.Uuid;
@@ -55,7 +56,7 @@ public class TopicIdRequestEnrichmentFilter implements RequestFilter, ResponseFi
 
     /**
      * @param cache shared cache that will also be read by
-     *              {@link io.kroxylicious.proxy.router.RouterContext#topicName(Uuid)}
+     *              {@link io.kroxylicious.proxy.topology.TopologyService#topicNames(String, Set)}
      */
     public TopicIdRequestEnrichmentFilter(Map<Uuid, String> cache) {
         this.cache = cache;
