@@ -69,9 +69,16 @@ public interface RouterFactoryContext {
      * the routing pipeline. If no router at a level calls this method,
      * no cache is created and no cost is incurred.</p>
      *
-     * <p>The returned service should be stored in the factory's
-     * initialization data so it survives connection reconnects and
-     * is available to {@link RouterFactory#createRouter}.</p>
+     * <p>When called during {@link RouterFactory#initialize}, this
+     * triggers cache creation as an opt-in side effect. The returned
+     * instance should <em>not</em> be stored in the factory's
+     * initialization data.</p>
+     *
+     * <p>When called during {@link RouterFactory#createRouter}, this
+     * returns a fresh per-connection instance backed by the shared
+     * cache. This is the instance the router should use for discovery
+     * methods ({@link TopologyService#leaders},
+     * {@link TopologyService#coordinators}, etc.).</p>
      *
      * @return the topology service for this router level
      */

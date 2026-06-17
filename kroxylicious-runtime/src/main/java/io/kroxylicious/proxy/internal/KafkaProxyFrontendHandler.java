@@ -372,8 +372,9 @@ public class KafkaProxyFrontendHandler
                 ? allRouteDescriptors.get(routerName)
                 : vc.routeDescriptors();
 
-        // Create Router and compute NodeIdMapping
-        Router router = routerChainFactory.createRouter(routerName, vc.getClusterName());
+        // Create Router and per-connection TopologyServiceImpl
+        var routerAndTopology = routerChainFactory.createRouter(routerName, vc.getClusterName());
+        Router router = routerAndTopology.router();
         var routeIds = routeDescriptors.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
         NodeIdMapping nodeIdMapping = routeIds.size() > 1
@@ -394,7 +395,6 @@ public class KafkaProxyFrontendHandler
 
         // Install RoutingDecisionHandler
         String handlerName = "routingDecisionHandler-" + routerName;
-        var topologyService = routerChainFactory.topologyServiceFor(routerName, vc.getClusterName());
         var decisionHandler = new RoutingDecisionHandler(
                 activationRoute,
                 router, routeDescriptors, router.staticRoutes(),
@@ -403,7 +403,7 @@ public class KafkaProxyFrontendHandler
                 routingRequestDurationTimer, pendingResponseCount,
                 translator, sharedNodeAddresses,
                 virtualNodeId,
-                topologyService);
+                routerAndTopology.topologyService());
         pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
 
         // Install any pending route filters (e.g. VC filters for "default" activation route)
