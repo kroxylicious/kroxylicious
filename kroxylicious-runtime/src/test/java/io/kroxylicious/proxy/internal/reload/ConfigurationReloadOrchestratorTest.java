@@ -109,10 +109,14 @@ class ConfigurationReloadOrchestratorTest {
         var orchestrator = new ConfigurationReloadOrchestrator(
                 config, stubbedRegistry(), endpointRegistry, List.of(phantomDetector));
 
-        // when
-        assertThatThrownBy(() -> orchestrator.reconfigure(config).join());
+        // when / then — the reconfigure completes exceptionally with the planner's contract-violation
+        // IllegalStateException (naming the phantom cluster), surfaced through join()'s CompletionException.
+        assertThatThrownBy(() -> orchestrator.reconfigure(config).join())
+                .cause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("phantom");
 
-        // then
+        // then — the failure is counted as a catastrophic outcome.
         assertThat(reconfigureCount("catastrophic")).isEqualTo(1.0);
     }
 
@@ -123,8 +127,11 @@ class ConfigurationReloadOrchestratorTest {
         var newConfig = withDifferentUseIoUring(oldConfig);
         var orchestrator = newOrchestrator(oldConfig, mock(VirtualClusterRegistry.class));
 
-        // when
-        assertThatThrownBy(() -> orchestrator.reconfigure(newConfig).join());
+        // when / then — pre-flight rejects the static-section change, surfaced through join()'s
+        // CompletionException as a StaticConfigurationChangedException.
+        assertThatThrownBy(() -> orchestrator.reconfigure(newConfig).join())
+                .cause()
+                .isInstanceOf(StaticConfigurationChangedException.class);
 
         // then — no reconfigure was attempted, so no counter series exists at all.
         assertThat(meterRegistry.find("kroxylicious_reconfigure_total").counters()).isEmpty();

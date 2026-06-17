@@ -7,11 +7,14 @@
 package io.kroxylicious.proxy.internal.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -27,6 +30,7 @@ import io.netty.buffer.ByteBufAllocatorMetricProvider;
 import io.netty.channel.EventLoopGroup;
 
 import io.kroxylicious.proxy.VersionInfo;
+import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -77,14 +81,6 @@ public class Metrics {
     private static final String VIRTUAL_CLUSTER_STATE_NAME = "kroxylicious_virtual_cluster_state";
     private static final String VIRTUAL_CLUSTER_STATE_DURATION_NAME = "kroxylicious_virtual_cluster_state_duration_seconds";
     private static final String VIRTUAL_CLUSTER_TRANSITIONS_COUNTER_NAME = "kroxylicious_virtual_cluster_transitions_total";
-
-    /**
-     * Canonical lifecycle state label values (lower-cased {@code VirtualClusterLifecycleState}
-     * record names). The whole set is registered together so every
-     * {@code kroxylicious_virtual_cluster_state} series for a cluster shares an identical tag-key
-     * set — required by {@code MeterRegistries}' tag-name-consistency guard.
-     */
-    private static final List<String> VIRTUAL_CLUSTER_STATES = List.of("initializing", "serving", "draining", "failed", "stopped");
 
     /**
      * Name of the build_info metric.  Note that the {@code .info} suffix is significant
@@ -412,8 +408,8 @@ public class Metrics {
      * Updates the {@code kroxylicious_virtual_cluster_state} state-set gauge so the series for
      * {@code state} reads 1 and every other state for {@code clusterName} reads 0.
      *
-     * <p>The first call for a cluster registers the whole {@link #VIRTUAL_CLUSTER_STATES} set at
-     * once. This must only be invoked once the proxy is past startup (i.e. on a lifecycle
+     * <p>The first call for a cluster registers a gauge for every {@link VirtualClusterLifecycleState}
+     * at once. This must only be invoked once the proxy is past startup (i.e. on a lifecycle
      * transition, not at lifecycle construction)
      */
     public static void updateVirtualClusterState(String clusterName, String state) {
@@ -421,10 +417,18 @@ public class Metrics {
         perCluster.forEach((s, value) -> value.set(s.equals(state) ? 1 : 0));
     }
 
+    /**
+     * Registers a state-set gauge for each {@link VirtualClusterLifecycleState} permitted subtype,
+     * so the labels track the sealed hierarchy automatically rather than via a duplicated constant.
+     */
     private static ConcurrentHashMap<String, AtomicInteger> registerVirtualClusterStateGauges(String clusterName) {
-        var perState = new ConcurrentHashMap<String, AtomicInteger>();
-        VIRTUAL_CLUSTER_STATES.forEach(state -> perState.put(state, registerVirtualClusterStateGauge(clusterName, state)));
-        return perState;
+        return Arrays.stream(VirtualClusterLifecycleState.class.getPermittedSubclasses())
+                .map(subtype -> subtype.getSimpleName().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toMap(
+                        state -> state,
+                        state -> registerVirtualClusterStateGauge(clusterName, state),
+                        (a, b) -> a,
+                        ConcurrentHashMap::new));
     }
 
     private static AtomicInteger registerVirtualClusterStateGauge(String clusterName, String state) {

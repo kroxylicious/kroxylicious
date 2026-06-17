@@ -186,3 +186,83 @@ When the client connects to the bootstrap endpoint of the virtual cluster, metri
 |Incremented by the size of the message each time a response goes from the proxy to a client.
 
 |===
+
+== Reconfiguration metrics
+
+When the proxy applies a configuration change in place (a reconfiguration, without a restart), it emits metrics that let operators track how often reconfigurations happen, how long they take, and whether they succeed.
+A reconfiguration may add, remove, or modify virtual clusters; removing or modifying a virtual cluster first drains its existing connections (see <<Virtual cluster lifecycle metrics>>).
+
+Reconfiguration outcomes are reported through the `outcome` label on `kroxylicious_reconfigure_total`:
+
+* `success` - every affected virtual cluster was reconfigured cleanly.
+* `partial_failure` - the reconfiguration ran to completion but at least one virtual cluster failed (for example, a port could not be bound). Inspect `kroxylicious_reconfigure_clusters_affected_total` with `outcome="failure"` to see which operations failed.
+* `catastrophic` - the reconfiguration could not be applied and the proxy retained its previous configuration.
+
+Reconfigurations that are rejected before any change is attempted (a concurrent reconfiguration, or a change to a setting that cannot be altered at runtime) are not counted by `kroxylicious_reconfigure_total`.
+
+.Reconfiguration metrics
+|===
+|Metric Name |Type |Labels|Description
+
+|`kroxylicious_reconfigure_total`
+|Counter
+|`outcome`
+|Incremented by one for every reconfiguration that is attempted, labelled by its overall `outcome`.
+
+|`kroxylicious_reconfigure_duration_seconds`
+|Timer
+|
+|Records the end-to-end duration of each reconfiguration.
+
+|`kroxylicious_reconfigure_clusters_affected_total`
+|Counter
+|`operation`, `outcome`
+|Incremented by one for each per-virtual-cluster operation during a reconfiguration. The `operation` label is `add`, `remove`, or `modify`; the `outcome` label is `success` or `failure`.
+
+|`kroxylicious_drain_duration_seconds`
+|Timer
+|`virtual_cluster`
+|Records how long it took to drain a virtual cluster's connections (when the cluster is removed, modified, or the proxy is shutting down). A consistently high value indicates long-lived connections; use it to tune the drain timeout.
+
+|`kroxylicious_drain_connections_force_closed_total`
+|Counter
+|`virtual_cluster`
+|Incremented by one for every connection that was force-closed because it had not drained before the drain timeout expired. A high rate suggests the drain timeout is too aggressive. This is the same event also recorded by `kroxylicious_client_to_proxy_disconnects_total` with `cause="drain_timeout"`.
+
+|===
+
+== Virtual cluster lifecycle metrics
+
+Each virtual cluster moves through a well-defined lifecycle. These metrics expose its current state, how long it spends in each state, and the transitions between states, giving operators insight into start-up, reconfiguration, and shutdown behaviour.
+
+The lifecycle states are:
+
+* `initializing` - the virtual cluster is being set up and is not yet accepting traffic.
+* `serving` - the virtual cluster is active and serving client traffic.
+* `draining` - the virtual cluster is no longer accepting new connections; existing in-flight requests are being allowed to complete before the connections are closed. A cluster drains when it is removed or modified by a reconfiguration, or when the proxy is shutting down.
+* `failed` - the virtual cluster could not be brought up (for example, its configuration was not viable) and its resources have been released.
+* `stopped` - terminal state; the virtual cluster has been permanently removed.
+
+`kroxylicious_virtual_cluster_state` is a state-set gauge: for each virtual cluster, exactly one `state` series reads `1` (the current state) and the others read `0`.
+For example, to find clusters that failed to start, query `kroxylicious_virtual_cluster_state{state="failed"} == 1`.
+
+.Virtual cluster lifecycle metrics
+|===
+|Metric Name |Type |Labels|Description
+
+|`kroxylicious_virtual_cluster_state`
+|Gauge
+|`virtual_cluster`, `state`
+|Reports the current lifecycle state of each virtual cluster. The series matching the current state reads `1`; all other states for that cluster read `0`.
+
+|`kroxylicious_virtual_cluster_state_duration_seconds`
+|Timer
+|`virtual_cluster`, `state`
+|Records how long a virtual cluster spent in a state, recorded when it leaves that state.
+
+|`kroxylicious_virtual_cluster_transitions_total`
+|Counter
+|`virtual_cluster`, `from`, `to`
+|Incremented by one for every lifecycle state transition, labelled with the `from` and `to` states.
+
+|===

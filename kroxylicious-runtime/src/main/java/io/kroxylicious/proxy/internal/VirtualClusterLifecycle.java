@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
@@ -61,8 +62,8 @@ public class VirtualClusterLifecycle {
     @Nullable
     private volatile CompletableFuture<Void> drainFuture;
 
-    /** When the current {@link #state} was entered; used to time {@code state_duration}. Guarded by {@code this}. */
-    private long stateEnteredNanos;
+    /** When the current {@link #state} was entered; used to time {@code state_duration}. */
+    private final AtomicLong stateEnteredNanos;
 
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
         this(clusterName, drainTimeout, Clock.SYSTEM);
@@ -78,7 +79,7 @@ public class VirtualClusterLifecycle {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.drainTimeout = drainTimeout;
         this.clock = Objects.requireNonNull(clock);
-        this.stateEnteredNanos = clock.monotonicTime();
+        this.stateEnteredNanos = new AtomicLong(clock.monotonicTime());
     }
 
     /**
@@ -217,9 +218,9 @@ public class VirtualClusterLifecycle {
 
     private void recordTransitionMetrics(VirtualClusterLifecycleState from, VirtualClusterLifecycleState to) {
         long now = clock.monotonicTime();
+        long previousEntry = stateEnteredNanos.getAndSet(now);
         String fromLabel = stateLabel(from);
-        Metrics.virtualClusterStateDurationTimer(clusterName, fromLabel).record(Duration.ofNanos(now - stateEnteredNanos));
-        stateEnteredNanos = now;
+        Metrics.virtualClusterStateDurationTimer(clusterName, fromLabel).record(Duration.ofNanos(now - previousEntry));
         Metrics.virtualClusterTransitionsCounter(clusterName, fromLabel, stateLabel(to)).increment();
         Metrics.updateVirtualClusterState(clusterName, stateLabel(to));
     }
