@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -246,8 +247,11 @@ public record Configuration(
 
     private VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
                                                       List<NamedFilterDefinition> filterDefinitions,
+                                                      Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                       PluginFactoryRegistry pfr) {
         TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster);
+        Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
+                virtualCluster, filterDefinitionsByName);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 resolvedTargetCluster,
@@ -257,7 +261,9 @@ public record Configuration(
                 virtualCluster.topicNameCacheConfig(),
                 virtualCluster.subjectBuilder(),
                 virtualCluster.effectiveDrainTimeout(),
-                pfr);
+                pfr,
+                virtualCluster.router(),
+                routeDescriptors);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
@@ -265,24 +271,76 @@ public record Configuration(
         return virtualClusterModel;
     }
 
+    @Nullable
     private TargetCluster resolveTargetCluster(VirtualCluster virtualCluster) {
         if (virtualCluster.targetCluster() != null) {
             return virtualCluster.targetCluster();
         }
         if (virtualCluster.namedTargetCluster() != null) {
-            return resolveNamedTargetCluster(virtualCluster.namedTargetCluster(), virtualCluster.name());
+            return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
+                    .filter(tc -> tc.name().equals(virtualCluster.namedTargetCluster()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalConfigurationException(
+                            "Virtual cluster '" + virtualCluster.name() + "' references unknown target cluster '"
+                                    + virtualCluster.namedTargetCluster() + "'"))
+                    .toTargetCluster();
         }
-        throw new IllegalConfigurationException(
-                "Virtual cluster '" + virtualCluster.name() + "' has no resolvable target cluster");
+        if (virtualCluster.router() != null) {
+            return resolveRouterPrimaryTargetCluster(virtualCluster);
+        }
+        return null;
     }
 
-    private TargetCluster resolveNamedTargetCluster(String clusterName, String virtualClusterName) {
-        return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
-                .filter(cd -> cd.name().equals(clusterName))
+    @Nullable
+    private TargetCluster resolveRouterPrimaryTargetCluster(VirtualCluster virtualCluster) {
+        if (routerDefinitions == null) {
+            return null;
+        }
+        return routerDefinitions.stream()
+                .filter(rd -> rd.name().equals(virtualCluster.router()))
                 .findFirst()
-                .orElseThrow(() -> new IllegalConfigurationException(
-                        "Virtual cluster '" + virtualClusterName + "' references unknown target cluster '" + clusterName + "'"))
-                .toTargetCluster();
+                .flatMap(rd -> rd.routes().stream()
+                        .filter(route -> route.cluster() != null)
+                        .findFirst()
+                        .map(route -> resolveNamedTargetCluster(route.cluster())))
+                .orElse(null);
+    }
+
+    @Nullable
+    private TargetCluster resolveNamedTargetCluster(String name) {
+        return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
+                .filter(tc -> tc.name().equals(name))
+                .findFirst()
+                .map(ClusterDefinition::toTargetCluster)
+                .orElse(null);
+    }
+
+    @Nullable
+    private Map<String, RouteDescriptor> resolveRouteDescriptors(
+                                                                 VirtualCluster virtualCluster,
+                                                                 Map<String, NamedFilterDefinition> filterDefinitionsByName) {
+        if (virtualCluster.router() == null || routerDefinitions == null) {
+            return null;
+        }
+        RouterDefinition rd = routerDefinitions.stream()
+                .filter(r -> r.name().equals(virtualCluster.router()))
+                .findFirst()
+                .orElse(null);
+        if (rd == null) {
+            return null;
+        }
+        return rd.routes().stream()
+                .collect(Collectors.toMap(
+                        RouteDefinition::name,
+                        route -> {
+                            TargetCluster tc = route.cluster() != null
+                                    ? resolveNamedTargetCluster(route.cluster())
+                                    : null;
+                            List<NamedFilterDefinition> routeFilters = route.filters() != null
+                                    ? resolveFilterNames(filterDefinitionsByName, route.filters())
+                                    : List.of();
+                            return new RouteDescriptor(route.name(), route.id(), tc, route.router(), routeFilters);
+                        }));
     }
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
@@ -313,13 +371,14 @@ public record Configuration(
     }
 
     public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
-        rejectUnsupportedRoutingConfig();
         var filterDefinitionsByName = buildFilterDefinitionsByName();
 
         return virtualClusters.stream()
                 .map(virtualCluster -> {
-                    List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
+                    List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(
+                            filterDefinitionsByName, virtualCluster);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions,
+                            filterDefinitionsByName, pfr);
                 })
                 .toList();
     }
@@ -334,7 +393,6 @@ public record Configuration(
      * @throws IllegalArgumentException if no virtual cluster with that name exists in this configuration
      */
     public VirtualClusterModel virtualClusterModel(PluginFactoryRegistry pfr, String clusterName) {
-        rejectUnsupportedRoutingConfig();
         var filterDefinitionsByName = buildFilterDefinitionsByName();
 
         return virtualClusters.stream()
@@ -342,23 +400,9 @@ public record Configuration(
                 .findFirst()
                 .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions, filterDefinitionsByName, pfr);
                 })
                 .orElseThrow(() -> new IllegalArgumentException("No virtual cluster named '" + clusterName + "' in this configuration"));
-    }
-
-    private void rejectUnsupportedRoutingConfig() {
-        if (routerDefinitions != null && !routerDefinitions.isEmpty()) {
-            throw new IllegalConfigurationException(
-                    "Routing is not yet supported in this version. Remove 'routerDefinitions' from configuration.");
-        }
-        for (var vc : virtualClusters) {
-            if (vc.router() != null) {
-                throw new IllegalConfigurationException(
-                        "Routing is not yet supported in this version. Virtual cluster '"
-                                + vc.name() + "' uses a router target, which is not yet implemented.");
-            }
-        }
     }
 
     private Map<String, NamedFilterDefinition> buildFilterDefinitionsByName() {
