@@ -410,7 +410,7 @@ class TopicPartitionRouter implements Router {
             }
 
             return topologyService.leaders(buildTopicsByRoute(subRequests)).thenCompose(leaders -> {
-                Map<VirtualNode, ProduceRequestData> byLeader = groupProduceByLeader(subRequests, request, leaders);
+                Map<VirtualNode, ProduceRequestData> byLeader = groupProduceByLeader(subRequests, request, leaders, context);
 
                 LOGGER.atDebug()
                         .addKeyValue("sessionId", context.sessionId())
@@ -768,7 +768,7 @@ class TopicPartitionRouter implements Router {
             }
 
             return topologyService.leaders(buildTopicsByRoute(subRequests)).thenCompose(leaders -> {
-                Map<VirtualNode, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest, leaders);
+                Map<VirtualNode, FetchRequestData> byLeader = groupFetchByLeader(subRequests, fullRequest, leaders, context);
 
                 Map<String, FetchRequestData> byLeaderStr = new HashMap<>();
                 for (var entry : byLeader.entrySet()) {
@@ -824,7 +824,7 @@ class TopicPartitionRouter implements Router {
 
             return topologyService.leaders(buildTopicsByRoute(subRequests)).thenCompose(leaders -> {
                 Map<VirtualNode, ListOffsetsRequestData> byLeader = groupListOffsetsByLeader(
-                        subRequests, request, leaders);
+                        subRequests, request, leaders, context);
 
                 LOGGER.atDebug()
                         .addKeyValue("sessionId", context.sessionId())
@@ -895,7 +895,8 @@ class TopicPartitionRouter implements Router {
             for (var routeEntry : subRequests.entrySet()) {
                 for (var topic : routeEntry.getValue().topics()) {
                     for (var partition : topic.partitions()) {
-                        VirtualNode leader = leaders.leaderOf(topic.topic(), partition.partition()).orElseGet(() -> context.nodeForId(-1));
+                        VirtualNode leader = leaders.leaderOf(topic.topic(), partition.partition())
+                                .orElseGet(() -> context.anyNode(routeEntry.getKey()));
                         var leaderReq = byLeader.computeIfAbsent(leader, k -> new OffsetForLeaderEpochRequestData().setReplicaId(request.replicaId()));
                         var leaderTopic = findOrCreateOffsetForLeaderTopic(leaderReq, topic.topic());
                         leaderTopic.partitions().add(partition.duplicate());
@@ -1245,7 +1246,7 @@ class TopicPartitionRouter implements Router {
 
             return topologyService.leaders(buildTopicsByRoute(subRequests)).thenCompose(leaders -> {
                 Map<VirtualNode, DeleteRecordsRequestData> byLeader = groupDeleteRecordsByLeader(
-                        subRequests, request, leaders);
+                        subRequests, request, leaders, context);
 
                 LOGGER.atDebug()
                         .addKeyValue("sessionId", context.sessionId())
@@ -2004,12 +2005,14 @@ class TopicPartitionRouter implements Router {
     private Map<VirtualNode, ListOffsetsRequestData> groupListOffsetsByLeader(
                                                                               Map<String, ListOffsetsRequestData> subRequestsByRoute,
                                                                               ListOffsetsRequestData original,
-                                                                              PartitionLeaders leaders) {
+                                                                              PartitionLeaders leaders,
+                                                                              RouterContext context) {
         Map<VirtualNode, ListOffsetsRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             for (var topic : routeEntry.getValue().topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaders.leaderOf(topic.name(), partition.partitionIndex()).orElse(null);
+                    VirtualNode leader = leaders.leaderOf(topic.name(), partition.partitionIndex())
+                            .orElseGet(() -> context.anyNode(routeEntry.getKey()));
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new ListOffsetsRequestData()
                             .setReplicaId(original.replicaId())
                             .setIsolationLevel(original.isolationLevel()));
@@ -2037,13 +2040,15 @@ class TopicPartitionRouter implements Router {
     private Map<VirtualNode, ProduceRequestData> groupProduceByLeader(
                                                                       Map<String, ProduceRequestData> subRequestsByRoute,
                                                                       ProduceRequestData original,
-                                                                      PartitionLeaders leaders) {
+                                                                      PartitionLeaders leaders,
+                                                                      RouterContext context) {
         Map<VirtualNode, ProduceRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             var routeReq = routeEntry.getValue();
             for (var topic : routeReq.topicData()) {
                 for (var partition : topic.partitionData()) {
-                    VirtualNode leader = leaders.leaderOf(topic.name(), partition.index()).orElse(null);
+                    VirtualNode leader = leaders.leaderOf(topic.name(), partition.index())
+                            .orElseGet(() -> context.anyNode(routeEntry.getKey()));
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new ProduceRequestData()
                             .setAcks(original.acks())
                             .setTimeoutMs(original.timeoutMs())
@@ -2075,13 +2080,15 @@ class TopicPartitionRouter implements Router {
     private Map<VirtualNode, FetchRequestData> groupFetchByLeader(
                                                                   Map<String, FetchRequestData> subRequestsByRoute,
                                                                   FetchRequestData original,
-                                                                  PartitionLeaders leaders) {
+                                                                  PartitionLeaders leaders,
+                                                                  RouterContext context) {
         Map<VirtualNode, FetchRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             var routeReq = routeEntry.getValue();
             for (var topic : routeReq.topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaders.leaderOf(topic.topic(), partition.partition()).orElse(null);
+                    VirtualNode leader = leaders.leaderOf(topic.topic(), partition.partition())
+                            .orElseGet(() -> context.anyNode(routeEntry.getKey()));
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new FetchRequestData()
                             .setMaxBytes(original.maxBytes())
                             .setMaxWaitMs(original.maxWaitMs())
@@ -2115,12 +2122,14 @@ class TopicPartitionRouter implements Router {
     private Map<VirtualNode, DeleteRecordsRequestData> groupDeleteRecordsByLeader(
                                                                                   Map<String, DeleteRecordsRequestData> subRequestsByRoute,
                                                                                   DeleteRecordsRequestData original,
-                                                                                  PartitionLeaders leaders) {
+                                                                                  PartitionLeaders leaders,
+                                                                                  RouterContext context) {
         Map<VirtualNode, DeleteRecordsRequestData> byLeader = new HashMap<>();
         for (var routeEntry : subRequestsByRoute.entrySet()) {
             for (var topic : routeEntry.getValue().topics()) {
                 for (var partition : topic.partitions()) {
-                    VirtualNode leader = leaders.leaderOf(topic.name(), partition.partitionIndex()).orElse(null);
+                    VirtualNode leader = leaders.leaderOf(topic.name(), partition.partitionIndex())
+                            .orElseGet(() -> context.anyNode(routeEntry.getKey()));
                     var leaderReq = byLeader.computeIfAbsent(leader, k -> new DeleteRecordsRequestData()
                             .setTimeoutMs(original.timeoutMs()));
                     var leaderTopic = findOrCreateDeleteRecordsTopic(leaderReq, topic.name());
