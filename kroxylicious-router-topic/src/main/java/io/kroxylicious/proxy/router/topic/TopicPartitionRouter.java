@@ -1913,6 +1913,8 @@ class TopicPartitionRouter implements Router {
 
     /**
      * Resolves topic UUIDs to names asynchronously via the topology service.
+     * Fans out across all routes and merges results — correct for non-shared
+     * targets where each UUID exists on at most one route.
      * If no UUIDs need resolving, returns immediately with a no-op resolver.
      */
     private CompletionStage<Function<Uuid, String>> resolveTopicNames(ApiMessage request) {
@@ -1920,8 +1922,18 @@ class TopicPartitionRouter implements Router {
         if (topicIds.isEmpty()) {
             return CompletableFuture.completedFuture(id -> null);
         }
-        return topologyService.topicNames(topicIds)
-                .thenApply(names -> names::get);
+        Set<String> allRoutes = routingTable.allRoutes();
+        Map<Uuid, String> merged = new HashMap<>();
+        CompletableFuture<Void> combined = CompletableFuture.completedFuture(null);
+        for (String route : allRoutes) {
+            combined = combined.thenCombine(
+                    topologyService.topicNames(route, topicIds),
+                    (v, names) -> {
+                        merged.putAll(names);
+                        return null;
+                    });
+        }
+        return combined.thenApply(v -> merged::get);
     }
 
     private static RouterResponse syntheticResult(

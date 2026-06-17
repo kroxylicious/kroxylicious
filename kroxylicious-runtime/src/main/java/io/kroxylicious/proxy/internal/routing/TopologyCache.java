@@ -43,7 +43,7 @@ public class TopologyCache {
     private final ConcurrentHashMap<PartitionKey, PartitionEntry> partitions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<RouteCoordinatorKey, Integer> coordinators = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Integer, BrokerInfo> brokers = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Uuid, String> topicNames = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<RouteTopicIdKey, String> topicNames = new ConcurrentHashMap<>();
 
     /**
      * Partition identity (topic name + partition index).
@@ -82,6 +82,17 @@ public class TopologyCache {
     public record RouteCoordinatorKey(String route, byte keyType, String key) {}
 
     /**
+     * Topic name cache key: route-scoped by (route, topicId).
+     * Per-route filter chains can transform topic names differently,
+     * so the same cluster-level topic ID can map to different names
+     * on different routes.
+     *
+     * @param route the route name
+     * @param topicId the topic UUID
+     */
+    record RouteTopicIdKey(String route, Uuid topicId) {}
+
+    /**
      * Updates the cache from a translated METADATA response.
      * The response must have already been through
      * {@link NodeIdResponseTranslator} so that all node IDs are virtual.
@@ -110,7 +121,7 @@ public class TopologyCache {
             }
             if (topic.topicId() != null && !Uuid.ZERO_UUID.equals(topic.topicId())
                     && topic.name() != null && !topic.name().isEmpty()) {
-                topicNames.put(topic.topicId(), topic.name());
+                topicNames.put(new RouteTopicIdKey(route, topic.topicId()), topic.name());
             }
             for (var partition : topic.partitions()) {
                 if (partition.errorCode() != Errors.NONE.code() || partition.leaderId() < 0) {
@@ -215,26 +226,28 @@ public class TopologyCache {
     }
 
     /**
-     * Returns the cached topic name for a topic ID, or null if not cached.
+     * Returns the cached topic name for a topic ID on a given route,
+     * or null if not cached.
      */
     @Nullable
-    public String topicNameFor(Uuid topicId) {
-        return topicNames.get(topicId);
+    public String topicNameFor(String route, Uuid topicId) {
+        return topicNames.get(new RouteTopicIdKey(route, topicId));
     }
 
     /**
-     * Returns the subset of the given topic IDs that are not cached.
+     * Returns the subset of the given topic IDs that are not cached
+     * for the given route.
      */
-    public Set<Uuid> uncachedTopicIds(Set<Uuid> topicIds) {
+    public Set<Uuid> uncachedTopicIds(String route, Set<Uuid> topicIds) {
         return topicIds.stream()
-                .filter(id -> !topicNames.containsKey(id))
+                .filter(id -> !topicNames.containsKey(new RouteTopicIdKey(route, id)))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     /**
-     * Coarse invalidation: clears all partition info, coordinators, and
-     * broker info associated with the given route. Topic ID to name
-     * mappings are not cleared (they are stable within a cluster).
+     * Coarse invalidation: clears all partition info, coordinators,
+     * broker info, and topic ID to name mappings associated with the
+     * given route.
      */
     public void invalidateRoute(String route) {
         Objects.requireNonNull(route);
@@ -242,6 +255,8 @@ public class TopologyCache {
         partitions.entrySet().removeIf(e -> route.equals(e.getValue().route()));
 
         coordinators.keySet().removeIf(k -> route.equals(k.route()));
+
+        topicNames.keySet().removeIf(k -> route.equals(k.route()));
 
         // Broker info doesn't track which route it came from —
         // in multi-route topologies, a broker may appear in responses

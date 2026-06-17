@@ -104,7 +104,23 @@ class TopologyCacheTest {
             cache.updateFromMetadata(ROUTE_A, data);
 
             // Then
-            assertThat(cache.topicNameFor(topicId)).isEqualTo("orders");
+            assertThat(cache.topicNameFor(ROUTE_A, topicId)).isEqualTo("orders");
+        }
+
+        @Test
+        void shouldCacheSameTopicIdWithDifferentNamesPerRoute() {
+            // Given
+            var topicId = Uuid.randomUuid();
+            var dataA = metadataResponseWithTopicId("a_orders", topicId, 0, 42);
+            var dataB = metadataResponseWithTopicId("b_orders", topicId, 0, 42);
+
+            // When
+            cache.updateFromMetadata(ROUTE_A, dataA);
+            cache.updateFromMetadata(ROUTE_B, dataB);
+
+            // Then
+            assertThat(cache.topicNameFor(ROUTE_A, topicId)).isEqualTo("a_orders");
+            assertThat(cache.topicNameFor(ROUTE_B, topicId)).isEqualTo("b_orders");
         }
 
         @Test
@@ -170,7 +186,7 @@ class TopologyCacheTest {
             cache.updateFromMetadata(ROUTE_A, data);
 
             // Then
-            assertThat(cache.topicNameFor(Uuid.ZERO_UUID)).isNull();
+            assertThat(cache.topicNameFor(ROUTE_A, Uuid.ZERO_UUID)).isNull();
         }
 
         @Test
@@ -305,7 +321,7 @@ class TopologyCacheTest {
         }
 
         @Test
-        void shouldNotClearTopicNames() {
+        void shouldClearTopicNamesForRoute() {
             // Given
             var topicId = Uuid.randomUuid();
             cache.updateFromMetadata(ROUTE_A, metadataResponseWithTopicId("orders", topicId, 0, 42));
@@ -314,7 +330,22 @@ class TopologyCacheTest {
             cache.invalidateRoute(ROUTE_A);
 
             // Then
-            assertThat(cache.topicNameFor(topicId)).isEqualTo("orders");
+            assertThat(cache.topicNameFor(ROUTE_A, topicId)).isNull();
+        }
+
+        @Test
+        void shouldOnlyClearTopicNamesForInvalidatedRoute() {
+            // Given
+            var topicId = Uuid.randomUuid();
+            cache.updateFromMetadata(ROUTE_A, metadataResponseWithTopicId("a_orders", topicId, 0, 42));
+            cache.updateFromMetadata(ROUTE_B, metadataResponseWithTopicId("b_orders", topicId, 0, 42));
+
+            // When
+            cache.invalidateRoute(ROUTE_A);
+
+            // Then
+            assertThat(cache.topicNameFor(ROUTE_A, topicId)).isNull();
+            assertThat(cache.topicNameFor(ROUTE_B, topicId)).isEqualTo("b_orders");
         }
 
         @Test
@@ -397,8 +428,8 @@ class TopologyCacheTest {
             cache.updateFromMetadata(ROUTE_A, metadataResponseWithTopicId("payments", paymentsId, 0, 43));
 
             // Then: both mappings are present
-            assertThat(cache.topicNameFor(ordersId)).isEqualTo("orders");
-            assertThat(cache.topicNameFor(paymentsId)).isEqualTo("payments");
+            assertThat(cache.topicNameFor(ROUTE_A, ordersId)).isEqualTo("orders");
+            assertThat(cache.topicNameFor(ROUTE_A, paymentsId)).isEqualTo("payments");
         }
 
         @Test
@@ -435,7 +466,7 @@ class TopologyCacheTest {
 
         @Test
         void shouldReturnNullForUncachedTopicName() {
-            assertThat(cache.topicNameFor(Uuid.randomUuid())).isNull();
+            assertThat(cache.topicNameFor(ROUTE_A, Uuid.randomUuid())).isNull();
         }
     }
 
