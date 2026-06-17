@@ -123,17 +123,23 @@ public interface TopologyService {
     CompletionStage<Coordinators> coordinators(String route, byte keyType, Set<String> keys);
 
     /**
-     * Resolves topic IDs to topic names, batching cache misses into
-     * a single METADATA request per route.
+     * Resolves topic IDs to topic names for a given route, batching
+     * cache misses into a single METADATA request.
+     *
+     * <p>The route parameter is required because per-route filter
+     * chains can transform topic names differently — the same
+     * cluster-level topic ID can map to different router-visible
+     * names on different routes.</p>
      *
      * <p>Returns a map containing an entry for each topic ID that
      * was successfully resolved. Topic IDs that could not be resolved
      * (e.g. deleted topics) are absent from the returned map.</p>
      *
+     * @param route the route to resolve names for
      * @param topicIds the topic IDs to resolve
      * @return a stage that completes with the resolved mappings
      */
-    CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds);
+    CompletionStage<Map<Uuid, String>> topicNames(String route, Set<Uuid> topicIds);
 
     /**
      * Returns full partition info (leader, replicas, ISR) for a
@@ -162,10 +168,11 @@ public interface TopologyService {
 
     /**
      * Coarse invalidation: clears all partition info, coordinators,
-     * and broker info for a route.
+     * broker info, and topic ID to name mappings for a route.
      *
-     * <p>Topic ID to name mappings are not cleared (they are stable
-     * within a cluster).</p>
+     * <p>Topic ID to name mappings for the route are also cleared,
+     * because per-route filter chains can present different names
+     * for the same underlying cluster topic.</p>
      *
      * <p>Called by the router when it observes staleness indicators
      * (e.g. {@code NOT_LEADER_OR_FOLLOWER}, {@code NOT_COORDINATOR})

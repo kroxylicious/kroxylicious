@@ -236,7 +236,7 @@ class TopicPartitionRouterFactoryTest {
         }
 
         @Override
-        public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
+        public CompletionStage<Map<Uuid, String>> topicNames(String route, Set<Uuid> topicIds) {
             return CompletableFuture.completedFuture(Map.of());
         }
 

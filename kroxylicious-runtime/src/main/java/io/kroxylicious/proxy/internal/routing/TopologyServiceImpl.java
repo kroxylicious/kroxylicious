@@ -183,14 +183,14 @@ public class TopologyServiceImpl implements TopologyService {
     }
 
     @Override
-    public CompletionStage<Map<Uuid, String>> topicNames(Set<Uuid> topicIds) {
-        return CompletableFuture.completedFuture(resolveFromCache(topicIds));
+    public CompletionStage<Map<Uuid, String>> topicNames(String route, Set<Uuid> topicIds) {
+        return CompletableFuture.completedFuture(resolveFromCache(route, topicIds));
     }
 
-    private Map<Uuid, String> resolveFromCache(Set<Uuid> topicIds) {
+    private Map<Uuid, String> resolveFromCache(String route, Set<Uuid> topicIds) {
         var result = new HashMap<Uuid, String>();
         for (var id : topicIds) {
-            String name = cache.topicNameFor(id);
+            String name = cache.topicNameFor(route, id);
             if (name != null) {
                 result.put(id, name);
             }

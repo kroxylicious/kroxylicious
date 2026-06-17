@@ -19,3 +19,4 @@ io.kroxylicious.it.testplugins.FailingInitFilterFactory
 io.kroxylicious.it.testplugins.FaultInjectionFilterFactory
 io.kroxylicious.it.testplugins.OrderRecordingFilterFactory
 io.kroxylicious.it.testplugins.TagCapturingFilterFactory
+io.kroxylicious.it.testplugins.ConfigurableTopicPrefixFilterFactory
