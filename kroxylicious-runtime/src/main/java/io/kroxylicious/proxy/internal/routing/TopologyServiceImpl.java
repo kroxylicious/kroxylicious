@@ -184,7 +184,28 @@ public class TopologyServiceImpl implements TopologyService {
 
     @Override
     public CompletionStage<Map<Uuid, String>> topicNames(String route, Set<Uuid> topicIds) {
-        return CompletableFuture.completedFuture(resolveFromCache(route, topicIds));
+        Map<Uuid, String> cached = resolveFromCache(route, topicIds);
+        if (cached.size() == topicIds.size()) {
+            return CompletableFuture.completedFuture(cached);
+        }
+
+        Set<Uuid> uncached = topicIds.stream()
+                .filter(id -> !cached.containsKey(id))
+                .collect(Collectors.toSet());
+
+        var mdHeader = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.METADATA.id)
+                .setRequestApiVersion(INTERNAL_METADATA_API_VERSION);
+        var mdReq = new MetadataRequestData()
+                .setAllowAutoTopicCreation(false);
+        for (var id : uncached) {
+            mdReq.topics().add(new MetadataRequestData.MetadataRequestTopic()
+                    .setTopicId(id)
+                    .setName(null));
+        }
+
+        return requireSender().send(route, mdHeader, mdReq)
+                .thenApply(resp -> resolveFromCache(route, topicIds));
     }
 
     private Map<Uuid, String> resolveFromCache(String route, Set<Uuid> topicIds) {
