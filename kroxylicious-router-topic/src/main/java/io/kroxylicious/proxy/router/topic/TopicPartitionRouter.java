@@ -26,6 +26,8 @@ import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnPartitionResult;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData.AddPartitionsToTxnTopicResult;
 import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData.DescribedGroup;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatResponseData;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
@@ -1020,6 +1022,18 @@ class TopicPartitionRouter implements Router {
                     merged.topics().add(tr.duplicate());
                 }
                 return syntheticResult(context, merged);
+            }).exceptionally(ex -> {
+                LOGGER.atWarn()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("groupId", request.groupId())
+                        .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                        .addKeyValue("error", ex.getMessage())
+                        .log(LOGGER.isDebugEnabled()
+                                ? "OFFSET_COMMIT forwarding failed"
+                                : "OFFSET_COMMIT forwarding failed, "
+                                        + "increase log level to DEBUG for stacktrace");
+                return syntheticResult(context,
+                        allPartitionsOffsetCommitError(request, Errors.COORDINATOR_NOT_AVAILABLE));
             });
         });
     }
@@ -1079,6 +1093,19 @@ class TopicPartitionRouter implements Router {
                         }
                         return syntheticResult(context, body);
                     }
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", expectedRoute)
+                            .addKeyValue("groupId", request.groupId())
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "OFFSET_COMMIT forwarding failed"
+                                    : "OFFSET_COMMIT forwarding failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    return syntheticResult(context,
+                            allPartitionsOffsetCommitError(request, Errors.COORDINATOR_NOT_AVAILABLE));
                 });
     }
 
@@ -1421,6 +1448,23 @@ class TopicPartitionRouter implements Router {
                 });
     }
 
+    private static OffsetCommitResponseData allPartitionsOffsetCommitError(
+                                                                           OffsetCommitRequestData request,
+                                                                           Errors error) {
+        var response = new OffsetCommitResponseData();
+        for (var topic : request.topics()) {
+            var topicResponse = new OffsetCommitResponseTopic().setName(topic.name());
+            for (var partition : topic.partitions()) {
+                topicResponse.partitions().add(
+                        new OffsetCommitResponsePartition()
+                                .setPartitionIndex(partition.partitionIndex())
+                                .setErrorCode(error.code()));
+            }
+            response.topics().add(topicResponse);
+        }
+        return response;
+    }
+
     private static AddPartitionsToTxnResponseData allPartitionsError(
                                                                      AddPartitionsToTxnRequestData request,
                                                                      Errors error) {
@@ -1752,6 +1796,23 @@ class TopicPartitionRouter implements Router {
         return sendToCoordinatorOrDiscover(route, (byte) 0, groupId, header, request, context)
                 .thenApply(response -> {
                     return context.respondWith(response).build();
+                }).exceptionally(ex -> {
+                    LOGGER.atWarn()
+                            .addKeyValue("sessionId", context.sessionId())
+                            .addKeyValue("route", route)
+                            .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                            .addKeyValue("error", ex.getMessage())
+                            .log(LOGGER.isDebugEnabled()
+                                    ? "CONSUMER_GROUP_DESCRIBE forwarding failed"
+                                    : "CONSUMER_GROUP_DESCRIBE forwarding failed, "
+                                            + "increase log level to DEBUG for stacktrace");
+                    var errorResponse = new ConsumerGroupDescribeResponseData();
+                    for (var gid : request.groupIds()) {
+                        errorResponse.groups().add(new DescribedGroup()
+                                .setGroupId(gid)
+                                .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
+                    }
+                    return syntheticResult(context, errorResponse);
                 });
     }
 
@@ -1769,6 +1830,20 @@ class TopicPartitionRouter implements Router {
             return sendToCoordinatorOrDiscover(cgRoute, (byte) 0, request.groupId(), header, request, context)
                     .thenApply(response -> {
                         return context.respondWith(response).build();
+                    }).exceptionally(ex -> {
+                        LOGGER.atWarn()
+                                .addKeyValue("sessionId", context.sessionId())
+                                .addKeyValue("route", cgRoute)
+                                .addKeyValue("groupId", request.groupId())
+                                .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                                .addKeyValue("error", ex.getMessage())
+                                .log(LOGGER.isDebugEnabled()
+                                        ? "OFFSET_FETCH forwarding failed"
+                                        : "OFFSET_FETCH forwarding failed, "
+                                                + "increase log level to DEBUG for stacktrace");
+                        return syntheticResult(context,
+                                new OffsetFetchResponseData()
+                                        .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
                     });
         }
 
@@ -1803,6 +1878,19 @@ class TopicPartitionRouter implements Router {
                         bodies, request, apiVersion);
                 mergeOffsetFetchErrors(merged, capturedErrors, apiVersion);
                 return syntheticResult(context, merged);
+            }).exceptionally(ex -> {
+                LOGGER.atWarn()
+                        .addKeyValue("sessionId", context.sessionId())
+                        .addKeyValue("groupId", request.groupId())
+                        .setCause(LOGGER.isDebugEnabled() ? ex : null)
+                        .addKeyValue("error", ex.getMessage())
+                        .log(LOGGER.isDebugEnabled()
+                                ? "OFFSET_FETCH forwarding failed"
+                                : "OFFSET_FETCH forwarding failed, "
+                                        + "increase log level to DEBUG for stacktrace");
+                return syntheticResult(context,
+                        new OffsetFetchResponseData()
+                                .setErrorCode(Errors.COORDINATOR_NOT_AVAILABLE.code()));
             });
         });
     }
