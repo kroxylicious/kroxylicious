@@ -108,7 +108,10 @@ public class SaslTerminationFilter implements RequestFilter {
                                                                         FilterContext filterContext) {
 
         if (!(state instanceof State.RequiringHandshake)) {
-            LOGGER.warn("{}: Received SASL handshake in state {}", filterContext.channelDescriptor(), state);
+            LOGGER.atWarn()
+                    .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                    .addKeyValue("state", state)
+                    .log("Received SASL handshake in unexpected state");
             return filterContext.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData()
                             .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
@@ -135,7 +138,10 @@ public class SaslTerminationFilter implements RequestFilter {
             supportedMechanisms = List.of();
         }
         else {
-            LOGGER.debug("{}: Unsupported mechanism: {}", filterContext.channelDescriptor(), mechanism);
+            LOGGER.atDebug()
+                    .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                    .addKeyValue("mechanism", mechanism)
+                    .log("Unsupported mechanism");
             errorCode = Errors.UNSUPPORTED_SASL_MECHANISM;
             supportedMechanisms = List.copyOf(context.credentialStores().keySet());
         }
@@ -159,7 +165,10 @@ public class SaslTerminationFilter implements RequestFilter {
                                                                            FilterContext filterContext) {
 
         if (!(state instanceof State.RequiringAuthenticate authenticating)) {
-            LOGGER.warn("{}: Received SASL authenticate in state {}", filterContext.channelDescriptor(), state);
+            LOGGER.atWarn()
+                    .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                    .addKeyValue("state", state)
+                    .log("Received SASL authenticate in unexpected state");
             return filterContext.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslAuthenticateResponseData()
                             .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
@@ -178,7 +187,10 @@ public class SaslTerminationFilter implements RequestFilter {
         return handler.handleAuthenticate(request.authBytes(), credentialStore)
                 .thenCompose(result -> processAuthenticationResult(result, handler, filterContext))
                 .exceptionally(throwable -> {
-                    LOGGER.error("{}: Authentication error", filterContext.channelDescriptor(), throwable);
+                    LOGGER.atError()
+                            .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                            .setCause(throwable)
+                            .log("Authentication error");
                     return handleAuthenticationFailure(
                             "Internal error: " + throwable.getMessage(),
                             handler,
@@ -210,8 +222,10 @@ public class SaslTerminationFilter implements RequestFilter {
 
             case SUCCESS -> {
                 String authorizationId = result.authorizationId();
-                LOGGER.debug("{}: Authentication successful, authorizationId={}",
-                        filterContext.channelDescriptor(), authorizationId);
+                LOGGER.atDebug()
+                        .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                        .addKeyValue("authorizationId", authorizationId)
+                        .log("Authentication successful");
 
                 // Transition to Authenticated state
                 if (state instanceof State.RequiringAuthenticate authenticating) {
@@ -247,7 +261,10 @@ public class SaslTerminationFilter implements RequestFilter {
                                                             MechanismHandler handler,
                                                             FilterContext filterContext) {
 
-        LOGGER.debug("{}: Authentication failed: {}", filterContext.channelDescriptor(), errorMessage);
+        LOGGER.atDebug()
+                .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                .addKeyValue("error", errorMessage)
+                .log("Authentication failed");
 
         // Transition to Failed state
         if (state instanceof State.RequiringAuthenticate authenticating) {
@@ -289,8 +306,10 @@ public class SaslTerminationFilter implements RequestFilter {
         }
         else {
             // Not authenticated - reject request and close connection
-            LOGGER.debug("{}: Rejecting unauthenticated request: {}",
-                    filterContext.channelDescriptor(), request.getClass().getSimpleName());
+            LOGGER.atDebug()
+                    .addKeyValue("channelDescriptor", filterContext.channelDescriptor())
+                    .addKeyValue("requestType", request.getClass().getSimpleName())
+                    .log("Rejecting unauthenticated request");
 
             return filterContext.requestFilterResultBuilder()
                     .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
