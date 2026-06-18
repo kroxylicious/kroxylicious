@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal.net;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import io.netty.handler.ssl.SslContext;
 
@@ -110,5 +111,19 @@ public interface EndpointGateway {
      * @return name
      */
     String name();
+
+    /**
+     * Binds the port resolver that will be used by {@link #getAdvertisedBrokerAddress(int)} to
+     * look up the actual OS-bound port (which may differ from the configured port when port=0
+     * was used). Called from {@code KafkaProxy.startup()} before the first reconciliation.
+     * <p>
+     * The default no-op implementation is for gateways that do not support dynamic port resolution
+     * (e.g. test doubles that return fixed addresses).
+     *
+     * @param resolver maps a {@link VirtualNodeId} to its actual bound port
+     */
+    default void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
+        // no-op for implementations that predate AdvertisingSpec or don't need port resolution
+    }
 
 }

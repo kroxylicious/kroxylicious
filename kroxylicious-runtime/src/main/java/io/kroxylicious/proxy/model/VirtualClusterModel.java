@@ -626,8 +626,14 @@ public class VirtualClusterModel implements AutoCloseable {
          *
          * @param resolver maps a {@link VirtualNodeId} to its actual bound port
          */
+        @Override
         public void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
             this.portResolver = Objects.requireNonNull(resolver);
+        }
+
+        @VisibleForTesting
+        public boolean isPortResolverBound() {
+            return portResolver != null;
         }
 
         @Override

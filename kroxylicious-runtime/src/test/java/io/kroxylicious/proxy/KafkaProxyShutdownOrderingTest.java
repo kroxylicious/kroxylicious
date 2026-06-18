@@ -21,6 +21,7 @@ import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -121,6 +122,43 @@ class KafkaProxyShutdownOrderingTest {
             // Shutdown should complete without throwing — the catch in shutdown()
             // swallows the drain failure and lets the rest of cleanup proceed.
             assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+        }
+    }
+
+    @Test
+    void shouldBindPortResolverToGatewaysAfterStartup() throws Exception {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            // When
+            proxy.startup();
+
+            // Then - every gateway has a port resolver wired after startup
+            var allGateways = models.stream()
+                    .flatMap(vc -> vc.gateways().values().stream())
+                    .filter(VirtualClusterGatewayModel.class::isInstance)
+                    .map(VirtualClusterGatewayModel.class::cast)
+                    .toList();
+            assertThat(allGateways).isNotEmpty();
+            assertThat(allGateways).allSatisfy(gw -> assertThat(gw.isPortResolverBound()).isTrue());
+
+            proxy.shutdown();
         }
     }
 
