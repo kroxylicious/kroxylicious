@@ -1,0 +1,26 @@
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-authentication-overview-{context}']
+= Authentication overview
+
+[role="_abstract"]
+Kroxylicious provides two approaches to SASL authentication: *SASL Inspection* and *SASL Termination*.
+Each approach serves different use cases and has distinct security and operational characteristics.
+
+== Authentication approaches
+
+Kroxylicious supports two fundamentally different approaches to handling client authentication:
+
+* *SASL Inspection* - The proxy observes the SASL authentication exchange between clients and brokers, extracting the authenticated identity after successful broker authentication.
+
+* *SASL Termination* - The proxy performs SASL authentication directly, validating client credentials against credential stores before establishing broker connections.
+
+include::../../_modules/authentication/con-sasl-inspection-approach.adoc[leveloffset=+2]
+
+include::../../_modules/authentication/con-sasl-termination-approach.adoc[leveloffset=+2]
+
+== Choosing the right approach
+
+The choice between SASL Inspection and SASL Termination depends on your security requirements, operational model, and deployment constraints.
+
+include::../../_modules/authentication/con-choosing-authentication-approach.adoc[leveloffset=+2]

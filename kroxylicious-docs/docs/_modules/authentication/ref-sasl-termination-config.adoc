@@ -1,0 +1,120 @@
+:_mod-docs-content-type: REFERENCE
+
+[id='ref-sasl-termination-config-{context}']
+= SASL Termination configuration reference
+
+[role="_abstract"]
+Configuration parameters for the SASL Termination filter.
+
+== Configuration structure
+
+[source,yaml]
+----
+type: SaslTermination
+config:
+  mechanisms:
+    <mechanism-name>:
+      credentialStore: <credential-store-class>
+      credentialStoreConfig: <credential-store-configuration>
+----
+
+== Configuration parameters
+
+[cols="2,1,3,2",options="header"]
+|===
+|Parameter
+|Type
+|Description
+|Default
+
+|`mechanisms`
+|Map<String, MechanismConfig>
+|Map of SASL mechanism names to their configuration
+|Required (no default)
+|===
+
+== Mechanism configuration (MechanismConfig)
+
+[cols="2,1,3,2",options="header"]
+|===
+|Parameter
+|Type
+|Description
+|Default
+
+|`credentialStore`
+|String
+|Fully qualified or simple class name of the credential store service implementation
+|Required (no default)
+
+|`credentialStoreConfig`
+|Object
+|Configuration object for the credential store, structure depends on the credential store implementation
+|Required (no default)
+|===
+
+== Supported mechanisms
+
+[cols="2,3",options="header"]
+|===
+|Mechanism name
+|Description
+
+|`SCRAM-SHA-256`
+|SCRAM with SHA-256 hash algorithm (RFC 7677)
+
+|`SCRAM-SHA-512`
+|SCRAM with SHA-512 hash algorithm (draft-melnikov-scram-sha-512)
+|===
+
+== Credential store implementations
+
+[cols="2,3",options="header"]
+|===
+|Class name
+|Description
+
+|`KeystoreScramCredentialStore`
+|Loads SCRAM credentials from Java keystore files. See xref:ref-keystore-credential-store-config-{context}[] for configuration.
+|===
+
+== Configuration examples
+
+.Single mechanism
+[source,yaml]
+----
+type: SaslTermination
+config:
+  mechanisms:
+    SCRAM-SHA-256:
+      credentialStore: KeystoreScramCredentialStore
+      credentialStoreConfig:
+        file: /path/to/credentials.p12
+        storePassword:
+          passwordFile: /path/to/password.txt
+        storeType: PKCS12
+----
+
+.Multiple mechanisms (separate keystores)
+[source,yaml]
+----
+type: SaslTermination
+config:
+  mechanisms:
+    SCRAM-SHA-256:
+      credentialStore: KeystoreScramCredentialStore
+      credentialStoreConfig:
+        file: /path/to/credentials-sha256.p12
+        storePassword:
+          passwordFile: /path/to/password-sha256.txt
+        storeType: PKCS12
+    SCRAM-SHA-512:
+      credentialStore: KeystoreScramCredentialStore
+      credentialStoreConfig:
+        file: /path/to/credentials-sha512.p12
+        storePassword:
+          passwordFile: /path/to/password-sha512.txt
+        storeType: PKCS12
+----
+
+NOTE: When configuring multiple mechanisms, clients can choose which mechanism to use during SASL negotiation. The proxy must have credentials available for the client's chosen mechanism.

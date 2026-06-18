@@ -1,0 +1,104 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-termination-security-{context}']
+= Security considerations
+
+[role="_abstract"]
+SASL Termination requires careful security configuration to protect client credentials and maintain secure authentication.
+
+== TLS requirement
+
+IMPORTANT: SASL Termination requires TLS for client-to-proxy connections.
+Without TLS, SASL authentication metadata is transmitted in plaintext, exposing credentials to network eavesdropping.
+
+Configure TLS in your virtual cluster definition to protect credentials in transit:
+
+[source,yaml]
+----
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrap_servers: kafka:9092
+    clusterNetworkAddressConfigProvider:
+      type: PortPerBrokerClusterNetworkAddressConfigProvider
+      config:
+        bootstrapAddress: proxy:9192
+    tls:  <1>
+      key:
+        storeFile: /path/to/proxy-keystore.p12
+        storePassword:
+          passwordFile: /path/to/keystore-password.txt
+        storeType: PKCS12
+----
+<1> TLS configuration required when using SASL Termination
+
+Refer to the {ProxyGuide} for complete TLS configuration details.
+
+== Credential store security
+
+*Keystore file permissions*:: Restrict access to credential keystore files using file system permissions:
++
+[source,bash]
+----
+chmod 600 /path/to/credentials.p12
+chown proxy-user:proxy-group /path/to/credentials.p12
+----
++
+Only the proxy process user should have read access.
+
+*Password security*:: Use PasswordProvider for keystore passwords. Never use inline passwords in configuration files:
++
+[source,yaml]
+----
+storePassword:
+  passwordFile: /path/to/keystore-password.txt  # Recommended
+# storePassword:
+#   password: "plaintext"  # Never use in production
+----
++
+Protect password files with restrictive permissions (chmod 600).
+
+*Password complexity*:: Generate strong passwords following NIST SP 800-63B guidance:
++
+* Minimum 12 characters (enforced by keystore-credential-tool)
+* Random generation using cryptographically secure methods
+* Avoid dictionary words or predictable patterns
++
+See xref:proc-generating-secure-passwords-{context}[] for password generation procedures.
+
+*PBKDF2 iterations*:: Use at least 10000 iterations for SCRAM credentials. Higher iteration counts increase resistance to password cracking:
++
+[source,bash]
+----
+# keystore-credential-tool uses 10000 iterations by default
+keystore-credential-tool add-user -k credentials.p12 -u alice
+----
+
+*Keystore format*:: Use PKCS12 keystores (modern, secure) rather than legacy JKS format:
++
+[source,bash]
+----
+keystore-credential-tool create -k credentials.p12 -t PKCS12
+----
+
+== Operational security
+
+*Credential rotation*:: Rotate credentials periodically according to your security policy. Update passwords using keystore-credential-tool:
++
+[source,bash]
+----
+keystore-credential-tool update-password -k credentials.p12 -u alice
+----
+
+*Audit logging*:: Monitor authentication attempts using the proxy's audit logging. Authentication successes and failures are logged for security monitoring.
+
+*Backup security*:: Encrypt backups of credential keystores. Store backups securely with access controls.
+
+*Defence in depth*:: Combine SASL Termination with other security measures:
++
+* mTLS for client connections (transport-level authentication)
+* Network segmentation
+* Firewall rules restricting proxy access
+* Intrusion detection systems
+
+WARNING: Never log or expose credential data. The keystore-credential-tool's `--unlock-insecure-options` flag allows passwords via command line, which exposes them in process listings and shell history. Never use this flag in production environments.
