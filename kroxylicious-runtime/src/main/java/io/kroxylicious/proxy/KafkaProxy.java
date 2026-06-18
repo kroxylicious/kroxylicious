@@ -351,8 +351,9 @@ public final class KafkaProxy implements AutoCloseable {
                     Stream.concat(Stream.of(managementFuture),
                             virtualClusterModels.stream()
                                     .flatMap(vc -> vc.gateways().values().stream())
-                                    .peek(vcl -> vcl.bindPortResolver(endpointRegistry::resolvePort))
-                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
+                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl)
+                                            .thenRun(() -> vcl.bindPortResolver(endpointRegistry::resolvePort))
+                                            .toCompletableFuture()))
                             .toArray(CompletableFuture[]::new))
                     .join();
 
