@@ -5,14 +5,11 @@
  */
 package io.kroxylicious.proxy.micrometer;
 
-import java.beans.ConstructorProperties;
 import java.time.Duration;
 import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.distribution.pause.ClockDriftPauseDetector;
@@ -32,7 +29,9 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         return new Hook(config);
     }
 
-    public static class PauseDetectorHookConfig {
+    // The raw millisecond components are kept nullable so that "unset" is distinct from an explicit
+    // value for equality (used by reconfigure's static-section diff); the getters apply defaults.
+    public record PauseDetectorHookConfig(@Nullable Long sleepIntervalMs, @Nullable Long pauseThresholdMs) {
 
         // 100ms is the micrometer recommended default
         static final long DEFAULT_SLEEP_INTERVAL_MS = 100;
@@ -40,23 +39,12 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         // 100ms is the micrometer recommended default
         static final long DEFAULT_PAUSE_THRESHOLD_MS = 100;
 
-        private final Duration sleepIntervalMs;
-
-        private final Duration pauseThresholdMs;
-
-        @JsonCreator
-        @ConstructorProperties({ "sleepIntervalMs", "pauseThresholdMs" })
-        public PauseDetectorHookConfig(final @Nullable Long sleepIntervalMs, final @Nullable Long pauseThresholdMs) {
-            this.sleepIntervalMs = Duration.ofMillis(sleepIntervalMs != null ? sleepIntervalMs : DEFAULT_SLEEP_INTERVAL_MS);
-            this.pauseThresholdMs = Duration.ofMillis(pauseThresholdMs != null ? pauseThresholdMs : DEFAULT_PAUSE_THRESHOLD_MS);
-        }
-
         public Duration getSleepInterval() {
-            return sleepIntervalMs;
+            return Duration.ofMillis(sleepIntervalMs != null ? sleepIntervalMs : DEFAULT_SLEEP_INTERVAL_MS);
         }
 
         public Duration getPauseThreshold() {
-            return pauseThresholdMs;
+            return Duration.ofMillis(pauseThresholdMs != null ? pauseThresholdMs : DEFAULT_PAUSE_THRESHOLD_MS);
         }
     }
 

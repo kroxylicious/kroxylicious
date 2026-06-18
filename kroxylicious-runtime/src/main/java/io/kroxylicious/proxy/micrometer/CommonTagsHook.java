@@ -11,8 +11,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
@@ -30,10 +28,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
         return new Hook(config);
     }
 
-    public static class CommonTagsHookConfig {
-        private final Map<String, String> commonTags;
-
-        @JsonCreator
+    public record CommonTagsHookConfig(Map<String, String> commonTags) {
         public CommonTagsHookConfig(@Nullable Map<String, String> commonTags) {
             this.commonTags = commonTags == null ? Map.of() : commonTags;
         }
@@ -51,7 +46,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
 
         @Override
         public void configure(MeterRegistry targetRegistry) {
-            List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
+            List<Tag> tags = config.commonTags().entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).toList();
             targetRegistry.config().commonTags(tags);
             log.atInfo()
                     .addKeyValue("tags", tags)
