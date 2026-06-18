@@ -371,7 +371,7 @@ public class CipherTrustMockServer {
          * Perform the actual transformation. Subclasses should return JSON error responses
          * for expected errors (e.g., 400, 401, 404) and throw exceptions for unexpected errors.
          */
-        abstract ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception;
+        abstract ResponseDefinition doTransform(ServeEvent serveEvent);
     }
 
     /**
@@ -390,7 +390,7 @@ public class CipherTrustMockServer {
         @Override
         @SuppressFBWarnings("HARD_CODE_PASSWORD") // Test password comparison
         @SuppressWarnings("java:S2068") // allow hardcoded password as this is a test server
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             AuthRequest request = parseJsonRequest(serveEvent.getRequest(), AuthRequest.class);
 
             String username = request.username();
@@ -446,7 +446,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             int bytesParam = getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt);
 
             LOGGER.atDebug()
@@ -475,7 +475,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             EncryptRequest request = parseJsonRequest(serveEvent.getRequest(), EncryptRequest.class);
             String keyRef = request.id();
             byte[] plaintext = request.plaintext();
@@ -511,11 +511,8 @@ public class CipherTrustMockServer {
             byte[] iv = new byte[GCM_IV_LENGTH_BYTES];
             secureRandom.nextBytes(iv);
 
-            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
-            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
-            cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
+            byte[] ciphertextWithTag = encryptAesGcm(plaintext, kek, iv);
 
-            byte[] ciphertextWithTag = cipher.doFinal(plaintext);
             // Split ciphertext and tag
             int ciphertextLength = ciphertextWithTag.length - (GCM_TAG_LENGTH_BITS / 8);
             byte[] ciphertext = new byte[ciphertextLength];
@@ -548,7 +545,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             DecryptRequest request = parseJsonRequest(serveEvent.getRequest(), DecryptRequest.class);
             String keyId = request.id();
             byte[] ciphertext = request.ciphertext();
@@ -572,11 +569,7 @@ public class CipherTrustMockServer {
             System.arraycopy(ciphertext, 0, ciphertextWithTag, 0, ciphertext.length);
             System.arraycopy(tag, 0, ciphertextWithTag, ciphertext.length, tag.length);
 
-            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
-            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
-            cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
-
-            byte[] plaintext = cipher.doFinal(ciphertextWithTag);
+            byte[] plaintext = decryptAesGcm(ciphertextWithTag, kek, iv);
 
             DecryptResponse response = new DecryptResponse(plaintext);
             return jsonResponse(response, 200);
@@ -595,7 +588,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             CreateKeyRequest request = parseJsonRequest(serveEvent.getRequest(), CreateKeyRequest.class);
             String name = request.name();
             Map<String, String> labels = request.labels();
@@ -626,7 +619,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             var request = serveEvent.getRequest();
             var name = getQueryParam(request, "name", null, Function.identity());
             var labelFilter = getQueryParam(request, "labels", null, Function.identity());
@@ -676,7 +669,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             String encodedName = serveEvent.getRequest().getPathParameters().get("keyName");
             String name = URLDecoder.decode(encodedName, UTF_8);
 
@@ -708,7 +701,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             String encodedName = serveEvent.getRequest().getPathParameters().get("keyName");
             String name = URLDecoder.decode(encodedName, UTF_8);
 
@@ -740,7 +733,7 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+        ResponseDefinition doTransform(ServeEvent serveEvent) {
             String keyId = serveEvent.getRequest().getPathParameters().get("keyId");
 
             LOGGER.atDebug()
@@ -811,6 +804,46 @@ public class CipherTrustMockServer {
         }
         catch (Exception e) {
             throw new MockServerException("Failed to parse request body as " + clazz.getSimpleName(), e);
+        }
+    }
+
+    /**
+     * Encrypt plaintext using AES-GCM.
+     *
+     * @param plaintext the plaintext to encrypt
+     * @param kek the key encryption key
+     * @param iv the initialization vector
+     * @return the ciphertext with authentication tag appended
+     */
+    private static byte[] encryptAesGcm(byte[] plaintext, SecretKey kek, byte[] iv) {
+        try {
+            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
+            return cipher.doFinal(plaintext);
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to encrypt data", e);
+        }
+    }
+
+    /**
+     * Decrypt ciphertext using AES-GCM.
+     *
+     * @param ciphertextWithTag the ciphertext with authentication tag appended
+     * @param kek the key encryption key
+     * @param iv the initialization vector
+     * @return the decrypted plaintext
+     */
+    private static byte[] decryptAesGcm(byte[] ciphertextWithTag, SecretKey kek, byte[] iv) {
+        try {
+            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+            cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
+            return cipher.doFinal(ciphertextWithTag);
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to decrypt data", e);
         }
     }
 
