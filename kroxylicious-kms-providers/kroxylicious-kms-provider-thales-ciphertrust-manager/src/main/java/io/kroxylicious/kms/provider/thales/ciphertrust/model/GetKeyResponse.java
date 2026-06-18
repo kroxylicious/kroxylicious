@@ -18,12 +18,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param id the key ID
  * @param name the key name
  * @param algorithm the key algorithm
+ * @param version the key version number (increments on rotation: 0, 1, 2, ...)
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GetKeyResponse(
                              @JsonProperty("id") String id,
                              @JsonProperty("name") String name,
-                             @JsonProperty("algorithm") String algorithm) {
+                             @JsonProperty("algorithm") String algorithm,
+                             @JsonProperty("version") int version) {
 
     /**
      * Constructs a get key response.

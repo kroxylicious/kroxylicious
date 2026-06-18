@@ -45,7 +45,7 @@ by following these instructions.
 
 ## Running the Integration Tests
 
-The Kms and RecordEncryptionIT tests detect environment variables and use them to connect to the real
+The KmsIT and RecordEncryptionIT tests detect environment variables and use them to connect to the real
 CipherTrust Manager instance instead of the mock server.
 
 ### User authentication (using username and password)

@@ -189,6 +189,6 @@ class VersionedKeyStore {
     }
 
     private GetKeyResponse toGetKeyResponse(KeyMetadata metadata) {
-        return new GetKeyResponse(metadata.id, metadata.name, "aes");
+        return new GetKeyResponse(metadata.id, metadata.name, "aes", metadata.version);
     }
 }

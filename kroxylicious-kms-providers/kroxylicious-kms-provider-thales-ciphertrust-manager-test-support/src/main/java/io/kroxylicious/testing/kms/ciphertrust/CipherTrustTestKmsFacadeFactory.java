@@ -7,6 +7,7 @@
 package io.kroxylicious.testing.kms.ciphertrust;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustEdek;
+import io.kroxylicious.kms.provider.thales.ciphertrust.WrappingKey;
 import io.kroxylicious.kms.provider.thales.ciphertrust.config.Config;
 import io.kroxylicious.testing.kms.TestKmsFacade;
 import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
@@ -14,7 +15,7 @@ import io.kroxylicious.testing.kms.TestKmsFacadeFactory;
 /**
  * Factory for creating CipherTrust test facade instances using mock server.
  */
-public class CipherTrustTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, CipherTrustEdek> {
+public class CipherTrustTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, WrappingKey, CipherTrustEdek> {
 
     /**
      * Creates a factory.
@@ -24,7 +25,7 @@ public class CipherTrustTestKmsFacadeFactory implements TestKmsFacadeFactory<Con
     }
 
     @Override
-    public TestKmsFacade<Config, String, CipherTrustEdek> build() {
+    public TestKmsFacade<Config, WrappingKey, CipherTrustEdek> build() {
         return new CipherTrustTestKmsFacade();
     }
 }

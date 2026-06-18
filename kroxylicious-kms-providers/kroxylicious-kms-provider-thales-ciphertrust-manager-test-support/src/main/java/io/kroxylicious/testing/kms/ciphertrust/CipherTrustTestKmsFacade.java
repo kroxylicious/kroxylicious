@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustEdek;
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustKmsService;
+import io.kroxylicious.kms.provider.thales.ciphertrust.WrappingKey;
 import io.kroxylicious.kms.provider.thales.ciphertrust.config.Config;
 import io.kroxylicious.kms.provider.thales.ciphertrust.config.UserCredentials;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
@@ -65,7 +66,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * ensuring identical behavior from a protocol perspective.
  * </p>
  */
-public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, String, CipherTrustEdek> {
+public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingKey, CipherTrustEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CipherTrustTestKmsFacade.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

@@ -72,26 +72,29 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * but keeps the same name. The old key continues to exist with its original ID and the same name.
  * </p>
  *
- * <h2>Design: Names as Stable References</h2>
+ * <h2>Design: WrappingKey with Version for Cache Invalidation</h2>
  * <p>
- * To support key rotation correctly with caching layers, this implementation uses key <strong>names</strong>
- * (not IDs) as the stable reference type {@code K} in {@code Kms<K, E>}:
+ * To support key rotation correctly with caching layers, this implementation uses {@link WrappingKey}
+ * as the reference type {@code K} in {@code Kms<K, E>}. WrappingKey contains both the key name and version:
  * </p>
  * <ul>
- *   <li>{@link #resolveAlias(String)} returns the alias itself (identity function)</li>
- *   <li>{@link #generateDekPair(String)} receives a name and passes it to CTM's encrypt endpoint</li>
+ *   <li>{@link #resolveAlias(String)} returns a {@link WrappingKey} containing the alias name and current version</li>
+ *   <li>{@link #generateDekPair(WrappingKey)} receives a WrappingKey and uses the name for CTM's encrypt endpoint</li>
  *   <li>CTM's {@code /api/v1/crypto/encrypt} accepts names (using heuristics to distinguish from UUIDs)
  *       and automatically encrypts with the current (highest version) key</li>
  * </ul>
  * <p>
- * This ensures newly generated DEKs always use the latest rotated key, even when the name is cached.
+ * When a key is rotated, the version changes, causing the WrappingKey to be different.
+ * This triggers cache misses in caching layers (like {@code EncryptionDekCache}), ensuring
+ * newly generated DEKs use the rotated key within the alias cache refresh period (~8-10 minutes)
+ * rather than waiting for the DEK cache to expire (~1-2 hours).
  * </p>
  * <p>
  * For decryption, the EDEK contains the specific key ID and version used during encryption,
  * ensuring the correct key version is used to decrypt.
  * </p>
  */
-public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
+public class CipherTrustKms implements Kms<WrappingKey, CipherTrustEdek> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CipherTrustKms.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -193,26 +196,28 @@ public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
     }
 
     @Override
-    public CompletionStage<DekPair<CipherTrustEdek>> generateDekPair(String kekRef) {
+    public CompletionStage<DekPair<CipherTrustEdek>> generateDekPair(WrappingKey kekRef) {
         LOGGER.atDebug()
-                .addKeyValue("kekRef", kekRef)
+                .addKeyValue("kekName", kekRef.name())
                 .log("generating DEK pair");
 
-        // kekRef is a key NAME (from resolveAlias or caller).
-        // CTM's /v1/crypto/encrypt accepts names (using heuristics to distinguish from UUIDs)
-        // and automatically uses the current (highest version) key for that name.
+        // Use the key name from WrappingKey for the CTM API call.
+        // CTM's /v1/crypto/encrypt automatically uses the current (highest version) key for that name.
         // This ensures DEKs are always encrypted with the latest rotated key.
 
         // Step 1: Generate random DEK bytes
         return generateRandomBytes(DEK_SIZE_BYTES)
                 // Step 2: Encrypt DEK with KEK (CTM resolves name to current key version)
-                .thenCompose(plaintextDek -> encryptDek(kekRef, plaintextDek)
+                .thenCompose(plaintextDek -> encryptDek(kekRef.name(), plaintextDek)
                         .thenApply(edek -> {
                             // Step 3: Create DekPair
                             SecretKey secretKey = DestroyableRawSecretKey.takeOwnershipOf(plaintextDek, AES_KEY_ALGO);
+                            // Log the version actually used by CTM's encrypt endpoint.
+                            // Note: this may differ from kekRef.version() due to rotation between
+                            // alias resolution and encryption - CTM always uses the latest version.
                             LOGGER.atDebug()
-                                    .addKeyValue("kekRef", kekRef)
-                                    .addKeyValue("edekVersion", edek.version())
+                                    .addKeyValue("kekName", kekRef.name())
+                                    .addKeyValue("kekVersion", edek.version())
                                     .log("DEK pair generated successfully");
                             return new DekPair<>(edek, secretKey);
                         }));
@@ -278,31 +283,27 @@ public class CipherTrustKms implements Kms<String, CipherTrustEdek> {
     }
 
     @Override
-    public CompletionStage<String> resolveAlias(String alias) {
+    public CompletionStage<WrappingKey> resolveAlias(String alias) {
         LOGGER.atDebug()
                 .addKeyValue("alias", alias)
                 .log("resolving key alias");
 
-        // For CTM, the stable key reference IS the name itself (not the ID).
-        // Key IDs change on rotation, so caching IDs would cause stale references.
-        // Instead, we validate the alias exists and return the name, which remains stable.
-        // The encrypt/decrypt operations accept names and CTM handles version resolution.
-
-        // Validate that the alias exists by querying CTM
+        // Query CTM to get the current key name and version.
+        // The version changes on rotation, causing cache invalidation in caching layers.
         URI keysUri = endpointUrl.resolve("/api/v1/vault/keys2/" + alias + "?type=name");
 
         return createGetRequest(keysUri)
                 .thenCompose(request -> sendAsync(request, GET_KEY_RESPONSE_TYPE_REF, "alias resolution",
                         () -> new UnknownAliasException(alias)))
                 .thenApply(keyResponse -> {
-                    // Verify the key exists (sendAsync throws UnknownAliasException on 404)
                     LOGGER.atDebug()
                             .addKeyValue("alias", alias)
                             .addKeyValue("currentKeyId", keyResponse.id())
-                            .log("alias validated (returning alias as stable reference)");
+                            .addKeyValue("currentVersion", keyResponse.version())
+                            .log("Alias resolved with version");
 
-                    // Return the alias itself, not the key ID
-                    return alias;
+                    // Return name and version - version changes on rotation trigger DEK cache miss
+                    return new WrappingKey(alias, keyResponse.version());
                 });
     }
 

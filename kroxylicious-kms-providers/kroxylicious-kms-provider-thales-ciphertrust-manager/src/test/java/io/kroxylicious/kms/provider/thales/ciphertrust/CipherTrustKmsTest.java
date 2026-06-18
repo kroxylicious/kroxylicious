@@ -91,13 +91,15 @@ class CipherTrustKmsTest {
         // Stub key lookup endpoint
         String keyId = "test-key-id-12345";
         String alias = "test-alias";
+        long version = 0L;
         String response = """
                 {
                     "id": "%s",
                     "name": "%s",
-                    "algorithm": "AES"
+                    "algorithm": "AES",
+                    "version": %d
                 }
-                """.formatted(keyId, alias);
+                """.formatted(keyId, alias, version);
 
         server.stubFor(
                 get(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
@@ -109,10 +111,11 @@ class CipherTrustKmsTest {
                                 .withBody(response)));
 
         var aliasStage = kms.resolveAlias(alias);
-        // resolveAlias returns the alias itself (not the key ID) as the stable reference
+        // resolveAlias returns WrappingKey with name and version
         assertThat(aliasStage)
                 .succeedsWithin(Duration.ofSeconds(5))
-                .isEqualTo(alias);
+                .extracting(WrappingKey::name, WrappingKey::version)
+                .containsExactly(alias, version);
     }
 
     @Test
@@ -155,6 +158,9 @@ class CipherTrustKmsTest {
 
     @Test
     void generateDekPair() {
+        String kekName = "test-kek-name";
+        long kekVersion = 1L;
+        WrappingKey kekRef = new WrappingKey(kekName, kekVersion);
         String kekId = "test-kek-id";
 
         // Stub random bytes generation
@@ -199,7 +205,7 @@ class CipherTrustKmsTest {
         server.stubFor(
                 post(urlPathEqualTo("/api/v1/crypto/encrypt"))
                         .withHeader("Authorization", equalTo("Bearer " + MOCK_JWT_TOKEN))
-                        .withRequestBody(matchingJsonPath("$.id", equalTo(kekId)))
+                        .withRequestBody(matchingJsonPath("$.id", equalTo(kekName)))
                         .willReturn(aResponse()
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
@@ -208,7 +214,7 @@ class CipherTrustKmsTest {
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(randomBytes, "AES");
         var expectedEdek = new CipherTrustEdek(kekId, ciphertext, tag, 1, "gcm", iv);
 
-        var dekStage = kms.generateDekPair(kekId);
+        var dekStage = kms.generateDekPair(kekRef);
         assertThat(dekStage)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .satisfies(dekPair -> {
@@ -226,6 +232,8 @@ class CipherTrustKmsTest {
     @Test
     void generateDekPairAfterRotationUsesNewKeyVersion() {
         String keyName = "rotation-test-key";
+        WrappingKey initialKekRef = new WrappingKey(keyName, 0L);
+        WrappingKey rotatedKekRef = new WrappingKey(keyName, 1L);
         String initialKeyId = "key-id-v0";
         String rotatedKeyId = "key-id-v1";
 
@@ -276,8 +284,8 @@ class CipherTrustKmsTest {
                                         BASE64_ENCODER.encodeToString(tag),
                                         BASE64_ENCODER.encodeToString(iv)))));
 
-        // Generate first DEK pair
-        var firstDekPair = kms.generateDekPair(keyName)
+        // Generate first DEK pair with version 0
+        var firstDekPair = kms.generateDekPair(initialKekRef)
                 .toCompletableFuture().join();
 
         assertThat(firstDekPair.edek().version()).isZero();
@@ -306,8 +314,8 @@ class CipherTrustKmsTest {
                                         BASE64_ENCODER.encodeToString(tag),
                                         BASE64_ENCODER.encodeToString(iv)))));
 
-        // Generate second DEK pair with same key NAME
-        var secondDekPair = kms.generateDekPair(keyName)
+        // Generate second DEK pair with rotated version (same name, different version)
+        var secondDekPair = kms.generateDekPair(rotatedKekRef)
                 .toCompletableFuture().join();
 
         // Assert the EDEK uses the NEW key version after rotation
@@ -315,6 +323,62 @@ class CipherTrustKmsTest {
                 .isEqualTo(1)
                 .isGreaterThan(firstDekPair.edek().version());
         assertThat(secondDekPair.edek().id()).isEqualTo(rotatedKeyId);
+
+        // Verify WrappingKeys are different (enables cache invalidation)
+        assertThat(initialKekRef).isNotEqualTo(rotatedKekRef);
+    }
+
+    @Test
+    void resolveAliasIncludesVersionForCacheInvalidation() {
+        String keyName = "versioned-key";
+        String keyId = "test-key-id";
+
+        // Stub initial key lookup (version 0)
+        server.stubFor(
+                get(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
+                        .withQueryParam("type", equalTo("name"))
+                        .withHeader("Authorization", equalTo("Bearer " + MOCK_JWT_TOKEN))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("""
+                                        {
+                                            "id": "%s",
+                                            "name": "%s",
+                                            "algorithm": "AES",
+                                            "version": 0
+                                        }
+                                        """.formatted(keyId, keyName))));
+
+        var firstRef = kms.resolveAlias(keyName).toCompletableFuture().join();
+
+        assertThat(firstRef.name()).isEqualTo(keyName);
+        assertThat(firstRef.version()).isZero();
+
+        // Simulate rotation - same key name, different version
+        server.stubFor(
+                get(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
+                        .withQueryParam("type", equalTo("name"))
+                        .withHeader("Authorization", equalTo("Bearer " + MOCK_JWT_TOKEN))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("""
+                                        {
+                                            "id": "%s-v1",
+                                            "name": "%s",
+                                            "algorithm": "AES",
+                                            "version": 1
+                                        }
+                                        """.formatted(keyId, keyName))));
+
+        var secondRef = kms.resolveAlias(keyName).toCompletableFuture().join();
+
+        assertThat(secondRef.name()).isEqualTo(keyName);
+        assertThat(secondRef.version()).isEqualTo(1L);
+
+        // Different versions means different cache keys - enables cache invalidation
+        assertThat(firstRef).isNotEqualTo(secondRef);
     }
 
     @Test
@@ -379,7 +443,8 @@ class CipherTrustKmsTest {
                 {
                     "id": "%s",
                     "name": "%s",
-                    "algorithm": "AES"
+                    "algorithm": "AES",
+                    "version": 0
                 }
                 """.formatted(keyId, alias);
 

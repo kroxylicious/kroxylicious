@@ -31,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * </p>
  */
 @Plugin(configType = Config.class)
-public class CipherTrustKmsService implements KmsService<Config, String, CipherTrustEdek> {
+public class CipherTrustKmsService implements KmsService<Config, WrappingKey, CipherTrustEdek> {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(20);
 
@@ -58,7 +58,7 @@ public class CipherTrustKmsService implements KmsService<Config, String, CipherT
     }
 
     @Override
-    public Kms<String, CipherTrustEdek> buildKms() {
+    public Kms<WrappingKey, CipherTrustEdek> buildKms() {
         var c = Objects.requireNonNull(config, "KMS service not initialized");
         var ts = Objects.requireNonNull(tokenService, "Bearer token server not initialized");
 
