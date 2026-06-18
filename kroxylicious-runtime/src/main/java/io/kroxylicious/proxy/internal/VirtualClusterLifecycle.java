@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Clock;
-import io.micrometer.core.instrument.Timer;
 
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Draining;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Failed;
@@ -115,7 +114,6 @@ public class VirtualClusterLifecycle {
      */
     public CompletableFuture<Void> startDraining() {
         List<ClientConnectionStateMachine> snapshot;
-        Timer.Sample drainSample;
         synchronized (this) {
             transition(current -> {
                 if (current instanceof Serving s) {
@@ -124,13 +122,11 @@ public class VirtualClusterLifecycle {
                 throw unexpectedState(current, "startDraining");
             });
             snapshot = List.copyOf(activeConnections);
-            drainSample = Timer.start(clock);
         }
         var closeFutures = snapshot.stream()
                 .map(ccsm -> ccsm.drain(drainTimeout))
                 .toArray(CompletableFuture[]::new);
         drainFuture = CompletableFuture.allOf(closeFutures);
-        drainFuture.whenComplete((v, t) -> drainSample.stop(Metrics.drainDurationTimer(clusterName)));
         return drainFuture;
     }
 

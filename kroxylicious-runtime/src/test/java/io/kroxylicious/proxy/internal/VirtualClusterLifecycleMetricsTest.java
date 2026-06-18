@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
@@ -21,9 +20,6 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class VirtualClusterLifecycleMetricsTest {
 
@@ -100,22 +96,6 @@ class VirtualClusterLifecycleMetricsTest {
     }
 
     @Test
-    void drainRecordsDrainDuration() {
-        // given — a serving cluster with no active connections, so the drain completes
-        // synchronously the moment it starts.
-        var lifecycle = new VirtualClusterLifecycle(CLUSTER, DRAIN_TIMEOUT);
-        lifecycle.initializationSucceeded();
-
-        // when
-        lifecycle.startDraining();
-
-        // then
-        assertThat(meterRegistry.get("kroxylicious_drain_duration_seconds")
-                .tags("virtual_cluster", CLUSTER)
-                .timer().count()).isEqualTo(1L);
-    }
-
-    @Test
     void idempotentStopDoesNotRecordPhantomTransition() {
         // given — a lifecycle already driven to its terminal Stopped state
         var lifecycle = new VirtualClusterLifecycle(CLUSTER, DRAIN_TIMEOUT);
@@ -132,25 +112,20 @@ class VirtualClusterLifecycleMetricsTest {
     }
 
     @Test
-    void drainDurationReflectsElapsedTimeUntilConnectionsClose() {
-        // given — a serving cluster with one active connection whose close we control, and a
-        // MockClock so the recorded drain duration is deterministic rather than wall-clock.
+    void stateDurationReflectsTimeSpentInState() {
+        // given — a serving cluster and a MockClock so the recorded duration is deterministic
+        // rather than wall-clock.
         var clock = new MockClock();
         var lifecycle = new VirtualClusterLifecycle(CLUSTER, DRAIN_TIMEOUT, clock);
-        lifecycle.initializationSucceeded();
-        var connection = mock(ClientConnectionStateMachine.class);
-        var connectionClosed = new CompletableFuture<Void>();
-        when(connection.drain(any())).thenReturn(connectionClosed);
-        lifecycle.registerConnection(connection);
+        lifecycle.initializationSucceeded(); // enters serving at the mock clock's t0
+
+        // when — two seconds elapse in the serving state, then it transitions out
+        clock.add(Duration.ofSeconds(2));
         lifecycle.startDraining();
 
-        // when — two seconds elapse before the connection finishes draining
-        clock.add(Duration.ofSeconds(2));
-        connectionClosed.complete(null);
-
-        // then
-        assertThat(meterRegistry.get("kroxylicious_drain_duration_seconds")
-                .tags("virtual_cluster", CLUSTER)
+        // then — the serving state's recorded duration reflects the elapsed time.
+        assertThat(meterRegistry.get("kroxylicious_virtual_cluster_state_duration_seconds")
+                .tags("virtual_cluster", CLUSTER, "state", "serving")
                 .timer().totalTime(TimeUnit.SECONDS)).isGreaterThanOrEqualTo(2.0);
     }
 

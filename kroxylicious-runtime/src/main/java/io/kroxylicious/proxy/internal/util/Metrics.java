@@ -74,8 +74,6 @@ public class Metrics {
     private static final String RECONFIGURE_COUNTER_NAME = "kroxylicious_reconfigure_total";
     private static final String RECONFIGURE_DURATION_NAME = "kroxylicious_reconfigure_duration_seconds";
     private static final String RECONFIGURE_CLUSTERS_AFFECTED_COUNTER_NAME = "kroxylicious_reconfigure_clusters_affected_total";
-    private static final String DRAIN_DURATION_NAME = "kroxylicious_drain_duration_seconds";
-    private static final String DRAIN_FORCE_CLOSED_COUNTER_NAME = "kroxylicious_drain_connections_force_closed_total";
 
     // Virtual cluster lifecycle metric names
     private static final String VIRTUAL_CLUSTER_STATE_NAME = "kroxylicious_virtual_cluster_state";
@@ -374,31 +372,6 @@ public class Metrics {
                 .description("Count of per-virtual-cluster operations during reconfigures.")
                 .tag(OPERATION_LABEL, operation)
                 .tag(OUTCOME_LABEL, outcome)
-                .register(globalRegistry);
-    }
-
-    /**
-     * Timer for per-virtual-cluster connection drain duration. The {@code virtual_cluster}
-     * label (absent from the Proposal 083 table) is included so a slow drain can be attributed
-     * to a specific cluster, which the metric's stated purpose requires.
-     */
-    public static Timer drainDurationTimer(String clusterName) {
-        return Timer.builder(DRAIN_DURATION_NAME)
-                .description("Duration of a virtual cluster's connection drain.")
-                .publishPercentileHistogram()
-                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
-                .register(globalRegistry);
-    }
-
-    /**
-     * Counter of connections force-closed after the drain timeout expired. Parallels the
-     * existing {@code kroxylicious_client_to_proxy_disconnects{cause="drain_timeout"}} signal;
-     * both are incremented for the same event by design — keep them in sync.
-     */
-    public static Counter drainConnectionsForceClosedCounter(String clusterName) {
-        return Counter.builder(DRAIN_FORCE_CLOSED_COUNTER_NAME)
-                .description("Count of connections force-closed after the drain timeout expired.")
-                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
                 .register(globalRegistry);
     }
 

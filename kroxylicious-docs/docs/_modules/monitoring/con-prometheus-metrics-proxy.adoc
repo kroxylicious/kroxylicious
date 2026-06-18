@@ -212,11 +212,12 @@ an `outcome` label:
 NOTE: Reconfigurations rejected before any change is attempted — for example, because a concurrent reconfiguration is already in progress, or because the new configuration changes a setting that requires a restart — are not counted in `kroxylicious_reconfigure_total`.
 
 A virtual cluster that is removed or modified during a reconfiguration drains its
-existing connections before stopping. `kroxylicious_drain_duration_seconds` records
-how long each drain takes. A high drain duration typically reflects in-flight
-requests waiting for broker acknowledgement; inspect broker health if drains are
-consistently slow before considering tuning the drain timeout. When the timeout
-expires, remaining connections are force-closed and recorded in
+existing connections before stopping. The time spent draining is recorded by
+`kroxylicious_virtual_cluster_state_duration_seconds` with `state="draining"` (see
+<<Virtual cluster lifecycle metrics>>). A high drain duration typically reflects
+in-flight requests waiting for broker acknowledgement; inspect broker health if
+drains are consistently slow before considering tuning the drain timeout. When the
+timeout expires, remaining connections are force-closed and recorded in
 `kroxylicious_client_to_proxy_disconnects_total` with `cause="drain_timeout"`.
 
 .Reconfiguration metrics
@@ -241,11 +242,6 @@ expires, remaining connections are force-closed and recorded in
 |Incremented by one for each per-virtual-cluster operation during a reconfiguration.
  The `operation` label is `add`, `remove`, or `modify`; the `outcome` label is
  `success` or `failure`.
-
-|`kroxylicious_drain_duration_seconds`
-|Timer
-|`virtual_cluster`
-|Records how long it took to drain a virtual cluster's connections before it stopped.
 
 |===
 
