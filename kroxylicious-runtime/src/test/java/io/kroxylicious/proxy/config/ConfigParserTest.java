@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -313,6 +314,51 @@ class ConfigParserTest {
                         - name: demo1
                           targetCluster:
                             bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("Cluster definitions", """
+                        clusterDefinitions:
+                        - name: my-cluster
+                          bootstrapServers: broker1:9092,broker2:9092
+                        virtualClusters:
+                        - name: demo1
+                          target:
+                            cluster: my-cluster
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("Cluster definitions with TLS", """
+                        clusterDefinitions:
+                        - name: my-cluster
+                          bootstrapServers: broker1:9092
+                          tls:
+                            trust:
+                              storeFile: /tmp/trust.jks
+                              storePassword:
+                                password: changeit
+                              storeType: JKS
+                        virtualClusters:
+                        - name: demo1
+                          target:
+                            cluster: my-cluster
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("Virtual cluster with target cluster reference", """
+                        clusterDefinitions:
+                        - name: my-cluster
+                          bootstrapServers: broker:9092
+                        virtualClusters:
+                        - name: demo1
+                          target:
+                            cluster: my-cluster
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -695,7 +741,7 @@ class ConfigParserTest {
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
-                .hasMessageContaining("Missing required creator property 'targetCluster'");
+                .hasMessageContaining("must specify exactly one of 'targetCluster' or 'target'");
     }
 
     @Test
@@ -918,15 +964,8 @@ class ConfigParserTest {
         var targetCluster = new TargetCluster("mycluster:9082", Optional.empty());
         var gateway = new VirtualClusterGateway("gw", new PortIdentifiesNodeIdentificationStrategy(HostPort.parse("localhost:9082"), null, null, null), null,
                 Optional.empty());
-        var config = new Configuration(null,
-                List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
-                List.of("foo"),
-                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())),
-                null,
-                false,
-                Optional.empty(),
-                null,
-                null);
+        var config = new Configuration(null, null, List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))), List.of("foo"), null,
+                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())), null, false, Optional.empty(), null, null);
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {
@@ -1036,9 +1075,13 @@ class ConfigParserTest {
                     // because we want to preserve fidelity between the config model and yaml version the field returns null
                     assertThat(targetCluster.selectionStrategy()).isNull();
                     // indirectly asserting that the strategy defaults to round-robin
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka-1.example", 1234));
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
+                    HostPort firstServer = targetCluster.bootstrapServer();
+                    HostPort secondServer = targetCluster.bootstrapServer();
+                    HostPort thirdServer = targetCluster.bootstrapServer();
+                    assertThat(Set.of(firstServer, secondServer)).containsExactlyInAnyOrder(new HostPort("magic-kafka.example", 1234),
+                            new HostPort("magic-kafka-1.example", 1234));
+                    assertThat(firstServer).isEqualTo(thirdServer);
+                    assertThat(secondServer).isNotEqualTo(firstServer);
                 });
     }
 

@@ -92,8 +92,10 @@ class OperatorAssertionsTest {
     void shouldReturnConfigurationAssert() {
         // Given
         var configurations = new Configuration(null,
+                null,
                 List.of(),
                 List.of(),
+                null,
                 List.of(new VirtualCluster("Bob",
                         new TargetCluster("", Optional.empty()),
                         List.of(new VirtualClusterGateway("gateway",

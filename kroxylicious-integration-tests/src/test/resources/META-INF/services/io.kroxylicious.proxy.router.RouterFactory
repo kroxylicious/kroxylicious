@@ -1,0 +1,5 @@
+io.kroxylicious.it.testplugins.AlternatingRouterFactory
+io.kroxylicious.it.testplugins.ClientIdRouterFactory
+io.kroxylicious.it.testplugins.PassThroughRouterFactory
+io.kroxylicious.it.testplugins.PrincipalRouterFactory
+io.kroxylicious.it.testplugins.TaggingRouterFactory
