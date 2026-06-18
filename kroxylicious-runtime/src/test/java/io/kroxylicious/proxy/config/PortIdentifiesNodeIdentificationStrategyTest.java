@@ -15,6 +15,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.RoutingSpec;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
@@ -301,6 +304,200 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
     private NodeIdentificationStrategy buildNodeIdentificationStrategy(PortIdentifiesNodeIdentificationStrategy config) {
         return config.buildStrategy("cluster");
+    }
+
+    // ---- AdvertisingSpec ----
+
+    @Test
+    void advertisedBrokerHostReturnsHostnameOnlyNoPort() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 1))).buildStrategy("cluster");
+
+        // When
+        String host = spec.getAdvertisedBrokerHost(0);
+
+        // Then — returned value is a plain hostname, not a host:port string
+        assertThat(host).isEqualTo("broker0.kafka.example.com");
+        assertThat(host).doesNotContain(":");
+    }
+
+    @Test
+    void advertisedBrokerHostExpandsNodeIdInPattern() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+
+        // When / Then
+        assertThat(spec.getAdvertisedBrokerHost(0)).isEqualTo("broker0.kafka.example.com");
+        assertThat(spec.getAdvertisedBrokerHost(1)).isEqualTo("broker1.kafka.example.com");
+        assertThat(spec.getAdvertisedBrokerHost(2)).isEqualTo("broker2.kafka.example.com");
+    }
+
+    @Test
+    void advertisedBrokerHostWithZeroBootstrapPortStillReturnsHostOnly() {
+        // Given — bootstrap on port 0 (OS-assigned); advertising must not embed port=0 as a sentinel
+        var bootstrap = HostPort.parse(BOOTSTRAP_HOST + ":0");
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(bootstrap,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, 1,
+                List.of(new NamedRange("brokers", 0, 0))).buildStrategy("cluster");
+
+        // When
+        String host = spec.getAdvertisedBrokerHost(0);
+
+        // Then — hostname is returned, the zero-port problem cannot arise
+        assertThat(host).isEqualTo("broker0.kafka.example.com");
+        assertThat(host).doesNotContain(":");
+    }
+
+    @Test
+    void advertisedBrokerHostThrowsForUnknownNodeId() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 1))).buildStrategy("cluster");
+
+        // When / Then
+        assertThatThrownBy(() -> spec.getAdvertisedBrokerHost(99))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void advertisedBootstrapHostReturnsBootstrapHost() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When
+        String host = spec.getAdvertisedBootstrapHost();
+
+        // Then
+        assertThat(host).isEqualTo(BOOTSTRAP_HOST);
+        assertThat(host).doesNotContain(":");
+    }
+
+    // ---- RoutingSpec ----
+
+    @Test
+    void identifyReturnsEmptyForBootstrapPort() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 1))).buildStrategy("cluster");
+
+        // When
+        var result = spec.identify(BOOSTRAP_HOSTPORT.port(), null);
+
+        // Then — empty signals a bootstrap connection (no specific node)
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void identifyReturnsMappedNodeIdForNodePort() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+        int node0Port = BOOSTRAP_HOSTPORT.port() + 1;
+        int node1Port = BOOSTRAP_HOSTPORT.port() + 2;
+        int node2Port = BOOSTRAP_HOSTPORT.port() + 3;
+
+        // When / Then — each node port maps to the correct nodeId
+        assertThat(spec.identify(node0Port, null)).contains(0);
+        assertThat(spec.identify(node1Port, null)).contains(1);
+        assertThat(spec.identify(node2Port, null)).contains(2);
+    }
+
+    @Test
+    void identifyIgnoresSniForPortBasedRouting() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 0))).buildStrategy("cluster");
+        int node0Port = BOOSTRAP_HOSTPORT.port() + 1;
+
+        // When — SNI is present but irrelevant for port-identifies-node routing
+        var result = spec.identify(node0Port, "some.sni.hostname.example.com");
+
+        // Then — nodeId is still correctly identified from port
+        assertThat(result).contains(0);
+    }
+
+    @Test
+    void identifyReturnsEmptyForBootstrapPortEvenWithSni() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When
+        var result = spec.identify(BOOSTRAP_HOSTPORT.port(), "bootstrap.example.com");
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    // ---- BindingSpec ----
+
+    @Test
+    void bootstrapBindAddressMatchesConfiguredBootstrap() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When
+        HostPort addr = spec.getBootstrapBindAddress();
+
+        // Then
+        assertThat(addr).isEqualTo(BOOSTRAP_HOSTPORT);
+    }
+
+    @Test
+    void nodeBindAddressesContainsAllConfiguredNodes() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+
+        // When
+        Map<Integer, HostPort> addresses = spec.nodeBindAddresses();
+
+        // Then — all three nodeIds are present with their assigned ports
+        assertThat(addresses).containsOnlyKeys(0, 1, 2);
+        assertThat(addresses.get(0).port()).isEqualTo(BOOSTRAP_HOSTPORT.port() + 1);
+        assertThat(addresses.get(1).port()).isEqualTo(BOOSTRAP_HOSTPORT.port() + 2);
+        assertThat(addresses.get(2).port()).isEqualTo(BOOSTRAP_HOSTPORT.port() + 3);
+    }
+
+    @Test
+    void bindingSpecDoesNotRequireServerNameIndication() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When / Then
+        assertThat(spec.requiresServerNameIndication()).isFalse();
+    }
+
+    @Test
+    void bindingSpecHasNoSharedPorts() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When / Then
+        assertThat(spec.getSharedPorts()).isEmpty();
+    }
+
+    @Test
+    void bindingSpecBindsOnAllInterfaces() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When / Then — empty means bind on all interfaces (0.0.0.0)
+        assertThat(spec.getBindAddress()).isEmpty();
     }
 
 }
