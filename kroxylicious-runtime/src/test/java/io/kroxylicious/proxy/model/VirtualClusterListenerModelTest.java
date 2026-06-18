@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -77,11 +78,68 @@ class VirtualClusterListenerModelTest {
 
     @Test
     void delegatesToStrategyForAdvertisedPort() {
+        // Given - strategy is a plain NIS mock (does not implement AdvertisingSpec), no port resolver bound
         var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
+
+        // When / Then - falls back to legacy delegation
         assertThat(listener.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
+    }
+
+    @Test
+    void shouldUseAdvertisingSpecHostAndResolvedPortWhenResolverBound() {
+        // Given - strategy implements AdvertisingSpec; a port resolver is bound
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("mybroker.example.com:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        int resolvedPort = 45678;
+        listener.bindPortResolver(vn -> resolvedPort);
+
+        // When
+        var result = listener.getAdvertisedBrokerAddress(0);
+
+        // Then - host from AdvertisingSpec, port from resolver (not from configured strategy)
+        assertThat(result.host()).isEqualTo("mybroker.example.com");
+        assertThat(result.port()).isEqualTo(resolvedPort);
+    }
+
+    @Test
+    void shouldPassCorrectVirtualNodeIdToPortResolver() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        var capturedVn = new VirtualNodeId[1];
+        listener.bindPortResolver(vn -> {
+            capturedVn[0] = vn;
+            return 9999;
+        });
+
+        // When
+        listener.getAdvertisedBrokerAddress(0);
+
+        // Then - the resolver receives Broker(gateway, nodeId)
+        assertThat(capturedVn[0]).isInstanceOf(VirtualNodeId.Broker.class);
+        assertThat(((VirtualNodeId.Broker) capturedVn[0]).nodeId()).isEqualTo(0);
+        assertThat(((VirtualNodeId.Broker) capturedVn[0]).gateway()).isSameAs(listener);
+    }
+
+    @Test
+    void shouldFallBackToLegacyWhenResolverNotBound() {
+        // Given - strategy implements AdvertisingSpec, but no port resolver bound
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        // When - no bindPortResolver() called
+        var result = listener.getAdvertisedBrokerAddress(0);
+
+        // Then - uses legacy getAdvertisedBrokerAddress (host:port from strategy)
+        assertThat(result).isEqualTo(new HostPort("broker", 9093)); // nodeStartPort defaults to bootstrapPort+1
     }
 
     @Test

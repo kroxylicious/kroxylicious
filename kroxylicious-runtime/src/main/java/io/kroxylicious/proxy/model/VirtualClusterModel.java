@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -46,7 +47,9 @@ import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
@@ -518,6 +521,15 @@ public class VirtualClusterModel implements AutoCloseable {
         private final Optional<SslContext> downstreamSslContext;
         private final String name;
 
+        /**
+         * Resolves the actual bound port for a given virtual node. Null until
+         * {@link #bindPortResolver(Function)} is called from {@code KafkaProxy.startup()}.
+         * When null, {@link #getAdvertisedBrokerAddress(int)} falls back to the legacy
+         * strategy delegation which uses the configured (possibly zero) port.
+         */
+        @Nullable
+        private volatile Function<VirtualNodeId, Integer> portResolver = null;
+
         @VisibleForTesting
         VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name) {
             this.virtualCluster = virtualCluster;
@@ -607,8 +619,24 @@ public class VirtualClusterModel implements AutoCloseable {
             return name;
         }
 
+        /**
+         * Binds the port resolver used by {@link #getAdvertisedBrokerAddress(int)}.
+         * Called from {@code KafkaProxy.startup()} so that advertised ports reflect the
+         * actual OS-bound port rather than the configured (possibly zero) port.
+         *
+         * @param resolver maps a {@link VirtualNodeId} to its actual bound port
+         */
+        public void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
+            this.portResolver = Objects.requireNonNull(resolver);
+        }
+
         @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
+            var resolver = portResolver;
+            if (resolver != null && nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                var vn = new VirtualNodeId.Broker(this, nodeId);
+                return new HostPort(advertisingSpec.getAdvertisedBrokerHost(nodeId), resolver.apply(vn));
+            }
             return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
         }
 
