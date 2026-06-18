@@ -177,77 +177,21 @@ deployment.getMetadata().setOwnerReferences(List.of(
 
 ## Operator-Specific Testing
 
-**Unit tests:**
+The operator has three test layers, each documenting a wider scope of value. The technical characteristics of each layer follow from that scope — they are not the defining property.
 
-Test reconciliation logic in isolation:
+**Unit tests** document the value a single reconciler is responsible for: given these input resources, does it produce the correct Kubernetes output? The scope is one component's logic; the infrastructure around it is stubbed with Mockito or the fabric8 mock client because it is not part of the value claim.
 
-```java
-@Test
-void testReconcileCreatesDeployment() {
-    var kafkaProxy = new KafkaProxyBuilder()
-            .withNewMetadata().withName("test").endMetadata()
-            .withNewSpec().withReplicas(2).endSpec()
-            .build();
+**Integration tests** (`*IT` classes) widen the scope to include the reconciler's interaction with a real Kubernetes cluster. The value claim now covers status propagation, resource watches, and eventual consistency — things that only manifest against a real API server. They use a three-actor model to keep test intent explicit:
 
-    var controller = new KafkaProxyController(mockClient);
-    controller.reconcile(kafkaProxy, context);
+- The **operator under test** is managed by `LocalKroxyliciousOperatorExtension`, which handles RBAC, namespace, CRD installation, and cleanup.
+- The **cluster user** (`ClusterUser`) represents an end user — it creates, modifies, and deletes custom resources. Code that goes through `ClusterUser` is a user action.
+- The **external operator** (`ExternalOperator`) drives status state that a reconciler outside the one under test would normally produce — either a sibling Kroxylicious reconciler or a truly external controller such as Strimzi. This ensures that dependent preconditions are exactly what the test needs without relying on other reconcilers to run.
 
-    verify(mockClient.apps().deployments()).inNamespace(any())
-            .create(deploymentCaptor.capture());
+Most ITs register only the single reconciler under test, using `ExternalOperator` to supply any dependent state produced by sibling reconcilers. `AllReconcilersIT` registers all reconcilers together and widens the scope further — verifying that the reconcilers deliver their combined value correctly, rather than testing each in depth.
 
-    var deployment = deploymentCaptor.getValue();
-    assertThat(deployment.getSpec().getReplicas()).isEqualTo(2);
-}
-```
+See [kroxylicious-operator-test-support/README.md](../kroxylicious-operator-test-support/README.md) for the module's API and setup patterns.
 
-**Integration tests:**
-
-Use `kroxylicious-operator-test-support` for tests with real Kubernetes:
-
-```java
-@OperatorTest
-class KafkaProxyIT {
-    @RegisterExtension
-    static K3s k3s = new K3s();
-
-    @Test
-    void testProxyDeployment() {
-        var kafkaProxy = new KafkaProxyBuilder()
-                .withNewMetadata().withName("test").endMetadata()
-                .withNewSpec().withReplicas(1).endSpec()
-                .build();
-
-        client.resource(kafkaProxy).create();
-
-        // Wait for deployment to be ready
-        await().untilAsserted(() -> {
-            var deployment = client.apps().deployments()
-                    .inNamespace(namespace)
-                    .withName("test")
-                    .get();
-            assertThat(deployment).isNotNull();
-            assertThat(deployment.getStatus().getReadyReplicas()).isEqualTo(1);
-        });
-    }
-}
-```
-
-**System tests:**
-
-End-to-end tests with Kafka clusters:
-
-```java
-@SystemTest
-class ProxySystemTest {
-    @Test
-    void testProduceConsumeViaProxy() {
-        // Deploy Kafka cluster
-        // Deploy proxy via operator
-        // Produce/consume messages through proxy
-        // Verify filter behavior
-    }
-}
-```
+**System tests** widen the scope to the full user-visible value: does the proxy, deployed by the operator, correctly proxy Kafka traffic end-to-end? They live in a separate system-test module and verify producing and consuming through a real proxied cluster.
 
 ## Operator Lifecycle
 
