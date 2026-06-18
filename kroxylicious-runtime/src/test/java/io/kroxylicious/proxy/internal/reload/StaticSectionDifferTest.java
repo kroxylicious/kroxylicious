@@ -8,8 +8,13 @@ package io.kroxylicious.proxy.internal.reload;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
@@ -24,10 +29,14 @@ import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
+import io.kroxylicious.proxy.micrometer.CommonTagsHook;
+import io.kroxylicious.proxy.micrometer.PauseDetectorHook;
+import io.kroxylicious.proxy.micrometer.StandardBindersHook;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class StaticSectionDifferTest {
 
@@ -56,6 +65,26 @@ class StaticSectionDifferTest {
                 new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())));
         var newConfig = withManagement(baseConfig(),
                 new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())));
+        assertThat(differ.diff(oldConfig, newConfig)).isEmpty();
+    }
+
+    static Stream<Arguments> equivalentHookConfigs() {
+        // Each supplier produces a fresh-but-equal plugin config instance, mimicking what re-parsing
+        // configuration yields. Covers every built-in micrometer hook config type.
+        return Stream.of(
+                argumentSet("CommonTagsHook", (Supplier<Object>) () -> new CommonTagsHook.CommonTagsHookConfig(Map.of("zone", "a"))),
+                argumentSet("StandardBindersHook", (Supplier<Object>) () -> new StandardBindersHook.StandardBindersHookConfig(List.of("UptimeMetrics"))),
+                argumentSet("PauseDetectorHook", (Supplier<Object>) () -> new PauseDetectorHook.PauseDetectorHookConfig(250L, 250L)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("equivalentHookConfigs")
+    void micrometerSectionsWithEquivalentHookConfigsDoNotDiff(Supplier<Object> configFactory) {
+        // Re-parsing configuration yields a fresh plugin config instance each time. Unless those
+        // plugin config types have value equality, the micrometer section would be flagged as a
+        // static change on every reconfigure of a proxy with micrometer hooks configured.
+        var oldConfig = withMicrometer(baseConfig(), List.of(new MicrometerDefinition("hook", configFactory.get())));
+        var newConfig = withMicrometer(baseConfig(), List.of(new MicrometerDefinition("hook", configFactory.get())));
         assertThat(differ.diff(oldConfig, newConfig)).isEmpty();
     }
 
@@ -175,6 +204,12 @@ class StaticSectionDifferTest {
     private static Configuration withManagement(Configuration base, ManagementConfiguration management) {
         return new Configuration(management, base.filterDefinitions(), base.defaultFilters(),
                 base.virtualClusters(), base.micrometer(),
+                base.useIoUring(), base.development(), base.network(), base.proxyProtocol());
+    }
+
+    private static Configuration withMicrometer(Configuration base, List<MicrometerDefinition> micrometer) {
+        return new Configuration(base.management(), base.filterDefinitions(), base.defaultFilters(),
+                base.virtualClusters(), micrometer,
                 base.useIoUring(), base.development(), base.network(), base.proxyProtocol());
     }
 

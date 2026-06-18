@@ -11,8 +11,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.binder.MeterBinder;
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
@@ -29,8 +27,6 @@ import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 @Plugin(configType = StandardBindersHook.StandardBindersHookConfig.class)
 public class StandardBindersHook implements MicrometerConfigurationHookService<StandardBindersHook.StandardBindersHookConfig> {
 
@@ -41,12 +37,9 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
         return new Hook(config);
     }
 
-    public static class StandardBindersHookConfig {
-        private final List<String> binderNames;
-
-        @JsonCreator
-        public StandardBindersHookConfig(@Nullable List<String> binderNames) {
-            this.binderNames = binderNames == null ? List.of() : binderNames;
+    public record StandardBindersHookConfig(List<String> binderNames) {
+        public StandardBindersHookConfig {
+            binderNames = binderNames == null ? List.of() : binderNames;
         }
     }
 
@@ -64,7 +57,7 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
 
         @Override
         public void configure(MeterRegistry targetRegistry) {
-            for (String binderName : this.config.binderNames) {
+            for (String binderName : this.config.binderNames()) {
                 MeterBinder binder = getBinder(binderName);
                 binder.bindTo(targetRegistry);
                 if (binder instanceof AutoCloseable closeable) {
