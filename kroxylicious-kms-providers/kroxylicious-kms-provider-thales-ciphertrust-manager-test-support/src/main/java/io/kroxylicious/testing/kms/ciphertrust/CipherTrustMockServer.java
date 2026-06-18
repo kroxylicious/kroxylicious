@@ -370,14 +370,20 @@ public class CipherTrustMockServer {
 
                 String username = request.username();
                 String password = request.password();
+                String grantType = request.grantType();
+
+                // Default to password grant type if not specified
+                if (grantType == null) {
+                    grantType = "password";
+                }
 
                 LOGGER.atDebug()
                         .addKeyValue("username", username)
-                        .addKeyValue("grantType", request.grantType())
+                        .addKeyValue("grantType", grantType)
                         .log("Processing auth request");
 
                 // Validate credentials for password grant type
-                if ("password".equals(request.grantType())) {
+                if ("password".equals(grantType)) {
                     if (!TEST_USERNAME.equals(username) || !TEST_PASSWORD.equals(password)) {
                         LOGGER.atDebug()
                                 .addKeyValue("username", username)
@@ -388,7 +394,7 @@ public class CipherTrustMockServer {
                     }
                 }
                 else {
-                    throw new IllegalStateException("Unexpected grant type: " + request.grantType());
+                    throw new IllegalStateException("Unexpected grant type: " + grantType);
                 }
 
                 // Successful authentication

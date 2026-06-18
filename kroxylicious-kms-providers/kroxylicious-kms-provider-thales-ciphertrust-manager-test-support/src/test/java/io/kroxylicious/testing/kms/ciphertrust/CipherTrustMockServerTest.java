@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.DecryptResponse;
@@ -78,13 +79,21 @@ class CipherTrustMockServerTest {
     // ========================================
 
     private String authenticate() throws Exception {
+        var authRequest = AuthRequest.withPassword(
+                CipherTrustMockServer.TEST_USERNAME,
+                CipherTrustMockServer.TEST_PASSWORD);
+        var requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
+
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{\"username\":\"test\",\"password\":\"test\"}"))
+                .POST(HttpRequest.BodyPublishers.ofString(requestBody))
                 .build();
 
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode())
+                .describedAs("Authentication response status (body: %s)", response.body())
+                .isEqualTo(200);
         var authResponse = OBJECT_MAPPER.readValue(response.body(), AuthResponse.class);
         return authResponse.jwt();
     }
@@ -142,10 +151,14 @@ class CipherTrustMockServerTest {
     @Test
     void authEndpointReturnsValidToken() throws Exception {
         // Already tested in setUp via authenticate(), but let's verify the structure
+        var authRequest = AuthRequest.withPassword(
+                CipherTrustMockServer.TEST_USERNAME,
+                CipherTrustMockServer.TEST_PASSWORD);
+
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("{\"username\":\"user\",\"password\":\"pass\"}"))
+                .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authRequest)))
                 .build();
 
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -674,10 +687,13 @@ class CipherTrustMockServerTest {
             HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build();
 
             // Authenticate
+            var authReq = AuthRequest.withPassword(
+                    CipherTrustMockServer.TEST_USERNAME,
+                    CipherTrustMockServer.TEST_PASSWORD);
             var request = HttpRequest.newBuilder()
                     .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"username\":\"test\",\"password\":\"test\"}"))
+                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authReq)))
                     .build();
 
             var response = tlsClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -705,10 +721,13 @@ class CipherTrustMockServerTest {
             HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build();
 
             // Authenticate
+            var authReq = AuthRequest.withPassword(
+                    CipherTrustMockServer.TEST_USERNAME,
+                    CipherTrustMockServer.TEST_PASSWORD);
             var authRequest = HttpRequest.newBuilder()
                     .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString("{\"username\":\"test\",\"password\":\"test\"}"))
+                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authReq)))
                     .build();
             var authResponse = tlsClient.send(authRequest, HttpResponse.BodyHandlers.ofString());
             var auth = OBJECT_MAPPER.readValue(authResponse.body(), AuthResponse.class);
