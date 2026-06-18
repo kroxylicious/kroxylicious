@@ -37,10 +37,14 @@ public interface AdvertisingSpec {
     /**
      * Hostname to advertise for the given broker node.
      * The actual port is resolved separately from the registry.
+     * <p>
+     * Uses {@code int nodeId} (the Kafka wire concept) rather than {@link VirtualNodeId}
+     * because strategies work in Kafka's addressing space; the caller enriches with
+     * gateway context to produce a {@link VirtualNodeId} for port resolution.
      *
-     * @param node the broker node whose hostname is needed
+     * @param nodeId the Kafka node id whose hostname is needed
      * @return hostname (not a full host:port) to put in Metadata responses for this node
-     * @throws IllegalArgumentException if no hostname can be produced for the given node
+     * @throws IllegalArgumentException if no hostname can be produced for the given nodeId
      */
-    String getAdvertisedBrokerHost(VirtualNodeId.Broker node) throws IllegalArgumentException;
+    String getAdvertisedBrokerHost(int nodeId) throws IllegalArgumentException;
 }

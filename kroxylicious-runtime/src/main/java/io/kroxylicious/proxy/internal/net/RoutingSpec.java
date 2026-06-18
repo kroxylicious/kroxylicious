@@ -11,7 +11,7 @@ import java.util.Optional;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Maps an incoming connection to the {@link VirtualNodeId} it targets.
+ * Maps an incoming connection to the Kafka nodeId it targets.
  * <p>
  * This is asked per-connection by the dispatch layer as connections arrive on bound sockets.
  * The result identifies which virtual cluster and which broker node the client wants to
@@ -24,12 +24,16 @@ public interface RoutingSpec {
 
     /**
      * Identifies the target of an incoming connection.
+     * <p>
+     * Returns the Kafka nodeId for broker-specific connections, or empty for bootstrap
+     * connections. The caller wraps the nodeId with the gateway reference to construct
+     * the appropriate {@link VirtualNodeId}.
      *
      * @param port        the actual local port the connection arrived on (never zero)
      * @param sniHostname the TLS SNI hostname presented by the client, or {@code null} for
      *                    plain connections or TLS connections without SNI
-     * @return the {@link VirtualNodeId.Broker} for broker-specific connections, or
+     * @return the Kafka nodeId for broker-specific connections, or
      *         {@link Optional#empty()} for bootstrap connections
      */
-    Optional<VirtualNodeId.Broker> identify(int port, @Nullable String sniHostname);
+    Optional<Integer> identify(int port, @Nullable String sniHostname);
 }

@@ -25,6 +25,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.RoutingSpec;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
@@ -84,6 +87,9 @@ public class PortIdentifiesNodeIdentificationStrategy
     private final Map<Integer, Integer> nodeIdToPort;
 
     @JsonIgnore
+    private final Map<Integer, Integer> portToNodeId;
+
+    @JsonIgnore
     private final Set<Integer> exclusivePorts;
 
     @JsonCreator
@@ -108,6 +114,8 @@ public class PortIdentifiesNodeIdentificationStrategy
         verifyRangeNamesAreUnique(namedRanges);
         verifyRangesAreDistinct(namedRanges);
         nodeIdToPort = mapNodeIdToPort(namedRanges, this.computedNodeStartPort);
+        portToNodeId = nodeIdToPort.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
         int numberOfNodePorts = nodeIdToPort.size();
         if (this.computedNodeStartPort + numberOfNodePorts - 1 > 65535) {
             throw new IllegalArgumentException("The maximum port mapped exceeded 65535");
@@ -249,7 +257,9 @@ public class PortIdentifiesNodeIdentificationStrategy
                 "nodeIdRanges=" + computedNodeIdRanges + ']';
     }
 
-    private class Strategy implements NodeIdentificationStrategy {
+    private class Strategy implements NodeIdentificationStrategy, BindingSpec, AdvertisingSpec, RoutingSpec {
+
+        // --- NodeIdentificationStrategy (legacy — delegates to the new specs) ---
 
         @Override
         public HostPort getClusterBootstrapAddress() {
@@ -261,9 +271,7 @@ public class PortIdentifiesNodeIdentificationStrategy
             if (!nodeIdToPort.containsKey(nodeId)) {
                 throw new IllegalArgumentException(
                         "Cannot generate node address for node id %d as it is not contained in the ranges defined for provider with downstream bootstrap %s"
-                                .formatted(
-                                        nodeId,
-                                        bootstrapAddress));
+                                .formatted(nodeId, bootstrapAddress));
             }
             int port = nodeIdToPort.get(nodeId);
             return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(computedAdvertisedBrokerAddressPattern, nodeId), port);
@@ -278,6 +286,63 @@ public class PortIdentifiesNodeIdentificationStrategy
         public Map<Integer, HostPort> discoveryAddressMap() {
             return nodeIdToPort.keySet().stream()
                     .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
+        }
+
+        // --- BindingSpec ---
+
+        @Override
+        public HostPort getBootstrapBindAddress() {
+            return bootstrapAddress;
+        }
+
+        @Override
+        public Map<Integer, HostPort> nodeBindAddresses() {
+            return nodeIdToPort.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            e -> new HostPort(bootstrapAddress.host(), e.getValue())));
+        }
+
+        @Override
+        public Optional<String> getBindAddress() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Set<Integer> getSharedPorts() {
+            return Set.of();
+        }
+
+        @Override
+        public boolean requiresServerNameIndication() {
+            return false;
+        }
+
+        // --- AdvertisingSpec ---
+
+        @Override
+        public String getAdvertisedBootstrapHost() {
+            return bootstrapAddress.host();
+        }
+
+        @Override
+        public String getAdvertisedBrokerHost(int nodeId) throws IllegalArgumentException {
+            if (!nodeIdToPort.containsKey(nodeId)) {
+                throw new IllegalArgumentException(
+                        "Cannot generate advertised host for node id %d as it is not contained in the ranges defined for provider with downstream bootstrap %s"
+                                .formatted(nodeId, bootstrapAddress));
+            }
+            return BrokerAddressPatternUtils.replaceLiteralNodeId(computedAdvertisedBrokerAddressPattern, nodeId);
+        }
+
+        // --- RoutingSpec ---
+
+        @Override
+        public Optional<Integer> identify(int port, @Nullable String sniHostname) {
+            if (port == bootstrapAddress.port()) {
+                return Optional.empty();
+            }
+            return Optional.ofNullable(portToNodeId.get(port));
         }
 
     }
