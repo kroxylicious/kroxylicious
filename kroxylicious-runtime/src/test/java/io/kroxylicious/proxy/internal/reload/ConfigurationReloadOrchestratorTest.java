@@ -15,8 +15,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -34,6 +38,7 @@ import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
 import io.kroxylicious.proxy.reload.StaticConfigurationChangedException;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.micrometer.core.instrument.Metrics.globalRegistry;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -47,6 +52,119 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConfigurationReloadOrchestratorTest {
+
+    private SimpleMeterRegistry meterRegistry;
+
+    @BeforeEach
+    void addMeterRegistry() {
+        meterRegistry = new SimpleMeterRegistry();
+        globalRegistry.add(meterRegistry);
+    }
+
+    @AfterEach
+    void removeMeterRegistry() {
+        meterRegistry.getMeters().forEach(globalRegistry::remove);
+        globalRegistry.remove(meterRegistry);
+    }
+
+    @Test
+    void recordsSuccessOutcomeAndDurationOnCleanReconfigure() {
+        // given
+        var oldConfig = configWith(vc("cluster-a"));
+        var newConfig = configWith(vc("cluster-a"), vc("cluster-add"));
+        var orchestrator = newOrchestrator(oldConfig, stubbedRegistry());
+
+        // when
+        orchestrator.reconfigure(newConfig).join();
+
+        // then
+        assertThat(reconfigureCount("success")).isEqualTo(1.0);
+        assertThat(meterRegistry.get("kroxylicious_reconfigure_duration_seconds").timer().count()).isEqualTo(1L);
+    }
+
+    @Test
+    void recordsPartialFailureOutcomeWhenAnOperationFails() {
+        // given — a pure-add whose gateway bind fails, producing a per-cluster error.
+        var oldConfig = configWith(vc("cluster-a"));
+        var newConfig = configWith(vc("cluster-a"), vc("cluster-add"));
+        when(endpointRegistry.registerVirtualCluster(any(EndpointGateway.class)))
+                .thenReturn(CompletableFuture.failedStage(new IllegalStateException("bind failed")));
+        var orchestrator = newOrchestrator(oldConfig, stubbedRegistry());
+
+        // when
+        orchestrator.reconfigure(newConfig).join();
+
+        // then — the aggregate outcome is partial_failure, and the failed add is counted per-op.
+        assertThat(reconfigureCount("partial_failure")).isEqualTo(1.0);
+        assertThat(clustersAffectedCount("add", "failure")).isEqualTo(1.0);
+    }
+
+    @Test
+    void recordsCatastrophicOutcomeOnPlannerContractViolation() {
+        // given — a detector that reports a phantom add absent from the submitted config, which
+        // makes the planner throw and the reconfigure complete exceptionally.
+        var config = configWith(vc("cluster-a"));
+        var phantomDetector = mock(ChangeDetector.class);
+        when(phantomDetector.detect(any())).thenReturn(new ChangeResult(Set.of("phantom"), Set.of(), Set.of()));
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, stubbedRegistry(), endpointRegistry, List.of(phantomDetector));
+
+        // when / then — the reconfigure completes exceptionally with the planner's contract-violation
+        // IllegalStateException (naming the phantom cluster), surfaced through join()'s CompletionException.
+        assertThatThrownBy(() -> orchestrator.reconfigure(config).join())
+                .cause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("phantom");
+
+        // then — the failure is counted as a catastrophic outcome.
+        assertThat(reconfigureCount("catastrophic")).isEqualTo(1.0);
+    }
+
+    @Test
+    void doesNotCountPreFlightStaticRejection() {
+        // given
+        var oldConfig = configWith(vc("cluster-a"));
+        var newConfig = withDifferentUseIoUring(oldConfig);
+        var orchestrator = newOrchestrator(oldConfig, mock(VirtualClusterRegistry.class));
+
+        // when / then — pre-flight rejects the static-section change, surfaced through join()'s
+        // CompletionException as a StaticConfigurationChangedException.
+        assertThatThrownBy(() -> orchestrator.reconfigure(newConfig).join())
+                .cause()
+                .isInstanceOf(StaticConfigurationChangedException.class);
+
+        // then — no reconfigure was attempted, so no counter series exists at all.
+        assertThat(meterRegistry.find("kroxylicious_reconfigure_total").counters()).isEmpty();
+    }
+
+    @Test
+    void countsClustersAffectedPerOperationAndOutcome() {
+        // given — one add, one remove, one modify in a single reconfigure.
+        var config = configWith(vc("cluster-modify"), vc("cluster-pure-add"));
+        var detector = mock(ChangeDetector.class);
+        when(detector.detect(any())).thenReturn(new ChangeResult(
+                Set.of("cluster-pure-add"), Set.of("cluster-pure-remove"), Set.of("cluster-modify")));
+        var registry = stubbedRegistry("cluster-pure-remove", "cluster-modify");
+        var orchestrator = new ConfigurationReloadOrchestrator(
+                config, registry, endpointRegistry, List.of(detector));
+
+        // when
+        orchestrator.reconfigure(config).join();
+
+        // then — each operation kind recorded exactly once with a success outcome.
+        assertThat(clustersAffectedCount("add", "success")).isEqualTo(1.0);
+        assertThat(clustersAffectedCount("remove", "success")).isEqualTo(1.0);
+        assertThat(clustersAffectedCount("modify", "success")).isEqualTo(1.0);
+    }
+
+    private double reconfigureCount(String outcome) {
+        return meterRegistry.get("kroxylicious_reconfigure_total").tag("outcome", outcome).counter().count();
+    }
+
+    private double clustersAffectedCount(String operation, String outcome) {
+        return meterRegistry.get("kroxylicious_reconfigure_clusters_affected_total")
+                .tags("operation", operation, "outcome", outcome).counter().count();
+    }
 
     @Test
     void preFlightRejectsStaticSectionDiff() {

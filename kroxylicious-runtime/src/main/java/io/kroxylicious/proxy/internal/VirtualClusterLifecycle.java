@@ -9,19 +9,25 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.Clock;
 
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Draining;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Failed;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Initializing;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Serving;
 import io.kroxylicious.proxy.internal.VirtualClusterLifecycleState.Stopped;
+import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -41,6 +47,7 @@ public class VirtualClusterLifecycle {
 
     private final String clusterName;
     private final Duration drainTimeout;
+    private final Clock clock;
     private VirtualClusterLifecycleState state = new Initializing();
     private final Set<ClientConnectionStateMachine> activeConnections = new HashSet<>();
     /**
@@ -54,9 +61,24 @@ public class VirtualClusterLifecycle {
     @Nullable
     private volatile CompletableFuture<Void> drainFuture;
 
+    /** When the current {@link #state} was entered; used to time {@code state_duration}. */
+    private final AtomicLong stateEnteredNanos;
+
     public VirtualClusterLifecycle(String clusterName, Duration drainTimeout) {
+        this(clusterName, drainTimeout, Clock.SYSTEM);
+    }
+
+    /**
+     * Test seam: injects the {@link Clock} used to time drains and per-state durations, so tests
+     * can drive a {@link io.micrometer.core.instrument.MockClock} and assert recorded durations
+     * deterministically. Production always uses {@link Clock#SYSTEM}.
+     */
+    @VisibleForTesting
+    VirtualClusterLifecycle(String clusterName, Duration drainTimeout, Clock clock) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.drainTimeout = drainTimeout;
+        this.clock = Objects.requireNonNull(clock);
+        this.stateEnteredNanos = new AtomicLong(clock.monotonicTime());
     }
 
     /**
@@ -176,12 +198,31 @@ public class VirtualClusterLifecycle {
     private synchronized void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
         VirtualClusterLifecycleState previous = state;
         state = transitionFn.apply(state);
+        // An idempotent no-op (e.g. stop() called when already Stopped) returns the same
+        // instance — don't record a phantom self-transition.
+        if (state == previous) {
+            return;
+        }
+        recordTransitionMetrics(previous, state);
         var logBuilder = (state instanceof Serving || state instanceof Failed || state instanceof Stopped) ? LOGGER.atInfo() : LOGGER.atDebug();
         logBuilder
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("from", () -> previous.getClass().getSimpleName())
                 .addKeyValue("to", () -> state.getClass().getSimpleName())
                 .log("Virtual cluster lifecycle transition");
+    }
+
+    private void recordTransitionMetrics(VirtualClusterLifecycleState from, VirtualClusterLifecycleState to) {
+        long now = clock.monotonicTime();
+        long previousEntry = stateEnteredNanos.getAndSet(now);
+        String fromLabel = stateLabel(from);
+        Metrics.virtualClusterStateDurationTimer(clusterName, fromLabel).record(Duration.ofNanos(now - previousEntry));
+        Metrics.virtualClusterTransitionsCounter(clusterName, fromLabel, stateLabel(to)).increment();
+        Metrics.updateVirtualClusterState(clusterName, stateLabel(to));
+    }
+
+    private static String stateLabel(VirtualClusterLifecycleState state) {
+        return state.getClass().getSimpleName().toLowerCase(Locale.ROOT);
     }
 
     private IllegalStateException unexpectedState(VirtualClusterLifecycleState current, String operation) {

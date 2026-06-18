@@ -17,7 +17,32 @@ import io.kroxylicious.proxy.reload.ReconfigureError;
  */
 sealed interface ClusterOperation permits AddCluster, RemoveCluster, ReplaceCluster {
 
+    /**
+     * The kind of change this operation applies to a virtual cluster. The {@link #label()} is
+     * used verbatim as the {@code operation} metric tag value.
+     */
+    enum Operation {
+        ADD("add"),
+        REMOVE("remove"),
+        MODIFY("modify");
+
+        private final String label;
+
+        Operation(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
     String clusterName();
+
+    /**
+     * The kind of change this operation represents, for observability.
+     */
+    Operation operation();
 
     /**
      * Apply this operation. Returns an error if the operation didn't complete cleanly;

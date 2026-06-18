@@ -14,9 +14,12 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Timer;
+
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.reload.ConcurrentReconfigureException;
 import io.kroxylicious.proxy.reload.ReconfigureError;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
@@ -52,6 +55,11 @@ public class ConfigurationReloadOrchestrator {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConfigurationReloadOrchestrator.class);
 
     private static final String LOG_KEY_ERROR = "error";
+
+    private static final String OUTCOME_SUCCESS = "success";
+    private static final String OUTCOME_PARTIAL_FAILURE = "partial_failure";
+    private static final String OUTCOME_CATASTROPHIC = "catastrophic";
+    private static final String OUTCOME_FAILURE = "failure";
 
     private final ReentrantLock reconfigureLock = new ReentrantLock();
     private final List<ChangeDetector> detectors;
@@ -125,6 +133,7 @@ public class ConfigurationReloadOrchestrator {
                     .setCause(e)
                     .addKeyValue(LOG_KEY_ERROR, e.getMessage())
                     .log("reconfigure failed");
+            Metrics.reconfigureCounter(OUTCOME_CATASTROPHIC).increment();
             return CompletableFuture.failedFuture(e);
         }
         finally {
@@ -141,17 +150,39 @@ public class ConfigurationReloadOrchestrator {
             return CompletableFuture.failedFuture(new StaticConfigurationChangedException(staticDiffs));
         }
 
-        var changes = aggregateChanges(currentConfiguration, newConfig);
-        if (changes.isEmpty()) {
-            return commit(newConfig, List.of());
+        // Time the attempted reconfigure end-to-end. The body is synchronous (each operation
+        // blocks internally), so the sample captures real wall-clock duration; the finally
+        // records it even when planning/applying throws (the catastrophic path).
+        var sample = Timer.start();
+        try {
+            var changes = aggregateChanges(currentConfiguration, newConfig);
+            if (changes.isEmpty()) {
+                Metrics.reconfigureCounter(OUTCOME_SUCCESS).increment();
+                return commit(newConfig, List.of());
+            }
+
+            var errors = planner.plan(changes, newConfig).stream()
+                    .map(this::applyAndCount)
+                    .flatMap(Optional::stream)
+                    .toList();
+
+            Metrics.reconfigureCounter(errors.isEmpty() ? OUTCOME_SUCCESS : OUTCOME_PARTIAL_FAILURE).increment();
+            return commit(newConfig, errors);
         }
+        finally {
+            sample.stop(Metrics.reconfigureDurationTimer());
+        }
+    }
 
-        var errors = planner.plan(changes, newConfig).stream()
-                .map(ClusterOperation::apply)
-                .flatMap(Optional::stream)
-                .toList();
-
-        return commit(newConfig, errors);
+    /**
+     * Applies one operation and records the {@code clusters_affected} counter for it, tagged by
+     * operation kind and per-cluster outcome.
+     */
+    private Optional<ReconfigureError> applyAndCount(ClusterOperation operation) {
+        var error = operation.apply();
+        Metrics.reconfigureClustersAffectedCounter(operation.operation().label(),
+                error.isPresent() ? OUTCOME_FAILURE : OUTCOME_SUCCESS).increment();
+        return error;
     }
 
     /**
