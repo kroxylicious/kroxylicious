@@ -59,6 +59,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathTemplate;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -295,7 +296,7 @@ public class CipherTrustMockServer {
 
     private void setupKeyManagementEndpoints() {
         // Rotate key by name (create new version) - high priority, specific pattern
-        server.stubFor(post(urlPathMatching("/api/v1/vault/keys2/[^/]+/versions/"))
+        server.stubFor(post(urlPathTemplate("/api/v1/vault/keys2/{keyName}/versions/"))
                 .withQueryParam("type", equalTo("name"))
                 .atPriority(1)
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
@@ -312,7 +313,7 @@ public class CipherTrustMockServer {
                         .withTransformers(TRANSFORMER_CREATE_KEY))); // Transformer will set body and headers
 
         // Delete key by ID with type=id parameter - high priority, specific HTTP method
-        server.stubFor(delete(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
+        server.stubFor(delete(urlPathTemplate("/api/v1/vault/keys2/{keyId}"))
                 .withQueryParam("type", equalTo("id"))
                 .atPriority(1)
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
@@ -321,7 +322,7 @@ public class CipherTrustMockServer {
                         .withTransformers(TRANSFORMER_DELETE_KEY))); // Transformer will set body and headers
 
         // Get key by name with type=name parameter - higher priority than general query
-        server.stubFor(get(urlPathMatching("/api/v1/vault/keys2/[^/]+"))
+        server.stubFor(get(urlPathTemplate("/api/v1/vault/keys2/{keyName}"))
                 .withQueryParam("type", equalTo("name"))
                 .atPriority(2)
                 .withHeader(AUTHORIZATION_HEADER, equalTo(getBearerToken()))
@@ -676,12 +677,8 @@ public class CipherTrustMockServer {
 
         @Override
         ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
-            // Extract name from URL path (last segment before query params)
-            String path = serveEvent.getRequest().getUrl();
-            // URL is like /api/v1/vault/keys2/{encoded-name}?type=name
-            String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
-            String encodedName = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
-            String name = URLDecoder.decode(encodedName, UTF_8); // Decode the URL-encoded name
+            String encodedName = serveEvent.getRequest().getPathParameters().get("keyName");
+            String name = URLDecoder.decode(encodedName, UTF_8);
 
             LOGGER.atDebug()
                     .addKeyValue("name", name)
@@ -712,11 +709,8 @@ public class CipherTrustMockServer {
 
         @Override
         ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
-            // Extract key name from URL path like /api/v1/vault/keys2/{encoded-name}/versions/?type=name
-            String path = serveEvent.getRequest().getUrl();
-            String encodedName = path.substring(path.indexOf("/keys2/") + 7);
-            encodedName = encodedName.substring(0, encodedName.indexOf("/versions/"));
-            String name = URLDecoder.decode(encodedName, UTF_8); // Decode the URL-encoded name
+            String encodedName = serveEvent.getRequest().getPathParameters().get("keyName");
+            String name = URLDecoder.decode(encodedName, UTF_8);
 
             LOGGER.atDebug()
                     .addKeyValue("name", name)
@@ -747,12 +741,7 @@ public class CipherTrustMockServer {
 
         @Override
         ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
-            // Extract the key ID from URL path like '/api/v1/vault/keys2/{id}'
-            String path = serveEvent.getRequest().getUrl();
-            String keyId = path.substring(path.lastIndexOf("/") + 1);
-            if (keyId.contains("?")) {
-                keyId = keyId.substring(0, keyId.indexOf("?"));
-            }
+            String keyId = serveEvent.getRequest().getPathParameters().get("keyId");
 
             LOGGER.atDebug()
                     .addKeyValue("keyId", keyId)
