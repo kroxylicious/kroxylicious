@@ -98,4 +98,24 @@ class CipherTrustTestKmsFacadeTest {
         assertThatThrownBy(() -> manager.read(alias))
                 .isInstanceOf(UnknownAliasException.class);
     }
+
+    @Test
+    void rotateKekWithSpacesInName() {
+        // Given - Create a key with spaces in the name
+        String aliasWithSpaces = "rotate test key";
+        manager.generateKek(aliasWithSpaces);
+
+        // When/Then - Should successfully rotate (URI-encoding the name in the URL)
+        assertThatNoException().isThrownBy(() -> manager.rotateKek(aliasWithSpaces));
+    }
+
+    @Test
+    void deleteKekWithSpacesInName() {
+        // Given - Create a key with spaces in the name
+        String aliasWithSpaces = "delete test key";
+        manager.generateKek(aliasWithSpaces);
+
+        // When/Then - Should successfully delete (URI-encoding the name in the query parameter)
+        assertThatNoException().isThrownBy(() -> manager.deleteKek(aliasWithSpaces));
+    }
 }

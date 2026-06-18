@@ -47,6 +47,9 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * Implementation of {@link Kms} backed by Thales CipherTrust Manager.
  * <p>
@@ -290,7 +293,7 @@ public class CipherTrustKms implements Kms<WrappingKey, CipherTrustEdek> {
 
         // Query CTM to get the current key name and version.
         // The version changes on rotation, causing cache invalidation in caching layers.
-        URI keysUri = endpointUrl.resolve("/api/v1/vault/keys2/" + alias + "?type=name");
+        URI keysUri = endpointUrl.resolve("/api/v1/vault/keys2/%s?type=name".formatted(encode(alias, UTF_8)));
 
         return createGetRequest(keysUri)
                 .thenCompose(request -> sendAsync(request, GET_KEY_RESPONSE_TYPE_REF, "alias resolution",

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.testing.kms.ciphertrust;
 
+import java.net.URLDecoder;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.SecureRandom;
@@ -58,6 +59,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * WireMock-based mock server simulating CipherTrust Manager REST API.
@@ -676,9 +678,10 @@ public class CipherTrustMockServer {
         ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
             // Extract name from URL path (last segment before query params)
             String path = serveEvent.getRequest().getUrl();
-            // URL is like /api/v1/vault/keys2/{name}?type=name
+            // URL is like /api/v1/vault/keys2/{encoded-name}?type=name
             String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
-            String name = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
+            String encodedName = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
+            String name = URLDecoder.decode(encodedName, UTF_8); // Decode the URL-encoded name
 
             LOGGER.atDebug()
                     .addKeyValue("name", name)
@@ -709,10 +712,11 @@ public class CipherTrustMockServer {
 
         @Override
         ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
-            // Extract key name from URL path like /api/v1/vault/keys2/{name}/versions/?type=name
+            // Extract key name from URL path like /api/v1/vault/keys2/{encoded-name}/versions/?type=name
             String path = serveEvent.getRequest().getUrl();
-            String name = path.substring(path.indexOf("/keys2/") + 7);
-            name = name.substring(0, name.indexOf("/versions/"));
+            String encodedName = path.substring(path.indexOf("/keys2/") + 7);
+            encodedName = encodedName.substring(0, encodedName.indexOf("/versions/"));
+            String name = URLDecoder.decode(encodedName, UTF_8); // Decode the URL-encoded name
 
             LOGGER.atDebug()
                     .addKeyValue("name", name)

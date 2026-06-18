@@ -438,6 +438,23 @@ class CipherTrustKmsTest {
                 .withRequestBody(containing("\"grant_type\":\"refresh_token\"")));
     }
 
+    @Test
+    void resolveAliasWithSpecialCharactersInName() {
+        // Given - Create a key with spaces in the name
+        String aliasWithSpecialChars = "my test key";
+        String keyId = "test-key-id";
+        stubKeyLookup(aliasWithSpecialChars, keyId);
+
+        // When - Resolve the alias (should URI-encode the name)
+        WrappingKey result = kms.resolveAlias(aliasWithSpecialChars)
+                .toCompletableFuture()
+                .join();
+
+        // Then - Should successfully resolve
+        assertThat(result.name()).isEqualTo(aliasWithSpecialChars);
+        assertThat(result.version()).isEqualTo(0L);
+    }
+
     private void stubKeyLookup(String alias, String keyId) {
         String response = """
                 {

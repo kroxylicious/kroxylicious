@@ -52,6 +52,9 @@ import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static java.net.URLEncoder.encode;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 /**
  * Test facade for CipherTrust Manager supporting both mock and real instances.
  * <p>
@@ -301,14 +304,14 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
             RotateKeyRequest rotateRequest = new RotateKeyRequest();
             String rotateBody = encodeJson(rotateRequest);
             // Use type=name parameter to explicitly pass key name instead of UUID
-            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH + "/" + alias + "/versions/?type=name", rotateBody);
+            HttpRequest request = buildAuthenticatedPostRequest(VAULT_KEYS_PATH + "/%s/versions/?type=name".formatted(encode(alias, UTF_8)), rotateBody);
             sendRequestNoResponse(request, 200, 201);
         }
 
         @Override
         public void deleteKek(String alias) {
             // Query for ALL keys with this name (handles rotated versions)
-            HttpRequest queryRequest = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "?name=" + alias);
+            HttpRequest queryRequest = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "?name=%s".formatted(encode(alias, UTF_8)));
             GetKeysResponse keysResponse = sendRequest(queryRequest, GET_KEYS_RESPONSE_TYPE_REF, null, 200);
 
             if (keysResponse.total() == 0 || keysResponse.resources() == null || keysResponse.resources().isEmpty()) {
@@ -337,7 +340,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
          */
         private GetKeyResponse queryKeyByName(String alias) {
             // Use type=name parameter to explicitly query by name
-            HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "/" + alias + "?type=name");
+            HttpRequest request = buildAuthenticatedGetRequest(VAULT_KEYS_PATH + "/%s?type=name".formatted(encode(alias, UTF_8)));
             return sendRequest(request, GET_KEY_RESPONSE_TYPE_REF, () -> new UnknownAliasException(alias), 200);
         }
 
