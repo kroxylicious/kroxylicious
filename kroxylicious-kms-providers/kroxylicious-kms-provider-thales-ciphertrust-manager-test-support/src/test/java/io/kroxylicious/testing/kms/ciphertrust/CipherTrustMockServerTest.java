@@ -113,6 +113,9 @@ class CipherTrustMockServerTest {
                 .build();
 
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode())
+                .describedAs("Create key response (body: %s)", response.body())
+                .isEqualTo(200);
         var createResponse = OBJECT_MAPPER.readValue(response.body(), CreateKeyResponse.class);
         return createResponse.id();
     }
@@ -124,6 +127,9 @@ class CipherTrustMockServerTest {
                 .build();
 
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode())
+                .describedAs("Encrypt response (body: %s)", response.body())
+                .isEqualTo(200);
         return OBJECT_MAPPER.readValue(response.body(), EncryptResponse.class);
     }
 
@@ -141,6 +147,9 @@ class CipherTrustMockServerTest {
                 .build();
 
         var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode())
+                .describedAs("Decrypt response (body: %s)", response.body())
+                .isEqualTo(200);
         return OBJECT_MAPPER.readValue(response.body(), DecryptResponse.class);
     }
 
