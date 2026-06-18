@@ -750,13 +750,17 @@ class TopicPartitionRouter implements Router {
                                                         RouterContext context) {
         boolean usesTopicIds = apiVersion >= 13;
 
-        var clientResult = fetchSessionManager.processClientRequest(request, apiVersion);
-        if (clientResult instanceof FetchSessionManager.ClientRequestResult.SessionError error) {
-            return CompletableFuture.completedFuture(syntheticResult(context, error.response()));
-        }
-        var fullRequest = ((FetchSessionManager.ClientRequestResult.FullFetch) clientResult).request();
+        return resolveTopicNames(request).thenCompose(topicNameResolver -> {
+            if (usesTopicIds) {
+                enrichFetchTopicNames(request, topicNameResolver);
+            }
 
-        return resolveTopicNames(fullRequest).thenCompose(topicNameResolver -> {
+            var clientResult = fetchSessionManager.processClientRequest(request, apiVersion);
+            if (clientResult instanceof FetchSessionManager.ClientRequestResult.SessionError error) {
+                return CompletableFuture.completedFuture(syntheticResult(context, error.response()));
+            }
+            var fullRequest = ((FetchSessionManager.ClientRequestResult.FullFetch) clientResult).request();
+
             FetchResponseData errorResponse = FetchDecomposer.errorResponseForUnroutableTopics(
                     fullRequest, routingTable, usesTopicIds);
             Map<String, FetchRequestData> subRequests = fetchDecomposer.decompose(
@@ -805,6 +809,19 @@ class TopicPartitionRouter implements Router {
                 });
             });
         });
+    }
+
+    private static void enrichFetchTopicNames(FetchRequestData request,
+                                              Function<Uuid, String> topicNameResolver) {
+        for (var topic : request.topics()) {
+            if ((topic.topic() == null || topic.topic().isEmpty())
+                    && !Uuid.ZERO_UUID.equals(topic.topicId())) {
+                String resolved = topicNameResolver.apply(topic.topicId());
+                if (resolved != null) {
+                    topic.setTopic(resolved);
+                }
+            }
+        }
     }
 
     private CompletionStage<RouterResponse> handleListOffsets(
