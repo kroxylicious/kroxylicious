@@ -180,6 +180,32 @@ class CipherTrustMockServerTest {
     }
 
     @Test
+    void authEndpointReturnsJsonErrorForUnsupportedGrantType() throws Exception {
+        // Given
+        var authRequestJson = "{\"username\":\"" + CipherTrustMockServer.TEST_USERNAME
+                + "\",\"password\":\"" + CipherTrustMockServer.TEST_PASSWORD
+                + "\",\"grant_type\":\"client_credentials\"}";
+
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(authRequestJson))
+                .build();
+
+        // When
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValue("application/json");
+
+        var errorResponse = OBJECT_MAPPER.readValue(response.body(), io.kroxylicious.testing.kms.ciphertrust.model.ErrorResponse.class);
+        assertThat(errorResponse.error()).contains("Unsupported grant type");
+        assertThat(errorResponse.error()).contains("client_credentials");
+    }
+
+    @Test
     void requestsWithoutAuthorizationFail() throws Exception {
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/vault/keys2/test-key"))

@@ -339,71 +339,94 @@ public class CipherTrustMockServer {
     // Transformer implementations
 
     /**
+     * Base transformer that ensures all exceptions are caught and returned as JSON error responses.
+     */
+    private abstract static class JsonErrorHandlingTransformer implements ResponseDefinitionTransformerV2 {
+
+        @Override
+        public boolean applyGlobally() {
+            return false;
+        }
+
+        @Override
+        public final ResponseDefinition transform(ServeEvent serveEvent) {
+            try {
+                return doTransform(serveEvent);
+            }
+            catch (Exception e) {
+                LOGGER.atError()
+                        .setCause(e)
+                        .addKeyValue("transformer", getName())
+                        .log("Transformer failed");
+
+                ErrorResponse errorResponse = new ErrorResponse(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+                return jsonResponse(errorResponse, 500);
+            }
+        }
+
+        /**
+         * Perform the actual transformation. Subclasses should return JSON error responses
+         * for expected errors (e.g., 400, 401, 404) and throw exceptions for unexpected errors.
+         */
+        abstract ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception;
+    }
+
+    /**
      * Base class for transformers that need access to the key store.
      */
-    private abstract static class KeyStoreTransformer implements ResponseDefinitionTransformerV2 {
+    private abstract static class KeyStoreTransformer extends JsonErrorHandlingTransformer {
         final VersionedKeyStore keyStore;
 
         KeyStoreTransformer(VersionedKeyStore keyStore) {
             this.keyStore = keyStore;
         }
-
-        @Override
-        public boolean applyGlobally() {
-            return false;
-        }
     }
 
-    private static class AuthTransformer implements ResponseDefinitionTransformerV2 {
-
-        @Override
-        public boolean applyGlobally() {
-            return false;
-        }
+    private static class AuthTransformer extends JsonErrorHandlingTransformer {
 
         @Override
         @SuppressFBWarnings("HARD_CODE_PASSWORD") // Test password comparison
         @SuppressWarnings("java:S2068") // allow hardcoded password as this is a test server
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                AuthRequest request = parseJsonRequest(serveEvent.getRequest(), AuthRequest.class);
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            AuthRequest request = parseJsonRequest(serveEvent.getRequest(), AuthRequest.class);
 
-                String username = request.username();
-                String password = request.password();
-                String grantType = request.grantType();
+            String username = request.username();
+            String password = request.password();
+            String grantType = request.grantType();
 
-                // Default to password grant type if not specified
-                if (grantType == null) {
-                    grantType = "password";
+            // Default to password grant type if not specified
+            if (grantType == null) {
+                grantType = "password";
+            }
+
+            LOGGER.atDebug()
+                    .addKeyValue("username", username)
+                    .addKeyValue("grantType", grantType)
+                    .log("Processing auth request");
+
+            // Validate credentials for password grant type
+            if ("password".equals(grantType)) {
+                if (!TEST_USERNAME.equals(username) || !TEST_PASSWORD.equals(password)) {
+                    LOGGER.atDebug()
+                            .addKeyValue("username", username)
+                            .log("Authentication failed: invalid credentials");
+
+                    ErrorResponse errorResponse = new ErrorResponse("Invalid credentials");
+                    return jsonResponse(errorResponse, 401);
                 }
-
-                LOGGER.atDebug()
-                        .addKeyValue("username", username)
+            }
+            else {
+                LOGGER.atWarn()
                         .addKeyValue("grantType", grantType)
-                        .log("Processing auth request");
+                        .log("Unsupported grant type");
 
-                // Validate credentials for password grant type
-                if ("password".equals(grantType)) {
-                    if (!TEST_USERNAME.equals(username) || !TEST_PASSWORD.equals(password)) {
-                        LOGGER.atDebug()
-                                .addKeyValue("username", username)
-                                .log("Authentication failed: invalid credentials");
-
-                        ErrorResponse errorResponse = new ErrorResponse("Invalid credentials");
-                        return jsonResponse(errorResponse, 401);
-                    }
-                }
-                else {
-                    throw new IllegalStateException("Unexpected grant type: " + grantType);
-                }
-
-                // Successful authentication
-                AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
-                return jsonResponse(response, 200);
+                ErrorResponse errorResponse = new ErrorResponse("Unsupported grant type: " + grantType);
+                return jsonResponse(errorResponse, 400);
             }
-            catch (Exception e) {
-                throw new MockServerException("Authentication failed", e);
-            }
+
+            // Successful authentication
+            AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -412,7 +435,7 @@ public class CipherTrustMockServer {
         }
     }
 
-    private static class RandomBytesTransformer implements ResponseDefinitionTransformerV2 {
+    private static class RandomBytesTransformer extends JsonErrorHandlingTransformer {
         private final SecureRandom secureRandom;
 
         RandomBytesTransformer(SecureRandom secureRandom) {
@@ -420,28 +443,18 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public boolean applyGlobally() {
-            return false;
-        }
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            int bytesParam = getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt);
 
-        @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                int bytesParam = getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt);
+            LOGGER.atDebug()
+                    .addKeyValue("bytes", bytesParam)
+                    .log("Processing random bytes request");
 
-                LOGGER.atDebug()
-                        .addKeyValue("bytes", bytesParam)
-                        .log("Processing random bytes request");
+            byte[] randomBytes = new byte[bytesParam];
+            secureRandom.nextBytes(randomBytes);
 
-                byte[] randomBytes = new byte[bytesParam];
-                secureRandom.nextBytes(randomBytes);
-
-                RandomResponse response = new RandomResponse(randomBytes);
-                return jsonResponse(response, 200);
-            }
-            catch (Exception e) {
-                throw new MockServerException("Random bytes generation failed", e);
-            }
+            RandomResponse response = new RandomResponse(randomBytes);
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -459,69 +472,64 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                EncryptRequest request = parseJsonRequest(serveEvent.getRequest(), EncryptRequest.class);
-                String keyRef = request.id();
-                byte[] plaintext = request.plaintext();
-                String type = request.type();
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            EncryptRequest request = parseJsonRequest(serveEvent.getRequest(), EncryptRequest.class);
+            String keyRef = request.id();
+            byte[] plaintext = request.plaintext();
+            String type = request.type();
 
-                LOGGER.atDebug()
-                        .addKeyValue("keyRef", keyRef)
-                        .addKeyValue("type", type)
-                        .addKeyValue("plaintextLength", plaintext.length)
-                        .log("Processing encrypt request");
+            LOGGER.atDebug()
+                    .addKeyValue("keyRef", keyRef)
+                    .addKeyValue("type", type)
+                    .addKeyValue("plaintextLength", plaintext.length)
+                    .log("Processing encrypt request");
 
-                // NOTE: This mock server requires type="name" and performs direct name-based lookup.
-                // The 'id' field must contain a key name, not a key ID.
-                // This eliminates ambiguity and matches the explicit type behavior of real CTM.
-                if (!"name".equals(type)) {
-                    ErrorResponse errorResponse = new ErrorResponse(
-                            "type field must be 'name' (got: %s)".formatted(type == null ? "null" : type));
-                    return jsonResponse(errorResponse, 400);
-                }
-
-                // Direct name lookup only
-                VersionedKeyStore.KeyMetadata metadata = keyStore.getKeyMetadataByName(keyRef);
-                if (metadata == null) {
-                    ErrorResponse errorResponse = new ErrorResponse("Key not found");
-                    return jsonResponse(errorResponse, 404);
-                }
-
-                SecretKey kek = metadata.secretKey();
-                String keyId = metadata.id();
-                int version = metadata.version();
-
-                // Encrypt with AES-GCM
-                byte[] iv = new byte[GCM_IV_LENGTH_BYTES];
-                secureRandom.nextBytes(iv);
-
-                Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
-                GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
-                cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
-
-                byte[] ciphertextWithTag = cipher.doFinal(plaintext);
-                // Split ciphertext and tag
-                int ciphertextLength = ciphertextWithTag.length - (GCM_TAG_LENGTH_BITS / 8);
-                byte[] ciphertext = new byte[ciphertextLength];
-                byte[] tag = new byte[GCM_TAG_LENGTH_BITS / 8];
-                System.arraycopy(ciphertextWithTag, 0, ciphertext, 0, ciphertextLength);
-                System.arraycopy(ciphertextWithTag, ciphertextLength, tag, 0, tag.length);
-
-                // Return the actual key ID and version (from the highest-version key)
-                EncryptResponse response = new EncryptResponse(
-                        ciphertext,
-                        tag,
-                        keyId,
-                        version,
-                        "gcm",
-                        iv);
-
-                return jsonResponse(response, 200);
+            // NOTE: This mock server requires type="name" and performs direct name-based lookup.
+            // The 'id' field must contain a key name, not a key ID.
+            // This eliminates ambiguity and matches the explicit type behavior of real CTM.
+            if (!"name".equals(type)) {
+                ErrorResponse errorResponse = new ErrorResponse(
+                        "type field must be 'name' (got: %s)".formatted(type == null ? "null" : type));
+                return jsonResponse(errorResponse, 400);
             }
-            catch (Exception e) {
-                throw new MockServerException("Encryption failed", e);
+
+            // Direct name lookup only
+            VersionedKeyStore.KeyMetadata metadata = keyStore.getKeyMetadataByName(keyRef);
+            if (metadata == null) {
+                ErrorResponse errorResponse = new ErrorResponse("Key not found");
+                return jsonResponse(errorResponse, 404);
             }
+
+            SecretKey kek = metadata.secretKey();
+            String keyId = metadata.id();
+            int version = metadata.version();
+
+            // Encrypt with AES-GCM
+            byte[] iv = new byte[GCM_IV_LENGTH_BYTES];
+            secureRandom.nextBytes(iv);
+
+            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
+
+            byte[] ciphertextWithTag = cipher.doFinal(plaintext);
+            // Split ciphertext and tag
+            int ciphertextLength = ciphertextWithTag.length - (GCM_TAG_LENGTH_BITS / 8);
+            byte[] ciphertext = new byte[ciphertextLength];
+            byte[] tag = new byte[GCM_TAG_LENGTH_BITS / 8];
+            System.arraycopy(ciphertextWithTag, 0, ciphertext, 0, ciphertextLength);
+            System.arraycopy(ciphertextWithTag, ciphertextLength, tag, 0, tag.length);
+
+            // Return the actual key ID and version (from the highest-version key)
+            EncryptResponse response = new EncryptResponse(
+                    ciphertext,
+                    tag,
+                    keyId,
+                    version,
+                    "gcm",
+                    iv);
+
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -537,43 +545,38 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                DecryptRequest request = parseJsonRequest(serveEvent.getRequest(), DecryptRequest.class);
-                String keyId = request.id();
-                byte[] ciphertext = request.ciphertext();
-                byte[] tag = request.tag();
-                byte[] iv = request.iv();
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            DecryptRequest request = parseJsonRequest(serveEvent.getRequest(), DecryptRequest.class);
+            String keyId = request.id();
+            byte[] ciphertext = request.ciphertext();
+            byte[] tag = request.tag();
+            byte[] iv = request.iv();
 
-                LOGGER.atDebug()
-                        .addKeyValue("keyId", keyId)
-                        .addKeyValue("version", request.version())
-                        .log("Processing decrypt request");
+            LOGGER.atDebug()
+                    .addKeyValue("keyId", keyId)
+                    .addKeyValue("version", request.version())
+                    .log("Processing decrypt request");
 
-                // Get the KEK (version parameter is ignored in this simplified model)
-                SecretKey kek = keyStore.getKey(keyId);
-                if (kek == null) {
-                    ErrorResponse errorResponse = new ErrorResponse("Key version not found");
-                    return jsonResponse(errorResponse, 404);
-                }
-
-                // Combine ciphertext and tag for GCM
-                byte[] ciphertextWithTag = new byte[ciphertext.length + tag.length];
-                System.arraycopy(ciphertext, 0, ciphertextWithTag, 0, ciphertext.length);
-                System.arraycopy(tag, 0, ciphertextWithTag, ciphertext.length, tag.length);
-
-                Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
-                GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
-                cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
-
-                byte[] plaintext = cipher.doFinal(ciphertextWithTag);
-
-                DecryptResponse response = new DecryptResponse(plaintext);
-                return jsonResponse(response, 200);
+            // Get the KEK (version parameter is ignored in this simplified model)
+            SecretKey kek = keyStore.getKey(keyId);
+            if (kek == null) {
+                ErrorResponse errorResponse = new ErrorResponse("Key version not found");
+                return jsonResponse(errorResponse, 404);
             }
-            catch (Exception e) {
-                throw new MockServerException("Decryption failed", e);
-            }
+
+            // Combine ciphertext and tag for GCM
+            byte[] ciphertextWithTag = new byte[ciphertext.length + tag.length];
+            System.arraycopy(ciphertext, 0, ciphertextWithTag, 0, ciphertext.length);
+            System.arraycopy(tag, 0, ciphertextWithTag, ciphertext.length, tag.length);
+
+            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+            cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
+
+            byte[] plaintext = cipher.doFinal(ciphertextWithTag);
+
+            DecryptResponse response = new DecryptResponse(plaintext);
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -589,27 +592,22 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                CreateKeyRequest request = parseJsonRequest(serveEvent.getRequest(), CreateKeyRequest.class);
-                String name = request.name();
-                Map<String, String> labels = request.labels();
-                String keyId = UUID.randomUUID().toString();
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            CreateKeyRequest request = parseJsonRequest(serveEvent.getRequest(), CreateKeyRequest.class);
+            String name = request.name();
+            Map<String, String> labels = request.labels();
+            String keyId = UUID.randomUUID().toString();
 
-                LOGGER.atDebug()
-                        .addKeyValue("name", name)
-                        .addKeyValue("keyId", keyId)
-                        .log("Processing create key request");
+            LOGGER.atDebug()
+                    .addKeyValue("name", name)
+                    .addKeyValue("keyId", keyId)
+                    .log("Processing create key request");
 
-                // Create and store key at version 0 with labels
-                keyStore.createKey(keyId, name, labels);
+            // Create and store key at version 0 with labels
+            keyStore.createKey(keyId, name, labels);
 
-                CreateKeyResponse response = new CreateKeyResponse(keyId, name, "aes");
-                return jsonResponse(response, 200);
-            }
-            catch (Exception e) {
-                throw new MockServerException("Key creation failed", e);
-            }
+            CreateKeyResponse response = new CreateKeyResponse(keyId, name, "aes");
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -625,46 +623,41 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                var request = serveEvent.getRequest();
-                var name = getQueryParam(request, "name", null, Function.identity());
-                var labelFilter = getQueryParam(request, "labels", null, Function.identity());
-                var skip = getQueryParam(request, "skip", 0, Integer::parseInt);
-                var limit = getQueryParam(request, "limit", 10, Integer::parseInt);
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            var request = serveEvent.getRequest();
+            var name = getQueryParam(request, "name", null, Function.identity());
+            var labelFilter = getQueryParam(request, "labels", null, Function.identity());
+            var skip = getQueryParam(request, "skip", 0, Integer::parseInt);
+            var limit = getQueryParam(request, "limit", 10, Integer::parseInt);
 
-                LOGGER.atDebug()
-                        .addKeyValue("name", name)
-                        .addKeyValue("labelFilter", labelFilter)
-                        .addKeyValue("skip", skip)
-                        .addKeyValue("limit", limit)
-                        .log("Processing query key request");
+            LOGGER.atDebug()
+                    .addKeyValue("name", name)
+                    .addKeyValue("labelFilter", labelFilter)
+                    .addKeyValue("skip", skip)
+                    .addKeyValue("limit", limit)
+                    .log("Processing query key request");
 
-                List<GetKeyResponse> matchingKeys;
-                if (name != null) {
-                    // Query by name
-                    matchingKeys = keyStore.findByName(name);
-                }
-                else if (labelFilter != null) {
-                    // Query by labels (format: key=value)
-                    matchingKeys = keyStore.findByLabels(labelFilter);
-                }
-                else {
-                    // Return all keys
-                    matchingKeys = keyStore.findAll();
-                }
-
-                // Apply pagination
-                int total = matchingKeys.size();
-                int endIndex = Math.min(skip + limit, total);
-                List<GetKeyResponse> page = matchingKeys.subList(skip, endIndex);
-
-                GetKeysResponse response = new GetKeysResponse(skip, limit, total, page.isEmpty() ? null : page);
-                return jsonResponse(response, 200);
+            List<GetKeyResponse> matchingKeys;
+            if (name != null) {
+                // Query by name
+                matchingKeys = keyStore.findByName(name);
             }
-            catch (Exception e) {
-                throw new MockServerException("Key query failed", e);
+            else if (labelFilter != null) {
+                // Query by labels (format: key=value)
+                matchingKeys = keyStore.findByLabels(labelFilter);
             }
+            else {
+                // Return all keys
+                matchingKeys = keyStore.findAll();
+            }
+
+            // Apply pagination
+            int total = matchingKeys.size();
+            int endIndex = Math.min(skip + limit, total);
+            List<GetKeyResponse> page = matchingKeys.subList(skip, endIndex);
+
+            GetKeysResponse response = new GetKeysResponse(skip, limit, total, page.isEmpty() ? null : page);
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -680,31 +673,26 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                // Extract name from URL path (last segment before query params)
-                String path = serveEvent.getRequest().getUrl();
-                // URL is like /api/v1/vault/keys2/{name}?type=name
-                String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
-                String name = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            // Extract name from URL path (last segment before query params)
+            String path = serveEvent.getRequest().getUrl();
+            // URL is like /api/v1/vault/keys2/{name}?type=name
+            String afterKeys2 = path.substring(path.indexOf("/keys2/") + 7);
+            String name = afterKeys2.contains("?") ? afterKeys2.substring(0, afterKeys2.indexOf("?")) : afterKeys2;
 
-                LOGGER.atDebug()
-                        .addKeyValue("name", name)
-                        .log("Processing get key by name request");
+            LOGGER.atDebug()
+                    .addKeyValue("name", name)
+                    .log("Processing get key by name request");
 
-                // Find the key with the highest version for this name
-                GetKeyResponse keyResponse = keyStore.findKeyByNameWithHighestVersion(name);
+            // Find the key with the highest version for this name
+            GetKeyResponse keyResponse = keyStore.findKeyByNameWithHighestVersion(name);
 
-                if (keyResponse == null) {
-                    ErrorResponse errorResponse = new ErrorResponse("Key not found: " + name);
-                    return jsonResponse(errorResponse, 404);
-                }
-
-                return jsonResponse(keyResponse, 200);
+            if (keyResponse == null) {
+                ErrorResponse errorResponse = new ErrorResponse("Key not found: " + name);
+                return jsonResponse(errorResponse, 404);
             }
-            catch (Exception e) {
-                throw new MockServerException("Get key by name failed", e);
-            }
+
+            return jsonResponse(keyResponse, 200);
         }
 
         @Override
@@ -720,30 +708,25 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                // Extract key name from URL path like /api/v1/vault/keys2/{name}/versions/?type=name
-                String path = serveEvent.getRequest().getUrl();
-                String name = path.substring(path.indexOf("/keys2/") + 7);
-                name = name.substring(0, name.indexOf("/versions/"));
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            // Extract key name from URL path like /api/v1/vault/keys2/{name}/versions/?type=name
+            String path = serveEvent.getRequest().getUrl();
+            String name = path.substring(path.indexOf("/keys2/") + 7);
+            name = name.substring(0, name.indexOf("/versions/"));
 
-                LOGGER.atDebug()
-                        .addKeyValue("name", name)
-                        .log("Processing rotate key request");
+            LOGGER.atDebug()
+                    .addKeyValue("name", name)
+                    .log("Processing rotate key request");
 
-                String newKeyId = keyStore.rotateKeyByName(name);
-                if (newKeyId == null) {
-                    ErrorResponse errorResponse = new ErrorResponse("Key not found");
-                    return jsonResponse(errorResponse, 404);
-                }
-
-                // Return the new key ID
-                RotateKeyResponse response = new RotateKeyResponse(newKeyId);
-                return jsonResponse(response, 200);
+            String newKeyId = keyStore.rotateKeyByName(name);
+            if (newKeyId == null) {
+                ErrorResponse errorResponse = new ErrorResponse("Key not found");
+                return jsonResponse(errorResponse, 404);
             }
-            catch (Exception e) {
-                throw new MockServerException("Key rotation failed", e);
-            }
+
+            // Return the new key ID
+            RotateKeyResponse response = new RotateKeyResponse(newKeyId);
+            return jsonResponse(response, 200);
         }
 
         @Override
@@ -759,28 +742,23 @@ public class CipherTrustMockServer {
         }
 
         @Override
-        public ResponseDefinition transform(ServeEvent serveEvent) {
-            try {
-                // Extract the key ID from URL path like '/api/v1/vault/keys2/{id}'
-                String path = serveEvent.getRequest().getUrl();
-                String keyId = path.substring(path.lastIndexOf("/") + 1);
-                if (keyId.contains("?")) {
-                    keyId = keyId.substring(0, keyId.indexOf("?"));
-                }
-
-                LOGGER.atDebug()
-                        .addKeyValue("keyId", keyId)
-                        .log("Processing delete key request");
-
-                keyStore.deleteKey(keyId);
-
-                return aResponse()
-                        .withStatus(204)
-                        .build();
+        ResponseDefinition doTransform(ServeEvent serveEvent) throws Exception {
+            // Extract the key ID from URL path like '/api/v1/vault/keys2/{id}'
+            String path = serveEvent.getRequest().getUrl();
+            String keyId = path.substring(path.lastIndexOf("/") + 1);
+            if (keyId.contains("?")) {
+                keyId = keyId.substring(0, keyId.indexOf("?"));
             }
-            catch (Exception e) {
-                throw new MockServerException("Key deletion failed", e);
-            }
+
+            LOGGER.atDebug()
+                    .addKeyValue("keyId", keyId)
+                    .log("Processing delete key request");
+
+            keyStore.deleteKey(keyId);
+
+            return aResponse()
+                    .withStatus(204)
+                    .build();
         }
 
         @Override
