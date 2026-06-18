@@ -143,6 +143,38 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
+    void shouldUseAdvertisingSpecHostAndResolvedPortForBootstrapAddress() {
+        // Given - strategy implements AdvertisingSpec; a port resolver is bound
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("mybroker.example.com:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        int resolvedPort = 54321;
+        listener.bindPortResolver(vn -> resolvedPort);
+
+        // When
+        var result = listener.getClusterBootstrapAddress();
+
+        // Then - host from AdvertisingSpec, port from resolver (not configured port)
+        assertThat(result.host()).isEqualTo("mybroker.example.com");
+        assertThat(result.port()).isEqualTo(resolvedPort);
+    }
+
+    @Test
+    void shouldFallBackToLegacyForBootstrapAddressWhenResolverNotBound() {
+        // Given - strategy implements AdvertisingSpec, but no port resolver bound
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        // When - no bindPortResolver() called
+        var result = listener.getClusterBootstrapAddress();
+
+        // Then - uses configured bootstrap address from strategy
+        assertThat(result).isEqualTo(new HostPort("broker", 9092));
+    }
+
+    @Test
     void delegatesToStrategyForBrokerAddress() {
         var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");

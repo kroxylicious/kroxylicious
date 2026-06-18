@@ -571,6 +571,11 @@ public class VirtualClusterModel implements AutoCloseable {
 
         @Override
         public HostPort getClusterBootstrapAddress() {
+            var resolver = portResolver;
+            if (resolver != null && nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                var vn = new VirtualNodeId.Bootstrap(this);
+                return new HostPort(advertisingSpec.getAdvertisedBootstrapHost(), resolver.apply(vn));
+            }
             return getNodeIdentificationStrategy().getClusterBootstrapAddress();
         }
 
