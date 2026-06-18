@@ -6,10 +6,12 @@
 package io.kroxylicious.proxy.internal;
 
 import java.time.Duration;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -59,6 +62,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
+    @Nullable
+    private final RouterChainFactory routerChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
@@ -67,8 +72,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final Long unauthenticatedIdleMillis;
     private final VirtualClusterRegistry virtualClusterRegistry;
 
-    @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S107" })
-    public KafkaProxyInitializer(PluginFactoryRegistry pfr,
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public KafkaProxyInitializer(@Nullable RouterChainFactory routerChainFactory,
+                                 PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
@@ -81,6 +87,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
+        this.routerChainFactory = routerChainFactory;
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
@@ -250,8 +257,22 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
-        // Filter Handlers will be installed at this point in the pipeline by KafkaProxyFrontendHandler when the client channel fires channelActive()
-        pipeline.addLast("filterChainCompletionHandler", new FilterChainCompletionHandler(clientConnectionStateMachine));
+        if (virtualCluster.usesRouter() && routerChainFactory != null) {
+            dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
+            var sharedNodeAddresses = routerChainFactory.sharedNodeAddressesFor(virtualCluster.routerName(), virtualCluster.getClusterName());
+            var terminalHandler = new io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler(clientConnectionStateMachine);
+            clientConnectionStateMachine.setUpstreamAddressResolver(
+                    virtualNodeId -> Optional.ofNullable(sharedNodeAddresses.get(virtualNodeId))
+                            .or(() -> endpointReconciler.upstreamAddress(
+                                    clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
+            clientConnectionStateMachine.setRoutingTerminalHandler(terminalHandler);
+            frontendHandler.setRoutingConfig(routerChainFactory, sharedNodeAddresses, binding);
+            pipeline.addLast("routingTerminalHandler", terminalHandler);
+        }
+        else {
+            pipeline.addLast("filterChainCompletionHandler",
+                    new FilterChainCompletionHandler(clientConnectionStateMachine));
+        }
         addLoggingErrorHandler(pipeline);
 
         LOGGER.atDebug()

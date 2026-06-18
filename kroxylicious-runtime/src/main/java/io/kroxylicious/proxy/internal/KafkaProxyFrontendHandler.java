@@ -10,10 +10,15 @@ import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntUnaryOperator;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSession;
@@ -38,6 +43,7 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -52,7 +58,18 @@ import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.impl.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.impl.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.impl.EagerMetadataLearner;
+import io.kroxylicious.proxy.internal.filter.impl.TopicIdResponseEnrichmentFilter;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.PassthroughRoutingHandler;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RoutingDecisionHandler;
+import io.kroxylicious.proxy.internal.util.Metrics;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.CheckReturnValue;
@@ -87,6 +104,9 @@ public class KafkaProxyFrontendHandler
     DecodedRequestFrame<?> initialRequestForError;
     private boolean pendingClientFlushes;
     private @Nullable String sniHostname;
+    private @Nullable RouterChainFactory routerChainFactory;
+    private @Nullable Map<Integer, HostPort> sharedNodeAddresses;
+    private @Nullable EndpointBinding routingEndpointBinding;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -118,6 +138,14 @@ public class KafkaProxyFrontendHandler
         this.dp = dp;
         this.clientConnectionStateMachine = clientConnectionStateMachine;
         authenticatedIdleTimeMillis = getAuthenticatedIdleMillis(proxyNettySettings);
+    }
+
+    void setRoutingConfig(RouterChainFactory routerChainFactory,
+                          Map<Integer, HostPort> sharedNodeAddresses,
+                          EndpointBinding binding) {
+        this.routerChainFactory = routerChainFactory;
+        this.sharedNodeAddresses = sharedNodeAddresses;
+        this.routingEndpointBinding = binding;
     }
 
     @Override
@@ -250,30 +278,195 @@ public class KafkaProxyFrontendHandler
         LOGGER.atTrace()
                 .addKeyValue("channelId", clientChannel.id())
                 .log("ChannelActive");
-        // install filters before first read
-        List<FilterAndInvoker> filters = buildFilters();
-        addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
-        // Set the decode predicate now that we have the filters
+
+        if (clientConnectionStateMachine.virtualCluster().usesRouter()) {
+            inClientActiveWithRouting(clientChannel);
+        }
+        else {
+            inClientActiveWithoutRouting(clientChannel);
+        }
+    }
+
+    private void inClientActiveWithoutRouting(Channel clientChannel) {
+        List<FilterAndInvoker> filters = buildFilters(true);
+        addFiltersToPipeline(filters, clientCtx().pipeline(), clientChannel);
         dp.setDelegate(DecodePredicate.forFilters(filters));
-        // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
     }
 
-    private List<FilterAndInvoker> buildFilters() {
+    private void inClientActiveWithRouting(Channel clientChannel) {
+        ChannelPipeline pipeline = clientCtx().pipeline();
+        var allFilters = new ArrayList<FilterAndInvoker>();
+        NettyFilterContext filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
+        var vc = clientConnectionStateMachine.virtualCluster();
+
+        // 1. Build and install internal-only filters
+        List<FilterAndInvoker> internalFilters = buildFilters(false);
+        addFiltersToPipeline(internalFilters, pipeline, clientChannel);
+        allFilters.addAll(internalFilters);
+
+        // 2. Add PassthroughRoutingHandler after last internal filter
+        String lastHandler = lastFilterHandlerName(pipeline);
+        pipeline.addAfter(lastHandler, "passthroughRouting",
+                new PassthroughRoutingHandler());
+
+        // 3. Build VC user filters and add as route filters scoped to "default"
+        List<FilterAndInvoker> vcFilters = vc.filterChainFactory().createFilters(filterContext);
+        allFilters.addAll(vcFilters);
+
+        // 4. Walk the router graph depth-first, installing RoutingDecisionHandlers
+        // and route filters in topological order before the RoutingTerminalHandler
+        OptionalInt topLevelVirtualNodeId = routingEndpointBinding.nodeId() != null
+                ? OptionalInt.of(routingEndpointBinding.nodeId())
+                : OptionalInt.empty();
+        installRouterGraph(
+                vc.routerName(),
+                PassthroughRoutingHandler.DEFAULT_ROUTE,
+                IntUnaryOperator.identity(),
+                vcFilters,
+                filterContext, pipeline, clientChannel, allFilters,
+                topLevelVirtualNodeId);
+
+        // 4a. Install unscoped topicId response enrichment immediately before
+        // the terminal handler — every backend response passes through it.
+        var responseEnrichment = new TopicIdResponseEnrichmentFilter(
+                clientConnectionStateMachine.virtualCluster().getTopicIdResponseCache());
+        List<FilterAndInvoker> responseEnrichmentFai = FilterAndInvoker.build(
+                "TopicIdResponseEnrichment (internal)", responseEnrichment);
+        allFilters.addAll(responseEnrichmentFai);
+        for (FilterAndInvoker fi : responseEnrichmentFai) {
+            pipeline.addBefore("routingTerminalHandler",
+                    "topicIdResponseEnrichment",
+                    new FilterHandler(fi, 20000, sniHostname, clientChannel,
+                            clientConnectionStateMachine));
+        }
+
+        // 5. Set top-level NodeIdMapping on CCSM for broker-port resolution
+        var topRouteDescriptors = vc.routeDescriptors();
+        var topRouteIds = topRouteDescriptors.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
+        NodeIdMapping topNodeIdMapping = topRouteIds.size() > 1
+                ? new BijectiveNodeIdMapping(topRouteIds, topRouteIds.size())
+                : new IdentityNodeIdMapping(topRouteIds.keySet().iterator().next());
+        clientConnectionStateMachine.setNodeIdMapping(topNodeIdMapping);
+
+        // 6. Set decode predicate to union of ALL filters across the routing DAG
+        dp.setDelegate(DecodePredicate.forFilters(allFilters));
+        clientChannel.config().setAutoRead(false);
+        clientChannel.read();
+    }
+
+    private void installRouterGraph(String routerName,
+                                    String activationRoute,
+                                    IntUnaryOperator parentTranslator,
+                                    List<FilterAndInvoker> pendingRouteFilters,
+                                    NettyFilterContext filterContext,
+                                    ChannelPipeline pipeline,
+                                    Channel clientChannel,
+                                    List<FilterAndInvoker> allFilters,
+                                    OptionalInt virtualNodeId) {
+        var vc = clientConnectionStateMachine.virtualCluster();
+        var allRouteDescriptors = vc.allRouteDescriptors();
+        var routeDescriptors = allRouteDescriptors != null
+                ? allRouteDescriptors.get(routerName)
+                : vc.routeDescriptors();
+
+        // Create Router and per-connection TopologyServiceImpl
+        var routerAndTopology = routerChainFactory.createRouter(routerName, vc.getClusterName());
+        Router router = routerAndTopology.router();
+        var routeIds = routeDescriptors.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().id()));
+        NodeIdMapping nodeIdMapping = routeIds.size() > 1
+                ? new BijectiveNodeIdMapping(routeIds, routeIds.size())
+                : new IdentityNodeIdMapping(routeIds.keySet().iterator().next());
+
+        // Compose the virtual ID translator for this level
+        IntUnaryOperator translator = parentTranslator;
+
+        // Metrics
+        var clusterName = vc.getClusterName();
+        var nodeId = routingEndpointBinding.nodeId();
+        var routingRequestsCounter = Metrics.routingRequestsCounter(clusterName, nodeId);
+        var routingErrorsCounter = Metrics.routingErrorsCounter(clusterName, nodeId);
+        var routingRequestDurationTimer = Metrics.routingRequestDurationTimer(clusterName, nodeId);
+        var pendingResponseCount = new AtomicInteger();
+        Metrics.routingPendingResponsesGauge(clusterName, nodeId, pendingResponseCount);
+
+        // Install RoutingDecisionHandler
+        String handlerName = "routingDecisionHandler-" + routerName;
+        var decisionHandler = new RoutingDecisionHandler(
+                activationRoute,
+                router, routeDescriptors, router.staticRoutes(),
+                clientConnectionStateMachine, nodeIdMapping,
+                routingRequestsCounter, routingErrorsCounter,
+                routingRequestDurationTimer, pendingResponseCount,
+                translator, sharedNodeAddresses,
+                virtualNodeId,
+                routerAndTopology.topologyService());
+        pipeline.addBefore("routingTerminalHandler", handlerName, decisionHandler);
+
+        // Install any pending route filters (e.g. VC filters for "default" activation route)
+        // between the handler that set this activation route and this decision handler
+        for (int i = 0; i < pendingRouteFilters.size(); i++) {
+            FilterAndInvoker fi = pendingRouteFilters.get(i);
+            String filterName = "routeFilter-" + activationRoute + "-" + i + "-" + fi.filterName();
+            pipeline.addBefore(handlerName, filterName,
+                    new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                            clientConnectionStateMachine, activationRoute));
+        }
+
+        // For each route, install route filters and recurse into nested routers
+        for (var entry : routeDescriptors.entrySet()) {
+            String routeName = entry.getKey();
+            RouteDescriptor rd = entry.getValue();
+
+            // Build this route's filters
+            List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routerName, routeName, filterContext);
+            allFilters.addAll(routeFilters);
+
+            if (rd.targetsRouter()) {
+                // Nested router: compose translator and recurse
+                IntUnaryOperator nestedTranslator = nestedVirtual -> parentTranslator.applyAsInt(
+                        nodeIdMapping.toVirtual(routeName, nestedVirtual));
+                OptionalInt nestedVirtualNodeId = virtualNodeId.stream()
+                        .mapToObj(nodeIdMapping::fromVirtual)
+                        .filter(ran -> ran.route().equals(routeName))
+                        .mapToInt(NodeIdMapping.RouteAndNode::targetNodeId)
+                        .findFirst();
+                installRouterGraph(rd.routerName(), routeName, nestedTranslator,
+                        routeFilters, filterContext, pipeline, clientChannel,
+                        allFilters, nestedVirtualNodeId);
+            }
+            else {
+                // Cluster-targeting route: install route filters before terminal
+                for (FilterAndInvoker fi : routeFilters) {
+                    String filterHandlerName = "routeFilter-" + routeName + "-" + fi.filterName();
+                    pipeline.addBefore("routingTerminalHandler", filterHandlerName,
+                            new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                                    clientConnectionStateMachine, routeName));
+                }
+            }
+        }
+    }
+
+    /**
+     * @param includeUserFilters whether to include user-configured VC filters
+     */
+    private List<FilterAndInvoker> buildFilters(boolean includeUserFilters) {
         List<FilterAndInvoker> apiVersionFilters = FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
         var filterAndInvokers = new ArrayList<>(apiVersionFilters);
         filterAndInvokers.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
 
-        NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
-
-        List<FilterAndInvoker> filterChain = clientConnectionStateMachine.virtualCluster()
-                .filterChainFactory()
-                .createFilters(filterContext);
-        filterAndInvokers.addAll(filterChain);
+        if (includeUserFilters) {
+            NettyFilterContext filterContext = new NettyFilterContext(clientCtx().channel().eventLoop(), pfr);
+            List<FilterAndInvoker> filterChain = clientConnectionStateMachine.virtualCluster().filterChainFactory().createFilters(filterContext);
+            filterAndInvokers.addAll(filterChain);
+        }
 
         if (clientConnectionStateMachine.endpointBinding().restrictUpstreamToMetadataDiscovery()) {
-            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
+            boolean closeAfterLearning = !clientConnectionStateMachine.virtualCluster().usesRouter();
+            filterAndInvokers.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner(closeAfterLearning)));
         }
         filterAndInvokers
                 .addAll(FilterAndInvoker.build("VirtualCluster TopicNameCache (internal)", clientConnectionStateMachine.virtualCluster().getTopicNameCacheFilter()));
@@ -282,6 +475,35 @@ public class KafkaProxyFrontendHandler
         filterAndInvokers.addAll(brokerAddressFilters);
 
         return filterAndInvokers;
+    }
+
+    private String lastFilterHandlerName(ChannelPipeline pipeline) {
+        String last = clientCtx().name();
+        for (var name : pipeline.names()) {
+            if (name.startsWith("filter-")) {
+                last = name;
+            }
+        }
+        return last;
+    }
+
+    private void addRouteFiltersToPipeline(List<FilterAndInvoker> filters,
+                                           String routeName,
+                                           String addBeforeHandler,
+                                           ChannelPipeline pipeline,
+                                           Channel inboundChannel) {
+        for (FilterAndInvoker protocolFilter : filters) {
+            String handlerName = "routeFilter-" + routeName + "-" + protocolFilter.filterName();
+            pipeline.addBefore(addBeforeHandler,
+                    handlerName,
+                    new RouteFilterHandler(
+                            protocolFilter,
+                            20000,
+                            sniHostname,
+                            inboundChannel,
+                            clientConnectionStateMachine,
+                            routeName));
+        }
     }
 
     /**

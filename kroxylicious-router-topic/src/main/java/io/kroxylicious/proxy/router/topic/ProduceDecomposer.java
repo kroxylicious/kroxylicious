@@ -1,0 +1,113 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.router.topic;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Function;
+
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceResponseData;
+import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
+import org.apache.kafka.common.message.ProduceResponseData.TopicProduceResponse;
+import org.apache.kafka.common.protocol.Errors;
+
+/**
+ * Splits a batched PRODUCE request by topic ownership and merges
+ * the per-route responses. Topics that cannot be routed produce
+ * a synthetic {@link Errors#UNKNOWN_TOPIC_OR_PARTITION} response.
+ */
+class ProduceDecomposer implements RequestDecomposer<ProduceRequestData, ProduceResponseData> {
+
+    static final ProduceDecomposer INSTANCE = new ProduceDecomposer();
+
+    private ProduceDecomposer() {
+    }
+
+    @Override
+    public Map<String, ProduceRequestData> decompose(ProduceRequestData request,
+                                                     TopicRoutingTable table,
+                                                     short apiVersion,
+                                                     Function<Uuid, String> topicNameResolver) {
+        var result = new LinkedHashMap<String, ProduceRequestData>();
+        for (var td : request.topicData()) {
+            String topicName = td.name();
+            if ((topicName == null || topicName.isEmpty()) && !Uuid.ZERO_UUID.equals(td.topicId())) {
+                topicName = topicNameResolver.apply(td.topicId());
+            }
+            String route = table.routeForTopic(topicName);
+            if (route != null) {
+                result.computeIfAbsent(route, k -> copyEnvelope(request))
+                        .topicData().add(td.duplicate());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public ProduceResponseData recompose(Map<String, ProduceResponseData> responses,
+                                         ProduceRequestData originalRequest,
+                                         short apiVersion) {
+        var merged = new ProduceResponseData();
+        int maxThrottle = 0;
+        for (var resp : responses.values()) {
+            for (var tr : resp.responses()) {
+                merged.responses().add(tr.duplicate());
+            }
+            for (var ne : resp.nodeEndpoints()) {
+                merged.nodeEndpoints().add(ne.duplicate());
+            }
+            maxThrottle = Math.max(maxThrottle, resp.throttleTimeMs());
+        }
+        merged.setThrottleTimeMs(maxThrottle);
+        return merged;
+    }
+
+    /**
+     * Builds a synthetic error response for topics that have no route.
+     * At v13+, topics with unresolved topicIds (name still null after enrichment)
+     * are reported as {@link Errors#UNKNOWN_TOPIC_ID}.
+     */
+    static ProduceResponseData errorResponseForUnroutableTopics(ProduceRequestData request,
+                                                                TopicRoutingTable table,
+                                                                short apiVersion) {
+        var errorResponse = new ProduceResponseData();
+        for (var td : request.topicData()) {
+            if (!table.isRoutable(td.name())) {
+                boolean hasName = td.name() != null && !td.name().isEmpty();
+                var topicResponse = new TopicProduceResponse();
+                short errorCode;
+                if (apiVersion >= 13) {
+                    topicResponse.setTopicId(td.topicId());
+                    errorCode = hasName
+                            ? Errors.UNKNOWN_TOPIC_OR_PARTITION.code()
+                            : Errors.UNKNOWN_TOPIC_ID.code();
+                }
+                else {
+                    topicResponse.setName(td.name());
+                    errorCode = Errors.UNKNOWN_TOPIC_OR_PARTITION.code();
+                }
+                for (var pd : td.partitionData()) {
+                    topicResponse.partitionResponses().add(
+                            new PartitionProduceResponse()
+                                    .setIndex(pd.index())
+                                    .setErrorCode(errorCode));
+                }
+                errorResponse.responses().add(topicResponse);
+            }
+        }
+        return errorResponse;
+    }
+
+    private static ProduceRequestData copyEnvelope(ProduceRequestData original) {
+        var copy = new ProduceRequestData();
+        copy.setAcks(original.acks());
+        copy.setTimeoutMs(original.timeoutMs());
+        copy.setTransactionalId(original.transactionalId());
+        return copy;
+    }
+}

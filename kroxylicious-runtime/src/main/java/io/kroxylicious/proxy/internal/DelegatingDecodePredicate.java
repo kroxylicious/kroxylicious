@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.Set;
+
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +40,7 @@ class DelegatingDecodePredicate implements DecodePredicate {
     private static final Logger LOGGER = LoggerFactory.getLogger(DelegatingDecodePredicate.class);
 
     private @Nullable DecodePredicate delegate = null;
+    private @Nullable Set<ApiKeys> routerRequiresDecoding = null;
 
     DelegatingDecodePredicate() {
     }
@@ -49,20 +52,26 @@ class DelegatingDecodePredicate implements DecodePredicate {
         this.delegate = delegate;
     }
 
+    /**
+     * Sets the API keys for which the router requires decoded frames.
+     * These are the dynamically-routed keys that need {@code onRequest}.
+     */
+    void setRouterDecodingRequirements(@Nullable Set<ApiKeys> dynamicallyRoutedKeys) {
+        this.routerRequiresDecoding = dynamicallyRoutedKeys;
+    }
+
     @Override
     public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
         if (apiKey == ApiKeys.API_VERSIONS) {
-            // TODO For now let's assume we need to always decode this, since the NetHandler
-            // currently does this. At some point we'll need a way to figure out the mutual intersection
-            // of api versions over all backend clusters plus the proxy itself.
             return true;
         }
         if (delegate == null) {
-            // on the first request, before the delegate is set decode everything in case a filter wants
-            // to intercept it
             return true;
         }
-        return delegate.shouldDecodeRequest(apiKey, apiVersion);
+        if (delegate.shouldDecodeRequest(apiKey, apiVersion)) {
+            return true;
+        }
+        return routerRequiresDecoding != null && routerRequiresDecoding.contains(apiKey);
     }
 
     @Override
@@ -72,8 +81,9 @@ class DelegatingDecodePredicate implements DecodePredicate {
 
     @Override
     public String toString() {
-        return "SaslDecodePredicate(" +
-                ", delegate=" + delegate +
+        return "DelegatingDecodePredicate(" +
+                "delegate=" + delegate +
+                ", routerRequiresDecoding=" + routerRequiresDecoding +
                 ')';
     }
 }

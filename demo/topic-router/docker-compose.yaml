@@ -1,0 +1,129 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Two independent 3-broker KRaft Kafka clusters and a Kroxylicious proxy
+# for the topic router demo.  Everything runs on a single shared Docker
+# network so the proxy and CLI containers can reach brokers by hostname.
+#
+# Cluster A (default route): SASL_PLAINTEXT listener for the proxy, PLAINTEXT for direct access.
+# Cluster B (non-default route): PLAINTEXT only.
+
+x-cluster-a-common: &cluster-a-common
+  image: 'docker.io/apache/kafka:4.2.0'
+  environment: &cluster-a-env
+    KAFKA_PROCESS_ROLES: broker,controller
+    KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,SASL:SASL_PLAINTEXT,PLAIN:PLAINTEXT,CONTROLLER:PLAINTEXT
+    KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-a-1:9095,2@kafka-a-2:9095,3@kafka-a-3:9095
+    KAFKA_KRAFT_CLUSTER_ID: r4zt_wrqTRuT7W2NJsB_GA
+    KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+    KAFKA_LISTENER_NAME_SASL_PLAIN_SASL_JAAS_CONFIG: >-
+      org.apache.kafka.common.security.plain.PlainLoginModule required
+      username="admin" password="admin-secret"
+      user_admin="admin-secret"
+      user_alice="alice-secret"
+      user_bob="bob-secret";
+  networks:
+    - demo-net
+
+x-cluster-b-common: &cluster-b-common
+  image: 'docker.io/apache/kafka:4.2.0'
+  environment: &cluster-b-env
+    KAFKA_PROCESS_ROLES: broker,controller
+    KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+    KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-b-1:9095,2@kafka-b-2:9095,3@kafka-b-3:9095
+    KAFKA_KRAFT_CLUSTER_ID: X7Bm_CkrVSzW9Y4PKuD_IC
+  networks:
+    - demo-net
+
+services:
+  # ---------- Cluster A (default route, SASL) ----------
+
+  kafka-a-1:
+    <<: *cluster-a-common
+    container_name: kafka-a-1
+    environment:
+      <<: *cluster-a-env
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: INTERNAL://:9092,SASL://:9093,PLAIN://:9094,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-1:9092,SASL://kafka-a-1:9093,PLAIN://kafka-a-1:9094
+
+  kafka-a-2:
+    <<: *cluster-a-common
+    container_name: kafka-a-2
+    environment:
+      <<: *cluster-a-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: INTERNAL://:9092,SASL://:9093,PLAIN://:9094,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-2:9092,SASL://kafka-a-2:9093,PLAIN://kafka-a-2:9094
+
+  kafka-a-3:
+    <<: *cluster-a-common
+    container_name: kafka-a-3
+    environment:
+      <<: *cluster-a-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: INTERNAL://:9092,SASL://:9093,PLAIN://:9094,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-a-3:9092,SASL://kafka-a-3:9093,PLAIN://kafka-a-3:9094
+
+  # ---------- Cluster B (non-default route, PLAINTEXT) ----------
+
+  kafka-b-1:
+    <<: *cluster-b-common
+    container_name: kafka-b-1
+    environment:
+      <<: *cluster-b-env
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9093,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-1:9092,EXTERNAL://kafka-b-1:9093
+
+  kafka-b-2:
+    <<: *cluster-b-common
+    container_name: kafka-b-2
+    environment:
+      <<: *cluster-b-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9093,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-2:9092,EXTERNAL://kafka-b-2:9093
+
+  kafka-b-3:
+    <<: *cluster-b-common
+    container_name: kafka-b-3
+    environment:
+      <<: *cluster-b-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9093,CONTROLLER://:9095
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka-b-3:9092,EXTERNAL://kafka-b-3:9093
+
+  # ---------- Kroxylicious proxy ----------
+
+  kroxylicious:
+    image: quay.io/kroxylicious/proxy:${KROXYLICIOUS_VERSION}
+    container_name: kroxylicious
+    volumes:
+      - ../../kroxylicious-router-topic/target/kroxylicious-router-topic-${KROXYLICIOUS_VERSION}.jar:/opt/kroxylicious/classpath-plugins/kroxylicious-router-topic.jar:ro,z
+      - ../../kroxylicious-kafka-message-tools/target/kroxylicious-kafka-message-tools-${KROXYLICIOUS_VERSION}.jar:/opt/kroxylicious/classpath-plugins/kroxylicious-kafka-message-tools.jar:ro,z
+      - ./proxy-config.yaml:/opt/kroxylicious/config/proxy-config.yaml:ro,z
+    environment:
+      KROXYLICIOUS_CLASSPATH: "/opt/kroxylicious/classpath-plugins/kroxylicious-router-topic.jar:/opt/kroxylicious/classpath-plugins/kroxylicious-kafka-message-tools.jar"
+    command: ["--config", "/opt/kroxylicious/config/proxy-config.yaml"]
+    networks:
+      - demo-net
+    depends_on:
+      - kafka-a-1
+      - kafka-a-2
+      - kafka-a-3
+      - kafka-b-1
+      - kafka-b-2
+      - kafka-b-3
+
+networks:
+  demo-net:
+    name: kroxylicious-demo
+    driver: bridge

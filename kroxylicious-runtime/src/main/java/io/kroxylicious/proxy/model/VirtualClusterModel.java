@@ -45,8 +45,11 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
@@ -87,7 +90,7 @@ public class VirtualClusterModel implements AutoCloseable {
 
     private final String clusterName;
 
-    private final TargetCluster targetCluster;
+    private final @Nullable TargetCluster targetCluster;
 
     private final boolean logNetwork;
 
@@ -104,8 +107,12 @@ public class VirtualClusterModel implements AutoCloseable {
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
+    private final java.util.concurrent.ConcurrentHashMap<org.apache.kafka.common.Uuid, String> topicIdResponseCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
+    private final @Nullable String routerName;
+    private final @Nullable Map<String, RouteDescriptor> routeDescriptors;
+    private final @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -113,6 +120,7 @@ public class VirtualClusterModel implements AutoCloseable {
      * {@code VirtualClusterRegistry} on transition into {@code Stopped}.
      */
     private final FilterChainFactory filterChainFactory;
+    private final Map<String, Map<String, FilterChainFactory>> routeFilterChainFactories;
 
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
@@ -120,7 +128,8 @@ public class VirtualClusterModel implements AutoCloseable {
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
-        this(clusterName, targetCluster, logNetwork, logFrames, filters, new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
+        this(clusterName, targetCluster, logNetwork, logFrames, filters,
+                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
@@ -131,11 +140,12 @@ public class VirtualClusterModel implements AutoCloseable {
                                CacheConfiguration topicNameCacheConfig,
                                @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
                                Duration drainTimeout) {
-        this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig, transportSubjectBuilderConfig, drainTimeout, null);
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
+                transportSubjectBuilderConfig, drainTimeout, null, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
-                               TargetCluster targetCluster,
+                               @Nullable TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters,
@@ -143,16 +153,50 @@ public class VirtualClusterModel implements AutoCloseable {
                                @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
+                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, null, null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               @Nullable TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               CacheConfiguration topicNameCacheConfig,
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
+                               Duration drainTimeout,
+                               @Nullable PluginFactoryRegistry pluginFactoryRegistry,
+                               @Nullable String routerName,
+                               @Nullable Map<String, RouteDescriptor> routeDescriptors) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
+                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, routerName, routeDescriptors, null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               @Nullable TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               CacheConfiguration topicNameCacheConfig,
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
+                               Duration drainTimeout,
+                               @Nullable PluginFactoryRegistry pluginFactoryRegistry,
+                               @Nullable String routerName,
+                               @Nullable Map<String, RouteDescriptor> routeDescriptors,
+                               @Nullable Map<String, Map<String, RouteDescriptor>> allRouteDescriptors) {
         this.clusterName = Objects.requireNonNull(clusterName);
-        this.targetCluster = Objects.requireNonNull(targetCluster);
+        this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
+        this.routerName = routerName;
+        this.routeDescriptors = routeDescriptors;
+        this.allRouteDescriptors = allRouteDescriptors;
 
-        if (pluginFactoryRegistry != null) {
+        if (pluginFactoryRegistry != null && targetCluster != null) {
             TlsCredentialSupplierConfig definition = targetCluster.tls()
                     .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
                     .orElse(null);
@@ -161,12 +205,11 @@ public class VirtualClusterModel implements AutoCloseable {
         }
         else {
             this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
-            // Test-only constructors take this branch. They always pass an empty/null filter
-            // list, so an empty FCF is the right shape — FilterChainFactory tolerates a null
-            // pfr when the chain is empty, which spares tests from building a real
-            // PluginFactoryRegistry.
             this.filterChainFactory = new FilterChainFactory(null, List.of());
         }
+        this.routeFilterChainFactories = pluginFactoryRegistry != null
+                ? initRouteFilterChainFactories(pluginFactoryRegistry)
+                : Map.of();
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -182,14 +225,84 @@ public class VirtualClusterModel implements AutoCloseable {
         return filterChainFactory;
     }
 
+    /**
+     * Creates filter instances for a specific route within a router. Returns an empty
+     * list if the route has no filter definitions or if no route-level FCF was initialized
+     * (e.g. in the test-only constructor path).
+     */
+    public List<FilterAndInvoker> createRouteFilters(String routerName, String routeName, FilterFactoryContext context) {
+        var routerMap = routeFilterChainFactories.get(routerName);
+        if (routerMap == null) {
+            return List.of();
+        }
+        var fcf = routerMap.get(routeName);
+        if (fcf == null) {
+            return List.of();
+        }
+        return fcf.createFilters(context);
+    }
+
+    private Map<String, Map<String, FilterChainFactory>> initRouteFilterChainFactories(PluginFactoryRegistry pfr) {
+        Map<String, Map<String, RouteDescriptor>> allRoutes = collectAllRouteDescriptors();
+        if (allRoutes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Map<String, FilterChainFactory>> result = new HashMap<>();
+        for (var routerEntry : allRoutes.entrySet()) {
+            Map<String, FilterChainFactory> routeMap = new HashMap<>();
+            for (var routeEntry : routerEntry.getValue().entrySet()) {
+                List<NamedFilterDefinition> routeFilters = routeEntry.getValue().filters();
+                if (routeFilters != null && !routeFilters.isEmpty()) {
+                    routeMap.put(routeEntry.getKey(), new FilterChainFactory(pfr, routeFilters));
+                }
+            }
+            if (!routeMap.isEmpty()) {
+                result.put(routerEntry.getKey(), routeMap);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Map<String, RouteDescriptor>> collectAllRouteDescriptors() {
+        if (allRouteDescriptors != null) {
+            return allRouteDescriptors;
+        }
+        if (routerName != null && routeDescriptors != null) {
+            return Map.of(routerName, routeDescriptors);
+        }
+        return Map.of();
+    }
+
     public Duration drainTimeout() {
         return drainTimeout;
     }
 
-    public void logVirtualClusterSummary() {
-        var upstreamHostPort = targetCluster.bootstrapServersList();
-        var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
+    @Nullable
+    public String routerName() {
+        return routerName;
+    }
 
+    public boolean usesRouter() {
+        return routerName != null;
+    }
+
+    /**
+     * @return the route descriptors for the router, or {@code null} if this VC does not use a router
+     */
+    @Nullable
+    public Map<String, RouteDescriptor> routeDescriptors() {
+        return routeDescriptors;
+    }
+
+    /**
+     * @return route descriptors for all routers in the graph, or {@code null} if this VC does not use a router
+     */
+    @Nullable
+    public Map<String, Map<String, RouteDescriptor>> allRouteDescriptors() {
+        return allRouteDescriptors;
+    }
+
+    public void logVirtualClusterSummary() {
         LOGGER.atInfo()
                 .addKeyValue("virtualCluster", clusterName)
                 .log("Gateway summary");
@@ -198,11 +311,17 @@ public class VirtualClusterModel implements AutoCloseable {
             var downstreamBootstrap = gateway.getClusterBootstrapAddress();
             var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
-            LOGGER.atInfo()
+            var logBuilder = LOGGER.atInfo()
                     .addKeyValue("gateway", name)
-                    .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary)
-                    .addKeyValue("upstream", upstreamHostPort + upstreamTlsSummary)
-                    .log("Gateway configuration");
+                    .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
+            if (targetCluster != null) {
+                logBuilder = logBuilder.addKeyValue("upstream",
+                        targetCluster.bootstrapServersList() + generateTlsSummary(targetCluster.tls()));
+            }
+            else {
+                logBuilder = logBuilder.addKeyValue("upstream", "(via router)");
+            }
+            logBuilder.log("Gateway configuration");
         });
     }
 
@@ -231,7 +350,10 @@ public class VirtualClusterModel implements AutoCloseable {
         gateways.put(name, new VirtualClusterGatewayModel(this, nodeIdentificationStrategy, tls, name));
     }
 
-    public TargetCluster targetCluster() {
+    /**
+     * @return the target cluster, or {@code null} if this VC uses a router
+     */
+    public @Nullable TargetCluster targetCluster() {
         return targetCluster;
     }
 
@@ -286,14 +408,27 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     @Override
     public void close() {
-        // Suppress exceptions from FCF close so the TLS close still runs; surface the first
-        // failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
         try {
             filterChainFactory.close();
         }
         catch (RuntimeException e) {
             firstFailure = e;
+        }
+        for (var routerMap : routeFilterChainFactories.values()) {
+            for (var fcf : routerMap.values()) {
+                try {
+                    fcf.close();
+                }
+                catch (RuntimeException e) {
+                    if (firstFailure == null) {
+                        firstFailure = e;
+                    }
+                    else {
+                        firstFailure.addSuppressed(e);
+                    }
+                }
+            }
         }
         try {
             tlsCredentialSupplierManager.close();
@@ -317,6 +452,9 @@ public class VirtualClusterModel implements AutoCloseable {
      * @return true if a credential supplier is configured
      */
     public boolean usesDynamicTlsCredentials() {
+        if (targetCluster == null) {
+            return false;
+        }
         return targetCluster.tls()
                 .map(tls -> tls.credentialSupplier() != null)
                 .orElse(false);
@@ -328,6 +466,9 @@ public class VirtualClusterModel implements AutoCloseable {
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {
+        if (targetCluster == null) {
+            return Optional.empty();
+        }
         return targetCluster.tls().map(targetClusterTls -> {
             try {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
@@ -446,6 +587,10 @@ public class VirtualClusterModel implements AutoCloseable {
         TransportSubjectBuilderService subjectBuilderService = pf.pluginInstance(type);
         subjectBuilderService.initialize(config);
         return subjectBuilderService.build();
+    }
+
+    public java.util.concurrent.ConcurrentHashMap<org.apache.kafka.common.Uuid, String> getTopicIdResponseCache() {
+        return topicIdResponseCache;
     }
 
     public TopicNameCacheFilter getTopicNameCacheFilter() {

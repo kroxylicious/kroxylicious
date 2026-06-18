@@ -145,7 +145,7 @@ class VirtualClusterTest {
         // Given — VirtualCluster constructed with an explicit drainTimeout
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
         var explicitTimeout = Duration.ofSeconds(45);
-        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, explicitTimeout);
+        var vc = new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, explicitTimeout);
 
         // When
         var resolved = vc.effectiveDrainTimeout();
@@ -161,7 +161,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, Duration.ZERO))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, Duration.ZERO))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
     }
@@ -172,7 +172,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, Duration.ofSeconds(-5)))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, Duration.ofSeconds(-5)))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("drainTimeout for virtual cluster 'mycluster' must be positive");
     }
@@ -183,7 +183,103 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then — happy path: a positive explicit drainTimeout passes validation
-        assertThatCode(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS, null, null, Duration.ofMillis(1)))
+        assertThatCode(() -> new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, null, Duration.ofMillis(1)))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void routerReturnsNullWhenTargetIsNull() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        assertThat(vc.router()).isNull();
+    }
+
+    @Test
+    void namedTargetClusterReturnsNullWhenTargetIsNull() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        assertThat(vc.namedTargetCluster()).isNull();
+    }
+
+    @Test
+    void namedTargetClusterReturnsValueFromTarget() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var target = new RouteTarget("my-cluster", null);
+        var vc = new VirtualCluster("mycluster", null, target, gateways, false, false, NO_FILTERS, null, null, null);
+
+        assertThat(vc.namedTargetCluster()).isEqualTo("my-cluster");
+    }
+
+    @Test
+    void topicNameCacheConfigReturnsDefaultWhenNull() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        assertThat(vc.topicNameCacheConfig()).isEqualTo(CacheConfiguration.DEFAULT);
+    }
+
+    @Test
+    void topicNameCacheConfigReturnsExplicitValue() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var cacheConfig = new CacheConfiguration(1000, null, null);
+        var vc = new VirtualCluster("mycluster", targetCluster, null, gateways, false, false, NO_FILTERS, null, cacheConfig, null);
+
+        assertThat(vc.topicNameCacheConfig()).isSameAs(cacheConfig);
+    }
+
+    @Test
+    void sameAsSameInstanceReturnsTrue() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        assertThat(vc.sameAs(vc)).isTrue();
+    }
+
+    @Test
+    void sameAsNullReturnsFalse() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
+
+        assertThat(vc.sameAs(null)).isFalse();
+    }
+
+    @Test
+    void sameAsEqualClusterReturnsTrue() {
+        var gw1 = new VirtualClusterGateway("b", portIdentifiesNode1, null, Optional.empty());
+        var gw2 = new VirtualClusterGateway("a", portIdentifiesNode2, null, Optional.empty());
+        var vc1 = new VirtualCluster("mycluster", targetCluster, null, List.of(gw1, gw2), false, false, NO_FILTERS, null, null, null);
+        var vc2 = new VirtualCluster("mycluster", targetCluster, null, List.of(gw2, gw1), false, false, NO_FILTERS, null, null, null);
+
+        assertThat(vc1.sameAs(vc2)).isTrue();
+    }
+
+    @Test
+    void sameAsDifferentClusterReturnsFalse() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var vc1 = new VirtualCluster("cluster1", targetCluster, gateways, false, false, NO_FILTERS);
+        var vc2 = new VirtualCluster("cluster2", targetCluster, gateways, false, false, NO_FILTERS);
+
+        assertThat(vc1.sameAs(vc2)).isFalse();
+    }
+
+    @Test
+    void rejectsBothTargetClusterAndTarget() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+        var target = new RouteTarget("named-cluster", null);
+
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, target, gateways, false, false, NO_FILTERS, null, null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("must specify exactly one of 'targetCluster' or 'target'");
+    }
+
+    @Test
+    void rejectsNeitherTargetClusterNorTarget() {
+        var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()));
+
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", null, null, gateways, false, false, NO_FILTERS, null, null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("must specify exactly one of 'targetCluster' or 'target'");
     }
 }

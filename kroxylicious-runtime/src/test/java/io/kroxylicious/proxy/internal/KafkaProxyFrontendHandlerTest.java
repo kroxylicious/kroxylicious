@@ -83,7 +83,8 @@ class KafkaProxyFrontendHandlerTest {
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession,
-                (remote, ccsm, vc, cn, ni) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn, ni) {
+                (remote, ccsm, vc, cn, ni, errorCounter, backpressureTimer, connectionToken) -> new ServerConnectionStateMachine(
+                        remote, ccsm, vc, cn, ni, errorCounter, backpressureTimer, connectionToken) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,
@@ -242,6 +243,7 @@ class KafkaProxyFrontendHandlerTest {
         // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
         // mock through the VC so verify(fcf).createFilters(...) still works.
         when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
+        when(virtualClusterModel.getTopicIdResponseCache()).thenReturn(new java.util.concurrent.ConcurrentHashMap<>());
         return virtualClusterModel;
     }
 
