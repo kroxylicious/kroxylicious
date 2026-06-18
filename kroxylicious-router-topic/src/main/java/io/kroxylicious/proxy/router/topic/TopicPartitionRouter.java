@@ -377,6 +377,10 @@ class TopicPartitionRouter implements Router {
                                                           ProduceRequestData request,
                                                           RouterContext context) {
         return resolveTopicNames(request).thenCompose(topicNameResolver -> {
+            if (apiVersion >= 13) {
+                enrichProduceTopicNames(request, topicNameResolver);
+            }
+
             ProduceResponseData errorResponse = ProduceDecomposer.errorResponseForUnroutableTopics(
                     request, routingTable, apiVersion);
             Map<String, ProduceRequestData> subRequests = produceDecomposer.decompose(
@@ -819,6 +823,19 @@ class TopicPartitionRouter implements Router {
                 String resolved = topicNameResolver.apply(topic.topicId());
                 if (resolved != null) {
                     topic.setTopic(resolved);
+                }
+            }
+        }
+    }
+
+    private static void enrichProduceTopicNames(ProduceRequestData request,
+                                                Function<Uuid, String> topicNameResolver) {
+        for (var td : request.topicData()) {
+            if ((td.name() == null || td.name().isEmpty())
+                    && !Uuid.ZERO_UUID.equals(td.topicId())) {
+                String resolved = topicNameResolver.apply(td.topicId());
+                if (resolved != null) {
+                    td.setName(resolved);
                 }
             }
         }

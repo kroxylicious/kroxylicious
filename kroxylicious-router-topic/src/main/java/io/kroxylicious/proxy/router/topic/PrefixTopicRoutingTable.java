@@ -110,6 +110,9 @@ public class PrefixTopicRoutingTable implements TopicRoutingTable {
     @Override
     @Nullable
     public String routeForTopic(String topicName) {
+        if (topicName == null) {
+            return null;
+        }
         String exactRoute = topicToRoute.get(topicName);
         if (exactRoute != null) {
             return exactRoute;
