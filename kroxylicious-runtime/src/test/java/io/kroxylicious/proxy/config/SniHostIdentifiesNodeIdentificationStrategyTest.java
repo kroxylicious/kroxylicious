@@ -18,6 +18,9 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.proxy.HostPortConverter;
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.RoutingSpec;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
@@ -217,5 +220,185 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
 
         assertThatThrownBy(() -> strategy.buildStrategy("cluster"))
                 .isInstanceOf(SniHostIdentifiesNodeIdentificationStrategy.UnresolvedHostException.class);
+    }
+
+    // RoutingSpec
+
+    @Test
+    void shouldIdentifyBrokerNodeIdFromSniHostname() {
+        // Given
+        var routing = buildRoutingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+
+        // When
+        var result = routing.identify(1234, "broker-5.kafka");
+
+        // Then
+        assertThat(result).contains(5);
+    }
+
+    @Test
+    void shouldTreatNonBrokerSniAsBootstrap() {
+        // Given - bootstrap SNI doesn't match the broker regex
+        var routing = buildRoutingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+
+        // When
+        var result = routing.identify(1234, "boot.kafka");
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldTreatMissingSniAsBootstrap() {
+        // Given - null SNI means no TLS SNI extension presented
+        var routing = buildRoutingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+
+        // When
+        var result = routing.identify(1234, null);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldMatchSniCaseInsensitively() {
+        // Given - RFC 4343 mandates case-insensitive DNS comparison
+        var routing = buildRoutingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+
+        // When
+        var result = routing.identify(1234, "BROKER-7.KAFKA");
+
+        // Then
+        assertThat(result).contains(7);
+    }
+
+    @Test
+    void shouldIdentifyNodeIdFromSniWhenPatternContainsClusterName() {
+        // Given
+        var routing = buildRoutingSpec("boot.kafka:1234", "broker-$(virtualClusterName)-$(nodeId).kafka", "mycluster");
+
+        // When
+        var result = routing.identify(1234, "broker-mycluster-3.kafka");
+
+        // Then
+        assertThat(result).contains(3);
+    }
+
+    // BindingSpec
+
+    @Test
+    void shouldExposeBootstrapAddressAsBindAddress() {
+        // Given
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When
+        var result = binding.getBootstrapBindAddress();
+
+        // Then
+        assertThat(result).isEqualTo(HostPort.parse("boot.kafka:1234"));
+    }
+
+    @Test
+    void shouldHaveNoPerNodeBindAddresses() {
+        // Given - SNI shares one port; no per-node bind addresses needed
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When
+        var result = binding.nodeBindAddresses();
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldHaveNoExclusivePorts() {
+        // Given - the bootstrap port is shared, not exclusive
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When
+        var result = binding.getExclusivePorts();
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldShareBootstrapPort() {
+        // Given
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When
+        var result = binding.getSharedPorts();
+
+        // Then
+        assertThat(result).isEqualTo(Set.of(1234));
+    }
+
+    @Test
+    void shouldRequireServerNameIndication() {
+        // Given
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When / Then
+        assertThat(binding.requiresServerNameIndication()).isTrue();
+    }
+
+    @Test
+    void shouldBindOnAllInterfaces() {
+        // Given
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When / Then
+        assertThat(binding.getBindAddress()).isEmpty();
+    }
+
+    // AdvertisingSpec
+
+    @Test
+    void shouldAdvertiseBootstrapHostWithoutPort() {
+        // Given
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+
+        // When
+        var result = advertising.getAdvertisedBootstrapHost();
+
+        // Then - host only, no port component
+        assertThat(result).isEqualTo("boot.kafka");
+    }
+
+    @Test
+    void shouldAdvertiseBrokerHostWithNodeIdSubstituted() {
+        // Given
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+
+        // When
+        var result = advertising.getAdvertisedBrokerHost(5);
+
+        // Then - host only, no port component regardless of configured port
+        assertThat(result).isEqualTo("broker-5.kafka");
+    }
+
+    @Test
+    void shouldSubstituteClusterNameInAdvertisedBrokerHost() {
+        // Given
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(virtualClusterName)-$(nodeId).kafka", "mycluster");
+
+        // When
+        var result = advertising.getAdvertisedBrokerHost(3);
+
+        // Then
+        assertThat(result).isEqualTo("broker-mycluster-3.kafka");
+    }
+
+    private static RoutingSpec buildRoutingSpec(String bootstrap, String pattern, String cluster) {
+        return (RoutingSpec) new SniHostIdentifiesNodeIdentificationStrategy(bootstrap, pattern).buildStrategy(cluster);
+    }
+
+    private static BindingSpec buildBindingSpec(String bootstrap, String pattern) {
+        return (BindingSpec) new SniHostIdentifiesNodeIdentificationStrategy(bootstrap, pattern).buildStrategy("cluster");
+    }
+
+    private static AdvertisingSpec buildAdvertisingSpec(String bootstrap, String pattern, String cluster) {
+        return (AdvertisingSpec) new SniHostIdentifiesNodeIdentificationStrategy(bootstrap, pattern).buildStrategy(cluster);
     }
 }

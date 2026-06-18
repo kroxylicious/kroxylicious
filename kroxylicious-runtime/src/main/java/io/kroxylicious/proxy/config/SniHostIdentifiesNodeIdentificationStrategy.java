@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.net.URI;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -16,6 +17,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.RoutingSpec;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
@@ -163,7 +167,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         return new Strategy(clusterName);
     }
 
-    private class Strategy implements NodeIdentificationStrategy {
+    private class Strategy implements NodeIdentificationStrategy, BindingSpec, AdvertisingSpec, RoutingSpec {
 
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
@@ -262,6 +266,59 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         @Override
         public boolean requiresServerNameIndication() {
             return true;
+        }
+
+        // --- BindingSpec ---
+
+        @Override
+        public HostPort getBootstrapBindAddress() {
+            return bootstrapAddress;
+        }
+
+        @Override
+        public Map<Integer, HostPort> nodeBindAddresses() {
+            return Map.of();
+        }
+
+        @Override
+        public Set<Integer> getExclusivePorts() {
+            return Set.of();
+        }
+
+        @Override
+        public Optional<String> getBindAddress() {
+            return Optional.empty();
+        }
+
+        // --- AdvertisingSpec ---
+
+        @Override
+        public String getAdvertisedBootstrapHost() {
+            return bootstrapAddress.host();
+        }
+
+        @Override
+        public String getAdvertisedBrokerHost(int nodeId) throws IllegalArgumentException {
+            return BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId);
+        }
+
+        // --- RoutingSpec ---
+
+        @Override
+        public Optional<Integer> identify(int port, @Nullable String sniHostname) {
+            if (sniHostname == null) {
+                return Optional.empty();
+            }
+            var matcher = brokerAddressNodeIdCapturingRegex.matcher(sniHostname);
+            if (matcher.matches()) {
+                try {
+                    return Optional.of(Integer.parseInt(matcher.group(1)));
+                }
+                catch (NumberFormatException e) {
+                    throw new IllegalStateException("unexpected exception parsing nodeId from SNI: '" + sniHostname + "'", e);
+                }
+            }
+            return Optional.empty();
         }
 
     }

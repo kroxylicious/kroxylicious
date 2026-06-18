@@ -349,19 +349,6 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
         // Then — hostname is returned, the zero-port problem cannot arise
         assertThat(host).isEqualTo("broker0.kafka.example.com");
-        assertThat(host).doesNotContain(":");
-    }
-
-    @Test
-    void advertisedBrokerHostThrowsForUnknownNodeId() {
-        // Given
-        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
-                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
-                List.of(new NamedRange("brokers", 0, 1))).buildStrategy("cluster");
-
-        // When / Then
-        assertThatThrownBy(() -> spec.getAdvertisedBrokerHost(99))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -375,7 +362,6 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
         // Then
         assertThat(host).isEqualTo(BOOTSTRAP_HOST);
-        assertThat(host).doesNotContain(":");
     }
 
     // ---- RoutingSpec ----

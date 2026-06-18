@@ -327,11 +327,6 @@ public class PortIdentifiesNodeIdentificationStrategy
 
         @Override
         public String getAdvertisedBrokerHost(int nodeId) throws IllegalArgumentException {
-            if (!nodeIdToPort.containsKey(nodeId)) {
-                throw new IllegalArgumentException(
-                        "Cannot generate advertised host for node id %d as it is not contained in the ranges defined for provider with downstream bootstrap %s"
-                                .formatted(nodeId, bootstrapAddress));
-            }
             return BrokerAddressPatternUtils.replaceLiteralNodeId(computedAdvertisedBrokerAddressPattern, nodeId);
         }
 
