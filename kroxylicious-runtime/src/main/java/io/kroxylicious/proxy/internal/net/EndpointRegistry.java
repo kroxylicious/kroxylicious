@@ -167,6 +167,14 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     /** Registry of endpoints and their underlying Netty Channel */
     private final Map<Endpoint, ListeningChannelRecord> listeningChannels = new ConcurrentHashMap<>();
 
+    /**
+     * Secondary index mapping each virtual node to the Endpoint whose channel it is bound on.
+     * Populated during registration and reconciliation so that {@link #resolvePort(VirtualNodeId)}
+     * can look up the actual bound port (which may differ from the configured port when port=0
+     * was used and the OS assigned an ephemeral port).
+     */
+    private final Map<VirtualNodeId, Endpoint> virtualNodeIndex = new ConcurrentHashMap<>();
+
     public EndpointRegistry(NetworkBindingOperationProcessor bindingOperationProcessor) {
         this.bindingOperationProcessor = bindingOperationProcessor;
     }
@@ -196,6 +204,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
+        virtualNodeIndex.put(new VirtualNodeId.Bootstrap(virtualClusterModel), key);
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualClusterModel.getClusterBootstrapAddress().host(),
                 new BootstrapEndpointBinding(virtualClusterModel)).toCompletableFuture();
@@ -210,7 +219,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .map(e -> {
                     var nodeId = e.getKey();
                     var bhp = e.getValue();
-                    return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
+                    var discoveryEndpoint = new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls());
+                    virtualNodeIndex.put(new VirtualNodeId.Broker(virtualClusterModel, nodeId), discoveryEndpoint);
+                    return registerBinding(discoveryEndpoint, bhp.host(),
                             new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
                 }));
 
@@ -260,6 +271,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                                 .log("Secondary error occurred whilst handling a previous registration error");
                     }
                     registeredVirtualClusters.remove(virtualClusterModel);
+                    removeVirtualNodeEntries(virtualClusterModel);
                     future.completeExceptionally(originalFailure);
                     return null;
                 });
@@ -301,6 +313,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .thenCompose(u -> deregisterBinding(virtualClusterModel, binding -> binding.endpointGateway().equals(virtualClusterModel))
                         .handle((unused1, t) -> {
                             registeredVirtualClusters.remove(virtualClusterModel);
+                            removeVirtualNodeEntries(virtualClusterModel);
                             if (t != null) {
                                 deregisterFuture.completeExceptionally(t);
                             }
@@ -397,6 +410,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                             nodeSpecificBindings.forEach(creations::remove);
                             return allOfStage(nodeSpecificBindings.stream()
                                     .filter(eb -> !allBrokerIds.contains(eb.nodeId()))
+                                    .peek(eb -> virtualNodeIndex.remove(new VirtualNodeId.Broker(virtualClusterModel, eb.nodeId())))
                                     .map(eb -> deregisterBinding(virtualClusterModel, eb::equals)));
                         })));
 
@@ -405,6 +419,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .map(vcbb -> {
                     var brokerAddress = virtualClusterModel.getBrokerAddress(vcbb.nodeId());
                     var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualClusterModel.isUseTls());
+                    virtualNodeIndex.put(new VirtualNodeId.Broker(virtualClusterModel, vcbb.nodeId()), endpoint);
                     return registerBinding(endpoint, brokerAddress.host(), vcbb);
                 })))
                 .whenComplete((u2, t) -> {
@@ -456,6 +471,29 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             throw new IllegalStateException("No listening channel for endpoint " + endpoint);
         }
         return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
+    }
+
+    /**
+     * Returns the actual port the OS bound for a given virtual node.
+     * <p>
+     * For nodes configured with an explicit port this is the same as the configured port.
+     * For nodes configured with port=0 (OS-assigned), this returns the ephemeral port
+     * the OS selected at bind time.
+     *
+     * @param vn the virtual node whose bound port is needed
+     * @return the actual bound port
+     * @throws IllegalStateException if the virtual node has no recorded binding (not yet registered)
+     */
+    public int resolvePort(VirtualNodeId vn) {
+        var endpoint = virtualNodeIndex.get(vn);
+        if (endpoint == null) {
+            throw new IllegalStateException("No binding found for virtual node " + vn);
+        }
+        return localPortFor(endpoint);
+    }
+
+    private void removeVirtualNodeEntries(EndpointGateway gateway) {
+        virtualNodeIndex.entrySet().removeIf(e -> e.getKey().gateway().equals(gateway));
     }
 
     private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding) {
