@@ -1,0 +1,49 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+Configuration:
+  status: WARN
+  name: TestConfig
+  Appenders:
+    Console:
+      name: STDOUT
+      target: SYSTEM_OUT
+      PatternLayout:
+        pattern: "%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{2.}:%L - %m%replace{ %mdc}{' $'}{}%n"
+  Loggers:
+    Root:
+      level: WARN
+      additivity: false
+      AppenderRef:
+        - ref: STDOUT
+    Logger:
+      - name: io.kroxylicious
+        level: INFO
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
+      # Enable DEBUG logging for JOSDK to see informer cache sync
+      - name: io.javaoperatorsdk.operator.processing.event.source.informer
+        level: DEBUG
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
+      - name: io.javaoperatorsdk.operator.processing.event.source
+        level: DEBUG
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
+      - name: io.javaoperatorsdk.operator.processing.Controller
+        level: DEBUG
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
+      - name: io.fabric8
+        level: INFO
+        additivity: false
+        AppenderRef:
+          - ref: STDOUT
