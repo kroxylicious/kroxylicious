@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator.reconciler.virtualkafkacluster;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -171,8 +170,8 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     private <R> void logInformerStateForType(Context<VirtualKafkaCluster> context, Class<R> resourceType, VirtualKafkaCluster cluster) {
-        List<io.javaoperatorsdk.operator.processing.event.source.EventSource<R, VirtualKafkaCluster>> eventSources =
-                context.eventSourceRetriever().getEventSourcesFor(resourceType);
+        List<io.javaoperatorsdk.operator.processing.event.source.EventSource<R, VirtualKafkaCluster>> eventSources = context.eventSourceRetriever()
+                .getEventSourcesFor(resourceType);
 
         for (io.javaoperatorsdk.operator.processing.event.source.EventSource<R, VirtualKafkaCluster> eventSource : eventSources) {
             if (eventSource instanceof InformerHealthIndicator informerSource) {
