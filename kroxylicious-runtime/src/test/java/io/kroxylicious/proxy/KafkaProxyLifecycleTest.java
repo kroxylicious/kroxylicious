@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -265,7 +266,7 @@ class KafkaProxyLifecycleTest {
         }, (name, cause) -> {
         }) {
             @Override
-            public void shutdownAllClusters() {
+            public List<Throwable> shutdownAllClusters() {
                 shutdownStarted.countDown();
                 try {
                     allowShutdown.await();
@@ -273,7 +274,7 @@ class KafkaProxyLifecycleTest {
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
-                super.shutdownAllClusters();
+                return super.shutdownAllClusters();
             }
         };
 
@@ -297,7 +298,7 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void shutdownFutureCompletesNormallyWhenCloseThrows() {
+    void shutdownFutureCompletesExceptionallyWhenCloseThrows() {
         var config = """
                 network:
                   proxy:
@@ -326,7 +327,12 @@ class KafkaProxyLifecycleTest {
 
         proxy.shutdown();
 
-        assertThat(future).isCompletedWithValue(null);
+        assertThat(future)
+                .isCompletedExceptionally()
+                .failsWithin(java.time.Duration.ZERO)
+                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
+                .withCauseInstanceOf(RuntimeException.class)
+                .withMessageContaining("simulated close failure");
     }
 
     @Test

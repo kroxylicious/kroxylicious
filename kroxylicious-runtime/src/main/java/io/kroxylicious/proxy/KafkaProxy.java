@@ -543,6 +543,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private void doShutdown() {
         Exception shutdownFailure = null;
+        List<Throwable> closeFailures = new ArrayList<>();
         try {
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Shutting down");
@@ -551,7 +552,7 @@ public final class KafkaProxy implements AutoCloseable {
             // existing connections are unaffected and will be drained in the next step.
             unbindPorts();
 
-            shutdownVirtualClusters();
+            closeFailures.addAll(shutdownVirtualClusters());
 
             shutdownNetty();
 
@@ -579,7 +580,13 @@ public final class KafkaProxy implements AutoCloseable {
             meterRegistries = null;
             reconfigureOrchestrator = null;
             if (shutdownFailure != null) {
+                closeFailures.forEach(shutdownFailure::addSuppressed);
                 shutdown.completeExceptionally(shutdownFailure);
+            }
+            else if (!closeFailures.isEmpty()) {
+                var primary = closeFailures.get(0);
+                closeFailures.subList(1, closeFailures.size()).forEach(primary::addSuppressed);
+                shutdown.completeExceptionally(primary);
             }
             else {
                 shutdown.complete(null);
@@ -601,16 +608,17 @@ public final class KafkaProxy implements AutoCloseable {
         }).toCompletableFuture().join();
     }
 
-    private void shutdownVirtualClusters() {
-        try {
-            virtualClusterRegistry.shutdownAllClusters();
+    private List<Throwable> shutdownVirtualClusters() {
+        var failures = virtualClusterRegistry.shutdownAllClusters();
+        if (failures.isEmpty()) {
             STARTUP_SHUTDOWN_LOGGER.atInfo().log("All connections drained successfully");
         }
-        catch (Exception e) {
+        else {
             STARTUP_SHUTDOWN_LOGGER.atWarn()
-                    .addKeyValue("error", e.getMessage())
-                    .log("Connection drain completed with errors — Netty shutdown will force-close remaining");
+                    .addKeyValue("error", failures.stream().map(Throwable::getMessage).collect(java.util.stream.Collectors.joining(", ")))
+                    .log("Virtual cluster shutdown completed with close failures — Netty shutdown will force-close remaining connections");
         }
+        return failures;
     }
 
     private void shutdownNetty() {
