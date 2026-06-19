@@ -55,7 +55,16 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Basic Java setup without Maven/GPG configuration
     - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+      if: ${{ inputs.server-id == '' }}
+      with:
+        distribution: ${{ inputs.javaDistro }}
+        java-version: ${{ inputs.javaVersion }}
+
+    # Java setup with Maven server and optional GPG configuration
+    - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+      if: ${{ inputs.server-id != '' }}
       with:
         distribution: ${{ inputs.javaDistro }}
         java-version: ${{ inputs.javaVersion }}
