@@ -45,30 +45,14 @@ jobs:
       - name: 'Discover ITs'
         id: discover
         run: |
-          TESTS_PER_CHUNK=15
-          TEST_CHUNKS=$(./scripts/discover-integration-tests.sh ${TESTS_PER_CHUNK})
-
-          # Extract unique modules from the chunks JSON
-          # Parse "module:TestClass" format and get unique module artifact IDs (basename)
-          DISCOVERED_MODULES=$(echo "$TEST_CHUNKS" | jq -r '.[]' \
-            | tr ',' '\n' \
-            | cut -d: -f1 \
-            | xargs -n 1 basename \
-            | sort -u \
-            | sed 's|^|:|' \
-            | tr '\n' ',' \
-            | sed 's/,$//')
-
-          # Always include BOM as it's required for dependency management
-          # Also include filter-archetype as it has special IT requirements
-          # Also include kroxylicious-app to build operand container image for operator ITs
-          # Also include dist modules for operator and admission webhook KT tests
-          MODULES=":kroxylicious-bom,:kroxylicious-filter-archetype,:kroxylicious-app,:kroxylicious-operator-dist,:kroxylicious-admission-dist,${DISCOVERED_MODULES}"
+          # TEMPORARY: Run only VirtualKafkaClusterReconcilerIT#shouldNotResolveWhileProxyInitiallyAbsent
+          # to reproduce race condition in #4165
+          TEST_CHUNKS='["kroxylicious-kubernetes/kroxylicious-operator:VirtualKafkaClusterReconcilerIT#shouldNotResolveWhileProxyInitiallyAbsent"]'
+          MODULES=":kroxylicious-bom,:kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-test-support"
 
           echo "test_chunks=$TEST_CHUNKS" >> $GITHUB_OUTPUT
           echo "modules=$MODULES" >> $GITHUB_OUTPUT
-          echo "Discovered modules: $MODULES"
-          echo "Discovered $(echo "$TEST_CHUNKS" | jq -r 'length') test chunks"
+          echo "Running single test to reproduce #4165: VirtualKafkaClusterReconcilerIT#shouldNotResolveWhileProxyInitiallyAbsent"
   build_artifacts:
     needs: discover_integration_test_chunks
     runs-on: ubuntu-latest
@@ -269,6 +253,7 @@ jobs:
             -DskipUTs \
             -Derrorprone.skip=true \
             -Dit.test="${{ steps.parse.outputs.tests }}" \
+            -Dtest.bulk.vkc.count=1000 \
             ${EXTRA_PROPS} \
             verify
   integration_test_filter_archetype:
