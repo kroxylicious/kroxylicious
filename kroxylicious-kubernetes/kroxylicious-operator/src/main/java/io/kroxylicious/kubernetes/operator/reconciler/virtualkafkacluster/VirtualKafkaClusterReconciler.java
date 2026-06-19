@@ -163,6 +163,10 @@ public final class VirtualKafkaClusterReconciler implements
      * TEMPORARY: For issue reproduction only.
      */
     private void logInformerSyncState(Context<VirtualKafkaCluster> context, VirtualKafkaCluster cluster) {
+        // EventSourceRetriever may be null in unit tests
+        if (context.eventSourceRetriever() == null) {
+            return;
+        }
         logInformerStateForType(context, KafkaProxy.class, cluster);
         logInformerStateForType(context, KafkaService.class, cluster);
         logInformerStateForType(context, KafkaProxyIngress.class, cluster);
