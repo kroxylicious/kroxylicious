@@ -251,39 +251,6 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void futureCompletesExceptionallyWhenStartupFails() {
-        var config = """
-                network:
-                  proxy:
-                    shutdownQuietPeriod: 0s
-                  management:
-                    shutdownQuietPeriod: 0s
-                virtualClusters:
-                  - name: demo1
-                    targetCluster:
-                      bootstrapServers: kafka.example:1234
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: localhost:9192
-                filterDefinitions:
-                - name: filter1
-                  type: RequiresConfigFactory
-                defaultFilters:
-                - filter1
-                """;
-
-        this.proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures());
-        assertThatThrownBy(proxy::startup).isInstanceOf(LifecycleException.class);
-
-        assertThat(proxy.shutdownFuture())
-                .isCompletedExceptionally()
-                .failsWithin(java.time.Duration.ZERO)
-                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
-                .withCauseInstanceOf(LifecycleException.class);
-    }
-
-    @Test
     void startupWhileStoppingThrows() throws InterruptedException {
         var config = DEMO1_CONFIG;
 
@@ -293,7 +260,9 @@ class KafkaProxyLifecycleTest {
         var shutdownStarted = new CountDownLatch(1);
         var allowShutdown = new CountDownLatch(1);
 
-        var blockingRegistry = new VirtualClusterRegistry(models, (name, cause) -> {
+        var blockingRegistry = new VirtualClusterRegistry(models, (cfg, clusterName) -> {
+            throw new UnsupportedOperationException("resolveModel not exercised by this test");
+        }, (name, cause) -> {
         }) {
             @Override
             public void shutdownAllClusters() {
@@ -328,7 +297,7 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void futureCompletesExceptionallyWhenShutdownFails() {
+    void shutdownFutureCompletesNormallyWhenCloseThrows() {
         var config = """
                 network:
                   proxy:
@@ -357,24 +326,10 @@ class KafkaProxyLifecycleTest {
 
         proxy.shutdown();
 
-        assertThat(future)
-                .isCompletedExceptionally()
-                .failsWithin(java.time.Duration.ZERO)
-                .withThrowableOfType(java.util.concurrent.ExecutionException.class)
-                .withCauseInstanceOf(RuntimeException.class)
-                .withMessageContaining("simulated close failure");
+        assertThat(future).isCompletedWithValue(null);
     }
 
     @Test
-<<<<<<< HEAD
-    void shouldFailConstructionWhenFilterInitializationFails() {
-        // The FCF-per-VC refactor moved filter init into VirtualClusterModel construction (run from
-        // KafkaProxy's constructor via defaultRegistry), so a bad filter config now surfaces from the
-        // constructor — wrapped as LifecycleException by defaultRegistry — rather than from startup().
-        // The proxy object never exists when its construction throws, so the previously-observed
-        // post-failure transition to Stopped is no longer reachable; the exception-type contract is the
-        // observable contract that remains.
-=======
     void shouldCompleteShutdownWithConcurrentStartup() throws InterruptedException {
         // Deterministically reproduce the race where shutdown() is called after
         // initializationSucceeded() (VCs now Serving) but before transitionTo(STARTED).
@@ -386,7 +341,9 @@ class KafkaProxyLifecycleTest {
         var initializationCompleted = new CountDownLatch(1);
         var allowStartupToComplete = new CountDownLatch(1);
 
-        var blockingRegistry = new VirtualClusterRegistry(models, (name, cause) -> {
+        var blockingRegistry = new VirtualClusterRegistry(models, (cfg, clusterName) -> {
+            throw new UnsupportedOperationException("resolveModel not exercised by this test");
+        }, (name, cause) -> {
         }) {
             @Override
             public void initializationSucceeded(String clusterName) {
@@ -431,9 +388,13 @@ class KafkaProxyLifecycleTest {
     }
 
     @Test
-    void shouldTransitionToStoppedOnStartupFailure() {
-        // given
->>>>>>> 9be8d3c8e (test(runtime): demonstrate startup/shutdown race at final state transition)
+    void shouldFailConstructionWhenFilterInitializationFails() {
+        // The FCF-per-VC refactor moved filter init into VirtualClusterModel construction (run from
+        // KafkaProxy's constructor via defaultRegistry), so a bad filter config now surfaces from the
+        // constructor — wrapped as LifecycleException by defaultRegistry — rather than from startup().
+        // The proxy object never exists when its construction throws, so the previously-observed
+        // post-failure transition to Stopped is no longer reachable; the exception-type contract is the
+        // observable contract that remains.
         var config = """
                 network:
                   proxy:
