@@ -227,6 +227,20 @@ cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
 APP_BINARY_DISTRIBUTION_ASSET="./kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
 OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${RELEASE_VERSION}"
 ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${RELEASE_VERSION}"
+OPERATOR_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-install-${RELEASE_VERSION}.yaml"
+OPERATOR_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-crds-${RELEASE_VERSION}.yaml"
+ADMISSION_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-install-${RELEASE_VERSION}.yaml"
+ADMISSION_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-crds-${RELEASE_VERSION}.yaml"
+OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-examples-${RELEASE_VERSION}"
+ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-examples-${RELEASE_VERSION}"
+
+# Sign the install manifests
+echo "Signing install manifests"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${OPERATOR_INSTALL_MANIFEST}"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${OPERATOR_CRDS_MANIFEST}"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${ADMISSION_INSTALL_MANIFEST}"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${ADMISSION_CRDS_MANIFEST}"
+
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
   --draft "${RELEASE_TAG}" \
@@ -238,10 +252,26 @@ gh release create --title "${RELEASE_TAG}" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip" \
   "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${OPERATOR_INSTALL_MANIFEST}" \
+  "${OPERATOR_INSTALL_MANIFEST}.asc" \
+  "${OPERATOR_CRDS_MANIFEST}" \
+  "${OPERATOR_CRDS_MANIFEST}.asc" \
+  "${OPERATOR_EXAMPLES_ASSET}.tar.gz" \
+  "${OPERATOR_EXAMPLES_ASSET}.tar.gz.asc" \
+  "${OPERATOR_EXAMPLES_ASSET}.zip" \
+  "${OPERATOR_EXAMPLES_ASSET}.zip.asc" \
   "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
   "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
   "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip" \
   "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${ADMISSION_INSTALL_MANIFEST}" \
+  "${ADMISSION_INSTALL_MANIFEST}.asc" \
+  "${ADMISSION_CRDS_MANIFEST}" \
+  "${ADMISSION_CRDS_MANIFEST}.asc" \
+  "${ADMISSION_EXAMPLES_ASSET}.tar.gz" \
+  "${ADMISSION_EXAMPLES_ASSET}.tar.gz.asc" \
+  "${ADMISSION_EXAMPLES_ASSET}.zip" \
+  "${ADMISSION_EXAMPLES_ASSET}.zip.asc" \
   "${API_COMPATABILITY_REPORT}"
 
 
