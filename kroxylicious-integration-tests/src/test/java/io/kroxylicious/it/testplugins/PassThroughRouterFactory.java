@@ -43,11 +43,11 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(
-                                                           ApiKeys apiKey,
-                                                           short apiVersion,
-                                                           RequestHeaderData header,
-                                                           ApiMessage request,
-                                                           RouterContext routerContext) {
+                                                             ApiKeys apiKey,
+                                                             short apiVersion,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
+                                                             RouterContext routerContext) {
                 throw new IllegalStateException("Dynamic routing is not supported");
             }
 
