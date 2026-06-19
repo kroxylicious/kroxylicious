@@ -1,0 +1,68 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// Module included in the following:
+//
+// _assemblies/assembly-admission-webhook-install.adoc
+
+[id='proc-install-admission-webhook-rendered-manifests-{context}']
+= Installing the admission webhook using rendered manifests (Recommended)
+
+[role="_abstract"]
+This procedure shows how to install the Kroxylicious Admission Webhook directly from GitHub releases using single-file rendered manifests. This is the recommended approach for production deployments and GitOps workflows.
+
+.Prerequisites
+
+* You need an account with permission to create `CustomResourceDefinition`, `MutatingWebhookConfiguration`, and RBAC (`ClusterRole`) resources.
+* link:https://cert-manager.io/[cert-manager^] is installed in the cluster.
+* Network access to GitHub releases.
+
+.Procedure
+
+. Install the cert-manager resources for TLS certificate provisioning:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz
+tar -xzf kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz
+kubectl apply -f cert-manager/
+----
++
+Alternatively, configure TLS manually (see cert-manager examples for reference).
+
+. Install the Kroxylicious admission webhook by applying the rendered manifest directly from the release:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-install-{KroxyliciousVersion}.yaml
+----
++
+This manifest includes all required resources: CustomResourceDefinitions, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, and MutatingWebhookConfiguration.
+
+. Check the status of the deployment:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get deployments -n kroxylicious-webhook
+----
++
+.Output shows the deployment name and readiness
+[source,shell,subs="+quotes"]
+----
+NAME                      READY  UP-TO-DATE  AVAILABLE
+kroxylicious-webhook      2/2    2           2
+----
++
+`READY` shows the number of replicas that are ready/expected.
+The deployment is successful when the `AVAILABLE` output shows `2`.
+
+[role="_additional-resources"]
+.Additional resources
+
+* For GitOps deployments, you can reference this URL in your Kustomization resources.
+* For two-stage installation (installing CRDs separately), use `kroxylicious-admission-crds-{KroxyliciousVersion}.yaml`.

@@ -14,7 +14,29 @@
 = Kroxylicious release artifacts
 
 [role="_abstract"]
-To use YAML manifest files to install Kroxylicious, download {OperatorAssetZipFileName} or {OperatorAssetTgzFileName} file from the {github-release-link}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
+Kroxylicious provides multiple distribution formats to suit different installation workflows.
+
+== Rendered install manifests (Recommended)
+
+For direct installation and GitOps workflows, use the single-file rendered manifests available from {github-release-link}:
+
+Full install manifest:: `kroxylicious-operator-install-{KroxyliciousVersion}.yaml` contains all required resources (CRDs, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment). This is the recommended approach for most installations.
+
+CRDs-only manifest:: `kroxylicious-operator-crds-{KroxyliciousVersion}.yaml` contains only CustomResourceDefinition resources. Use this for separate CRD lifecycle management or when cluster-admin privileges are required for CRD installation but not operator installation.
+
+Examples archive:: `kroxylicious-operator-examples-{KroxyliciousVersion}.tar.gz` (or `.zip`) contains example configurations and custom resources. Download only if you need examples for reference.
+
+These manifests can be applied directly via URL without downloading:
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-operator-install-{KroxyliciousVersion}.yaml
+----
+
+== Archive distributions (Deprecated)
+
+NOTE: The combined archive distributions (`kroxylicious-operator-{KroxyliciousVersion}.tar.gz` and `.zip`) are deprecated and will be removed in a future release. Please migrate to the rendered install manifests and separate examples archive.
+
+To use the legacy archive format, download {OperatorAssetZipFileName} or {OperatorAssetTgzFileName} file from the {github-release-link}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
 
 Each of these archives contains:
 

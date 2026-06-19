@@ -212,6 +212,61 @@ git commit --message "Start next development version" --signoff
 ORIGINAL_GH_DEFAULT_REPO=$(gh repo set-default -v | (grep -v 'no default repository' || true))
 gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 
+# create GitHub release via CLI https://cli.github.com/manual/gh_release_create
+# it is created as a draft, the deploy_release workflow will publish it.
+echo "Creating draft release notes."
+API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-compatability.html
+cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
+# csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
+APP_BINARY_DISTRIBUTION_ASSET="./kroxylicious-app/target/kroxylicious-app-${RELEASE_VERSION}-bin"
+OPERATOR_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-${RELEASE_VERSION}"
+ADMISSION_BINARY_DISTRIBUTION_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-${RELEASE_VERSION}"
+OPERATOR_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-install-${RELEASE_VERSION}.yaml"
+OPERATOR_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-crds-${RELEASE_VERSION}.yaml"
+ADMISSION_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-install-${RELEASE_VERSION}.yaml"
+ADMISSION_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-crds-${RELEASE_VERSION}.yaml"
+OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-examples-${RELEASE_VERSION}"
+ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-examples-${RELEASE_VERSION}"
+
+# Sign the install manifests
+echo "Signing install manifests"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${OPERATOR_INSTALL_MANIFEST}"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${OPERATOR_CRDS_MANIFEST}"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${ADMISSION_INSTALL_MANIFEST}"
+gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${ADMISSION_CRDS_MANIFEST}"
+
+gh release create --title "${RELEASE_TAG}" \
+  --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
+  --draft "${RELEASE_TAG}" \
+  "${APP_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
+  "${APP_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
+  "${APP_BINARY_DISTRIBUTION_ASSET}.zip" \
+  "${APP_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
+  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
+  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip" \
+  "${OPERATOR_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${OPERATOR_INSTALL_MANIFEST}" \
+  "${OPERATOR_INSTALL_MANIFEST}.asc" \
+  "${OPERATOR_CRDS_MANIFEST}" \
+  "${OPERATOR_CRDS_MANIFEST}.asc" \
+  "${OPERATOR_EXAMPLES_ASSET}.tar.gz" \
+  "${OPERATOR_EXAMPLES_ASSET}.tar.gz.asc" \
+  "${OPERATOR_EXAMPLES_ASSET}.zip" \
+  "${OPERATOR_EXAMPLES_ASSET}.zip.asc" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.tar.gz.asc" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip" \
+  "${ADMISSION_BINARY_DISTRIBUTION_ASSET}.zip.asc" \
+  "${ADMISSION_INSTALL_MANIFEST}" \
+  "${ADMISSION_INSTALL_MANIFEST}.asc" \
+  "${ADMISSION_CRDS_MANIFEST}" \
+  "${ADMISSION_CRDS_MANIFEST}.asc" \
+  "${ADMISSION_EXAMPLES_ASSET}.tar.gz" \
+  "${ADMISSION_EXAMPLES_ASSET}.tar.gz.asc" \
+  "${ADMISSION_EXAMPLES_ASSET}.zip" \
+  "${ADMISSION_EXAMPLES_ASSET}.zip.asc" \
+  "${API_COMPATABILITY_REPORT}"
 BODY="Release version ${RELEASE_VERSION}"
 
 # Workaround https://github.com/cli/cli/issues/2691

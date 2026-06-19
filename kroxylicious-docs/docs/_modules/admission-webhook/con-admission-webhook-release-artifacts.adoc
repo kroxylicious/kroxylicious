@@ -14,9 +14,29 @@
 = Admission webhook release artifacts
 
 [role="_abstract"]
-To install the admission webhook using YAML manifest files, download the `{WebhookAssetZipFileName}` or `{WebhookAssetTgzFileName}` file from the {github-release-link}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
+Kroxylicious provides multiple distribution formats to suit different installation workflows.
 
-// TODO: Add a direct download link once the release artifact attributes are finalized.
+== Rendered install manifests (Recommended)
+
+For direct installation and GitOps workflows, use the single-file rendered manifests available from {github-release-link}:
+
+Full install manifest:: `kroxylicious-admission-install-{KroxyliciousVersion}.yaml` contains all required resources (CRDs, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, Service, PodDisruptionBudget, MutatingWebhookConfiguration). This is the recommended approach for most installations.
+
+CRDs-only manifest:: `kroxylicious-admission-crds-{KroxyliciousVersion}.yaml` contains only CustomResourceDefinition resources. Use this for separate CRD lifecycle management.
+
+Examples archive:: `kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz` (or `.zip`) contains cert-manager configuration examples and other reference resources.
+
+These manifests can be applied directly via URL without downloading:
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-admission-install-{KroxyliciousVersion}.yaml
+----
+
+== Archive distributions (Deprecated)
+
+NOTE: The combined archive distributions (`kroxylicious-admission-{KroxyliciousVersion}.tar.gz` and `.zip`) are deprecated and will be removed in a future release. Please migrate to the rendered install manifests and separate examples archive.
+
+To install using the legacy archive format, download the `{WebhookAssetZipFileName}` or `{WebhookAssetTgzFileName}` file from the {github-release-link}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
 
 Each of these archives contains:
 
