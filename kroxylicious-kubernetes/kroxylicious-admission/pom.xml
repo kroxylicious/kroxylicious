@@ -434,6 +434,26 @@
                                     </args>
                                 </configuration>
                             </execution>
+                            <!-- Concatenate manifests into single install files -->
+                            <execution>
+                                <id>create-install-manifests</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
+                                    <script>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/concat_manifests.java</script>
+                                    <args>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/packaged/install</arg>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-install-${project.version}.yaml</arg>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-crds-${project.version}.yaml</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
                         </executions>
                     </plugin>
                     <plugin>

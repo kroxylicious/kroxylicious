@@ -64,6 +64,20 @@
                                     </descriptors>
                                 </configuration>
                             </execution>
+                            <execution>
+                                <id>operator-examples</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <appendAssemblyId>false</appendAssemblyId>
+                                    <finalName>kroxylicious-operator-examples-${project.version}</finalName>
+                                    <descriptors>
+                                        <descriptor>src/assembly/examples.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
                         </executions>
                     </plugin>
                 </plugins>
