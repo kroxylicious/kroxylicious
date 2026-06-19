@@ -21,7 +21,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class MockOauthServer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MockOauthServer.class);
     private static final String MOCK_OAUTH_SERVER_DEFAULT_NAMESPACE = "lowkey-vault";
-    private static final String MOCK_OAUTH_SERVER_IMAGE = "ghcr.io/navikt/mock-oauth2-server:4.0.1@sha256:79f51f412caddb1e2120a5ae10d1f203e134f6e8328f1bc63c444acba33c9086";
+    private static final String MOCK_OAUTH_SERVER_IMAGE = "ghcr.io/navikt/mock-oauth2-server:4.0.1@sha256:6c00cff8820820a69a69ac73f1f911c2fb013ccbdee2d8248df9050a16a3c4a7";
     private final String deploymentNamespace;
     private static final String TENANT_ID = "tenant2";
 
