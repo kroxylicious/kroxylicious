@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4141](https://github.com/kroxylicious/kroxylicious/pull/4141): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.4 to 2.26.0
 * [#4102](https://github.com/kroxylicious/kroxylicious/pull/4102): build(deps): bump apicurio-registry.version from 3.2.4 to 3.3.0
 * [#4059](https://github.com/kroxylicious/kroxylicious/pull/4059): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.21.3 to 2.22.0
 * [#4073](https://github.com/kroxylicious/kroxylicious/pull/4073): refactor(runtime): move `FilterChainFactory` from a proxy-wide shared component to per-virtual-cluster ownership. Each virtual cluster now owns its filter chain — `FilterFactory.initialize()`/`close()` lifecycles are scoped per virtual cluster, with independent initialization data and configuration. This isolates filter resources between virtual clusters and enables safe hot-reload of filter chains (a virtual cluster's chain can be reconfigured without affecting other virtual clusters' filters). `FilterFactory.initialize()` and `close()` are now guaranteed to run on a non-Netty-event-loop thread, so blocking work (e.g. closing KMS/HTTP clients) is safe in either method
