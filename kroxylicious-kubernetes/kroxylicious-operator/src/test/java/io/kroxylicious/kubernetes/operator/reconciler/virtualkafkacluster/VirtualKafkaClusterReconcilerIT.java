@@ -19,6 +19,8 @@ import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -68,6 +70,8 @@ import static org.awaitility.Awaitility.await;
 @SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 class VirtualKafkaClusterReconcilerIT {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconcilerIT.class);
+
     private static final String PROXY_A = "proxy-a";
     private static final String PROXY_B = "proxy-b";
     private static final String CLUSTER_BAR = "bar-cluster";
@@ -96,7 +100,7 @@ class VirtualKafkaClusterReconcilerIT {
         int bulkCount = Integer.parseInt(System.getProperty("test.bulk.vkc.count", "0"));
         if (bulkCount > 0) {
             builder.withBeforeStartHook(ext -> {
-                System.out.println("Creating " + bulkCount + " bulk VKCs in namespace " + ext.getNamespace() + " before operator starts...");
+                LOGGER.info("Creating {} bulk VKCs in namespace {} before operator starts (to reproduce #4165)", bulkCount, ext.getNamespace());
                 var client = OperatorTestUtils.kubeClient();
                 String namespace = ext.getNamespace();
 
@@ -113,7 +117,7 @@ class VirtualKafkaClusterReconcilerIT {
                             .endSpec()
                             .build()).create();
                 }
-                System.out.println("Created " + bulkCount + " bulk VKCs successfully");
+                LOGGER.info("Created {} bulk VKCs successfully", bulkCount);
             });
         }
 
