@@ -16,7 +16,7 @@
 #
 
 name: "Setup Java"
-description: "Setup Java"
+description: "Setup Java with optional Maven server and GPG configuration"
 
 inputs:
   javaVersion:
@@ -27,6 +27,30 @@ inputs:
     description: "Java distribution to be installed"
     required: false
     default: "temurin"
+  server-id:
+    description: "Maven server ID (e.g., 'central')"
+    required: false
+    default: ""
+  server-username:
+    description: "Environment variable name for Maven server username"
+    required: false
+    default: ""
+  server-password:
+    description: "Environment variable name for Maven server password"
+    required: false
+    default: ""
+  gpg-private-key:
+    description: "GPG private key content for artifact signing"
+    required: false
+    default: ""
+  gpg-passphrase:
+    description: "Environment variable name for GPG passphrase"
+    required: false
+    default: ""
+  overwrite-settings:
+    description: "Overwrite existing Maven settings"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
@@ -35,3 +59,9 @@ runs:
       with:
         distribution: ${{ inputs.javaDistro }}
         java-version: ${{ inputs.javaVersion }}
+        server-id: ${{ inputs.server-id }}
+        server-username: ${{ inputs.server-username }}
+        server-password: ${{ inputs.server-password }}
+        gpg-private-key: ${{ inputs.gpg-private-key }}
+        gpg-passphrase: ${{ inputs.gpg-passphrase }}
+        overwrite-settings: ${{ inputs.overwrite-settings }}
