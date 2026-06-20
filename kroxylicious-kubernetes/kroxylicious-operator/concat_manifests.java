@@ -84,13 +84,13 @@ public class concat_manifests {
                 Path manifest = manifests.get(i);
                 String content = Files.readString(manifest);
 
-                // Remove any leading --- if present
-                content = content.replaceFirst("^---\\s*\\n", "");
-
                 // Remove all leading comment/blank lines before the first YAML content
                 // This strips license headers and file-specific notes while preserving
                 // inline comments that are part of the resource definition
                 content = content.replaceFirst("(?s)^(#.*?\\n|\\s*\\n)+(?=\\S)", "");
+
+                // Remove any leading --- if present (after stripping comments)
+                content = content.replaceFirst("^---\\s*\\n", "");
 
                 // Add separator before each document
                 writer.write("---\n");
