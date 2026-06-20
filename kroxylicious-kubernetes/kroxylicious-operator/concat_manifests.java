@@ -88,8 +88,10 @@ public class concat_manifests {
                 // Remove any leading --- if present
                 content = content.replaceFirst("^---\\s*\\n", "");
 
-                // Remove license header comments if present
-                content = content.replaceFirst("(?s)^#\\s*\\n#\\s*Copyright.*?#\\s*\\n(#.*?\\n)*", "");
+                // Remove all leading comment/blank lines before the first YAML content
+                // This strips license headers and file-specific notes while preserving
+                // inline comments that are part of the resource definition
+                content = content.replaceFirst("(?s)^(#.*?\\n|\\s*\\n)+(?=\\S)", "");
 
                 writer.write(content);
 
