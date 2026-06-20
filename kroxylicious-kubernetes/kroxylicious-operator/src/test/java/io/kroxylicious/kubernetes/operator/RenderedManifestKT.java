@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -146,7 +147,9 @@ class RenderedManifestKT extends AbstractInstallKT {
 
     private List<HasMetadata> loadAllResources(Path manifestFile) throws IOException {
         try (var is = Files.newInputStream(manifestFile)) {
-            return client.load(is).get();
+            return client.load(is).get().stream()
+                    .filter(Objects::nonNull)
+                    .toList();
         }
     }
 }
