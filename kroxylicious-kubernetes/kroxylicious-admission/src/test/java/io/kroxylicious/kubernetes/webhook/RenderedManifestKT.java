@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.utils.Serialization;
+
 import io.kroxylicious.testing.integration.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
