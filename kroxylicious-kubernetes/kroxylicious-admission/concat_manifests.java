@@ -88,6 +88,9 @@ public class concat_manifests {
                 // Remove any leading --- if present
                 content = content.replaceFirst("^---\\s*\\n", "");
 
+                // Remove license header comments if present
+                content = content.replaceFirst("(?s)^#\\s*\\n#\\s*Copyright.*?#\\s*\\n(#.*?\\n)*", "");
+
                 writer.write(content);
 
                 // Add separator between documents (but not after the last one)
