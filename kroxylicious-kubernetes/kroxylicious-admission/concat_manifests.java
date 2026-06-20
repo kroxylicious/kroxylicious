@@ -63,7 +63,7 @@ public class concat_manifests {
 
     private static void writeManifest(Path output, List<Path> manifests, String type, String version) throws IOException {
         try (var writer = Files.newBufferedWriter(output)) {
-            // Write header comment
+            // Write header comment (no trailing --- needed, each document adds its own)
             writer.write("#\n");
             writer.write("# Copyright Kroxylicious Authors.\n");
             writer.write("#\n");
@@ -78,7 +78,6 @@ public class concat_manifests {
             writer.write("# Or via URL:\n");
             writer.write("#   kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v" + version + "/" + output.getFileName() + "\n");
             writer.write("#\n");
-            writer.write("---\n");
 
             // Write each manifest
             for (int i = 0; i < manifests.size(); i++) {
@@ -93,14 +92,13 @@ public class concat_manifests {
                 // inline comments that are part of the resource definition
                 content = content.replaceFirst("(?s)^(#.*?\\n|\\s*\\n)+(?=\\S)", "");
 
+                // Add separator before each document
+                writer.write("---\n");
                 writer.write(content);
 
-                // Add separator between documents (but not after the last one)
-                if (i < manifests.size() - 1) {
-                    if (!content.endsWith("\n")) {
-                        writer.write("\n");
-                    }
-                    writer.write("---\n");
+                // Ensure trailing newline
+                if (!content.endsWith("\n")) {
+                    writer.write("\n");
                 }
             }
         }
