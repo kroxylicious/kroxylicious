@@ -18,7 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.client.utils.KubernetesSerialization;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.testing.integration.ShellUtils;
 
@@ -31,6 +32,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 class RenderedManifestKT {
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderedManifestKT.class);
     private static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
+    private final KubernetesClient client = new KubernetesClientBuilder().build();
 
     @Test
     void shouldInstallFromRenderedManifest() {
@@ -157,9 +159,7 @@ class RenderedManifestKT {
 
     private List<HasMetadata> loadAllResources(Path manifestFile) throws IOException {
         try (var is = Files.newInputStream(manifestFile)) {
-            return KubernetesSerialization.loadAll(is).stream()
-                    .map(obj -> (HasMetadata) obj)
-                    .toList();
+            return client.load(is).get();
         }
     }
 }
