@@ -14,8 +14,8 @@ import org.yaml.snakeyaml.Yaml;
 
 public class concat_manifests {
     public static void main(String[] args) throws IOException {
-        if (args.length != 3) {
-            System.out.println("Usage: jbang concat_manifests.java SOURCEDIR FULL_INSTALL_OUTPUT CRDS_ONLY_OUTPUT");
+        if (args.length != 4) {
+            System.out.println("Usage: jbang concat_manifests.java SOURCEDIR FULL_INSTALL_OUTPUT CRDS_ONLY_OUTPUT VERSION");
             System.exit(1);
         }
 
@@ -26,6 +26,7 @@ public class concat_manifests {
         }
         var fullInstallOutput = Path.of(args[1]);
         var crdsOnlyOutput = Path.of(args[2]);
+        var version = args[3];
 
         var yaml = new Yaml();
 
@@ -54,11 +55,11 @@ public class concat_manifests {
 
         // Generate full install manifest (CRDs + other resources)
         System.out.println("[concat_manifests.java] Generating full install manifest: " + fullInstallOutput);
-        writeManifest(fullInstallOutput, allManifests, "Install", extractVersion(fullInstallOutput));
+        writeManifest(fullInstallOutput, allManifests, "Install", version);
 
         // Generate CRDs-only manifest
         System.out.println("[concat_manifests.java] Generating CRDs-only manifest: " + crdsOnlyOutput);
-        writeManifest(crdsOnlyOutput, crdManifests, "CRDs", extractVersion(crdsOnlyOutput));
+        writeManifest(crdsOnlyOutput, crdManifests, "CRDs", version);
     }
 
     private static void writeManifest(Path output, List<Path> manifests, String type, String version) throws IOException {
@@ -109,22 +110,5 @@ public class concat_manifests {
             return kind;
         }
         throw new IOException("YAML lacks .kind, or it is not a string");
-    }
-
-    private static String extractVersion(Path outputPath) {
-        // Extract version from filename like kroxylicious-operator-install-0.22.0-SNAPSHOT.yaml
-        String filename = outputPath.getFileName().toString();
-        String[] parts = filename.split("-");
-
-        // Find the part that looks like a version (starts with digit)
-        for (int i = parts.length - 1; i >= 0; i--) {
-            String part = parts[i];
-            if (part.matches("^\\d+.*")) {
-                // Remove .yaml extension
-                return part.replaceAll("\\.ya?ml$", "");
-            }
-        }
-
-        return "unknown";
     }
 }

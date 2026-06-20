@@ -451,6 +451,7 @@
                                         <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-install-${project.version}.yaml</arg>
                                         <!--suppress UnresolvedMavenProperty -->
                                         <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-admission/target/kroxylicious-admission-crds-${project.version}.yaml</arg>
+                                        <arg>${project.version}</arg>
                                     </args>
                                 </configuration>
                             </execution>

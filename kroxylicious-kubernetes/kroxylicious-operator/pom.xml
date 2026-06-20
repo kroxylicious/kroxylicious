@@ -488,6 +488,7 @@
                                         <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-install-${project.version}.yaml</arg>
                                         <!--suppress UnresolvedMavenProperty -->
                                         <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-operator/target/kroxylicious-operator-crds-${project.version}.yaml</arg>
+                                        <arg>${project.version}</arg>
                                     </args>
                                 </configuration>
                             </execution>
