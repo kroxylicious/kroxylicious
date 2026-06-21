@@ -73,6 +73,8 @@
         <apicurio-schema-validation.version>0.1.3</apicurio-schema-validation.version>
         <apicurio-registry.version>3.1.6</apicurio-registry.version>
         <jose4j.version>0.9.6</jose4j.version>
+        <vertx.version>4.5.28</vertx.version>
+        <opentelemetry.version>1.63.0</opentelemetry.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.51.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
@@ -168,6 +170,15 @@
                 <scope>import</scope>
             </dependency>
 
+
+            <dependency>
+	        <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+   	        <version>${opentelemetry.version}</version>
+	        <type>pom</type>
+	        <scope>import</scope>
+	    </dependency> 
+            
             <dependency>
                 <groupId>com.google.re2j</groupId>
                 <artifactId>re2j</artifactId>
@@ -332,6 +343,13 @@
                 <artifactId>jose4j</artifactId>
                 <version>${jose4j.version}</version>
             </dependency>
+            <dependency>
+	        <groupId>io.vertx</groupId>
+                <artifactId>vertx-dependencies</artifactId>
+   	        <version>${vertx.version}</version>
+	        <type>pom</type>
+	        <scope>import</scope>
+	    </dependency> 
 
             <!-- third party dependencies - test -->
             <dependency>
