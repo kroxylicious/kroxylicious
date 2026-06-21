@@ -655,19 +655,32 @@ public final class KafkaProxy implements AutoCloseable {
         return virtualClusterRegistry.lifecycleFor(clusterName);
     }
 
-    /**
-     * Returns the actual local port that the proxy is listening on for the given bind address and configured port.
-     * Useful when the configured port is {@link EndpointRegistry#OS_ASSIGNED_PORT} (meaning the OS assigns an ephemeral port at startup).
-     * Must only be called after a successful {@link #startup()}.
-     *
-     * @param bindAddress the bind address used in the proxy configuration, or {@code null} for any-address bindings
-     * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
-     * @return the actual local port the proxy is listening on
-     */
     @SuppressWarnings("SameParameterValue") // the parameters allow us to call idempotently
     @VisibleForTesting
     int listeningPort(@Nullable String bindAddress, int port) {
         return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
+    }
+
+    /**
+     * Returns the actual advertised bootstrap address for the given virtual cluster and gateway.
+     * When the gateway was configured with port 0 (OS-assigned), this returns the actual bound port
+     * rather than the configured port. Must only be called after a successful {@link #startup()}.
+     *
+     * @param virtualClusterName name of the virtual cluster
+     * @param gatewayName name of the gateway within that cluster
+     * @return the bootstrap address as reported by the running gateway
+     * @throws IllegalArgumentException if the virtual cluster or gateway is not found
+     */
+    public HostPort getBootstrapAddress(String virtualClusterName, String gatewayName) {
+        var model = virtualClusterRegistry.modelFor(virtualClusterName);
+        if (model == null) {
+            throw new IllegalArgumentException("Virtual cluster not found: " + virtualClusterName);
+        }
+        var gateway = model.gateways().get(gatewayName);
+        if (gateway == null) {
+            throw new IllegalArgumentException("Gateway '" + gatewayName + "' not found in virtual cluster '" + virtualClusterName + "'");
+        }
+        return gateway.getClusterBootstrapAddress();
     }
 
     @Override
