@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.KafkaProxy;
@@ -105,7 +104,7 @@ class KroxyliciousTest {
     @Test
     void testKroxyliciousExceptionDuringRun(@TempDir Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
-        var failedFuture = CompletableFuture.<Void>failedFuture(new RuntimeException("exception during run"));
+        var failedFuture = CompletableFuture.<Void> failedFuture(new RuntimeException("exception during run"));
         when(mockProxy.startup()).thenReturn(failedFuture);
         int execute = cmd.execute("-c", file.toString());
         assertEquals(1, execute);
