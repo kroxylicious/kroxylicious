@@ -165,17 +165,17 @@ class KafkaProxyLifecycleTest {
                            bootstrapAddress: localhost:9592
                 """;
 
-        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(initial), Features.defaultFeatures())) {
-            proxy.startup();
-            proxy.reconfigure(configParser.parseConfiguration(afterReload)).get(5, TimeUnit.SECONDS);
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(initial), Features.defaultFeatures())) {
+            kafkaProxy.startup();
+            kafkaProxy.reconfigure(configParser.parseConfiguration(afterReload)).get(5, TimeUnit.SECONDS);
 
-            var lifecycleA = proxy.lifecycleFor("vc-a");
-            var lifecycleB = proxy.lifecycleFor("vc-b");
+            var lifecycleA = kafkaProxy.lifecycleFor("vc-a");
+            var lifecycleB = kafkaProxy.lifecycleFor("vc-b");
             assertThat(lifecycleB).as("vc-b should be tracked after reload").isNotNull();
             assertThat(lifecycleB.state()).as("vc-b should reach Serving after reload").isInstanceOf(Serving.class);
 
             // when
-            proxy.shutdown();
+            kafkaProxy.shutdown();
 
             // then — BOTH the originally-configured vc-a AND the runtime-added vc-b must reach Stopped.
             assertThat(lifecycleA.state())
