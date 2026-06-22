@@ -424,13 +424,10 @@
                                 </goals>
                                 <configuration>
                                     <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                                    <!--suppress UnresolvedMavenProperty -->
                                     <script>${project.basedir}/package_crds.java</script>
                                     <args>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.build.directory}/packaged/install</arg>
+                                            <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
+                                            <arg>${project.build.directory}/packaged/install</arg>
                                     </args>
                                 </configuration>
                             </execution>
@@ -442,15 +439,11 @@
                                     <goal>run</goal>
                                 </goals>
                                 <configuration>
-                                    <!--suppress UnresolvedMavenProperty -->
                                     <script>${project.basedir}/concat_manifests.java</script>
                                     <args>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.build.directory}/packaged/install</arg>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.build.directory}/kroxylicious-admission-install-${project.version}.yaml</arg>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.build.directory}/kroxylicious-admission-crds-${project.version}.yaml</arg>
+                                            <arg>${project.build.directory}/packaged/install</arg>
+                                            <arg>${project.build.directory}/kroxylicious-admission-install-${project.version}.yaml</arg>
+                                            <arg>${project.build.directory}/kroxylicious-admission-crds-${project.version}.yaml</arg>
                                         <arg>${project.version}</arg>
                                     </args>
                                 </configuration>
