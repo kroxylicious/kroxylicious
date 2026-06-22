@@ -6,21 +6,13 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.testing.integration.ShellUtils;
 
@@ -35,7 +27,6 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 abstract class AbstractInstallKT {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInstallKT.class);
     static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
-    private final KubernetesClient client = new KubernetesClientBuilder().build();
 
     static boolean testImageAvailable() {
         String imageArchive = OperatorInfo.fromResource().imageArchive();
@@ -62,8 +53,6 @@ abstract class AbstractInstallKT {
 
     @Test
     void shouldInstallFromRenderedManifest() {
-        assumeThat(testImageAvailable()).isTrue();
-
         Path manifest = getFullInstallManifest();
         try {
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
@@ -79,8 +68,6 @@ abstract class AbstractInstallKT {
 
     @Test
     void shouldInstallFromCrdsOnlyThenOperator() {
-        assumeThat(testImageAvailable()).isTrue();
-
         Path crdsManifest = getCrdsOnlyManifest();
         Path fullManifest = getFullInstallManifest();
 
