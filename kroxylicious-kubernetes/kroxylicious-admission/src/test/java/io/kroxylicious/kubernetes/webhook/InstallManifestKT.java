@@ -22,10 +22,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * Tests that verify the rendered install manifests are well-formed and complete.
+ * Tests that verify the install manifests are well-formed and complete.
  * Does not test actual deployment (that's in AbstractWebhookInstallKT).
  */
-class RenderedManifestKT {
+class InstallManifestKT {
     private final KubernetesClient client = new KubernetesClientBuilder().build();
 
     @Test
