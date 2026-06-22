@@ -231,8 +231,8 @@ OPERATOR_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator-dist/
 OPERATOR_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-crds-${RELEASE_VERSION}.yaml"
 ADMISSION_INSTALL_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-install-${RELEASE_VERSION}.yaml"
 ADMISSION_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-crds-${RELEASE_VERSION}.yaml"
-OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-examples-${RELEASE_VERSION}"
-ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-examples-${RELEASE_VERSION}"
+OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-dist-${RELEASE_VERSION}-examples"
+ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-dist-${RELEASE_VERSION}-examples"
 
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \

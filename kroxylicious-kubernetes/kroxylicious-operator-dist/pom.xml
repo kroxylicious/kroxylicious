@@ -96,7 +96,6 @@
                                 </goals>
                                 <configuration>
                                     <attach>true</attach>
-                                    <finalName>kroxylicious-operator-examples-${project.version}</finalName>
                                     <descriptors>
                                         <descriptor>src/assembly/examples.xml</descriptor>
                                     </descriptors>
