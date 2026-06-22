@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
-class AvroRecordValidationIT extends RecordValidationBaseIT {
+class AvroRecordValidationIT extends RecordSchemaValidationBaseIT {
 
     private static final String AVRO_SCHEMA = """
             {
