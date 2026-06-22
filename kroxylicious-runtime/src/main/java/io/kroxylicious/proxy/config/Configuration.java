@@ -248,10 +248,12 @@ public record Configuration(
     private VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
                                                       List<NamedFilterDefinition> filterDefinitions,
                                                       Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                      Map<String, RouterDefinition> routersByName,
+                                                      Map<String, ClusterDefinition> clustersByName,
                                                       PluginFactoryRegistry pfr) {
-        TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster);
+        TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster, routersByName, clustersByName);
         Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
-                virtualCluster, filterDefinitionsByName);
+                virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 resolvedTargetCluster,
@@ -272,69 +274,69 @@ public record Configuration(
     }
 
     @Nullable
-    private TargetCluster resolveTargetCluster(VirtualCluster virtualCluster) {
+    private TargetCluster resolveTargetCluster(VirtualCluster virtualCluster,
+                                               Map<String, RouterDefinition> routersByName,
+                                               Map<String, ClusterDefinition> clustersByName) {
         if (virtualCluster.targetCluster() != null) {
             return virtualCluster.targetCluster();
         }
         if (virtualCluster.namedTargetCluster() != null) {
-            return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
-                    .filter(tc -> tc.name().equals(virtualCluster.namedTargetCluster()))
-                    .findFirst()
+            return Optional.ofNullable(clustersByName.get(virtualCluster.namedTargetCluster()))
                     .orElseThrow(() -> new IllegalConfigurationException(
                             "Virtual cluster '" + virtualCluster.name() + "' references unknown target cluster '"
                                     + virtualCluster.namedTargetCluster() + "'"))
                     .toTargetCluster();
         }
         if (virtualCluster.router() != null) {
-            return resolveRouterPrimaryTargetCluster(virtualCluster);
+            return resolveRouterPrimaryTargetCluster(virtualCluster, routersByName, clustersByName);
         }
         return null;
     }
 
     @Nullable
-    private TargetCluster resolveRouterPrimaryTargetCluster(VirtualCluster virtualCluster) {
-        if (routerDefinitions == null) {
-            return null;
+    private TargetCluster resolveRouterPrimaryTargetCluster(VirtualCluster virtualCluster,
+                                                            Map<String, RouterDefinition> routersByName,
+                                                            Map<String, ClusterDefinition> clustersByName) {
+        RouterDefinition rd = routersByName.get(virtualCluster.router());
+        if (rd == null) {
+            throw new IllegalConfigurationException(
+                    "Virtual cluster '" + virtualCluster.name() + "' references unknown router '"
+                            + virtualCluster.router() + "'");
         }
-        return routerDefinitions.stream()
-                .filter(rd -> rd.name().equals(virtualCluster.router()))
+        return rd.routes().stream()
+                .filter(route -> route.cluster() != null)
                 .findFirst()
-                .flatMap(rd -> rd.routes().stream()
-                        .filter(route -> route.cluster() != null)
-                        .findFirst()
-                        .map(route -> resolveNamedTargetCluster(route.cluster())))
+                .map(route -> resolveNamedTargetCluster(route.cluster(), clustersByName))
                 .orElse(null);
     }
 
     @Nullable
-    private TargetCluster resolveNamedTargetCluster(String name) {
-        return Optional.ofNullable(clusterDefinitions).orElse(List.of()).stream()
-                .filter(tc -> tc.name().equals(name))
-                .findFirst()
-                .map(ClusterDefinition::toTargetCluster)
-                .orElse(null);
+    private static TargetCluster resolveNamedTargetCluster(String name, Map<String, ClusterDefinition> clustersByName) {
+        ClusterDefinition cd = clustersByName.get(name);
+        return cd != null ? cd.toTargetCluster() : null;
     }
 
     @Nullable
     private Map<String, RouteDescriptor> resolveRouteDescriptors(
                                                                  VirtualCluster virtualCluster,
-                                                                 Map<String, NamedFilterDefinition> filterDefinitionsByName) {
-        if (virtualCluster.router() == null || routerDefinitions == null) {
+                                                                 Map<String, NamedFilterDefinition> filterDefinitionsByName,
+                                                                 Map<String, RouterDefinition> routersByName,
+                                                                 Map<String, ClusterDefinition> clustersByName) {
+        if (virtualCluster.router() == null) {
             return null;
         }
-        RouterDefinition rd = routerDefinitions.stream()
-                .filter(r -> r.name().equals(virtualCluster.router()))
-                .findFirst()
-                .orElse(null);
+        RouterDefinition rd = routersByName.get(virtualCluster.router());
         if (rd == null) {
-            return null;
+            throw new IllegalConfigurationException(
+                    "Virtual cluster '" + virtualCluster.name() + "' references unknown router '"
+                            + virtualCluster.router() + "'");
         }
         return rd.routes().stream()
                 .collect(Collectors.toMap(
                         RouteDefinition::name,
                         route -> {
                             TargetCluster tc = route.cluster() != null
-                                    ? resolveNamedTargetCluster(route.cluster())
+                                    ? resolveNamedTargetCluster(route.cluster(), clustersByName)
                                     : null;
                             List<NamedFilterDefinition> routeFilters = route.filters() != null
                                     ? resolveFilterNames(filterDefinitionsByName, route.filters())
@@ -372,13 +374,15 @@ public record Configuration(
 
     public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = buildFilterDefinitionsByName();
+        var routersByName = buildDefinitionsByName(routerDefinitions, RouterDefinition::name);
+        var clustersByName = buildDefinitionsByName(clusterDefinitions, ClusterDefinition::name);
 
         return virtualClusters.stream()
                 .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(
                             filterDefinitionsByName, virtualCluster);
                     return toVirtualClusterModel(virtualCluster, filterDefinitions,
-                            filterDefinitionsByName, pfr);
+                            filterDefinitionsByName, routersByName, clustersByName, pfr);
                 })
                 .toList();
     }
@@ -394,13 +398,15 @@ public record Configuration(
      */
     public VirtualClusterModel virtualClusterModel(PluginFactoryRegistry pfr, String clusterName) {
         var filterDefinitionsByName = buildFilterDefinitionsByName();
+        var routersByName = buildDefinitionsByName(routerDefinitions, RouterDefinition::name);
+        var clustersByName = buildDefinitionsByName(clusterDefinitions, ClusterDefinition::name);
 
         return virtualClusters.stream()
                 .filter(virtualCluster -> virtualCluster.name().equals(clusterName))
                 .findFirst()
                 .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, filterDefinitions, filterDefinitionsByName, pfr);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions, filterDefinitionsByName, routersByName, clustersByName, pfr);
                 })
                 .orElseThrow(() -> new IllegalArgumentException("No virtual cluster named '" + clusterName + "' in this configuration"));
     }
@@ -409,6 +415,11 @@ public record Configuration(
         return Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
+    }
+
+    private static <T> Map<String, T> buildDefinitionsByName(@Nullable List<T> defs, Function<T, String> nameOf) {
+        return Optional.ofNullable(defs).orElse(List.of()).stream()
+                .collect(Collectors.toMap(nameOf, Function.identity()));
     }
 
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,

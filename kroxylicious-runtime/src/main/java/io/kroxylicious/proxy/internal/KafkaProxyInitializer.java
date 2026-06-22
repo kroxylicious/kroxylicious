@@ -263,7 +263,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
-        if (virtualCluster.usesRouter() && routerChainFactory != null) {
+        if (virtualCluster.usesRouter()) {
+            Objects.requireNonNull(routerChainFactory,
+                    "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
             var routerFactoryContext = createRouterFactoryContext(virtualCluster.getClusterName(), virtualCluster.routerName());
             Router router = routerChainFactory.createRouter(virtualCluster.routerName(), routerFactoryContext);
             var routeDescriptors = virtualCluster.routeDescriptors();

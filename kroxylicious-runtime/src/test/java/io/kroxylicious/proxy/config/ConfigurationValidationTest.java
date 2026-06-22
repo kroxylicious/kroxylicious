@@ -285,6 +285,39 @@ class ConfigurationValidationTest {
     }
 
     @Test
+    void routerNameSetButNoRouterDefinitionsThrows() {
+        // Given
+        var vc = new VirtualCluster("demo", null,
+                new RouteTarget(null, "missingRouter"),
+                List.of(simpleGateway("gw")), false, false, null, null, null, null);
+
+        // When / Then
+        assertThatThrownBy(() -> new Configuration(null, null, null, null, null,
+                List.of(vc), null, false, Optional.empty(), null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("demo")
+                .hasMessageContaining("missingRouter");
+    }
+
+    @Test
+    void routerNameDoesNotMatchAnyDefinitionThrows() {
+        // Given
+        var cluster = new ClusterDefinition("c1", "broker:9092", null);
+        var route = new RouteDefinition("r", 0, null, new RouteTarget("c1", null));
+        var router = new RouterDefinition("existingRouter", "Type", null, List.of(route));
+        var vc = new VirtualCluster("demo", null,
+                new RouteTarget(null, "nonExistentRouter"),
+                List.of(simpleGateway("gw")), false, false, null, null, null, null);
+
+        // When / Then
+        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, List.of(router),
+                List.of(vc), null, false, Optional.empty(), null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("demo")
+                .hasMessageContaining("nonExistentRouter");
+    }
+
+    @Test
     void shouldRejectNoVirtualClusters() {
         assertThatThrownBy(() -> new Configuration(null, null, null, null, null, List.of(), null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
