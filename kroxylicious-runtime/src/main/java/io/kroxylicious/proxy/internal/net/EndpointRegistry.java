@@ -62,8 +62,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * {@link #deregisterVirtualCluster(EndpointGateway)} of virtual clusters.  The registry emits the required network binding
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
  * the underlying network operations are completed.</li>
- *    <li>The registry provides an {@link EndpointBindingResolver}.  The {@link EndpointBindingResolver#resolve(Endpoint, String)} method accepts
- * connection metadata (port, SNI etc) and resolves this to a @{@link BootstrapEndpointBinding}.  This allows
+ *    <li>The registry provides an {@link EndpointBindingResolver}.  The {@link EndpointBindingResolver#resolve(Channel, String)} method accepts
+ * a child channel and resolves it to an {@link EndpointBinding} via the acceptor channel's bindings.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
  *    <li>The registry provides a {@link EndpointReconciler}. The {@link EndpointReconciler#reconcile(EndpointGateway, Map)} method accepts a map describing
  *    the target cluster's broker topology.  The job of the reconciler is to make adjustments to the network bindings (binding/unbinding ports) to
@@ -75,7 +75,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *    <li>virtual cluster de-registration uses java.util.concurrent.atomic to ensure de-registration is single threaded.</li>
  *    <li>virtual cluster reconciliation uses java.util.concurrent.atomic to ensure reconciliation is single threaded.</li>
  *    <li>updates to the binding mapping (attached to channel) are made only whilst holding an intrinsic lock on the {@link ListeningChannelRecord}.</li>
- *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link EndpointBindingResolver#resolve(Endpoint, String)}).  This relies the
+ *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link EndpointBindingResolver#resolve(Channel, String)}).  This relies the
  *    fact that the binding map uses concurrency safe data structures ({@link ConcurrentHashMap} and the exclusive use of immutable objects within it.</li>
  * </ul>
  */
@@ -86,8 +86,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
     /**
      * Sentinel port value meaning "let the OS assign a free port at bind time".
-     * Use with {@link io.kroxylicious.proxy.KafkaProxy#listeningPort(String, int)} to discover
-     * the actual port after startup.
+     * Use {@link #resolvePort(VirtualNodeId)} to discover the actual port after startup.
      */
     public static final int OS_ASSIGNED_PORT = 0;
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
@@ -590,45 +589,50 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     /**
-     * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link BootstrapEndpointBinding}.
+     * Uses the acceptor channel (parent of the incoming connection) to resolve a {@link BootstrapEndpointBinding}.
+     * The acceptor channel carries the binding information set at bind time via the {@link #CHANNEL_BINDINGS} attribute.
      *
-     * @param endpoint    endpoint being resolved
+     * @param channel     the child channel representing the accepted connection
      * @param sniHostname SNI hostname, may be null.
-     * @return completion stage yielding the {@link BootstrapEndpointBinding} or exceptionally a EndpointResolutionException.
+     * @return completion stage yielding the {@link EndpointBinding} or exceptionally a EndpointResolutionException.
      */
     @Override
-    public CompletionStage<EndpointBinding> resolve(Endpoint endpoint, @Nullable String sniHostname) {
-        var lcr = this.listeningChannels.get(endpoint);
-        if (lcr == null || lcr.unbindingStage().get() != null) {
-            return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching", endpoint, sniHostname));
+    public CompletionStage<EndpointBinding> resolve(Channel channel, @Nullable String sniHostname) {
+        var acceptorChannel = channel.parent();
+        if (acceptorChannel == null) {
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException("Channel has no parent (acceptor): " + channel));
         }
 
-        return lcr.bindingStage().thenApply(acceptorChannel -> {
-            var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
-            if (bindings == null || bindings.get() == null) {
-                throw buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname);
-            }
-            // We first look for a binding matching by SNI name, then fallback to a null match.
-            var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
-            if (binding == null) {
-                // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
-                // a restricted broker binding that points at the virtual cluster's bootstrap.
-                if (sniHostname != null) {
-                    Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId = findBootstrapBindings(endpoint, sniHostname, bindings);
-                    var size = bootstrapToBrokerId.size();
-                    if (size > 1) {
-                        throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
-                                "as it matches the broker address pattern of more than one virtual cluster",
-                                buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname));
-                    }
-                    else if (size == 1) {
-                        return buildBootstrapBinding(bootstrapToBrokerId);
-                    }
+        var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
+        if (bindings == null || bindings.get() == null) {
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel));
+        }
+
+        var bindingMap = bindings.get();
+        // We first look for a binding matching by SNI name, then fallback to a null match.
+        var binding = bindingMap.getOrDefault(RoutingKey.createBindingKey(sniHostname), bindingMap.get(RoutingKey.NULL_ROUTING_KEY));
+        if (binding == null) {
+            // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
+            // a restricted broker binding that points at the virtual cluster's bootstrap.
+            if (sniHostname != null) {
+                var acceptorPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
+                Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId = findBootstrapBindings(acceptorPort, sniHostname, bindings);
+                var size = bootstrapToBrokerId.size();
+                if (size > 1) {
+                    throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
+                            "as it matches the broker address pattern of more than one virtual cluster",
+                            new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel));
                 }
-                throw buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname);
+                else if (size == 1) {
+                    return CompletableFuture.completedStage(buildBootstrapBinding(bootstrapToBrokerId));
+                }
             }
-            return binding;
-        });
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+        }
+        return CompletableFuture.completedStage(binding);
     }
 
     private static EndpointBinding buildBootstrapBinding(Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId) {
@@ -638,11 +642,11 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         return new MetadataDiscoveryBrokerEndpointBinding(bootstrapBinding.endpointGateway(), nodeId);
     }
 
-    private HashMap<BootstrapEndpointBinding, Integer> findBootstrapBindings(Endpoint endpoint,
+    private HashMap<BootstrapEndpointBinding, Integer> findBootstrapBindings(int port,
                                                                              String sniHostname,
                                                                              Attribute<Map<RoutingKey, EndpointBinding>> bindings) {
         var allBindingsForPort = bindings.get().values();
-        var brokerAddress = new HostPort(sniHostname, endpoint.port());
+        var brokerAddress = new HostPort(sniHostname, port);
         var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
         return allBootstrapBindings.stream()
                 .collect(HashMap::new, (m, b) -> {
@@ -658,17 +662,6 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .filter(BootstrapEndpointBinding.class::isInstance)
                 .map(BootstrapEndpointBinding.class::cast)
                 .toList();
-    }
-
-    private EndpointResolutionException buildEndpointResolutionException(String prefix,
-                                                                         Endpoint endpoint,
-                                                                         @Nullable String sniHostname) {
-        return new EndpointResolutionException(
-                "%s binding address: %s, port: %d, sniHostname: %s, tls: %b".formatted(prefix,
-                        endpoint.bindingAddress().orElse("<any>"),
-                        endpoint.port(),
-                        sniHostname == null ? "<none>" : sniHostname,
-                        endpoint.tls()));
     }
 
     /**

@@ -39,7 +39,6 @@ import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
-import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
@@ -130,7 +129,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
-                bindingResolver.resolve(Endpoint.createEndpoint(ch, tls), null)
+                bindingResolver.resolve(ch, null)
                         .handle((binding, t) -> {
                             if (t != null) {
                                 ctx.fireExceptionCaught(t);
@@ -158,14 +157,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         LOGGER.atDebug().log("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
-                Endpoint endpoint = Endpoint.createEndpoint(ch, tls);
-                var stage = bindingResolver.resolve(endpoint, sniHostname);
+                var stage = bindingResolver.resolve(ch, sniHostname);
                 // completes the netty promise when then resolution completes (success/otherwise).
                 stage.handle((binding, t) -> {
                     try {
                         if (t != null) {
                             LOGGER.atWarn()
-                                    .addKeyValue("endpoint", endpoint)
+                                    .addKeyValue("channel", ch)
                                     .addKeyValue("sniHostname", sniHostname)
                                     .addKeyValue("error", t.getMessage())
                                     .log("Exception resolving Virtual Cluster Binding");
