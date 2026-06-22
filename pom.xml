@@ -848,7 +848,7 @@
                     <artifactId>jbang-maven-plugin</artifactId>
                     <version>0.0.8</version>
                     <configuration>
-                        <jbangVersion>0.138.0</jbangVersion>
+                        <jbangVersion>0.139.3</jbangVersion>
                     </configuration>
                 </plugin>
                 <plugin>
