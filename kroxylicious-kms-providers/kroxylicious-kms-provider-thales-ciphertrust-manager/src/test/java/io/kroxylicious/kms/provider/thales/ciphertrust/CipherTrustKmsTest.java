@@ -452,7 +452,7 @@ class CipherTrustKmsTest {
 
         // Then - Should successfully resolve
         assertThat(result.name()).isEqualTo(aliasWithSpecialChars);
-        assertThat(result.version()).isEqualTo(0L);
+        assertThat(result.version()).isZero();
     }
 
     private void stubKeyLookup(String alias, String keyId) {
