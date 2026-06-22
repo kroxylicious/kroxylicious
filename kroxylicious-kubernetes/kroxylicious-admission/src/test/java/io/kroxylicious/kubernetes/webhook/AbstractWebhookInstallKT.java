@@ -115,9 +115,9 @@ abstract class AbstractWebhookInstallKT {
 
             // Verify correct number of CRDs installed (1 for admission webhook: names ending in .sidecar.kroxylicious.io)
             assertThat(ShellUtils.execValidate(
-                    lines -> lines.count() == 1,
+                    lines -> lines.filter(name -> name.endsWith(".sidecar.kroxylicious.io")).count() == 1,
                     ALWAYS_VALID,
-                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{- if hasSuffix .metadata.name \".sidecar.kroxylicious.io\" }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}{{- end }}")).isTrue();
+                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}")).isTrue();
 
             LOGGER.info("CRDs installed and verified");
         }

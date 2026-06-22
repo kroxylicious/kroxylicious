@@ -76,9 +76,9 @@ abstract class AbstractInstallKT {
 
             // Verify correct number of CRDs installed (5 for operator: names ending in .kroxylicious.io but not .sidecar.kroxylicious.io)
             assertThat(ShellUtils.execValidate(
-                    lines -> lines.count() == 5,
+                    lines -> lines.filter(name -> name.endsWith(".kroxylicious.io") && !name.endsWith(".sidecar.kroxylicious.io")).count() == 5,
                     ALWAYS_VALID,
-                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{- if and (hasSuffix .metadata.name \".kroxylicious.io\") (not (hasSuffix .metadata.name \".sidecar.kroxylicious.io\")) }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}{{- end }}")).isTrue();
+                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}")).isTrue();
 
             LOGGER.info("CRDs installed and verified");
         }
