@@ -24,9 +24,10 @@ public class Utils {
     static final Path MODULE_ROOT = Path.of("").toAbsolutePath();
     static final Path DOCS_ROOTDIR = MODULE_ROOT.getParent().resolve("kroxylicious-docs").resolve("docs");
 
-    // This is Zip artefact containing the Operator. The Maven copy-kroxylicious-operator-zip copies the artefact
-    // from the kroxylicious-operator-dist module to this module with a stable name.
-    static final Path OPERATOR_ZIP = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator.zip");
+    // Install manifest and examples for the Operator. The Maven copy-kroxylicious-operator-artifacts copies these
+    // from the kroxylicious-operator-dist module to this module with stable names.
+    static final Path OPERATOR_INSTALL_MANIFEST = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator-install.yaml");
+    static final Path OPERATOR_EXAMPLES_ZIP = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator-examples.zip");
 
     static Stream<Path> asciiDocFilesMatching(final Predicate<Path> pathPredicate) {
 

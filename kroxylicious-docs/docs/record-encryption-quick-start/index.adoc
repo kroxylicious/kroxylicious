@@ -136,20 +136,20 @@ $ mkdir -p ${QUICKSTART_DIR}
 $ cd ${QUICKSTART_DIR}
 ----
 
-Now let's download and unpack the Kroxylicious Operator
+Now let's install the Kroxylicious Operator
 
 [source,terminal,subs="attributes"]
 ----
-$ curl --fail --location --silent {OperatorAssetZipLink} --output kroxylicious-operator.zip
-$ unzip -q kroxylicious-operator.zip
-----
-
-And install the Kroxylicious Operator
-
-[source,terminal]
-----
-$ kubectl apply -f install
+$ kubectl apply -f {OperatorInstallManifestLink}
 $ kubectl wait --namespace kroxylicious-operator deployment/kroxylicious-operator --for=condition=Available=True --timeout=300s
+----
+
+And download the examples
+
+[source,terminal,subs="attributes"]
+----
+$ curl --fail --location --silent {OperatorExamplesZipLink} --output kroxylicious-operator-examples.zip
+$ unzip -q kroxylicious-operator-examples.zip
 ----
 
 [#deploy_the_cluster]
@@ -309,9 +309,9 @@ $ kubectl delete -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-k
 
 Remove the Kroxylicious and Strimzi Operator.
 
-[source,terminal]
+[source,terminal,subs="attributes"]
 ----
-$ kubectl delete -f install
+$ kubectl delete -f {OperatorInstallManifestLink}
 $ helm uninstall -n kafka strimzi-operator --ignore-not-found
 ----
 
