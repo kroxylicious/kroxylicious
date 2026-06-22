@@ -43,6 +43,7 @@ import io.kroxylicious.testing.integration.ShellUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Tests that the webhook can be installed from YAML manifests and that sidecar
@@ -406,29 +407,19 @@ abstract class AbstractWebhookInstallKT {
                 .withName("kroxylicious-webhook")
                 .scale(0);
 
-        client.apps().deployments()
-                .inNamespace(WEBHOOK_NS)
-                .withName("kroxylicious-webhook")
-                .waitUntilCondition(
-                        d -> d != null
-                                && d.getStatus() != null
-                                && (d.getStatus().getReadyReplicas() == null
-                                        || d.getStatus().getReadyReplicas() == 0),
-                        60, TimeUnit.SECONDS);
-
-        // Wait for the Service endpoints to be drained so the API server
-        // considers the webhook unreachable
-        client.endpoints()
-                .inNamespace(WEBHOOK_NS)
-                .withName("kroxylicious-webhook")
-                .waitUntilCondition(
-                        ep -> ep == null
-                                || ep.getSubsets() == null
-                                || ep.getSubsets().isEmpty()
-                                || ep.getSubsets().stream()
-                                        .allMatch(s -> s.getAddresses() == null
-                                                || s.getAddresses().isEmpty()),
-                        60, TimeUnit.SECONDS);
+        // Wait for webhook pods to actually terminate. The Kubernetes API server maintains
+        // persistent HTTP connection pools to webhook endpoints. Existing socket connections
+        // to terminating pods remain open and can continue servicing requests during the
+        // termination grace period (default 30s). The 60s timeout is chosen to be well-clear
+        // of the default terminationGracePeriodSeconds.
+        LOGGER.info("Waiting for webhook pods to terminate");
+        await().atMost(60, TimeUnit.SECONDS)
+                .until(() -> client.pods()
+                        .inNamespace(WEBHOOK_NS)
+                        .withLabel("app", "kroxylicious-webhook")
+                        .list()
+                        .getItems()
+                        .isEmpty());
 
         LOGGER.info("Webhook scaled to 0, attempting pod creation (expecting rejection)");
         var pod = new PodBuilder()
