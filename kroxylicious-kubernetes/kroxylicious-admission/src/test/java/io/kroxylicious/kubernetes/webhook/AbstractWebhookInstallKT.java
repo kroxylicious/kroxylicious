@@ -91,7 +91,7 @@ abstract class AbstractWebhookInstallKT {
     }
 
     @Test
-    void shouldInstallFromRenderedManifest() {
+    void shouldInstallFromInstallManifest() {
         assumeThat(testImageAvailable()).isTrue();
 
         Path manifest = getFullInstallManifest();

@@ -38,7 +38,7 @@ abstract class AbstractInstallKT {
     }
 
     @Test
-    void shouldInstallFromYamlManifests() {
+    void shouldInstallFromDirectory() {
         try {
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", "target/packaged/install")).isTrue();
 
@@ -52,7 +52,7 @@ abstract class AbstractInstallKT {
     }
 
     @Test
-    void shouldInstallFromRenderedManifest() {
+    void shouldInstallFromInstallManifest() {
         Path manifest = getFullInstallManifest();
         try {
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
