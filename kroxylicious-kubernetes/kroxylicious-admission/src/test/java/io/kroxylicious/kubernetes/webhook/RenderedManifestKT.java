@@ -98,7 +98,7 @@ class RenderedManifestKT {
 
     private List<HasMetadata> loadAllResources(Path manifestFile) throws IOException {
         try (var is = Files.newInputStream(manifestFile)) {
-            return client.load(is).get().stream()
+            return client.load(is).items().stream()
                     .filter(Objects::nonNull)
                     .toList();
         }

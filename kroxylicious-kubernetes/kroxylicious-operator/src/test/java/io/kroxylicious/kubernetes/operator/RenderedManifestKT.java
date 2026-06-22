@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -97,7 +98,7 @@ class RenderedManifestKT {
 
     private List<HasMetadata> loadAllResources(Path manifestFile) throws IOException {
         try (var is = Files.newInputStream(manifestFile)) {
-            return client.load(is).get().stream()
+            return client.load(is).items().stream()
                     .filter(Objects::nonNull)
                     .toList();
         }
