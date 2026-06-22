@@ -467,7 +467,7 @@
                                         <!--suppress UnresolvedMavenProperty -->
                                         <arg>${project.basedir}/../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
                                         <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.basedir}/target/packaged/install</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
                                     </args>
                                 </configuration>
                             </execution>
@@ -483,11 +483,11 @@
                                     <script>${project.basedir}/concat_manifests.java</script>
                                     <args>
                                         <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.basedir}/target/packaged/install</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
                                         <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.basedir}/target/kroxylicious-operator-install-${project.version}.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-operator-install-${project.version}.yaml</arg>
                                         <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${project.basedir}/target/kroxylicious-operator-crds-${project.version}.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-operator-crds-${project.version}.yaml</arg>
                                         <arg>${project.version}</arg>
                                     </args>
                                 </configuration>
