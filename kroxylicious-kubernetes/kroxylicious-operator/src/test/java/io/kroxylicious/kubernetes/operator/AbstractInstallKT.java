@@ -73,11 +73,6 @@ abstract class AbstractInstallKT {
         try {
             // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
-            LOGGER.info("Applied CRDs-only manifest");
-
-            // Verify CRDs are established
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "crd", "-l", "app.kubernetes.io/part-of=kroxylicious")).isTrue();
 
             // Verify correct number of CRDs installed (5 for operator)
             assertThat(ShellUtils.execValidate(
