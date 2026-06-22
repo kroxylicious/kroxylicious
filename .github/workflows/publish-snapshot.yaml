@@ -62,14 +62,14 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
 
       - name: 'Set up Java'
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        uses: ./.github/actions/common/setup-java
         with:
-          java-version: 21
-          distribution: temurin
+          javaVersion: '21'
+          javaDistro: 'temurin'
           server-id: central
           server-username: SONATYPE_TOKEN_USERNAME
           server-password: SONATYPE_TOKEN_PASSWORD
-          overwrite-settings: true
+          overwrite-settings: 'true'
 
       - name: 'Determine project version'
         id: version
