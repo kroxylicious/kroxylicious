@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4016](https://github.com/kroxylicious/kroxylicious/issues/4016): feat(kubernetes): publish install manifests as single-file YAML release assets for GitOps
 * [#3146](https://github.com/kroxylicious/kroxylicious/issues/3146): feat(record-encryption): CipherTrust Manager KMS plugin for Record Encryption (username/password auth only).
 * [#4141](https://github.com/kroxylicious/kroxylicious/pull/4141): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.4 to 2.26.0
 * [#4102](https://github.com/kroxylicious/kroxylicious/pull/4102): build(deps): bump apicurio-registry.version from 3.2.4 to 3.3.0
@@ -19,6 +20,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#4016](https://github.com/kroxylicious/kroxylicious/issues/4016): **Deprecated** — Combined archive releases (`kroxylicious-operator-{version}.tar.gz`, `kroxylicious-operator-{version}.zip`, `kroxylicious-admission-{version}.tar.gz`, `kroxylicious-admission-{version}.zip`) are deprecated. Use the new single-file install manifests (`{component}-dist-{version}-install.yaml`) and separate examples archives (`{component}-dist-{version}-examples.{tar.gz,zip}`) instead. Combined archives will be removed in a future release.
 * [#4073](https://github.com/kroxylicious/kroxylicious/pull/4073): **Behaviour change for plugin authors** — `FilterChainFactory` is now scoped per virtual cluster rather than shared across the whole proxy. A filter type used by N virtual clusters now sees N independent `FilterFactory.initialize()`/`close()` lifecycles — one per virtual cluster, each with its own initialization data. The threading model is also tightened: `close()` is now invoked on a non-Netty-event-loop thread (previously on the proxy shutdown caller's thread) after all connections to the virtual cluster have drained, so blocking work (e.g. closing KMS/HTTP clients) is safe in `close()`. Plugins that maintained cross-virtual-cluster state in a single `FilterFactory` instance, or relied on `close()` running on a specific thread, should be reviewed.
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): The operator now sets a `DeprecationWarning` status condition on `KafkaProxy` resources that have no `spec` field, complementing the existing log warning. Users should add an empty `spec: {}` to any `KafkaProxy` resource that lacks one. Support for spec-less `KafkaProxy` resources will be removed in a future release.
 
