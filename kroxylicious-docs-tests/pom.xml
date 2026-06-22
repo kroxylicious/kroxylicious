@@ -150,7 +150,7 @@
                                             <groupId>io.kroxylicious</groupId>
                                             <artifactId>kroxylicious-operator-dist</artifactId>
                                             <version>${project.version}</version>
-                                            <classifier>install-${project.version}</classifier>
+                                            <classifier>install</classifier>
                                             <type>yaml</type>
                                             <overWrite>false</overWrite>
                                             <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
@@ -160,7 +160,7 @@
                                             <groupId>io.kroxylicious</groupId>
                                             <artifactId>kroxylicious-operator-dist</artifactId>
                                             <version>${project.version}</version>
-                                            <classifier>examples-${project.version}</classifier>
+                                            <classifier>examples</classifier>
                                             <type>zip</type>
                                             <overWrite>false</overWrite>
                                             <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
