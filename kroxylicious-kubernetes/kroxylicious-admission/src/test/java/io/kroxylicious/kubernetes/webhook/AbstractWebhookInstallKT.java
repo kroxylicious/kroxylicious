@@ -113,11 +113,11 @@ abstract class AbstractWebhookInstallKT {
             // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
 
-            // Verify correct number of CRDs installed (1 for admission webhook)
+            // Verify correct number of CRDs installed (1 for admission webhook: names ending in .sidecar.kroxylicious.io)
             assertThat(ShellUtils.execValidate(
-                    lines -> lines.anyMatch(line -> line.equals("1")),
+                    lines -> lines.count() == 1,
                     ALWAYS_VALID,
-                    "kubectl", "get", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious", "-o", "go-template={{ len .items }}")).isTrue();
+                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{- if hasSuffix .metadata.name \".sidecar.kroxylicious.io\" }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}{{- end }}")).isTrue();
 
             LOGGER.info("CRDs installed and verified");
         }
