@@ -67,6 +67,14 @@
 :AppAssetZipLink: {github-release-downloads}/{AppAssetZipFileName}
 :AppAssetTgzLink: {github-release-downloads}/{AppAssetTgzFileName}
 :OperatorAssetZipLink: {github-release-downloads}/{OperatorAssetZipFileName}
+:OperatorInstallManifestLink: {github-release-downloads}/{OperatorInstallManifestFileName}
+:OperatorCrdsManifestLink: {github-release-downloads}/{OperatorCrdsManifestFileName}
+:OperatorExamplesZipLink: {github-release-downloads}/{OperatorExamplesZipFileName}
+:OperatorExamplesTgzLink: {github-release-downloads}/{OperatorExamplesTgzFileName}
+:WebhookInstallManifestLink: {github-release-downloads}/{WebhookInstallManifestFileName}
+:WebhookCrdsManifestLink: {github-release-downloads}/{WebhookCrdsManifestFileName}
+:WebhookExamplesZipLink: {github-release-downloads}/{WebhookExamplesZipFileName}
+:WebhookExamplesTgzLink: {github-release-downloads}/{WebhookExamplesTgzFileName}
 
 // GitHub source links
 :github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
