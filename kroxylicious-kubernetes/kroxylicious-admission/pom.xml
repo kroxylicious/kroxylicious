@@ -442,8 +442,8 @@
                                     <script>${project.basedir}/concat_manifests.java</script>
                                     <args>
                                         <arg>${project.build.directory}/packaged/install</arg>
-                                        <arg>${project.build.directory}/kroxylicious-admission-install-${project.version}.yaml</arg>
-                                        <arg>${project.build.directory}/kroxylicious-admission-crds-${project.version}.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</arg>
                                         <arg>${project.version}</arg>
                                     </args>
                                 </configuration>

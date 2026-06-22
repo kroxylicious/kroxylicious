@@ -61,8 +61,8 @@
                                         <resource>
                                             <directory>${project.parent.basedir}/kroxylicious-operator/target</directory>
                                             <includes>
-                                                <include>kroxylicious-operator-install-${project.version}.yaml</include>
-                                                <include>kroxylicious-operator-crds-${project.version}.yaml</include>
+                                                <include>kroxylicious-operator-${project.version}-install.yaml</include>
+                                                <include>kroxylicious-operator-${project.version}-crds.yaml</include>
                                             </includes>
                                         </resource>
                                     </resources>
@@ -116,12 +116,12 @@
                                 <configuration>
                                     <artifacts>
                                         <artifact>
-                                            <file>${project.build.directory}/kroxylicious-operator-install-${project.version}.yaml</file>
+                                            <file>${project.build.directory}/kroxylicious-operator-${project.version}-install.yaml</file>
                                             <type>yaml</type>
                                             <classifier>install</classifier>
                                         </artifact>
                                         <artifact>
-                                            <file>${project.build.directory}/kroxylicious-operator-crds-${project.version}.yaml</file>
+                                            <file>${project.build.directory}/kroxylicious-operator-${project.version}-crds.yaml</file>
                                             <type>yaml</type>
                                             <classifier>crds</classifier>
                                         </artifact>

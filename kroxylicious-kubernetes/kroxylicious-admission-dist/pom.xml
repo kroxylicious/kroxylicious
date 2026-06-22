@@ -61,8 +61,8 @@
                                         <resource>
                                             <directory>${project.parent.basedir}/kroxylicious-admission/target</directory>
                                             <includes>
-                                                <include>kroxylicious-admission-install-${project.version}.yaml</include>
-                                                <include>kroxylicious-admission-crds-${project.version}.yaml</include>
+                                                <include>kroxylicious-admission-${project.version}-install.yaml</include>
+                                                <include>kroxylicious-admission-${project.version}-crds.yaml</include>
                                             </includes>
                                         </resource>
                                     </resources>
@@ -116,12 +116,12 @@
                                 <configuration>
                                     <artifacts>
                                         <artifact>
-                                            <file>${project.build.directory}/kroxylicious-admission-install-${project.version}.yaml</file>
+                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-install.yaml</file>
                                             <type>yaml</type>
                                             <classifier>install</classifier>
                                         </artifact>
                                         <artifact>
-                                            <file>${project.build.directory}/kroxylicious-admission-crds-${project.version}.yaml</file>
+                                            <file>${project.build.directory}/kroxylicious-admission-${project.version}-crds.yaml</file>
                                             <type>yaml</type>
                                             <classifier>crds</classifier>
                                         </artifact>

@@ -79,7 +79,7 @@ class InstallManifestKT {
 
     private static Path getFullInstallManifest() {
         String version = OperatorInfo.fromResource().version();
-        Path manifest = Path.of("target/kroxylicious-operator-install-" + version + ".yaml");
+        Path manifest = Path.of("target/kroxylicious-operator-" + version + "-install.yaml");
         assumeThat(manifest)
                 .describedAs("Full install manifest %s must exist", manifest)
                 .exists();
@@ -88,7 +88,7 @@ class InstallManifestKT {
 
     private static Path getCrdsOnlyManifest() {
         String version = OperatorInfo.fromResource().version();
-        Path manifest = Path.of("target/kroxylicious-operator-crds-" + version + ".yaml");
+        Path manifest = Path.of("target/kroxylicious-operator-" + version + "-crds.yaml");
         assumeThat(manifest)
                 .describedAs("CRDs-only manifest %s must exist", manifest)
                 .exists();
