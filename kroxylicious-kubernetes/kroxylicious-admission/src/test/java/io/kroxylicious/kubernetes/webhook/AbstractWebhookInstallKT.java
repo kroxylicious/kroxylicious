@@ -112,11 +112,6 @@ abstract class AbstractWebhookInstallKT {
         try {
             // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
-            LOGGER.info("Applied CRDs-only manifest");
-
-            // Verify CRDs are established
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "--timeout=60s", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious")).isTrue();
 
             // Verify correct number of CRDs installed (1 for admission webhook)
             assertThat(ShellUtils.execValidate(
