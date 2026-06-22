@@ -40,9 +40,17 @@
 
 :AppAssetArtifactBase: kroxylicious-app-{KroxyliciousVersion}
 :OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+:OperatorInstallManifestFileName: kroxylicious-operator-install-{KroxyliciousVersion}.yaml
+:OperatorCrdsManifestFileName: kroxylicious-operator-crds-{KroxyliciousVersion}.yaml
+:OperatorExamplesZipFileName: kroxylicious-operator-examples-{KroxyliciousVersion}.zip
+:OperatorExamplesTgzFileName: kroxylicious-operator-examples-{KroxyliciousVersion}.tar.gz
 // TODO: Update when the admission webhook release artifact names are finalized
 :WebhookAssetZipFileName: kroxylicious-webhook-{KroxyliciousVersion}.zip
 :WebhookAssetTgzFileName: kroxylicious-webhook-{KroxyliciousVersion}.tar.gz
+:WebhookInstallManifestFileName: kroxylicious-admission-install-{KroxyliciousVersion}.yaml
+:WebhookCrdsManifestFileName: kroxylicious-admission-crds-{KroxyliciousVersion}.yaml
+:WebhookExamplesZipFileName: kroxylicious-admission-examples-{KroxyliciousVersion}.zip
+:WebhookExamplesTgzFileName: kroxylicious-admission-examples-{KroxyliciousVersion}.tar.gz
 :AppAssetZipFileName: {AppAssetArtifactBase}-bin.zip
 :OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 :AppAssetTgzFileName: {AppAssetArtifactBase}-bin.tar.gz

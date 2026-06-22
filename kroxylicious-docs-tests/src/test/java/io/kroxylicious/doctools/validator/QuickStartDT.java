@@ -60,9 +60,13 @@ class QuickStartDT {
         Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
         Assertions.assertThat(Utils.PROXY_IMAGE_TARBALL).exists();
         Assertions.assertThat(Utils.OPERATOR_IMAGE_TARBALL).exists();
+        Assertions.assertThat(Utils.OPERATOR_INSTALL_MANIFEST).exists();
+        Assertions.assertThat(Utils.OPERATOR_EXAMPLES_ZIP).exists();
 
         var attributes = Attributes.builder()
                 .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
+                .attribute("OperatorInstallManifestLink", pathToFileUrl(Utils.OPERATOR_INSTALL_MANIFEST))
+                .attribute("OperatorExamplesZipLink", pathToFileUrl(Utils.OPERATOR_EXAMPLES_ZIP))
                 .build();
 
         var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
