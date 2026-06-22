@@ -113,6 +113,18 @@ public interface EndpointGateway {
     String name();
 
     /**
+     * Returns the {@link BindingSelector} that determines how incoming connections on this
+     * gateway's acceptor channels are matched to bindings. The default delegates to
+     * {@link BindingSelector#sni()} or {@link BindingSelector#portPerNode()} based on
+     * whether this gateway {@linkplain #requiresServerNameIndication() requires SNI}.
+     *
+     * @return the binding selector for this gateway
+     */
+    default BindingSelector bindingSelector() {
+        return requiresServerNameIndication() ? BindingSelector.sni() : BindingSelector.portPerNode();
+    }
+
+    /**
      * Binds the port resolver that will be used by {@link #getAdvertisedBrokerAddress(int)} to
      * look up the actual OS-bound port (which may differ from the configured port when port=0
      * was used). Called from {@code KafkaProxy.startup()} before the first reconciliation.

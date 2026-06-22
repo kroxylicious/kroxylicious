@@ -7,8 +7,6 @@
 package io.kroxylicious.proxy.internal.net;
 
 import java.net.InetSocketAddress;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -28,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
-import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.service.HostPort;
@@ -119,6 +116,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     protected static final AttributeKey<Map<RoutingKey, EndpointBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
+    protected static final AttributeKey<BindingSelector> BINDING_SELECTOR = AttributeKey.newInstance("bindingSelector");
 
     private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
         private ReconciliationRecord {
@@ -528,6 +526,12 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
+
+                var selectorAttr = acceptorChannel.attr(BINDING_SELECTOR);
+                if (selectorAttr.get() == null) {
+                    selectorAttr.set(virtualCluster.bindingSelector());
+                }
+
                 var bindingMap = bindings.get();
                 var bindingKey = virtualCluster.requiresServerNameIndication() ? RoutingKey.createBindingKey(host) : RoutingKey.NULL_ROUTING_KEY;
 
@@ -590,7 +594,8 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
     /**
      * Uses the acceptor channel (parent of the incoming connection) to resolve a {@link BootstrapEndpointBinding}.
-     * The acceptor channel carries the binding information set at bind time via the {@link #CHANNEL_BINDINGS} attribute.
+     * The acceptor channel carries the binding information set at bind time via the {@link #CHANNEL_BINDINGS} attribute,
+     * and a {@link BindingSelector} set during {@link #registerBinding} that encapsulates the routing strategy.
      *
      * @param channel     the child channel representing the accepted connection
      * @param sniHostname SNI hostname, may be null.
@@ -610,58 +615,26 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                     new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel));
         }
 
-        var bindingMap = bindings.get();
-        // We first look for a binding matching by SNI name, then fallback to a null match.
-        var binding = bindingMap.getOrDefault(RoutingKey.createBindingKey(sniHostname), bindingMap.get(RoutingKey.NULL_ROUTING_KEY));
-        if (binding == null) {
-            // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
-            // a restricted broker binding that points at the virtual cluster's bootstrap.
-            if (sniHostname != null) {
-                var acceptorPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
-                Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId = findBootstrapBindings(acceptorPort, sniHostname, bindings);
-                var size = bootstrapToBrokerId.size();
-                if (size > 1) {
-                    throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
-                            "as it matches the broker address pattern of more than one virtual cluster",
-                            new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel));
-                }
-                else if (size == 1) {
-                    return CompletableFuture.completedStage(buildBootstrapBinding(bootstrapToBrokerId));
-                }
-            }
+        var selectorAttr = acceptorChannel.attr(BINDING_SELECTOR);
+        if (selectorAttr == null || selectorAttr.get() == null) {
             return CompletableFuture.failedStage(
-                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+                    new EndpointResolutionException("No binding selector found for channel " + acceptorChannel));
         }
-        return CompletableFuture.completedStage(binding);
-    }
 
-    private static EndpointBinding buildBootstrapBinding(Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId) {
-        var e = bootstrapToBrokerId.entrySet().iterator().next();
-        var bootstrapBinding = e.getKey();
-        var nodeId = e.getValue();
-        return new MetadataDiscoveryBrokerEndpointBinding(bootstrapBinding.endpointGateway(), nodeId);
-    }
+        var bindingMap = bindings.get();
+        var acceptorPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
 
-    private HashMap<BootstrapEndpointBinding, Integer> findBootstrapBindings(int port,
-                                                                             String sniHostname,
-                                                                             Attribute<Map<RoutingKey, EndpointBinding>> bindings) {
-        var allBindingsForPort = bindings.get().values();
-        var brokerAddress = new HostPort(sniHostname, port);
-        var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
-        return allBootstrapBindings.stream()
-                .collect(HashMap::new, (m, b) -> {
-                    var nodeId = b.endpointGateway().getBrokerIdFromBrokerAddress(brokerAddress);
-                    if (nodeId != null) {
-                        m.put(b, nodeId);
-                    }
-                }, HashMap::putAll);
-    }
-
-    private List<BootstrapEndpointBinding> getAllBootstrapBindings(Collection<EndpointBinding> allBindingsForPort) {
-        return allBindingsForPort.stream()
-                .filter(BootstrapEndpointBinding.class::isInstance)
-                .map(BootstrapEndpointBinding.class::cast)
-                .toList();
+        try {
+            var binding = selectorAttr.get().select(bindingMap, acceptorPort, sniHostname);
+            if (binding == null) {
+                return CompletableFuture.failedStage(
+                        new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+            }
+            return CompletableFuture.completedStage(binding);
+        }
+        catch (EndpointResolutionException e) {
+            return CompletableFuture.failedStage(e);
+        }
     }
 
     /**

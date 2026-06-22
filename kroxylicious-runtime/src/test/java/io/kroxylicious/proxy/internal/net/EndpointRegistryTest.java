@@ -799,6 +799,8 @@ class EndpointRegistryTest {
         var channel = mock(Channel.class);
         var attr = createTestAttribute(EndpointRegistry.CHANNEL_BINDINGS);
         when(channel.attr(EndpointRegistry.CHANNEL_BINDINGS)).thenReturn(attr);
+        var selectorAttr = createTestAttribute(EndpointRegistry.BINDING_SELECTOR);
+        when(channel.attr(EndpointRegistry.BINDING_SELECTOR)).thenReturn(selectorAttr);
         var localAddress = InetSocketAddress.createUnresolved("localhost", port); // This is lenient because not all tests exercise the unbind path
         lenient().when(channel.localAddress()).thenReturn(localAddress);
         return channel;
@@ -858,6 +860,7 @@ class EndpointRegistryTest {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);
         when(cluster.requiresServerNameIndication()).thenReturn(sni);
+        when(cluster.bindingSelector()).thenCallRealMethod();
         when(cluster.discoveryAddressMap()).thenReturn(discoveryAddressMap);
         var targetCluster = new TargetCluster(upstreamBootstrap.toString(), Optional.empty(), selectionStrategy);
         when(cluster.targetCluster()).thenReturn(targetCluster);
