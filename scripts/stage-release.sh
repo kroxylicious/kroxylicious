@@ -234,13 +234,6 @@ ADMISSION_CRDS_MANIFEST="./kroxylicious-kubernetes/kroxylicious-admission-dist/t
 OPERATOR_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-operator-dist/target/kroxylicious-operator-examples-${RELEASE_VERSION}"
 ADMISSION_EXAMPLES_ASSET="./kroxylicious-kubernetes/kroxylicious-admission-dist/target/kroxylicious-admission-examples-${RELEASE_VERSION}"
 
-# Sign the install manifests
-echo "Signing install manifests"
-gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${OPERATOR_INSTALL_MANIFEST}"
-gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${OPERATOR_CRDS_MANIFEST}"
-gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${ADMISSION_INSTALL_MANIFEST}"
-gpg --armor --detach-sign -u "${SIGNING_KEY_SHORT_NAME}" "${ADMISSION_CRDS_MANIFEST}"
-
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
   --draft "${RELEASE_TAG}" \
