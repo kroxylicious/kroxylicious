@@ -90,6 +90,66 @@ abstract class AbstractWebhookInstallKT {
         }
     }
 
+    @Test
+    void shouldInstallFromRenderedManifest() {
+        assumeThat(testImageAvailable()).isTrue();
+
+        Path manifest = getFullInstallManifest();
+        try {
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
+            waitForWebhookReady();
+            LOGGER.info("Webhook deployment became ready from rendered install manifest");
+        }
+        finally {
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
+        }
+    }
+
+    @Test
+    void shouldInstallFromCrdsOnlyThenWebhook() {
+        assumeThat(testImageAvailable()).isTrue();
+
+        Path crdsManifest = getCrdsOnlyManifest();
+        Path fullManifest = getFullInstallManifest();
+
+        try {
+            // Install CRDs first
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
+            LOGGER.info("Applied CRDs-only manifest");
+
+            // Verify CRDs are established
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
+                    "--timeout=60s", "crd", "proxyconfigs.sidecar.kroxylicious.io")).isTrue();
+            LOGGER.info("CRDs became established");
+
+            // Then install full manifest (should work even though CRDs already exist)
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", fullManifest.toString())).isTrue();
+            waitForWebhookReady();
+            LOGGER.info("Webhook deployment became ready after two-stage installation");
+        }
+        finally {
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", fullManifest.toString());
+        }
+    }
+
+    private static Path getFullInstallManifest() {
+        String version = WebhookInfo.fromResource().version();
+        Path manifest = Path.of("target/kroxylicious-admission-install-" + version + ".yaml");
+        assumeThat(manifest)
+                .describedAs("Full install manifest %s must exist", manifest)
+                .exists();
+        return manifest;
+    }
+
+    private static Path getCrdsOnlyManifest() {
+        String version = WebhookInfo.fromResource().version();
+        Path manifest = Path.of("target/kroxylicious-admission-crds-" + version + ".yaml");
+        assumeThat(manifest)
+                .describedAs("CRDs-only manifest %s must exist", manifest)
+                .exists();
+        return manifest;
+    }
+
     private void installWebhook() {
         LOGGER.info("Installing CRDs");
         applyCrds();
