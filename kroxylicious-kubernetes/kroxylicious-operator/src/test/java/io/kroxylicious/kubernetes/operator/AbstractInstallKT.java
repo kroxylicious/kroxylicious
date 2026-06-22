@@ -77,7 +77,7 @@ abstract class AbstractInstallKT {
 
             // Verify CRDs are established
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "--timeout=60s", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious")).isTrue();
+                    "crd", "-l", "app.kubernetes.io/part-of=kroxylicious")).isTrue();
 
             // Verify correct number of CRDs installed (5 for operator)
             assertThat(ShellUtils.execValidate(
