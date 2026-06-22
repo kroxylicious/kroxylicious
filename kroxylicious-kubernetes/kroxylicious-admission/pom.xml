@@ -426,8 +426,8 @@
                                     <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
                                     <script>${project.basedir}/package_crds.java</script>
                                     <args>
-                                            <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
-                                            <arg>${project.build.directory}/packaged/install</arg>
+                                        <arg>${project.basedir}/../kroxylicious-admission-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
                                     </args>
                                 </configuration>
                             </execution>
@@ -441,9 +441,9 @@
                                 <configuration>
                                     <script>${project.basedir}/concat_manifests.java</script>
                                     <args>
-                                            <arg>${project.build.directory}/packaged/install</arg>
-                                            <arg>${project.build.directory}/kroxylicious-admission-install-${project.version}.yaml</arg>
-                                            <arg>${project.build.directory}/kroxylicious-admission-crds-${project.version}.yaml</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-install-${project.version}.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-admission-crds-${project.version}.yaml</arg>
                                         <arg>${project.version}</arg>
                                     </args>
                                 </configuration>
