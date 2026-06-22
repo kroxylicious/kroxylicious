@@ -25,11 +25,11 @@ by following these instructions.
    ```
 9. Now we need to default the self-signed certificate with one with a server certificate that matches your instance hostname:
    ```shell
-   ./scripts/replace-server-cert.sh <ec2-hostname>
+   ./kroxylicious-kms-providers/kroxylicious-kms-provider-thales-ciphertrust-manager/scripts/replace-server-cert.sh <ec2-hostname>
    ```
    or to allow for endpoint changes between instance start/stops, pass additional SAN(s).
    ```shell
-   ./scripts/replace-server-cert.sh <ec2-hostname> "*.eu-west-1.compute.amazonaws.com"
+   ./kroxylicious-kms-providers/kroxylicious-kms-provider-thales-ciphertrust-manager/scripts/replace-server-cert.sh <ec2-hostname> "*.eu-west-1.compute.amazonaws.com"
    ```
    This script updates the CipherTrust Manager's web interface certificate to use the EC2 hostname,
    allowing secure connections without bypassing SSL verification.
