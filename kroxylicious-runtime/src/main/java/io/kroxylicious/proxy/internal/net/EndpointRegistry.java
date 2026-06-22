@@ -165,12 +165,14 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     private final Map<Endpoint, ListeningChannelRecord> listeningChannels = new ConcurrentHashMap<>();
 
     /**
-     * Secondary index mapping each virtual node to the Endpoint whose channel it is bound on.
-     * Populated during registration and reconciliation so that {@link #resolvePort(VirtualNodeId)}
-     * can look up the actual bound port (which may differ from the configured port when port=0
-     * was used and the OS assigned an ephemeral port).
+     * Maps each virtual node to its {@link ListeningChannelRecord}, allowing
+     * {@link #resolvePort(VirtualNodeId)} to read the actual bound port directly
+     * from the channel (important when port=0 / OS-assigned was configured).
+     * <p>
+     * For port=0, the record is tracked here only (not in {@link #listeningChannels},
+     * which cannot accommodate multiple channels for the same configured endpoint key).
      */
-    private final Map<VirtualNodeId, Endpoint> virtualNodeIndex = new ConcurrentHashMap<>();
+    private final Map<VirtualNodeId, ListeningChannelRecord> virtualNodeIndex = new ConcurrentHashMap<>();
 
     public EndpointRegistry(NetworkBindingOperationProcessor bindingOperationProcessor) {
         this.bindingOperationProcessor = bindingOperationProcessor;
@@ -201,10 +203,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
-        virtualNodeIndex.put(new VirtualNodeId.Bootstrap(virtualClusterModel), key);
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualClusterModel.getClusterBootstrapAddress().host(),
-                new BootstrapEndpointBinding(virtualClusterModel)).toCompletableFuture();
+                new BootstrapEndpointBinding(virtualClusterModel),
+                new VirtualNodeId.Bootstrap(virtualClusterModel)).toCompletableFuture();
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
@@ -217,9 +219,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                     var nodeId = e.getKey();
                     var bhp = e.getValue();
                     var discoveryEndpoint = new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls());
-                    virtualNodeIndex.put(new VirtualNodeId.Broker(virtualClusterModel, nodeId), discoveryEndpoint);
                     return registerBinding(discoveryEndpoint, bhp.host(),
-                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
+                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId),
+                            new VirtualNodeId.Broker(virtualClusterModel, nodeId));
                 }));
 
         bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
@@ -389,7 +391,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         var creations = constructPossibleBindingsToCreate(virtualClusterModel, upstreamNodes);
 
         // first assemble the stream of de-registrations (and by side effect: update creations)
-        var deregs = allOfStage(listeningChannels.values().stream()
+        var deregs = allOfStage(allChannelRecords()
                 .filter(lcr -> lcr.unbindingStage.get() == null)
                 .map(lcr -> lcr.bindingStage()
                         .thenCompose(acceptorChannel -> {
@@ -416,8 +418,8 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .map(vcbb -> {
                     var brokerAddress = virtualClusterModel.getBrokerAddress(vcbb.nodeId());
                     var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualClusterModel.isUseTls());
-                    virtualNodeIndex.put(new VirtualNodeId.Broker(virtualClusterModel, vcbb.nodeId()), endpoint);
-                    return registerBinding(endpoint, brokerAddress.host(), vcbb);
+                    return registerBinding(endpoint, brokerAddress.host(), vcbb,
+                            new VirtualNodeId.Broker(virtualClusterModel, vcbb.nodeId()));
                 })))
                 .whenComplete((u2, t) -> {
                     if (t != null) {
@@ -461,15 +463,6 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         return listeningChannels.size();
     }
 
-    @VisibleForTesting
-    public int localPortFor(Endpoint endpoint) {
-        var record = listeningChannels.get(endpoint);
-        if (record == null) {
-            throw new IllegalStateException("No listening channel for endpoint " + endpoint);
-        }
-        return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
-    }
-
     /**
      * Returns the actual port the OS bound for a given virtual node.
      * <p>
@@ -482,47 +475,53 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * @throws IllegalStateException if the virtual node has no recorded binding (not yet registered)
      */
     public int resolvePort(VirtualNodeId vn) {
-        var endpoint = virtualNodeIndex.get(vn);
-        if (endpoint == null) {
+        var record = virtualNodeIndex.get(vn);
+        if (record == null) {
             throw new IllegalStateException("No binding found for virtual node " + vn);
         }
-        return localPortFor(endpoint);
+        return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
     }
 
     private void removeVirtualNodeEntries(EndpointGateway gateway) {
         virtualNodeIndex.entrySet().removeIf(e -> e.getKey().gateway().equals(gateway));
     }
 
-    private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding) {
+    private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding,
+                                                      VirtualNodeId nodeId) {
         Objects.requireNonNull(key, "key cannot be null");
         Objects.requireNonNull(virtualClusterBinding, "virtualClusterBinding cannot be null");
         var virtualCluster = virtualClusterBinding.endpointGateway();
 
-        var lcr = listeningChannels.computeIfAbsent(key, k -> {
-            // the listening channel doesn't exist, atomically create a record to represent it and request its binding to the network.
-            var future = new CompletableFuture<Channel>();
-            var r = ListeningChannelRecord.create(future.exceptionally(t -> {
-                // Handles the case where the network bind fails
-                listeningChannels.remove(key);
-                if (t instanceof RuntimeException re) {
-                    throw re;
-                }
-                else {
-                    throw new RuntimeException(t);
-                }
-            }));
+        ListeningChannelRecord lcr;
+        if (key.port() == OS_ASSIGNED_PORT) {
+            lcr = createOsAssignedChannel(key, virtualCluster);
+        }
+        else {
+            lcr = listeningChannels.computeIfAbsent(key, k -> {
+                var future = new CompletableFuture<Channel>();
+                var r = ListeningChannelRecord.create(future.exceptionally(t -> {
+                    listeningChannels.remove(key);
+                    if (t instanceof RuntimeException re) {
+                        throw re;
+                    }
+                    else {
+                        throw new RuntimeException(t);
+                    }
+                }));
 
-            bindingOperationProcessor
-                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
-            return r;
-        });
+                bindingOperationProcessor
+                        .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
+                return r;
+            });
+        }
 
         if (lcr.unbindingStage().get() != null) {
             // Listening channel already being unbound, chain this request to the unbind stage, so it completes later.
-            return lcr.unbindingStage().get().thenCompose(u -> registerBinding(key, host, virtualClusterBinding));
+            return lcr.unbindingStage().get().thenCompose(u -> registerBinding(key, host, virtualClusterBinding, nodeId));
         }
 
         return lcr.bindingStage().thenApply(acceptorChannel -> {
+            virtualNodeIndex.put(nodeId, lcr);
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
@@ -555,41 +554,57 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         });
     }
 
+    private ListeningChannelRecord createOsAssignedChannel(Endpoint key, EndpointGateway gateway) {
+        var future = new CompletableFuture<Channel>();
+        var lcr = ListeningChannelRecord.create(future.exceptionally(t -> {
+            if (t instanceof RuntimeException re) {
+                throw re;
+            }
+            else {
+                throw new RuntimeException(t);
+            }
+        }));
+        bindingOperationProcessor
+                .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), OS_ASSIGNED_PORT, gateway.isUseTls())));
+        return lcr;
+    }
+
     private CompletionStage<Void> deregisterBinding(EndpointGateway virtualClusterModel, Predicate<EndpointBinding> predicate) {
         Objects.requireNonNull(virtualClusterModel, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
         Objects.requireNonNull(predicate, "predicate cannot be null");
 
-        // Search the listening channels for bindings matching the predicate. We could cache more information on the vcr to optimise.
-        var unbindStages = listeningChannels.entrySet().stream()
-                .map(e -> {
-                    var endpoint = e.getKey();
-                    var lcr = e.getValue();
-                    return lcr.bindingStage().thenCompose(acceptorChannel -> {
-                        synchronized (lcr) {
-                            var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
-                            var allEntries = bindingMap.entrySet();
-                            var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
-                            // If our removal leaves the channel without bindings, trigger its unbinding
-                            if (allEntries.removeAll(toRemove) && bindingMap.isEmpty()) {
-                                var unbindFuture = new CompletableFuture<Void>();
-                                var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.remove(endpoint));
-                                if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
-                                    bindingOperationProcessor
-                                            .enqueueNetworkBindingEvent(new NetworkUnbindRequest(virtualClusterModel.isUseTls(), acceptorChannel, unbindFuture));
-                                    return afterUnbind;
-                                }
-                                else {
-                                    return lcr.unbindingStage().get();
-                                }
+        var unbindStages = allChannelRecords()
+                .map(lcr -> lcr.bindingStage().thenCompose(acceptorChannel -> {
+                    synchronized (lcr) {
+                        var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
+                        var allEntries = bindingMap.entrySet();
+                        var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
+                        // If our removal leaves the channel without bindings, trigger its unbinding
+                        if (allEntries.removeAll(toRemove) && bindingMap.isEmpty()) {
+                            var unbindFuture = new CompletableFuture<Void>();
+                            var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.values().remove(lcr));
+                            if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
+                                bindingOperationProcessor
+                                        .enqueueNetworkBindingEvent(new NetworkUnbindRequest(virtualClusterModel.isUseTls(), acceptorChannel, unbindFuture));
+                                return afterUnbind;
                             }
                             else {
-                                return CompletableFuture.completedStage(null);
+                                return lcr.unbindingStage().get();
                             }
                         }
-                    });
-                });
+                        else {
+                            return CompletableFuture.completedStage(null);
+                        }
+                    }
+                }));
 
         return allOfStage(unbindStages);
+    }
+
+    private Stream<ListeningChannelRecord> allChannelRecords() {
+        return Stream.concat(
+                listeningChannels.values().stream(),
+                virtualNodeIndex.values().stream()).distinct();
     }
 
     /**

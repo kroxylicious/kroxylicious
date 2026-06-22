@@ -710,25 +710,6 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
     }
 
-    @Test
-    void localPortForReturnsActualPortAfterBinding() throws Exception {
-        configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
-        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
-        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
-        verifyVirtualClusterRegisterFuture(DOWNSTREAM_BOOTSTRAP.port(), false, rf);
-
-        var endpoint = Endpoint.createEndpoint(DOWNSTREAM_BOOTSTRAP.port(), false);
-        assertThat(endpointRegistry.localPortFor(endpoint)).isEqualTo(DOWNSTREAM_BOOTSTRAP.port());
-    }
-
-    @Test
-    void localPortForThrowsWhenEndpointNotRegistered() {
-        var endpoint = Endpoint.createEndpoint(EndpointRegistry.OS_ASSIGNED_PORT, false);
-        assertThatThrownBy(() -> endpointRegistry.localPortFor(endpoint))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("No listening channel for endpoint");
-    }
-
     // resolvePort
 
     @Test
@@ -784,6 +765,31 @@ class EndpointRegistryTest {
 
         // Then - registry returns the actual OS-assigned port, not the configured 0
         assertThat(port).isEqualTo(osAssignedPort);
+    }
+
+    @Test
+    void shouldResolveOsAssignedPortsForBootstrapAndBrokers() throws Exception {
+        // Given - bootstrap and discovery brokers all configured with port=0
+        int bootstrapOsPort = 58392;
+        int broker0OsPort = 58393;
+        int broker1OsPort = 58394;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        var broker0Address = new HostPort("broker0.kafka", 0);
+        var broker1Address = new HostPort("broker1.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false, false,
+                Map.of(0, broker0Address, 1, broker1Address), new FixedBootstrapSelectionStrategy(0));
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker0OsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
+        assertThat(rf).isDone();
+
+        // When / Then - each virtual node resolves to its own distinct OS-assigned port
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(bootstrapOsPort);
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Broker(virtualClusterModel1, 0))).isEqualTo(broker0OsPort);
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Broker(virtualClusterModel1, 1))).isEqualTo(broker1OsPort);
     }
 
     @Test
