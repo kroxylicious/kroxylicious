@@ -154,7 +154,7 @@
                                             <type>yaml</type>
                                             <overWrite>false</overWrite>
                                             <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
-                                            <destFileName>kroxylicious-operator-install.yaml</destFileName>
+                                            <destFileName>kroxylicious-operator-dist-install.yaml</destFileName>
                                         </artifactItem>
                                         <artifactItem>
                                             <groupId>io.kroxylicious</groupId>
@@ -164,7 +164,7 @@
                                             <type>zip</type>
                                             <overWrite>false</overWrite>
                                             <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
-                                            <destFileName>kroxylicious-operator-examples.zip</destFileName>
+                                            <destFileName>kroxylicious-operator-dist-examples.zip</destFileName>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
