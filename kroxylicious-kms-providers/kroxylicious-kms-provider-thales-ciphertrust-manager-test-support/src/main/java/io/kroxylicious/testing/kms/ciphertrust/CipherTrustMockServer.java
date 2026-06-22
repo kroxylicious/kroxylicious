@@ -13,6 +13,7 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -447,7 +448,7 @@ public class CipherTrustMockServer {
 
         @Override
         ResponseDefinition doTransform(ServeEvent serveEvent) {
-            int bytesParam = getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt);
+            var bytesParam = Objects.requireNonNull(getQueryParam(serveEvent.getRequest(), "bytes", 32, Integer::parseInt));
 
             LOGGER.atDebug()
                     .addKeyValue("bytes", bytesParam)
@@ -472,6 +473,26 @@ public class CipherTrustMockServer {
         EncryptTransformer(VersionedKeyStore keyStore, SecureRandom secureRandom) {
             super(keyStore);
             this.secureRandom = secureRandom;
+        }
+
+        /**
+         * Encrypt plaintext using AES-GCM.
+         *
+         * @param plaintext the plaintext to encrypt
+         * @param kek the key encryption key
+         * @param iv the initialization vector
+         * @return the ciphertext with authentication tag appended
+         */
+        private static byte[] encryptAesGcm(byte[] plaintext, SecretKey kek, byte[] iv) {
+            try {
+                Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+                GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+                cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
+                return cipher.doFinal(plaintext);
+            }
+            catch (Exception e) {
+                throw new MockServerException("Failed to encrypt data", e);
+            }
         }
 
         @Override
@@ -542,6 +563,26 @@ public class CipherTrustMockServer {
 
         DecryptTransformer(VersionedKeyStore keyStore) {
             super(keyStore);
+        }
+
+        /**
+         * Decrypt ciphertext using AES-GCM.
+         *
+         * @param ciphertextWithTag the ciphertext with authentication tag appended
+         * @param kek the key encryption key
+         * @param iv the initialization vector
+         * @return the decrypted plaintext
+         */
+        private static byte[] decryptAesGcm(byte[] ciphertextWithTag, SecretKey kek, byte[] iv) {
+            try {
+                Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
+                GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
+                cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
+                return cipher.doFinal(ciphertextWithTag);
+            }
+            catch (Exception e) {
+                throw new MockServerException("Failed to decrypt data", e);
+            }
         }
 
         @Override
@@ -623,7 +664,7 @@ public class CipherTrustMockServer {
             var request = serveEvent.getRequest();
             var name = getQueryParam(request, "name", null, Function.identity());
             var labelFilter = getQueryParam(request, "labels", null, Function.identity());
-            var skip = getQueryParam(request, "skip", 0, Integer::parseInt);
+            var skip = Objects.requireNonNull(getQueryParam(request, "skip", 0, Integer::parseInt));
             var limit = getQueryParam(request, "limit", 10, Integer::parseInt);
 
             LOGGER.atDebug()
@@ -804,46 +845,6 @@ public class CipherTrustMockServer {
         }
         catch (Exception e) {
             throw new MockServerException("Failed to parse request body as " + clazz.getSimpleName(), e);
-        }
-    }
-
-    /**
-     * Encrypt plaintext using AES-GCM.
-     *
-     * @param plaintext the plaintext to encrypt
-     * @param kek the key encryption key
-     * @param iv the initialization vector
-     * @return the ciphertext with authentication tag appended
-     */
-    private static byte[] encryptAesGcm(byte[] plaintext, SecretKey kek, byte[] iv) {
-        try {
-            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
-            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
-            cipher.init(Cipher.ENCRYPT_MODE, kek, gcmSpec);
-            return cipher.doFinal(plaintext);
-        }
-        catch (Exception e) {
-            throw new MockServerException("Failed to encrypt data", e);
-        }
-    }
-
-    /**
-     * Decrypt ciphertext using AES-GCM.
-     *
-     * @param ciphertextWithTag the ciphertext with authentication tag appended
-     * @param kek the key encryption key
-     * @param iv the initialization vector
-     * @return the decrypted plaintext
-     */
-    private static byte[] decryptAesGcm(byte[] ciphertextWithTag, SecretKey kek, byte[] iv) {
-        try {
-            Cipher cipher = Cipher.getInstance(AES_GCM_CIPHER);
-            GCMParameterSpec gcmSpec = new GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv);
-            cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
-            return cipher.doFinal(ciphertextWithTag);
-        }
-        catch (Exception e) {
-            throw new MockServerException("Failed to decrypt data", e);
         }
     }
 
