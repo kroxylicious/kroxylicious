@@ -95,8 +95,7 @@
                                     <goal>single</goal>
                                 </goals>
                                 <configuration>
-                                    <appendAssemblyId>false</appendAssemblyId>
-                                    <finalName>kroxylicious-admission-examples-${project.version}</finalName>
+                                    <attach>true</attach>
                                     <descriptors>
                                         <descriptor>src/assembly/examples.xml</descriptor>
                                     </descriptors>
