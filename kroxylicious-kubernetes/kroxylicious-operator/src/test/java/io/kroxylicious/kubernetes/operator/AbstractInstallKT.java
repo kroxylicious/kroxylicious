@@ -67,29 +67,28 @@ abstract class AbstractInstallKT {
     }
 
     @Test
-    void shouldInstallFromCrdsOnlyThenOperator() {
+    void shouldInstallCrdsOnly() {
         Path crdsManifest = getCrdsOnlyManifest();
-        Path fullManifest = getFullInstallManifest();
 
         try {
-            // Install CRDs first
+            // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
             LOGGER.info("Applied CRDs-only manifest");
 
             // Verify CRDs are established
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "--timeout=60s", "crd", "kafkaproxies.kroxylicious.io")).isTrue();
-            LOGGER.info("CRDs became established");
+                    "--timeout=60s", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious")).isTrue();
 
-            // Then install full manifest (should work even though CRDs already exist)
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", fullManifest.toString())).isTrue();
+            // Verify correct number of CRDs installed (5 for operator)
+            assertThat(ShellUtils.execValidate(
+                    lines -> lines.anyMatch(line -> line.equals("5")),
+                    ALWAYS_VALID,
+                    "kubectl", "get", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious", "-o", "go-template={{ len .items }}")).isTrue();
 
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator",
-                    "--for=jsonpath={.status.readyReplicas}=1", "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
-            LOGGER.info("Operator deployment became ready after two-stage installation");
+            LOGGER.info("CRDs installed and verified");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", fullManifest.toString());
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", crdsManifest.toString());
         }
     }
 

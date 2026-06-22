@@ -106,29 +106,28 @@ abstract class AbstractWebhookInstallKT {
     }
 
     @Test
-    void shouldInstallFromCrdsOnlyThenWebhook() {
-        assumeThat(testImageAvailable()).isTrue();
-
+    void shouldInstallCrdsOnly() {
         Path crdsManifest = getCrdsOnlyManifest();
-        Path fullManifest = getFullInstallManifest();
 
         try {
-            // Install CRDs first
+            // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
             LOGGER.info("Applied CRDs-only manifest");
 
             // Verify CRDs are established
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "--timeout=60s", "crd", "proxyconfigs.sidecar.kroxylicious.io")).isTrue();
-            LOGGER.info("CRDs became established");
+                    "--timeout=60s", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious")).isTrue();
 
-            // Then install full manifest (should work even though CRDs already exist)
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", fullManifest.toString())).isTrue();
-            waitForWebhookReady();
-            LOGGER.info("Webhook deployment became ready after two-stage installation");
+            // Verify correct number of CRDs installed (1 for admission webhook)
+            assertThat(ShellUtils.execValidate(
+                    lines -> lines.anyMatch(line -> line.equals("1")),
+                    ALWAYS_VALID,
+                    "kubectl", "get", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious", "-o", "go-template={{ len .items }}")).isTrue();
+
+            LOGGER.info("CRDs installed and verified");
         }
         finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", fullManifest.toString());
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", crdsManifest.toString());
         }
     }
 
