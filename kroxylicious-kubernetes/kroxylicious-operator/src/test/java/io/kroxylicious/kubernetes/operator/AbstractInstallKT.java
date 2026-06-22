@@ -6,13 +6,21 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 
 import io.kroxylicious.testing.integration.ShellUtils;
 
@@ -27,6 +35,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 abstract class AbstractInstallKT {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInstallKT.class);
     static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
+    private final KubernetesClient client = new KubernetesClientBuilder().build();
 
     static boolean testImageAvailable() {
         String imageArchive = OperatorInfo.fromResource().imageArchive();
@@ -49,6 +58,70 @@ abstract class AbstractInstallKT {
         finally {
             ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", "target/packaged/install");
         }
+    }
+
+    @Test
+    void shouldInstallFromRenderedManifest() {
+        assumeThat(testImageAvailable()).isTrue();
+
+        Path manifest = getFullInstallManifest();
+        try {
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
+
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator",
+                    "--for=jsonpath={.status.readyReplicas}=1", "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
+            LOGGER.info("Operator deployment became ready from rendered install manifest");
+        }
+        finally {
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
+        }
+    }
+
+    @Test
+    void shouldInstallFromCrdsOnlyThenOperator() {
+        assumeThat(testImageAvailable()).isTrue();
+
+        Path crdsManifest = getCrdsOnlyManifest();
+        Path fullManifest = getFullInstallManifest();
+
+        try {
+            // Install CRDs first
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
+            LOGGER.info("Applied CRDs-only manifest");
+
+            // Verify CRDs are established
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
+                    "--timeout=60s", "crd", "kafkaproxies.kroxylicious.io")).isTrue();
+            LOGGER.info("CRDs became established");
+
+            // Then install full manifest (should work even though CRDs already exist)
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", fullManifest.toString())).isTrue();
+
+            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator",
+                    "--for=jsonpath={.status.readyReplicas}=1", "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
+            LOGGER.info("Operator deployment became ready after two-stage installation");
+        }
+        finally {
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", fullManifest.toString());
+        }
+    }
+
+    private Path getFullInstallManifest() {
+        String version = OperatorInfo.fromResource().version();
+        Path manifest = Path.of("target/kroxylicious-operator-install-" + version + ".yaml");
+        assumeThat(manifest)
+                .describedAs("Full install manifest %s must exist", manifest)
+                .exists();
+        return manifest;
+    }
+
+    private Path getCrdsOnlyManifest() {
+        String version = OperatorInfo.fromResource().version();
+        Path manifest = Path.of("target/kroxylicious-operator-crds-" + version + ".yaml");
+        assumeThat(manifest)
+                .describedAs("CRDs-only manifest %s must exist", manifest)
+                .exists();
+        return manifest;
     }
 
     static boolean validateKubeContext(String expectedContext) {

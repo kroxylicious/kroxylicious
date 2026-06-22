@@ -28,58 +28,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * Tests that verify the rendered install manifests are complete and usable.
+ * Tests that verify the rendered install manifests are well-formed and complete.
+ * Does not test actual deployment (that's in AbstractWebhookInstallKT).
  */
 class RenderedManifestKT {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RenderedManifestKT.class);
-    private static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
     private final KubernetesClient client = new KubernetesClientBuilder().build();
-
-    @Test
-    void shouldInstallFromRenderedManifest() {
-        assumeThat(testImageAvailable()).isTrue();
-
-        Path manifest = getFullInstallManifest();
-        try {
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
-
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-webhook",
-                    "--for=jsonpath={.status.readyReplicas}=2", "--timeout=300s", "deployment", "kroxylicious-webhook")).isTrue();
-            LOGGER.info("Webhook deployment became ready from full install manifest");
-        }
-        finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
-        }
-    }
-
-    @Test
-    void shouldInstallFromCrdsOnlyThenWebhook() {
-        assumeThat(testImageAvailable()).isTrue();
-
-        Path crdsManifest = getCrdsOnlyManifest();
-        Path fullManifest = getFullInstallManifest();
-
-        try {
-            // Install CRDs first
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
-            LOGGER.info("Applied CRDs-only manifest");
-
-            // Verify CRDs are established
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "--timeout=60s", "crd", "proxyconfigs.sidecar.kroxylicious.io")).isTrue();
-            LOGGER.info("CRDs became established");
-
-            // Then install full manifest (should work even though CRDs already exist)
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", fullManifest.toString())).isTrue();
-
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-webhook",
-                    "--for=jsonpath={.status.readyReplicas}=2", "--timeout=300s", "deployment", "kroxylicious-webhook")).isTrue();
-            LOGGER.info("Webhook deployment became ready after two-stage installation");
-        }
-        finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", fullManifest.toString());
-        }
-    }
 
     @Test
     void shouldContainAllExpectedResources() throws IOException {
@@ -131,16 +84,7 @@ class RenderedManifestKT {
                 .contains("quay.io/kroxylicious/webhook:");
     }
 
-    private boolean testImageAvailable() {
-        String imageArchive = WebhookInfo.fromResource().imageArchive();
-        assumeThat(Path.of(imageArchive))
-                .describedAs("Container image archive %s must exist", imageArchive)
-                .withFailMessage("Container image archive %s did not exist", imageArchive)
-                .exists();
-        return true;
-    }
-
-    private Path getFullInstallManifest() {
+    private static Path getFullInstallManifest() {
         String version = WebhookInfo.fromResource().version();
         Path manifest = Path.of("target/kroxylicious-admission-install-" + version + ".yaml");
         assumeThat(manifest)
@@ -149,7 +93,7 @@ class RenderedManifestKT {
         return manifest;
     }
 
-    private Path getCrdsOnlyManifest() {
+    private static Path getCrdsOnlyManifest() {
         String version = WebhookInfo.fromResource().version();
         Path manifest = Path.of("target/kroxylicious-admission-crds-" + version + ".yaml");
         assumeThat(manifest)

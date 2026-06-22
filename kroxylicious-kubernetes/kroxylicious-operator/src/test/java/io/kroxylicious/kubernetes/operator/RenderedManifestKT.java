@@ -26,57 +26,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * Tests that verify the rendered install manifests are complete and usable.
+ * Tests that verify the rendered install manifests are well-formed and complete.
+ * Does not test actual deployment (that's in AbstractInstallKT).
  */
-class RenderedManifestKT extends AbstractInstallKT {
-    private static final Logger LOGGER = LoggerFactory.getLogger(RenderedManifestKT.class);
+class RenderedManifestKT {
     private final KubernetesClient client = new KubernetesClientBuilder().build();
-
-    @Test
-    void shouldInstallFromRenderedManifest() {
-        assumeThat(testImageAvailable()).isTrue();
-
-        Path manifest = getFullInstallManifest();
-        try {
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", manifest.toString())).isTrue();
-
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator",
-                    "--for=jsonpath={.status.readyReplicas}=1", "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
-            LOGGER.info("Operator deployment became ready from full install manifest");
-        }
-        finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", manifest.toString());
-        }
-    }
-
-    @Test
-    void shouldInstallFromCrdsOnlyThenOperator() {
-        assumeThat(testImageAvailable()).isTrue();
-
-        Path crdsManifest = getCrdsOnlyManifest();
-        Path fullManifest = getFullInstallManifest();
-
-        try {
-            // Install CRDs first
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
-            LOGGER.info("Applied CRDs-only manifest");
-
-            // Verify CRDs are established
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "--for=condition=Established",
-                    "--timeout=60s", "crd", "kafkaproxies.kroxylicious.io")).isTrue();
-            LOGGER.info("CRDs became established");
-
-            // Then install full manifest (should work even though CRDs already exist)
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", fullManifest.toString())).isTrue();
-
-            assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "wait", "-n", "kroxylicious-operator",
-                    "--for=jsonpath={.status.readyReplicas}=1", "--timeout=300s", "deployment", "kroxylicious-operator")).isTrue();
-            LOGGER.info("Operator deployment became ready after two-stage installation");
-        }
-        finally {
-            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "delete", "-f", fullManifest.toString());
-        }
-    }
 
     @Test
     void shouldContainAllExpectedResources() throws IOException {
@@ -127,7 +81,7 @@ class RenderedManifestKT extends AbstractInstallKT {
                 .contains("quay.io/kroxylicious/operator:");
     }
 
-    private Path getFullInstallManifest() {
+    private static Path getFullInstallManifest() {
         String version = OperatorInfo.fromResource().version();
         Path manifest = Path.of("target/kroxylicious-operator-install-" + version + ".yaml");
         assumeThat(manifest)
@@ -136,7 +90,7 @@ class RenderedManifestKT extends AbstractInstallKT {
         return manifest;
     }
 
-    private Path getCrdsOnlyManifest() {
+    private static Path getCrdsOnlyManifest() {
         String version = OperatorInfo.fromResource().version();
         Path manifest = Path.of("target/kroxylicious-operator-crds-" + version + ".yaml");
         assumeThat(manifest)
