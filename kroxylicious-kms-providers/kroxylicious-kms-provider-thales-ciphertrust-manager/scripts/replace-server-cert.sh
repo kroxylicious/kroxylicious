@@ -13,7 +13,7 @@
 #
 # Example:
 #   replace-server-cert.sh ec2-34-241-225-83.eu-west-1.compute.amazonaws.com
-#   replace-server-cert.sh example.com *.example.com additional.example.com
+#   replace-server-cert.sh ec2-34-241-225-83.eu-west-1.compute.amazonaws.com "*.eu-west-1.compute.amazonaws.com"
 #
 
 set -euo pipefail
@@ -23,7 +23,7 @@ if [ $# -lt 1 ]; then
     echo "" >&2
     echo "Example:" >&2
     echo "  $0 ec2-34-241-225-83.eu-west-1.compute.amazonaws.com" >&2
-    echo "  $0 example.com *.example.com additional.example.com" >&2
+    echo "  $0 example.com "*.example.com" additional.example.com" >&2
     exit 1
 fi
 
