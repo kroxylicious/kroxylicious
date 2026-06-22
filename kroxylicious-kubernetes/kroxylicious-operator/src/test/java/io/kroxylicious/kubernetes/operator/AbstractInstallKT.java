@@ -74,11 +74,11 @@ abstract class AbstractInstallKT {
             // Install CRDs
             assertThat(ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", crdsManifest.toString())).isTrue();
 
-            // Verify correct number of CRDs installed (5 for operator)
+            // Verify correct number of CRDs installed (5 for operator: names ending in .kroxylicious.io but not .sidecar.kroxylicious.io)
             assertThat(ShellUtils.execValidate(
-                    lines -> lines.anyMatch(line -> line.equals("5")),
+                    lines -> lines.count() == 5,
                     ALWAYS_VALID,
-                    "kubectl", "get", "crd", "-l", "app.kubernetes.io/part-of=kroxylicious", "-o", "go-template={{ len .items }}")).isTrue();
+                    "kubectl", "get", "crd", "-o", "go-template={{- range .items }}{{- if and (hasSuffix .metadata.name \".kroxylicious.io\") (not (hasSuffix .metadata.name \".sidecar.kroxylicious.io\")) }}{{ .metadata.name }}{{ \"\\n\" }}{{- end }}{{- end }}")).isTrue();
 
             LOGGER.info("CRDs installed and verified");
         }
