@@ -99,12 +99,42 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void computedNodeStartPortCannotBeLessThanOne() {
+    void computedNodeStartPortCannotBeNegative() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
-                "localhost", 0,
+                "localhost", -1,
                 null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("nodeStartPort cannot be less than 1");
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldDefaultAllNodePortsToZeroWhenBootstrapIsOsAssigned() {
+        // Given - bootstrap on port 0 (OS-assigned), no nodeStartPort specified
+        var bootstrap = HostPort.parse(BOOTSTRAP_HOST + ":0");
+
+        // When - no exception; node ports default to 0 (OS-assigned) rather than 1 (bootstrap+1)
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(bootstrap, null, null, null)
+                .buildStrategy("cluster");
+
+        // Then - all node bind addresses use port 0 (OS-assigned)
+        assertThat(spec.nodeBindAddresses().values()).allSatisfy(hp -> assertThat(hp.port()).isEqualTo(0));
+    }
+
+    @Test
+    void shouldMapAllNodesToPortZeroWhenNodeStartPortIsZero() {
+        // Given - bootstrap on port 0, nodeStartPort explicitly 0
+        var bootstrap = HostPort.parse(BOOTSTRAP_HOST + ":0");
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(bootstrap,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, 0,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+
+        // When
+        Map<Integer, HostPort> addresses = spec.nodeBindAddresses();
+
+        // Then - all nodes map to port 0 (OS-assigned independently)
+        assertThat(addresses).containsOnlyKeys(0, 1, 2);
+        assertThat(addresses.get(0).port()).isEqualTo(0);
+        assertThat(addresses.get(1).port()).isEqualTo(0);
+        assertThat(addresses.get(2).port()).isEqualTo(0);
     }
 
     @Test

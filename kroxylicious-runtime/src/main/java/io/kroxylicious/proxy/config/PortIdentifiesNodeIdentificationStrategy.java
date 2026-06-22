@@ -103,9 +103,10 @@ public class PortIdentifiesNodeIdentificationStrategy
         this.computedAdvertisedBrokerAddressPattern = advertisedBrokerAddressPattern != null ? advertisedBrokerAddressPattern : bootstrapAddress.host();
         verifyNodeAddressPattern(this.computedAdvertisedBrokerAddressPattern);
         this.nodeStartPort = nodeStartPort;
-        this.computedNodeStartPort = nodeStartPort != null ? nodeStartPort : (bootstrapAddress.port() + 1);
-        if (this.computedNodeStartPort < 1) {
-            throw new IllegalArgumentException("nodeStartPort cannot be less than 1");
+        this.computedNodeStartPort = nodeStartPort != null ? nodeStartPort
+                : (bootstrapAddress.port() == 0 ? 0 : bootstrapAddress.port() + 1);
+        if (this.computedNodeStartPort < 0) {
+            throw new IllegalArgumentException("nodeStartPort cannot be negative");
         }
         this.nodeIdRanges = nodeIdRanges;
         var namedRanges = Optional.ofNullable(nodeIdRanges)
@@ -115,12 +116,14 @@ public class PortIdentifiesNodeIdentificationStrategy
         verifyRangesAreDistinct(namedRanges);
         nodeIdToPort = mapNodeIdToPort(namedRanges, this.computedNodeStartPort);
         portToNodeId = nodeIdToPort.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
+                .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey, (a, b) -> a));
         int numberOfNodePorts = nodeIdToPort.size();
         if (this.computedNodeStartPort + numberOfNodePorts - 1 > 65535) {
             throw new IllegalArgumentException("The maximum port mapped exceeded 65535");
         }
-        verifyNoRangeContainsBootstrapPort(bootstrapAddress, namedRanges, this.computedNodeStartPort, nodeIdToPort);
+        if (bootstrapAddress.port() != 0) {
+            verifyNoRangeContainsBootstrapPort(bootstrapAddress, namedRanges, this.computedNodeStartPort, nodeIdToPort);
+        }
         this.computedNodeIdRanges = namedRanges;
         var allExclusivePorts = new HashSet<>(nodeIdToPort.values());
         allExclusivePorts.add(bootstrapAddress.port());
@@ -195,7 +198,8 @@ public class PortIdentifiesNodeIdentificationStrategy
         List<Integer> ascendingNodeIds = unsortedNodeIds.distinct().sorted().boxed().toList();
         Map<Integer, Integer> nodeIdToPort = new HashMap<>();
         for (int offset = 0; offset < ascendingNodeIds.size(); offset++) {
-            nodeIdToPort.put(ascendingNodeIds.get(offset), nodeStartPort + offset);
+            // nodeStartPort=0 means OS-assigned: all nodes share port 0 as sentinel
+            nodeIdToPort.put(ascendingNodeIds.get(offset), nodeStartPort == 0 ? 0 : nodeStartPort + offset);
         }
         return nodeIdToPort;
     }
