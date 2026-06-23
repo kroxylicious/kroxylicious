@@ -29,15 +29,22 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,12 +53,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * This test exists to check that the main method works as expected
  */
+@Isolated("Sub process execution requires a dedicated port")
 @ExtendWith(KafkaClusterExtension.class)
 class KroxyliciousIT {
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final String TOPIC_2 = "other-test-topic";
     private static final String PLAINTEXT = "Hello, world!";
+    private static final HostPort SUBPROCESS_BOOTSTRAP = new HostPort("localhost", 9192);
 
     @Test
     void shouldFailToStartWithTestConfigurationsByDefault(@TempDir Path tempDir) throws IOException {
@@ -89,7 +98,7 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = KroxyliciousTesters.newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
+        try (var tester = KroxyliciousTesters.newBuilder(subprocessProxy(cluster).withDevelopment(Map.of("a", "b")))
                 .setKroxyliciousFactory(new SubprocessKroxyliciousFactory(tempDir))
                 .setFeatures(Features.builder().enable(Feature.TEST_ONLY_CONFIGURATION).build())
                 .createDefaultKroxyliciousTester();
@@ -107,7 +116,7 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = KroxyliciousTesters.newBuilder(proxy(cluster).withDevelopment(Map.of("a", "b")))
+        try (var tester = KroxyliciousTesters.newBuilder(subprocessProxy(cluster).withDevelopment(Map.of("a", "b")))
                 .setKroxyliciousFactory(new SubprocessKroxyliciousFactory(tempDir, (features, processBuilder) -> processBuilder.inheritIO(),
                         List.of("-D" + prefixUnlockPropertyName(Feature.TEST_ONLY_CONFIGURATION) + "=true")))
                 .createDefaultKroxyliciousTester();
@@ -125,7 +134,7 @@ class KroxyliciousIT {
                 new NewTopic(TOPIC_1, 1, (short) 1),
                 new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
 
-        try (var tester = kroxyliciousTester(proxy(cluster), new SubprocessKroxyliciousFactory(tempDir));
+        try (var tester = kroxyliciousTester(subprocessProxy(cluster), new SubprocessKroxyliciousFactory(tempDir));
                 var producer = tester.producer(Map.of(
                         ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
                         ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -232,6 +241,13 @@ class KroxyliciousIT {
 
     private static String prefixUnlockPropertyName(Feature feature) {
         return "KROXYLICIOUS_UNLOCK_" + feature.name();
+    }
+
+    private static ConfigurationBuilder subprocessProxy(KafkaCluster cluster) {
+        return baseConfigurationBuilder()
+                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, DEFAULT_VIRTUAL_CLUSTER)
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(SUBPROCESS_BOOTSTRAP).build())
+                        .build());
     }
 
     private static class SubprocessKroxyliciousFactory implements BiFunction<Configuration, Features, AutoCloseable> {
