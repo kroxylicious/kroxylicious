@@ -1448,6 +1448,30 @@
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
                 <sonar.projectName>Proxy Runtime</sonar.projectName>
                 <sonar.projectKey>kroxylicious_kroxylicious</sonar.projectKey>
+                <!--
+                    JBang entry-point files use //DEPS and //SOURCES directives that Sonar flags as
+                    commented-out code (S125), and a ///usr/bin/env shebang that Sonar flags as a
+                    malformed Markdown doc comment (S7476). These comments are not removable — they
+                    are required JBang syntax.
+                    Must be defined at root level: SonarCloud does not support module-level issue exclusions.
+                -->
+                <sonar.issue.ignore.multicriteria>jbang-s125-cli,jbang-s7476-cli,jbang-s125-webify,jbang-s7476-webify,jbang-s125-crds,jbang-s7476-crds,jbang-s125-release,jbang-s7476-release</sonar.issue.ignore.multicriteria>
+                <sonar.issue.ignore.multicriteria.jbang-s125-cli.ruleKey>java:S125</sonar.issue.ignore.multicriteria.jbang-s125-cli.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-cli.resourceKey>**/results/cli/*.java</sonar.issue.ignore.multicriteria.jbang-s125-cli.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-cli.ruleKey>java:S7476</sonar.issue.ignore.multicriteria.jbang-s7476-cli.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-cli.resourceKey>**/results/cli/*.java</sonar.issue.ignore.multicriteria.jbang-s7476-cli.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-webify.ruleKey>java:S125</sonar.issue.ignore.multicriteria.jbang-s125-webify.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-webify.resourceKey>**/Webify.java</sonar.issue.ignore.multicriteria.jbang-s125-webify.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-webify.ruleKey>java:S7476</sonar.issue.ignore.multicriteria.jbang-s7476-webify.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-webify.resourceKey>**/Webify.java</sonar.issue.ignore.multicriteria.jbang-s7476-webify.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-crds.ruleKey>java:S125</sonar.issue.ignore.multicriteria.jbang-s125-crds.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-crds.resourceKey>**/package_crds.java</sonar.issue.ignore.multicriteria.jbang-s125-crds.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-crds.ruleKey>java:S7476</sonar.issue.ignore.multicriteria.jbang-s7476-crds.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-crds.resourceKey>**/package_crds.java</sonar.issue.ignore.multicriteria.jbang-s7476-crds.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-release.ruleKey>java:S125</sonar.issue.ignore.multicriteria.jbang-s125-release.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s125-release.resourceKey>**/websiteReleaseAssets.java</sonar.issue.ignore.multicriteria.jbang-s125-release.resourceKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-release.ruleKey>java:S7476</sonar.issue.ignore.multicriteria.jbang-s7476-release.ruleKey>
+                <sonar.issue.ignore.multicriteria.jbang-s7476-release.resourceKey>**/websiteReleaseAssets.java</sonar.issue.ignore.multicriteria.jbang-s7476-release.resourceKey>
                 <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
                 <skip-validate-yaml-snippets>false</skip-validate-yaml-snippets>
             </properties>

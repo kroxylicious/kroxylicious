@@ -24,7 +24,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 import io.apicurio.registry.client.RegistryClientFactory;
@@ -56,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
-class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
+class JsonSchemaRecordValidationTlsIT extends RecordSchemaValidationBaseIT {
 
     private static final String JSON_SCHEMA = """
             {
@@ -107,11 +106,7 @@ class JsonSchemaRecordValidationTlsIT extends RecordValidationBaseIT {
         trustPem = keys.selfSignedCertificatePem().toString();
 
         // Start Apicurio Registry with TLS enabled
-        String image = "quay.io/apicurio/apicurio-registry:3.3.0@sha256:30c34a50669a31d717ad0402c2a3b97041f44cdbf13604d6950a65d0370a82f9";
-        DockerImageName dockerImageName = DockerImageName.parse(image)
-                .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
-
-        registryContainer = new GenericContainer<>(dockerImageName)
+        registryContainer = new GenericContainer<>(apicurioRegistryDockerImageName())
                 .withEnv(Map.of(
                         "QUARKUS_HTTP_SSL_PORT", String.valueOf(APICURIO_REGISTRY_HTTPS_PORT),
                         "QUARKUS_HTTP_SSL_CERTIFICATE_KEY_STORE_FILE", "/opt/keystore.jks",

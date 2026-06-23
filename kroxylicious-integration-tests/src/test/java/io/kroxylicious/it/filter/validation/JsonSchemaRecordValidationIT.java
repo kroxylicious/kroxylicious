@@ -57,7 +57,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
-class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
+class JsonSchemaRecordValidationIT extends RecordSchemaValidationBaseIT {
 
     private static final String JSON_SCHEMA_TOPIC_1 = """
             {
