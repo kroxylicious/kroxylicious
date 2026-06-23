@@ -155,8 +155,11 @@ class RoutingPassThroughIT {
 
             consumer.subscribe(Set.of(topicName));
             var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records).hasSize(1);
-            assertThat(records.iterator().next().value()).isEqualTo("routed-value");
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo("routed-value");
         }
 
         // Then: data should exist on the selected cluster, not on the other
