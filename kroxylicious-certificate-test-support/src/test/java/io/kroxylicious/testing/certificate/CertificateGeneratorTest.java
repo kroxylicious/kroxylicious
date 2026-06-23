@@ -53,6 +53,21 @@ class CertificateGeneratorTest {
     }
 
     @Test
+    void writeEncryptedRsaPrivateKeyPem() throws IOException {
+        // Given: a key pair and password
+        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+        String password = "testpassword";
+
+        // When: writing encrypted PEM
+        Path path = CertificateGenerator.writeEncryptedRsaPrivateKeyPem(keyPair, password);
+
+        // Then: the private key can be decrypted with the password
+        byte[] pemBytes = Files.readAllBytes(path);
+        PrivateKey decrypted = PemParser.parsePrivateKey(pemBytes, password.toCharArray());
+        assertThat(decrypted).isEqualTo(keyPair.getPrivate());
+    }
+
+    @Test
     void generateSelfSignedX509Certificate() {
         KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
         X509Certificate x509Certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
@@ -80,22 +95,93 @@ class CertificateGeneratorTest {
     }
 
     @Test
-    void generate() throws Exception {
+    void generateCreatesRsaKeyPair() {
+        // When: calling generate
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
-        assertRsaKeyPairGenerated(keys.serverKey());
-        assertPemAtPathContainsPrivateKey(keys.privateKeyPem(), keys.serverKey());
 
+        // Then: should create a valid RSA key pair
+        assertRsaKeyPairGenerated(keys.serverKey());
+    }
+
+    @Test
+    void generateCreatesUnencryptedPrivateKeyPem() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create unencrypted private key PEM matching the key pair
+        assertPemAtPathContainsPrivateKey(keys.privateKeyPem(), keys.serverKey());
+    }
+
+    @Test
+    void generateCreatesEncryptedPrivateKeyPem() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create encrypted private key PEM with password
+        assertThat(keys.encryptedPrivateKeyPem()).isNotNull();
+        assertThat(keys.encryptedPrivateKeyPassword()).isEqualTo(CertificateGenerator.ENCRYPTED_KEY_PASSWORD);
+        byte[] encryptedPemBytes = Files.readAllBytes(keys.encryptedPrivateKeyPem());
+        PrivateKey decryptedKey = PemParser.parsePrivateKey(encryptedPemBytes, keys.encryptedPrivateKeyPassword().toCharArray());
+        assertThat(decryptedKey).isEqualTo(keys.serverKey().getPrivate());
+    }
+
+    @Test
+    void generateCreatesSelfSignedCertificatePem() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create self-signed certificate PEM for the key pair
         assertThat(keys.selfSignedCertificatePem()).isNotNull();
         Object cert = new PEMParser(new FileReader(keys.selfSignedCertificatePem().toFile())).readObject();
         assertThat(cert).isInstanceOf(X509CertificateHolder.class);
         X509Certificate certificate = convertToJcaX509Cert((X509CertificateHolder) cert);
         assertSelfSignedCertGeneratedForKeyPair(certificate, keys.serverKey());
+    }
 
+    @Test
+    void generateCreatesJksServerKeystore() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create JKS keystore containing the private key and certificate
+        X509Certificate certificate = loadCertificateFromPem(keys.selfSignedCertificatePem());
         assertKeyStoreContains(keys.jksServerKeystore(), keys.serverKey(), certificate, "keypass", "changeit");
+    }
 
+    @Test
+    void generateCreatesJksClientTruststore() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create JKS truststore with password
+        X509Certificate certificate = loadCertificateFromPem(keys.selfSignedCertificatePem());
         assertTrustStore(keys.jksClientTruststore(), certificate, "changeit", "JKS");
+    }
+
+    @Test
+    void generateCreatesPkcs12ClientTruststore() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create PKCS12 truststore with password
+        X509Certificate certificate = loadCertificateFromPem(keys.selfSignedCertificatePem());
         assertTrustStore(keys.pkcs12ClientTruststore(), certificate, "changeit", "PKCS12");
+    }
+
+    @Test
+    void generateCreatesPkcs12NoPasswordClientTruststore() throws Exception {
+        // When: calling generate
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+
+        // Then: should create PKCS12 truststore without password
+        X509Certificate certificate = loadCertificateFromPem(keys.selfSignedCertificatePem());
         assertTrustStore(keys.pkcs12NoPasswordClientTruststore(), certificate, null, "PKCS12");
+    }
+
+    private X509Certificate loadCertificateFromPem(Path pemPath) throws Exception {
+        Object cert = new PEMParser(new FileReader(pemPath.toFile())).readObject();
+        assertThat(cert).isInstanceOf(X509CertificateHolder.class);
+        return convertToJcaX509Cert((X509CertificateHolder) cert);
     }
 
     private void assertTrustStore(CertificateGenerator.TrustStore trustStore, X509Certificate certificate, @Nullable String password, String type) throws Exception {
@@ -121,7 +207,7 @@ class CertificateGeneratorTest {
         PrivateKey privateKey = keyPair.getPrivate();
         assertThat(privateKey.getAlgorithm()).isEqualTo("RSA");
         assertThat(privateKey.getFormat()).isEqualTo("PKCS#8");
-        assertThat(privateKey).isInstanceOfSatisfying(RSAPrivateKey.class, rsaPrivateKey -> assertThat(rsaPrivateKey.getModulus().bitLength()).isEqualTo(1024));
+        assertThat(privateKey).isInstanceOfSatisfying(RSAPrivateKey.class, rsaPrivateKey -> assertThat(rsaPrivateKey.getModulus().bitLength()).isEqualTo(2048));
     }
 
     private static void assertPemAtPathContainsPrivateKey(Path path, KeyPair keyPair) throws IOException {

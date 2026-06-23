@@ -31,4 +31,10 @@ public record UserCredentials(
             throw new IllegalArgumentException("username cannot be empty");
         }
     }
+
+    @Override
+    @SuppressWarnings("java:S2068") // The masked password is a not a password
+    public String toString() {
+        return "UserCredentials{username='" + username + "', password='***'}";
+    }
 }

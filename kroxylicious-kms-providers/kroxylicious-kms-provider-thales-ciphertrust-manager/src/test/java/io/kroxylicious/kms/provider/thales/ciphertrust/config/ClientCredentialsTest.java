@@ -13,44 +13,38 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.proxy.config.secret.InlinePassword;
-import io.kroxylicious.proxy.config.secret.PasswordProvider;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class UserCredentialsTest {
+class ClientCredentialsTest {
 
     @ParameterizedTest
     @MethodSource("invalidConstructorArguments")
-    void constructorValidation(String username, PasswordProvider password, Class<? extends Exception> expectedExceptionType, String expectedMessage) {
+    void constructorValidation(String clientId, Class<? extends Exception> expectedExceptionType, String expectedMessage) {
         // When/Then
-        assertThatThrownBy(() -> new UserCredentials(username, password))
+        assertThatThrownBy(() -> new ClientCredentials(clientId))
                 .isInstanceOf(expectedExceptionType)
                 .hasMessageContaining(expectedMessage);
     }
 
     static Stream<Arguments> invalidConstructorArguments() {
-        PasswordProvider validPassword = new InlinePassword("validPassword");
         return Stream.of(
-                Arguments.of(null, validPassword, NullPointerException.class, "username cannot be null"),
-                Arguments.of("validUser", null, NullPointerException.class, "password cannot be null"),
-                Arguments.of("", validPassword, IllegalArgumentException.class, "username cannot be empty"));
+                Arguments.of(null, NullPointerException.class, "clientId cannot be null"),
+                Arguments.of("", IllegalArgumentException.class, "clientId cannot be blank"),
+                Arguments.of("   ", IllegalArgumentException.class, "clientId cannot be blank"));
     }
 
     @Test
-    void toStringMasksPassword() {
+    void toStringMasksClientId() {
         // Given
-        var credentials = new UserCredentials("testuser", new InlinePassword("secret"));
+        var credentials = new ClientCredentials("secret-client-id-123");
 
         // When
         String result = credentials.toString();
 
         // Then
         assertThat(result)
-                .contains("testuser")
                 .contains("***")
-                .doesNotContain("secret");
+                .doesNotContain("secret-client-id-123");
     }
-
 }

@@ -12,7 +12,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustEdek;
 import io.kroxylicious.kms.provider.thales.ciphertrust.CipherTrustKmsService;
 import io.kroxylicious.kms.provider.thales.ciphertrust.WrappingKey;
+import io.kroxylicious.kms.provider.thales.ciphertrust.config.ClientCredentials;
 import io.kroxylicious.kms.provider.thales.ciphertrust.config.Config;
 import io.kroxylicious.kms.provider.thales.ciphertrust.config.UserCredentials;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
@@ -41,7 +41,9 @@ import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.testing.kms.TestKekManager;
 import io.kroxylicious.testing.kms.TestKmsFacade;
@@ -68,8 +70,52 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Both modes use HTTP calls for all operations including authentication,
  * ensuring identical behavior from a protocol perspective.
  * </p>
+ *
+ * <h2>Environment Variables</h2>
+ * <h3>Server Selection</h3>
+ * <ul>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_API_ENDPOINT</b> - URL of real CipherTrust Manager instance (if not set, uses mock server)</li>
+ * </ul>
+ *
+ * <h3>Authentication Mode</h3>
+ * <ul>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_AUTH_MODE</b> - Authentication mode: PASSWORD or CLIENT_CERT (default: CLIENT_CERT)</li>
+ * </ul>
+ *
+ * <h3>Password Authentication (when AUTH_MODE=PASSWORD)</h3>
+ * <ul>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_USERNAME</b> - Username (required for real server, ignored for mock)</li>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_PASSWORD</b> - Password (required for real server, ignored for mock)</li>
+ * </ul>
+ *
+ * <h3>Client Certificate Authentication (when AUTH_MODE=CLIENT_CERT)</h3>
+ * <ul>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_CLIENT_ID</b> - Client ID (required for real server, ignored for mock)</li>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_CLIENT_CERT</b> - Path to client certificate PEM file (required for real server, ignored for mock)</li>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_CLIENT_KEY</b> - Path to client private key PEM file (required for real server, ignored for mock)</li>
+ * </ul>
+ *
+ * <h3>TLS Configuration (optional, for real server only)</h3>
+ * <ul>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_INSECURE</b> - Disable certificate verification (default: false)</li>
+ * <li><b>KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT</b> - Path to custom CA certificate PEM file</li>
+ * </ul>
  */
 public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingKey, CipherTrustEdek> {
+
+    /**
+     * Authentication mode for testing (applies to both real and mock servers).
+     */
+    enum AuthMode {
+        /**
+         * Username/password authentication.
+         */
+        PASSWORD,
+        /**
+         * Client certificate authentication.
+         */
+        CLIENT_CERT
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CipherTrustTestKmsFacade.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -82,6 +128,10 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
     private static final String ENV_URL = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_API_ENDPOINT";
     private static final String ENV_USERNAME = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_USERNAME";
     private static final String ENV_PASSWORD = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_PASSWORD";
+    private static final String ENV_CLIENT_ID = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_CLIENT_ID";
+    private static final String ENV_CLIENT_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_CLIENT_CERT";
+    private static final String ENV_CLIENT_KEY = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_CLIENT_KEY";
+    private static final String ENV_AUTH_MODE = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_AUTH_MODE";
     private static final String ENV_TLS_INSECURE = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_INSECURE";
     private static final String ENV_TLS_CA_CERT = "KROXYLICIOUS_KMS_THALES_CIPHERTRUST_TLS_CA_CERT";
     @SuppressWarnings("java:S1075") // Ignore URIs should not be hardcoded as this path is defined by API contact
@@ -95,11 +145,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
     private static final String JSON_CONTENT_TYPE = "application/json";
 
     private final boolean useReal;
-    private final String username;
-    private final String password;
-    private final boolean tlsInsecure;
-    @Nullable
-    private final String tlsCaCertPath;
+    private final AuthMode authMode;
     private final String testRunInstance = UUID.randomUUID().toString();
 
     @Nullable
@@ -109,6 +155,9 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
     private URI cipherTrustUrl;
 
     @Nullable
+    private ConnectionConfig connectionConfig;
+
+    @Nullable
     private HttpClient httpClient;
 
     @Nullable
@@ -116,30 +165,23 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
 
     /**
      * Creates a CipherTrust test KMS facade.
+     * <p>
+     * See class-level Javadoc for complete list of environment variables.
+     * </p>
      */
     @SuppressWarnings("java:S2068") // Suppressed warning as this method uses a a test password
     public CipherTrustTestKmsFacade() {
         String urlStr = System.getenv(ENV_URL);
-        if (urlStr != null && !urlStr.isEmpty()) {
-            // Use real instance
-            this.useReal = true;
-            this.cipherTrustUrl = URI.create(urlStr);
-            this.username = System.getenv().getOrDefault(ENV_USERNAME, CipherTrustMockServer.TEST_USERNAME);
-            this.password = System.getenv().getOrDefault(ENV_PASSWORD, CipherTrustMockServer.TEST_PASSWORD);
-            this.tlsInsecure = Boolean.parseBoolean(System.getenv().getOrDefault(ENV_TLS_INSECURE, "false"));
-            this.tlsCaCertPath = System.getenv(ENV_TLS_CA_CERT);
-            this.mockServer = null;
-        }
-        else {
-            // Use mock
-            this.useReal = false;
-            this.cipherTrustUrl = null; // Will be set after mockServer.start()
-            this.username = CipherTrustMockServer.TEST_USERNAME;
-            this.password = CipherTrustMockServer.TEST_PASSWORD;
-            this.tlsInsecure = false;
-            this.tlsCaCertPath = null;
-            this.mockServer = null; // Will be created in start()
-        }
+        this.useReal = urlStr != null && !urlStr.isEmpty();
+        this.authMode = determineAuthMode();
+        this.cipherTrustUrl = useReal ? URI.create(urlStr) : null;
+        this.mockServer = null;
+        this.connectionConfig = null; // Will be created in start()
+    }
+
+    private static AuthMode determineAuthMode() {
+        // ENV_AUTH_MODE controls auth mode for both real and mock (defaults to CLIENT_CERT)
+        return AuthMode.valueOf(System.getenv().getOrDefault(ENV_AUTH_MODE, AuthMode.CLIENT_CERT.name()).toUpperCase());
     }
 
     @Override
@@ -151,51 +193,33 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
     @Override
     public void start() {
         if (useReal) {
-            startReal();
+            connectionConfig = createConnectionConfigForReal();
         }
         else {
-            startMock();
+            mockServer = new CipherTrustMockServer();
+            mockServer.start();
+            cipherTrustUrl = URI.create(mockServer.getBaseUrl());
+
+            boolean useClientCert = authMode == AuthMode.CLIENT_CERT;
+            connectionConfig = mockServer.createConnectionConfig(useClientCert);
         }
-    }
 
-    private void startMock() {
-        mockServer = new CipherTrustMockServer();
-        mockServer.start();
-        cipherTrustUrl = URI.create(mockServer.getBaseUrl());
-
-        // Build HttpClient with TLS config if mock uses HTTPS
+        // Build HttpClient with TLS config (common for both real and mock)
         HttpClient.Builder clientBuilder = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(30));
 
-        if (mockServer.isHttps()) {
-            // Mock server uses self-signed certificate, so we need InsecureTls
-            TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(
-                    new Tls(null, new InsecureTls(true), null, null));
-            tlsConfigurator.apply(clientBuilder);
-        }
-
-        this.httpClient = clientBuilder.build();
-
-        // Authenticate to mock server via HTTP (same flow as real)
-        authenticateViaHttp();
-    }
-
-    private void startReal() {
-        // Build HttpClient with TLS config
-        HttpClient.Builder clientBuilder = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(30));
-
-        TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(getTlsConfig());
+        TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(connectionConfig.tls());
         tlsConfigurator.apply(clientBuilder);
 
         this.httpClient = clientBuilder.build();
 
-        // Authenticate to real instance via HTTP
+        // Authenticate via HTTP (common for both real and mock)
         authenticateViaHttp();
     }
 
     private void authenticateViaHttp() {
-        AuthRequest authRequest = AuthRequest.withPassword(username, password);
+        AuthRequest authRequest = buildAuthRequest();
+
         String requestBody = encodeJson(authRequest);
         HttpRequest request = buildAuthRequest(AUTH_TOKENS_PATH, requestBody);
         AuthResponse authResponse = sendRequest(request, AUTH_RESPONSE_TYPE_REF, null, 200);
@@ -203,7 +227,25 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
 
         LOGGER.atDebug()
                 .addKeyValue("useReal", useReal)
+                .addKeyValue("authMode", authMode)
                 .log("Authenticated to CipherTrust Manager");
+    }
+
+    private AuthRequest buildAuthRequest() {
+        Objects.requireNonNull(connectionConfig);
+        return switch (authMode) {
+            case PASSWORD -> {
+                // Username/password authentication
+                var username = Objects.requireNonNull(connectionConfig.username());
+                var password = Objects.requireNonNull(connectionConfig.password());
+                yield AuthRequest.withPassword(username, password);
+            }
+            case CLIENT_CERT -> {
+                // Client certificate authentication
+                var clientId = Objects.requireNonNull(connectionConfig.clientId());
+                yield AuthRequest.withClientCredential(clientId);
+            }
+        };
     }
 
     @Override
@@ -236,11 +278,20 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
 
     @Override
     public Config getKmsServiceConfig() {
-        if (cipherTrustUrl == null) {
+        if (cipherTrustUrl == null || connectionConfig == null) {
             throw new IllegalStateException("CipherTrust facade not started");
         }
-        UserCredentials userCredentials = new UserCredentials(username, new InlinePassword(password));
-        return new Config(cipherTrustUrl, userCredentials, getTlsConfig());
+        return switch (authMode) {
+            case PASSWORD -> {
+                var userCredentials = new UserCredentials(Objects.requireNonNull(connectionConfig.username()),
+                        new InlinePassword(Objects.requireNonNull(connectionConfig.password())));
+                yield new Config(cipherTrustUrl, userCredentials, null, connectionConfig.tls());
+            }
+            case CLIENT_CERT -> {
+                var clientCredentials = new ClientCredentials(Objects.requireNonNull(connectionConfig.clientId()));
+                yield new Config(cipherTrustUrl, null, clientCredentials, connectionConfig.tls());
+            }
+        };
     }
 
     @Override
@@ -248,35 +299,67 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
         return new CipherTrustTestKekManager();
     }
 
+    /**
+     * Create connection configuration for real server (reads from environment variables).
+     *
+     * @return connection configuration
+     */
+    private ConnectionConfig createConnectionConfigForReal() {
+        final Tls tls = createTlsForReal();
+        return switch (authMode) {
+
+            case PASSWORD -> {
+                var username = System.getenv(ENV_USERNAME);
+                if (username == null) {
+                    throw new IllegalStateException("Environment variable " + ENV_USERNAME + " must be set for password authentication");
+                }
+                var password = System.getenv(ENV_PASSWORD);
+                if (password == null) {
+                    throw new IllegalStateException("Environment variable " + ENV_PASSWORD + " must be set for password authentication");
+                }
+                yield new ConnectionConfig(username, password, null, tls);
+            }
+            case CLIENT_CERT -> {
+                var clientId = System.getenv(ENV_CLIENT_ID);
+                if (clientId == null) {
+                    throw new IllegalStateException("Environment variable " + ENV_CLIENT_ID + " must be set for client certificate authentication");
+                }
+
+                yield new ConnectionConfig(null, null, clientId, tls);
+            }
+        };
+    }
+
     @Nullable
-    private Tls getTlsConfig() {
-        // Priority 1: Check for insecure mode (testing/development)
+    private Tls createTlsForReal() {
+        KeyPair keyPair = null;
+        if (authMode == AuthMode.CLIENT_CERT) {
+            String certPath = System.getenv(ENV_CLIENT_CERT);
+            String keyPath = System.getenv(ENV_CLIENT_KEY);
+            if (certPath != null && keyPath != null) {
+                keyPair = new KeyPair(keyPath, certPath, null);
+            }
+        }
+
+        TrustProvider trustProvider = createTrustProviderForReal();
+        return keyPair != null || trustProvider != null ? new Tls(keyPair, trustProvider, null, null) : null;
+    }
+
+    @Nullable
+    private TrustProvider createTrustProviderForReal() {
+        // Priority 1: Insecure mode
+        boolean tlsInsecure = Boolean.parseBoolean(System.getenv().getOrDefault(ENV_TLS_INSECURE, "false"));
         if (tlsInsecure) {
-            return new Tls(null, new InsecureTls(true), null, null);
+            return new InsecureTls(true);
         }
 
-        // Priority 2: For mock server, use its self-signed certificate
-        if (mockServer != null && mockServer.isHttps()) {
-            Path caCertPem = mockServer.getServerCertificatePem();
-            TrustStore trustStore = new TrustStore(
-                    caCertPem.toString(),
-                    null, // No password for PEM trust store
-                    Tls.PEM,
-                    null);
-            return new Tls(null, trustStore, null, null);
-        }
-
-        // Priority 3: For real server with custom CA cert (self-signed)
+        // Priority 2: Custom CA cert
+        String tlsCaCertPath = System.getenv(ENV_TLS_CA_CERT);
         if (tlsCaCertPath != null && !tlsCaCertPath.isEmpty()) {
-            TrustStore trustStore = new TrustStore(
-                    tlsCaCertPath,
-                    null, // No password for PEM trust store
-                    Tls.PEM,
-                    null);
-            return new Tls(null, trustStore, null, null);
+            return new TrustStore(tlsCaCertPath, null, Tls.PEM, null);
         }
 
-        // Priority 4: Use platform trust store (works with public CA certs)
+        // Priority 3: Platform trust store
         return null;
     }
 

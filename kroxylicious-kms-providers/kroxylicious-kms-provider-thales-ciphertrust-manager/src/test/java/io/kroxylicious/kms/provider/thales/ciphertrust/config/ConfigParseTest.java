@@ -16,15 +16,18 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
 import io.kroxylicious.proxy.config.tls.InsecureTls;
+import io.kroxylicious.proxy.config.tls.Tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 class ConfigParseTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     void endpointUrlAndUserCredentials() throws IOException {
+        // Given
         String json = """
                 {
                     "endpointUrl": "https://ctm.example.com",
@@ -34,7 +37,11 @@ class ConfigParseTest {
                     }
                 }
                 """;
+
+        // When
         Config config = readConfig(json);
+
+        // Then
         assertThat(config.endpointUrl()).isEqualTo(URI.create("https://ctm.example.com"));
         assertThat(config.userCredentials()).isNotNull();
         assertThat(config.userCredentials().username()).isEqualTo("testuser");
@@ -43,50 +50,60 @@ class ConfigParseTest {
 
     @Test
     void endpointUrlRequired() {
-        assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "userCredentials": {
-                            "username": "testuser",
-                            "password": { "password": "testpass" }
-                        }
+        // Given
+        String json = """
+                {
+                    "userCredentials": {
+                        "username": "testuser",
+                        "password": { "password": "testpass" }
                     }
-                    """;
-            readConfig(json);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("endpointUrl");
+                }
+                """;
+
+        // When/Then
+        assertThatThrownBy(() -> readConfig(json))
+                .isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("endpointUrl");
     }
 
     @Test
     void endpointUrlShouldNotBeNull() {
-        assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "endpointUrl": null,
-                        "userCredentials": {
-                            "username": "testuser",
-                            "password": { "password": "testpass" }
-                        }
+        // Given
+        String json = """
+                {
+                    "endpointUrl": null,
+                    "userCredentials": {
+                        "username": "testuser",
+                        "password": { "password": "testpass" }
                     }
-                    """;
-            readConfig(json);
-        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
+                }
+                """;
+
+        // When/Then
+        assertThatThrownBy(() -> readConfig(json))
+                .isInstanceOf(ValueInstantiationException.class)
+                .cause()
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void credentialsRequired() {
-        assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "endpointUrl": "https://ctm.example.com"
-                    }
-                    """;
-            readConfig(json);
-        }).isInstanceOf(MismatchedInputException.class)
-                .hasMessageContaining("userCredentials");
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com"
+                }
+                """;
+
+        // When/Then
+        assertThatThrownBy(() -> readConfig(json))
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("Must configure either userCredentials or clientCredentials");
     }
 
     @Test
     void emptyTls() throws Exception {
+        // Given
         String json = """
                 {
                     "endpointUrl": "https://ctm.example.com",
@@ -97,13 +114,18 @@ class ConfigParseTest {
                     "tls": {}
                 }
                 """;
+
+        // When
         Config config = readConfig(json);
+
+        // Then
         assertThat(config.tls()).isNotNull();
         assertThat(config.tls().trust()).isNull();
     }
 
     @Test
     void missingTls() throws Exception {
+        // Given
         String json = """
                 {
                     "endpointUrl": "https://ctm.example.com",
@@ -113,12 +135,17 @@ class ConfigParseTest {
                     }
                 }
                 """;
+
+        // When
         Config config = readConfig(json);
+
+        // Then
         assertThat(config.tls()).isNull();
     }
 
     @Test
-    void testTlsTrust() throws Exception {
+    void tlsTrustInsecure() throws Exception {
+        // Given
         String json = """
                 {
                     "endpointUrl": "https://ctm.example.com",
@@ -133,10 +160,117 @@ class ConfigParseTest {
                     }
                 }
                 """;
+
+        // When
         Config config = readConfig(json);
+
+        // Then
+        assertThat(config)
+                .isNotNull()
+                .extracting(Config::tls)
+                .isNotNull()
+                .satisfies(tls -> assertThat(tls)
+                        .extracting(Tls::trust)
+                        .asInstanceOf(type(InsecureTls.class))
+                        .extracting(InsecureTls::insecure)
+                        .isEqualTo(true));
+    }
+
+    @Test
+    void endpointUrlAndClientCredentials() throws IOException {
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com",
+                    "clientCredentials": {
+                        "clientId": "test-client-123"
+                    },
+                    "tls": {
+                        "key": {
+                            "storeFile": "/path/to/keystore.p12",
+                            "storePassword": { "password": "storepass" }
+                        }
+                    }
+                }
+                """;
+
+        // When
+        Config config = readConfig(json);
+
+        // Then
+        assertThat(config.endpointUrl()).isEqualTo(URI.create("https://ctm.example.com"));
+        assertThat(config.clientCredentials()).isNotNull();
+        assertThat(config.clientCredentials().clientId()).isEqualTo("test-client-123");
         assertThat(config.tls()).isNotNull();
-        assertThat(config.tls().trust()).isInstanceOf(InsecureTls.class);
-        assertThat(((InsecureTls) config.tls().trust()).insecure()).isTrue();
+        assertThat(config.tls().key()).isNotNull();
+    }
+
+    @Test
+    void clientCredentialsRequireClientCertificate() {
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com",
+                    "clientCredentials": {
+                        "clientId": "test-client-123"
+                    }
+                }
+                """;
+
+        // When/Then
+        assertThatThrownBy(() -> readConfig(json))
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("clientCredentials requires a client certificate");
+    }
+
+    @Test
+    void clientCredentialsRequireClientId() {
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com",
+                    "clientCredentials": {},
+                    "tls": {
+                        "key": {
+                            "storeFile": "/path/to/keystore.p12",
+                            "storePassword": { "password": "storepass" }
+                        }
+                    }
+                }
+                """;
+
+        // When/Then
+        assertThatThrownBy(() -> readConfig(json))
+                .isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("clientId");
+    }
+
+    @Test
+    void cannotConfigureBothUserAndClientCredentials() {
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com",
+                    "userCredentials": {
+                        "username": "testuser",
+                        "password": { "password": "testpass" }
+                    },
+                    "clientCredentials": {
+                        "clientId": "test-client-123"
+                    },
+                    "tls": {
+                        "key": {
+                            "storeFile": "/path/to/keystore.p12",
+                            "storePassword": { "password": "storepass" }
+                        }
+                    }
+                }
+                """;
+
+        // When/Then
+        assertThatThrownBy(() -> readConfig(json))
+                .isInstanceOf(ValueInstantiationException.class)
+                .hasMessageContaining("Cannot configure both userCredentials and clientCredentials");
     }
 
     private Config readConfig(String json) throws IOException {
