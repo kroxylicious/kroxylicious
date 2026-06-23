@@ -168,9 +168,6 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * Maps each virtual node to its {@link ListeningChannelRecord}, allowing
      * {@link #resolvePort(VirtualNodeId)} to read the actual bound port directly
      * from the channel (important when port=0 / OS-assigned was configured).
-     * <p>
-     * For port=0, the record is tracked here only (not in {@link #listeningChannels},
-     * which cannot accommodate multiple channels for the same configured endpoint key).
      */
     private final Map<VirtualNodeId, ListeningChannelRecord> virtualNodeIndex = new ConcurrentHashMap<>();
 
@@ -492,28 +489,23 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         Objects.requireNonNull(virtualClusterBinding, "virtualClusterBinding cannot be null");
         var virtualCluster = virtualClusterBinding.endpointGateway();
 
-        ListeningChannelRecord lcr;
-        if (key.port() == OS_ASSIGNED_PORT) {
-            lcr = createOsAssignedChannel(key, virtualCluster);
-        }
-        else {
-            lcr = listeningChannels.computeIfAbsent(key, k -> {
-                var future = new CompletableFuture<Channel>();
-                var r = ListeningChannelRecord.create(future.exceptionally(t -> {
-                    listeningChannels.remove(key);
-                    if (t instanceof RuntimeException re) {
-                        throw re;
-                    }
-                    else {
-                        throw new RuntimeException(t);
-                    }
-                }));
+        var channelKey = virtualCluster.bindingSelector().channelKey(key);
+        var lcr = listeningChannels.computeIfAbsent(channelKey, ck -> {
+            var future = new CompletableFuture<Channel>();
+            var r = ListeningChannelRecord.create(future.exceptionally(t -> {
+                listeningChannels.remove(ck);
+                if (t instanceof RuntimeException re) {
+                    throw re;
+                }
+                else {
+                    throw new RuntimeException(t);
+                }
+            }));
 
-                bindingOperationProcessor
-                        .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
-                return r;
-            });
-        }
+            bindingOperationProcessor
+                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
+            return r;
+        });
 
         if (lcr.unbindingStage().get() != null) {
             // Listening channel already being unbound, chain this request to the unbind stage, so it completes later.
@@ -554,21 +546,6 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         });
     }
 
-    private ListeningChannelRecord createOsAssignedChannel(Endpoint key, EndpointGateway gateway) {
-        var future = new CompletableFuture<Channel>();
-        var lcr = ListeningChannelRecord.create(future.exceptionally(t -> {
-            if (t instanceof RuntimeException re) {
-                throw re;
-            }
-            else {
-                throw new RuntimeException(t);
-            }
-        }));
-        bindingOperationProcessor
-                .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), OS_ASSIGNED_PORT, gateway.isUseTls())));
-        return lcr;
-    }
-
     private CompletionStage<Void> deregisterBinding(EndpointGateway virtualClusterModel, Predicate<EndpointBinding> predicate) {
         Objects.requireNonNull(virtualClusterModel, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
         Objects.requireNonNull(predicate, "predicate cannot be null");
@@ -602,9 +579,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     private Stream<ListeningChannelRecord> allChannelRecords() {
-        return Stream.concat(
-                listeningChannels.values().stream(),
-                virtualNodeIndex.values().stream()).distinct();
+        return listeningChannels.values().stream();
     }
 
     /**

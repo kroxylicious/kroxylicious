@@ -121,7 +121,7 @@ public interface EndpointGateway {
      * @return the binding selector for this gateway
      */
     default BindingSelector bindingSelector() {
-        return requiresServerNameIndication() ? BindingSelector.sni() : BindingSelector.portPerNode();
+        return requiresServerNameIndication() ? new BindingSelector.Sni() : new BindingSelector.PortPerNode();
     }
 
     /**

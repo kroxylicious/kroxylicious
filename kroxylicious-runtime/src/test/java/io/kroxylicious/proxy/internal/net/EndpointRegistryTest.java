@@ -793,6 +793,32 @@ class EndpointRegistryTest {
     }
 
     @Test
+    void shouldShareChannelForSniGatewaysWithPortZero() throws Exception {
+        // Given - two SNI gateways both configured with port=0
+        var sniBootstrap1 = new HostPort("vc1.kafka", 0);
+        var sniBootstrap2 = new HostPort("vc2.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, sniBootstrap1, UPSTREAM_BOOTSTRAP, true);
+        configureVirtualClusterMock(virtualClusterModel2, sniBootstrap2, UPSTREAM_BOOTSTRAP, true);
+
+        // When
+        int osAssignedPort = 58400;
+        var rf1 = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
+
+        // Then - only ONE bind request (shared channel), not two
+        var sharedChannel = createMockNettyChannel(osAssignedPort);
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, true, CompletableFuture.completedFuture(sharedChannel)));
+        assertThat(rf1).isDone();
+        assertThat(rf2).isDone();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Both resolve to the same OS-assigned port
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(osAssignedPort);
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel2))).isEqualTo(osAssignedPort);
+    }
+
+    @Test
     void shouldThrowWhenResolvingPortForUnregisteredGateway() {
         // Given - virtualClusterModel1 has never been registered
 
