@@ -5,3 +5,4 @@
 #
 io.kroxylicious.it.testplugins.PassThroughRouterFactory
 io.kroxylicious.it.testplugins.RouterContractCapturingFactory
+io.kroxylicious.it.testplugins.SplitStaticRouterFactory

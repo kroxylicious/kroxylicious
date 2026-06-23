@@ -16,6 +16,11 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.FetchRequestData;
+import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -24,12 +29,16 @@ import org.junit.jupiter.params.provider.CsvSource;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
+import io.kroxylicious.it.testplugins.SplitStaticRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.testing.integration.Request;
+import io.kroxylicious.testing.integration.ResponsePayload;
+import io.kroxylicious.testing.integration.server.MockServer;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -170,6 +179,61 @@ class RoutingPassThroughIT {
 
             var unexpectedTopics = unexpectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(unexpectedTopics).isEmpty();
+        }
+    }
+
+    @Test
+    void shouldStaticallyRouteDifferentApiKeysToDifferentUpstreams() throws Exception {
+        // Given: two mock upstreams and a router that splits API_VERSIONS to upstream A
+        // and FETCH to upstream B. Uses the low-level KafkaClient to bypass the Kafka
+        // client's metadata assumptions — it just sends whatever frames we tell it to.
+        try (var mockA = MockServer.startOnRandomPort();
+                var mockB = MockServer.startOnRandomPort()) {
+
+            mockA.addMockResponseForApiKey(
+                    new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
+            mockB.addMockResponseForApiKey(
+                    new ResponsePayload(ApiKeys.FETCH, (short) 12, new FetchResponseData()));
+
+            var clusterA = new ClusterDefinition("upstream-a", "localhost:" + mockA.port(), null);
+            var clusterB = new ClusterDefinition("upstream-b", "localhost:" + mockB.port(), null);
+            var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("upstream-a", null));
+            var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("upstream-b", null));
+
+            var routerConfig = new SplitStaticRouterFactory.Config("route-a", "route-b", List.of("FETCH"));
+            var routerDef = new RouterDefinition("split-router",
+                    SplitStaticRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
+
+            var vc = new VirtualClusterBuilder()
+                    .withName("split-vc")
+                    .withTarget(new RouteTarget(null, "split-router"))
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                    .build();
+
+            var config = baseConfigurationBuilder()
+                    .addToClusterDefinitions(clusterA)
+                    .addToClusterDefinitions(clusterB)
+                    .addToRouterDefinitions(routerDef)
+                    .addToVirtualClusters(vc);
+
+            try (var tester = kroxyliciousTester(config)) {
+                // When: send API_VERSIONS (routed to upstream A) then FETCH (routed to upstream B)
+                // Use separate low-level clients so each gets its own proxy session.
+                try (var client = tester.simpleTestClient()) {
+                    client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "test", new ApiVersionsRequestData()));
+                }
+                try (var client = tester.simpleTestClient()) {
+                    client.getSync(new Request(ApiKeys.FETCH, (short) 12, "test", new FetchRequestData()));
+                }
+
+                // Then: each upstream received only the API keys routed to it
+                assertThat(mockA.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.API_VERSIONS);
+                assertThat(mockB.getReceivedRequests())
+                        .extracting(Request::apiKeys)
+                        .containsExactly(ApiKeys.FETCH);
+            }
         }
     }
 }
