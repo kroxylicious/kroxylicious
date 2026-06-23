@@ -56,7 +56,7 @@ jobs:
         uses: ./.github/actions/common/cache-maven-packages
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick install
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
