@@ -129,6 +129,9 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     @NonNull
     public String getBootstrapAddress(String virtualCluster, String gateway) {
+        if (proxy instanceof KafkaProxy kp) {
+            return kp.getBootstrapAddress(virtualCluster, gateway).toString();
+        }
         return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig.get(), gateway);
     }
 

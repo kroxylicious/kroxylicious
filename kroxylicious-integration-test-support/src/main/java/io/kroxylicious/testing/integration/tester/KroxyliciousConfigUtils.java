@@ -28,7 +28,7 @@ public class KroxyliciousConfigUtils {
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     public static final String DEFAULT_GATEWAY_NAME = "default";
 
-    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
+    public static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 0);
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to
@@ -50,15 +50,13 @@ public class KroxyliciousConfigUtils {
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers, String... virtualClusterNames) {
         final ConfigurationBuilder configurationBuilder = baseConfigurationBuilder();
-        for (int i = 0; i < virtualClusterNames.length; i++) {
-            String virtualClusterName = virtualClusterNames[i];
+        for (String virtualClusterName : virtualClusterNames) {
             var vcb = new VirtualClusterBuilder()
                     .withName(virtualClusterName)
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
-                            .build());
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP).build());
             configurationBuilder
                     .addToVirtualClusters(vcb.build());
         }

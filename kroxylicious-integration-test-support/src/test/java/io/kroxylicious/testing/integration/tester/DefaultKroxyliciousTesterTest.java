@@ -658,6 +658,18 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void shouldReturnActualBoundPortFromGetBootstrapAddress() {
+        // Given - embedded proxy with OS-assigned port (port=0)
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap))) {
+            // When
+            var address = tester.getBootstrapAddress();
+
+            // Then - port is the actual OS-bound port, not the configured 0
+            assertThat(HostPort.parse(address).port()).isPositive();
+        }
+    }
+
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
         when(kroxyliciousClients.admin()).thenReturn(admin);
         final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);
