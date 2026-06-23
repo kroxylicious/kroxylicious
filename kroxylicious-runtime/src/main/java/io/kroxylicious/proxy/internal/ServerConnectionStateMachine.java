@@ -99,6 +99,7 @@ class ServerConnectionStateMachine {
     private final Timer serverToProxyBackpressureMeter;
     private final ActivationToken proxyToServerConnectionToken;
 
+    @SuppressWarnings("java:S107")
     ServerConnectionStateMachine(
                                  HostPort remote,
                                  ClientConnectionStateMachine ccsm,

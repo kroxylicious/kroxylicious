@@ -122,6 +122,7 @@ public class RouterChainFactory implements AutoCloseable {
 
                         @Override
                         public void allowSharedClusterTargets() {
+                            // no-op: shared-cluster-target validation is not yet enforced by the runtime
                         }
                     };
                     RouterFactory<? super Object, ? super Object> factory = pluginFactory.pluginInstance(rd.type());

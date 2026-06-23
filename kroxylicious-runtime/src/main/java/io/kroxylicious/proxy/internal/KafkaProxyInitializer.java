@@ -268,7 +268,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
             var routerFactoryContext = createRouterFactoryContext(virtualCluster.getClusterName(), virtualCluster.routerName());
             Router router = routerChainFactory.createRouter(virtualCluster.routerName(), routerFactoryContext);
-            var routeDescriptors = virtualCluster.routeDescriptors();
             Map<ApiKeys, String> staticRoutes = router.staticRoutes();
             if (!staticRoutes.isEmpty()) {
                 Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
@@ -328,6 +327,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
             @Override
             public void allowSharedClusterTargets() {
+                // no-op: shared-cluster-target validation is not yet enforced by the runtime
             }
         };
     }

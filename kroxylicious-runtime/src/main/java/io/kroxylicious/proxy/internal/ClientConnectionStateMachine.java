@@ -834,6 +834,7 @@ public class ClientConnectionStateMachine {
 
     @FunctionalInterface
     interface ServerConnectionFactory {
+        @SuppressWarnings("java:S107")
         ServerConnectionStateMachine create(HostPort remote,
                                             ClientConnectionStateMachine ccsm,
                                             VirtualClusterModel virtualCluster,

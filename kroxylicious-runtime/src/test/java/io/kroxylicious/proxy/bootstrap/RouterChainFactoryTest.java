@@ -387,6 +387,7 @@ class RouterChainFactoryTest {
 
             @Override
             public void allowSharedClusterTargets() {
+                // intentional no-op for test context
             }
         };
     }

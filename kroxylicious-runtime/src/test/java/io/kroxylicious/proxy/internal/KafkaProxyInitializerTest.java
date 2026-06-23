@@ -402,7 +402,8 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
 
         // When / Then
-        assertThatThrownBy(() -> kafkaProxyInitializer.initConnection(channel, endpointBinding, new KafkaSession(KafkaSessionState.ESTABLISHING)))
+        var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        assertThatThrownBy(() -> kafkaProxyInitializer.initConnection(channel, endpointBinding, session))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("routerChainFactory");
     }

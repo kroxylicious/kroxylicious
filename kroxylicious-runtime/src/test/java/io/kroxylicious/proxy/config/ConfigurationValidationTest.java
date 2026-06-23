@@ -292,8 +292,9 @@ class ConfigurationValidationTest {
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
         // When / Then
+        var vcs = List.of(vc);
         assertThatThrownBy(() -> new Configuration(null, null, null, null, null,
-                List.of(vc), null, false, Optional.empty(), null, null))
+                vcs, null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("demo")
                 .hasMessageContaining("missingRouter");
@@ -310,8 +311,11 @@ class ConfigurationValidationTest {
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
         // When / Then
-        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, List.of(router),
-                List.of(vc), null, false, Optional.empty(), null, null))
+        var clusters = List.of(cluster);
+        var routers = List.of(router);
+        var vcs = List.of(vc);
+        assertThatThrownBy(() -> new Configuration(null, clusters, null, null, routers,
+                vcs, null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("demo")
                 .hasMessageContaining("nonExistentRouter");
@@ -349,8 +353,9 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "nonexistent-router"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
+        var vcs = List.of(vc);
         assertThatThrownBy(() -> new Configuration(null, null, null, null, null,
-                List.of(vc), null, false, Optional.empty(), null, null))
+                vcs, null, false, Optional.empty(), null, null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("unknown router")
                 .hasMessageContaining("nonexistent-router");
