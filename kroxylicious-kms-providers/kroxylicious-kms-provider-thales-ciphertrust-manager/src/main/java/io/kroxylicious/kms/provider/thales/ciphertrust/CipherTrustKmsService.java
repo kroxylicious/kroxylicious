@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import io.kroxylicious.kms.provider.thales.ciphertrust.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.thales.ciphertrust.auth.CachingBearerTokenService;
+import io.kroxylicious.kms.provider.thales.ciphertrust.auth.ClientCertificateTokenService;
 import io.kroxylicious.kms.provider.thales.ciphertrust.auth.UserAuthenticationTokenService;
 import io.kroxylicious.kms.provider.thales.ciphertrust.config.Config;
 import io.kroxylicious.kms.service.Kms;
@@ -72,18 +73,34 @@ public class CipherTrustKmsService implements KmsService<Config, WrappingKey, Ci
     }
 
     private BearerTokenService createTokenService(Config config) {
-        // User authentication
-        var userCreds = config.userCredentials();
         var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
+        BearerTokenService delegate;
 
-        BearerTokenService delegate = new UserAuthenticationTokenService(
-                config.endpointUrl(),
-                userCreds.username(),
-                userCreds.password().getProvidedPassword(),
-                DEFAULT_TIMEOUT,
-                tlsConfigurator);
+        if (config.userCredentials() != null) {
+            // User authentication with username/password
+            var userCreds = config.userCredentials();
+            delegate = new UserAuthenticationTokenService(
+                    config.endpointUrl(),
+                    userCreds.username(),
+                    userCreds.password().getProvidedPassword(),
+                    DEFAULT_TIMEOUT,
+                    tlsConfigurator);
+        }
+        else if (config.clientCredentials() != null) {
+            // Client certificate authentication
+            var clientCreds = config.clientCredentials();
+            delegate = new ClientCertificateTokenService(
+                    config.endpointUrl(),
+                    clientCreds.clientId(),
+                    DEFAULT_TIMEOUT,
+                    tlsConfigurator);
+        }
+        else {
+            // Cannot happen, the Config ctor makes the enforcement.
+            throw new IllegalStateException("Must supply either userCredentials or clientCredentials");
+        }
 
-        // Wrap with caching token service for automatic token refresh
+        // Wrap with caching token service for automatic token refresh/re-authentication
         return new CachingBearerTokenService(delegate, Clock.systemUTC());
     }
 

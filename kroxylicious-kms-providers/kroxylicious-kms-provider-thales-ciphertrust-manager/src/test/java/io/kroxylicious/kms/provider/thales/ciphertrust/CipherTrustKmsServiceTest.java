@@ -37,16 +37,17 @@ class CipherTrustKmsServiceTest {
     }
 
     @Test
-    void initializeStoresConfig() {
+    void initializeWithUserCredentials() {
         // Given
         service = new CipherTrustKmsService();
         var config = new Config(
                 URI.create("https://ctm.example.com"),
                 new UserCredentials("user", new InlinePassword("pass")),
+                null,
                 null);
+        service.initialize(config);
 
         // When
-        service.initialize(config);
         var kms = service.buildKms();
 
         // Then
@@ -55,7 +56,9 @@ class CipherTrustKmsServiceTest {
 
     @Test
     void detectsMissingInitialization() {
+        // Given
         service = new CipherTrustKmsService();
+        // When/Then
         assertThatThrownBy(() -> service.buildKms())
                 .isInstanceOf(NullPointerException.class);
     }
@@ -67,6 +70,7 @@ class CipherTrustKmsServiceTest {
         var config = new Config(
                 URI.create("https://ctm.example.com"),
                 new UserCredentials("user", new InlinePassword("pass")),
+                null,
                 null);
         service.initialize(config);
 
@@ -79,17 +83,21 @@ class CipherTrustKmsServiceTest {
 
     @Test
     void appliesTlsConfiguration() {
+        // Given
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV";
         var config = new Config(
                 URI.create("https://ctm.example.com"),
                 new UserCredentials("user", new InlinePassword("pass")),
+                null,
                 new Tls(null, null, new AllowDeny<>(
                         List.of(validButUnusualCipherSuite), null), null, null));
 
         service = new CipherTrustKmsService();
         service.initialize(config);
+        // When
         var kms = service.buildKms();
 
+        // Then
         var client = ((CipherTrustKms) kms).getHttpClient();
         assertThat(client)
                 .extracting(HttpClient::sslParameters)

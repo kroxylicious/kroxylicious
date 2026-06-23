@@ -18,7 +18,6 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 
 import org.slf4j.Logger;
@@ -31,47 +30,50 @@ import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 import io.kroxylicious.kms.service.KmsException;
 
 /**
- * Bearer token service for CipherTrust Manager user authentication.
+ * Bearer token service for CipherTrust Manager client certificate authentication.
  * <p>
- * Handles initial authentication with username/password and subsequent token
- * refresh using refresh tokens. Intended to be wrapped with
- * {@link CachingBearerTokenService} for automatic token caching and refresh.
+ * Authenticates using client certificates presented during TLS handshake.
+ * Unlike user authentication, client certificate authentication does NOT support
+ * refresh tokens - the client must re-authenticate with the certificate each time
+ * the JWT expires.
+ * </p>
+ * <p>
+ * Intended to be wrapped with {@link CachingBearerTokenService} for automatic
+ * token caching and re-authentication.
  * </p>
  */
-public class UserAuthenticationTokenService implements BearerTokenService {
+public class ClientCertificateTokenService implements BearerTokenService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(UserAuthenticationTokenService.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientCertificateTokenService.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final URI authEndpoint;
-    private final String username;
-    private final String password;
+    private final String clientId;
     private final HttpClient client;
-    private final AtomicReference<String> refreshToken = new AtomicReference<>();
 
     /**
-     * Create a user authentication token service.
+     * Create a client certificate authentication token service.
      *
      * @param endpointUrl base URL of CipherTrust Manager instance
-     * @param username username for authentication
-     * @param password password for authentication
+     * @param clientId client ID obtained during client registration
      * @param timeout HTTP request timeout
-     * @param tlsConfigurator TLS configuration for HTTP client
+     * @param tlsConfigurator TLS configuration for HTTP client (must include client certificate)
      */
-    public UserAuthenticationTokenService(URI endpointUrl,
-                                          String username,
-                                          String password,
-                                          Duration timeout,
-                                          UnaryOperator<HttpClient.Builder> tlsConfigurator) {
+    public ClientCertificateTokenService(URI endpointUrl,
+                                         String clientId,
+                                         Duration timeout,
+                                         UnaryOperator<HttpClient.Builder> tlsConfigurator) {
         Objects.requireNonNull(endpointUrl, "endpointUrl cannot be null");
-        Objects.requireNonNull(username, "username cannot be null");
-        Objects.requireNonNull(password, "password cannot be null");
+        Objects.requireNonNull(clientId, "clientId cannot be null");
         Objects.requireNonNull(timeout, "timeout cannot be null");
         Objects.requireNonNull(tlsConfigurator, "tlsConfigurator cannot be null");
 
+        if (clientId.isBlank()) {
+            throw new IllegalArgumentException("clientId cannot be blank");
+        }
+
         this.authEndpoint = endpointUrl.resolve("/api/v1/auth/tokens/");
-        this.username = username;
-        this.password = password;
+        this.clientId = clientId;
         this.client = createClient(timeout, tlsConfigurator);
     }
 
@@ -84,36 +86,15 @@ public class UserAuthenticationTokenService implements BearerTokenService {
 
     @Override
     public CompletionStage<BearerToken> getBearerToken() {
-        String currentRefreshToken = refreshToken.get();
-        if (currentRefreshToken != null) {
-            // Try refresh token first (avoids sending password)
-            return refreshWithToken(currentRefreshToken)
-                    .exceptionallyCompose(error -> {
-                        LOGGER.atDebug()
-                                .addKeyValue("error", error.getMessage())
-                                .log("refresh token failed, falling back to password authentication");
-                        // If refresh fails, clear token and fall back to password auth
-                        refreshToken.set(null);
-                        return authenticateWithPassword();
-                    });
-        }
-        else {
-            // Initial authentication with username/password
-            return authenticateWithPassword();
-        }
+        return authenticateWithCertificate();
     }
 
-    private CompletionStage<BearerToken> authenticateWithPassword() {
-        AuthRequest request = AuthRequest.withPassword(username, password);
-        return authenticate(request, "password authentication");
+    private CompletionStage<BearerToken> authenticateWithCertificate() {
+        AuthRequest request = AuthRequest.withClientCredential(clientId);
+        return authenticate(request);
     }
 
-    private CompletionStage<BearerToken> refreshWithToken(String token) {
-        AuthRequest request = AuthRequest.withRefreshToken(token);
-        return authenticate(request, "token refresh");
-    }
-
-    private CompletionStage<BearerToken> authenticate(AuthRequest authRequest, String operationType) {
+    private CompletionStage<BearerToken> authenticate(AuthRequest authRequest) {
         try {
             String requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
 
@@ -132,30 +113,26 @@ public class UserAuthenticationTokenService implements BearerTokenService {
                         else {
                             String body = new String(response.body(), StandardCharsets.UTF_8);
                             var logBuilder = LOGGER.atWarn()
-                                    .addKeyValue("operation", operationType)
                                     .addKeyValue("statusCode", response.statusCode());
                             if (LOGGER.isDebugEnabled()) {
                                 logBuilder = logBuilder.addKeyValue("responseBody", body);
                             }
                             logBuilder.log(LOGGER.isDebugEnabled()
-                                    ? "authentication operation failed"
-                                    : "authentication operation failed, increase log level to DEBUG for response body");
-                            throw new KmsException("%s failed with HTTP %d".formatted(operationType, response.statusCode()));
+                                    ? "client certificate authentication failed"
+                                    : "client certificate authentication failed, increase log level to DEBUG for response body");
+                            throw new KmsException("client certificate authentication failed with HTTP %d".formatted(response.statusCode()));
                         }
                     })
                     .thenApply(HttpResponse::body)
                     .thenApply(this::parseAuthResponse)
                     .thenApply(authResponse -> {
-                        // Store refresh token for future use
-                        refreshToken.set(authResponse.refreshToken());
-
                         // Calculate expiry time
                         Instant now = Instant.now();
                         Instant expiresAt = now.plusSeconds(authResponse.duration());
 
                         LOGGER.atInfo()
                                 .addKeyValue("expiresAt", expiresAt)
-                                .log("{} succeeded", operationType);
+                                .log("client certificate authentication succeeded");
 
                         return new BearerToken(authResponse.jwt(), now, expiresAt);
                     });
