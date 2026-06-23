@@ -59,6 +59,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
@@ -262,6 +263,7 @@ class KroxyliciousTestersTest {
 
     @Test
     void testRestartingProxyDoesNotCloseClients(@Name("underlyingCluster") Topic topic) throws Exception {
+        // Given
         try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             var admin = tester.admin();
             var producer = tester.producer();
@@ -270,7 +272,14 @@ class KroxyliciousTestersTest {
             send(producer, topic.name());
             consumer.subscribe(List.of(topic.name()));
             assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
-            tester.restartProxy();
+            String resolvedBootstrap = tester.getBootstrapAddress();
+            var advertisedConfig = addVirtualCluster(kafkaCluster.getBootstrapServers(),
+                    baseConfigurationBuilder(), DEFAULT_VIRTUAL_CLUSTER, resolvedBootstrap);
+
+            // When
+            tester.restartProxy(advertisedConfig);
+
+            // Then
             // assert some basic things here but if restarting the proxy restarted the clients these would except
             assertThat(admin.describeCluster()).isNotNull();
             send(producer, topic.name());
