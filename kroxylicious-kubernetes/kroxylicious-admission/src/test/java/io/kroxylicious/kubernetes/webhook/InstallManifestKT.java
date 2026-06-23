@@ -49,12 +49,10 @@ class InstallManifestKT {
         List<HasMetadata> resources = loadAllResources(manifest);
 
         assertThat(resources)
+                .as("CRDs-only manifest should not be empty")
+                .isNotEmpty()
                 .as("CRDs-only manifest should contain only CustomResourceDefinition resources")
                 .allMatch(r -> "CustomResourceDefinition".equals(r.getKind()));
-
-        assertThat(resources)
-                .as("CRDs-only manifest should not be empty")
-                .isNotEmpty();
     }
 
     @Test
