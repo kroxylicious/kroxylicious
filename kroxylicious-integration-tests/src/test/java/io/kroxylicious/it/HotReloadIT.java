@@ -48,6 +48,7 @@ import io.kroxylicious.testing.kafka.common.KeystoreManager;
 
 import static io.kroxylicious.it.HotReloadIT.VcSlot.INCOMING;
 import static io.kroxylicious.it.HotReloadIT.VcSlot.OUTGOING;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,11 +66,10 @@ class HotReloadIT extends BaseIT {
     private static final String VC_OUTGOING_NAME = "vc-outgoing";
     private static final String VC_INCOMING_NAME = "vc-incoming";
 
-    private static final int SHARED_SNI_PORT = KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP.port();
     private static final String SNI_BASE_DOMAIN = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".hotreload");
-    private static final String VC_BASELINE_BOOTSTRAP = "bootstrap-baseline" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
-    private static final String VC_OUTGOING_BOOTSTRAP = "bootstrap-outgoing" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
-    private static final String VC_INCOMING_BOOTSTRAP = "bootstrap-incoming" + SNI_BASE_DOMAIN + ":" + SHARED_SNI_PORT;
+    private static final String VC_BASELINE_BOOTSTRAP = "bootstrap-baseline" + SNI_BASE_DOMAIN + ":0";
+    private static final String VC_OUTGOING_BOOTSTRAP = "bootstrap-outgoing" + SNI_BASE_DOMAIN + ":0";
+    private static final String VC_INCOMING_BOOTSTRAP = "bootstrap-incoming" + SNI_BASE_DOMAIN + ":0";
     private static final String VC_BASELINE_BROKER_PATTERN = "broker-$(nodeId)-baseline" + SNI_BASE_DOMAIN;
     private static final String VC_OUTGOING_BROKER_PATTERN = "broker-$(nodeId)-outgoing" + SNI_BASE_DOMAIN;
     private static final String VC_INCOMING_BROKER_PATTERN = "broker-$(nodeId)-incoming" + SNI_BASE_DOMAIN;
@@ -77,32 +77,6 @@ class HotReloadIT extends BaseIT {
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration PRODUCE_CONSUME_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration REJECTION_TIMEOUT = Duration.ofSeconds(5);
-
-    // Port blocks per port-addressed test. The BASE is randomized once per JVM run so a re-run
-    // within the OS's TIME_WAIT window (60-240s) doesn't collide with the previous run's sockets.
-    // Chosen range [20000, 28000) sits below the OS ephemeral ranges on both Linux (32768-61000)
-    // and macOS (49152-65535), reducing collisions with unrelated processes' transient sockets.
-    // PORT_STRIDE is the within-test offset between adjacent bootstrap ports used by a single test.
-    private static final int PORT_BLOCK_BASE = 20000 + ThreadLocalRandom.current().nextInt(8000);
-    private static final int PORT_STRIDE = 10;
-    private static final int PORT_BLOCK_REMOVE = PORT_BLOCK_BASE; // shouldReleasePortWhenPortAddressedVcIsRemoved
-    private static final int PORT_BLOCK_ADD = PORT_BLOCK_BASE + 100; // shouldStartServingAddedPortAddressedVcEndToEnd
-    private static final int PORT_BLOCK_BINDFAIL = PORT_BLOCK_BASE + 200; // shouldSurfaceBindFailureAsReconfigureError...
-    private static final int PORT_BLOCK_REUSE = PORT_BLOCK_BASE + 300; // shouldSupportPortReuseAcrossReconfigures
-    private static final int PORT_BLOCK_ADD_THEN_REMOVE = PORT_BLOCK_BASE + 400; // shouldRemoveRuntimeAddedPortAddressedVc
-    private static final int PORT_BLOCK_MODIFY_SAME_PORT = PORT_BLOCK_BASE + 500; // shouldModifyPortAddressedVcWithSamePort
-    private static final int PORT_BLOCK_MODIFY_DIFF_PORT = PORT_BLOCK_BASE + 600; // shouldModifyPortAddressedVcWithDifferentPort
-    private static final int PORT_BLOCK_MODIFY_FAIL = PORT_BLOCK_BASE + 700; // shouldSurfaceModifyFailureAsReconfigureError
-    private static final int PORT_BLOCK_METRICS = PORT_BLOCK_BASE + 800; // shouldExposeReconfigureAndLifecycleMetricsViaScrape
-
-    static {
-        // Log the chosen base so a CI failure with EADDRINUSE can be reproduced (and the
-        // suspect port range identified) without re-running the suite.
-        LoggerFactory.getLogger(HotReloadIT.class)
-                .atInfo()
-                .addKeyValue("portBlockBase", PORT_BLOCK_BASE)
-                .log("HotReloadIT: per-JVM port block base chosen");
-    }
 
     /**
      * Identifies a non-baseline VC slot used by the tests. {@link #buildConfig} takes a
@@ -266,26 +240,24 @@ class HotReloadIT extends BaseIT {
      */
     @Test
     void shouldReleasePortWhenPortAddressedVcIsRemoved(@BrokerCluster KafkaCluster cluster) throws Exception {
-        int retainedPort = PORT_BLOCK_REMOVE;
-        int releasedPort = PORT_BLOCK_REMOVE + PORT_STRIDE;
-
         var startingConfig = portConfig(
-                portVc(cluster, "vc-retain", retainedPort),
-                portVc(cluster, "vc-release", releasedPort));
+                portVc(cluster, "vc-retain"),
+                portVc(cluster, "vc-release"));
         var afterConfig = portConfig(
-                portVc(cluster, "vc-retain", retainedPort));
+                portVc(cluster, "vc-retain"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Both VCs serve initially — the phase-1 round-trips prove the proxy holds both
-            // ports (clients couldn't connect otherwise).
+            // Given — both VCs serve on OS-assigned ports.
             String retainTopic = tester.createTopic("vc-retain");
             String releaseTopic = tester.createTopic("vc-release");
-            assertProduceConsumeRoundTrip(tester, "vc-retain", retainTopic, "phase1-retain");
-            assertProduceConsumeRoundTrip(tester, "vc-release", releaseTopic, "phase1-release");
+            assertProduceConsumeRoundTrip(tester, "vc-retain", retainTopic, "given-retain");
+            assertProduceConsumeRoundTrip(tester, "vc-release", releaseTopic, "given-release");
+            int releasedPort = boundPort(tester, "vc-release");
 
+            // When — reconfigure removes vc-release.
             LOGGER.info("Reconfiguring to remove port-addressed VC bound to port {}", releasedPort);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -293,70 +265,64 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean port-addressed remove")
                             .isFalse());
 
-            // The released port is reclaimable from outside the proxy. NetworkUnbindRequest is
-            // queued on the binding-operation processor; the reconfigure future completes when
-            // the unbind future does, but the OS-level socket release can lag — poll briefly.
+            // Then — the released port is reclaimable from outside the proxy.
             assertPortIsBindable(releasedPort);
 
-            // The retained VC is unaffected.
-            assertProduceConsumeRoundTrip(tester, "vc-retain", retainTopic, "phase3-retain");
+            // Then — the retained VC is unaffected.
+            assertProduceConsumeRoundTrip(tester, "vc-retain", retainTopic, "then-retain");
         }
     }
 
     @Test
     void shouldStartServingAddedPortAddressedVcEndToEnd(@BrokerCluster KafkaCluster cluster) throws Exception {
-        int initialPort = PORT_BLOCK_ADD;
-        int addedPort = PORT_BLOCK_ADD + PORT_STRIDE;
-
-        var startingConfig = portConfig(portVc(cluster, "vc-initial", initialPort));
+        var startingConfig = portConfig(portVc(cluster, "vc-initial"));
         var afterConfig = portConfig(
-                portVc(cluster, "vc-initial", initialPort),
-                portVc(cluster, "vc-added", addedPort));
+                portVc(cluster, "vc-initial"),
+                portVc(cluster, "vc-added"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given — one VC serving.
             String initialTopic = tester.createTopic("vc-initial");
-            assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "phase1-initial");
+            assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "given-initial");
 
-            LOGGER.info("Reconfiguring to add port-addressed VC on port {}", addedPort);
+            // When — reconfigure adds a second VC.
+            LOGGER.info("Reconfiguring to add port-addressed VC");
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean port-addressed add")
                             .isFalse());
 
-            // New VC reachable end-to-end on its freshly bound port.
+            // Then — new VC reachable end-to-end on its freshly bound port.
             String addedTopic = tester.createTopic("vc-added");
-            assertProduceConsumeRoundTrip(tester, "vc-added", addedTopic, "phase3-added");
+            assertProduceConsumeRoundTrip(tester, "vc-added", addedTopic, "then-added");
 
-            // Existing VC undisturbed.
-            assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "phase4-initial");
+            // Then — existing VC undisturbed.
+            assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "then-initial");
         }
     }
 
     @Test
     void shouldSurfaceBindFailureAsReconfigureErrorWithoutBlockingOtherAdds(@BrokerCluster KafkaCluster cluster) throws Exception {
-        int initialPort = PORT_BLOCK_BINDFAIL;
-        int goodPort = PORT_BLOCK_BINDFAIL + PORT_STRIDE;
-        int contestedPort = PORT_BLOCK_BINDFAIL + 2 * PORT_STRIDE;
+        // Hold an OS-assigned port from outside the proxy so the proxy's bind attempt fails.
+        try (var externalHolder = openSocketOnPort(0)) {
+            int contestedPort = externalHolder.getLocalPort();
 
-        // Hold the contested port from outside the proxy so the proxy's bind attempt fails.
-        try (var externalHolder = openSocketOnPort(contestedPort)) {
-            assertThat(externalHolder.getLocalPort()).isEqualTo(contestedPort);
-
-            var startingConfig = portConfig(portVc(cluster, "vc-initial", initialPort));
+            var startingConfig = portConfig(portVc(cluster, "vc-initial"));
             var afterConfig = portConfig(
-                    portVc(cluster, "vc-initial", initialPort),
-                    portVc(cluster, "vc-good", goodPort),
+                    portVc(cluster, "vc-initial"),
+                    portVc(cluster, "vc-good"),
                     portVc(cluster, "vc-blocked", contestedPort));
 
             var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                     .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
             try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-                LOGGER.info("Reconfiguring to add vc-good (port {}) and vc-blocked (port {}, held externally)", goodPort, contestedPort);
+                // When — reconfigure adds vc-good (port 0) and vc-blocked (held port).
+                LOGGER.info("Reconfiguring to add vc-good and vc-blocked (port {}, held externally)", contestedPort);
                 assertThat(tester.reconfigure(afterConfig))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
                         .satisfies(rr -> {
@@ -368,77 +334,73 @@ class HotReloadIT extends BaseIT {
                                     .containsExactly("vc-blocked");
                         });
 
-                // vc-good came up on its own port — a per-VC failure does not block other adds.
+                // Then — vc-good came up on its own port; a per-VC failure does not block other adds.
                 String goodTopic = tester.createTopic("vc-good");
-                assertProduceConsumeRoundTrip(tester, "vc-good", goodTopic, "phase3-good");
+                assertProduceConsumeRoundTrip(tester, "vc-good", goodTopic, "then-good");
             }
         }
     }
 
     @Test
     void shouldSupportPortReuseAcrossReconfigures(@BrokerCluster KafkaCluster cluster) throws Exception {
-        // Proves the bind/unbind machinery composes: a port released by one remove is
-        // available for a subsequent add in a later reconfigure.
-        int retainedPort = PORT_BLOCK_REUSE;
-        int reusedPort = PORT_BLOCK_REUSE + PORT_STRIDE;
-
+        // Proves the bind/unbind machinery composes: a remove followed by an add in a
+        // later reconfigure works end-to-end.
         var startingConfig = portConfig(
-                portVc(cluster, "vc-retain", retainedPort),
-                portVc(cluster, "vc-original", reusedPort));
-        var afterRemove = portConfig(portVc(cluster, "vc-retain", retainedPort));
+                portVc(cluster, "vc-retain"),
+                portVc(cluster, "vc-original"));
+        var afterRemove = portConfig(portVc(cluster, "vc-retain"));
         var afterReadd = portConfig(
-                portVc(cluster, "vc-retain", retainedPort),
-                portVc(cluster, "vc-new", reusedPort));
+                portVc(cluster, "vc-retain"),
+                portVc(cluster, "vc-new"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            assertProduceConsumeRoundTrip(tester, "vc-original", tester.createTopic("vc-original"), "phase1-original");
+            // Given — both VCs serving.
+            assertProduceConsumeRoundTrip(tester, "vc-original", tester.createTopic("vc-original"), "given-original");
 
-            LOGGER.info("First reconfigure: removing vc-original from port {}", reusedPort);
+            // When — first reconfigure removes vc-original.
+            LOGGER.info("First reconfigure: removing vc-original");
             assertThat(tester.reconfigure(afterRemove))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
-            // We deliberately do NOT probe the freed port between the two reconfigures —
-            // binding from the test would leave it in TIME_WAIT and prevent the proxy's
-            // subsequent rebind. The second reconfigure's success IS the port-released proof.
 
-            LOGGER.info("Second reconfigure: adding vc-new on the same port {}", reusedPort);
+            // When — second reconfigure adds vc-new.
+            LOGGER.info("Second reconfigure: adding vc-new");
             assertThat(tester.reconfigure(afterReadd))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
-                            .as("Second reconfigure should rebind cleanly on the freed port")
+                            .as("Second reconfigure should bind vc-new cleanly after the remove")
                             .isFalse());
 
-            // The newly-added VC on the reused port is fully functional.
+            // Then — the newly-added VC is fully functional.
             String newTopic = tester.createTopic("vc-new");
-            assertProduceConsumeRoundTrip(tester, "vc-new", newTopic, "phase3-new");
+            assertProduceConsumeRoundTrip(tester, "vc-new", newTopic, "then-new");
         }
     }
 
     @Test
     void shouldRemoveRuntimeAddedPortAddressedVc(@BrokerCluster KafkaCluster cluster) throws Exception {
-        // when a VC is added at runtime and then removed in a subsequent
+        // When a VC is added at runtime and then removed in a subsequent
         // reconfigure, RemoveCluster must be able to resolve the original gateway via
         // VirtualClusterRegistry#virtualClusterModels.
-        int retainedPort = PORT_BLOCK_ADD_THEN_REMOVE;
-        int runtimeAddedPort = PORT_BLOCK_ADD_THEN_REMOVE + PORT_STRIDE;
-
-        var startingConfig = portConfig(portVc(cluster, "vc-keep", retainedPort));
+        var startingConfig = portConfig(portVc(cluster, "vc-keep"));
         var afterAdd = portConfig(
-                portVc(cluster, "vc-keep", retainedPort),
-                portVc(cluster, "vc-runtime-added", runtimeAddedPort));
-        var afterRemove = portConfig(portVc(cluster, "vc-keep", retainedPort));
+                portVc(cluster, "vc-keep"),
+                portVc(cluster, "vc-runtime-added"));
+        var afterRemove = portConfig(portVc(cluster, "vc-keep"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given — one VC serving.
             String keepTopic = tester.createTopic("vc-keep");
-            assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "phase1-keep");
+            assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "given-keep");
 
-            LOGGER.info("Reconfigure 1: adding vc-runtime-added on port {}", runtimeAddedPort);
+            // When — reconfigure 1 adds vc-runtime-added.
+            LOGGER.info("Reconfigure 1: adding vc-runtime-added");
             assertThat(tester.reconfigure(afterAdd))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
@@ -446,8 +408,10 @@ class HotReloadIT extends BaseIT {
                             .isFalse());
 
             String runtimeTopic = tester.createTopic("vc-runtime-added");
-            assertProduceConsumeRoundTrip(tester, "vc-runtime-added", runtimeTopic, "phase2-runtime-added");
+            assertProduceConsumeRoundTrip(tester, "vc-runtime-added", runtimeTopic, "given-runtime-added");
+            int runtimeAddedPort = boundPort(tester, "vc-runtime-added");
 
+            // When — reconfigure 2 removes the runtime-added VC.
             LOGGER.info("Reconfigure 2: removing the runtime-added vc-runtime-added");
             assertThat(tester.reconfigure(afterRemove))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -457,11 +421,11 @@ class HotReloadIT extends BaseIT {
                                     + "runtime-added VCs so RemoveCluster can resolve their gateways")
                             .isFalse());
 
-            // The port the runtime-added VC was bound to is released.
+            // Then — the port the runtime-added VC was bound to is released.
             assertPortIsBindable(runtimeAddedPort);
 
-            // The unaffected VC continues to serve.
-            assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "phase4-keep");
+            // Then — the unaffected VC continues to serve.
+            assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "then-keep");
         }
     }
 
@@ -471,7 +435,13 @@ class HotReloadIT extends BaseIT {
         // immediately before its rebind of the SAME port. Triggered here by flipping logNetwork
         // (a runtime-observable field whose change `VirtualCluster.sameAs` reports as a modify
         // but which doesn't affect client behaviour, so the cluster keeps working).
-        int port = PORT_BLOCK_MODIFY_SAME_PORT;
+        //
+        // An explicit port is needed because port 0 would cause the OS to assign a DIFFERENT
+        // actual port on rebind, which is not a same-port modify scenario.
+        int port;
+        try (var ss = new ServerSocket(0)) {
+            port = ss.getLocalPort();
+        }
         var startingConfig = portConfig(portVc(cluster, "vc-modify", port));
         var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-modify", port, true));
 
@@ -479,9 +449,11 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given — VC serving on the discovered port.
             String topic = tester.createTopic("vc-modify");
-            assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "phase1-pre-modify");
+            assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "given-pre-modify");
 
+            // When — reconfigure flips logNetwork (same port).
             LOGGER.info("Reconfiguring to modify vc-modify (same port {}, logNetwork=true)", port);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -489,9 +461,8 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean same-port modify")
                             .isFalse());
 
-            // The same port is now serving the new shape of the VC. Tight unbind-then-rebind
-            // worked: clients connecting after the reconfigure are accepted on the same port.
-            assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "phase2-post-modify");
+            // Then — the same port is now serving the new shape of the VC.
+            assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "then-post-modify");
         }
     }
 
@@ -503,37 +474,42 @@ class HotReloadIT extends BaseIT {
         // old bootstrap and can't follow the cluster to its new port — closeClientsFor
         // evicts them so the post-modify produce/consume round-trip rebuilds against the
         // new bootstrap and exercises the new port end-to-end.
-        int oldPort = PORT_BLOCK_MODIFY_DIFF_PORT;
-        int newPort = PORT_BLOCK_MODIFY_DIFF_PORT + PORT_STRIDE;
+        //
+        // To get a genuine port change without hard-coding, the VC starts on the discovered
+        // oldPort and relocates to port 0 (a fresh OS-assigned port).
+        int oldPort;
+        try (var ss = new ServerSocket(0)) {
+            oldPort = ss.getLocalPort();
+        }
         var startingConfig = portConfig(portVc(cluster, "vc-relocate", oldPort));
-        var afterConfig = portConfig(portVc(cluster, "vc-relocate", newPort));
+        var afterConfig = portConfig(portVc(cluster, "vc-relocate"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given — VC serving on the discovered port.
             String topicBefore = tester.createTopic("vc-relocate");
-            assertProduceConsumeRoundTrip(tester, "vc-relocate", topicBefore, "phase1-old-port");
+            assertProduceConsumeRoundTrip(tester, "vc-relocate", topicBefore, "given-old-port");
 
-            LOGGER.info("Reconfiguring to modify vc-relocate from port {} to port {}", oldPort, newPort);
+            // When — reconfigure relocates from oldPort to a fresh OS-assigned port (port 0).
+            LOGGER.info("Reconfiguring to modify vc-relocate from port {} to port 0", oldPort);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a port-relocation modify")
                             .isFalse());
 
-            // The old port is reclaimable from outside the proxy — the remove half of the
-            // replace freed the binding.
+            // Then — the old port is reclaimable from outside the proxy.
             assertPortIsBindable(oldPort);
 
-            // Drop the cached clients built around the old bootstrap so the next
+            // Then — drop the cached clients built around the old bootstrap so the next
             // tester.producer/consumer call rebuilds against the new port.
             tester.closeClientsFor("vc-relocate");
 
-            // Independent external evidence that the new port serves real traffic: a fresh
-            // Kafka client connects, produces, and consumes through localhost:newPort.
+            // Then — a fresh Kafka client connects, produces, and consumes on the new port.
             String topicAfter = tester.createTopic("vc-relocate");
-            assertProduceConsumeRoundTrip(tester, "vc-relocate", topicAfter, "phase2-new-port");
+            assertProduceConsumeRoundTrip(tester, "vc-relocate", topicAfter, "then-new-port");
         }
     }
 
@@ -542,19 +518,20 @@ class HotReloadIT extends BaseIT {
         // ReplaceCluster's internal add-half can fail (e.g. the new port is held externally).
         // The orchestrator surfaces this as a per-cluster ReconfigureError carrying the bind
         // cause — same shape as a pure-add bind failure. The cluster ends up offline.
-        int oldPort = PORT_BLOCK_MODIFY_FAIL;
-        int contestedPort = PORT_BLOCK_MODIFY_FAIL + PORT_STRIDE;
+        try (var externalHolder = openSocketOnPort(0)) {
+            int contestedPort = externalHolder.getLocalPort();
 
-        try (var externalHolder = openSocketOnPort(contestedPort)) {
-            assertThat(externalHolder.getLocalPort()).isEqualTo(contestedPort);
-
-            var startingConfig = portConfig(portVc(cluster, "vc-fail-modify", oldPort));
+            var startingConfig = portConfig(portVc(cluster, "vc-fail-modify"));
             var afterConfig = portConfig(portVc(cluster, "vc-fail-modify", contestedPort));
 
             var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                     .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
             try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+                // Given — VC serving on an OS-assigned port.
+                int oldPort = boundPort(tester, "vc-fail-modify");
+
+                // When — reconfigure attempts to relocate to a port held externally.
                 LOGGER.info("Reconfiguring vc-fail-modify from port {} to port {} (held externally)", oldPort, contestedPort);
                 assertThat(tester.reconfigure(afterConfig))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -566,7 +543,8 @@ class HotReloadIT extends BaseIT {
                                     .extracting(ReconfigureError::humanReadableIdentifier)
                                     .containsExactly("vc-fail-modify");
                         });
-                // Old port is freed (the remove half of the replace ran cleanly).
+
+                // Then — old port is freed (the remove half of the replace ran cleanly).
                 assertPortIsBindable(oldPort);
             }
         }
@@ -613,12 +591,9 @@ class HotReloadIT extends BaseIT {
 
     @Test
     void shouldExposeReconfigureAndLifecycleMetricsViaScrape(@BrokerCluster KafkaCluster cluster) {
-        int initialPort = PORT_BLOCK_METRICS;
-        int addedPort = PORT_BLOCK_METRICS + PORT_STRIDE;
-
-        var startingConfig = portConfigBuilderWithMetrics(portVc(cluster, "vc-metrics-initial", initialPort)).build();
+        var startingConfig = portConfigBuilderWithMetrics(portVc(cluster, "vc-metrics-initial")).build();
         var afterConfig = new ConfigurationBuilder(startingConfig)
-                .addToVirtualClusters(portVc(cluster, "vc-metrics-added", addedPort))
+                .addToVirtualClusters(portVc(cluster, "vc-metrics-added"))
                 .build();
 
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(new ConfigurationBuilder(startingConfig)).createDefaultKroxyliciousTester();
@@ -668,6 +643,10 @@ class HotReloadIT extends BaseIT {
         return builder;
     }
 
+    private static VirtualCluster portVc(KafkaCluster cluster, String name) {
+        return portVc(cluster, name, 0);
+    }
+
     private static VirtualCluster portVc(KafkaCluster cluster, String name, int port) {
         return KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, name)
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
@@ -679,6 +658,10 @@ class HotReloadIT extends BaseIT {
                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
                 .withLogNetwork(logNetwork)
                 .build();
+    }
+
+    private static int boundPort(KroxyliciousTester tester, String vcName) {
+        return HostPort.parse(tester.getBootstrapAddress(vcName, DEFAULT_GATEWAY_NAME)).port();
     }
 
     private static Configuration portConfig(VirtualCluster... vcs) {
