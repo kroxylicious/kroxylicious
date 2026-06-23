@@ -7,16 +7,10 @@
 package io.kroxylicious.testing.integration.client;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +27,6 @@ import org.apache.kafka.common.requests.ApiVersionsRequest;
 import org.apache.kafka.common.requests.RequestHeader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import io.netty.buffer.Unpooled;
 import io.netty.handler.ssl.SslContext;
@@ -44,26 +37,33 @@ import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.codec.OpaqueRequestFrame;
 import io.kroxylicious.testing.integration.server.MockServer;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
+import io.kroxylicious.testing.kafka.common.KeystoreManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class KafkaClientTest {
 
-    private KeytoolCertificateGenerator downstreamCertificateGenerator;
-    private Path clientTrustStore;
+    private record KeystoreTrustStorePair(String brokerKeyStore, KeyStore keyStoreInstance, String clientTrustStore, String password) {}
 
-    @TempDir
-    private Path certsDirectory;
+    private static KeystoreTrustStorePair buildKeystoreTrustStorePair() throws Exception {
+        var keystoreManager = new KeystoreManager();
+        String dn = keystoreManager.buildDistinguishedName("test@kroxylicious.io", "localhost", "KI", "kroxylicious.io", null, null, "US");
+        var bundle = keystoreManager.createSelfSignedCertificate(keystoreManager.newCertificateBuilder(dn));
+        Path keystorePath = keystoreManager.generateCertificateFile(bundle);
+        String password = keystoreManager.getPassword(keystorePath);
+        // The generated JKS contains both the private key entry and the CA cert,
+        // so the same file serves as both the proxy keystore and the client truststore.
+        String keystore = keystorePath.toAbsolutePath().toString();
+        KeyStore keyStoreInstance = bundle.toKeyStore(password.toCharArray());
+
+        return new KeystoreTrustStorePair(keystore, keyStoreInstance, keystore, password);
+    }
+
+    private KeystoreTrustStorePair downstreamKeystoreTrustStorePair;
 
     @BeforeEach
     void beforeEach() throws Exception {
-        // Note that the KeytoolCertificateGenerator generates key stores that are PKCS12 format.
-        this.downstreamCertificateGenerator = new KeytoolCertificateGenerator();
-        this.downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", "KI", "kroxylicious.io", null, null, "US");
-        this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
-        this.downstreamCertificateGenerator.generateTrustStore(this.downstreamCertificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
+        this.downstreamKeystoreTrustStorePair = buildKeystoreTrustStorePair();
     }
 
     @Test
@@ -134,8 +134,7 @@ class KafkaClientTest {
     @Test
     void shouldWorkWithTls() throws Exception {
         shouldWorkWithTls(SslContextBuilder.forClient()
-                .trustManager(
-                        trustManagerFactory(clientTrustStore.toFile(), downstreamCertificateGenerator.getKeyStoreType(), downstreamCertificateGenerator.getPassword()))
+                .trustManager(trustManagerFactory(downstreamKeystoreTrustStorePair))
                 .build());
     }
 
@@ -147,9 +146,9 @@ class KafkaClientTest {
     private void shouldWorkWithTls(SslContext clientSslContext) throws SSLException {
         var message = new ApiVersionsResponseData();
 
-        var file = new File(downstreamCertificateGenerator.getKeyStoreLocation());
+        var file = new File(downstreamKeystoreTrustStorePair.brokerKeyStore());
         var serverSslContext = SslContextBuilder
-                .forServer(keyManagerFactory(file, downstreamCertificateGenerator.getKeyStoreType(), downstreamCertificateGenerator.getPassword())).build();
+                .forServer(keyManagerFactory(file, downstreamKeystoreTrustStorePair.password())).build();
 
         var serverResponse = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message);
 
@@ -163,10 +162,10 @@ class KafkaClientTest {
         }
     }
 
-    private KeyManagerFactory keyManagerFactory(File storeFile, String keyStoreType, String password) {
+    private KeyManagerFactory keyManagerFactory(File storeFile, String password) {
         try {
             var passwordChars = Optional.ofNullable(password).map(String::toCharArray).orElse(null);
-            var keyStore = loadKeyStore(storeFile, keyStoreType, passwordChars);
+            var keyStore = downstreamKeystoreTrustStorePair.keyStoreInstance();
             var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             keyManagerFactory.init(keyStore, passwordChars);
             return keyManagerFactory;
@@ -176,32 +175,15 @@ class KafkaClientTest {
         }
     }
 
-    private TrustManagerFactory trustManagerFactory(File storeFile, String keyStoreType, String password) {
-
+    private TrustManagerFactory trustManagerFactory(KeystoreTrustStorePair keystoreTrustStorePair) {
         try {
-            var passwordChars = Optional.ofNullable(password).map(String::toCharArray).orElse(null);
-            var keyStore = loadKeyStore(storeFile, keyStoreType, passwordChars);
+            var keyStore = keystoreTrustStorePair.keyStoreInstance();
             var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             trustManagerFactory.init(keyStore);
             return trustManagerFactory;
         }
         catch (GeneralSecurityException e) {
-            throw new RuntimeException("Error building TrustManagerFactory from : " + storeFile, e);
-        }
-
-    }
-
-    private KeyStore loadKeyStore(File storeFile, String keyStoreType, char[] passwordChars) {
-        try (var is = new FileInputStream(storeFile)) {
-            var keyStore = KeyStore.getInstance(keyStoreType);
-            keyStore.load(is, passwordChars);
-            return keyStore;
-        }
-        catch (CertificateException | KeyStoreException | NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new RuntimeException("Error building TrustManagerFactory", e);
         }
     }
 }

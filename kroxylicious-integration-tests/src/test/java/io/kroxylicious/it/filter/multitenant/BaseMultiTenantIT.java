@@ -6,7 +6,6 @@
 
 package io.kroxylicious.it.filter.multitenant;
 
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Deque;
 import java.util.HashMap;
@@ -35,7 +34,6 @@ import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.filter.multitenant.MultiTenant;
 import io.kroxylicious.it.BaseIT;
@@ -46,7 +44,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -69,36 +66,30 @@ public abstract class BaseMultiTenantIT extends BaseIT {
     Map<String, Object> clientConfig;
 
     TestInfo testInfo;
-    KeytoolCertificateGenerator certificateGenerator;
-    @TempDir
-    Path certsDirectory;
+    KeystoreTrustStorePair keystoreTrustStorePair;
 
     @BeforeEach
     void beforeEach(TestInfo testInfo) throws Exception {
         this.testInfo = testInfo;
         // TODO: use a per-tenant server certificate.
-        this.certificateGenerator = new KeytoolCertificateGenerator();
-        this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
-                "KI", "RedHat", null, null, "US");
-        Path clientTrustStore = certsDirectory.resolve(certificateGenerator.getTrustStoreLocation());
-        this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client", clientTrustStore.toAbsolutePath().toString());
+        this.keystoreTrustStorePair = buildKeystoreTrustStorePair(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"));
         this.clientConfig = Map.of(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName(),
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword());
+                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, keystoreTrustStorePair.clientTrustStore(),
+                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, keystoreTrustStorePair.password());
     }
 
-    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator) {
-        return getConfig(cluster, certificateGenerator, (Map<String, Object>) null);
+    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeystoreTrustStorePair keystoreTrustStorePair) {
+        return getConfig(cluster, keystoreTrustStorePair, (Map<String, Object>) null);
     }
 
-    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, Map<String, Object> filterConfig) {
+    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeystoreTrustStorePair keystoreTrustStorePair, Map<String, Object> filterConfig) {
         var filterBuilder = new NamedFilterDefinitionBuilder("filter-1", MultiTenant.class.getName());
         Optional.ofNullable(filterConfig).ifPresent(filterBuilder::withConfig);
-        return getConfig(cluster, certificateGenerator, filterBuilder);
+        return getConfig(cluster, keystoreTrustStorePair, filterBuilder);
     }
 
-    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, NamedFilterDefinitionBuilder filterBuilder) {
+    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeystoreTrustStorePair keystoreTrustStorePair, NamedFilterDefinitionBuilder filterBuilder) {
         return new ConfigurationBuilder()
                 .addToVirtualClusters(new VirtualClusterBuilder()
                         .withName(TENANT_1_CLUSTER)
@@ -108,8 +99,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_1_PROXY_ADDRESS)
                                 .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
                                 .endKeyStoreKey()
                                 .endTls()
                                 .build())
@@ -122,8 +113,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(TENANT_2_PROXY_ADDRESS)
                                 .withNewTls()
                                 .withNewKeyStoreKey()
-                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                                .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
                                 .endKeyStoreKey()
                                 .endTls()
                                 .build())

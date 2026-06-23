@@ -11,7 +11,6 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,7 +43,6 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.integration.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
-import io.kroxylicious.testing.kafka.common.KeystoreManager;
 
 import static io.kroxylicious.it.HotReloadIT.VcSlot.INCOMING;
 import static io.kroxylicious.it.HotReloadIT.VcSlot.OUTGOING;
@@ -845,20 +843,5 @@ class HotReloadIT extends BaseIT {
                 ProducerConfig.RETRIES_CONFIG, 1,
                 ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG, 100,
                 ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 500);
-    }
-
-    private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {}
-
-    private static KeystoreTrustStorePair buildKeystoreTrustStorePair(String domain) throws Exception {
-        var keystoreManager = new KeystoreManager();
-        String dn = keystoreManager.buildDistinguishedName("test@kroxylicious.io", domain, "KI", "kroxylicious.io", null, null, "US");
-        var bundle = keystoreManager.createSelfSignedCertificate(
-                keystoreManager.newCertificateBuilder(dn));
-        Path keystorePath = keystoreManager.generateCertificateFile(bundle);
-        String password = keystoreManager.getPassword(keystorePath);
-        // The generated JKS contains both the private key entry and the CA cert,
-        // so the same file serves as both the proxy keystore and the client truststore.
-        String keystore = keystorePath.toAbsolutePath().toString();
-        return new KeystoreTrustStorePair(keystore, keystore, password);
     }
 }

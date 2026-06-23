@@ -81,7 +81,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void createAndDeleteTopic(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
@@ -111,7 +111,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void describeTopic(KafkaCluster cluster) {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var created = createTopics(admin, NEW_TOPIC_1);
@@ -127,7 +127,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void produceOne(KafkaCluster cluster) {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = buildTester(config)) {
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
@@ -136,14 +136,14 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     private KroxyliciousTester buildTester(ConfigurationBuilder config) {
         return KroxyliciousTesters.newBuilder(config)
-                .setTrustStoreLocation(this.certificateGenerator.getTrustStoreLocation())
-                .setTrustStorePassword(this.certificateGenerator.getPassword())
+                .setTrustStoreLocation(this.keystoreTrustStorePair.clientTrustStore())
+                .setTrustStorePassword(this.keystoreTrustStorePair.password())
                 .createDefaultKroxyliciousTester();
     }
 
     @Test
     void consumeOne(KafkaCluster cluster) {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
@@ -155,7 +155,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void consumeOneAndOffsetCommit(KafkaCluster cluster) {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
@@ -168,7 +168,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void alterOffsetCommit(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = buildTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
@@ -186,7 +186,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void deleteConsumerGroupOffsets(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = buildTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
@@ -201,7 +201,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void tenantTopicIsolation(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
@@ -216,7 +216,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     @ParameterizedTest
     @EnumSource
     void tenantConsumeWithGroup(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             createTopics(admin, NEW_TOPIC_1);
@@ -228,7 +228,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     @ParameterizedTest
     @EnumSource
     void tenantGroupIsolation(ConsumerStyle consumerStyle, KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
@@ -243,7 +243,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void describeGroup(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
@@ -260,7 +260,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void produceInTransaction(KafkaCluster cluster) {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             createTopics(admin, NEW_TOPIC_1);
@@ -272,7 +272,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void produceAndConsumeInTransaction(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             // put some records in an input topic
@@ -327,7 +327,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void describeTransaction(KafkaCluster cluster) {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config)) {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
                 createTopics(admin, NEW_TOPIC_1);
@@ -347,7 +347,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     @Test
     void tenantTransactionalIdIsolation(KafkaCluster cluster) throws Exception {
-        var config = getConfig(cluster, this.certificateGenerator);
+        var config = getConfig(cluster, this.keystoreTrustStorePair);
         try (var tester = kroxyliciousTester(config);
                 var adminTenant1 = tester.admin(TENANT_1_CLUSTER, this.clientConfig);
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
@@ -370,7 +370,7 @@ class MultiTenantIT extends BaseMultiTenantIT {
     @Test
     void tenantPrefixUsingCustomSeparator(KafkaCluster cluster, KafkaAdminClient directAdmin) {
         var separator = ".";
-        var config = getConfig(cluster, this.certificateGenerator, Map.of("prefixResourceNameSeparator", separator));
+        var config = getConfig(cluster, this.keystoreTrustStorePair, Map.of("prefixResourceNameSeparator", separator));
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             createTopics(admin, NEW_TOPIC_1);
