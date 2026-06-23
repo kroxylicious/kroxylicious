@@ -20,7 +20,7 @@ import io.apicurio.registry.rest.client.RegistryClient;
  */
 public abstract class RecordSchemaValidationBaseIT extends RecordValidationBaseIT {
 
-    protected static final String APICURIO_REGISTRY_IMAGE = "quay.io/apicurio/apicurio-registry:3.1.6@sha256:d0625211cebb1f58a2982df29cb0945249d8f88f37ccce9e162c0c12c2aea89e";
+    protected static final String APICURIO_REGISTRY_IMAGE = "quay.io/apicurio/apicurio-registry:3.3.0@sha256:30c34a50669a31d717ad0402c2a3b97041f44cdbf13604d6950a65d0370a82f9";
     protected static final String APICURIO_REGISTRY_API = "/apis/registry/v3";
     protected static final int CONTAINER_PORT = 8080;
 
