@@ -115,7 +115,7 @@ public interface EndpointGateway {
     /**
      * Returns the {@link BindingSelector} that determines how incoming connections on this
      * gateway's acceptor channels are matched to bindings. The default delegates to
-     * {@link BindingSelector#sni()} or {@link BindingSelector#portPerNode()} based on
+     * {@link BindingSelector.Sni} or {@link BindingSelector.PortPerNode} based on
      * whether this gateway {@linkplain #requiresServerNameIndication() requires SNI}.
      *
      * @return the binding selector for this gateway
