@@ -136,7 +136,10 @@ public class RouterChainFactory implements AutoCloseable {
                             + configType.getName() + " but provided with config of type "
                             + rd.config().getClass().getName());
         }
-        RouterFactoryContext context = createContext(vcName, routerName);
+        var routeNames = rd.routes().stream()
+                .map(RouteDefinition::name)
+                .collect(Collectors.toUnmodifiableSet());
+        RouterFactoryContext context = createContext(vcName, routerName, routeNames);
         Wrapper wrapper = new Wrapper(context, rd, factory);
         initialized.put(key, wrapper);
 
@@ -163,11 +166,14 @@ public class RouterChainFactory implements AutoCloseable {
                     "No router definition found for name: " + routerName
                             + " in virtual cluster: " + virtualClusterName);
         }
-        RouterFactoryContext context = createContext(virtualClusterName, routerName);
+        var routeNames = wrapper.routerDefinition.routes().stream()
+                .map(RouteDefinition::name)
+                .collect(Collectors.toUnmodifiableSet());
+        RouterFactoryContext context = createContext(virtualClusterName, routerName, routeNames);
         return wrapper.create(context);
     }
 
-    private RouterFactoryContext createContext(String vcName, String routerName) {
+    private RouterFactoryContext createContext(String vcName, String routerName, Set<String> routeNames) {
         return new RouterFactoryContext() {
             @Override
             public String virtualClusterName() {
@@ -192,7 +198,7 @@ public class RouterChainFactory implements AutoCloseable {
 
             @Override
             public Set<String> routeNames() {
-                return Set.of();
+                return routeNames;
             }
 
             @Override

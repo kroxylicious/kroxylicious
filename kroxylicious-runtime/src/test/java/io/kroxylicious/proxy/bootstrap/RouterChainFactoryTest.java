@@ -243,6 +243,7 @@ class RouterChainFactoryTest {
         try (var factory = new RouterChainFactory(pfr, List.of(vc), List.of(rd))) {
             assertThat(capturedContext.get().virtualClusterName()).isEqualTo("myVc");
             assertThat(capturedContext.get().routerName()).isEqualTo("myRouter");
+            assertThat(capturedContext.get().routeNames()).containsExactly("route1");
         }
     }
 
