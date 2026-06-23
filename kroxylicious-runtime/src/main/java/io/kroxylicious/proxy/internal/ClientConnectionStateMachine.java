@@ -44,7 +44,6 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -206,9 +205,6 @@ public class ClientConnectionStateMachine {
     private int clientMessagesInFlightCount;
 
     @Nullable
-    private RoutingResponseCallback routingResponseCallback;
-
-    @Nullable
     private Map<String, HostPort> routeTargets;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
@@ -337,10 +333,6 @@ public class ClientConnectionStateMachine {
         return clientSoftwareVersion;
     }
 
-    void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
-        this.routingResponseCallback = callback;
-    }
-
     @Nullable
     public Channel clientChannel() {
         return frontendHandler != null ? frontendHandler.clientChannel() : null;
@@ -450,9 +442,7 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(ServerConnectionStateMachine scsm,
                               Object msg) {
-        if (routingResponseCallback == null || !routingResponseCallback.onResponse(msg)) {
-            Objects.requireNonNull(frontendHandler).forwardToClient(msg);
-        }
+        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
 
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 

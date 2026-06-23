@@ -6,13 +6,9 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.FetchRequestData;
-import org.apache.kafka.common.message.FetchResponseData;
-import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -22,11 +18,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,43 +61,6 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void shouldCompletePendingFutureOnResponse() {
-        when(ccsm.clientChannel()).thenReturn(null);
-
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
-        channel = new EmbeddedChannel(handler);
-        when(ccsm.clientChannel()).thenReturn(channel);
-
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, future);
-
-        var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
-        var responseBody = new FetchResponseData();
-        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, responseHeader, responseBody);
-
-        handler.onResponse(responseFrame);
-
-        assertThat(future).isCompleted();
-        ApiMessage response = future.join();
-        assertThat(response).isEqualTo(responseBody);
-    }
-
-    @Test
-    void shouldNotFailWhenResponseHasNoPendingFuture() {
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
-        channel = new EmbeddedChannel(handler);
-        when(ccsm.clientChannel()).thenReturn(channel);
-
-        var responseHeader = new ResponseHeaderData().setCorrelationId(999);
-        var responseBody = new FetchResponseData();
-        var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, responseBody);
-
-        boolean handled = handler.onResponse(responseFrame);
-
-        assertThat(handled).isFalse();
-    }
-
-    @Test
     void shouldForwardStaticallyRoutedDecodedFrameViaForwardToRoute() {
         var staticRoutes = Map.of(ApiKeys.FETCH, "default");
         var handler = new RouterDispatchHandler(staticRoutes, ccsm);
@@ -135,59 +92,6 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void shouldReturnTrueFromOnResponseWhenPendingFutureExists() {
-        when(ccsm.clientChannel()).thenReturn(null);
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
-        channel = new EmbeddedChannel(handler);
-        when(ccsm.clientChannel()).thenReturn(channel);
-
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(channel, CORRELATION_ID, future);
-
-        var responseHeader = new ResponseHeaderData().setCorrelationId(CORRELATION_ID);
-        var responseFrame = new DecodedResponseFrame<>((short) 12, CORRELATION_ID, responseHeader, new FetchResponseData());
-
-        boolean handled = handler.onResponse(responseFrame);
-
-        assertThat(handled).isTrue();
-        assertThat(future).isCompleted();
-    }
-
-    @Test
-    void shouldReturnFalseFromOnResponseWhenNoPendingFuture() {
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
-        channel = new EmbeddedChannel(handler);
-        when(ccsm.clientChannel()).thenReturn(channel);
-
-        var responseHeader = new ResponseHeaderData().setCorrelationId(999);
-        var responseFrame = new DecodedResponseFrame<>((short) 12, 999, responseHeader, new FetchResponseData());
-
-        boolean handled = handler.onResponse(responseFrame);
-
-        assertThat(handled).isFalse();
-    }
-
-    @Test
-    void shouldRegisterAndRetrievePendingResponses() {
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
-        channel = new EmbeddedChannel(handler);
-
-        CompletableFuture<ApiMessage> future1 = new CompletableFuture<>();
-        CompletableFuture<ApiMessage> future2 = new CompletableFuture<>();
-
-        RouterDispatchHandler.registerPendingResponse(channel, 1, future1);
-        RouterDispatchHandler.registerPendingResponse(channel, 2, future2);
-
-        when(ccsm.clientChannel()).thenReturn(channel);
-
-        var header1 = new ResponseHeaderData().setCorrelationId(1);
-        handler.onResponse(new DecodedResponseFrame<>((short) 12, 1, header1, new FetchResponseData()));
-
-        assertThat(future1).isCompleted();
-        assertThat(future2).isNotCompleted();
-    }
-
-    @Test
     void shouldFallThroughToCcsmForOpaqueFrameNotInStaticRoutes() {
         var staticRoutes = Map.of(ApiKeys.PRODUCE, "default");
         var handler = new RouterDispatchHandler(staticRoutes, ccsm);
@@ -202,15 +106,5 @@ class RouterDispatchHandlerTest {
 
         verify(ccsm).onClientFilterChainComplete(opaqueFrame);
         buf.release();
-    }
-
-    @Test
-    void shouldReturnFalseFromOnResponseForNonDecodedFrame() {
-        var handler = new RouterDispatchHandler(Map.of(), ccsm);
-        channel = new EmbeddedChannel(handler);
-
-        boolean handled = handler.onResponse("not-a-decoded-response-frame");
-
-        assertThat(handled).isFalse();
     }
 }

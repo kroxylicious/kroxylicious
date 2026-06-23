@@ -1010,34 +1010,6 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void onResponseFromServerShouldNotForwardToClientWhenRoutingCallbackHandles() {
-        // Given
-        stateMachineInForwarding();
-        clientConnectionStateMachine.setRoutingResponseCallback(msg -> true);
-        var msg = metadataResponse();
-
-        // When
-        clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, msg);
-
-        // Then
-        verify(frontendHandler, never()).forwardToClient(any());
-    }
-
-    @Test
-    void onResponseFromServerShouldForwardToClientWhenRoutingCallbackDeclines() {
-        // Given
-        stateMachineInForwarding();
-        clientConnectionStateMachine.setRoutingResponseCallback(msg -> false);
-        var msg = metadataResponse();
-
-        // When
-        clientConnectionStateMachine.onResponseFromServer(serverConnectionStateMachine, msg);
-
-        // Then
-        verify(frontendHandler).forwardToClient(msg);
-    }
-
-    @Test
     void clientChannelShouldReturnNullBeforeClientActive() {
         // When / Then
         assertThat(clientConnectionStateMachine.clientChannel()).isNull();

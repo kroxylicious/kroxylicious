@@ -6,21 +6,15 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 
@@ -31,11 +25,9 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
  * directly to the {@link ClientConnectionStateMachine}; rejects any
  * request whose API key is not covered by the static routes.
  */
-public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implements RoutingResponseCallback {
+public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
-    private static final AttributeKey<Map<Integer, CompletableFuture<ApiMessage>>> PENDING_RESPONSES = AttributeKey.valueOf(RouterDispatchHandler.class,
-            "pendingResponses");
 
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
@@ -56,8 +48,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
                 return;
             }
             if (msg instanceof DecodedRequestFrame<?> decoded) {
-                dispatchDynamically(decoded);
-                return;
+                throw new IllegalStateException(
+                        "Dynamic routing is not supported. API key " + decoded.apiKey() + " is not covered by staticRoutes().");
             }
             LOGGER.atWarn()
                     .addKeyValue("sessionId", ccsm.sessionId())
@@ -67,40 +59,5 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter implemen
             return;
         }
         ccsm.onClientFilterChainComplete(msg);
-    }
-
-    private void dispatchDynamically(DecodedRequestFrame<?> frame) {
-        throw new IllegalStateException(
-                "Dynamic routing is not supported. API key " + frame.apiKey() + " is not covered by staticRoutes().");
-    }
-
-    @Override
-    public boolean onResponse(Object msg) {
-        if (msg instanceof DecodedResponseFrame<?> frame) {
-            int correlationId = frame.correlationId();
-            Map<Integer, CompletableFuture<ApiMessage>> pending = getPendingResponses(ccsm.clientChannel());
-            CompletableFuture<ApiMessage> future = pending.remove(correlationId);
-            if (future != null) {
-                future.complete(frame.body());
-                return true;
-            }
-        }
-        return false;
-    }
-
-    static void registerPendingResponse(Channel channel,
-                                        int correlationId,
-                                        CompletableFuture<ApiMessage> future) {
-        getPendingResponses(channel).put(correlationId, future);
-    }
-
-    private static Map<Integer, CompletableFuture<ApiMessage>> getPendingResponses(Channel channel) {
-        var attr = channel.attr(PENDING_RESPONSES);
-        Map<Integer, CompletableFuture<ApiMessage>> map = attr.get();
-        if (map == null) {
-            map = new ConcurrentHashMap<>();
-            attr.set(map);
-        }
-        return map;
     }
 }

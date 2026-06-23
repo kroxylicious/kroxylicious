@@ -279,7 +279,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 dp.setRouterDecodingRequirements(EnumSet.allOf(ApiKeys.class));
             }
             var dispatchHandler = new RouterDispatchHandler(staticRoutes, clientConnectionStateMachine);
-            clientConnectionStateMachine.setRoutingResponseCallback(dispatchHandler);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }
         else {
