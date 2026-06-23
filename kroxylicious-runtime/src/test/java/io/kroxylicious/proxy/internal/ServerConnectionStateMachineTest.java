@@ -129,7 +129,7 @@ class ServerConnectionStateMachineTest {
         new EmbeddedChannel(scsm.backendHandler());
 
         assertThat(scsm.serverMessagesInFlightCount).isEqualTo(1);
-        verify(ccsm).onServerConnectionActive(scsm);
+        verify(ccsm).onServerConnectionActive();
     }
 
     @Test
@@ -306,7 +306,7 @@ class ServerConnectionStateMachineTest {
 
         scsm.connect(new EmbeddedChannel());
 
-        verify(ccsm).onServerConnectionException(scsm, tcpFailure);
+        verify(ccsm).onServerConnectionException(tcpFailure);
         assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Closed.class);
     }
 
@@ -344,7 +344,7 @@ class ServerConnectionStateMachineTest {
 
         method.invoke(scsm, REMOTE, channel, pipeline);
 
-        verify(ccsm).onServerConnectionException(scsm, failure);
+        verify(ccsm).onServerConnectionException(failure);
     }
 
     @Test
@@ -367,7 +367,7 @@ class ServerConnectionStateMachineTest {
         scsm.requestTlsCredentials(supplier, supplierContext, REMOTE, channel, mock(ChannelPipeline.class));
 
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(ccsm).onServerConnectionException(any(ServerConnectionStateMachine.class), captor.capture());
+        verify(ccsm).onServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -393,7 +393,7 @@ class ServerConnectionStateMachineTest {
         scsm.requestTlsCredentials(supplier, supplierContext, REMOTE, channel, mock(ChannelPipeline.class));
 
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(ccsm).onServerConnectionException(any(ServerConnectionStateMachine.class), captor.capture());
+        verify(ccsm).onServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Failed to obtain TLS credentials")
@@ -412,7 +412,7 @@ class ServerConnectionStateMachineTest {
         scsm.handleTlsCredentialSupplierResult(null, null, REMOTE, channel, pipeline);
 
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(ccsm).onServerConnectionException(any(ServerConnectionStateMachine.class), captor.capture());
+        verify(ccsm).onServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("TLS credential supplier returned null");
@@ -431,7 +431,7 @@ class ServerConnectionStateMachineTest {
         scsm.handleTlsCredentialSupplierResult(badCreds, null, REMOTE, channel, pipeline);
 
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(ccsm).onServerConnectionException(any(ServerConnectionStateMachine.class), captor.capture());
+        verify(ccsm).onServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -450,7 +450,7 @@ class ServerConnectionStateMachineTest {
         scsm.applyTlsContextToChannel(badCreds, REMOTE, channel, pipeline);
 
         ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-        verify(ccsm).onServerConnectionException(any(ServerConnectionStateMachine.class), captor.capture());
+        verify(ccsm).onServerConnectionException(captor.capture());
         assertThat(captor.getValue())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Unexpected TlsCredentials implementation");
@@ -474,7 +474,7 @@ class ServerConnectionStateMachineTest {
         scsm.applyTlsContextToChannel(creds, REMOTE, channel, channel.pipeline());
 
         assertThat(channel.pipeline().get("ssl")).isNotNull();
-        verify(ccsm, never()).onServerConnectionException(any(), any());
+        verify(ccsm, never()).onServerConnectionException(any());
 
         channel.close();
     }

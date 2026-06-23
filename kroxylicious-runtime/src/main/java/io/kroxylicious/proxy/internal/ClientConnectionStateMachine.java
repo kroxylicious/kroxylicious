@@ -359,7 +359,7 @@ public class ClientConnectionStateMachine {
     /**
      * Notify the state machine when the server applies back pressure
      */
-    void onServerUnwritable(ServerConnectionStateMachine scsm) {
+    void onServerUnwritable() {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
             clientToProxyBackpressureTimer = Timer.start();
@@ -370,7 +370,7 @@ public class ClientConnectionStateMachine {
     /**
      * Notify the state machine when the server stops applying back pressure
      */
-    void onServerWritable(ServerConnectionStateMachine scsm) {
+    void onServerWritable() {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
             if (clientToProxyBackpressureTimer != null) {
@@ -407,7 +407,7 @@ public class ClientConnectionStateMachine {
     /**
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection is ready for RPC calls.
      */
-    void onServerConnectionActive(ServerConnectionStateMachine scsm) {
+    void onServerConnectionActive() {
         if (state() instanceof Forwarding) {
             kafkaSession.transitionTo(KafkaSessionState.NOT_AUTHENTICATED);
         }
@@ -440,8 +440,7 @@ public class ClientConnectionStateMachine {
      * upstream node and should be passed to the downstream client.
      * @param msg the object received from the upstream
      */
-    void onResponseFromServer(ServerConnectionStateMachine scsm,
-                              Object msg) {
+    void onResponseFromServer(Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
 
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
@@ -467,7 +466,7 @@ public class ClientConnectionStateMachine {
     /**
      * Callback from {@link ServerConnectionStateMachine} when reading the upstream batch is complete.
      */
-    void onServerReadComplete(ServerConnectionStateMachine scsm) {
+    void onServerReadComplete() {
         Objects.requireNonNull(frontendHandler).flushToClient();
     }
 
@@ -537,8 +536,7 @@ public class ClientConnectionStateMachine {
      * Callback from {@link ServerConnectionStateMachine} when the upstream connection has been disconnected.
      * @param disconnectCause the cause of the disconnection
      */
-    void onServerConnectionClosed(ServerConnectionStateMachine scsm,
-                                  DisconnectCause disconnectCause) {
+    void onServerConnectionClosed(DisconnectCause disconnectCause) {
         toClosed(null, disconnectCause);
     }
 
@@ -696,8 +694,7 @@ public class ClientConnectionStateMachine {
      * un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
      */
-    void onServerConnectionException(ServerConnectionStateMachine scsm,
-                                     @Nullable Throwable cause) {
+    void onServerConnectionException(@Nullable Throwable cause) {
         toClosed(cause);
     }
 

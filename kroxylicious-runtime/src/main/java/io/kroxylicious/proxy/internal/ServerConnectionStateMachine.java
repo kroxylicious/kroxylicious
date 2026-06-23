@@ -350,7 +350,7 @@ class ServerConnectionStateMachine {
             setState(connecting.toActive());
             proxyToServerConnectionToken.acquire();
             flushPendingRequests();
-            ccsm.onServerConnectionActive(this);
+            ccsm.onServerConnectionActive();
         }
         else {
             ccsm.illegalState("Server became active while not in the connecting state");
@@ -360,7 +360,7 @@ class ServerConnectionStateMachine {
     void onServerInactive() {
         if (!(state instanceof ServerConnectionState.Closed)) {
             toClosed();
-            ccsm.onServerConnectionClosed(this, ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
+            ccsm.onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
         }
     }
 
@@ -375,25 +375,25 @@ class ServerConnectionStateMachine {
                             : "exception from server channel, increase log level to DEBUG for stacktrace");
             proxyToServerErrorCounter.increment();
             toClosed();
-            ccsm.onServerConnectionException(this, cause);
+            ccsm.onServerConnectionException(cause);
         }
     }
 
     void onMessageFromServer(Object msg) {
         serverMessagesInFlightCount = Math.max(0, serverMessagesInFlightCount - 1);
-        ccsm.onResponseFromServer(this, msg);
+        ccsm.onResponseFromServer(msg);
     }
 
     void serverReadComplete() {
-        ccsm.onServerReadComplete(this);
+        ccsm.onServerReadComplete();
     }
 
     void onServerUnwritable() {
-        ccsm.onServerUnwritable(this);
+        ccsm.onServerUnwritable();
     }
 
     void onServerWritable() {
-        ccsm.onServerWritable(this);
+        ccsm.onServerWritable();
     }
 
     void sendRequest(Object msg) {
