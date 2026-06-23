@@ -30,16 +30,17 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
 
     public record Config(String route) {}
 
+    private Map<ApiKeys, String> allStatic;
+
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
+        allStatic = Arrays.stream(ApiKeys.values())
+                .collect(Collectors.toUnmodifiableMap(k -> k, k -> config.route()));
         return config;
     }
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
-        String route = config.route();
-        Map<ApiKeys, String> allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(

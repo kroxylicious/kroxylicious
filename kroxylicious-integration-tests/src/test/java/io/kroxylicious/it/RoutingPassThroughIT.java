@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,15 +84,16 @@ class RoutingPassThroughIT {
                         Map.of(ConsumerConfig.GROUP_ID_CONFIG, "routing-test",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
 
-            producer.send(new ProducerRecord<>(topic.name(), "key", "value"))
-                    .get(10, TimeUnit.SECONDS);
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key", "value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
 
             consumer.subscribe(Set.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records).hasSize(1);
-            var record = records.iterator().next();
-            assertThat(record.key()).isEqualTo("key");
-            assertThat(record.value()).isEqualTo("value");
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo("value");
         }
     }
 
