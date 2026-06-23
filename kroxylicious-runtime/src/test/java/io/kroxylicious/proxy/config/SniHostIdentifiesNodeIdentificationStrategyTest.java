@@ -60,6 +60,15 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
+    void canBuildStrategyWithPortZero() {
+        var bootstrap = HostPort.parse("boot:0");
+        var config = new SniHostIdentifiesNodeIdentificationStrategy(bootstrap.toString(), "mybroker-$(nodeId)");
+        assertThat(config.getBootstrapPort()).isZero();
+        var strategy = config.buildStrategy("my-cluster");
+        assertThat(strategy.getClusterBootstrapAddress()).isEqualTo(bootstrap);
+    }
+
+    @Test
     void missingBootstrap() {
         assertThatThrownBy(() -> new SniHostIdentifiesNodeIdentificationStrategy(null, "broker$(nodeId)-good"))
                 .isInstanceOf(IllegalArgumentException.class);
