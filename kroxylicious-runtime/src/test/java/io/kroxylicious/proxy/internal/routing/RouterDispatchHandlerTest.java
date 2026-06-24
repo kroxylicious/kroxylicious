@@ -24,7 +24,6 @@ import io.kroxylicious.proxy.router.Router;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RouterDispatchHandlerTest {
@@ -97,19 +96,18 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void shouldFallThroughToCcsmForOpaqueFrameNotInStaticRoutes() {
+    void shouldThrowForOpaqueFrameNotInStaticRoutes() {
         var staticRoutes = Map.of(ApiKeys.PRODUCE, "default");
         var handler = new RouterDispatchHandler(router, staticRoutes, ccsm);
         channel = new EmbeddedChannel(handler);
-        when(ccsm.sessionId()).thenReturn("test-session");
 
         var buf = Unpooled.buffer();
         var opaqueFrame = new OpaqueRequestFrame(
                 buf, (short) ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
 
-        channel.writeInbound(opaqueFrame);
-
-        verify(ccsm).onClientFilterChainComplete(opaqueFrame);
+        assertThatThrownBy(() -> channel.writeInbound(opaqueFrame))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Dynamic routing is not supported");
         buf.release();
     }
 }

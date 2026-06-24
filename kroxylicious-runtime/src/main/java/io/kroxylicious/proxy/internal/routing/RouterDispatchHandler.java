@@ -8,13 +8,10 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Map;
 
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
@@ -27,8 +24,6 @@ import io.kroxylicious.proxy.router.Router;
  * request whose API key is not covered by the static routes.
  */
 public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
 
     private final Router router;
     private final Map<ApiKeys, String> staticRoutes;
@@ -56,16 +51,8 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
                 ccsm.forwardToRoute(staticRoute, msg);
                 return;
             }
-            if (msg instanceof DecodedRequestFrame<?> decoded) {
-                throw new IllegalStateException(
-                        "Dynamic routing is not supported. API key " + decoded.apiKey() + " is not covered by staticRoutes().");
-            }
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("apiKey", apiKey)
-                    .log("Dynamically-routed API key arrived as opaque frame, forwarding to CCSM");
-            ccsm.onClientFilterChainComplete(msg);
-            return;
+            throw new IllegalStateException(
+                    "Dynamic routing is not supported. API key " + apiKey + " is not covered by staticRoutes().");
         }
         ccsm.onClientFilterChainComplete(msg);
     }
