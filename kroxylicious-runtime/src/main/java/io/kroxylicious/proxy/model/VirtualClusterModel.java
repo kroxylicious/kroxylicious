@@ -175,6 +175,11 @@ public class VirtualClusterModel implements AutoCloseable {
         this.routerName = routerName;
         this.routeDescriptors = routeDescriptors;
 
+        if (targetCluster == null && routerName == null) {
+            throw new IllegalConfigurationException(
+                    "Virtual cluster '" + clusterName + "' must specify either a targetCluster or a router");
+        }
+
         if (pluginFactoryRegistry != null && targetCluster != null) {
             TlsCredentialSupplierConfig definition = targetCluster.tls()
                     .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
