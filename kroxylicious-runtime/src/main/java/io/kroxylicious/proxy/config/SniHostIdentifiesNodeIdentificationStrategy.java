@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
 import io.kroxylicious.proxy.internal.net.BindingSpec;
 import io.kroxylicious.proxy.internal.net.RoutingSpec;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
@@ -66,6 +67,8 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     @JsonIgnore
     private final Integer advertisedPort;
     @JsonIgnore
+    private final boolean hasExplicitAdvertisedPort;
+    @JsonIgnore
     private final Integer bootstrapPort;
 
     @JsonIgnore
@@ -103,6 +106,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         bootstrapPort = maybeBootstrapPort.get();
         BrokerAddressPatternUtils.PatternAndPort patternAndPort = BrokerAddressPatternUtils.parse(advertisedBrokerAddressPattern);
         String brokerAddressPatternPart = patternAndPort.addressPattern();
+        hasExplicitAdvertisedPort = patternAndPort.port().isPresent();
         advertisedPort = patternAndPort.port().orElse(bootstrapPort);
 
         validatePortSpecifier(brokerAddressPatternPart, s -> {
@@ -293,13 +297,18 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         // --- AdvertisingSpec ---
 
         @Override
-        public String getAdvertisedBootstrapHost() {
-            return bootstrapAddress.host();
+        public HostPort advertiseBootstrap(VirtualNodeId virtualNodeId) {
+            return new HostPort(bootstrapAddress.host(), virtualNodeId.gateway().resolvePort(virtualNodeId));
         }
 
         @Override
-        public String getAdvertisedBrokerHost(int nodeId) throws IllegalArgumentException {
-            return BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId);
+        public HostPort advertiseBroker(VirtualNodeId virtualNodeId) throws IllegalArgumentException {
+            int nodeId = ((VirtualNodeId.Broker) virtualNodeId).nodeId();
+            String host = BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId);
+            if (hasExplicitAdvertisedPort) {
+                return new HostPort(host, advertisedPort);
+            }
+            return new HostPort(host, virtualNodeId.gateway().resolvePort(virtualNodeId));
         }
 
         // --- RoutingSpec ---

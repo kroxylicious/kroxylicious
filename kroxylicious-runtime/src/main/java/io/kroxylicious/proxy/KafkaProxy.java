@@ -357,7 +357,10 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationSucceeded(model.getClusterName()));
+            virtualClusterModels.forEach(model -> {
+                model.logVirtualClusterSummary();
+                virtualClusterRegistry.initializationSucceeded(model.getClusterName());
+            });
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");

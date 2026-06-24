@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -426,12 +427,12 @@ class EndpointRegistryTest {
     @Test
     void bindingAddressEndpointSeparation() throws Exception {
         var bindingAddress1 = Optional.of("127.0.0.1");
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"), false);
-        when(virtualClusterModel1.getBindAddress()).thenReturn(bindingAddress1);
+        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"),
+                false, false, Map.of(), new FixedBootstrapSelectionStrategy(0), bindingAddress1);
 
         var bindingAddress2 = Optional.of("192.168.0.1");
-        configureVirtualClusterMock(virtualClusterModel2, HostPort.parse("myhost:9192"), HostPort.parse("upstream2:9192"), false);
-        when(virtualClusterModel2.getBindAddress()).thenReturn(bindingAddress2);
+        configureVirtualClusterMock(virtualClusterModel2, HostPort.parse("myhost:9192"), HostPort.parse("upstream2:9192"),
+                false, false, Map.of(), new FixedBootstrapSelectionStrategy(0), bindingAddress2);
 
         var rf1 = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
@@ -884,19 +885,35 @@ class EndpointRegistryTest {
     }
 
     private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
-        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, Map.of(), new FixedBootstrapSelectionStrategy(0));
+        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, Map.of(), new FixedBootstrapSelectionStrategy(0), Optional.empty());
     }
 
-    private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+    private void configureVirtualClusterMock(EndpointGateway gateway, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
                                              Map<Integer, HostPort> discoveryAddressMap, BootstrapSelectionStrategy selectionStrategy) {
-        when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
-        when(cluster.isUseTls()).thenReturn(tls);
-        when(cluster.requiresServerNameIndication()).thenReturn(sni);
-        when(cluster.bindingSelector()).thenCallRealMethod();
-        when(cluster.discoveryAddressMap()).thenReturn(discoveryAddressMap);
+        configureVirtualClusterMock(gateway, downstreamBootstrap, upstreamBootstrap, tls, sni, discoveryAddressMap, selectionStrategy, Optional.empty());
+    }
+
+    private void configureVirtualClusterMock(EndpointGateway gateway, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+                                             Map<Integer, HostPort> discoveryAddressMap, BootstrapSelectionStrategy selectionStrategy,
+                                             Optional<String> bindAddress) {
+        when(gateway.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
+        when(gateway.isUseTls()).thenReturn(tls);
+        when(gateway.requiresServerNameIndication()).thenReturn(sni);
+        when(gateway.bindingSelector()).thenCallRealMethod();
+        when(gateway.discoveryAddressMap()).thenReturn(discoveryAddressMap);
+        when(gateway.getBindAddress()).thenReturn(bindAddress);
         var targetCluster = new TargetCluster(upstreamBootstrap.toString(), Optional.empty(), selectionStrategy);
-        when(cluster.targetCluster()).thenReturn(targetCluster);
-        when(cluster.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
+        when(gateway.targetCluster()).thenReturn(targetCluster);
+        when(gateway.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
+
+        var bindingSpec = mock(BindingSpec.class);
+        lenient().when(bindingSpec.getBootstrapBindAddress()).thenReturn(downstreamBootstrap);
+        lenient().when(bindingSpec.nodeBindAddresses()).thenReturn(discoveryAddressMap);
+        lenient().when(bindingSpec.getBindAddress()).thenReturn(bindAddress);
+        lenient().when(bindingSpec.getExclusivePorts()).thenReturn(Set.of());
+        lenient().when(bindingSpec.getSharedPorts()).thenReturn(Set.of());
+        lenient().when(bindingSpec.requiresServerNameIndication()).thenReturn(sni);
+        lenient().when(gateway.bindingSpec()).thenReturn(bindingSpec);
     }
 
     private void verifyVirtualClusterRegisterFuture(int expectedPort, boolean expectedTls, CompletableFuture<Endpoint> future) throws Exception {

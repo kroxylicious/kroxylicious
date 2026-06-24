@@ -89,8 +89,8 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
-    void shouldUseAdvertisingSpecHostAndResolvedPortWhenResolverBound() {
-        // Given - strategy implements AdvertisingSpec; a port resolver is bound
+    void shouldUseResolvedPortWhenResolverBound() {
+        // Given
         var strategy = new PortIdentifiesNodeIdentificationStrategy(
                 HostPort.parse("mybroker.example.com:9092"), null, null, null).buildStrategy("cluster");
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
@@ -101,7 +101,7 @@ class VirtualClusterListenerModelTest {
         // When
         var result = listener.getAdvertisedBrokerAddress(0);
 
-        // Then - host from AdvertisingSpec, port from resolver (not from configured strategy)
+        // Then
         assertThat(result.host()).isEqualTo("mybroker.example.com");
         assertThat(result.port()).isEqualTo(resolvedPort);
     }
@@ -122,29 +122,29 @@ class VirtualClusterListenerModelTest {
         // When
         listener.getAdvertisedBrokerAddress(0);
 
-        // Then - the resolver receives Broker(gateway, nodeId)
+        // Then
         assertThat(capturedVn[0]).isInstanceOf(VirtualNodeId.Broker.class);
         assertThat(((VirtualNodeId.Broker) capturedVn[0]).nodeId()).isEqualTo(0);
         assertThat(((VirtualNodeId.Broker) capturedVn[0]).gateway()).isSameAs(listener);
     }
 
     @Test
-    void shouldFallBackToLegacyWhenResolverNotBound() {
-        // Given - strategy implements AdvertisingSpec, but no port resolver bound
+    void shouldUseConfiguredPortWhenResolverNotBound() {
+        // Given
         var strategy = new PortIdentifiesNodeIdentificationStrategy(
                 HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
 
-        // When - no bindPortResolver() called
+        // When
         var result = listener.getAdvertisedBrokerAddress(0);
 
-        // Then - uses legacy getAdvertisedBrokerAddress (host:port from strategy)
-        assertThat(result).isEqualTo(new HostPort("broker", 9093)); // nodeStartPort defaults to bootstrapPort+1
+        // Then — pre-binding, strategy returns configured port
+        assertThat(result).isEqualTo(new HostPort("broker", 9093));
     }
 
     @Test
-    void shouldUseAdvertisingSpecHostAndResolvedPortForBootstrapAddress() {
-        // Given - strategy implements AdvertisingSpec; a port resolver is bound
+    void shouldUseResolvedPortForBootstrapWhenResolverBound() {
+        // Given
         var strategy = new PortIdentifiesNodeIdentificationStrategy(
                 HostPort.parse("mybroker.example.com:9092"), null, null, null).buildStrategy("cluster");
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
@@ -155,22 +155,22 @@ class VirtualClusterListenerModelTest {
         // When
         var result = listener.getClusterBootstrapAddress();
 
-        // Then - host from AdvertisingSpec, port from resolver (not configured port)
+        // Then
         assertThat(result.host()).isEqualTo("mybroker.example.com");
         assertThat(result.port()).isEqualTo(resolvedPort);
     }
 
     @Test
-    void shouldFallBackToLegacyForBootstrapAddressWhenResolverNotBound() {
-        // Given - strategy implements AdvertisingSpec, but no port resolver bound
+    void shouldUseConfiguredPortForBootstrapWhenResolverNotBound() {
+        // Given
         var strategy = new PortIdentifiesNodeIdentificationStrategy(
                 HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
 
-        // When - no bindPortResolver() called
+        // When
         var result = listener.getClusterBootstrapAddress();
 
-        // Then - uses configured bootstrap address from strategy
+        // Then
         assertThat(result).isEqualTo(new HostPort("broker", 9092));
     }
 

@@ -20,13 +20,18 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.kroxylicious.proxy.HostPortConverter;
 import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
 import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.RoutingSpec;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SniHostIdentifiesNodeIdentificationStrategyTest {
 
@@ -364,39 +369,89 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
     // AdvertisingSpec
 
     @Test
-    void shouldAdvertiseBootstrapHostWithoutPort() {
+    void advertiseBootstrapUsesGatewayResolvedPort() {
         // Given
         var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenReturn(1234);
 
         // When
-        var result = advertising.getAdvertisedBootstrapHost();
+        var result = advertising.advertiseBootstrap(new VirtualNodeId.Bootstrap(gateway));
 
-        // Then - host only, no port component
-        assertThat(result).isEqualTo("boot.kafka");
+        // Then — delegates port resolution to the gateway
+        assertThat(result).isEqualTo(new HostPort("boot.kafka", 1234));
     }
 
     @Test
-    void shouldAdvertiseBrokerHostWithNodeIdSubstituted() {
+    void advertiseBootstrapUsesResolvedPort() {
         // Given
         var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenReturn(55555);
 
         // When
-        var result = advertising.getAdvertisedBrokerHost(5);
-
-        // Then - host only, no port component regardless of configured port
-        assertThat(result).isEqualTo("broker-5.kafka");
-    }
-
-    @Test
-    void shouldSubstituteClusterNameInAdvertisedBrokerHost() {
-        // Given
-        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(virtualClusterName)-$(nodeId).kafka", "mycluster");
-
-        // When
-        var result = advertising.getAdvertisedBrokerHost(3);
+        var result = advertising.advertiseBootstrap(new VirtualNodeId.Bootstrap(gateway));
 
         // Then
-        assertThat(result).isEqualTo("broker-mycluster-3.kafka");
+        assertThat(result).isEqualTo(new HostPort("boot.kafka", 55555));
+    }
+
+    @Test
+    void advertiseBrokerSubstitutesNodeIdAndUsesGatewayResolvedPort() {
+        // Given — no explicit port in broker pattern, delegates to gateway
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenReturn(1234);
+
+        // When
+        var result = advertising.advertiseBroker(new VirtualNodeId.Broker(gateway, 5));
+
+        // Then — delegates port resolution to the gateway
+        assertThat(result).isEqualTo(new HostPort("broker-5.kafka", 1234));
+    }
+
+    @Test
+    void advertiseBrokerUsesResolvedPortWhenNoExplicitPortInPattern() {
+        // Given — no explicit port in broker pattern
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka", "cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenAnswer(inv -> {
+            VirtualNodeId.Broker broker = inv.getArgument(0);
+            return 45000 + broker.nodeId();
+        });
+
+        // When
+        var result = advertising.advertiseBroker(new VirtualNodeId.Broker(gateway, 5));
+
+        // Then — resolver provides the port, not the bootstrap port
+        assertThat(result).isEqualTo(new HostPort("broker-5.kafka", 45005));
+    }
+
+    @Test
+    void advertiseBrokerUsesExplicitPortFromPatternEvenWhenResolverAvailable() {
+        // Given — explicit port 9999 in broker address pattern (e.g. passthrough proxy)
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(nodeId).kafka:9999", "cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenReturn(88888);
+
+        // When
+        var result = advertising.advertiseBroker(new VirtualNodeId.Broker(gateway, 5));
+
+        // Then — explicit port from pattern takes precedence over resolver
+        assertThat(result).isEqualTo(new HostPort("broker-5.kafka", 9999));
+    }
+
+    @Test
+    void advertiseBrokerSubstitutesClusterName() {
+        // Given
+        var advertising = buildAdvertisingSpec("boot.kafka:1234", "broker-$(virtualClusterName)-$(nodeId).kafka", "mycluster");
+        var gateway = mock(EndpointGateway.class);
+
+        // When
+        var result = advertising.advertiseBroker(new VirtualNodeId.Broker(gateway, 3));
+
+        // Then
+        assertThat(result.host()).isEqualTo("broker-mycluster-3.kafka");
     }
 
     private static RoutingSpec buildRoutingSpec(String bootstrap, String pattern, String cluster) {

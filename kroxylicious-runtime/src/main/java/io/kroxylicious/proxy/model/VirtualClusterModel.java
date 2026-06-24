@@ -48,6 +48,7 @@ import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
@@ -522,10 +523,9 @@ public class VirtualClusterModel implements AutoCloseable {
         private final String name;
 
         /**
-         * Resolves the actual bound port for a given virtual node. Null until
-         * {@link #bindPortResolver(Function)} is called from {@code KafkaProxy.startup()}.
-         * When null, {@link #getAdvertisedBrokerAddress(int)} falls back to the legacy
-         * strategy delegation which uses the configured (possibly zero) port.
+         * Resolves the actual bound port for a given virtual node. Set by
+         * {@link #bindPortResolver(Function)} during {@code KafkaProxy.startup()},
+         * which also pushes the resolver into the strategy's {@link AdvertisingSpec}.
          */
         @Nullable
         private volatile Function<VirtualNodeId, Integer> portResolver = null;
@@ -571,10 +571,8 @@ public class VirtualClusterModel implements AutoCloseable {
 
         @Override
         public HostPort getClusterBootstrapAddress() {
-            var resolver = portResolver;
-            if (resolver != null && nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
-                var vn = new VirtualNodeId.Bootstrap(this);
-                return new HostPort(advertisingSpec.getAdvertisedBootstrapHost(), resolver.apply(vn));
+            if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                return advertisingSpec.advertiseBootstrap(new VirtualNodeId.Bootstrap(this));
             }
             return getNodeIdentificationStrategy().getClusterBootstrapAddress();
         }
@@ -624,13 +622,33 @@ public class VirtualClusterModel implements AutoCloseable {
             return name;
         }
 
-        /**
-         * Binds the port resolver used by {@link #getAdvertisedBrokerAddress(int)}.
-         * Called from {@code KafkaProxy.startup()} so that advertised ports reflect the
-         * actual OS-bound port rather than the configured (possibly zero) port.
-         *
-         * @param resolver maps a {@link VirtualNodeId} to its actual bound port
-         */
+        @Override
+        public BindingSpec bindingSpec() {
+            return (BindingSpec) nodeIdentificationStrategy;
+        }
+
+        @Override
+        public int resolvePort(VirtualNodeId virtualNodeId) {
+            var resolver = portResolver;
+            if (resolver != null) {
+                return resolver.apply(virtualNodeId);
+            }
+            int configuredPort;
+            if (virtualNodeId instanceof VirtualNodeId.Bootstrap) {
+                configuredPort = getNodeIdentificationStrategy().getClusterBootstrapAddress().port();
+            }
+            else if (virtualNodeId instanceof VirtualNodeId.Broker broker) {
+                configuredPort = getNodeIdentificationStrategy().getBrokerAddress(broker.nodeId()).port();
+            }
+            else {
+                throw new IllegalArgumentException("Unknown VirtualNodeId type: " + virtualNodeId);
+            }
+            if (configuredPort == 0) {
+                throw new IllegalStateException("Port resolver not bound yet and configured port is 0 (OS-assigned)");
+            }
+            return configuredPort;
+        }
+
         @Override
         public void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
             this.portResolver = Objects.requireNonNull(resolver);
@@ -643,10 +661,8 @@ public class VirtualClusterModel implements AutoCloseable {
 
         @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
-            var resolver = portResolver;
-            if (resolver != null && nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
-                var vn = new VirtualNodeId.Broker(this, nodeId);
-                return new HostPort(advertisingSpec.getAdvertisedBrokerHost(nodeId), resolver.apply(vn));
+            if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                return advertisingSpec.advertiseBroker(new VirtualNodeId.Broker(this, nodeId));
             }
             return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
         }

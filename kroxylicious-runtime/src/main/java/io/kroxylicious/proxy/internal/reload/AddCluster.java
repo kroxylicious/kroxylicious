@@ -114,6 +114,7 @@ final class AddCluster implements ClusterOperation {
                 .toArray(CompletableFuture[]::new);
         try {
             CompletableFuture.allOf(bindFutures).join();
+            model.logVirtualClusterSummary();
             virtualClusterRegistry.initializationSucceeded(clusterName());
             return Optional.empty();
         }

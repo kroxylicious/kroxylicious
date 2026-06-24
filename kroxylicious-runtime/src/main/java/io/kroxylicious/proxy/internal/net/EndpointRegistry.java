@@ -199,23 +199,25 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             return current.registrationStage();
         }
 
-        var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
+        var bindingSpec = virtualClusterModel.bindingSpec();
+        var bootstrapBindAddress = bindingSpec.getBootstrapBindAddress();
+        var key = Endpoint.createEndpoint(bindingSpec.getBindAddress(), bootstrapBindAddress.port(), virtualClusterModel.isUseTls());
         var bootstrapEndpointFuture = registerBinding(key,
-                virtualClusterModel.getClusterBootstrapAddress().host(),
+                bootstrapBindAddress.host(),
                 new BootstrapEndpointBinding(virtualClusterModel),
                 new VirtualNodeId.Bootstrap(virtualClusterModel)).toCompletableFuture();
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
-        // bind any discovery binding to the bootstrap address
-        var discoveryAddressesMapStage = allOfStage(virtualClusterModel.discoveryAddressMap()
+        // bind any discovery binding
+        var discoveryAddressesMapStage = allOfStage(bindingSpec.nodeBindAddresses()
                 .entrySet()
                 .stream()
                 .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
                 .map(e -> {
                     var nodeId = e.getKey();
                     var bhp = e.getValue();
-                    var discoveryEndpoint = new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls());
+                    var discoveryEndpoint = new Endpoint(bindingSpec.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls());
                     return registerBinding(discoveryEndpoint, bhp.host(),
                             new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId),
                             new VirtualNodeId.Broker(virtualClusterModel, nodeId));

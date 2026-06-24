@@ -125,17 +125,29 @@ public interface EndpointGateway {
     }
 
     /**
-     * Binds the port resolver that will be used by {@link #getAdvertisedBrokerAddress(int)} to
-     * look up the actual OS-bound port (which may differ from the configured port when port=0
-     * was used). Called from {@code KafkaProxy.startup()} before the first reconciliation.
-     * <p>
-     * The default no-op implementation is for gateways that do not support dynamic port resolution
-     * (e.g. test doubles that return fixed addresses).
+     * The binding specification describing what sockets this gateway needs.
+     *
+     * @return the binding spec
+     */
+    BindingSpec bindingSpec();
+
+    /**
+     * Resolves the actual bound port for the given virtual node.
+     *
+     * @param virtualNodeId the virtual node
+     * @return the actual bound port
+     * @throws IllegalStateException if the port cannot be resolved (e.g. port 0 before binding)
+     */
+    int resolvePort(VirtualNodeId virtualNodeId);
+
+    /**
+     * Binds the port resolver used by {@link #resolvePort(VirtualNodeId)}.
+     * Called from {@code KafkaProxy.startup()} after endpoint registration.
      *
      * @param resolver maps a {@link VirtualNodeId} to its actual bound port
      */
     default void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
-        // no-op for implementations that predate AdvertisingSpec or don't need port resolution
+        // no-op for implementations that predate port resolution
     }
 
 }

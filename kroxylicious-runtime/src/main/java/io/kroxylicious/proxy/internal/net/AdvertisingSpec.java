@@ -6,22 +6,10 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import io.kroxylicious.proxy.service.HostPort;
+
 /**
- * Describes what hostnames to advertise to Kafka clients in Metadata responses.
- * <p>
- * This interface is intentionally host-only: it has no knowledge of ports. The port
- * component of an advertised address always comes from {@link EndpointRegistry#resolvePort(VirtualNodeId)},
- * which returns the actual port the OS bound (resolving any port=0 configuration).
- * Keeping port out of this interface eliminates port=0 as a sentinel value in the
- * advertising path.
- * <p>
- * The caller ({@code VirtualClusterGatewayModel}) assembles the full {@code HostPort} by
- * combining the host from this spec with the port from the registry:
- * <pre>
- *     String host = spec.getAdvertisedBrokerHost(vn);
- *     int    port = registry.resolvePort(vn);
- *     return new HostPort(host, port);
- * </pre>
+ * Describes what addresses to advertise to Kafka clients in Metadata responses.
  * <p>
  * This is one of three views of a gateway's network configuration. See also
  * {@link BindingSpec} (what to bind) and {@link RoutingSpec} (how to identify connections).
@@ -29,22 +17,19 @@ package io.kroxylicious.proxy.internal.net;
 public interface AdvertisingSpec {
 
     /**
-     * Hostname to advertise for the bootstrap address.
-     * The actual port is resolved separately from the registry.
+     * The full advertised bootstrap address (host and port).
+     *
+     * @param virtualNodeId the bootstrap virtual node
+     * @return the bootstrap address to advertise to clients
      */
-    String getAdvertisedBootstrapHost();
+    HostPort advertiseBootstrap(VirtualNodeId virtualNodeId);
 
     /**
-     * Hostname to advertise for the given broker node.
-     * The actual port is resolved separately from the registry.
-     * <p>
-     * Uses {@code int nodeId} (the Kafka wire concept) rather than {@link VirtualNodeId}
-     * because strategies work in Kafka's addressing space; the caller enriches with
-     * gateway context to produce a {@link VirtualNodeId} for port resolution.
+     * The full advertised broker address (host and port) for the given node.
      *
-     * @param nodeId the Kafka node id whose hostname is needed
-     * @return hostname (not a full host:port) to put in Metadata responses for this node
-     * @throws IllegalArgumentException if no hostname can be produced for the given nodeId
+     * @param virtualNodeId the broker virtual node
+     * @return the broker address to advertise to clients for this node
+     * @throws IllegalArgumentException if no address can be produced for the given node
      */
-    String getAdvertisedBrokerHost(int nodeId) throws IllegalArgumentException;
+    HostPort advertiseBroker(VirtualNodeId virtualNodeId) throws IllegalArgumentException;
 }
