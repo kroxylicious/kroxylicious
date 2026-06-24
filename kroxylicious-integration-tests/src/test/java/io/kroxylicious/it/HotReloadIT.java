@@ -344,37 +344,40 @@ class HotReloadIT extends BaseIT {
     @Test
     void shouldSupportPortReuseAcrossReconfigures(@BrokerCluster KafkaCluster cluster) throws Exception {
         // Proves the bind/unbind machinery composes: a remove followed by an add in a
-        // later reconfigure works end-to-end.
+        // later reconfigure rebinds the SAME port end-to-end. Both VCs start on port 0
+        // so the OS assigns actual ports; we capture vc-original's bound port and
+        // reconfigure vc-new to reuse it explicitly after vc-original is removed.
         var startingConfig = portConfig(
                 portVc(cluster, "vc-retain"),
                 portVc(cluster, "vc-original"));
-        var afterRemove = portConfig(portVc(cluster, "vc-retain"));
-        var afterReadd = portConfig(
-                portVc(cluster, "vc-retain"),
-                portVc(cluster, "vc-new"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Given — both VCs serving.
+            // Given — both VCs serving; capture vc-original's OS-assigned port.
             assertProduceConsumeRoundTrip(tester, "vc-original", tester.createTopic("vc-original"), "given-original");
+            int reusedPort = boundPort(tester, "vc-original");
 
-            // When — first reconfigure removes vc-original.
-            LOGGER.info("First reconfigure: removing vc-original");
+            // When — first reconfigure removes vc-original, freeing the port.
+            var afterRemove = portConfig(portVc(cluster, "vc-retain"));
+            LOGGER.info("First reconfigure: removing vc-original (port {})", reusedPort);
             assertThat(tester.reconfigure(afterRemove))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
 
-            // When — second reconfigure adds vc-new.
-            LOGGER.info("Second reconfigure: adding vc-new");
+            // When — second reconfigure adds vc-new on the SAME port.
+            var afterReadd = portConfig(
+                    portVc(cluster, "vc-retain"),
+                    portVc(cluster, "vc-new", reusedPort));
+            LOGGER.info("Second reconfigure: adding vc-new on reused port {}", reusedPort);
             assertThat(tester.reconfigure(afterReadd))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
-                            .as("Second reconfigure should bind vc-new cleanly after the remove")
+                            .as("Second reconfigure should bind vc-new cleanly on the freed port")
                             .isFalse());
 
-            // Then — the newly-added VC is fully functional.
+            // Then — the newly-added VC is fully functional on the reused port.
             String newTopic = tester.createTopic("vc-new");
             assertProduceConsumeRoundTrip(tester, "vc-new", newTopic, "then-new");
         }
@@ -436,24 +439,21 @@ class HotReloadIT extends BaseIT {
         // (a runtime-observable field whose change `VirtualCluster.sameAs` reports as a modify
         // but which doesn't affect client behaviour, so the cluster keeps working).
         //
-        // An explicit port is needed because port 0 would cause the OS to assign a DIFFERENT
-        // actual port on rebind, which is not a same-port modify scenario.
-        int port;
-        try (var ss = new ServerSocket(0)) {
-            port = ss.getLocalPort();
-        }
-        var startingConfig = portConfig(portVc(cluster, "vc-modify", port));
-        var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-modify", port, true));
+        // Starts on port 0 so the OS assigns a port safely; after startup we capture the
+        // bound port and reconfigure with that explicit port to guarantee same-port rebind.
+        var startingConfig = portConfig(portVc(cluster, "vc-modify"));
 
         var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Given — VC serving on the discovered port.
+            // Given — VC serving on an OS-assigned port; capture it.
             String topic = tester.createTopic("vc-modify");
             assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "given-pre-modify");
+            int port = boundPort(tester, "vc-modify");
 
-            // When — reconfigure flips logNetwork (same port).
+            // When — reconfigure flips logNetwork, pinning the same port.
+            var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-modify", port, true));
             LOGGER.info("Reconfiguring to modify vc-modify (same port {}, logNetwork=true)", port);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
