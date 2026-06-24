@@ -64,13 +64,18 @@ import io.kroxylicious.it.testplugins.TopicNameMetadataPrefixer;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.internal.TopicNameRetriever;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTesterBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
@@ -129,7 +134,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             message.unknownTaggedFields().add(
@@ -138,6 +143,17 @@ abstract class AbstractFilterIT {
             // checking that the request/response flows through despite requesting an empty topic id list
             assertThat(response).isNotNull();
         }
+    }
+
+    @NonNull
+    private KroxyliciousTester createTester(ConfigurationBuilder config) {
+        Features features = getFeatures();
+        return new KroxyliciousTesterBuilder().setFeatures(features).setConfigurationBuilder(config).createDefaultKroxyliciousTester();
+    }
+
+    @NonNull
+    protected Features getFeatures() {
+        return Features.defaultFeatures();
     }
 
     @Test
@@ -150,7 +166,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             message.unknownTaggedFields().add(
@@ -172,7 +188,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             message.unknownTaggedFields().add(
@@ -193,7 +209,7 @@ abstract class AbstractFilterIT {
             proxy.addToFilterDefinitions(namedFilterDefinition)
                     .addToDefaultFilters(namedFilterDefinition.name());
             return proxy;
-        });
+        }, getFeatures());
                 var client = tester.simpleTestClient()) {
             Uuid topic1Id = Uuid.randomUuid();
             String topic1Name = "topic1";
@@ -233,7 +249,7 @@ abstract class AbstractFilterIT {
             proxy.addToFilterDefinitions(namedFilterDefinition)
                     .addToDefaultFilters(namedFilterDefinition.name());
             return proxy;
-        });
+        }, getFeatures());
                 var client = tester.simpleTestClient();
                 var client2 = tester.simpleTestClient()) {
             Uuid topic1Id = Uuid.randomUuid();
@@ -287,7 +303,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             Uuid nonexistentTopic = Uuid.randomUuid();
@@ -311,7 +327,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             Uuid nonexistentTopic = Uuid.randomUuid();
@@ -354,7 +370,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(topicNamePrefixer)
                 .addToDefaultFilters(filterOrder);
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var client = tester.simpleTestClient()) {
             MetadataRequestData message = new MetadataRequestData();
             message.unknownTaggedFields().add(
@@ -422,7 +438,7 @@ abstract class AbstractFilterIT {
     @Test
     void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Topic topic) throws Exception {
 
-        try (var tester = kroxyliciousTester(proxyConfig(cluster.getBootstrapServers()));
+        try (var tester = createTester(proxyConfig(cluster.getBootstrapServers()));
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester.consumer()) {
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();
@@ -444,7 +460,7 @@ abstract class AbstractFilterIT {
         String bootstrapServers = cluster.getBootstrapServers();
         String bootstrapServersContainingWhitespace = Arrays.stream(bootstrapServers.split(",")).collect(Collectors.joining("  ,  ", "  ", "  "));
         ConfigurationBuilder configBuilder = proxyConfig(bootstrapServersContainingWhitespace);
-        try (var tester = kroxyliciousTester(configBuilder);
+        try (var tester = createTester(configBuilder);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester.consumer()) {
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();
@@ -470,7 +486,7 @@ abstract class AbstractFilterIT {
                 .addToDefaultFilters(rejectingCreateTopicFilter().name());
 
         var topicName = UUID.randomUUID().toString();
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var proxyAdmin = tester.admin()) {
             assertCreatingTopicThrowsExpectedException(proxyAdmin, topicName);
 
@@ -484,7 +500,7 @@ abstract class AbstractFilterIT {
     void filtersCanImplementGenericRequestFilterAndSpecificResponseFilter() {
         try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxyConfig(mockBootstrap)
                 .addToFilterDefinitions(genericRequestSpecificResponse().build())
-                .addToDefaultFilters(genericRequestSpecificResponse().name()));
+                .addToDefaultFilters(genericRequestSpecificResponse().name()), getFeatures());
                 var simpleTestClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
             String clientIdHeader = "my-client";
@@ -504,7 +520,7 @@ abstract class AbstractFilterIT {
     void filtersCanImplementGenericResponseFilterAndSpecificRequestFilter() {
         try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxyConfig(mockBootstrap)
                 .addToFilterDefinitions(genericResponseSpecificRequest().build())
-                .addToDefaultFilters(genericResponseSpecificRequest().name()));
+                .addToDefaultFilters(genericResponseSpecificRequest().name()), getFeatures());
                 var simpleTestClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
             String clientIdHeader = "my-client";
@@ -537,7 +553,7 @@ abstract class AbstractFilterIT {
                 .build();
         try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxyConfig(mockBootstrap)
                 .addToFilterDefinitions(rejectFilter)
-                .addToDefaultFilters(rejectingCreateTopicFilter().name()));
+                .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
                 var requestClient = tester.simpleTestClient()) {
 
             if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
@@ -611,7 +627,7 @@ abstract class AbstractFilterIT {
                 .build();
         try (var tester = mockKafkaKroxyliciousTester(mockBootstrap -> proxyConfig(mockBootstrap)
                 .addToFilterDefinitions(markingFilter)
-                .addToDefaultFilters(name));
+                .addToDefaultFilters(name), getFeatures());
                 var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
             ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
@@ -649,7 +665,7 @@ abstract class AbstractFilterIT {
                 .addToDefaultFilters(rejectingCreateTopicFilter().name());
 
         var name = UUID.randomUUID().toString();
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var proxyAdmin = tester.admin()) {
             // loop because System.gc doesn't make any guarantees that the buffer will be collected
             for (int i = 0; i < 20; i++) {
@@ -688,7 +704,7 @@ abstract class AbstractFilterIT {
                 .addToFilterDefinitions(namedFilterDefinition)
                 .addToDefaultFilters(namedFilterDefinition.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
@@ -717,7 +733,7 @@ abstract class AbstractFilterIT {
 
         try (var tester = mockKafkaKroxyliciousTester(
                 s -> proxyConfig(s).addToFilterDefinitions(rejectingCreateTopicFilter().build())
-                        .addToDefaultFilters(rejectingCreateTopicFilter().name()));
+                        .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -740,7 +756,7 @@ abstract class AbstractFilterIT {
 
         try (var tester = mockKafkaKroxyliciousTester(
                 s -> proxyConfig(s).addToFilterDefinitions(rejectingCreateTopicFilter().build())
-                        .addToDefaultFilters(rejectingCreateTopicFilter().name()));
+                        .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -758,7 +774,7 @@ abstract class AbstractFilterIT {
 
         try (var tester = mockKafkaKroxyliciousTester(
                 s -> proxyConfig(s).addToFilterDefinitions(rejectingCreateTopicFilter().build())
-                        .addToDefaultFilters(rejectingCreateTopicFilter().name()));
+                        .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.dropWhen(zeroAckProduceRequestMatcher());
@@ -791,7 +807,7 @@ abstract class AbstractFilterIT {
 
         var expectedEncoded = encode(topic.name(), ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array();
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
@@ -814,7 +830,7 @@ abstract class AbstractFilterIT {
 
         var config = proxyConfig(cluster.getBootstrapServers());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.String(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
@@ -845,7 +861,7 @@ abstract class AbstractFilterIT {
                         .withConfig("transformation", TestDecoderFactory.class.getName()).build())
                 .addToDefaultFilters(filterDefinitionBuilder.name());
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = createTester(config);
                 var producer = tester.producer(Serdes.String(), Serdes.ByteArray(),
                         Map.of(CLIENT_ID_CONFIG, "shouldModifyFetchMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester.consumer()) {

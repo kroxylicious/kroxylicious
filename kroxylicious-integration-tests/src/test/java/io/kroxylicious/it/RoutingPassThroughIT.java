@@ -36,9 +36,12 @@ import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.server.MockServer;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -46,7 +49,6 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -56,6 +58,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 class RoutingPassThroughIT {
+
+    private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
 
     private static final String ROUTE_NAME = "default-route";
     private static final String ROUTER_NAME = "pass-through";
@@ -87,7 +91,7 @@ class RoutingPassThroughIT {
     void shouldProduceAndConsumeViaPassThroughRouter(KafkaCluster cluster, Topic topic) throws Exception {
         var config = routingConfig(cluster);
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var producer = tester.producer();
                 var consumer = tester.consumer(
                         Map.of(ConsumerConfig.GROUP_ID_CONFIG, "routing-test",
@@ -110,7 +114,7 @@ class RoutingPassThroughIT {
     void shouldListTopicsViaPassThroughRouter(KafkaCluster cluster, Topic topic) throws Exception {
         var config = routingConfig(cluster);
 
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var admin = tester.admin()) {
 
             var topics = admin.listTopics().names().get(10, TimeUnit.SECONDS);
@@ -149,7 +153,7 @@ class RoutingPassThroughIT {
         var topicName = "route-selection-test-" + UUID.randomUUID();
 
         // When: produce and consume through the proxy
-        try (var tester = kroxyliciousTester(config);
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var admin = tester.admin();
                 var producer = tester.producer();
                 var consumer = tester.consumer(
@@ -216,7 +220,7 @@ class RoutingPassThroughIT {
                     .addToRouterDefinitions(routerDef)
                     .addToVirtualClusters(vc);
 
-            try (var tester = kroxyliciousTester(config)) {
+            try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
                 // When: send API_VERSIONS (routed to upstream A) then FETCH (routed to upstream B)
                 // Use separate low-level clients so each gets its own proxy session.
                 try (var client = tester.simpleTestClient()) {

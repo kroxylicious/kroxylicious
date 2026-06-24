@@ -14,6 +14,10 @@ import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
@@ -44,5 +48,11 @@ class FilterRoutedIT extends AbstractFilterIT {
                 .addToClusterDefinitions(clusterDef)
                 .addToRouterDefinitions(routerDef)
                 .addToVirtualClusters(vc);
+    }
+
+    @NonNull
+    @Override
+    protected Features getFeatures() {
+        return Features.builder().enable(Feature.ROUTING).build();
     }
 }

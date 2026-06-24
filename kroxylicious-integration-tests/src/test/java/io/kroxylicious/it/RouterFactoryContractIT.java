@@ -21,12 +21,14 @@ import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -51,7 +53,8 @@ class RouterFactoryContractIT {
 
     @Test
     void shouldHonourRouterFactoryContract(KafkaCluster cluster) throws Exception {
-        try (var tester = kroxyliciousTester(contractConfig(cluster))) {
+        var routingEnabled = Features.builder().enable(Feature.ROUTING).build();
+        try (var tester = KroxyliciousTesters.newBuilder(contractConfig(cluster)).setFeatures(routingEnabled).createDefaultKroxyliciousTester()) {
 
             // -- initialize() contract --
             // initialize() is called once during proxy startup, before any connections.
