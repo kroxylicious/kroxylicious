@@ -34,7 +34,7 @@ jobs:
         java:
           - distro: 'temurin'
             version: '21'
-          - distro: 'corretto'
+          - distro: 'temurin'
             version: '25'
     steps:
       - name: Harden the runner (Audit all outbound calls)
