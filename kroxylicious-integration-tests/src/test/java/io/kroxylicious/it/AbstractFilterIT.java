@@ -80,7 +80,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.it.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.it.testplugins.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.it.testplugins.TopicIdToNameResponseStamper.topicNameMapping;
-import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 import static io.kroxylicious.testing.integration.tester.MockServerKroxyliciousTester.zeroAckProduceRequestMatcher;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
@@ -733,7 +732,8 @@ abstract class AbstractFilterIT {
 
         try (var tester = mockKafkaKroxyliciousTester(
                 s -> proxyConfig(s).addToFilterDefinitions(rejectingCreateTopicFilter().build())
-                        .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
+                        .addToDefaultFilters(rejectingCreateTopicFilter().name()),
+                getFeatures());
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -756,7 +756,8 @@ abstract class AbstractFilterIT {
 
         try (var tester = mockKafkaKroxyliciousTester(
                 s -> proxyConfig(s).addToFilterDefinitions(rejectingCreateTopicFilter().build())
-                        .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
+                        .addToDefaultFilters(rejectingCreateTopicFilter().name()),
+                getFeatures());
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -774,7 +775,8 @@ abstract class AbstractFilterIT {
 
         try (var tester = mockKafkaKroxyliciousTester(
                 s -> proxyConfig(s).addToFilterDefinitions(rejectingCreateTopicFilter().build())
-                        .addToDefaultFilters(rejectingCreateTopicFilter().name()), getFeatures());
+                        .addToDefaultFilters(rejectingCreateTopicFilter().name()),
+                getFeatures());
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.dropWhen(zeroAckProduceRequestMatcher());
