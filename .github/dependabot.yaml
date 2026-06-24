@@ -6,12 +6,14 @@
 version: 2
 updates:
   - package-ecosystem: "maven" # See documentation for possible values
+    rebase-strategy: "disabled" # Use manual rebasing to manage CI workload
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
     # Default limit is 5, which is tight for a large project with many dependencies
     open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
+    rebase-strategy: "disabled" # Use manual rebasing to manage CI workload
     directory: "/"
     schedule:
       # Check for updates to GitHub Actions every week
@@ -22,6 +24,7 @@ updates:
   # from the docs: For GitHub Actions, use the value /. Dependabot will search the /.github/workflows directory, as well as the action.yml/action.yaml file from the root directory.
   # we need custom configuration to scan the other directories that contain action.yaml files
   - package-ecosystem: "github-actions"
+    rebase-strategy: "disabled" # Use manual rebasing to manage CI workload
     # directories supports globbing
     directories: 
       - "/.github/actions/common/*"
