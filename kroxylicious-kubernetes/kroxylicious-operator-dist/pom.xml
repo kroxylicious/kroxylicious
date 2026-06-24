@@ -47,6 +47,30 @@
             <build>
                 <plugins>
                     <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-install-manifests</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.parent.basedir}/kroxylicious-operator/target</directory>
+                                            <includes>
+                                                <include>kroxylicious-operator-${project.version}-install.yaml</include>
+                                                <include>kroxylicious-operator-${project.version}-crds.yaml</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
                             <execution>
@@ -62,6 +86,46 @@
                                         <!-- Custom assembly descriptor -->
                                         <descriptor>src/assembly/asset.xml</descriptor>
                                     </descriptors>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>operator-examples</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <attach>true</attach>
+                                    <descriptors>
+                                        <descriptor>src/assembly/examples.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>build-helper-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-install-manifests</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>attach-artifact</goal>
+                                </goals>
+                                <configuration>
+                                    <artifacts>
+                                        <artifact>
+                                            <file>${project.build.directory}/kroxylicious-operator-${project.version}-install.yaml</file>
+                                            <type>yaml</type>
+                                            <classifier>install</classifier>
+                                        </artifact>
+                                        <artifact>
+                                            <file>${project.build.directory}/kroxylicious-operator-${project.version}-crds.yaml</file>
+                                            <type>yaml</type>
+                                            <classifier>crds</classifier>
+                                        </artifact>
+                                    </artifacts>
                                 </configuration>
                             </execution>
                         </executions>

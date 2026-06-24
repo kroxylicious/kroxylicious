@@ -31,6 +31,8 @@ Installation options and procedures are demonstrated using the example files inc
 
 include::../_modules/install/con-install-prereqs.adoc[leveloffset=+1]
 include::../_modules/install/con-install-product-downloads.adoc[leveloffset=+1]
+include::../_modules/install/proc-install-operator-rendered-manifests.adoc[leveloffset=+1]
+include::../_modules/install/proc-install-operator-crds-first.adoc[leveloffset=+1]
 include::../_modules/install/proc-install-operator.adoc[leveloffset=+1]
 ifdef::OpenShiftOnly[]
 include::../_modules/install/proc-install-operator-olm.adoc[leveloffset=+1]

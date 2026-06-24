@@ -139,27 +139,37 @@
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
                             <execution>
-                                <id>copy-kroxylicious-operator-zip</id>
+                                <id>copy-kroxylicious-operator-artifacts</id>
                                 <phase>pre-integration-test</phase>
                                 <goals>
                                     <goal>copy</goal>
                                 </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-operator-dist</artifactId>
+                                            <version>${project.version}</version>
+                                            <classifier>install</classifier>
+                                            <type>yaml</type>
+                                            <overWrite>false</overWrite>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
+                                            <destFileName>kroxylicious-operator-dist-install.yaml</destFileName>
+                                        </artifactItem>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-operator-dist</artifactId>
+                                            <version>${project.version}</version>
+                                            <classifier>examples</classifier>
+                                            <type>zip</type>
+                                            <overWrite>false</overWrite>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
+                                            <destFileName>kroxylicious-operator-dist-examples.zip</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
                             </execution>
                         </executions>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>io.kroxylicious</groupId>
-                                    <artifactId>kroxylicious-operator-dist</artifactId>
-                                    <version>${project.version}</version>
-                                    <type>zip</type>
-                                    <overWrite>false</overWrite>
-                                    <outputDirectory>${project.build.directory}/kroxylicious-operator-dist
-                                    </outputDirectory>
-                                    <destFileName>kroxylicious-operator.zip</destFileName>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
                     </plugin>
                     <plugin>
                         <artifactId>maven-failsafe-plugin</artifactId>

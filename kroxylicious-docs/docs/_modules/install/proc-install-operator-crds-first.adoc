@@ -1,0 +1,65 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// Module included in the following _assemblies:
+//
+// _assemblies/assembly-operator-install.adoc
+
+[id='proc-install-operator-crds-first-{context}']
+= Installing CRDs separately
+
+[role="_abstract"]
+This procedure shows how to install CustomResourceDefinitions (CRDs) separately from the operator deployment. This approach is useful when CRD installation requires cluster-admin permissions but operator installation can be performed by a namespace-scoped administrator.
+
+.Prerequisites
+
+* You need an account with permission to create and manage `CustomResourceDefinition` resources (typically cluster-admin) for the CRD installation step.
+* You need an account with permission to create resources in the `kroxylicious-operator` namespace for the operator installation step.
+
+.Procedure
+
+. Install the CustomResourceDefinitions:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-operator-crds-{KroxyliciousVersion}.yaml
+----
++
+This manifest contains only the CustomResourceDefinition resources.
+
+. Verify the CRDs are established:
++
+[source,shell,subs="+quotes"]
+----
+kubectl wait --for=condition=Established --timeout=60s crd kafkaproxies.kroxylicious.io
+----
+
+. Install the operator resources:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-operator-install-{KroxyliciousVersion}.yaml
+----
++
+NOTE: The full install manifest includes CRDs, so applying it after the CRDs are already installed is safe - Kubernetes will recognize the CRDs already exist.
+
+. Check the status of the deployment:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get deployments -n kroxylicious-operator
+----
++
+.Output shows the deployment name and readiness
+[source,shell,subs="+quotes"]
+----
+NAME                      READY  UP-TO-DATE  AVAILABLE
+kroxylicious-operator     1/1    1           1
+----
++
+The deployment is successful when the `AVAILABLE` output shows `1`.

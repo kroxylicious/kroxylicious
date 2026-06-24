@@ -461,13 +461,27 @@
                                 </goals>
                                 <configuration>
                                     <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                                    <!--suppress UnresolvedMavenProperty -->
-                                    <script>${rootdir}/kroxylicious-kubernetes/kroxylicious-operator/package_crds.java</script>
+                                    <script>${project.basedir}/package_crds.java</script>
                                     <args>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
-                                        <!--suppress UnresolvedMavenProperty -->
-                                        <arg>${rootdir}/kroxylicious-kubernetes/kroxylicious-operator/target/packaged/install</arg>
+                                        <arg>${project.basedir}/../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                    </args>
+                                </configuration>
+                            </execution>
+                            <!-- Concatenate manifests into single install files -->
+                            <execution>
+                                <id>create-install-manifests</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <script>${project.basedir}/concat_manifests.java</script>
+                                    <args>
+                                        <arg>${project.build.directory}/packaged/install</arg>
+                                        <arg>${project.build.directory}/kroxylicious-operator-${project.version}-install.yaml</arg>
+                                        <arg>${project.build.directory}/kroxylicious-operator-${project.version}-crds.yaml</arg>
+                                        <arg>${project.version}</arg>
                                     </args>
                                 </configuration>
                             </execution>

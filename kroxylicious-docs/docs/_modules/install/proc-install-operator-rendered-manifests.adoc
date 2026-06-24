@@ -1,0 +1,57 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// Module included in the following _assemblies:
+//
+// _assemblies/assembly-operator-install.adoc
+
+[id='proc-install-operator-rendered-manifests-{context}']
+= Installing the operator using rendered manifests (Recommended)
+
+[role="_abstract"]
+This procedure shows how to install the Kroxylicious Operator directly from GitHub releases using single-file rendered manifests. This is the recommended approach for production deployments and GitOps workflows.
+
+.Prerequisites
+
+* You need an account with permission to create and manage `CustomResourceDefinition` and RBAC (`ClusterRole`) resources.
+* Network access to GitHub releases.
+
+.Procedure
+
+. Install the Kroxylicious operator by applying the rendered manifest directly from the release:
++
+[source,shell,subs="+quotes,attributes+"]
+----
+kubectl apply -f https://github.com/kroxylicious/kroxylicious/releases/download/v{KroxyliciousVersion}/kroxylicious-operator-install-{KroxyliciousVersion}.yaml
+----
++
+This manifest includes all required resources: CustomResourceDefinitions, Namespace, ServiceAccount, ClusterRole, ClusterRoleBinding, and Deployment.
+
+. Check the status of the deployment:
++
+[source,shell,subs="+quotes"]
+----
+kubectl get deployments -n kroxylicious-operator
+----
++
+.Output shows the deployment name and readiness
+[source,shell,subs="+quotes"]
+----
+NAME                      READY  UP-TO-DATE  AVAILABLE
+kroxylicious-operator     1/1    1           1
+----
++
+`READY` shows the number of replicas that are ready/expected.
+The deployment is successful when the `AVAILABLE` output shows `1`.
+
+[role="_additional-resources"]
+.Additional resources
+
+* For GitOps deployments, you can reference this URL in your Kustomization resources.
+* For two-stage installation (installing CRDs separately), see xref:proc-install-operator-crds-first-{context}[Installing CRDs first].
+* For examples and configuration templates, download the xref:con-install-product-downloads-{context}[examples archive].

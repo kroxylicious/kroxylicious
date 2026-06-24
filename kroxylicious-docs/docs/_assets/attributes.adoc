@@ -40,9 +40,17 @@
 
 :AppAssetArtifactBase: kroxylicious-app-{KroxyliciousVersion}
 :OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+:OperatorInstallManifestFileName: kroxylicious-operator-dist-{KroxyliciousVersion}-install.yaml
+:OperatorCrdsManifestFileName: kroxylicious-operator-dist-{KroxyliciousVersion}-crds.yaml
+:OperatorExamplesZipFileName: kroxylicious-operator-dist-{KroxyliciousVersion}-examples.zip
+:OperatorExamplesTgzFileName: kroxylicious-operator-dist-{KroxyliciousVersion}-examples.tar.gz
 // TODO: Update when the admission webhook release artifact names are finalized
 :WebhookAssetZipFileName: kroxylicious-webhook-{KroxyliciousVersion}.zip
 :WebhookAssetTgzFileName: kroxylicious-webhook-{KroxyliciousVersion}.tar.gz
+:WebhookInstallManifestFileName: kroxylicious-admission-dist-{KroxyliciousVersion}-install.yaml
+:WebhookCrdsManifestFileName: kroxylicious-admission-dist-{KroxyliciousVersion}-crds.yaml
+:WebhookExamplesZipFileName: kroxylicious-admission-dist-{KroxyliciousVersion}-examples.zip
+:WebhookExamplesTgzFileName: kroxylicious-admission-dist-{KroxyliciousVersion}-examples.tar.gz
 :AppAssetZipFileName: {AppAssetArtifactBase}-bin.zip
 :OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 :AppAssetTgzFileName: {AppAssetArtifactBase}-bin.tar.gz
@@ -59,6 +67,14 @@
 :AppAssetZipLink: {github-release-downloads}/{AppAssetZipFileName}
 :AppAssetTgzLink: {github-release-downloads}/{AppAssetTgzFileName}
 :OperatorAssetZipLink: {github-release-downloads}/{OperatorAssetZipFileName}
+:OperatorInstallManifestLink: {github-release-downloads}/{OperatorInstallManifestFileName}
+:OperatorCrdsManifestLink: {github-release-downloads}/{OperatorCrdsManifestFileName}
+:OperatorExamplesZipLink: {github-release-downloads}/{OperatorExamplesZipFileName}
+:OperatorExamplesTgzLink: {github-release-downloads}/{OperatorExamplesTgzFileName}
+:WebhookInstallManifestLink: {github-release-downloads}/{WebhookInstallManifestFileName}
+:WebhookCrdsManifestLink: {github-release-downloads}/{WebhookCrdsManifestFileName}
+:WebhookExamplesZipLink: {github-release-downloads}/{WebhookExamplesZipFileName}
+:WebhookExamplesTgzLink: {github-release-downloads}/{WebhookExamplesTgzFileName}
 
 // GitHub source links
 :github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
