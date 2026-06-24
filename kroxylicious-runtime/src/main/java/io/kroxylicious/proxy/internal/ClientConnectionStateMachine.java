@@ -880,6 +880,10 @@ public class ClientConnectionStateMachine {
      * for both static and dynamic routing paths.
      */
     public void forwardToRoute(String routeName, Object msg) {
+        if (!virtualCluster().usesRouter()) {
+            throw new IllegalStateException(
+                    "forwardToRoute must not be called for a virtual cluster that does not use a router");
+        }
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
             HostPort target = routeTargets.get(routeName);
             if (target == null) {

@@ -68,6 +68,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -80,6 +81,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 @ExtendWith(MockitoExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -705,6 +707,12 @@ class ClientConnectionStateMachineTest {
                 argumentSet("Closed", (Runnable) this::stateMachineInClosed));
     }
 
+    private void stubAsRouterVirtualCluster() {
+        var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
+        when(routerVc.usesRouter()).thenReturn(true);
+        when(endpointGateway.virtualCluster()).thenReturn(routerVc);
+    }
+
     private void stateMachineInClientActive() {
         clientConnectionStateMachine.forceState(
                 new ClientConnectionState.ClientActive(),
@@ -917,8 +925,16 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
+    void forwardToRouteShouldThrowWhenVcDoesNotUseRouter() {
+        assertThatThrownBy(() -> clientConnectionStateMachine.forwardToRoute("any-route", new Object()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("does not use a router");
+    }
+
+    @Test
     void forwardToRouteShouldDispatchToCorrectScsm() {
         // Given
+        stubAsRouterVirtualCluster();
         var scsm1 = mock(ServerConnectionStateMachine.class);
         var scsm2 = mock(ServerConnectionStateMachine.class);
         var addr1 = new HostPort("host1", 9092);
@@ -944,6 +960,7 @@ class ClientConnectionStateMachineTest {
     @Test
     void forwardToRouteShouldShareScsmForRoutesWithSameTarget() {
         // Given
+        stubAsRouterVirtualCluster();
         var scsm = mock(ServerConnectionStateMachine.class);
         var addr = new HostPort("host1", 9092);
         var forwarding = new ClientConnectionState.Forwarding();
@@ -969,6 +986,7 @@ class ClientConnectionStateMachineTest {
     @Test
     void forwardToRouteWithUnknownRouteShouldTransitionToClosed() {
         // Given
+        stubAsRouterVirtualCluster();
         var forwarding = new ClientConnectionState.Forwarding();
         clientConnectionStateMachine.forceState(
                 forwarding,
@@ -988,6 +1006,7 @@ class ClientConnectionStateMachineTest {
     @Test
     void forwardToRouteNotInForwardingShouldTransitionToClosed() {
         // Given
+        stubAsRouterVirtualCluster();
         stateMachineInClientActive();
 
         // When
