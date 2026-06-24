@@ -54,6 +54,7 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
             throw new IllegalStateException(
                     "Dynamic routing is not supported. API key " + apiKey + " is not covered by staticRoutes().");
         }
-        ccsm.onClientFilterChainComplete(msg);
+        throw new IllegalStateException(
+                "Unexpected non-frame message in routing pipeline: " + msg.getClass().getName());
     }
 }

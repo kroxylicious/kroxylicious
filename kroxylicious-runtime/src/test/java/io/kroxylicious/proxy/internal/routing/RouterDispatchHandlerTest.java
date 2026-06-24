@@ -40,14 +40,13 @@ class RouterDispatchHandlerTest {
     private EmbeddedChannel channel;
 
     @Test
-    void shouldDelegateNonFrameMessagesToCcsm() {
+    void shouldThrowForNonFrameMessage() {
         var handler = new RouterDispatchHandler(router, Map.of(), ccsm);
         channel = new EmbeddedChannel(handler);
 
-        var nonFrame = "not-a-frame";
-        channel.writeInbound(nonFrame);
-
-        verify(ccsm).onClientFilterChainComplete(nonFrame);
+        assertThatThrownBy(() -> channel.writeInbound("not-a-frame"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected non-frame message");
     }
 
     @Test
