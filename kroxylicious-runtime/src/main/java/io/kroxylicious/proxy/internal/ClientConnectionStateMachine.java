@@ -472,6 +472,8 @@ public class ClientConnectionStateMachine {
 
     /**
      * A message has emerged from the Filter Chain and is ready to be forwarded to the upstream node.
+     * It is implicit that this client connection is directly associated with a single upstream, ie
+     * no Routing is in use.
      * <p>
      * This path is reachable in either {@link Forwarding} or {@link ClientConnectionState.Draining} —
      * the filter chain is asynchronous, so a request that entered the chain while we were
@@ -482,7 +484,7 @@ public class ClientConnectionStateMachine {
      *
      * @param msg the RPC received from the upstream
      */
-    public void onClientFilterChainComplete(Object msg) {
+    public void onDirectClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
             serverConnections.values().iterator().next().sendRequest(msg);
         }

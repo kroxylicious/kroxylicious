@@ -896,20 +896,20 @@ class ClientConnectionStateMachineTest {
         Object msg = new Object();
 
         // When
-        clientConnectionStateMachine.onClientFilterChainComplete(msg);
+        clientConnectionStateMachine.onDirectClientFilterChainComplete(msg);
 
         // Then
         verify(serverConnectionStateMachine).sendRequest(msg);
     }
 
     @Test
-    void onClientFilterChainCompleteNotInForwarding() {
+    void onDirectClientFilterChainCompleteNotInForwarding() {
         // Given
         stateMachineInClientActive();
         Object msg = new Object();
 
         // When
-        clientConnectionStateMachine.onClientFilterChainComplete(msg);
+        clientConnectionStateMachine.onDirectClientFilterChainComplete(msg);
 
         // Then
         assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
