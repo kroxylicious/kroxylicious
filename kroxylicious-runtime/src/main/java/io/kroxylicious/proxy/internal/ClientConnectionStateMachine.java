@@ -485,6 +485,10 @@ public class ClientConnectionStateMachine {
      * @param msg the RPC received from the upstream
      */
     public void onDirectClientFilterChainComplete(Object msg) {
+        if (virtualCluster().usesRouter()) {
+            throw new IllegalStateException(
+                    "onDirectClientFilterChainComplete must not be called for a virtual cluster that uses a router");
+        }
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
             serverConnections.values().iterator().next().sendRequest(msg);
         }
