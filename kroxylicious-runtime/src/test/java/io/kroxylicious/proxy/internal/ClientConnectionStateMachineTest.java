@@ -62,6 +62,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -929,6 +930,26 @@ class ClientConnectionStateMachineTest {
         assertThatThrownBy(() -> clientConnectionStateMachine.forwardToRoute("any-route", new Object()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("does not use a router");
+    }
+
+    @Test
+    void toForwardingWithRoutesShouldFailFastIfRouteBootstrapServerIsNull() {
+        // Given
+        stateMachineInClientActive();
+        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
+        when(targetCluster.bootstrapServer()).thenReturn(null);
+        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
+        when(routeDescriptor.targetsCluster()).thenReturn(true);
+        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
+        when(routerVc.usesRouter()).thenReturn(true);
+        when(routerVc.routeDescriptors()).thenReturn(Map.of("bad-route", routeDescriptor));
+        when(endpointGateway.virtualCluster()).thenReturn(routerVc);
+
+        // When / Then
+        assertThatThrownBy(() -> clientConnectionStateMachine.onClientRequest(metadataRequest()))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("bootstrapServer");
     }
 
     @Test
