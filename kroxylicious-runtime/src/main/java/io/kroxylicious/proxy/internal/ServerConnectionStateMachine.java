@@ -61,8 +61,8 @@ import static org.slf4j.LoggerFactory.getLogger;
  *
  * <pre>
  *     Connecting ──→ Active ────────────→ Closed
- *         │             │
- *         └─────────────┴──→ Closed (on error)
+ *         │             │            │
+ *         └─────────────┴────────────┴──→ Closed (on error)
  * </pre>
  */
 class ServerConnectionStateMachine {
