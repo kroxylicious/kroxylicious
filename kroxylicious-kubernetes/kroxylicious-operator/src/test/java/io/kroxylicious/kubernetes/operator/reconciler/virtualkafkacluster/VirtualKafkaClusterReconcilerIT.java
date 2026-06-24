@@ -15,9 +15,12 @@ import java.util.Set;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -67,6 +70,8 @@ import static org.awaitility.Awaitility.await;
 @SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 class VirtualKafkaClusterReconcilerIT {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconcilerIT.class);
+
     private static final String PROXY_A = "proxy-a";
     private static final String PROXY_B = "proxy-b";
     private static final String CLUSTER_BAR = "bar-cluster";
@@ -83,11 +88,41 @@ class VirtualKafkaClusterReconcilerIT {
     private static final SharedInformerManager sharedInformerManager = new SharedInformerManager(OperatorTestUtils.kubeClient(), Set.of());
 
     @RegisterExtension
-    static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
-            .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager))
-            .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
-            .replaceClusterRoleGlobs("*.ClusterRole*.yaml")
-            .build();
+    static LocalKroxyliciousOperatorExtension operator = buildOperatorWithBulkVKCs();
+
+    private static LocalKroxyliciousOperatorExtension buildOperatorWithBulkVKCs() {
+        var builder = LocalKroxyliciousOperatorExtension.builder()
+                .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager))
+                .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
+                .replaceClusterRoleGlobs("*.ClusterRole*.yaml");
+
+        // Create bulk VKCs before operator starts to slow down VKC informer (simulates CI scenario)
+        int bulkCount = Integer.parseInt(System.getProperty("test.bulk.vkc.count", "0"));
+        if (bulkCount > 0) {
+            builder.withBeforeStartHook(ext -> {
+                LOGGER.info("Creating {} bulk VKCs in namespace {} before operator starts (to reproduce #4165)", bulkCount, ext.getNamespace());
+                var client = OperatorTestUtils.kubeClient();
+                String namespace = ext.getNamespace();
+
+                for (int i = 0; i < bulkCount; i++) {
+                    client.resource(new VirtualKafkaClusterBuilder()
+                            .withNewMetadata()
+                            .withName("vkc-bulk-" + i)
+                            .withNamespace(namespace)
+                            .endMetadata()
+                            .withNewSpec()
+                            .withNewProxyRef().withName("nonexistent-proxy").endProxyRef()
+                            .withNewTargetKafkaServiceRef().withName("nonexistent-service").endTargetKafkaServiceRef()
+                            .withIngresses(new IngressesBuilder().withNewIngressRef().withName("foo").endIngressRef().build())
+                            .endSpec()
+                            .build()).create();
+                }
+                LOGGER.info("Created {} bulk VKCs successfully", bulkCount);
+            });
+        }
+
+        return builder.build();
+    }
 
     private ClusterUser clusterUser;
     private ExternalOperator externalOperator;
@@ -113,7 +148,7 @@ class VirtualKafkaClusterReconcilerIT {
         assertAllConditionsTrue(clusterBar);
     }
 
-    @Test
+    @RepeatedTest(50)
     void shouldNotResolveWhileProxyInitiallyAbsent() {
         // Given
         updateStatusObservedGeneration(clusterUser.create(clusterIpIngress(INGRESS_D, PROXY_A, TCP)));

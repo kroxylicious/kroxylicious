@@ -94,7 +94,8 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     private LocalKroxyliciousOperatorExtension(Builder builder) {
         this(builder,
                 () -> new LocallyRunningOperatorRbacHandler(builder.installManifestsDir, builder.clusterRoleGlobs.toArray(String[]::new)),
-                handler -> buildExtension(List.copyOf(builder.reconcilers), List.copyOf(builder.additionalCRDs), handler),
+                handler -> buildExtension(List.copyOf(builder.reconcilers), List.copyOf(builder.additionalCRDs), List.copyOf(builder.infrastructure),
+                        builder.beforeStartHook, handler),
                 LocalKroxyliciousOperatorExtension::preloadOperandImage);
     }
 
@@ -244,6 +245,8 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static LocallyRunOperatorExtension buildExtension(List<Reconciler<?>> reconcilers,
                                                               List<Class<?>> additionalCRDs,
+                                                              List<HasMetadata> infrastructure,
+                                                              @Nullable java.util.function.Consumer<LocallyRunOperatorExtension> beforeStartHook,
                                                               LocallyRunningOperatorRbacHandler rbacHandler) {
         var builder = LocallyRunOperatorExtension.builder()
                 .withKubernetesClient(rbacHandler.operatorClient())
@@ -256,6 +259,12 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
                 KafkaProxyIngress.class, KafkaProtocolFilter.class)
                 .forEach(builder::withAdditionalCustomResourceDefinition);
         additionalCRDs.forEach(crd -> builder.withAdditionalCustomResourceDefinition((Class) crd));
+        if (!infrastructure.isEmpty()) {
+            builder.withInfrastructure(infrastructure);
+        }
+        if (beforeStartHook != null) {
+            builder.withBeforeStartHook(beforeStartHook);
+        }
         return builder.build();
     }
 
@@ -303,6 +312,9 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         private final List<Executable> setupActions = new ArrayList<>();
         private final List<Executable> teardownActions = new ArrayList<>();
         private final List<Class<? extends HasMetadata>> additionalCleanupTypes = new ArrayList<>();
+        private final List<HasMetadata> infrastructure = new ArrayList<>();
+        @Nullable
+        private java.util.function.Consumer<LocallyRunOperatorExtension> beforeStartHook;
         private String installManifestsDir = DEFAULT_INSTALL_MANIFESTS_DIR;
         private final List<String> clusterRoleGlobs = new ArrayList<>(List.of(DEFAULT_CLUSTER_ROLE_GLOB));
 
@@ -355,6 +367,27 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
         @SafeVarargs
         public final Builder withAdditionalCleanupTypes(@NonNull Class<? extends HasMetadata>... types) {
             this.additionalCleanupTypes.addAll(Arrays.asList(types));
+            return this;
+        }
+
+        /**
+         * Registers infrastructure resources to create after namespace creation but before operator starts.
+         * Useful for creating many resources to stress informer caches during initial sync.
+         */
+        @SuppressWarnings("unused")
+        public Builder withInfrastructure(@NonNull List<HasMetadata> resources) {
+            this.infrastructure.addAll(resources);
+            return this;
+        }
+
+        /**
+         * Registers a hook to run after namespace and CRDs are ready but before operator starts.
+         * The hook receives the LocallyRunOperatorExtension, providing access to namespace and client.
+         * Useful for creating resources that should exist before informers begin syncing.
+         */
+        @SuppressWarnings("unused")
+        public Builder withBeforeStartHook(@NonNull java.util.function.Consumer<LocallyRunOperatorExtension> hook) {
+            this.beforeStartHook = hook;
             return this;
         }
 

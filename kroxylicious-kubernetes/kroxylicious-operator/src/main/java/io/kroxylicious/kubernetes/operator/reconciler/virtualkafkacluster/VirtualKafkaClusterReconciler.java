@@ -32,6 +32,7 @@ import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.health.InformerHealthIndicator;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
@@ -121,6 +122,9 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Override
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
+        // Enhanced logging for CI reproduction: log informer sync state
+        logInformerSyncState(context, cluster);
+
         ClusterResolutionResult clusterResolutionResult = resolver.resolveClusterRefs(cluster, context);
 
         UpdateControl<VirtualKafkaCluster> reconciliationResult;
@@ -152,6 +156,39 @@ public final class VirtualKafkaClusterReconciler implements
                     .log("Completed reconciliation");
         }
         return reconciliationResult;
+    }
+
+    /**
+     * Logs the sync state of all secondary informers for debugging CI race condition.
+     * TEMPORARY: For issue reproduction only.
+     */
+    private void logInformerSyncState(Context<VirtualKafkaCluster> context, VirtualKafkaCluster cluster) {
+        // EventSourceRetriever may be null in unit tests
+        if (context.eventSourceRetriever() == null) {
+            return;
+        }
+        logInformerStateForType(context, KafkaProxy.class, cluster);
+        logInformerStateForType(context, KafkaService.class, cluster);
+        logInformerStateForType(context, KafkaProxyIngress.class, cluster);
+        logInformerStateForType(context, KafkaProtocolFilter.class, cluster);
+    }
+
+    private <R> void logInformerStateForType(Context<VirtualKafkaCluster> context, Class<R> resourceType, VirtualKafkaCluster cluster) {
+        List<io.javaoperatorsdk.operator.processing.event.source.EventSource<R, VirtualKafkaCluster>> eventSources = context.eventSourceRetriever()
+                .getEventSourcesFor(resourceType);
+
+        for (io.javaoperatorsdk.operator.processing.event.source.EventSource<R, VirtualKafkaCluster> eventSource : eventSources) {
+            if (eventSource instanceof InformerHealthIndicator informerSource) {
+                LOGGER.atInfo()
+                        .addKeyValue(OperatorLoggingKeys.NAMESPACE, namespace(cluster))
+                        .addKeyValue(OperatorLoggingKeys.NAME, name(cluster))
+                        .addKeyValue("resourceType", resourceType.getSimpleName())
+                        .addKeyValue("hasSynced", informerSource.hasSynced())
+                        .addKeyValue("isRunning", informerSource.isRunning())
+                        .addKeyValue("isWatching", informerSource.isWatching())
+                        .log("INFORMER_SYNC_STATE");
+            }
+        }
     }
 
     private static void appendSecretsFromCertificateRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster updatedCluster,
