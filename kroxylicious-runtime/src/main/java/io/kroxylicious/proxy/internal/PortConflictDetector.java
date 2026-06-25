@@ -13,6 +13,9 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -23,6 +26,7 @@ import io.kroxylicious.proxy.service.HostPort;
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class PortConflictDetector {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PortConflictDetector.class);
     private static final String ANY_STRING = "<any>";
 
     private enum BindingScope {
@@ -47,6 +51,11 @@ public class PortConflictDetector {
 
     private record CandidateBinding(EndpointGateway gateway, int port, BindAddress bindAddress, BindingScope scope) {
         void validateNonConflicting(CandidateBinding other) {
+            // Port 0 means OS-assigned: the OS will bind to different ephemeral ports at runtime, so
+            // two port-0 gateways can never truly conflict and cannot be validated at configuration time.
+            if (port == 0 || other.port == 0) {
+                return;
+            }
             if (this.port == other.port && bindAddress.overlaps(other.bindAddress)) {
                 if (scope == BindingScope.EXCLUSIVE || other.scope == BindingScope.EXCLUSIVE) {
                     throw conflictException(other, "exclusive port collision");
@@ -87,9 +96,19 @@ public class PortConflictDetector {
      */
     public void validate(Collection<VirtualClusterModel> virtualClusterModelMap, Optional<HostPort> otherExclusivePort) {
         List<CandidateBinding> candidateBindings = candidateBindings(virtualClusterModelMap);
+        warnIfOsAssignedPorts(candidateBindings);
         validateCandidatesDoNotConflictWithOtherExclusivePort(candidateBindings, otherExclusivePort);
         validateSharedPortsRequireServerNameIndication(candidateBindings);
         validateCandidatesDoNotConflictWithEachOther(candidateBindings);
+    }
+
+    private static void warnIfOsAssignedPorts(List<CandidateBinding> candidateBindings) {
+        candidateBindings.stream()
+                .filter(binding -> binding.port() == 0)
+                .forEach(binding -> LOGGER.atWarn()
+                        .addKeyValue("virtualCluster", binding.gateway().virtualCluster().getClusterName())
+                        .addKeyValue("gateway", binding.gateway().name())
+                        .log("Gateway is configured with OS-assigned port (0). Advertised broker addresses will reflect the OS-assigned port rather than the configured value."));
     }
 
     private void validateSharedPortsRequireServerNameIndication(List<CandidateBinding> candidateBindings) {

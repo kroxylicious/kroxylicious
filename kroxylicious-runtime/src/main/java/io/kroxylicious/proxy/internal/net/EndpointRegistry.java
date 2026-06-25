@@ -202,19 +202,22 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
-        // bind any discovery binding to the bootstrap address
-        var discoveryAddressesMapStage = allOfStage(virtualClusterModel.discoveryAddressMap()
-                .entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
-                .map(e -> {
-                    var nodeId = e.getKey();
-                    var bhp = e.getValue();
-                    return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
-                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
-                }));
+        // When bootstrap is OS-assigned the node ports are relative to the resolved bootstrap port
+        // and cannot be computed until after the bootstrap binds. Sequence: bind bootstrap → resolve
+        // port (which notifies the strategy) → bind discovery addresses. For fixed-port bootstrap
+        // both steps can run in parallel since the node ports are known upfront.
+        CompletionStage<Void> discoveryBindingsStage;
+        if (key.port() == OS_ASSIGNED_PORT) {
+            discoveryBindingsStage = bootstrapEndpointFuture.thenCompose(ch -> {
+                virtualClusterModel.resolveActualPort(localPortFor(key.bindingAddress(), key.port()));
+                return bindDiscoveryAddresses(virtualClusterModel);
+            });
+        }
+        else {
+            discoveryBindingsStage = bindDiscoveryAddresses(virtualClusterModel);
+        }
 
-        bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
+        bootstrapEndpointFuture.thenCombine(discoveryBindingsStage, (bef, bps) -> bef)
                 .whenComplete((u, t) -> {
                     var future = vcr.registrationStage.toCompletableFuture();
                     if (t != null) {
@@ -226,6 +229,19 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 });
 
         return vcr.registrationStage();
+    }
+
+    private CompletionStage<Void> bindDiscoveryAddresses(EndpointGateway virtualClusterModel) {
+        return allOfStage(virtualClusterModel.discoveryAddressMap()
+                .entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> {
+                    var nodeId = e.getKey();
+                    var bhp = e.getValue();
+                    return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
+                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
+                }));
     }
 
     private static void handleSuccessfulBinding(CompletableFuture<Endpoint> bootstrapEndpointFuture, CompletableFuture<Endpoint> future) {
@@ -458,6 +474,16 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
     }
 
+    @VisibleForTesting
+    public int localPortFor(Optional<String> bindAddress, int port) {
+        return listeningChannels.entrySet().stream()
+                .filter(e -> e.getKey().bindingAddress().equals(bindAddress) && e.getKey().port() == port)
+                .findFirst()
+                .map(e -> ((InetSocketAddress) e.getValue().bindingStage().toCompletableFuture().join().localAddress()).getPort())
+                .orElseThrow(() -> new IllegalStateException(
+                        "No listening channel for (" + bindAddress.orElse("*") + ":" + port + ")"));
+    }
+
     private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding) {
         Objects.requireNonNull(key, "key cannot be null");
         Objects.requireNonNull(virtualClusterBinding, "virtualClusterBinding cannot be null");
@@ -488,6 +514,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         return lcr.bindingStage().thenApply(acceptorChannel -> {
+            acceptorChannel.attr(Endpoint.CONFIGURED_ENDPOINT).setIfAbsent(key);
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());

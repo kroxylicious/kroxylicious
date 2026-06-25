@@ -43,9 +43,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -95,6 +98,33 @@ class EndpointRegistryTest {
         verifyVirtualClusterRegisterFuture(DOWNSTREAM_BOOTSTRAP.port(), false, rf);
 
         assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+    }
+
+    @Test
+    void shouldBindBrokerPortsAfterBootstrapResolved() throws Exception {
+        // Given - bootstrap is OS-assigned (port 0); discovery addresses are unknown until bootstrap resolves
+        var osAssignedBootstrap = new HostPort("downstream-bootstrap", 0);
+        var resolvedBroker0 = new HostPort("downstream-broker0", 54322);
+        var resolvedBroker1 = new HostPort("downstream-broker1", 54323);
+        configureVirtualClusterMock(virtualClusterModel1, osAssignedBootstrap, UPSTREAM_BOOTSTRAP, false, false,
+                Map.of(), new FixedBootstrapSelectionStrategy(0));
+        // When bootstrap resolves, simulate the strategy updating its discovery map
+        doAnswer(invocation -> {
+            when(virtualClusterModel1.discoveryAddressMap()).thenReturn(Map.of(0, resolvedBroker0, 1, resolvedBroker1));
+            return null;
+        }).when(virtualClusterModel1).resolveActualPort(anyInt());
+
+        // When
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+
+        // Then: only the OS-assigned bootstrap bind is queued initially (discovery map is empty)
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(0, false));
+        // After the bootstrap binds, resolveActualPort fires → discovery addresses become known → those bind next
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(resolvedBroker0.port(), false),
+                createTestNetworkBindRequest(resolvedBroker1.port(), false));
+        assertThat(rf).isCompleted();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
     }
 
@@ -695,6 +725,42 @@ class EndpointRegistryTest {
     }
 
     @Test
+    void registerVirtualClusterWithOsAssignedPortCallsResolveActualPort() {
+        var bootstrapWithPortZero = new HostPort(DOWNSTREAM_BOOTSTRAP.host(), EndpointRegistry.OS_ASSIGNED_PORT);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapWithPortZero, UPSTREAM_BOOTSTRAP, false);
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+
+        int actualPort = 54321;
+        var channelMock = createMockNettyChannel(actualPort);
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), EndpointRegistry.OS_ASSIGNED_PORT, false, CompletableFuture.completedFuture(channelMock)));
+
+        assertThat(rf).succeedsWithin(Duration.ofSeconds(1));
+        verify(virtualClusterModel1).resolveActualPort(actualPort);
+    }
+
+    @Test
+    void resolveSucceedsForOsAssignedPortViaConfiguredEndpointAttribute() {
+        var bootstrapWithPortZero = new HostPort(DOWNSTREAM_BOOTSTRAP.host(), EndpointRegistry.OS_ASSIGNED_PORT);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapWithPortZero, UPSTREAM_BOOTSTRAP, false);
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+
+        int actualPort = 54321;
+        var channelMock = createMockNettyChannel(actualPort);
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), EndpointRegistry.OS_ASSIGNED_PORT, false, CompletableFuture.completedFuture(channelMock)));
+
+        assertThat(rf).succeedsWithin(Duration.ofSeconds(1));
+
+        // createEndpoint(Channel, boolean) reads the CONFIGURED_ENDPOINT attribute (port 0), enabling direct map lookup
+        assertThat(endpointRegistry.resolve(Endpoint.createEndpoint(EndpointRegistry.OS_ASSIGNED_PORT, false), null))
+                .succeedsWithin(Duration.ofSeconds(1))
+                .isEqualTo(new BootstrapEndpointBinding(virtualClusterModel1));
+    }
+
+    @Test
     void localPortForReturnsActualPortAfterBinding() throws Exception {
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
@@ -715,8 +781,8 @@ class EndpointRegistryTest {
 
     private Channel createMockNettyChannel(int port) {
         var channel = mock(Channel.class);
-        var attr = createTestAttribute(EndpointRegistry.CHANNEL_BINDINGS);
-        when(channel.attr(EndpointRegistry.CHANNEL_BINDINGS)).thenReturn(attr);
+        when(channel.attr(EndpointRegistry.CHANNEL_BINDINGS)).thenReturn(createTestAttribute(EndpointRegistry.CHANNEL_BINDINGS));
+        when(channel.attr(Endpoint.CONFIGURED_ENDPOINT)).thenReturn(createTestAttribute(Endpoint.CONFIGURED_ENDPOINT));
         var localAddress = InetSocketAddress.createUnresolved("localhost", port); // This is lenient because not all tests exercise the unbind path
         lenient().when(channel.localAddress()).thenReturn(localAddress);
         return channel;

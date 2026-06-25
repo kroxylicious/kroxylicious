@@ -29,7 +29,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     public static final String ADVERTISED_BROKER_ADDRESS_PATTERN = "broker$(nodeId).kafka.example.com";
 
     @Test
-    void brokerAddressSingleRange() {
+    void shouldReturnBrokerAddressForSingleRange() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN, null,
                 List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
@@ -38,7 +38,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void brokerAddressDefaultRange() {
+    void shouldReturnBrokerAddressForDefaultRange() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN, null,
                 null).buildStrategy("cluster");
@@ -50,7 +50,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void brokerAddressInferredFromBootstrapIfNotExplicitlySupplied() {
+    void shouldInferAdvertisedBrokerAddressFromBootstrap() {
         List<NamedRange> namedRangeSpecs = List.of(new NamedRange("brokers", 0, 2));
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 null, null,
@@ -60,7 +60,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void nodeAddressPatternCannotBeBlank() {
+    void shouldRejectBlankNodeAddressPattern() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 "", null,
                 null))
@@ -69,7 +69,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void nodeAddressPatternCannotContainUnexpectedReplacementPatterns() {
+    void shouldRejectNodeAddressPatternWithUnexpectedReplacementTokens() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 "node-$(typoedNodeId).broker.com", null,
                 null))
@@ -78,7 +78,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void nodeAddressPatternCannotContainVirtualClusterNameReplacementPattern() {
+    void shouldRejectNodeAddressPatternContainingVirtualClusterNameToken() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 "node-$(virtualClusterName).broker.com", null,
                 null))
@@ -87,7 +87,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void nodeAddressPatternCannotContainPort() {
+    void shouldRejectNodeAddressPatternContainingPortSpecifier() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 "localhost:8080", null,
                 null))
@@ -96,7 +96,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void computedNodeStartPortCannotBeLessThanOne() {
+    void shouldRejectNodeStartPortLessThanOne() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 "localhost", 0,
                 null))
@@ -105,7 +105,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void nodePortRangeCannotCollideWithBootstrapPort() {
+    void shouldRejectNodePortRangeThatCollidesWithBootstrapPort() {
         List<NamedRange> rangeSpecs = List.of(new NamedRange("brokers", 0, 3));
         HostPort bootstrapAddress = HostPort.parse(BOOTSTRAP_HOST + ":1235");
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(bootstrapAddress,
@@ -118,7 +118,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void getClusterBootstrap() {
+    void shouldReturnConfiguredBootstrapAddress() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 "broker$(nodeId).kafka.example.com",
                 1236,
@@ -127,7 +127,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void exclusivePortsSingleRange() {
+    void shouldReportExclusivePortsForSingleRange() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
@@ -136,7 +136,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void discoveryAddressMapSingleRange() {
+    void shouldPopulateDiscoveryAddressMapForSingleRange() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
@@ -148,7 +148,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void brokerAddressMultipleRanges() {
+    void shouldReturnBrokerAddressForMultipleRanges() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
@@ -160,7 +160,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void brokerAddressUnknownNodeId() {
+    void shouldThrowForUnknownNodeId() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
@@ -171,7 +171,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void discoveryAddressMapMultipleRanges() {
+    void shouldPopulateDiscoveryAddressMapForMultipleRanges() {
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
@@ -185,7 +185,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
         assertThat(strategy.discoveryAddressMap()).isEqualTo(expected);
     }
 
-    static Stream<Arguments> overlappingComputedNodeIdRangesAreInvalid() {
+    static Stream<Arguments> shouldRejectOverlappingNodeIdRanges() {
         Arguments twoRangesWithOverlap = Arguments.arguments(
                 List.of(new NamedRange("brokers", 0, 1), new NamedRange("controllers", 1, 1)),
                 "some nodeIdRanges collided (one or more node ids are duplicated in the following ranges): 'brokers:[0,1]' collides with 'controllers:[1,1]'");
@@ -202,7 +202,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
     @MethodSource
     @ParameterizedTest
-    void overlappingComputedNodeIdRangesAreInvalid(List<NamedRange> namedRangeSpecs, String expectedException) {
+    void shouldRejectOverlappingNodeIdRanges(List<NamedRange> namedRangeSpecs, String expectedException) {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
@@ -212,7 +212,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void rangesMustHaveUniqueNames() {
+    void shouldRejectDuplicateRangeNames() {
         List<NamedRange> nodeIdRanges = List.of(new NamedRange("brokers", 0, 1), new NamedRange("brokers", 1, 2));
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
@@ -223,7 +223,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void exclusivePortsMultipleRanges() {
+    void shouldReportExclusivePortsForMultipleRanges() {
         List<NamedRange> nodeIdRanges = List.of(new NamedRange("brokers", 0, 1), new NamedRange("controllers", 3, 4));
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
@@ -233,7 +233,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void allNodeIdsMustBeMappableToAValidPort() {
+    void shouldRejectConfigurationThatExceedsMaximumPortNumber() {
         List<NamedRange> ranges = List.of(new NamedRange("brokers", 0, 65534));
         HostPort bootstrapAddress = HostPort.parse(BOOTSTRAP_HOST + ":1");
         assertThatThrownBy(() -> {
@@ -247,7 +247,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void getBootstrapAddressFromConfig() {
+    void shouldExposeBootstrapAddress() {
         var bootstrapAddress = HostPort.parse(BOOTSTRAP);
         var config = new PortIdentifiesNodeIdentificationStrategy(bootstrapAddress,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
@@ -257,7 +257,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void canBuildNodeIdentificationStrategy() {
+    void shouldBuildNodeIdentificationStrategy() {
         var bootstrap = HostPort.parse("boot:1234");
         var config = new PortIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker", null, null);
         var strategy = buildNodeIdentificationStrategy(config);
@@ -265,7 +265,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void providesDefaultRange() {
+    void shouldUseDefaultNodeIdRangeWhenNotConfigured() {
         var bootstrap = HostPort.parse("boot:1234");
         var config = new PortIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker", null, null);
         var strategy = buildNodeIdentificationStrategy(config);
@@ -277,7 +277,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void respectsSingleRange() {
+    void shouldUseConfiguredSingleNodeIdRange() {
         var bootstrap = HostPort.parse("boot:1234");
         var config = new PortIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker", null, List.of(new NamedRange("foo", 10, 11)));
         var strategy = buildNodeIdentificationStrategy(config);
@@ -292,11 +292,69 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void respectsStartPort() {
+    void shouldUseConfiguredNodeStartPort() {
         var bootstrap = HostPort.parse("boot:1234");
         var config = new PortIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker", 1240, null);
         var strategy = buildNodeIdentificationStrategy(config);
         assertThat(strategy.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("mybroker:1240"));
+    }
+
+    @Test
+    void shouldOnlyReportBootstrapPortPriorToBinding() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 0),
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+        // When/Then - node ports are not known until bootstrap resolves; only port 0 reported
+        assertThat(strategy.getExclusivePorts()).containsExactly(0);
+    }
+
+    @Test
+    void shouldReturnEmptyDiscoveryMapPriorToBootstrapBinding() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 0),
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+        // When/Then - cannot compute node ports until the resolved bootstrap port is known
+        assertThat(strategy.discoveryAddressMap()).isEmpty();
+    }
+
+    @Test
+    void shouldAdvertiseBrokerPortsRelativeToResolvedBootstrapPort() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 0),
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+        // When
+        strategy.notifyBootstrapPortResolved(54321);
+        // Then - node ports are bootstrap + offset (same relationship as for fixed ports)
+        assertThat(strategy.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 54322));
+        assertThat(strategy.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 54323));
+        assertThat(strategy.getBrokerAddress(2)).isEqualTo(new HostPort("broker2.kafka.example.com", 54324));
+    }
+
+    @Test
+    void shouldPopulateDiscoveryMapRelativeToResolvedBootstrapPort() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 0),
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+        // When
+        strategy.notifyBootstrapPortResolved(54321);
+        // Then
+        assertThat(strategy.discoveryAddressMap()).isEqualTo(Map.of(
+                0, new HostPort("broker0.kafka.example.com", 54322),
+                1, new HostPort("broker1.kafka.example.com", 54323),
+                2, new HostPort("broker2.kafka.example.com", 54324)));
+    }
+
+    @Test
+    void shouldTreatExplicitNodeStartPortAsAbsoluteNotRelativeToBootstrap() {
+        // Given - explicitly configured nodeStartPort should be an absolute port, not an offset
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 0),
+                ADVERTISED_BROKER_ADDRESS_PATTERN, 5000, null).buildStrategy("cluster");
+        // When
+        strategy.notifyBootstrapPortResolved(54321);
+        // Then - node ports are the explicit absolute values, not relative to resolved bootstrap
+        assertThat(strategy.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 5000));
+        assertThat(strategy.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 5001));
+        assertThat(strategy.getExclusivePorts()).contains(0, 5000, 5001, 5002);
     }
 
     private NodeIdentificationStrategy buildNodeIdentificationStrategy(PortIdentifiesNodeIdentificationStrategy config) {

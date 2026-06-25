@@ -46,6 +46,7 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.util.Attribute;
 import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.config.CacheConfiguration;
@@ -122,6 +123,9 @@ class KafkaProxyInitializerTest {
         when(channel.closeFuture()).thenReturn(mock(ChannelFuture.class));
 
         when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
+        @SuppressWarnings("unchecked")
+        Attribute<Endpoint> noConfiguredEndpoint = mock(Attribute.class);
+        when(acceptingSocketChannel.attr(Endpoint.CONFIGURED_ENDPOINT)).thenReturn(noConfiguredEndpoint);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
     }
 
@@ -129,7 +133,7 @@ class KafkaProxyInitializerTest {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), logNetwork,
                 logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
-        testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
+        testCluster.addGateway("default", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
     }
@@ -342,7 +346,8 @@ class KafkaProxyInitializerTest {
         var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
         kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver);
         kafkaProxyInitializer.initChannel(embeddedChannel);
-        when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
+        Mockito.lenient().when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn")))
+                .thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
 
         // Using SNI test data from Netty
         // https://github.com/netty/netty/blob/57bea3bea22717639ba200432c81b23154e4bbd9/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java#L222
@@ -399,13 +404,11 @@ class KafkaProxyInitializerTest {
         assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
     }
 
-    @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               EndpointBindingResolver bindingResolver) {
         return createKafkaProxyInitializer(tls, ProxyProtocolMode.DISABLED, bindingResolver);
     }
 
-    @SuppressWarnings("DataFlowIssue")
     private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver) {

@@ -251,6 +251,21 @@ public class PortIdentifiesNodeIdentificationStrategy
 
     private class Strategy implements NodeIdentificationStrategy {
 
+        // When bootstrapAddress.port() == 0 and nodeStartPort == null, node ports are offsets
+        // from the bootstrap port rather than absolute port numbers. This field receives the
+        // resolved OS-assigned bootstrap port via notifyBootstrapPortResolved() so the offsets
+        // can be converted to actual ports.
+        private volatile int resolvedBootstrapPort;
+
+        private boolean isRelative() {
+            return bootstrapAddress.port() == 0 && nodeStartPort == null;
+        }
+
+        @Override
+        public void notifyBootstrapPortResolved(int resolvedPort) {
+            this.resolvedBootstrapPort = resolvedPort;
+        }
+
         @Override
         public HostPort getClusterBootstrapAddress() {
             return bootstrapAddress;
@@ -265,17 +280,25 @@ public class PortIdentifiesNodeIdentificationStrategy
                                         nodeId,
                                         bootstrapAddress));
             }
-            int port = nodeIdToPort.get(nodeId);
+            int offset = nodeIdToPort.get(nodeId);
+            int port = isRelative() ? resolvedBootstrapPort + offset : offset;
             return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(computedAdvertisedBrokerAddressPattern, nodeId), port);
         }
 
         @Override
         public Set<Integer> getExclusivePorts() {
-            return exclusivePorts;
+            // When node ports are relative to the OS-assigned bootstrap, the actual node ports
+            // are unknown until the bootstrap binds. Only the bootstrap port (0) is known upfront.
+            return isRelative() ? Set.of(0) : exclusivePorts;
         }
 
         @Override
         public Map<Integer, HostPort> discoveryAddressMap() {
+            // With relative node ports, return empty until the bootstrap port is resolved —
+            // the EndpointRegistry will call this again after notifyBootstrapPortResolved fires.
+            if (isRelative() && resolvedBootstrapPort == 0) {
+                return Map.of();
+            }
             return nodeIdToPort.keySet().stream()
                     .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
         }

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -462,6 +463,7 @@ public class VirtualClusterModel implements AutoCloseable {
         private final Optional<Tls> tls;
         private final Optional<SslContext> downstreamSslContext;
         private final String name;
+        private final AtomicInteger resolvedPort = new AtomicInteger(0);
 
         @VisibleForTesting
         VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name) {
@@ -543,18 +545,41 @@ public class VirtualClusterModel implements AutoCloseable {
         }
 
         @Override
-        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-            return getNodeIdentificationStrategy().getBrokerIdFromBrokerAddress(brokerAddress);
-        }
-
-        @Override
         public String name() {
             return name;
         }
 
         @Override
+        public void resolveActualPort(int actualPort) {
+            resolvedPort.set(actualPort);
+            nodeIdentificationStrategy.notifyBootstrapPortResolved(actualPort);
+        }
+
+        @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
-            return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
+            HostPort address = getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
+            int configuredPort = address.port();
+            if (configuredPort == 0) {
+                int actual = resolvedPort.get();
+                if (actual == 0) {
+                    throw new IllegalStateException(
+                            "Gateway '%s' cannot advertise broker address for node %d: OS-assigned port has not been resolved yet".formatted(name, nodeId));
+                }
+                return new HostPort(address.host(), actual);
+            }
+            return address;
+        }
+
+        @Override
+        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+            int configuredPort = nodeIdentificationStrategy.getClusterBootstrapAddress().port();
+            if (configuredPort == 0) {
+                int actual = resolvedPort.get();
+                if (actual != 0 && brokerAddress.port() == actual) {
+                    brokerAddress = new HostPort(brokerAddress.host(), 0);
+                }
+            }
+            return nodeIdentificationStrategy.getBrokerIdFromBrokerAddress(brokerAddress);
         }
 
         @Override

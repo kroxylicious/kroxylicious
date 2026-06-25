@@ -44,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class VirtualClusterListenerModelTest {
@@ -95,11 +96,54 @@ class VirtualClusterListenerModelTest {
 
     @Test
     void delegatesToStrategyForBrokerIdFromBrokerAddress() {
-        var mock = mock(NodeIdentificationStrategy.class);
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 9090));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
         var brokerAddress = new HostPort("broker", 55);
-        when(mock.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
+        when(strategy.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
         assertThat(listener.getBrokerIdFromBrokerAddress(brokerAddress)).isEqualTo(1);
+    }
+
+    @Test
+    void resolveActualPortNotifiesStrategy() {
+        // Given
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 0));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        // When
+        listener.resolveActualPort(54321);
+        // Then - strategy is notified so it can compute relative node ports
+        verify(strategy).notifyBootstrapPortResolved(54321);
+    }
+
+    @Test
+    void getBrokerIdNormalisesResolvedOsPortToZeroBeforeDelegating() {
+        // Given - strategy configured with OS-assigned bootstrap port; OS resolves it to 54321
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 0));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        listener.resolveActualPort(54321);
+        var normalised = new HostPort("broker", 0);
+        when(strategy.getBrokerIdFromBrokerAddress(normalised)).thenReturn(1);
+
+        // When - caller supplies the OS-assigned port in the broker address
+        // Then - port is normalised back to 0 before delegation so the strategy sees a stable address
+        assertThat(listener.getBrokerIdFromBrokerAddress(new HostPort("broker", 54321))).isEqualTo(1);
+    }
+
+    @Test
+    void getBrokerIdPassesThroughAddressUnchangedWhenPortDoesNotMatchResolved() {
+        // Given - strategy configured with OS-assigned bootstrap port; OS resolves it to 54321
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getClusterBootstrapAddress()).thenReturn(new HostPort("bootstrap", 0));
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        listener.resolveActualPort(54321);
+        var differentPort = new HostPort("broker", 9090);
+        when(strategy.getBrokerIdFromBrokerAddress(differentPort)).thenReturn(2);
+
+        // When - caller supplies a port that is not the OS-assigned port
+        // Then - address passes through unchanged
+        assertThat(listener.getBrokerIdFromBrokerAddress(differentPort)).isEqualTo(2);
     }
 
     @Test

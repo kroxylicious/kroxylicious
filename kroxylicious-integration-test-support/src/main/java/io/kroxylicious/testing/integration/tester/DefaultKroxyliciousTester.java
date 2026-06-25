@@ -129,7 +129,14 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     @NonNull
     public String getBootstrapAddress(String virtualCluster, String gateway) {
-        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig.get(), gateway);
+        return KroxyliciousConfigUtils.bootstrapAddressFor(
+                virtualCluster,
+                kroxyliciousConfig.get(),
+                gateway,
+                proxy instanceof KafkaProxy kp
+                        ? (bind, port) -> kp.listeningPort(bind.orElse(null), port)
+                        : (bind, port) -> port)
+                .toString();
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {
@@ -303,8 +310,37 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public void restartProxy() {
         try {
+            // Existing clients hold the originally resolved port. With OS-assigned (port 0) gateways
+            // the restarted proxy binds to a different ephemeral port, leaving those clients unable to
+            // reconnect. There is no safe transparent fix: the caller must use fixed ports when both
+            // restart and client reuse are required.
+            boolean hasOsAssignedPort = kroxyliciousConfig.get().virtualClusters().stream()
+                    .flatMap(vc -> vc.gateways().stream().map(g -> g.buildNodeIdentificationStrategy(vc.name())))
+                    .anyMatch(s -> s.getClusterBootstrapAddress().port() == 0);
+            if (hasOsAssignedPort) {
+                throw new IllegalStateException(
+                        "Cannot restart a proxy that uses OS-assigned (port 0) bootstrap ports: the restarted " +
+                                "proxy will bind to a different ephemeral port and existing clients will be unable to " +
+                                "reconnect. Use fixed ports in the gateway configuration when restartProxy() is needed.");
+            }
             proxy.close();
             proxy = spawnProxy(kroxyliciousConfig.get(), Features.defaultFeatures());
+        }
+        catch (IllegalStateException e) {
+            throw e;
+        }
+        catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Override
+    public void restartProxy(ConfigurationBuilder configForRestart) {
+        try {
+            var config = configForRestart.build();
+            proxy.close();
+            proxy = spawnProxy(config, Features.defaultFeatures());
+            kroxyliciousConfig.set(config);
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
