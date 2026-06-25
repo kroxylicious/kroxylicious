@@ -9,7 +9,7 @@ package io.kroxylicious.testing.filter.assertj;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 

@@ -6,8 +6,8 @@
 
 package io.kroxylicious.kafka.transform;
 
-import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.Record;
+import org.apache.kafka.common.record.internal.RecordBatch;
 
 @FunctionalInterface
 public interface RecordMapper<S, T> {

@@ -6,7 +6,7 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
-import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.proxy.filter.FilterContext;

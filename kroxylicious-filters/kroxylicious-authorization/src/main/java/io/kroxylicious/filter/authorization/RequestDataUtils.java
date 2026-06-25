@@ -10,8 +10,8 @@ import java.util.Iterator;
 import java.util.Objects;
 
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.record.RecordBatch;
-import org.apache.kafka.common.record.Records;
+import org.apache.kafka.common.record.internal.RecordBatch;
+import org.apache.kafka.common.record.internal.Records;
 import org.apache.kafka.common.requests.ProduceRequest;
 
 public class RequestDataUtils {

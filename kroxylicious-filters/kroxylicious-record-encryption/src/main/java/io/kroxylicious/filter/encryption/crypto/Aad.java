@@ -8,7 +8,7 @@ package io.kroxylicious.filter.encryption.crypto;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.RecordBatch;
 
 import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.AadSpec;

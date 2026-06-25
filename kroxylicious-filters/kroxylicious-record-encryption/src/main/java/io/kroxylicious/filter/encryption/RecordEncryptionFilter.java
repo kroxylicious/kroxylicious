@@ -32,8 +32,8 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.ShareFetchResponseData;
 import org.apache.kafka.common.message.ShareFetchResponseData.ShareFetchableTopicResponse;
 import org.apache.kafka.common.protocol.Errors;
-import org.apache.kafka.common.record.BaseRecords;
-import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.internal.BaseRecords;
+import org.apache.kafka.common.record.internal.MemoryRecords;
 import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
 import org.slf4j.Logger;
 

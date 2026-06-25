@@ -12,9 +12,9 @@ import java.util.OptionalLong;
 
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.CompressionType;
-import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
+import org.apache.kafka.common.record.internal.CompressionType;
+import org.apache.kafka.common.record.internal.RecordBatch;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 

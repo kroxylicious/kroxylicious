@@ -12,7 +12,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 import org.apache.kafka.common.utils.ByteBufferInputStream;
 
 import com.fasterxml.jackson.core.JsonParser;

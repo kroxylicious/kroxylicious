@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
-import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.RecordBatch;
+import org.apache.kafka.common.record.internal.MemoryRecords;
+import org.apache.kafka.common.record.internal.RecordBatch;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;

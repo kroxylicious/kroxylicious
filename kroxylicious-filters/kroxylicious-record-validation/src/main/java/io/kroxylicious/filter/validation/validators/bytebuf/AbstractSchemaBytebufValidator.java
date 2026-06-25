@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.kafka.common.record.Record;
+import org.apache.kafka.common.record.internal.Record;
 
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.Default4ByteIdHandler;
