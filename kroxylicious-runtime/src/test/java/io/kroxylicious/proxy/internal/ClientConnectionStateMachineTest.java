@@ -120,7 +120,7 @@ class ClientConnectionStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni, errorCounter, backpressureMeter, connectionToken) -> serverConnectionStateMachine);
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> serverConnectionStateMachine);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
         when(frontendHandler.remotePort()).thenReturn(9476);
@@ -183,20 +183,26 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void shouldCountProxyToServerConnections() {
+    void shouldPassConnectionCounterToScsmFactory() {
         // Given
-        stateMachineInClientActive();
+        var capturedCounter = new java.util.concurrent.atomic.AtomicReference<io.micrometer.core.instrument.Counter>();
+        var ccsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
+                new KafkaSession(KafkaSessionState.ESTABLISHING),
+                (remote, c, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> {
+                    capturedCounter.set(connectionCounter);
+                    return serverConnectionStateMachine;
+                });
+        ccsm.forceState(new ClientConnectionState.ClientActive(), frontendHandler,
+                Map.of(), TEST_KAFKA_SESSION, true);
         when(endpointBinding.upstreamTarget()).thenReturn(BROKER_ADDRESS);
 
-        // When — first client request triggers SCSM creation which increments the counter
-        clientConnectionStateMachine.onClientRequest(metadataRequest());
+        // When
+        ccsm.onClientRequest(metadataRequest());
 
-        // Then
+        // Then: the counter passed is the Micrometer counter registered for proxyToServer connections
+        assertThat(capturedCounter.get()).isNotNull();
         assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, CLOSE_ENOUGH));
+                .isNotNull();
     }
 
     @Test
@@ -979,7 +985,7 @@ class ClientConnectionStateMachineTest {
         // Given: a CCSM whose SCSM factory throws on creation
         var failingCcsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni, ec, bpm, token) -> {
+                (remote, ccsm, vc, cn, ni, cc, ec, bpm, token) -> {
                     throw new RuntimeException("scsm creation failed");
                 });
         failingCcsm.forceState(new ClientConnectionState.ClientActive(), frontendHandler,

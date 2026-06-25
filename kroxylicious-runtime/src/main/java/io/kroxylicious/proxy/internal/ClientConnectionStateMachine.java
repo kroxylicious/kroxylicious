@@ -824,7 +824,6 @@ public class ClientConnectionStateMachine {
     private void toForwarding(Forwarding forwarding,
                               HostPort remote) {
         setState(forwarding);
-        proxyToServerConnectionCounter.increment();
         var scsm = createServerConnection(remote);
         serverConnections.put(remote, scsm);
         var frontend = Objects.requireNonNull(frontendHandler);
@@ -843,6 +842,7 @@ public class ClientConnectionStateMachine {
                                             VirtualClusterModel virtualCluster,
                                             String clusterName,
                                             @Nullable Integer nodeId,
+                                            Counter proxyToServerConnectionCounter,
                                             Counter proxyToServerErrorCounter,
                                             Timer serverToProxyBackpressureMeter,
                                             ActivationToken proxyToServerConnectionToken);
@@ -861,7 +861,6 @@ public class ClientConnectionStateMachine {
                 HostPort target = Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
                         "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer");
                 serverConnections.computeIfAbsent(target, t -> {
-                    proxyToServerConnectionCounter.increment();
                     var newScsm = createServerConnection(t);
                     newScsm.connect(clientChannel);
                     return newScsm;
@@ -902,7 +901,7 @@ public class ClientConnectionStateMachine {
     @VisibleForTesting
     ServerConnectionStateMachine createServerConnection(HostPort remote) {
         return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId(),
-                proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
+                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
     }
 
     /**

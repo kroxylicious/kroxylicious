@@ -53,20 +53,19 @@ class ServerConnectionStateMachineTest {
     private static final String CLUSTER_NAME = "test-cluster";
 
     private ServerConnectionStateMachine createScsm() {
+        return createScsm(mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+    }
+
+    private ServerConnectionStateMachine createScsm(Counter connectionCounter, Counter errorCounter,
+                                                    Timer backpressureMeter, ActivationToken token) {
         var ccsm = mock(ClientConnectionStateMachine.class);
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
         var virtualCluster = mock(VirtualClusterModel.class);
         when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
         return new ServerConnectionStateMachine(
-                REMOTE,
-                ccsm,
-                virtualCluster,
-                CLUSTER_NAME,
-                null,
-                mock(Counter.class),
-                mock(Timer.class),
-                mock(ActivationToken.class));
+                REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
+                connectionCounter, errorCounter, backpressureMeter, token);
     }
 
     @Test
@@ -120,7 +119,7 @@ class ServerConnectionStateMachineTest {
         when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class),
+                mock(Counter.class), mock(Counter.class),
                 mock(Timer.class), mock(ActivationToken.class));
 
         scsm.sendRequest("req-1");
@@ -209,7 +208,7 @@ class ServerConnectionStateMachineTest {
                 io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         return new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -284,7 +283,7 @@ class ServerConnectionStateMachineTest {
         var tcpFailure = new RuntimeException("Connection refused");
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -323,7 +322,7 @@ class ServerConnectionStateMachineTest {
                 virtualCluster,
                 CLUSTER_NAME,
                 null,
-                mock(Counter.class),
+                mock(Counter.class), mock(Counter.class),
                 mock(Timer.class),
                 mock(ActivationToken.class));
     }
@@ -477,5 +476,139 @@ class ServerConnectionStateMachineTest {
         verify(ccsm, never()).onServerConnectionException(any());
 
         channel.close();
+    }
+
+    // === Connection counter tests ===
+
+    @Test
+    void onServerActiveShouldIncrementConnectionCounter() {
+        var connectionCounter = mock(Counter.class);
+        var scsm = createScsm(connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+
+        new EmbeddedChannel(scsm.backendHandler());
+
+        verify(connectionCounter).increment();
+    }
+
+    @Test
+    void connectionCounterShouldNotBeIncrementedIfNeverActive() {
+        var connectionCounter = mock(Counter.class);
+        var scsm = createScsm(connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+
+        scsm.close();
+
+        verify(connectionCounter, never()).increment();
+    }
+
+    // === Error counter tests ===
+
+    @Test
+    void onServerExceptionShouldIncrementErrorCounter() {
+        var errorCounter = mock(Counter.class);
+        var scsm = createScsm(mock(Counter.class), errorCounter, mock(Timer.class), mock(ActivationToken.class));
+
+        scsm.onServerException(new RuntimeException("boom"));
+
+        verify(errorCounter).increment();
+    }
+
+    @Test
+    void onServerExceptionWhenAlreadyClosedShouldNotIncrementErrorCounter() {
+        var errorCounter = mock(Counter.class);
+        var scsm = createScsm(mock(Counter.class), errorCounter, mock(Timer.class), mock(ActivationToken.class));
+        scsm.close();
+
+        scsm.onServerException(new RuntimeException("boom"));
+
+        verify(errorCounter, never()).increment();
+    }
+
+    // === Activation token tests ===
+
+    @Test
+    void onServerActiveShouldAcquireConnectionToken() {
+        var token = mock(ActivationToken.class);
+        var scsm = createScsm(mock(Counter.class), mock(Counter.class), mock(Timer.class), token);
+
+        new EmbeddedChannel(scsm.backendHandler());
+
+        verify(token).acquire();
+    }
+
+    @Test
+    void closeShouldReleaseConnectionToken() {
+        var token = mock(ActivationToken.class);
+        var scsm = createScsm(mock(Counter.class), mock(Counter.class), mock(Timer.class), token);
+
+        scsm.close();
+
+        verify(token).release();
+    }
+
+    @Test
+    void closeShouldBeIdempotentReleasingTokenOnlyOnce() {
+        var token = mock(ActivationToken.class);
+        var scsm = createScsm(mock(Counter.class), mock(Counter.class), mock(Timer.class), token);
+
+        scsm.close();
+        scsm.close();
+
+        verify(token).release();
+    }
+
+    // === Backpressure tests ===
+
+    @Test
+    void applyBackpressureShouldSetBlockedAndStartTimer() {
+        var scsm = createScsm();
+
+        scsm.applyBackpressure();
+
+        assertThat(scsm.serverReadsBlocked).isTrue();
+        assertThat(scsm.serverBackpressureTimer).isNotNull();
+    }
+
+    @Test
+    void applyBackpressureShouldBeIdempotent() {
+        var scsm = createScsm();
+        scsm.applyBackpressure();
+        var firstTimer = scsm.serverBackpressureTimer;
+
+        scsm.applyBackpressure();
+
+        assertThat(scsm.serverBackpressureTimer).isSameAs(firstTimer);
+    }
+
+    @Test
+    void relieveBackpressureShouldClearBlockedAndNullTimer() {
+        var scsm = createScsm();
+        scsm.applyBackpressure();
+
+        scsm.relieveBackpressure();
+
+        assertThat(scsm.serverReadsBlocked).isFalse();
+        assertThat(scsm.serverBackpressureTimer).isNull();
+    }
+
+    @Test
+    void relieveBackpressureShouldBeIdempotent() {
+        var scsm = createScsm();
+        scsm.applyBackpressure();
+        scsm.relieveBackpressure();
+
+        scsm.relieveBackpressure();
+
+        assertThat(scsm.serverReadsBlocked).isFalse();
+        assertThat(scsm.serverBackpressureTimer).isNull();
+    }
+
+    @Test
+    void relieveBackpressureWithoutPriorApplyShouldBeNoOp() {
+        var scsm = createScsm();
+
+        scsm.relieveBackpressure();
+
+        assertThat(scsm.serverReadsBlocked).isFalse();
+        assertThat(scsm.serverBackpressureTimer).isNull();
     }
 }

@@ -95,6 +95,7 @@ class ServerConnectionStateMachine {
     @Nullable
     private List<Object> pendingRequests;
 
+    private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
     private final Timer serverToProxyBackpressureMeter;
     private final ActivationToken proxyToServerConnectionToken;
@@ -106,6 +107,7 @@ class ServerConnectionStateMachine {
                                  VirtualClusterModel virtualCluster,
                                  String clusterName,
                                  @Nullable Integer nodeId,
+                                 Counter proxyToServerConnectionCounter,
                                  Counter proxyToServerErrorCounter,
                                  Timer serverToProxyBackpressureMeter,
                                  ActivationToken proxyToServerConnectionToken) {
@@ -115,6 +117,7 @@ class ServerConnectionStateMachine {
         this.nodeId = nodeId;
         this.ccsm = Objects.requireNonNull(ccsm);
         this.backendHandler = new KafkaProxyBackendHandler(this);
+        this.proxyToServerConnectionCounter = proxyToServerConnectionCounter;
         this.proxyToServerErrorCounter = proxyToServerErrorCounter;
         this.serverToProxyBackpressureMeter = serverToProxyBackpressureMeter;
         this.proxyToServerConnectionToken = proxyToServerConnectionToken;
@@ -348,6 +351,7 @@ class ServerConnectionStateMachine {
     void onServerActive() {
         if (state instanceof ServerConnectionState.Connecting connecting) {
             setState(connecting.toActive());
+            proxyToServerConnectionCounter.increment();
             proxyToServerConnectionToken.acquire();
             flushPendingRequests();
             ccsm.onServerConnectionActive();
