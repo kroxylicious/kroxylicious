@@ -146,6 +146,7 @@ class ServerConnectionStateMachine {
             ccsm.illegalState("connect() called while not in Connecting state");
             return;
         }
+        proxyToServerConnectionCounter.increment();
         HostPort remote = connecting.remote();
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
@@ -351,7 +352,6 @@ class ServerConnectionStateMachine {
     void onServerActive() {
         if (state instanceof ServerConnectionState.Connecting connecting) {
             setState(connecting.toActive());
-            proxyToServerConnectionCounter.increment();
             proxyToServerConnectionToken.acquire();
             flushPendingRequests();
             ccsm.onServerConnectionActive();

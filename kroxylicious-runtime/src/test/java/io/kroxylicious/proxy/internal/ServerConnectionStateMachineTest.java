@@ -481,23 +481,72 @@ class ServerConnectionStateMachineTest {
     // === Connection counter tests ===
 
     @Test
-    void onServerActiveShouldIncrementConnectionCounter() {
+    void connectionCounterShouldBeIncrementedWhenConnectIsCalled() {
         var connectionCounter = mock(Counter.class);
-        var scsm = createScsm(connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
+        when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
+                io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
+        var scsm = new ServerConnectionStateMachine(
+                REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
+                connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+            @Override
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
+                outboundHolder[0] = new EmbeddedChannel();
+                return new Bootstrap().group(outboundHolder[0].eventLoop())
+                        .channel(outboundHolder[0].getClass()).handler(backendHandler)
+                        .option(ChannelOption.AUTO_READ, true);
+            }
 
-        new EmbeddedChannel(scsm.backendHandler());
+            @Override
+            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+                outboundHolder[0].pipeline().addFirst(backendHandler());
+                return outboundHolder[0].newSucceededFuture();
+            }
+        };
+
+        scsm.connect(new EmbeddedChannel());
 
         verify(connectionCounter).increment();
     }
 
     @Test
-    void connectionCounterShouldNotBeIncrementedIfNeverActive() {
+    void connectionCounterShouldBeIncrementedEvenIfTcpConnectionFails() {
+        // The counter tracks connections initiated (connect() called), not connections established.
         var connectionCounter = mock(Counter.class);
-        var scsm = createScsm(connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var tcpFailure = new RuntimeException("connection refused");
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
+        when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
+                io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
+        var scsm = new ServerConnectionStateMachine(
+                REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
+                connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+            @Override
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
+                var ch = new EmbeddedChannel();
+                return new Bootstrap().group(ch.eventLoop()).channel(ch.getClass())
+                        .handler(backendHandler).option(ChannelOption.AUTO_READ, true);
+            }
 
-        scsm.close();
+            @Override
+            ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+                return new EmbeddedChannel().newFailedFuture(tcpFailure);
+            }
+        };
 
-        verify(connectionCounter, never()).increment();
+        scsm.connect(new EmbeddedChannel());
+
+        verify(connectionCounter).increment();
     }
 
     // === Error counter tests ===
