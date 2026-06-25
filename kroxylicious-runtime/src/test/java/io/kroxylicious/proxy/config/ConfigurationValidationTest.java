@@ -376,7 +376,7 @@ class ConfigurationValidationTest {
     }
 
     @Test
-    void routerRouteTargetingNestedRouterHasNullTargetCluster() {
+    void shouldRejectRouteTargetingNestedRouter() {
         var cluster = new ClusterDefinition("c1", "broker:9092", null);
         var innerRoute = new RouteDefinition("inner-r", 0, null, new RouteTarget("c1", null));
         var innerRouter = new RouterDefinition("inner", "Type", null, List.of(innerRoute));
@@ -385,19 +385,15 @@ class ConfigurationValidationTest {
         var vc = new VirtualCluster("demo", null,
                 new RouteTarget(null, "outer"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
-        var config = new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null);
 
-        var model = config.virtualClusterModel(null).get(0);
-
-        RouteDescriptor rd = model.routeDescriptors().get("outer-r");
-        assertThat(rd.targetsCluster()).isFalse();
-        assertThat(rd.targetCluster()).isNull();
-        assertThat(rd.routerName()).isEqualTo("inner");
+        assertThatThrownBy(() -> new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
+                List.of(vc), null, false, Optional.empty(), null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("nested routers are not yet supported");
     }
 
     @Test
-    void routerPrimaryTargetClusterResolvedFromFirstClusterRoute() {
+    void shouldRejectMixedRouteWithNestedRouterTarget() {
         var c1 = new ClusterDefinition("c1", "broker1:9092", null);
         var c2 = new ClusterDefinition("c2", "broker2:9092", null);
         var innerRoute = new RouteDefinition("ir", 0, null, new RouteTarget("c2", null));
@@ -409,30 +405,9 @@ class ConfigurationValidationTest {
                 new RouteTarget(null, "myrouter"),
                 List.of(simpleGateway("gw")), false, false, null, null, null, null);
 
-        var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null);
-        var model = config.virtualClusterModel(null).get(0);
-
-        assertThat(model.targetCluster()).isNotNull();
-        assertThat(model.targetCluster().bootstrapServersList()).containsExactly(
-                new io.kroxylicious.proxy.service.HostPort("broker1", 9092));
-    }
-
-    @Test
-    void routerWithOnlyNestedRouterRoutesResolvesNullPrimaryTarget() {
-        var cluster = new ClusterDefinition("c1", "broker:9092", null);
-        var innerRoute = new RouteDefinition("inner-r", 0, null, new RouteTarget("c1", null));
-        var innerRouter = new RouterDefinition("inner", "Type", null, List.of(innerRoute));
-        var outerRoute = new RouteDefinition("outer-r", 0, null, new RouteTarget(null, "inner"));
-        var outerRouter = new RouterDefinition("outer", "Type", null, List.of(outerRoute));
-        var vc = new VirtualCluster("demo", null,
-                new RouteTarget(null, "outer"),
-                List.of(simpleGateway("gw")), false, false, null, null, null, null);
-
-        var config = new Configuration(null, List.of(cluster), null, null, List.of(outerRouter, innerRouter),
-                List.of(vc), null, false, Optional.empty(), null, null);
-        var model = config.virtualClusterModel(null).get(0);
-
-        assertThat(model.targetCluster()).isNull();
+        assertThatThrownBy(() -> new Configuration(null, List.of(c1, c2), null, null, List.of(router, innerRouter),
+                List.of(vc), null, false, Optional.empty(), null, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("nested routers are not yet supported");
     }
 }

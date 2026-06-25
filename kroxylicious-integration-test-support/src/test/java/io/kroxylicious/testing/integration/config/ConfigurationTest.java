@@ -34,6 +34,9 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -749,6 +752,34 @@ class ConfigurationTest {
                 null, false, Optional.empty(), null,
                 null);
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
+    }
+
+    @Test
+    void shouldRejectNestedRouters() {
+        var innerRoute = new RouteDefinition("inner-route", 0, List.of(), new RouteTarget("some-cluster", null));
+        var innerRouter = new RouterDefinition("inner-router", "SomeFactory", null, List.of(innerRoute));
+        var outerRoute = new RouteDefinition("outer-route", 0, List.of(), new RouteTarget(null, "inner-router"));
+        var outerRouter = new RouterDefinition("outer-router", "SomeFactory", null, List.of(outerRoute));
+        var gateway = new VirtualClusterGateway("gw",
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty());
+        var vc = new VirtualCluster("vc1", null, new RouteTarget(null, "outer-router"),
+                List.of(gateway), false, false, null, null, null, null);
+
+        assertThatThrownBy(() -> new Configuration(
+                null,
+                null,
+                null,
+                null,
+                List.of(outerRouter, innerRouter),
+                List.of(vc),
+                null,
+                false,
+                Optional.empty(),
+                null,
+                null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("nested routers are not yet supported");
     }
 
     @NonNull

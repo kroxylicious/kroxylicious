@@ -123,6 +123,12 @@ public record Configuration(
 
         for (var router : routerDefinitions) {
             for (var route : router.routes()) {
+                if (route.router() != null) {
+                    throw new IllegalConfigurationException(
+                            "Router '" + router.name() + "' route '" + route.name()
+                                    + "' targets router '" + route.router()
+                                    + "': nested routers are not yet supported");
+                }
                 if (route.filters() != null) {
                     checkNamedFiltersAreDefined(filterDefsByName, route.filters(),
                             "routerDefinitions." + router.name() + ".routes." + route.name() + ".filters");
