@@ -978,6 +978,7 @@ public class ClientConnectionStateMachine {
             scsm.close();
         }
         serverConnections.clear();
+        routeTargets = null;
 
         // Close the client connection
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)

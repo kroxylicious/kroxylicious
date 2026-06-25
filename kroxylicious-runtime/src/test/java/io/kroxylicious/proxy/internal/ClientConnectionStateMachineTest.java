@@ -563,6 +563,31 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
+    void closingShouldCloseAllScsmAndNullRouteTargets() {
+        // Given: routing VC in Forwarding with two SCSMs
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        var forwarding = new ClientConnectionState.Forwarding();
+        clientConnectionStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("route-a", addr1, "route-b", addr2));
+
+        // When: close is triggered
+        clientConnectionStateMachine.onServerConnectionException(failure);
+
+        // Then: both SCSMs are closed and state is Closed
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        verify(scsm1).close();
+        verify(scsm2).close();
+    }
+
+    @Test
     void inForwardingShouldTransitionToClosedOnServerException() {
         // Given
         stateMachineInForwarding();
