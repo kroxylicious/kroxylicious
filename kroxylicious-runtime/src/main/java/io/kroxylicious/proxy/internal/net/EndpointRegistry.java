@@ -81,11 +81,6 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
 
-    /**
-     * Sentinel port value meaning "let the OS assign a free port at bind time".
-     * Use {@link #resolvePort(VirtualNodeId)} to discover the actual port after startup.
-     */
-    public static final int OS_ASSIGNED_PORT = 0;
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
     interface RoutingKey {
@@ -485,6 +480,8 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         virtualNodeIndex.entrySet().removeIf(e -> e.getKey().gateway().equals(gateway));
     }
 
+    // ListeningChannelRecord instances are stable shared objects from the listeningChannels map, intentionally used as per-channel locks
+    @SuppressWarnings("java:S2445")
     private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding,
                                                       VirtualNodeId nodeId) {
         Objects.requireNonNull(key, "key cannot be null");
@@ -548,6 +545,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         });
     }
 
+    @SuppressWarnings("java:S2445") // see registerBinding
     private CompletionStage<Void> deregisterBinding(EndpointGateway virtualClusterModel, Predicate<EndpointBinding> predicate) {
         Objects.requireNonNull(virtualClusterModel, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
         Objects.requireNonNull(predicate, "predicate cannot be null");
