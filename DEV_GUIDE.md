@@ -19,8 +19,7 @@ This document gives a detailed breakdown of the various build processes and opti
 
 JDK version 21 or newer, and [Apache Maven®](https://maven.apache.org) are required for building this project.
 
-Kroxylicious targets language level 17, except for the `integrationtests` module
-which targets 21 to access some new language features. At production runtime, Java 17 remains supported but is deprecated. Use Java 21 or later.
+Kroxylicious targets language level 21. Kroxylicious is tested on Java 21 and Java 25.
 
 Build the project like this:
 
