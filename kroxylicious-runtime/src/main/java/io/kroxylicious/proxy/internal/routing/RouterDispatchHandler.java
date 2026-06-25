@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
 
 /**
- * Sits at the end of the VC-level filter chain (replacing
+ * Sits at the end of the VC-level filter chain (instead of
  * {@link io.kroxylicious.proxy.internal.FilterChainCompletionHandler}) when a
  * virtual cluster uses a router. Forwards statically-routed requests
  * directly to the {@link ClientConnectionStateMachine}; rejects any
