@@ -75,7 +75,7 @@
         <apicurio-registry.version>3.3.0</apicurio-registry.version>
         <kiota.version>0.0.35</kiota.version>
         <avro.version>1.12.1</avro.version>
-        <protobuf-java.version>4.35.0</protobuf-java.version>
+        <protobuf-java.version>4.35.1</protobuf-java.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
