@@ -7,8 +7,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-
 * [#4197](https://github.com/kroxylicious/kroxylicious/pull/4197): build(deps-dev): bump com.google.protobuf:protobuf-java from 4.35.0 to 4.35.1
+* [#4193](https://github.com/kroxylicious/kroxylicious/pull/4193): build(deps): bump com.github.ben-manes.caffeine:caffeine from 3.2.3 to 3.2.4
 * [#3146](https://github.com/kroxylicious/kroxylicious/issues/3146): feat(record-encryption): CipherTrust Manager KMS plugin for Record Encryption (username/password auth only).
 * [#4141](https://github.com/kroxylicious/kroxylicious/pull/4141): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.4 to 2.26.0
 * [#4102](https://github.com/kroxylicious/kroxylicious/pull/4102): build(deps): bump apicurio-registry.version from 3.2.4 to 3.3.0
@@ -21,6 +21,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* [#4203](https://github.com/kroxylicious/kroxylicious/pull/4203): Java 17 support has been removed. Kroxylicious now requires Java 21 as the minimum runtime. Kroxylicious is tested on Java 21 and Java 25.
 * [#4073](https://github.com/kroxylicious/kroxylicious/pull/4073): **Behaviour change for plugin authors** — `FilterChainFactory` is now scoped per virtual cluster rather than shared across the whole proxy. A filter type used by N virtual clusters now sees N independent `FilterFactory.initialize()`/`close()` lifecycles — one per virtual cluster, each with its own initialization data. The threading model is also tightened: `close()` is now invoked on a non-Netty-event-loop thread (previously on the proxy shutdown caller's thread) after all connections to the virtual cluster have drained, so blocking work (e.g. closing KMS/HTTP clients) is safe in `close()`. Plugins that maintained cross-virtual-cluster state in a single `FilterFactory` instance, or relied on `close()` running on a specific thread, should be reviewed.
 * [#3913](https://github.com/kroxylicious/kroxylicious/pull/3913): The operator now sets a `DeprecationWarning` status condition on `KafkaProxy` resources that have no `spec` field, complementing the existing log warning. Users should add an empty `spec: {}` to any `KafkaProxy` resource that lacks one. Support for spec-less `KafkaProxy` resources will be removed in a future release.
 
