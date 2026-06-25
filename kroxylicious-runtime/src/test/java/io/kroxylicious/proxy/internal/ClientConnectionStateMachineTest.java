@@ -1112,6 +1112,26 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
+    void forwardToRouteWithNoScsmForTargetShouldTransitionToClosed() {
+        // routeTargets maps a route to a target, but serverConnections has no SCSM for that target.
+        stubAsRouterVirtualCluster();
+        var orphanTarget = new HostPort("orphan", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(),
+                TEST_KAFKA_SESSION,
+                true,
+                Map.of("route-a", orphanTarget));
+
+        // When
+        clientConnectionStateMachine.forwardToRoute("route-a", new Object());
+
+        // Then
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    @Test
     void forwardToRouteNotInForwardingShouldTransitionToClosed() {
         // Given
         stubAsRouterVirtualCluster();

@@ -31,6 +31,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
@@ -304,7 +305,7 @@ class ServerConnectionStateMachine {
             SslContextBuilder sslContextBuilder = SslContextBuilder.forClient()
                     .keyManager(credentialsImpl.privateKey(), credentialsImpl.certificateChain());
 
-            virtualCluster.targetCluster().tls().ifPresent(tls -> {
+            Optional.ofNullable(virtualCluster.targetCluster()).flatMap(TargetCluster::tls).ifPresent(tls -> {
                 VirtualClusterModel.configureCipherSuites(sslContextBuilder, tls);
                 VirtualClusterModel.configureEnabledProtocols(sslContextBuilder, tls);
                 Optional.ofNullable(tls.trust())

@@ -95,6 +95,15 @@ class VirtualClusterModelTest {
     }
 
     @Test
+    void usesDynamicTlsCredentialsReturnsFalseWhenTargetClusterIsNull() {
+        // A router-targeting VC has a null targetCluster — usesDynamicTlsCredentials must not NPE.
+        VirtualClusterModel model = new VirtualClusterModel("wibble", null, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "some-router", null);
+
+        assertThat(model.usesDynamicTlsCredentials()).isFalse();
+    }
+
+    @Test
     void usesDynamicTlsCredentialsReturnsFalseWhenNoTlsConfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 

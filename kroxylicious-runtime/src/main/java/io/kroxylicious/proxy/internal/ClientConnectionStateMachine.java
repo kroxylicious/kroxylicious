@@ -887,6 +887,10 @@ public class ClientConnectionStateMachine {
                 return;
             }
             ServerConnectionStateMachine scsm = serverConnections.get(target);
+            if (scsm == null) {
+                illegalState("No server connection for target: " + target);
+                return;
+            }
             scsm.sendRequest(msg);
         }
         else {
