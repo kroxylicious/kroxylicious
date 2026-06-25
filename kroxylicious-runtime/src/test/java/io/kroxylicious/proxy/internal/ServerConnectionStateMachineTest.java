@@ -24,6 +24,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
@@ -659,5 +660,210 @@ class ServerConnectionStateMachineTest {
 
         assertThat(scsm.serverReadsBlocked).isFalse();
         assertThat(scsm.serverBackpressureTimer).isNull();
+    }
+
+    // === State transition tests ===
+
+    @Test
+    void shouldStartInConnectingState() {
+        var scsm = createScsm();
+
+        assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Connecting.class);
+    }
+
+    @Test
+    void onServerActiveShouldTransitionToActive() {
+        var scsm = createScsm();
+
+        new EmbeddedChannel(scsm.backendHandler());
+
+        assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Active.class);
+    }
+
+    @Test
+    void onServerInactiveShouldTransitionToClosed() {
+        var scsm = createScsm();
+
+        scsm.onServerInactive();
+
+        assertThat(scsm.state()).isInstanceOf(ServerConnectionState.Closed.class);
+    }
+
+    @Test
+    void onServerInactiveShouldNotifyClientWithServerClosedCause() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+
+        scsm.onServerInactive();
+
+        verify(ccsm).onServerConnectionClosed(ClientConnectionStateMachine.DisconnectCause.SERVER_CLOSED);
+    }
+
+    @Test
+    void onServerInactiveWhenAlreadyClosedShouldNotNotifyCcsm() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+        scsm.close();
+
+        scsm.onServerInactive();
+
+        verify(ccsm, never()).onServerConnectionClosed(any());
+    }
+
+    // === Message delegation tests ===
+
+    @Test
+    void onMessageFromServerShouldDelegateResponseToCcsm() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+        Object msg = new Object();
+
+        scsm.onMessageFromServer(msg);
+
+        verify(ccsm).onResponseFromServer(msg);
+    }
+
+    @Test
+    void serverReadCompleteShouldDelegateToCcsm() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+
+        scsm.serverReadComplete();
+
+        verify(ccsm).onServerReadComplete();
+    }
+
+    @Test
+    void onServerUnwritableShouldDelegateToCcsm() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+
+        scsm.onServerUnwritable();
+
+        verify(ccsm).onServerUnwritable();
+    }
+
+    @Test
+    void onServerWritableShouldDelegateToCcsm() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+
+        scsm.onServerWritable();
+
+        verify(ccsm).onServerWritable();
+    }
+
+    // === In-flight count tests ===
+
+    @Test
+    void onMessageFromServerShouldDecrementInFlightCount() {
+        var scsm = createScsm();
+        scsm.serverMessagesInFlightCount = 2;
+
+        scsm.onMessageFromServer(new Object());
+
+        assertThat(scsm.serverMessagesInFlightCount).isEqualTo(1);
+    }
+
+    @Test
+    void onMessageFromServerInFlightCountShouldNotGoBelowZero() {
+        var scsm = createScsm();
+
+        scsm.onMessageFromServer(new Object());
+
+        assertThat(scsm.serverMessagesInFlightCount).isZero();
+    }
+
+    // === TLS tracking tests ===
+
+    @Test
+    void isUpstreamTlsShouldReturnTrueWhenSslContextPresent() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        when(ccsm.sessionId()).thenReturn("test-session");
+        when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.of(mock(SslContext.class)));
+        var scsm = new ServerConnectionStateMachine(
+                REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+
+        assertThat(scsm.isUpstreamTls()).isTrue();
+    }
+
+    @Test
+    void isUpstreamTlsShouldReturnFalseWhenNoSslContext() {
+        var scsm = createScsm();
+
+        assertThat(scsm.isUpstreamTls()).isFalse();
+    }
+
+    // === toString tests ===
+
+    @Test
+    void toStringShouldContainRelevantFields() {
+        var scsm = createScsm();
+
+        assertThat(scsm.toString())
+                .contains("state=")
+                .contains("serverReadsBlocked=")
+                .contains("serverMessagesInFlightCount=");
+    }
+
+    // === Frame/network logger pipeline tests ===
+
+    @Test
+    void connectShouldAddFrameLoggerWhenLogFramesEnabled() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        when(virtualCluster.isLogFrames()).thenReturn(true);
+        var scsm = createConnectableScsm(ccsm, virtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        assertThat(outboundHolder[0].pipeline().get("frameLogger")).isNotNull();
+    }
+
+    @Test
+    void connectShouldNotAddFrameLoggerWhenLogFramesDisabled() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(ccsm, virtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        assertThat(outboundHolder[0].pipeline().get("frameLogger")).isNull();
+    }
+
+    @Test
+    void connectShouldAddNetworkLoggerWhenLogNetworkEnabled() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        when(virtualCluster.isLogNetwork()).thenReturn(true);
+        var scsm = createConnectableScsm(ccsm, virtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        assertThat(outboundHolder[0].pipeline().get("networkLogger")).isNotNull();
+    }
+
+    @Test
+    void connectShouldNotAddNetworkLoggerWhenLogNetworkDisabled() {
+        var ccsm = mock(ClientConnectionStateMachine.class);
+        var virtualCluster = mock(VirtualClusterModel.class);
+        var outboundHolder = new EmbeddedChannel[1];
+        var scsm = createConnectableScsm(ccsm, virtualCluster, outboundHolder);
+
+        scsm.connect(new EmbeddedChannel());
+
+        assertThat(outboundHolder[0].pipeline().get("networkLogger")).isNull();
     }
 }
