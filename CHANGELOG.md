@@ -7,6 +7,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+
+* [#4197](https://github.com/kroxylicious/kroxylicious/pull/4197): build(deps-dev): bump com.google.protobuf:protobuf-java from 4.35.0 to 4.35.1
 * [#3146](https://github.com/kroxylicious/kroxylicious/issues/3146): feat(record-encryption): CipherTrust Manager KMS plugin for Record Encryption (username/password auth only).
 * [#4141](https://github.com/kroxylicious/kroxylicious/pull/4141): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.4 to 2.26.0
 * [#4102](https://github.com/kroxylicious/kroxylicious/pull/4102): build(deps): bump apicurio-registry.version from 3.2.4 to 3.3.0
