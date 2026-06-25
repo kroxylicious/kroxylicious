@@ -333,11 +333,6 @@ public class ClientConnectionStateMachine {
         return clientSoftwareVersion;
     }
 
-    @Nullable
-    public Channel clientChannel() {
-        return frontendHandler != null ? frontendHandler.clientChannel() : null;
-    }
-
     /**
      * Notify the state machine when the client applies back pressure.
      */
@@ -484,7 +479,7 @@ public class ClientConnectionStateMachine {
      *
      * @param msg the RPC received from the upstream
      */
-    public void onDirectClientFilterChainComplete(Object msg) {
+    void onDirectClientFilterChainComplete(Object msg) {
         if (virtualCluster().usesRouter()) {
             throw new IllegalStateException(
                     "onDirectClientFilterChainComplete must not be called for a virtual cluster that uses a router");
@@ -810,7 +805,7 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
-    public Subject authenticatedSubject() {
+    Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
     }
 

@@ -1137,23 +1137,6 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void clientChannelShouldReturnNullBeforeClientActive() {
-        // When / Then
-        assertThat(clientConnectionStateMachine.clientChannel()).isNull();
-    }
-
-    @Test
-    void clientChannelShouldReturnChannelAfterClientActive() {
-        // Given
-        var channel = mock(Channel.class);
-        when(frontendHandler.clientChannel()).thenReturn(channel);
-        stateMachineInForwarding();
-
-        // When / Then
-        assertThat(clientConnectionStateMachine.clientChannel()).isSameAs(channel);
-    }
-
-    @Test
     void onClientUnwritableShouldApplyBackpressureToAllServerConnections() {
         // Given
         var scsm1 = mock(ServerConnectionStateMachine.class);
