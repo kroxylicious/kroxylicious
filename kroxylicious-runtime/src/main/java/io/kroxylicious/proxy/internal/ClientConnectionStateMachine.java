@@ -864,8 +864,9 @@ public class ClientConnectionStateMachine {
             }
         }
         log(Level.DEBUG)
-                .addKeyValue("routeCount", routeTargets.size())
-                .addKeyValue("backendCount", serverConnections.size())
+                .addKeyValue("routeCount", () -> routeTargets.size())
+                .addKeyValue("backendCount", () -> serverConnections.size())
+                .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
                 .log("Upstream connections initiated for routing VC");
     }
 
