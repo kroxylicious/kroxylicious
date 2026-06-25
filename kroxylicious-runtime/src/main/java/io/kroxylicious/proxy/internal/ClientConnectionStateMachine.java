@@ -860,13 +860,13 @@ public class ClientConnectionStateMachine {
             if (rd.targetsCluster()) {
                 HostPort target = Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
                         "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer");
-                routeTargets.put(entry.getKey(), target);
                 serverConnections.computeIfAbsent(target, t -> {
                     proxyToServerConnectionCounter.increment();
                     var newScsm = createServerConnection(t);
                     newScsm.connect(clientChannel);
                     return newScsm;
                 });
+                routeTargets.put(entry.getKey(), target);
             }
         }
         log(Level.DEBUG)

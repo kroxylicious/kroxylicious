@@ -926,6 +926,62 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
+    void toForwardingWithRoutesShouldPopulateRouteTargetsAfterScsmCreation() {
+        // Given: a router VC with one route and a healthy SCSM factory
+        stateMachineInClientActive();
+        var target = new HostPort("broker", 9092);
+        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
+        when(targetCluster.bootstrapServer()).thenReturn(target);
+        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
+        when(routeDescriptor.targetsCluster()).thenReturn(true);
+        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
+        when(routerVc.usesRouter()).thenReturn(true);
+        when(routerVc.routeDescriptors()).thenReturn(Map.of("my-route", routeDescriptor));
+        when(endpointGateway.virtualCluster()).thenReturn(routerVc);
+
+        // When: first request triggers toForwardingWithRoutes
+        clientConnectionStateMachine.onClientRequest(metadataRequest());
+
+        // Then: forwardToRoute dispatches to the SCSM, proving routeTargets was populated
+        var msg = new Object();
+        clientConnectionStateMachine.forwardToRoute("my-route", msg);
+        verify(serverConnectionStateMachine).sendRequest(msg);
+    }
+
+    @Test
+    void toForwardingWithRoutesShouldNotPopulateRouteTargetIfScsmCreationFails() {
+        // Given: a CCSM whose SCSM factory throws on creation
+        var failingCcsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
+                new KafkaSession(KafkaSessionState.ESTABLISHING),
+                (remote, ccsm, vc, cn, ni, ec, bpm, token) -> {
+                    throw new RuntimeException("scsm creation failed");
+                });
+        failingCcsm.forceState(new ClientConnectionState.ClientActive(), frontendHandler,
+                Map.of(), TEST_KAFKA_SESSION, true);
+
+        var target = new HostPort("broker", 9092);
+        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
+        when(targetCluster.bootstrapServer()).thenReturn(target);
+        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
+        when(routeDescriptor.targetsCluster()).thenReturn(true);
+        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
+        when(routerVc.usesRouter()).thenReturn(true);
+        when(routerVc.routeDescriptors()).thenReturn(Map.of("my-route", routeDescriptor));
+        when(endpointGateway.virtualCluster()).thenReturn(routerVc);
+
+        // When: first request triggers toForwardingWithRoutes, which fails during SCSM creation
+        assertThatThrownBy(() -> failingCcsm.onClientRequest(metadataRequest()))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("scsm creation failed");
+
+        // Then: routeTargets was not populated, so forwardToRoute transitions to Closed
+        failingCcsm.forwardToRoute("my-route", new Object());
+        assertThat(failingCcsm.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    @Test
     void forwardToRouteShouldThrowWhenVcDoesNotUseRouter() {
         assertThatThrownBy(() -> clientConnectionStateMachine.forwardToRoute("any-route", new Object()))
                 .isInstanceOf(IllegalStateException.class)
