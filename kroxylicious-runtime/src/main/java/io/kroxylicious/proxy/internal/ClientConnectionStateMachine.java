@@ -645,7 +645,7 @@ public class ClientConnectionStateMachine {
                 .addKeyValue("virtualCluster", clusterName())
                 .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                 .addKeyValue("serverMessagesInFlightCount",
-                        serverConnections.values().stream().mapToInt(ServerConnectionStateMachine::serverMessagesInFlightCount).sum())
+                        () -> serverConnections.values().stream().mapToInt(ServerConnectionStateMachine::serverMessagesInFlightCount).sum())
                 .log("Connection draining started — autoRead disabled, waiting for in-flight responses");
 
         if (clientMessagesInFlightCount <= 0) {
@@ -991,7 +991,7 @@ public class ClientConnectionStateMachine {
                     .addKeyValue("errorCodeEx", errorCodeEx == null ? null : errorCodeEx.getClass().getSimpleName() + ": " + errorCodeEx.getMessage())
                     .addKeyValue("clientMessagesInFlightCount", clientMessagesInFlightCount)
                     .addKeyValue("serverMessagesInFlightCount",
-                            serverConnections.values().stream().mapToInt(ServerConnectionStateMachine::serverMessagesInFlightCount).sum())
+                            () -> serverConnections.values().stream().mapToInt(ServerConnectionStateMachine::serverMessagesInFlightCount).sum())
                     .log("Drain interrupted by connection close — signalling drain policy from toClosed path");
             pendingDrainCallback.run();
         }
