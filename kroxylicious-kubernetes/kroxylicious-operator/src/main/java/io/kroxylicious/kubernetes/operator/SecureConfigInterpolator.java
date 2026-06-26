@@ -79,27 +79,15 @@ public class SecureConfigInterpolator {
      * @return The interpolated value
      */
     private InterpolatedValue interpolateValue(@Nullable final Object jsonValue) {
-        if (jsonValue == null) {
-            return NULL_INTERPOLATED_VALUE;
-        }
-        else if (jsonValue instanceof Map<?, ?> object) {
-            return interpolateObject(object);
-        }
-        else if (jsonValue instanceof List<?> array) {
-            return interpolateArray(array);
-        }
-        else if (jsonValue instanceof String text) {
-            return maybeInterpolateString(text);
-        }
-        else if (jsonValue instanceof Number) {
-            return new InterpolatedValue(jsonValue, List.of());
-        }
-        else if (jsonValue instanceof Boolean) {
-            return new InterpolatedValue(jsonValue, List.of());
-        }
-        else {
-            throw new IllegalStateException(jsonValue + " is not a valid JSON object");
-        }
+        return switch (jsonValue) {
+            case null -> NULL_INTERPOLATED_VALUE;
+            case Map<?, ?> object -> interpolateObject(object);
+            case List<?> array -> interpolateArray(array);
+            case String text -> maybeInterpolateString(text);
+            case Number ignored -> new InterpolatedValue(jsonValue, List.of());
+            case Boolean ignored -> new InterpolatedValue(jsonValue, List.of());
+            default -> throw new IllegalStateException(jsonValue + " is not a valid JSON object");
+        };
     }
 
     private InterpolatedValue interpolateArray(List<?> array) {

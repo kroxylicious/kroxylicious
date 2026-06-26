@@ -131,17 +131,11 @@ public class FilterHandler extends ChannelDuplexHandler {
      */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof InternalResponseFrame<?> decodedFrame) {
-            handleInternalResponseWrite(promise, decodedFrame);
-        }
-        else if (msg instanceof DecodedResponseFrame<?> decodedFrame) {
-            handleDecodedResponseWrite(decodedFrame, promise);
-        }
-        else if (msg instanceof OpaqueResponseFrame orf) {
-            handleOpaqueResponseWrite(ctx, msg, promise, orf);
-        }
-        else {
-            throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
+        switch (msg) {
+            case InternalResponseFrame<?> decodedFrame -> handleInternalResponseWrite(promise, decodedFrame);
+            case DecodedResponseFrame<?> decodedFrame -> handleDecodedResponseWrite(decodedFrame, promise);
+            case OpaqueResponseFrame orf -> handleOpaqueResponseWrite(ctx, msg, promise, orf);
+            default -> throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
         }
     }
 
@@ -204,18 +198,12 @@ public class FilterHandler extends ChannelDuplexHandler {
      * @return A descriptor for the message (for logging purposes). Does not include the message contents.
      */
     static String msgDescriptor(@Nullable Object obj) {
-        if (obj == null) {
-            return "«null»";
-        }
-        else if (obj instanceof DecodedFrame<?, ?> df) {
-            return df.getClass().getSimpleName() + "(" + df.apiKey() + "@" + df.apiVersion() + " corrId=" + df.correlationId() + ")";
-        }
-        else if (obj instanceof OpaqueFrame of) {
-            return of.toString();
-        }
-        else {
-            return obj.getClass().getName();
-        }
+        return switch (obj) {
+            case null -> "«null»";
+            case DecodedFrame<?, ?> df -> df.getClass().getSimpleName() + "(" + df.apiKey() + "@" + df.apiVersion() + " corrId=" + df.correlationId() + ")";
+            case OpaqueFrame of -> of.toString();
+            default -> obj.getClass().getName();
+        };
     }
 
     /**
@@ -226,20 +214,14 @@ public class FilterHandler extends ChannelDuplexHandler {
      */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof InternalRequestFrame<?> decodedFrame) {
-            // jump the queue, internal request must flow!
-            handleDecodedRequest(decodedFrame);
-        }
-        else if (msg instanceof DecodedRequestFrame<?> decodedFrame) {
-            handleDecodedRequestRead(decodedFrame);
-        }
-        else if (msg instanceof OpaqueRequestFrame || msg == Unpooled.EMPTY_BUFFER) {
-            handleOpaqueOrPassthroughRead(msg);
-        }
-        else {
+        switch (msg) {
+            case InternalRequestFrame<?> decodedFrame -> handleDecodedRequest(decodedFrame); // jump the queue, internal request must flow!
+            case DecodedRequestFrame<?> decodedFrame -> handleDecodedRequestRead(decodedFrame);
+            case OpaqueRequestFrame ignored -> handleOpaqueOrPassthroughRead(msg);
+            case ByteBuf ignored when msg == Unpooled.EMPTY_BUFFER -> handleOpaqueOrPassthroughRead(msg);
             // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
             // but, otherwise we don't expect any other kind of message
-            throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
+            default -> throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
         }
     }
 

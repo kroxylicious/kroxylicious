@@ -62,31 +62,19 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
     }
 
     private Integer getExperimentalIntOrElse(String property, Integer defaultValue) {
-        return Optional.ofNullable(experimental.get(property)).map(value -> {
-            if (value instanceof Number number) {
-                return number.intValue();
-            }
-            else if (value instanceof String stringValue) {
-                return Integer.parseInt(stringValue);
-            }
-            else {
-                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
-            }
+        return Optional.ofNullable(experimental.get(property)).map(value -> switch (value) {
+            case Number number -> number.intValue();
+            case String stringValue -> Integer.parseInt(stringValue);
+            default -> throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
         }).orElse(defaultValue);
     }
 
     @Nullable
     private Long getExperimentalLong(String property) {
-        return Optional.ofNullable(experimental.get(property)).map(value -> {
-            if (value instanceof Number number) {
-                return number.longValue();
-            }
-            else if (value instanceof String stringValue) {
-                return Long.parseLong(stringValue);
-            }
-            else {
-                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
-            }
+        return Optional.ofNullable(experimental.get(property)).map(value -> switch (value) {
+            case Number number -> number.longValue();
+            case String stringValue -> Long.parseLong(stringValue);
+            default -> throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Long");
         }).orElse(null);
     }
 
