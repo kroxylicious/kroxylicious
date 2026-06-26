@@ -33,12 +33,14 @@ import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
 import io.kroxylicious.it.testplugins.SplitStaticRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.server.MockServer;
@@ -50,6 +52,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -217,6 +220,80 @@ class RoutingPassThroughIT {
                 consumer.poll(Duration.ofSeconds(1)).forEach(collected::add);
             }
             assertThat(collected).hasSize(10);
+        }
+    }
+
+    @ParameterizedTest(name = "route to {0}")
+    @CsvSource({ "route-a", "route-b" })
+    void shouldProduceAndConsumeViaSelectedRouteWithTwoMultiNodeClusters(
+                                                                         String selectedRoute,
+                                                                         @BrokerCluster(numBrokers = 3) KafkaCluster clusterA,
+                                                                         @BrokerCluster(numBrokers = 3) KafkaCluster clusterB)
+            throws Exception {
+        // Given: two 3-node clusters, two routes, a pass-through router directing all traffic to the selected route.
+        // With 2 routes × 3 brokers the bijective mapping produces virtual node IDs 0-5, so the
+        // gateway must expose ports for all six virtual nodes.
+        var clusterDefA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+
+        var routerConfig = new PassThroughRouterFactory.Config(selectedRoute);
+        var routerDef = new RouterDefinition("two-cluster-router",
+                PassThroughRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
+
+        var vc = new VirtualClusterBuilder()
+                .withName("two-cluster")
+                .withTarget(new RouteTarget(null, "two-cluster-router"))
+                .addToGateways(defaultGatewayBuilder()
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(HostPort.parse("localhost:9192"))
+                        .withNodeIdRanges(new NamedRange("nodes", 0, 5))
+                        .endPortIdentifiesNode()
+                        .build())
+                .build();
+
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefA)
+                .addToClusterDefinitions(clusterDefB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        KafkaCluster expectedCluster = selectedRoute.equals("route-a") ? clusterA : clusterB;
+        KafkaCluster unexpectedCluster = selectedRoute.equals("route-a") ? clusterB : clusterA;
+        var topicName = "two-cluster-multinode-" + UUID.randomUUID();
+
+        // When: produce 10 records and consume them back through the proxy
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var admin = tester.admin();
+                var producer = tester.producer();
+                var consumer = tester.consumer(
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "two-cluster-multinode-test",
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+
+            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
+                    .all().get(10, TimeUnit.SECONDS);
+
+            for (int i = 0; i < 10; i++) {
+                assertThat(producer.send(new ProducerRecord<>(topicName, "key-" + i, "value-" + i)))
+                        .succeedsWithin(Duration.ofSeconds(10));
+            }
+
+            consumer.subscribe(Set.of(topicName));
+            List<ConsumerRecord<String, String>> collected = new ArrayList<>();
+            long deadline = System.currentTimeMillis() + 30_000;
+            while (collected.size() < 10 && System.currentTimeMillis() < deadline) {
+                consumer.poll(Duration.ofSeconds(1)).forEach(collected::add);
+            }
+            assertThat(collected).hasSize(10);
+        }
+
+        // Then: all data is on the selected cluster, none on the other
+        try (var expectedAdmin = CloseableAdmin.create(expectedCluster.getKafkaClientConfiguration());
+                var unexpectedAdmin = CloseableAdmin.create(unexpectedCluster.getKafkaClientConfiguration())) {
+            assertThat(expectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS)).contains(topicName);
+            assertThat(unexpectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS)).doesNotContain(topicName);
         }
     }
 
