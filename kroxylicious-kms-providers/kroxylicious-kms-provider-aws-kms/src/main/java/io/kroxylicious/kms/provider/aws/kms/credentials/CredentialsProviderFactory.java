@@ -42,7 +42,7 @@ public interface CredentialsProviderFactory {
             throw new KmsException(
                     "Config must define exactly one credential provider, found %s".formatted(List.copyOf(configured)));
         }
-        return switch (configured.get(0)) {
+        return switch (configured.getFirst()) {
             case "longTerm" -> new LongTermCredentialsProvider(creds.longTerm());
             case "ec2Metadata" -> new Ec2MetadataCredentialsProvider(creds.ec2Metadata());
             case "webIdentity" -> new WebIdentityCredentialsProvider(creds.webIdentity(), config.region());

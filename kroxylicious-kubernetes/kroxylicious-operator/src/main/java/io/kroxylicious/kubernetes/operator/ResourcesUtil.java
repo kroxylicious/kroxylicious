@@ -189,7 +189,7 @@ public class ResourcesUtil {
         if (list.size() > 1) {
             throw new IllegalStateException("collection contained more than one resource named " + name);
         }
-        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.getFirst());
     }
 
     /**
