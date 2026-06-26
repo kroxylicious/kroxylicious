@@ -83,7 +83,9 @@ class KafkaProxyFrontendHandlerTest {
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession,
-                (remote, ccsm, vc, cn, ni) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn, ni) {
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn,
+                        ni, connectionCounter, errorCounter,
+                        backpressureMeter, connectionToken) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,

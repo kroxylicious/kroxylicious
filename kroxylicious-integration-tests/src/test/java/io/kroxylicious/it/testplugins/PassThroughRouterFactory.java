@@ -3,8 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-
-package io.kroxylicious.proxy.internal.router;
+package io.kroxylicious.it.testplugins;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -22,24 +21,33 @@ import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
-@Plugin(configType = Void.class)
-public class TestRouterFactory implements RouterFactory<Void, Void> {
+/**
+ * A router that forwards every request to a single named route, delivering
+ * the response back to the client unchanged.
+ */
+@Plugin(configType = PassThroughRouterFactory.Config.class)
+public class PassThroughRouterFactory implements RouterFactory<PassThroughRouterFactory.Config, PassThroughRouterFactory.Config> {
 
-    public static final String DEFAULT_ROUTE = "default";
+    public record Config(String route) {}
+
+    private Map<ApiKeys, String> allStatic;
 
     @Override
-    public Void initialize(RouterFactoryContext context, Void config) {
-        return null;
+    public Config initialize(RouterFactoryContext context, Config config) {
+        allStatic = Arrays.stream(ApiKeys.values())
+                .collect(Collectors.toUnmodifiableMap(k -> k, k -> config.route()));
+        return config;
     }
 
     @Override
-    public Router createRouter(RouterFactoryContext context, Void initializationData) {
-        Map<ApiKeys, String> allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> DEFAULT_ROUTE));
+    public Router createRouter(RouterFactoryContext context, Config config) {
         return new Router() {
             @Override
-            public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey, short apiVersion,
-                                                             RequestHeaderData header, ApiMessage request,
+            public CompletionStage<RouterResponse> onRequest(
+                                                             ApiKeys apiKey,
+                                                             short apiVersion,
+                                                             RequestHeaderData header,
+                                                             ApiMessage request,
                                                              RouterContext routerContext) {
                 throw new IllegalStateException("Dynamic routing is not supported");
             }

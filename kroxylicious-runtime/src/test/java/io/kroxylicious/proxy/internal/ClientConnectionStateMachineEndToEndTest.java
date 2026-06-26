@@ -109,7 +109,9 @@ class ClientConnectionStateMachineEndToEndTest {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         // Override createServerConnection to substitute EmbeddedChannels for real TCP connections
         return new ClientConnectionStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession,
-                (remote, ccsm, vc, cn, ni) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn, ni) {
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn,
+                        ni, connectionCounter, errorCounter,
+                        backpressureMeter, connectionToken) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,
@@ -224,7 +226,7 @@ class ClientConnectionStateMachineEndToEndTest {
             clientConnectionStateMachine.forceState(
                     new ClientConnectionState.HaProxy(),
                     handler,
-                    null,
+                    java.util.Map.of(),
                     TEST_SESSION, false);
         }
 

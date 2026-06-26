@@ -55,10 +55,6 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                             + " (case insensitive)");
         }
         validateTargetExclusivity(name, targetCluster, target);
-        if (target != null && target.router() != null) {
-            throw new IllegalConfigurationException(
-                    "illegal target.router for virtual cluster '" + name + "'. Only target.cluster is supported currently, please change to this.");
-        }
         if (gateways == null || gateways.isEmpty()) {
             throw new IllegalConfigurationException("no gateways configured for virtual cluster '" + name + "'");
         }
