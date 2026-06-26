@@ -116,7 +116,7 @@ public class Environment {
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT = USER_DIR + "/target/kroxylicious-operator-dist/install/";
     private static final String KROXYLICIOUS_ADMISSION_WEBHOOK_INSTALL_DIR_DEFAULT = USER_DIR + "/target/kroxylicious-admission-dist/install/";
     public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR
-            + "/curlimages/curl:8.20.0@sha256:b3f1fb2a51d923260350d21b8654bbc607164a987e2f7c84a0ac199a67df812a";
+            + "/curlimages/curl:8.21.0@sha256:7c12af72ceb38b7432ab85e1a265cff6ae58e06f95539d539b654f2cfa64bb13";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
