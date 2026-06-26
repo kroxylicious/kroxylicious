@@ -6,6 +6,7 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,7 @@ import io.kroxylicious.testing.integration.server.MockServer;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
+import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -183,6 +185,38 @@ class RoutingPassThroughIT {
 
             var unexpectedTopics = unexpectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(unexpectedTopics).isEmpty();
+        }
+    }
+
+    @Test
+    void shouldProduceAndConsumeViaPassThroughRouterWithMultiNodeCluster(
+                                                                         @BrokerCluster(numBrokers = 3) KafkaCluster cluster, Topic topic)
+            throws Exception {
+        // Given: a pass-through router backed by a 3-node cluster; the partition leader
+        // may be on any broker (not necessarily the bootstrap node), so the proxy must
+        // resolve the correct upstream broker via the METADATA-based address registry.
+        var config = routingConfig(cluster);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var producer = tester.producer();
+                var consumer = tester.consumer(
+                        Map.of(ConsumerConfig.GROUP_ID_CONFIG, "routing-multi-node-test",
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+
+            // When: produce 10 records
+            for (int i = 0; i < 10; i++) {
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "key-" + i, "value-" + i)))
+                        .succeedsWithin(Duration.ofSeconds(10));
+            }
+
+            // Then: all 10 records are consumable
+            consumer.subscribe(Set.of(topic.name()));
+            List<ConsumerRecord<String, String>> collected = new ArrayList<>();
+            long deadline = System.currentTimeMillis() + 30_000;
+            while (collected.size() < 10 && System.currentTimeMillis() < deadline) {
+                consumer.poll(Duration.ofSeconds(1)).forEach(collected::add);
+            }
+            assertThat(collected).hasSize(10);
         }
     }
 

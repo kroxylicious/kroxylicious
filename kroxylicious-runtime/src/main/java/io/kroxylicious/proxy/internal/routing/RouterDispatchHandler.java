@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.netty.channel.ChannelDuplexHandler;
@@ -20,7 +19,6 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
-import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Sits at the end of the VC-level filter chain (instead of
@@ -93,20 +91,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         if (msg instanceof DecodedResponseFrame<?> frame) {
             String routeName = pendingRoutes.remove(frame.correlationId());
             if (routeName != null) {
-                if (frame.body() instanceof MetadataResponseData md) {
-                    ccsm.registerBrokerAddresses(routeName, extractBrokerAddresses(md));
-                }
                 NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, routeName);
             }
         }
         ctx.write(msg, promise);
-    }
-
-    private static Map<Integer, HostPort> extractBrokerAddresses(MetadataResponseData md) {
-        var addresses = new HashMap<Integer, HostPort>(md.brokers().size());
-        for (var broker : md.brokers()) {
-            addresses.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
-        }
-        return addresses;
     }
 }

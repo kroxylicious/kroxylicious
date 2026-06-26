@@ -41,6 +41,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
@@ -850,32 +851,31 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwardingWithRoutes(Forwarding forwarding) {
         setState(forwarding);
-        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
         routeTargets = new HashMap<>();
-        var frontend = Objects.requireNonNull(frontendHandler);
-        Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
-        for (var entry : descriptors.entrySet()) {
-            RouteDescriptor rd = entry.getValue();
-            if (rd.targetsCluster()) {
-                HostPort target = Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
-                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer");
-                serverConnections.computeIfAbsent(target, t -> {
-                    var newScsm = createServerConnection(t);
-                    newScsm.connect(clientChannel);
-                    return newScsm;
-                });
-                routeTargets.put(entry.getKey(), target);
+        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
+        if (descriptors != null) {
+            for (var entry : descriptors.entrySet()) {
+                RouteDescriptor rd = entry.getValue();
+                if (rd.targetsCluster()) {
+                    routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
+                            "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer"));
+                }
             }
         }
-        // If broker addresses are already known (fetched by a previous connection), upgrade immediately.
-        for (String routeName : routeTargets.keySet()) {
-            upgradeToPerBrokerConnection(routeName);
+        // For per-broker connections, the EndpointReconciler has already resolved the
+        // real upstream address. Override the owning route's bootstrap target with it.
+        // Server connections are opened lazily in forwardToRoute().
+        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
+            var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
+            RouteDescriptor owningDesc = descriptors != null ? descriptors.get(routeAndNode.route()) : null;
+            if (owningDesc != null && owningDesc.targetsCluster()) {
+                routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
+            }
         }
         log(Level.DEBUG)
                 .addKeyValue("routeCount", () -> routeTargets.size())
-                .addKeyValue("backendCount", () -> serverConnections.size())
-                .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
-                .log("Upstream connections initiated for routing VC");
+                .addKeyValue("routeTargets", () -> routeTargets.toString())
+                .log("Route targets resolved for router VC");
     }
 
     /**
@@ -896,8 +896,12 @@ public class ClientConnectionStateMachine {
             }
             ServerConnectionStateMachine scsm = serverConnections.get(target);
             if (scsm == null) {
-                illegalState("No server connection for target: " + target);
-                return;
+                proxyToServerConnectionCounter.increment();
+                scsm = createServerConnection(target);
+                serverConnections.put(target, scsm);
+                Channel clientChannel = Objects.requireNonNull(
+                        Objects.requireNonNull(frontendHandler).clientChannel());
+                scsm.connect(clientChannel);
             }
             scsm.sendRequest(msg);
         }
@@ -912,46 +916,6 @@ public class ClientConnectionStateMachine {
      */
     public void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
         this.nodeIdMapping = nodeIdMapping;
-    }
-
-    /**
-     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} when a METADATA
-     * response arrives for the named route, providing the upstream broker addresses.
-     * Updates the shared registry on the virtual cluster model so that all CCSMs for this
-     * virtual cluster can benefit, then upgrades this connection if it is the owning connection
-     * for the relevant broker.
-     */
-    public void registerBrokerAddresses(String routeName, Map<Integer, HostPort> addresses) {
-        virtualCluster().updateBrokerAddresses(routeName, addresses);
-        upgradeToPerBrokerConnection(routeName);
-    }
-
-    private void upgradeToPerBrokerConnection(String routeName) {
-        if (nodeIdMapping == null || nodeId() == null || routeTargets == null) {
-            return;
-        }
-        var homeRouteAndNode = nodeIdMapping.fromVirtual(nodeId());
-        if (!homeRouteAndNode.route().equals(routeName)) {
-            return;
-        }
-        HostPort homeBrokerAddress = virtualCluster().getBrokerAddresses(routeName).get(homeRouteAndNode.targetNodeId());
-        if (homeBrokerAddress == null) {
-            return;
-        }
-        var frontend = frontendHandler;
-        if (frontend == null) {
-            return;
-        }
-        Channel clientChannel = frontend.clientChannel();
-        if (clientChannel == null) {
-            return;
-        }
-        serverConnections.computeIfAbsent(homeBrokerAddress, addr -> {
-            var newScsm = createServerConnection(addr);
-            newScsm.connect(clientChannel);
-            return newScsm;
-        });
-        routeTargets.put(routeName, homeBrokerAddress);
     }
 
     @VisibleForTesting
