@@ -135,7 +135,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             case InternalResponseFrame<?> decodedFrame -> handleInternalResponseWrite(promise, decodedFrame);
             case DecodedResponseFrame<?> decodedFrame -> handleDecodedResponseWrite(decodedFrame, promise);
             case OpaqueResponseFrame orf -> handleOpaqueResponseWrite(ctx, msg, promise, orf);
-            default -> throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
+            case null, default -> throw new IllegalStateException(
+                    "Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
         }
     }
 
@@ -221,7 +222,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             case ByteBuf ignored when msg == Unpooled.EMPTY_BUFFER -> handleOpaqueOrPassthroughRead(msg);
             // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
             // but, otherwise we don't expect any other kind of message
-            default -> throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
+            case null, default -> throw new IllegalStateException(
+                    "Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
         }
     }
 
