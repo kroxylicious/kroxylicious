@@ -13,7 +13,7 @@
 ARG OMB_COMMIT=85599891321cafa2fb7065a63f009b4bb5374288
 
 # ---------- Stage 1: build ----------
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1781533376@sha256:84347769a38ebd70ba45ce8825506f7e2f28956516758bc0239d3e73f26d39d0 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-21:1.24-2.1782104524@sha256:0dd58def1b5c9b67d9b9c0feca9a89bdaa8a948aeffb924eca9024a11458e711 AS builder
 USER root
 
 ARG OMB_COMMIT
@@ -29,7 +29,7 @@ RUN mvn clean package -DskipTests && \
     tar -xzf /build/package/target/openmessaging-benchmark-*-bin.tar.gz --strip-components=1 -C /opt/benchmark
 
 # ---------- Stage 2: runtime ----------
-FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24-2.1781533371@sha256:8e4169812e4598113c3d61fbea6c21c1c8e49b5a38c5cd17be6befe9eec4afc8
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24-2.1782104518@sha256:0e8823e4692d40f2a17a2a66f61e09523f9510b52a157971b90b11861adbafdb
 USER root
 
 COPY --from=builder --chown=185:0 /opt/benchmark /opt/benchmark
