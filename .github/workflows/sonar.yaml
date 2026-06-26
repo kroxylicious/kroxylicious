@@ -65,6 +65,7 @@ jobs:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
           ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
+          allow-unsafe-pr-checkout: true
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
         run: |
