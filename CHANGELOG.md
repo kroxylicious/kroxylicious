@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4207](https://github.com/kroxylicious/kroxylicious/pull/4207): build(deps): [record-validation] bump io.kiota:kiota-http-jdk from 0.0.35 to 0.0.36
 * [#3146](https://github.com/kroxylicious/kroxylicious/issues/3146): feat(record-encryption): CipherTrust Manager KMS plugin for Record Encryption (username/password auth only).
 * [#4141](https://github.com/kroxylicious/kroxylicious/pull/4141): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.4 to 2.26.0
 * [#4102](https://github.com/kroxylicious/kroxylicious/pull/4102): build(deps): bump apicurio-registry.version from 3.2.4 to 3.3.0
