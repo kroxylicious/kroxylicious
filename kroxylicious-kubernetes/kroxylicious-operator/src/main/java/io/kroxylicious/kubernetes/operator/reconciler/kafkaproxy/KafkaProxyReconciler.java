@@ -215,8 +215,18 @@ public class KafkaProxyReconciler implements
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getMountPath).reversed())));
 
         return new ConfigurationFragment<>(
-                new Configuration(new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), null, referencedFilters, null, null,
-                        virtualClusters.stream().map(ConfigurationFragment::fragment).toList(), List.of(), false, Optional.empty(), NetworkDefinitionBuilder.build(proxy),
+                new Configuration(
+                        new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
+                        null, // no named target clusters
+                        referencedFilters,
+                        null, // no defaultFilters <= each of the virtualClusters specifies its own
+                        null, // no router definitions
+                        virtualClusters.stream().map(ConfigurationFragment::fragment).toList(),
+                        List.of(),
+                        false,
+                        // micrometer
+                        Optional.empty(),
+                        NetworkDefinitionBuilder.build(proxy),
                         null),
                 allVolumes,
                 allMounts);
