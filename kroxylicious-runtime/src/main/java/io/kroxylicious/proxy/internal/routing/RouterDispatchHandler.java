@@ -5,16 +5,22 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.service.HostPort;
 
 /**
  * Sits at the end of the VC-level filter chain (instead of
@@ -22,19 +28,40 @@ import io.kroxylicious.proxy.router.Router;
  * virtual cluster uses a router. Forwards statically-routed requests
  * directly to the {@link ClientConnectionStateMachine}; rejects any
  * request whose API key is not covered by the static routes.
+ * <p>
+ * Also intercepts decoded responses to apply node ID translation using
+ * the supplied {@link NodeIdMapping}, and caches upstream broker addresses
+ * from METADATA responses to enable per-broker connections.
  */
-public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
+public class RouterDispatchHandler extends ChannelDuplexHandler {
+
+    /**
+     * API keys whose responses carry node IDs that must be translated to virtual node IDs.
+     * These keys are always decoded (even when statically routed) so the response bodies
+     * are accessible for translation.
+     */
+    public static final Set<ApiKeys> NODE_ID_TRANSLATION_KEYS = Set.of(
+            ApiKeys.METADATA,
+            ApiKeys.FIND_COORDINATOR,
+            ApiKeys.DESCRIBE_CLUSTER,
+            ApiKeys.PRODUCE);
 
     private final Router router;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
+    private final NodeIdMapping nodeIdMapping;
+
+    /** Tracks correlation IDs of in-flight requests that need response translation. */
+    private final Map<Integer, String> pendingRoutes = new HashMap<>();
 
     public RouterDispatchHandler(Router router,
                                  Map<ApiKeys, String> staticRoutes,
-                                 ClientConnectionStateMachine ccsm) {
+                                 ClientConnectionStateMachine ccsm,
+                                 NodeIdMapping nodeIdMapping) {
         this.router = router;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
+        this.nodeIdMapping = nodeIdMapping;
     }
 
     @Override
@@ -48,6 +75,9 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
+                if (NODE_ID_TRANSLATION_KEYS.contains(apiKey)) {
+                    pendingRoutes.put(frame.correlationId(), staticRoute);
+                }
                 ccsm.forwardToRoute(staticRoute, msg);
                 return;
             }
@@ -56,5 +86,27 @@ public class RouterDispatchHandler extends ChannelInboundHandlerAdapter {
         }
         throw new IllegalStateException(
                 "Unexpected non-frame message in routing pipeline: " + msg.getClass().getName());
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (msg instanceof DecodedResponseFrame<?> frame) {
+            String routeName = pendingRoutes.remove(frame.correlationId());
+            if (routeName != null) {
+                if (frame.body() instanceof MetadataResponseData md) {
+                    ccsm.registerBrokerAddresses(routeName, extractBrokerAddresses(md));
+                }
+                NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, routeName);
+            }
+        }
+        ctx.write(msg, promise);
+    }
+
+    private static Map<Integer, HostPort> extractBrokerAddresses(MetadataResponseData md) {
+        var addresses = new HashMap<Integer, HostPort>(md.brokers().size());
+        for (var broker : md.brokers()) {
+            addresses.put(broker.nodeId(), new HostPort(broker.host(), broker.port()));
+        }
+        return addresses;
     }
 }

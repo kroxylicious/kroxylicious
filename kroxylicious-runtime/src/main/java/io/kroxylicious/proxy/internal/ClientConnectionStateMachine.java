@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -206,6 +207,9 @@ public class ClientConnectionStateMachine {
 
     @Nullable
     private Map<String, HostPort> routeTargets;
+
+    @Nullable
+    private NodeIdMapping nodeIdMapping;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
@@ -896,6 +900,48 @@ public class ClientConnectionStateMachine {
         else {
             illegalState("forwardToRoute in unexpected state");
         }
+    }
+
+    /**
+     * Sets the node ID mapping used for per-broker connection routing.
+     * Called by {@link io.kroxylicious.proxy.internal.KafkaProxyInitializer} when setting up a routed VC.
+     */
+    public void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
+        this.nodeIdMapping = nodeIdMapping;
+    }
+
+    /**
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} when a METADATA
+     * response arrives for the named route, providing the upstream broker addresses.
+     * If this connection is on a per-broker port whose owning route matches {@code routeName},
+     * creates a direct connection to the home broker and updates the route target accordingly.
+     */
+    public void registerBrokerAddresses(String routeName, Map<Integer, HostPort> addresses) {
+        if (nodeIdMapping == null || nodeId() == null) {
+            return;
+        }
+        var homeRouteAndNode = nodeIdMapping.fromVirtual(nodeId());
+        if (!homeRouteAndNode.route().equals(routeName)) {
+            return;
+        }
+        HostPort homeBrokerAddress = addresses.get(homeRouteAndNode.targetNodeId());
+        if (homeBrokerAddress == null || routeTargets == null) {
+            return;
+        }
+        var frontend = frontendHandler;
+        if (frontend == null) {
+            return;
+        }
+        Channel clientChannel = frontend.clientChannel();
+        if (clientChannel == null) {
+            return;
+        }
+        serverConnections.computeIfAbsent(homeBrokerAddress, addr -> {
+            var newScsm = createServerConnection(addr);
+            newScsm.connect(clientChannel);
+            return newScsm;
+        });
+        routeTargets.put(routeName, homeBrokerAddress);
     }
 
     @VisibleForTesting

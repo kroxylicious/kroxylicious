@@ -43,6 +43,9 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -270,8 +273,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             if (!staticRoutes.isEmpty()) {
                 dynamicallyRoutedKeys.removeAll(staticRoutes.keySet());
             }
+            // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
+            // can translate them, even when those keys are statically routed.
+            dynamicallyRoutedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_KEYS);
             dp.setRouterDecodingRequirements(dynamicallyRoutedKeys);
-            var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine);
+            var nodeIdMapping = buildNodeIdMapping(virtualCluster);
+            clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
+            var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine, nodeIdMapping);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }
         else {
@@ -302,6 +310,18 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(clusterName, nodeId);
         return new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
+    }
+
+    private static NodeIdMapping buildNodeIdMapping(VirtualClusterModel virtualCluster) {
+        var descriptors = virtualCluster.routeDescriptors();
+        if (descriptors.size() == 1) {
+            return new IdentityNodeIdMapping(descriptors.keySet().iterator().next());
+        }
+        var routeIds = new java.util.HashMap<String, Integer>(descriptors.size());
+        for (var entry : descriptors.entrySet()) {
+            routeIds.put(entry.getKey(), entry.getValue().id());
+        }
+        return new BijectiveNodeIdMapping(routeIds, routeIds.size());
     }
 
     private void rejectConnection(Channel ch, String clusterName) {
