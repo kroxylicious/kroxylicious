@@ -141,7 +141,7 @@ public class KafkaUtils {
     public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
         List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
                 p -> !p.isEmpty());
-        return pods.get(pods.size() - 1).getMetadata().getName();
+        return pods.getLast().getMetadata().getName();
     }
 
     /**
@@ -155,7 +155,7 @@ public class KafkaUtils {
     public static String getPodNameByPrefix(String deployNamespace, String prefix, Duration timeout) {
         List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPodsByPrefixInName(deployNamespace, prefix),
                 p -> !p.isEmpty());
-        return pods.get(pods.size() - 1).getMetadata().getName();
+        return pods.getLast().getMetadata().getName();
     }
 
     /**

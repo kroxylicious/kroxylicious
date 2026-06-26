@@ -29,7 +29,7 @@ class PlainSaslObserver implements SaslObserver {
         Objects.requireNonNull(response, "response");
         if (authorizationId == null) {
             var tokens = parsePlainClient(new String(response, StandardCharsets.UTF_8));
-            var optionalAuthzid = tokens.get(0);
+            var optionalAuthzid = tokens.getFirst();
             var authcid = tokens.get(1);
             if (authcid.isEmpty()) {
                 throw new SaslException("PLAIN saw client initial response with empty authcid.");

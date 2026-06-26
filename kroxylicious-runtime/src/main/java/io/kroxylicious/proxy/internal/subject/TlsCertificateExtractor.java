@@ -35,7 +35,7 @@ public interface TlsCertificateExtractor extends Function<X509Certificate, Strea
         return x509Certificate -> {
             try {
                 return x509Certificate.getSubjectAlternativeNames().stream().flatMap(san -> {
-                    Integer asn1SanType = (Integer) san.get(0);
+                    Integer asn1SanType = (Integer) san.getFirst();
                     if (asn1SanType == targetType.asn1Value) {
                         return Stream.of((String) san.get(1));
                     }

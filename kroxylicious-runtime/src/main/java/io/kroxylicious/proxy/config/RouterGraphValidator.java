@@ -132,7 +132,7 @@ class RouterGraphValidator {
     }
 
     private static String formatCycle(List<String> path) {
-        int cycleStart = path.indexOf(path.get(path.size() - 1));
+        int cycleStart = path.indexOf(path.getLast());
         return String.join(" -> ", path.subList(cycleStart, path.size()));
     }
 }
