@@ -867,6 +867,10 @@ public class ClientConnectionStateMachine {
                 routeTargets.put(entry.getKey(), target);
             }
         }
+        // If broker addresses are already known (fetched by a previous connection), upgrade immediately.
+        for (String routeName : routeTargets.keySet()) {
+            upgradeToPerBrokerConnection(routeName);
+        }
         log(Level.DEBUG)
                 .addKeyValue("routeCount", () -> routeTargets.size())
                 .addKeyValue("backendCount", () -> serverConnections.size())
@@ -913,19 +917,25 @@ public class ClientConnectionStateMachine {
     /**
      * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} when a METADATA
      * response arrives for the named route, providing the upstream broker addresses.
-     * If this connection is on a per-broker port whose owning route matches {@code routeName},
-     * creates a direct connection to the home broker and updates the route target accordingly.
+     * Updates the shared registry on the virtual cluster model so that all CCSMs for this
+     * virtual cluster can benefit, then upgrades this connection if it is the owning connection
+     * for the relevant broker.
      */
     public void registerBrokerAddresses(String routeName, Map<Integer, HostPort> addresses) {
-        if (nodeIdMapping == null || nodeId() == null) {
+        virtualCluster().updateBrokerAddresses(routeName, addresses);
+        upgradeToPerBrokerConnection(routeName);
+    }
+
+    private void upgradeToPerBrokerConnection(String routeName) {
+        if (nodeIdMapping == null || nodeId() == null || routeTargets == null) {
             return;
         }
         var homeRouteAndNode = nodeIdMapping.fromVirtual(nodeId());
         if (!homeRouteAndNode.route().equals(routeName)) {
             return;
         }
-        HostPort homeBrokerAddress = addresses.get(homeRouteAndNode.targetNodeId());
-        if (homeBrokerAddress == null || routeTargets == null) {
+        HostPort homeBrokerAddress = virtualCluster().getBrokerAddresses(routeName).get(homeRouteAndNode.targetNodeId());
+        if (homeBrokerAddress == null) {
             return;
         }
         var frontend = frontendHandler;

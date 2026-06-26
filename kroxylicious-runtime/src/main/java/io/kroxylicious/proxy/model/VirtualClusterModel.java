@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -109,6 +110,9 @@ public class VirtualClusterModel implements AutoCloseable {
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
     private final @Nullable String routerName;
     private final @Nullable Map<String, RouteDescriptor> routeDescriptors;
+
+    /** Shared broker address registry: updated by any connection that receives a METADATA response. */
+    private final ConcurrentHashMap<String, Map<Integer, HostPort>> routeBrokerAddresses = new ConcurrentHashMap<>();
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -229,6 +233,23 @@ public class VirtualClusterModel implements AutoCloseable {
     @Nullable
     public Map<String, RouteDescriptor> routeDescriptors() {
         return routeDescriptors;
+    }
+
+    /**
+     * Updates the shared upstream broker address registry for the named route.
+     * Called by any CCSM that receives a METADATA response, so that subsequently-created
+     * per-broker CCSMs can immediately use the correct upstream address.
+     */
+    public void updateBrokerAddresses(String routeName, Map<Integer, HostPort> addresses) {
+        routeBrokerAddresses.put(routeName, Map.copyOf(addresses));
+    }
+
+    /**
+     * Returns the most recently observed upstream broker addresses for the named route,
+     * or an empty map if no METADATA response has been received yet.
+     */
+    public Map<Integer, HostPort> getBrokerAddresses(String routeName) {
+        return routeBrokerAddresses.getOrDefault(routeName, Map.of());
     }
 
     public void logVirtualClusterSummary() {
