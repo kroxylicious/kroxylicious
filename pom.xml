@@ -716,8 +716,7 @@
                         <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
                         <staticAfter>true</staticAfter>
-                        <!-- use language level 17, see https://github.com/javaparser/javaparser/issues/3833 -->
-                        <compliance>17</compliance>
+                        <compliance>21</compliance>
                     </configuration>
                     <executions>
                         <execution>
@@ -745,6 +744,14 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>3.6.0</version>
+                    <dependencies>
+                        <!-- Override bundled Checkstyle 9.3 with 10.x which supports Java 21 switch type patterns -->
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>10.26.1</version>
+                        </dependency>
+                    </dependencies>
                     <configuration>
                         <violationSeverity>warning</violationSeverity>
                         <failOnViolation>true</failOnViolation>
