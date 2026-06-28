@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4144](https://github.com/kroxylicious/kroxylicious/pull/4144): build(deps): bump io.prometheus:prometheus-metrics-bom from 1.6.1 to 1.8.0
 * [#3146](https://github.com/kroxylicious/kroxylicious/issues/3146): feat(record-encryption): CipherTrust Manager KMS plugin for Record Encryption (username/password auth only).
 * [#4141](https://github.com/kroxylicious/kroxylicious/pull/4141): build(deps): bump org.apache.logging.log4j:log4j-bom from 2.25.4 to 2.26.0
 * [#4102](https://github.com/kroxylicious/kroxylicious/pull/4102): build(deps): bump apicurio-registry.version from 3.2.4 to 3.3.0
