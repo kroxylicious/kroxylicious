@@ -894,15 +894,14 @@ public class ClientConnectionStateMachine {
                 illegalState("Unknown route: " + routeName);
                 return;
             }
-            ServerConnectionStateMachine scsm = serverConnections.get(target);
-            if (scsm == null) {
+            ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
                 proxyToServerConnectionCounter.increment();
-                scsm = createServerConnection(target);
-                serverConnections.put(target, scsm);
+                var newScsm = createServerConnection(target);
                 Channel clientChannel = Objects.requireNonNull(
                         Objects.requireNonNull(frontendHandler).clientChannel());
-                scsm.connect(clientChannel);
-            }
+                newScsm.connect(clientChannel);
+                return newScsm;
+            });
             scsm.sendRequest(msg);
         }
         else {

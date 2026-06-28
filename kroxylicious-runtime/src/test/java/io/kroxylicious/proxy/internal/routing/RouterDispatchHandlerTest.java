@@ -144,7 +144,7 @@ class RouterDispatchHandlerTest {
         // route-a has id=0, totalRoutes=2: virtual(0,0)=0, virtual(0,1)=2
         assertThat(translatedMd.brokers().find(0)).isNotNull(); // node 0 → virtual 0
         assertThat(translatedMd.brokers().find(2)).isNotNull(); // node 1 → virtual 2
-        assertThat(translatedMd.controllerId()).isEqualTo(0); // virtual 0
+        assertThat(translatedMd.controllerId()).isZero(); // virtual 0
     }
 
     @Test

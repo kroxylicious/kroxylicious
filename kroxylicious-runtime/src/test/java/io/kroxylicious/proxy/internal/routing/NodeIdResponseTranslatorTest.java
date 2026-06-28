@@ -106,6 +106,8 @@ class NodeIdResponseTranslatorTest {
         data.responses().add(topicResp);
 
         NodeIdResponseTranslator.translate(data, (short) 9, mapping, ROUTE_A);
+
+        assertThat(data.nodeEndpoints()).isEmpty();
     }
 
     @Test

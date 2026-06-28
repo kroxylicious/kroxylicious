@@ -48,7 +48,7 @@ class BijectiveNodeIdMappingTest {
     @Test
     void shouldAssignInterleavedVirtualIds() {
         var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
-        assertThat(mapping.toVirtual(ROUTE_A, 0)).isEqualTo(0);
+        assertThat(mapping.toVirtual(ROUTE_A, 0)).isZero();
         assertThat(mapping.toVirtual(ROUTE_B, 0)).isEqualTo(1);
         assertThat(mapping.toVirtual(ROUTE_A, 1)).isEqualTo(2);
         assertThat(mapping.toVirtual(ROUTE_B, 1)).isEqualTo(3);
@@ -76,13 +76,15 @@ class BijectiveNodeIdMappingTest {
 
     @Test
     void shouldRejectTotalRoutesLessThanTwo() {
-        assertThatThrownBy(() -> new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0), 1))
+        var routes = Map.of(ROUTE_A, 0);
+        assertThatThrownBy(() -> new BijectiveNodeIdMapping(routes, 1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void shouldRejectIdOutOfRange() {
-        assertThatThrownBy(() -> new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 5), 2))
+        var routes = Map.of(ROUTE_A, 0, ROUTE_B, 5);
+        assertThatThrownBy(() -> new BijectiveNodeIdMapping(routes, 2))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("outside the valid range");
     }
@@ -90,7 +92,7 @@ class BijectiveNodeIdMappingTest {
     @Test
     void shouldHandleTargetNodeIdZero() {
         var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
-        assertThat(mapping.toVirtual(ROUTE_A, 0)).isEqualTo(0);
+        assertThat(mapping.toVirtual(ROUTE_A, 0)).isZero();
         assertThat(mapping.fromVirtual(0)).isEqualTo(new RouteAndNode(ROUTE_A, 0));
     }
 
@@ -104,7 +106,7 @@ class BijectiveNodeIdMappingTest {
     @Test
     void shouldSupportNonContiguousIds() {
         var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 2), 3);
-        assertThat(mapping.toVirtual(ROUTE_A, 0)).isEqualTo(0);
+        assertThat(mapping.toVirtual(ROUTE_A, 0)).isZero();
         assertThat(mapping.toVirtual(ROUTE_B, 0)).isEqualTo(2);
         assertThat(mapping.toVirtual(ROUTE_A, 1)).isEqualTo(3);
         assertThat(mapping.toVirtual(ROUTE_B, 1)).isEqualTo(5);

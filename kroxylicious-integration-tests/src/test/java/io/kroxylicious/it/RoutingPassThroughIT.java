@@ -221,7 +221,7 @@ class RoutingPassThroughIT {
             while (collected.size() < 10 && System.currentTimeMillis() < deadline) {
                 consumer.poll(Duration.ofSeconds(1)).forEach(collected::add);
             }
-            assertThat(collected).hasSize(10);
+            assertThat(collected).isNotEmpty().hasSize(10);
         }
     }
 
@@ -288,7 +288,7 @@ class RoutingPassThroughIT {
             while (collected.size() < 10 && System.currentTimeMillis() < deadline) {
                 consumer.poll(Duration.ofSeconds(1)).forEach(collected::add);
             }
-            assertThat(collected).hasSize(10);
+            assertThat(collected).isNotEmpty().hasSize(10);
         }
 
         // Then: all data is on the selected cluster, none on the other

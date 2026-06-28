@@ -317,7 +317,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         if (descriptors.size() == 1) {
             return new IdentityNodeIdMapping(descriptors.keySet().iterator().next());
         }
-        var routeIds = new java.util.HashMap<String, Integer>(descriptors.size());
+        var routeIds = java.util.HashMap.<String, Integer> newHashMap(descriptors.size());
         for (var entry : descriptors.entrySet()) {
             routeIds.put(entry.getKey(), entry.getValue().id());
         }
