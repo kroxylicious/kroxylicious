@@ -895,7 +895,6 @@ public class ClientConnectionStateMachine {
                 return;
             }
             ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
-                proxyToServerConnectionCounter.increment();
                 var newScsm = createServerConnection(target);
                 Channel clientChannel = Objects.requireNonNull(
                         Objects.requireNonNull(frontendHandler).clientChannel());
