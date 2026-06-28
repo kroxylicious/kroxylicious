@@ -277,11 +277,11 @@ class MetadataEnforcement extends ApiEnforcement<MetadataRequestData, MetadataRe
                 });
     }
 
-    static record MetadataCompleter(boolean includeClusterAuthorizedOperations,
-                                    boolean includeTopicAuthorizedOperations,
-                                    boolean isAllTopics,
-                                    boolean requestUsesTopicIds,
-                                    List<MetadataResponseData.MetadataResponseTopic> topics)
+    record MetadataCompleter(boolean includeClusterAuthorizedOperations,
+                             boolean includeTopicAuthorizedOperations,
+                             boolean isAllTopics,
+                             boolean requestUsesTopicIds,
+                             List<MetadataResponseData.MetadataResponseTopic> topics)
             implements InflightState<MetadataResponseData> {
         @Override
         public MetadataResponseData merge(MetadataResponseData response) {

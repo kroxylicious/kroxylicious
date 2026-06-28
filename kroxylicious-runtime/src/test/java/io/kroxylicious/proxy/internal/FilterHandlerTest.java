@@ -46,6 +46,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.User;
@@ -73,6 +75,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -100,6 +103,35 @@ class FilterHandlerTest extends FilterHarness {
         channel.writeOutbound(Unpooled.EMPTY_BUFFER);
         var propagated = channel.readOutbound();
         assertThat(propagated).isSameAs(Unpooled.EMPTY_BUFFER);
+    }
+
+    @Test
+    void canForwardEmptyBuffersOnRead() {
+        buildChannel((ApiVersionsRequestFilter) (apiVersion, header, request, context) -> context.forwardRequest(header, request));
+        channel.writeInbound(Unpooled.EMPTY_BUFFER);
+        var propagated = channel.readInbound();
+        assertThat(propagated).isSameAs(Unpooled.EMPTY_BUFFER);
+    }
+
+    @Test
+    void writeRejectsNullMessage() {
+        buildChannel((ApiVersionsRequestFilter) (apiVersion, header, request, context) -> context.forwardRequest(header, request));
+        FilterHandler handler = channel.pipeline().get(FilterHandler.class);
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ChannelPromise promise = mock(ChannelPromise.class);
+        assertThatThrownBy(() -> handler.write(ctx, null, promise))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected message writing to downstream");
+    }
+
+    @Test
+    void channelReadRejectsNullMessage() {
+        buildChannel((ApiVersionsRequestFilter) (apiVersion, header, request, context) -> context.forwardRequest(header, request));
+        FilterHandler handler = channel.pipeline().get(FilterHandler.class);
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        assertThatThrownBy(() -> handler.channelRead(ctx, null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unexpected message writing to upstream");
     }
 
     @Test

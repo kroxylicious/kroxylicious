@@ -10,6 +10,7 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+      day: "saturday"
     # Default limit is 5, which is tight for a large project with many dependencies
     open-pull-requests-limit: 10
   - package-ecosystem: "github-actions"
@@ -18,6 +19,7 @@ updates:
     schedule:
       # Check for updates to GitHub Actions every week
       interval: "weekly"
+      day: "saturday"
     labels:
       - "dependencies"
       - "dev/github_actions"
@@ -30,6 +32,7 @@ updates:
       - "/.github/actions/common/*"
     schedule:
       interval: "weekly"
+      day: "saturday"
     labels:
       - "dependencies"
       - "dev/github_actions"

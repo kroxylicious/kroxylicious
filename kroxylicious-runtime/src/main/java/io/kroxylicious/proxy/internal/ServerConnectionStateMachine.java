@@ -31,6 +31,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
@@ -41,7 +42,6 @@ import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -79,12 +79,18 @@ class ServerConnectionStateMachine {
     @Nullable
     private final Integer nodeId;
 
+    @VisibleForTesting
     int serverMessagesInFlightCount;
 
-    private boolean serverReadsBlocked;
+    int serverMessagesInFlightCount() {
+        return serverMessagesInFlightCount;
+    }
 
-    @Nullable
     @VisibleForTesting
+    boolean serverReadsBlocked;
+
+    @VisibleForTesting
+    @Nullable
     Timer.Sample serverBackpressureTimer;
 
     @Nullable
@@ -95,24 +101,27 @@ class ServerConnectionStateMachine {
     private final Timer serverToProxyBackpressureMeter;
     private final ActivationToken proxyToServerConnectionToken;
 
+    @SuppressWarnings("java:S107")
     ServerConnectionStateMachine(
                                  HostPort remote,
                                  ClientConnectionStateMachine ccsm,
                                  VirtualClusterModel virtualCluster,
                                  String clusterName,
-                                 @Nullable Integer nodeId) {
+                                 @Nullable Integer nodeId,
+                                 Counter proxyToServerConnectionCounter,
+                                 Counter proxyToServerErrorCounter,
+                                 Timer serverToProxyBackpressureMeter,
+                                 ActivationToken proxyToServerConnectionToken) {
         this.state = new ServerConnectionState.Connecting(remote);
         this.virtualCluster = Objects.requireNonNull(virtualCluster);
         this.clusterName = Objects.requireNonNull(clusterName);
         this.nodeId = nodeId;
         this.ccsm = Objects.requireNonNull(ccsm);
         this.backendHandler = new KafkaProxyBackendHandler(this);
-
-        var node = new VirtualClusterNode(clusterName, nodeId);
-        this.proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
-        this.proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
-        this.serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
-        this.proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
+        this.proxyToServerConnectionCounter = proxyToServerConnectionCounter;
+        this.proxyToServerErrorCounter = proxyToServerErrorCounter;
+        this.serverToProxyBackpressureMeter = serverToProxyBackpressureMeter;
+        this.proxyToServerConnectionToken = proxyToServerConnectionToken;
     }
 
     ServerConnectionState state() {
@@ -296,7 +305,7 @@ class ServerConnectionStateMachine {
             SslContextBuilder sslContextBuilder = SslContextBuilder.forClient()
                     .keyManager(credentialsImpl.privateKey(), credentialsImpl.certificateChain());
 
-            virtualCluster.targetCluster().tls().ifPresent(tls -> {
+            Optional.ofNullable(virtualCluster.targetCluster()).flatMap(TargetCluster::tls).ifPresent(tls -> {
                 VirtualClusterModel.configureCipherSuites(sslContextBuilder, tls);
                 VirtualClusterModel.configureEnabledProtocols(sslContextBuilder, tls);
                 Optional.ofNullable(tls.trust())
