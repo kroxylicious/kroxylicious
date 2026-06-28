@@ -34,6 +34,9 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -590,7 +593,17 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "", ""));
         Optional<Map<String, Object>> development = Optional.empty();
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        assertThatThrownBy(() -> new Configuration(null, null, filterDefinitions, null, null, virtualCluster, null, false, development, null, null))
+        assertThatThrownBy(() -> new Configuration(null,
+                null,
+                filterDefinitions,
+                null,
+                null,
+                virtualCluster,
+                null,
+                false,
+                development,
+                null,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
     }
@@ -601,7 +614,17 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<String> defaultFilters = List.of("missing");
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        assertThatThrownBy(() -> new Configuration(null, null, filterDefinitions, defaultFilters, null, virtualCluster, null, false, development, null, null))
+        assertThatThrownBy(() -> new Configuration(null,
+                null,
+                filterDefinitions,
+                defaultFilters,
+                null,
+                virtualCluster,
+                null,
+                false,
+                development,
+                null,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
     }
@@ -614,7 +637,18 @@ class ConfigurationTest {
         TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
         List<VirtualCluster> virtualClusters = List
                 .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
-        assertThatThrownBy(() -> new Configuration(null, null, filterDefinitions, null, null, virtualClusters, null, false, development, null, null))
+        assertThatThrownBy(() -> new Configuration(
+                null,
+                null,
+                filterDefinitions,
+                null,
+                null,
+                virtualClusters,
+                null,
+                false,
+                development,
+                null,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
     }
@@ -633,7 +667,17 @@ class ConfigurationTest {
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
         TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
         List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("used2")));
-        assertThatThrownBy(() -> new Configuration(null, null, filterDefinitions, defaultFilters, null, virtualClusters, null, false, development, null, null))
+        assertThatThrownBy(() -> new Configuration(null,
+                null,
+                filterDefinitions,
+                defaultFilters,
+                null,
+                virtualClusters,
+                null,
+                false,
+                development,
+                null,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage(
                         "'filterDefinitions' defines filters which are not used in 'defaultFilters', in any virtual cluster's 'filters', or in any route's 'filters': [unused]");
@@ -649,8 +693,18 @@ class ConfigurationTest {
         VirtualCluster direct = buildVirtualCluster("direct", "y:9092", List.of("foo")); // filters defined on cluster
         VirtualCluster defaulted = buildVirtualCluster("defaulted", "x:9092", null); // filters not defined => should default to the top level
 
-        Configuration configuration = new Configuration(null, null, filterDefinitions, List.of("bar"), null, List.of(direct, defaulted), null, false, Optional.empty(),
-                null, null);
+        Configuration configuration = new Configuration(
+                null,
+                null,
+                filterDefinitions,
+                List.of("bar"),
+                null,
+                List.of(direct, defaulted),
+                null,
+                false,
+                Optional.empty(),
+                null,
+                null);
 
         // When
         var model = configuration.virtualClusterModel(null);
@@ -666,30 +720,66 @@ class ConfigurationTest {
 
     @Test
     void proxyProtocolModeShouldReturnRequiredWhenRequired() {
-        Configuration configuration = new Configuration(null, null, null, null, null, List.of(buildVirtualCluster("vc", "x:9092", null)), null, false, Optional.empty(),
-                null, new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
+        Configuration configuration = new Configuration(null, null, null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.REQUIRED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.REQUIRED);
     }
 
     @Test
     void proxyProtocolModeShouldReturnAllowedWhenAllowed() {
-        Configuration configuration = new Configuration(null, null, null, null, null, List.of(buildVirtualCluster("vc", "x:9092", null)), null, false, Optional.empty(),
-                null, new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
+        Configuration configuration = new Configuration(null, null, null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.ALLOWED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.ALLOWED);
     }
 
     @Test
     void proxyProtocolModeShouldReturnDisabledWhenDisabled() {
-        Configuration configuration = new Configuration(null, null, null, null, null, List.of(buildVirtualCluster("vc", "x:9092", null)), null, false, Optional.empty(),
-                null, new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
+        Configuration configuration = new Configuration(null, null, null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                new ProxyProtocolConfig(ProxyProtocolMode.DISABLED));
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
     }
 
     @Test
     void proxyProtocolDefaultsToDisabledWhenNull() {
-        Configuration configuration = new Configuration(null, null, null, null, null, List.of(buildVirtualCluster("vc", "x:9092", null)), null, false, Optional.empty(),
-                null, null);
+        Configuration configuration = new Configuration(null, null, null, null, null,
+                List.of(buildVirtualCluster("vc", "x:9092", null)),
+                null, false, Optional.empty(), null,
+                null);
         assertThat(configuration.proxyProtocolMode()).isEqualTo(ProxyProtocolMode.DISABLED);
+    }
+
+    @Test
+    void shouldRejectNestedRouters() {
+        var innerRoute = new RouteDefinition("inner-route", 0, List.of(), new RouteTarget("some-cluster", null));
+        var innerRouter = new RouterDefinition("inner-router", "SomeFactory", null, List.of(innerRoute));
+        var outerRoute = new RouteDefinition("outer-route", 0, List.of(), new RouteTarget(null, "inner-router"));
+        var outerRouter = new RouterDefinition("outer-router", "SomeFactory", null, List.of(outerRoute));
+        var gateway = new VirtualClusterGateway("gw",
+                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9192), null, null, null),
+                null, Optional.empty());
+        var vc = new VirtualCluster("vc1", null, new RouteTarget(null, "outer-router"),
+                List.of(gateway), false, false, null, null, null, null);
+
+        assertThatThrownBy(() -> new Configuration(
+                null,
+                null,
+                null,
+                null,
+                List.of(outerRouter, innerRouter),
+                List.of(vc),
+                null,
+                false,
+                Optional.empty(),
+                null,
+                null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("nested routers are not yet supported");
     }
 
     @NonNull

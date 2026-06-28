@@ -27,7 +27,7 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  *     <li>version byte (currently always zero)</li>
  *     <li>Protobuf Unsigned varint to hold the number of bytes required to hold the UTF-8 representation of the kekRef.</li>
  *     <li>UTF-8 representation of the kefRef.</li>
- *     <li>Bytes of the iv (AES uses 128-bit blocks, so a 128-bit IV, so <b>>must</b be 16 bytes).</li>
+ *     <li>Bytes of the iv (AES uses 128-bit blocks, so a 128-bit IV, so <b>must</b> be 16 bytes).</li>
  *     <li>Bytes of the edek.</li>
  * </ol>
  * @see <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf Encodings</a>

@@ -31,6 +31,6 @@ class FilterChainCompletionHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        clientConnectionStateMachine.onClientFilterChainComplete(msg);
+        clientConnectionStateMachine.onDirectClientFilterChainComplete(msg);
     }
 }
