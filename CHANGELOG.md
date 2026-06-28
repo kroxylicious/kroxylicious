@@ -7,6 +7,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4144](https://github.com/kroxylicious/kroxylicious/pull/4144): build(deps): bump io.prometheus:prometheus-metrics-bom from 1.6.1 to 1.8.0
+* [#4142](https://github.com/kroxylicious/kroxylicious/pull/4142): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.2.3 to 5.3.5
 * [#4207](https://github.com/kroxylicious/kroxylicious/pull/4207): build(deps): [record-validation] bump io.kiota:kiota-http-jdk from 0.0.35 to 0.0.36
 * [#4197](https://github.com/kroxylicious/kroxylicious/pull/4197): build(deps-dev): bump com.google.protobuf:protobuf-java from 4.35.0 to 4.35.1
 * [#4193](https://github.com/kroxylicious/kroxylicious/pull/4193): build(deps): bump com.github.ben-manes.caffeine:caffeine from 3.2.3 to 3.2.4
