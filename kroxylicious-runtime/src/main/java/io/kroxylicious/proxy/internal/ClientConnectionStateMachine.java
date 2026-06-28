@@ -367,12 +367,16 @@ public class ClientConnectionStateMachine {
      */
     void onServerWritable() {
         if (clientReadsBlocked) {
-            clientReadsBlocked = false;
-            if (clientToProxyBackpressureTimer != null) {
-                clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
-                clientToProxyBackpressureTimer = null;
+            boolean allWritable = serverConnections.values().stream()
+                    .allMatch(ServerConnectionStateMachine::isWritable);
+            if (allWritable) {
+                clientReadsBlocked = false;
+                if (clientToProxyBackpressureTimer != null) {
+                    clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
+                    clientToProxyBackpressureTimer = null;
+                }
+                Objects.requireNonNull(frontendHandler).relieveBackpressure();
             }
-            Objects.requireNonNull(frontendHandler).relieveBackpressure();
         }
     }
 

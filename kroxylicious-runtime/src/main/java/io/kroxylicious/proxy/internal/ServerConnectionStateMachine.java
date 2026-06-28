@@ -444,6 +444,10 @@ class ServerConnectionStateMachine {
         }
     }
 
+    boolean isWritable() {
+        return !serverReadsBlocked;
+    }
+
     void close() {
         if (!(state instanceof ServerConnectionState.Closed)) {
             toClosed();
