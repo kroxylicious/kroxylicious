@@ -33,11 +33,11 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
         }
         // each T can have multiple names, but each name must uniquely identify a T
         // each T has a unique id
-        this.nameMapping = impls.stream().collect(Collectors.toMap(T::name, tx -> tx));
+        this.nameMapping = impls.stream().collect(Collectors.toMap(PersistedIdentifiable::name, tx -> tx));
 
-        this.idMapping = impls.stream().collect(Collectors.toMap(T::serializedId, tx -> tx));
+        this.idMapping = impls.stream().collect(Collectors.toMap(PersistedIdentifiable::serializedId, tx -> tx));
 
-        this.reverseIdMapping = impls.stream().collect(Collectors.toMap(tx -> tx, T::serializedId));
+        this.reverseIdMapping = impls.stream().collect(Collectors.toMap(tx -> tx, PersistedIdentifiable::serializedId));
     }
 
     /**
