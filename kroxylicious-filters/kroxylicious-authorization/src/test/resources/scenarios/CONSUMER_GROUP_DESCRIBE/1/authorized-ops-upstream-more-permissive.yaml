@@ -1,0 +1,123 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "CONSUMER_GROUP_DESCRIBE"
+  apiVersion: 1
+  scenario: |
+    given proxy allows fewer operations on a group than upstream
+    when authz filter calculates authorizedOps for group
+    then only operations allowed at proxy and upstream are in authorizedOps
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "CONSUMER_GROUP_DESCRIBE"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 69
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        groupIds:
+          - "my-group"
+        includeAuthorizedOperations: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 1017
+        groups:
+          - errorCode: 350
+            errorMessage: "random-string-288"
+            groupId: "my-group"
+            groupState: "random-string-366"
+            groupEpoch: 818
+            assignmentEpoch: 755
+            assignorName: "random-string-628"
+            members:
+              - memberId: "random-string-943"
+                instanceId: "random-string-273"
+                rackId: "random-string-872"
+                memberEpoch: 237
+                clientId: "random-string-975"
+                clientHost: "random-string-689"
+                subscribedTopicNames:
+                  - "my-topic"
+                subscribedTopicRegex: "random-string-71"
+                assignment:
+                  topicPartitions:
+                    - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
+                      topicName: "my-topic"
+                      partitions:
+                        - 42
+                targetAssignment:
+                  topicPartitions:
+                    - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
+                      topicName: "my-topic"
+                      partitions:
+                        - 42
+                memberType: 20
+            # READ+DESCRIBE+DELETE+ALTER_CONFIGS+DESCRIBE_CONFIGS bitset
+            authorizedOperations: 3400
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 69
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    groupIds:
+      - "my-group"
+    includeAuthorizedOperations: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 1017
+    groups:
+      - errorCode: 350
+        errorMessage: "random-string-288"
+        groupId: "my-group"
+        groupState: "random-string-366"
+        groupEpoch: 818
+        assignmentEpoch: 755
+        assignorName: "random-string-628"
+        members:
+          - memberId: "random-string-943"
+            instanceId: "random-string-273"
+            rackId: "random-string-872"
+            memberEpoch: 237
+            clientId: "random-string-975"
+            clientHost: "random-string-689"
+            subscribedTopicNames:
+              - "my-topic"
+            subscribedTopicRegex: "random-string-71"
+            assignment:
+              topicPartitions:
+                - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
+                  topicName: "my-topic"
+                  partitions:
+                    - 42
+            targetAssignment:
+              topicPartitions:
+                - topicId: "hu65vSlOS1G1ZqWhPPXQaQ"
+                  topicName: "my-topic"
+                  partitions:
+                    - 42
+            memberType: 20
+        authorizedOperations: 256 # only DESCRIBE allowed in bitset

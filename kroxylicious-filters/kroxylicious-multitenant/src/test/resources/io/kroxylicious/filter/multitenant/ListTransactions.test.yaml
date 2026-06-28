@@ -1,0 +1,28 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: LIST_TRANSACTIONS
+  version: 0
+  response:
+    payload:
+      unknownStateFilters: []
+      producerIdFilters: []
+      transactionStates:
+      - transactionalId: tenant1-12345
+        producerId: 0
+        transactionState: CompleteCommit
+      - transactionalId: tenant2-12345
+        producerId: 0
+        transactionState: CompleteCommit
+      throttleTimeMs: 0
+      errorCode: 0
+    diff:
+      - op: replace
+        path: "/transactionStates/0/transactionalId"
+        value: "12345"
+      - op: remove
+        path: "/transactionStates/1"
+  disabled: false

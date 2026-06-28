@@ -1,0 +1,94 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: FETCH
+  version: 12
+  request:
+    payload:
+      replicaId: 0
+      maxWaitMs: 0
+      minBytes: 0
+      maxBytes: 0
+      isolationLevel: 0
+      sessionId: 0
+      sessionEpoch: 0
+      topics:
+        - topic: foo
+          partitions:
+            - partition: 0
+              currentLeaderEpoch: 0
+              fetchOffset: 0
+              lastFetchedEpoch: 0
+              logStartOffset: 0
+              partitionMaxBytes: 0
+      forgottenTopicsData: []
+      rackId: us-east1
+    diff:
+      - op: replace
+        path: "/topics/0/topic"
+        value: tenant1-foo
+  response:
+    payload:
+      errorCode: 0
+      sessionId: 0
+      responses:
+        - topic: tenant1-foo
+          partitions:
+            - partitionIndex: 0
+              highWatermark: 0
+              lastStableOffset: 0
+              abortedTransactions: []
+              preferredReadReplica: 0
+              records: null
+              errorCode: 0
+              logStartOffset: 0
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/responses/0/topic"
+        value: foo
+  disabled: false
+- apiMessageType: FETCH
+  version: 13
+  request:
+    payload:
+      replicaId: 0
+      maxWaitMs: 0
+      minBytes: 0
+      maxBytes: 0
+      isolationLevel: 0
+      sessionId: 0
+      sessionEpoch: 0
+      topics:
+        - topicId: AAAAAAAAAAAAAAAAAAAAAA
+          partitions:
+            - partition: 0
+              currentLeaderEpoch: 0
+              fetchOffset: 0
+              lastFetchedEpoch: 0
+              logStartOffset: 0
+              partitionMaxBytes: 0
+      forgottenTopicsData: []
+      rackId: us-east1
+    diff: []
+  response:
+    payload:
+      errorCode: 0
+      sessionId: 0
+      responses:
+        - topicId: AAAAAAAAAAAAAAAAAAAAAA
+          partitions:
+            - partitionIndex: 0
+              highWatermark: 0
+              lastStableOffset: 0
+              abortedTransactions: []
+              preferredReadReplica: 0
+              records: null
+              errorCode: 0
+              logStartOffset: 0
+      throttleTimeMs: 0
+    diff: []
+  disabled: false

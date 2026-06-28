@@ -1,0 +1,102 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.filter.entityisolation;
+
+import java.util.Objects;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import org.apache.kafka.common.message.DeleteAclsRequestData;
+import org.apache.kafka.common.message.DeleteAclsResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+
+import io.kroxylicious.filter.entityisolation.EntityIsolation.EntityType;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+
+/**
+ * Entity isolation processor for DELETE_ACLS.
+ * This implementation is handwritten as the fields of the RPC doesn't follow a common naming convention.
+ */
+class DeleteAclsEntityIsolationProcessor implements EntityIsolationProcessor<DeleteAclsRequestData, DeleteAclsResponseData, Void> {
+
+    private final Predicate<EntityType> shouldMap;
+    private final EntityNameMapper mapper;
+
+    DeleteAclsEntityIsolationProcessor(Predicate<EntityType> shouldMap, EntityNameMapper mapper) {
+        this.shouldMap = Objects.requireNonNull(shouldMap);
+        this.mapper = Objects.requireNonNull(mapper);
+    }
+
+    @Override
+    public short minSupportedVersion() {
+        return 1;
+    }
+
+    @Override
+    public short maxSupportedVersion() {
+        return 3;
+    }
+
+    @Override
+    public boolean shouldHandleRequest(short apiVersion) {
+        return (short) 1 <= apiVersion && apiVersion <= (short) 3;
+    }
+
+    @Override
+    public boolean shouldHandleResponse(short apiVersion) {
+        return (short) 1 <= apiVersion && apiVersion <= (short) 3;
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                          short apiVersion,
+                                                          DeleteAclsRequestData request,
+                                                          FilterContext filterContext,
+                                                          MapperContext mapperContext) {
+        request.filters().stream()
+                .collect(Collectors.toMap(Function.identity(),
+                        r -> EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, r.resourceTypeFilter())))
+                .entrySet()
+                .stream()
+                .filter(e -> e.getValue().isPresent())
+                .filter(e -> shouldMap.test(e.getValue().get()))
+                .forEach(e -> e.getKey().setResourceNameFilter(mapper.map(mapperContext, e.getValue().get(), e.getKey().resourceNameFilter())));
+        return filterContext.forwardRequest(header, request);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header,
+                                                            short apiVersion,
+                                                            Void correlatedRequestContext,
+                                                            DeleteAclsResponseData response,
+                                                            FilterContext filterContext,
+                                                            MapperContext mapperContext) {
+        response.filterResults().forEach(fr -> {
+            var matchingAclIterator = fr.matchingAcls().iterator();
+            while (matchingAclIterator.hasNext()) {
+                var configResource = matchingAclIterator.next();
+                EntityIsolation.fromResourceTypeCode(ApiKeys.DELETE_ACLS, configResource.resourceType())
+                        .filter(shouldMap)
+                        .ifPresent(entityType -> {
+                            if (mapper.isOwnedByContext(mapperContext, entityType, configResource.resourceName())) {
+                                configResource.setResourceName(mapper.unmap(mapperContext, entityType, configResource.resourceName()));
+                            }
+                            else {
+                                matchingAclIterator.remove();
+                            }
+                        });
+            }
+        });
+        return filterContext.forwardResponse(header, response);
+    }
+
+}

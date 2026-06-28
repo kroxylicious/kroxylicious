@@ -1,0 +1,42 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "ADD_OFFSETS_TO_TXN"
+  apiVersion: 0
+  scenario: "user not allowed to read group, filter responds with group authorization failed error response"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-transactional-id"
+        resourceClass: "TRANSACTIONAL_ID"
+        resourceType: "WRITE"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "DESCRIBE" # requires read
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 25
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "my-transactional-id"
+    producerId: 190
+    producerEpoch: 312
+    groupId: "my-group"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 30 # GROUP_AUTHORIZATION_FAILED

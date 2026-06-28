@@ -1,0 +1,394 @@
+/*
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.filter.authorization;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
+import io.kroxylicious.authorizer.service.Authorizer;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+/**
+ * <p>A protocol filter that applies the access rules embodied in an {@link Authorization}
+ * to the entities (e.g. topics and consumer groups) within the Kafka protocol.</p>
+ *
+ * <p>This class actually only implements a common mechanism, delegating the actual enforcement to {@link ApiEnforcement}
+ * instances on a per-API key basis.</p>
+ */
+public class AuthorizationFilter implements RequestFilter, ResponseFilter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationFilter.class);
+
+    static Map<ApiKeys, ApiEnforcement<?, ?>> apiEnforcement = new EnumMap<>(ApiKeys.class);
+
+    static {
+        // This filter "fails closed", rejecting all (apikey, apiversions)-combinations which it doesn't understand.
+        // That's because a new API or version could introduce a reference to some authorizable entity, like a topic,
+        // which would result in information disclosure because this filter was not applying authz.
+        apiEnforcement.put(ApiKeys.API_VERSIONS, new Passthrough<ApiVersionsRequestData, ApiVersionsResponseData>(0, 4) {
+            @Override
+            CompletionStage<ResponseFilterResult> onResponse(ResponseHeaderData header, ApiVersionsResponseData response, FilterContext context,
+                                                             AuthorizationFilter authorizationFilter) {
+                AuthorizationFilter.nonAuthorizableRequest(context);
+                return authorizationFilter.checkCompat(header, response, context);
+            }
+        });
+        apiEnforcement.put(ApiKeys.SASL_HANDSHAKE, new Passthrough<>(0, 1));
+        apiEnforcement.put(ApiKeys.SASL_AUTHENTICATE, new Passthrough<>(0, 2));
+
+        apiEnforcement.put(ApiKeys.PRODUCE, new ProduceEnforcement());
+        apiEnforcement.put(ApiKeys.METADATA, new MetadataEnforcement());
+        apiEnforcement.put(ApiKeys.DESCRIBE_TOPIC_PARTITIONS, new DescribeTopicPartitionsEnforcement());
+        apiEnforcement.put(ApiKeys.CREATE_TOPICS, new CreateTopicsEnforcement());
+        apiEnforcement.put(ApiKeys.CREATE_PARTITIONS, new CreatePartitionsEnforcement());
+        apiEnforcement.put(ApiKeys.DELETE_TOPICS, new DeleteTopicsEnforcement());
+        apiEnforcement.put(ApiKeys.DELETE_GROUPS, new DeleteGroupsEnforcement());
+        apiEnforcement.put(ApiKeys.DELETE_RECORDS, new DeleteRecordsEnforcement());
+        apiEnforcement.put(ApiKeys.DESCRIBE_PRODUCERS, new DescribeProducersEnforcement());
+        apiEnforcement.put(ApiKeys.HEARTBEAT, new HeartbeatEnforcement());
+
+        apiEnforcement.put(ApiKeys.LIST_OFFSETS, new ListOffsetsEnforcement());
+        apiEnforcement.put(ApiKeys.LIST_GROUPS, new ListGroupsEnforcement());
+
+        apiEnforcement.put(ApiKeys.FETCH, new FetchEnforcement());
+        apiEnforcement.put(ApiKeys.OFFSET_COMMIT, new OffsetCommitEnforcement());
+        apiEnforcement.put(ApiKeys.OFFSET_FETCH, new OffsetFetchEnforcement());
+        apiEnforcement.put(ApiKeys.OFFSET_DELETE, new OffsetDeleteEnforcement());
+        apiEnforcement.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, new OffsetForLeaderEpochEnforcement());
+
+        apiEnforcement.put(ApiKeys.TXN_OFFSET_COMMIT, new TxnOffsetCommitEnforcement());
+
+        apiEnforcement.put(ApiKeys.FIND_COORDINATOR, new FindCoordinatorEnforcement());
+        apiEnforcement.put(ApiKeys.JOIN_GROUP, new JoinGroupEnforcement());
+        apiEnforcement.put(ApiKeys.SYNC_GROUP, new SyncGroupEnforcement());
+        apiEnforcement.put(ApiKeys.LEAVE_GROUP, new LeaveGroupEnforcement());
+        apiEnforcement.put(ApiKeys.CONSUMER_GROUP_HEARTBEAT, new ConsumerGroupHeartbeatEnforcement());
+        apiEnforcement.put(ApiKeys.INIT_PRODUCER_ID, new InitProducerIdEnforcement());
+        apiEnforcement.put(ApiKeys.ADD_PARTITIONS_TO_TXN, new AddPartitionsToTxnEnforcement());
+        apiEnforcement.put(ApiKeys.ADD_OFFSETS_TO_TXN, new AddOffsetsToTxnEnforcement());
+        apiEnforcement.put(ApiKeys.END_TXN, new EndTxnEnforcement());
+
+        apiEnforcement.put(ApiKeys.DESCRIBE_CONFIGS, new DescribeConfigsEnforcement());
+        apiEnforcement.put(ApiKeys.ALTER_CONFIGS, new AlterConfigsEnforcement());
+        apiEnforcement.put(ApiKeys.INCREMENTAL_ALTER_CONFIGS, new IncrementalAlterConfigsEnforcement());
+        apiEnforcement.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, new ConsumerGroupDescribeEnforcement());
+        apiEnforcement.put(ApiKeys.DESCRIBE_GROUPS, new DescribeGroupsEnforcement());
+        apiEnforcement.put(ApiKeys.DESCRIBE_TRANSACTIONS, new DescribeTransactionsEnforcement());
+        apiEnforcement.put(ApiKeys.LIST_TRANSACTIONS, new ListTransactionsEnforcement());
+    }
+
+    @VisibleForTesting
+    public static boolean isApiSupported(ApiKeys apiKey) {
+        return apiEnforcement.containsKey(apiKey);
+    }
+
+    @VisibleForTesting
+    public static boolean isApiVersionSupported(ApiKeys apiKey, short apiVersion) {
+        var enforcement = apiEnforcement.get(apiKey);
+        if (enforcement == null) {
+            return false;
+        }
+        return enforcement.minSupportedVersion() <= apiVersion
+                && apiVersion <= enforcement.maxSupportedVersion();
+    }
+
+    @VisibleForTesting
+    public static short minSupportedApiVersion(ApiKeys apiKey) {
+        var enforcement = apiEnforcement.get(apiKey);
+        if (enforcement == null) {
+            return -1;
+        }
+        return enforcement.minSupportedVersion();
+    }
+
+    @VisibleForTesting
+    public static short maxSupportedApiVersion(ApiKeys apiKey) {
+        var enforcement = apiEnforcement.get(apiKey);
+        if (enforcement == null) {
+            return -1;
+        }
+        return enforcement.maxSupportedVersion();
+    }
+
+    // This filter need to inspect requests, filtering out unauthorized entities before forwarding to the broker.
+    // Then, when handling the response, we need to "merge" back the unauthorized entities we previously filtered out
+    // so that the client observes a response with the full set of entities in the request
+    // The `inflightState` stores the necessary state, keyed by correlation id.
+    // TODO currently I think there's nothing which stops this growing without bound if the client is able to pipeline
+    // many requests
+    private final Map<Integer, InflightState<?>> inflightState;
+    private short useMetadataVersion = -1;
+    private final Authorizer authorizer;
+
+    public AuthorizationFilter(Authorizer authorizer) {
+        this.authorizer = authorizer;
+        this.inflightState = new HashMap<>(10);
+        if (apiEnforcement.get(ApiKeys.PRODUCE).minSupportedVersion() != 3) {
+            // sanity check, see https://issues.apache.org/jira/browse/KAFKA-18659
+            // if we want to raise the minimum version, we must consciously decide to break older librdkafka clients
+            throw new IllegalStateException("To behave like an upstream Kafka 4+ cluster, we must support v3 despite presenting v0 as min supported version");
+        }
+    }
+
+    CompletionStage<AuthorizeResult> authorization(FilterContext context, List<Action> actions) {
+        var actionsPartitionedByAuthorizerSupport = authorizer.supportedResourceTypes()
+                .map(supportedTypes -> actions.stream().collect(Collectors.partitioningBy(
+                        action -> action.resourceTypeClass() == ClusterResource.class
+                                || supportedTypes.contains(action.resourceTypeClass()))))
+                .orElse(Map.of(Boolean.TRUE, actions));
+        var actionsWithSupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.TRUE, List.of());
+        var actionsWithUnsupportedResourceTypes = actionsPartitionedByAuthorizerSupport.getOrDefault(Boolean.FALSE, List.of());
+        return authorizer.authorize(context.authenticatedSubject(),
+                actionsWithSupportedResourceTypes)
+                .thenApply(authz -> {
+                    if (!authz.denied().isEmpty()) {
+                        LOGGER.atInfo()
+                                .addKeyValue("deniedActions", authz.denied())
+                                .addKeyValue("subject", authz.subject())
+                                .log("Authorization DENY decision");
+                    }
+                    else if (!authz.allowed().isEmpty()) {
+                        LOGGER.atDebug()
+                                .addKeyValue("allowedActions", authz.allowed())
+                                .addKeyValue("subject", authz.subject())
+                                .log("Authorization ALLOW decision");
+                    }
+                    else if (actions.isEmpty()) {
+                        LOGGER.atDebug()
+                                .addKeyValue("subject", authz.subject())
+                                .log("Authorization ALLOW decision with no authorizable actions");
+                    }
+                    if (!actionsWithUnsupportedResourceTypes.isEmpty()) {
+                        LOGGER.atDebug()
+                                .addKeyValue("unsupportedActions", actionsWithUnsupportedResourceTypes)
+                                .addKeyValue("subject", authz.subject())
+                                .addKeyValue("authorizerClass", authorizer.getClass().getName())
+                                .log("Authorization ALLOW decision for unsupported resource types");
+                        authz = new AuthorizeResult(authz.subject(),
+                                Stream.concat(authz.allowed().stream(), actionsWithUnsupportedResourceTypes.stream()).collect(Collectors.toUnmodifiableList()),
+                                authz.denied());
+                    }
+                    return authz;
+                });
+    }
+
+    static void nonAuthorizableRequest(FilterContext context) {
+        LOGGER.atDebug()
+                .addKeyValue("subject", context.authenticatedSubject())
+                .log("Non-authorizable request");
+    }
+
+    static void nonAuthorizableResponse(FilterContext context) {
+        LOGGER.atDebug()
+                .addKeyValue("subject", context.authenticatedSubject())
+                .log("Non-authorizable response");
+    }
+
+    <R> void pushInflightState(RequestHeaderData header, InflightState<R> inflightState) {
+        var existing = this.inflightState.put(header.correlationId(), inflightState);
+        if (existing != null) {
+            throw new IllegalStateException("Already have inflightState for correlationId " + header.correlationId());
+        }
+    }
+
+    <C extends InflightState<?>> C peekInflightState(int correlationId, Class<C> cClass) {
+        InflightState<?> result = this.inflightState.get(correlationId);
+        if (result == null) {
+            throw new IllegalStateException("No inflightState for correlationId " + correlationId);
+        }
+        return cClass.cast(result);
+    }
+
+    @Nullable
+    <C extends InflightState<?>> C popInflightState(ResponseHeaderData header, Class<C> cClass) {
+        return popInflightState(header.correlationId(), cClass);
+    }
+
+    @Nullable
+    <C extends InflightState<?>> C popInflightState(int correlationId, Class<C> cClass) {
+        InflightState<?> removed = this.inflightState.remove(correlationId);
+        return cClass.cast(removed);
+    }
+
+    <R> R popAndApplyInflightState(ResponseHeaderData header, R response) {
+        var completer = popInflightState(header, InflightState.class);
+        if (completer != null) {
+            return (R) completer.merge(response);
+        }
+        else {
+            return response;
+        }
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          short apiVersion,
+                                                          RequestHeaderData header,
+                                                          ApiMessage request,
+                                                          FilterContext context) {
+
+        if (isApiVersionSupported(apiKey, header.requestApiVersion())) {
+            var enforcement = apiEnforcement.get(apiKey);
+            if (enforcement != null) {
+                return enforceRequest(header, request, context, enforcement);
+            }
+            else {
+                return context.forwardRequest(header, request);
+            }
+        }
+        else {
+            logUnsupportedVersion(apiKey, header);
+            return context.requestFilterResultBuilder()
+                    .errorResponse(header, request, Errors.UNSUPPORTED_VERSION.exception())
+                    .completed();
+        }
+    }
+
+    private void logUnsupportedVersion(ApiKeys apiKey, RequestHeaderData header) {
+        if (isApiSupported(apiKey)) {
+            LOGGER.atWarn()
+                    .addKeyValue("filterClass", getClass().getName())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("requestApiVersion", header.requestApiVersion())
+                    .addKeyValue("minSupportedVersion", minSupportedApiVersion(apiKey))
+                    .addKeyValue("maxSupportedVersion", maxSupportedApiVersion(apiKey))
+                    .log("Filter does not support API version used in request. This error is due to a misconfigured, buggy, or possibly malicious client");
+        }
+        else {
+            LOGGER.atWarn()
+                    .addKeyValue("filterClass", getClass().getName())
+                    .addKeyValue("apiKey", apiKey)
+                    .addKeyValue("requestApiVersion", header.requestApiVersion())
+                    .log("Filter does not support this API at all. This error is due to a misconfigured, buggy, or possibly malicious client");
+        }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private CompletionStage<RequestFilterResult> enforceRequest(RequestHeaderData header,
+                                                                ApiMessage request,
+                                                                FilterContext context,
+                                                                ApiEnforcement<?, ?> enforcement) {
+        return ((ApiEnforcement) enforcement).onRequest(header, request, context, this).whenComplete((requestFilterResult, throwable) -> {
+            if (throwable != null) {
+                // clean up inflight state if completed exceptionally
+                popInflightState(header.correlationId(), InflightState.class);
+            }
+        });
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                            short apiVersion,
+                                                            ResponseHeaderData header,
+                                                            ApiMessage response,
+                                                            FilterContext context) {
+
+        var enforcement = apiEnforcement.get(apiKey);
+        if (enforcement != null) {
+            return enforceResponse(header, response, context, enforcement);
+        }
+        else {
+            return context.forwardResponse(header, response);
+        }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private CompletionStage<ResponseFilterResult> enforceResponse(ResponseHeaderData header,
+                                                                  ApiMessage response,
+                                                                  FilterContext context,
+                                                                  ApiEnforcement<?, ?> enforcement) {
+        return ((ApiEnforcement) enforcement).onResponse(header, response, context, this)
+                .whenComplete((o, throwable) ->
+                // safety pop in case inflight state wasn't popped due to exception or logical error
+                popInflightState(header.correlationId(), InflightState.class));
+    }
+
+    private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header,
+                                                              ApiVersionsResponseData response,
+                                                              FilterContext context) {
+        ApiVersionsResponseData.ApiVersion apiVersion = response.apiKeys().find(ApiKeys.METADATA.id);
+        var minMetadataVersion = apiVersion.minVersion();
+        var maxMetadataVersion = apiVersion.maxVersion();
+        if (maxMetadataVersion < 4) {
+            LOGGER.atError()
+                    .addKeyValue("filterClass", AuthorizationFilter.class.getName())
+                    .addKeyValue("requiredMinVersion", (short) 4)
+                    .addKeyValue("brokerMinVersion", minMetadataVersion)
+                    .addKeyValue("brokerMaxVersion", maxMetadataVersion)
+                    .log("Filter requires broker to support at least METADATA API version 4. Connected broker does not meet requirements");
+            return context.responseFilterResultBuilder().withCloseConnection().completed();
+        }
+        this.useMetadataVersion = (short) Math.min(ApiKeys.METADATA.latestVersion(), maxMetadataVersion);
+        adjustResponse(response);
+        return context.forwardResponse(header, response);
+    }
+
+    short useMetadataVersion() {
+        return useMetadataVersion;
+    }
+
+    public void adjustResponse(ApiVersionsResponseData response) {
+        var toRemove = new ArrayList<ApiVersionsResponseData.ApiVersion>();
+        ApiVersionsResponseData.ApiVersionCollection apiVersions = response.apiKeys();
+        for (var version : apiVersions) {
+            if (!ApiKeys.hasId(version.apiKey())) {
+                toRemove.add(version);
+            }
+            else {
+                ApiKeys key = ApiKeys.forId(version.apiKey());
+                var enforcement = apiEnforcement.get(key);
+                if (enforcement != null) {
+                    // Kafka 4.0 presents itself as supporting v0-v2 of Produce despite it not really supporting
+                    // those versions. This is to maintain support for older librdkafka versions.
+                    // see https://issues.apache.org/jira/browse/KAFKA-18659
+                    if (key != ApiKeys.PRODUCE) {
+                        version.setMinVersion(Passthrough.asShort(Math.max(enforcement.minSupportedVersion(), version.minVersion())));
+                    }
+                    version.setMaxVersion(Passthrough.asShort(Math.min(enforcement.maxSupportedVersion(), version.maxVersion())));
+                }
+                else {
+                    toRemove.add(version);
+                }
+            }
+        }
+        apiVersions.removeAll(toRemove);
+
+    }
+
+    @SuppressWarnings("java:S1452") // wildcard type expected
+    @VisibleForTesting
+    Map<Integer, InflightState<?>> inflightState() {
+        return Collections.unmodifiableMap(inflightState);
+    }
+}

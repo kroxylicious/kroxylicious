@@ -1,0 +1,67 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "WRITE_TXN_MARKERS"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "WRITE_TXN_MARKERS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 27
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        markers:
+          - producerId: 0
+            producerEpoch: 0
+            transactionResult: true
+            topics:
+              - name: foo
+                partitionIndexes: [0]
+            coordinatorEpoch: 0
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        markers:
+          - producerId: 0
+            topics:
+              - name: foo
+                partitions:
+                  - partitionIndex: 0
+                    errorCode: 0
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 27
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    markers:
+      - producerId: 0
+        producerEpoch: 0
+        transactionResult: true
+        topics:
+          - name: foo
+            partitionIndexes: [0]
+        coordinatorEpoch: 0
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    markers:
+      - producerId: 0
+        topics:
+          - name: foo
+            partitions:
+              - partitionIndex: 0
+                errorCode: 0

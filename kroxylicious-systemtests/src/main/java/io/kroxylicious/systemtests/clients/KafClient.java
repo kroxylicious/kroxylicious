@@ -1,0 +1,203 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.systemtests.clients;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import org.awaitility.core.ConditionTimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.skodjob.testframe.utils.KubeUtils;
+
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
+import io.kroxylicious.systemtests.enums.KafkaClientType;
+import io.kroxylicious.systemtests.executor.ExecResult;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
+import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
+
+/**
+ * The type Kaf client (sarama client based CLI).
+ */
+public class KafClient implements KafkaClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafClient.class);
+    private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
+    };
+    private static final String DISPLAY_NAME = "Kaf-Sarama-" + KafkaClient.extractVersionFromImage(Constants.KAF_CLIENT_IMAGE);
+    private String deployNamespace;
+
+    @Override
+    public String toString() {
+        return DISPLAY_NAME;
+    }
+
+    /**
+     * Instantiates a new Kaf client.
+     */
+    public KafClient() {
+        this.deployNamespace = kubeClient().getNamespace();
+    }
+
+    @Override
+    public String getImage() {
+        return Constants.KAF_CLIENT_IMAGE;
+    }
+
+    @Override
+    public KafkaClient inNamespace(String namespace) {
+        this.deployNamespace = namespace;
+        return this;
+    }
+
+    @Override
+    public void preloadImage() {
+        // kaf does not support run an image with a command (it is built using scratch), so we need to launch it without any
+        String image = getImage();
+        LOGGER.info("Preloading Test Kafka Client Image from {}", image);
+        var pod = kubeClient().getClient().run().withName("preload-operand-image")
+                .withNewRunConfig()
+                .withImage(image)
+                .withRestartPolicy("Never").done();
+        KafkaClient.checkPreloadedImage(pod);
+    }
+
+    @Override
+    public ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                      Map<String, String> additionalConfig) {
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
+
+        LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
+        final Optional<String> recordKey = Optional.ofNullable(messageKey);
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
+
+        String openshiftOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json") : "";
+        String kafOverrides = TestUtils.getJsonFileContent("Kaf_authentication_config.json");
+
+        String jsonOverrides = TestUtils.mergeJsonFiles(kafOverrides, openshiftOverrides)
+                .replace("%CONTAINER_NAME%", name)
+                .replace("%MOUNT_PATH%", Constants.KAF_CONFIG_TEMP_DIR)
+                .replace("%CONFIGMAP_NAME%", Constants.KAF_CLIENT_CONFIG_NAME)
+                .replace("%CONFIG_NAME%", Constants.KAF_CONFIG_FILE_NAME);
+
+        List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+                "-n", deployNamespace, name,
+                "--image=" + Constants.KAF_CLIENT_IMAGE,
+                "--override-type=strategic",
+                "--overrides=" + jsonOverrides,
+                "--", "-n", String.valueOf(numOfMessages)));
+        executableCommand.addAll(List.of("-b", bootstrap));
+        executableCommand.addAll(List.of("--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME));
+        recordKey.ifPresent(key -> {
+            executableCommand.add("--key");
+            executableCommand.add(key);
+        });
+        executableCommand.addAll(List.of("produce", topicName));
+
+        return KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
+    }
+
+    @Override
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                                String consumerGroup) {
+        ResourceManager.getInstance().createOrUpdateResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getConfigMapForKafConfig(deployNamespace, Constants.KAF_CLIENT_CONFIG_NAME, bootstrap, additionalConfig));
+
+        LOGGER.atInfo().log("Consuming messages using kaf");
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
+        List<String> args = new ArrayList<>(List.of("-b", bootstrap, "--config", Constants.KAF_CONFIG_TEMP_DIR + Constants.KAF_CONFIG_FILE_NAME, "consume", topicName,
+                "--output", "json"));
+        args.addAll(List.of("--group", consumerGroup));
+        Job kafClientJob = TestClientsJobTemplates.authenticationKafkaGoJob(name, args).build();
+        KafkaUtils.createJob(deployNamespace, name, kafClientJob);
+        String log = waitForConsumer(name, numOfMessages, timeout);
+        KafkaUtils.deleteJob(kafClientJob);
+        LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
+        List<String> logRecords = extractRecordLinesFromLog(log);
+        return getConsumerRecords(topicName, logRecords);
+    }
+
+    private String waitForConsumer(String jobName, int numOfMessages, Duration timeout) {
+        String log = "";
+        try {
+            log = await().alias("Consumer waiting to receive messages")
+                    .ignoreException(KubernetesClientException.class)
+                    .atMost(timeout)
+                    .until(() -> {
+                        List<Pod> successfulPods = kubeClient().getClient().pods()
+                                .inNamespace(deployNamespace)
+                                .withLabel("app", jobName)
+                                .withField("status.phase", "Running")
+                                .list()
+                                .getItems();
+                        if (!successfulPods.isEmpty()) {
+                            String podName = successfulPods.get(0).getMetadata().getName();
+                            return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                        }
+                        return null;
+                    }, m -> getNumberOfJsonMessages(m) >= numOfMessages);
+        }
+        catch (ConditionTimeoutException e) {
+            List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
+            pods.forEach(pod -> {
+                String podName = pod.getMetadata().getName();
+                String currentLog = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                LOGGER.atError().setMessage("Timeout! Pod '{}', received: {}").addArgument(podName).addArgument(currentLog).log();
+            });
+        }
+        catch (KubeClusterException e) {
+            List<Pod> pods = kubeClient().listPods(deployNamespace, "app", jobName);
+            pods.forEach(pod -> {
+                String podName = pod.getMetadata().getName();
+                String currentLog = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                LOGGER.atError().setMessage("Pod '{}' failed to consume messages! {}").addArgument(podName).addArgument(currentLog).log();
+            });
+        }
+        return log;
+    }
+
+    private int getNumberOfJsonMessages(String log) {
+        return log == null ? 0 : extractRecordLinesFromLog(log).size();
+    }
+
+    private List<String> extractRecordLinesFromLog(String log) {
+        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
+    }
+
+    private List<ConsumerRecord> getConsumerRecords(String topicName, List<String> logRecords) {
+        List<ConsumerRecord> records = new ArrayList<>();
+        for (String logRecord : logRecords) {
+            KafConsumerRecord kafConsumerRecord = ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, logRecord);
+            kafConsumerRecord.setTopic(topicName);
+            records.add(kafConsumerRecord);
+        }
+
+        return records;
+    }
+}

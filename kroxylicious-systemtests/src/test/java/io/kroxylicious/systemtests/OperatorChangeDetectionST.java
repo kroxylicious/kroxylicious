@@ -1,0 +1,503 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.systemtests;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodSpec;
+import io.fabric8.kubernetes.api.model.PodTemplateSpec;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
+
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Protocol;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.InfrastructureBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
+import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousBuilder;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
+import io.kroxylicious.systemtests.k8s.KubeClient;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
+import io.kroxylicious.systemtests.utils.KroxyliciousUtils;
+import io.kroxylicious.testing.operator.assertj.OperatorAssertions;
+
+import static io.kroxylicious.systemtests.TestTags.OPERATOR;
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+/**
+ * The Kroxylicious system tests.
+ */
+@Tag(OPERATOR)
+class OperatorChangeDetectionST extends AbstractSystemTests {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
+    private static final String PREFIX = "optr-cd";
+    private static final Duration ASERTION_DURATION = Duration.ofSeconds(90);
+    private static Kroxylicious kroxylicious;
+    private static CertManager certManager;
+    private final String kafkaClusterName = PREFIX + "-cluster";
+    private KroxyliciousOperator kroxyliciousOperator;
+
+    private void deployPortIdentifiesNodeWithNoFilters(String namespace, String clusterName) {
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1).build();
+        kroxylicious.createOrUpdateResources();
+    }
+
+    private void deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(String namespace, String clusterName, Tls tls) {
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(
+                KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT, tls));
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1).withDownstreamTls(tls).build();
+        kroxylicious.createOrUpdateResources();
+    }
+
+    private void deployPortIdentifiesNodeWithFilters(String namespace, String clusterName, List<String> filterNames) {
+        kroxylicious = KroxyliciousBuilder.singleNodeBaseBuilder(namespace, clusterName, 1)
+                .withVirtualKafkaCluster(KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(clusterName,
+                        Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames).build())
+                .build();
+        kroxylicious.createOrUpdateResources();
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenKafkaProxyIngressChanges(String namespace) {
+        // Given
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
+
+        String originalChecksum = getInitialChecksum(namespace);
+
+        updateIngresProtocol(Protocol.TLS, namespace); // move to TLS but this is invalid
+
+        // When
+        // So move back to TCP and check things get updated.
+        updateIngresProtocol(Protocol.TCP, namespace);
+        LOGGER.info("Kafka proxy ingress edited");
+
+        // Then
+        assertDeploymentUpdated(namespace, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenVirtualKafkaClusterChanges(String namespace) {
+        // Given
+        // @formatter:off
+        KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+                .withNewSpec()
+                .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
+                .withConfigTemplate(Map.of("findPattern", "foo", "replacementValue", "bar"))
+                .endSpec();
+        // @formatter:on
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(arbitraryFilter);
+        deployPortIdentifiesNodeWithNoFilters(namespace, "test-vkc");
+
+        String originalChecksum = getInitialChecksum(namespace);
+
+        FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
+        VirtualKafkaCluster virtualKafkaCluster = new VirtualKafkaClusterBuilder().withNewMetadata()
+                .withName("test-vkc")
+                .withNamespace(namespace)
+                .and()
+                .build();
+
+        // When
+        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> {
+            var filterRefs = Optional.ofNullable(vkc.getSpec().getFilterRefs()).orElse(new ArrayList<>());
+            filterRefs.add(filterRef);
+            vkc.getSpec().setFilterRefs(filterRefs);
+
+        });
+        LOGGER.info("virtual cluster edited");
+
+        // Then
+        assertDeploymentUpdated(namespace, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) {
+        // Given
+        var issuer = certManager.issuer(namespace);
+        var cert = certManager.certFor(namespace, PREFIX + "-cluster-ip." + namespace + ".svc.cluster.local");
+
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(issuer, cert);
+
+        var tls = KroxyliciousUtils.tlsConfigFromCert("server-certificate");
+        deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(namespace, "test-vkc", tls);
+
+        String originalChecksum = getInitialChecksum(namespace);
+
+        // When
+        resourceManager.replaceResourceWithRetries(cert.build(),
+                certToPatch -> {
+                    var dnsNames = Optional.ofNullable(certToPatch.getSpec().getDnsNames()).orElse(new ArrayList<>());
+                    dnsNames.add("test-vkc-cluster-ip.my-proxy.svc.cluster.local");
+                    certToPatch.getSpec().setDnsNames(dnsNames);
+                });
+        LOGGER.info("SAN added to downstream tls cert");
+
+        // Then
+        assertDeploymentUpdated(namespace, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) {
+        // Given
+        var issuer = certManager.issuer(namespace);
+        var cert = certManager.certFor(namespace, PREFIX + "-cluster-ip." + namespace + ".svc.cluster.local");
+
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(issuer, cert);
+
+        var tls = KroxyliciousUtils.tlsConfigFromCert("server-certificate");
+        deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(namespace, "test-vkc", tls);
+
+        String originalChecksum = getInitialChecksum(namespace);
+        ConfigMap trustAnchorConfig = new ConfigMapBuilder().withNewMetadata().withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT).withNamespace(namespace).endMetadata()
+                .build();
+
+        // When
+        resourceManager.replaceResourceWithRetries(trustAnchorConfig,
+                trustConfigMap -> trustConfigMap.getData().put(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate1"));
+        LOGGER.info("Downstream trust updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateWhenFilterConfigurationChanges(String namespace) {
+        // Given
+        // @formatter:off
+        var arbitraryFilterBuilder = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+                .withNewSpec()
+                    .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "bar")))
+                .endSpec();
+        // @formatter:on
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(arbitraryFilterBuilder);
+        deployPortIdentifiesNodeWithFilters(namespace, kafkaClusterName, List.of("arbitrary-filter"));
+
+        var originalChecksum = getInitialChecksum(namespace);
+        var arbitraryFilter = arbitraryFilterBuilder.build();
+        var replacementConfig = Map.of("transformation", "Replacing", "transformationConfig", Map.of("findPattern", "foo", "replacementValue", "updated"));
+
+        // When
+        resourceManager.replaceResourceWithRetries(arbitraryFilter, current -> {
+            current.getSpec().setConfigTemplate(replacementConfig);
+        });
+        LOGGER.info("Kafka proxy filter updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenResourceRequirementsChange(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+        var customResourceLimits = Map.of("cpu", Quantity.parse("600m"), "memory", Quantity.parse("516Mi"));
+        var customResourceRequests = Map.of("cpu", Quantity.parse("599m"), "memory", Quantity.parse("515Mi"));
+
+        // @formatter:off
+        var infra = new InfrastructureBuilder()
+                .withNewProxyContainer()
+                .withResources(new ResourceRequirementsBuilder()
+                    .withLimits(customResourceLimits)
+                    .withRequests(customResourceRequests)
+                    .build())
+            .endProxyContainer()
+            .build();
+        // @formatter:on
+
+        // When
+        resourceManager.replaceResourceWithRetries(kafkaProxy, current -> {
+            current.getSpec().setInfrastructure(infra);
+        });
+        LOGGER.info("Kafka proxy updated");
+
+        // Then
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment)
+                    .isNotNull()
+                    .extracting(Deployment::getSpec)
+                    .extracting(DeploymentSpec::getTemplate)
+                    .extracting(PodTemplateSpec::getSpec)
+                    .extracting(PodSpec::getContainers, InstanceOfAssertFactories.list(Container.class))
+                    .singleElement()
+                    .extracting(Container::getResources)
+                    .satisfies(resources -> {
+                        assertThat(resources.getLimits())
+                                .isEqualTo(customResourceLimits);
+                        assertThat(resources.getRequests())
+                                .isEqualTo(customResourceRequests);
+                    });
+        });
+    }
+
+    @Test
+    void shouldNotUpdateDeploymentChecksumWhenKafkaProxyScaled(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
+
+        String originalChecksum = getInitialChecksum(namespace);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+
+        // When
+        resourceManager.replaceResourceWithRetries(kafkaProxy, current -> {
+            current.getSpec().setReplicas(2);
+        });
+        LOGGER.info("Kafka proxy updated");
+
+        // Then
+        assertDeploymentUnchanged(namespace, originalChecksum, 2);
+    }
+
+    @Test
+    void shouldPreserveExternalSsaPatchOnProxyDeploymentAfterReconcile(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
+        getInitialChecksum(namespace); // wait for deployment to be ready
+
+        addEnvVarToDeployment(namespace, kubeClient);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+
+        // When — operator reconciles after an external SSA patch has been applied
+        resourceManager.replaceResourceWithRetries(kafkaProxy, current -> current.getSpec().setReplicas(2));
+
+        // Then — replica count changes (proves reconcile completed) and the external env var is still present
+        assertEnvVarsStillPresent(namespace, kubeClient);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
+        // Given
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(
+                new SecretBuilder().withNewMetadata().withName("kilted-kiwi").withNamespace(namespace).endMetadata().withType("kubernetes.io/tls")
+                        .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
+                KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+                        .withNewSpec()
+                        .withType("io.kroxylicious.filter.simpletransform.ProduceRequestTransformation")
+                        .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
+                                Map.of("findPattern", "foo", "pathToReplacementValue", "${secret:kilted-kiwi:tls.key}")))
+                        .endSpec());
+
+        KubeClient kubeClient = kubeClient(namespace);
+        deployPortIdentifiesNodeWithFilters(namespace, kafkaClusterName, List.of("arbitrary-filter"));
+        LOGGER.info("Kroxylicious deployed");
+
+        String originalChecksum = getInitialChecksum(namespace);
+
+        Secret existingSecret = kubeClient.getClient().resources(Secret.class).inNamespace(namespace)
+                .withName("kilted-kiwi").get();
+
+        // When
+        resourceManager.createOrUpdateResourceFromBuilderWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
+        LOGGER.info("secret: kilted-kiwi updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, originalChecksum);
+    }
+
+    private static void assertDeploymentUpdated(String namespace, String originalChecksum) {
+        var kubeClient = kubeClient(namespace);
+        AtomicReference<String> newChecksumFromAnnotation = new AtomicReference<>();
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment).isNotNull();
+            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying(Constants.CHECKSUM_ANNOTATION,
+                    value -> {
+                        newChecksumFromAnnotation.set(value);
+                        assertThat(value).isNotEqualTo(originalChecksum);
+                    });
+        });
+        LOGGER.info("New checksum: {}", newChecksumFromAnnotation);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static void assertDeploymentUnchanged(String namespace, String originalChecksum, int expectedReplicaCount) {
+        var kubeClient = kubeClient(namespace);
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment).isNotNull()
+                    .extracting(Deployment::getSpec)
+                    .isNotNull()
+                    .satisfies(spec -> assertThat(spec.getReplicas()).isEqualTo(expectedReplicaCount))
+                    .extracting(DeploymentSpec::getTemplate)
+                    .isNotNull()
+                    .extracting(PodTemplateSpec::getMetadata)
+                    .satisfies(podTemplateSpec -> OperatorAssertions.assertThat(podTemplateSpec).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+                            value -> assertThat(value).isEqualTo(originalChecksum)));
+        });
+    }
+
+    @BeforeEach
+    void setUp() {
+        certManager = new CertManager();
+        certManager.deploy();
+    }
+
+    @AfterAll
+    void cleanUp() {
+        if (kroxyliciousOperator != null) {
+            kroxyliciousOperator.delete();
+        }
+        if (certManager != null) {
+            certManager.delete();
+        }
+    }
+
+    @BeforeAll
+    void setupBefore() {
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
+    }
+
+    private String getInitialChecksum(String namespace) {
+        var kubeClient = kubeClient(namespace);
+        AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
+        await().atMost(ASERTION_DURATION)
+                .untilAsserted(() -> assertThat(kubeClient.getClient().resources(VirtualKafkaCluster.class)
+                        .inNamespace(namespace)
+                        .waitUntilCondition(OperatorChangeDetectionST::isVirtualClusterReady, 9, TimeUnit.SECONDS))
+                        .isNotNull());
+
+        await().atMost(ASERTION_DURATION)
+                .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious")
+                        .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),
+                        proxyPods -> {
+                            assertThat(proxyPods)
+                                    .singleElement()
+                                    .extracting(Pod::getMetadata)
+                                    .satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
+                                            .hasAnnotationSatisfying(Constants.CHECKSUM_ANNOTATION, value -> assertThat(value).isNotBlank()));
+
+                            String checksumFromPod = getChecksumFromAnnotation(proxyPods.get(0));
+                            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+                            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata())
+                                    .hasAnnotationSatisfying(
+                                            Constants.CHECKSUM_ANNOTATION,
+                                            value -> assertThat(value).isEqualTo(checksumFromPod));
+                            checksumFromAnnotation.set(checksumFromPod);
+                        });
+        LOGGER.info("initial checksum: '{}'", checksumFromAnnotation);
+        return checksumFromAnnotation.get();
+    }
+
+    private String getChecksumFromAnnotation(HasMetadata entity) {
+        return KubernetesResourceUtil.getOrCreateAnnotations(entity).get(Constants.CHECKSUM_ANNOTATION);
+    }
+
+    private static boolean isVirtualClusterReady(VirtualKafkaCluster virtualKafkaCluster) {
+        if (virtualKafkaCluster.getStatus() != null) {
+            return virtualKafkaCluster.getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+        }
+        else {
+            return false;
+        }
+    }
+
+    private static void updateIngresProtocol(Protocol protocol, String namespace) {
+        KafkaProxyIngress resolver = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP)
+                .endMetadata()
+                .build();
+
+        ResourceManager.getInstance()
+                .replaceResourceWithRetries(resolver,
+                        ingress -> ingress.getSpec().getClusterIP().setProtocol(protocol));
+    }
+
+    private static void assertEnvVarsStillPresent(String namespace, KubeClient kubeClient) {
+        await().atMost(ASERTION_DURATION).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment).isNotNull();
+            assertThat(proxyDeployment.getSpec().getReplicas()).isEqualTo(2);
+            assertThat(proxyDeployment.getSpec().getTemplate().getSpec().getContainers())
+                    .filteredOn(c -> "proxy".equals(c.getName()))
+                    .singleElement()
+                    .extracting(Container::getEnv, InstanceOfAssertFactories.list(EnvVar.class))
+                    .as("External SSA env var should be preserved after operator reconcile")
+                    .anySatisfy(env -> {
+                        assertThat(env.getName()).isEqualTo("TEST_EXTERNAL_TOOL");
+                        assertThat(env.getValue()).isEqualTo("present");
+                    });
+        });
+    }
+
+    private static void addEnvVarToDeployment(String namespace, KubeClient kubeClient) {
+        kubeClient.getClient()
+                .resource(new DeploymentBuilder()
+                        .withNewMetadata().withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).withNamespace(namespace).endMetadata()
+                        .withNewSpec()
+                        .withNewTemplate()
+                        .withNewSpec()
+                        .addNewContainer()
+                        .withName("proxy")
+                        .addNewEnv()
+                        .withName("TEST_EXTERNAL_TOOL")
+                        .withValue("present")
+                        .endEnv()
+                        .endContainer()
+                        .endSpec()
+                        .endTemplate()
+                        .endSpec()
+                        .build())
+                .fieldManager("test-external-tool")
+                .serverSideApply();
+    }
+}

@@ -1,0 +1,77 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "OFFSET_COMMIT"
+  apiVersion: 2
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "OFFSET_COMMIT"
+      expectedRequestVersion: 2
+      expectedRequestHeader:
+        requestApiKey: 8
+        requestApiVersion: 2
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        groupId: "my-group"
+        generationIdOrMemberEpoch: 751
+        memberId: "random-string-662"
+        retentionTimeMs: 291
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 110
+                committedOffset: 416
+                committedMetadata: "random-string-604"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 422
+                errorCode: 14
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+      - subject: "alice"
+        resourceName: "my-group"
+        resourceClass: "GROUP"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 8
+    requestApiVersion: 2
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    groupId: "my-group"
+    generationIdOrMemberEpoch: 751
+    memberId: "random-string-662"
+    retentionTimeMs: 291
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 110
+            committedOffset: 416
+            committedMetadata: "random-string-604"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 422
+            errorCode: 14

@@ -1,0 +1,73 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_TOPIC_PARTITIONS"
+  apiVersion: 0
+  scenario: >
+    when the client sends an empty topic list it is requesting all topics, any topic that is not allowed to be
+    DESCRIBED is not returned to the client.
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_TOPIC_PARTITIONS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 75
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics: [ ]
+        responsePartitionLimit: 534
+        cursor: null
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 343
+        topics:
+          - errorCode: 0
+            name: "unauthorized"
+            topicId: "i4YiqCLdQi2cideBU8SZgQ"
+            isInternal: false
+            partitions:
+              - errorCode: 0
+                partitionIndex: 869
+                leaderId: 871
+                leaderEpoch: 198
+                replicaNodes:
+                  - 6
+                isrNodes:
+                  - 27
+                eligibleLeaderReplicas:
+                  - 215
+                lastKnownElr:
+                  - 172
+                offlineReplicas:
+                  - 392
+            topicAuthorizedOperations: 3576
+        nextCursor: null
+  authorizerRules:
+    allowed: []
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 75
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics: []
+    responsePartitionLimit: 534
+    cursor: null
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 343
+    topics: []
+    nextCursor: null

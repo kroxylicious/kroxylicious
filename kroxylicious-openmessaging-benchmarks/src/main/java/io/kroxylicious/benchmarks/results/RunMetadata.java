@@ -1,0 +1,416 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.benchmarks.results;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.StreamSupport;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Generates a run-metadata.json file containing git and timestamp information
+ * for an OMB benchmark run.
+ */
+public class RunMetadata {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final DateTimeFormatter ISO_UTC = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss'Z'")
+            .withZone(ZoneOffset.UTC);
+    private static final String DEFAULT_UNKNOWN_VALUE = "unknown";
+    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(RunMetadata.class);
+
+    /**
+     * Probe-specific context written alongside the standard git/system metadata.
+     *
+     * @param scenario                the benchmark scenario name (e.g. {@code baseline}, {@code proxy-no-filters})
+     * @param workload                the OMB workload name (e.g. {@code 1topic-1kb})
+     * @param targetRate              the target producer rate in msg/sec for this probe
+     * @param warmupDurationMinutes   warmup phase duration in minutes, or {@code null} if not recorded
+     * @param testDurationMinutes     measurement phase duration in minutes, or {@code null} if not recorded
+     * @param benchmarkStartedAt      ISO-8601 UTC timestamp when the benchmark job started, or {@code null} if not recorded
+     * @param benchmarkCompletedAt    ISO-8601 UTC timestamp when the benchmark job completed, or {@code null} if not recorded
+     * @param topics                  number of topics in the workload, or {@code null} if not recorded
+     * @param partitionsPerTopic      number of partitions per topic, or {@code null} if not recorded
+     * @param messageSize             message payload size in bytes, or {@code null} if not recorded
+     * @param producersPerTopic       number of producers per topic, or {@code null} if not recorded
+     * @param consumerPerSubscription number of consumers per subscription, or {@code null} if not recorded
+     * @param namespace               Kubernetes namespace containing the proxy pod, or {@code null} to skip proxy info
+     * @param proxyPodName            name of the proxy pod to query for resource limits, or {@code null} to skip proxy info
+     */
+    public record ProbeContext(String scenario, String workload, Integer targetRate,
+                               Integer warmupDurationMinutes, Integer testDurationMinutes,
+                               String benchmarkStartedAt, String benchmarkCompletedAt,
+                               Integer topics, Integer partitionsPerTopic, Integer messageSize,
+                               Integer producersPerTopic, Integer consumerPerSubscription,
+                               String namespace, String proxyPodName) {
+
+        /** An empty context that writes no probe-specific fields. */
+        public static ProbeContext empty() {
+            return new ProbeContext(null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** Create a context with probe identifiers but no phase timing or workload parameters. */
+        public static ProbeContext of(String scenario, String workload, Integer targetRate) {
+            return new ProbeContext(scenario, workload, targetRate, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        /** Return a copy of this context with benchmark phase durations and timestamps added. */
+        public ProbeContext withPhases(Integer warmupDurationMinutes, Integer testDurationMinutes,
+                                       String benchmarkStartedAt, String benchmarkCompletedAt) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
+        }
+
+        /** Return a copy of this context with workload shape parameters added. */
+        public ProbeContext withWorkload(Integer topics, Integer partitionsPerTopic, Integer messageSize,
+                                         Integer producersPerTopic, Integer consumerPerSubscription) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
+        }
+
+        /** Return a copy of this context with the proxy pod coordinates added. */
+        public ProbeContext withProxy(String namespace, String proxyPodName) {
+            return new ProbeContext(scenario, workload, targetRate,
+                    warmupDurationMinutes, testDurationMinutes,
+                    benchmarkStartedAt, benchmarkCompletedAt,
+                    topics, partitionsPerTopic, messageSize, producersPerTopic, consumerPerSubscription,
+                    namespace, proxyPodName);
+        }
+    }
+
+    /**
+     * Abstraction over external command execution, allowing tests to inject fixed responses.
+     */
+    @FunctionalInterface
+    interface CommandRunner {
+        String run(String command, String... args) throws IOException;
+    }
+
+    private RunMetadata() {
+    }
+
+    /**
+     * Generates a run-metadata.json file in the given directory with no probe-specific fields.
+     * Package-private: used only by tests that do not inject a {@link CommandRunner}.
+     */
+    static void generate(Path outputDir) throws IOException {
+        generate(outputDir, ProbeContext.empty(), RunMetadata::execCommand);
+    }
+
+    /**
+     * Generates a run-metadata.json file in the given directory.
+     *
+     * @param outputDir    the directory to write the metadata file to
+     * @param probeContext probe-specific fields to include alongside the standard metadata
+     * @throws IOException if writing fails or git commands fail
+     */
+    public static void generate(Path outputDir, ProbeContext probeContext) throws IOException {
+        generate(outputDir, probeContext, RunMetadata::execCommand);
+    }
+
+    static void generate(Path outputDir, CommandRunner runner) throws IOException {
+        generate(outputDir, ProbeContext.empty(), runner);
+    }
+
+    static void generate(Path outputDir, ProbeContext probeContext, CommandRunner runner) throws IOException {
+        Files.createDirectories(outputDir);
+
+        String gitCommit = runner.run("git", "rev-parse", "HEAD");
+        String gitBranch = runner.run("git", "rev-parse", "--abbrev-ref", "HEAD");
+        String timestamp = ISO_UTC.format(Instant.now());
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("gitCommit", gitCommit);
+        metadata.put("gitBranch", gitBranch);
+        metadata.put("timestamp", timestamp);
+        putIfPresent(metadata, "scenario", probeContext.scenario());
+        putIfPresent(metadata, "workload", probeContext.workload());
+        putIfPresent(metadata, "targetRate", probeContext.targetRate());
+        putIfPresent(metadata, "warmupDurationMinutes", probeContext.warmupDurationMinutes());
+        putIfPresent(metadata, "testDurationMinutes", probeContext.testDurationMinutes());
+        putIfPresent(metadata, "benchmarkStartedAt", probeContext.benchmarkStartedAt());
+        putIfPresent(metadata, "benchmarkCompletedAt", probeContext.benchmarkCompletedAt());
+        putIfPresent(metadata, "topics", probeContext.topics());
+        putIfPresent(metadata, "partitionsPerTopic", probeContext.partitionsPerTopic());
+        putIfPresent(metadata, "messageSize", probeContext.messageSize());
+        putIfPresent(metadata, "producersPerTopic", probeContext.producersPerTopic());
+        putIfPresent(metadata, "consumerPerSubscription", probeContext.consumerPerSubscription());
+
+        Map<String, Object> minikubeProfile = minikubeProfileConfig(runner);
+        if (!minikubeProfile.isEmpty()) {
+            metadata.put("minikubeProfile", minikubeProfile);
+        }
+        Map<String, Object> clusterNodes = clusterNodesInfo(runner);
+        if (!clusterNodes.isEmpty()) {
+            metadata.put("clusterNodes", clusterNodes);
+        }
+        if (probeContext.proxyPodName() != null && probeContext.namespace() != null) {
+            Map<String, Object> proxyConfig = proxyInfo(runner, probeContext.namespace(), probeContext.proxyPodName());
+            if (!proxyConfig.isEmpty()) {
+                metadata.put("proxyConfig", proxyConfig);
+            }
+        }
+        metadata.put("orchestratorSystem", orchestratorSystemInfo());
+
+        Path metadataFile = outputDir.resolve("run-metadata.json");
+        MAPPER.writerWithDefaultPrettyPrinter().writeValue(metadataFile.toFile(), metadata);
+    }
+
+    private static Map<String, Object> minikubeProfileConfig(CommandRunner runner) {
+        Map<String, Object> config = new LinkedHashMap<>();
+        try {
+            String json = runner.run("minikube", "profile", "list", "-o", "json");
+            JsonNode root = MAPPER.readTree(json);
+            JsonNode valid = root.path("valid");
+            if (!valid.isArray() || valid.isEmpty()) {
+                return config;
+            }
+            JsonNode profile = valid.get(0);
+            JsonNode profileConfig = profile.path("Config");
+            JsonNode k8s = profileConfig.path("KubernetesConfig");
+
+            config.put("profile", profile.path("Name").asText(DEFAULT_UNKNOWN_VALUE));
+            config.put("driver", profileConfig.path("Driver").asText(DEFAULT_UNKNOWN_VALUE));
+            config.put("cpus", profileConfig.path("CPUs").asInt(0));
+            config.put("memoryMb", profileConfig.path("Memory").asInt(0));
+            config.put("kubernetesVersion", k8s.path("KubernetesVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            config.put("containerRuntime", k8s.path("ContainerRuntime").asText(DEFAULT_UNKNOWN_VALUE));
+        }
+        catch (Exception e) {
+            // minikube not available or not configured
+        }
+        return config;
+    }
+
+    private static Map<String, Object> clusterNodesInfo(CommandRunner runner) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            String json = runner.run("kubectl", "get", "nodes", "-o", "json");
+            JsonNode root = MAPPER.readTree(json);
+            JsonNode items = root.path("items");
+            if (!items.isArray() || items.isEmpty()) {
+                return info;
+            }
+            long nodeCount = StreamSupport.stream(items.spliterator(), false).count();
+            info.put("nodeCount", nodeCount);
+            // Assume homogeneous nodes — take specs from first node
+            JsonNode first = items.get(0);
+            JsonNode nodeInfo = first.path("status").path("nodeInfo");
+            info.put("arch", nodeInfo.path("architecture").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("osImage", nodeInfo.path("osImage").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("kernelVersion", nodeInfo.path("kernelVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            info.put("kubeletVersion", nodeInfo.path("kubeletVersion").asText(DEFAULT_UNKNOWN_VALUE));
+            JsonNode capacity = first.path("status").path("capacity");
+            info.put("cpuPerNode", capacity.path("cpu").asText(DEFAULT_UNKNOWN_VALUE));
+            String memKi = capacity.path("memory").asText("");
+            if (memKi.endsWith("Ki")) {
+                long memGb = Long.parseLong(memKi.substring(0, memKi.length() - 2)) / (1024 * 1024);
+                info.put("memoryPerNodeGb", memGb);
+            }
+            String workerNode = firstWorkerNodeName(items);
+            if (workerNode != null) {
+                Long nicSpeedMbps = tryGetNicSpeedMbps(runner, workerNode);
+                if (nicSpeedMbps != null) {
+                    info.put("nicSpeedMbps", nicSpeedMbps);
+                }
+            }
+        }
+        catch (Exception e) {
+            LOGGER.debug("kubectl not available or not pointed at a cluster — cluster node info will be omitted", e);
+        }
+        return info;
+    }
+
+    static Map<String, Object> proxyInfo(CommandRunner runner, String namespace, String proxyPodName) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            String json = runner.run("kubectl", "get", "pod", proxyPodName, "-n", namespace, "-o", "json");
+            extractProxyContainerResources(MAPPER.readTree(json), info);
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("proxyPodName", proxyPodName).setCause(e).log("Could not read proxy pod resources");
+        }
+        try {
+            String json = runner.run("kubectl", "get", "kafkaproxy", "-n", namespace, "-o", "json");
+            JsonNode items = MAPPER.readTree(json).path("items");
+            if (items.isArray() && !items.isEmpty()) {
+                int replicas = items.get(0).path("spec").path("replicas").asInt(0);
+                if (replicas > 0) {
+                    info.put("replicas", replicas);
+                }
+            }
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("namespace", namespace).setCause(e).log("Could not read KafkaProxy replica count");
+        }
+        return info;
+    }
+
+    static String firstWorkerNodeName(JsonNode items) {
+        for (JsonNode node : items) {
+            JsonNode labels = node.path("metadata").path("labels");
+            if (!labels.has("node-role.kubernetes.io/master") &&
+                    !labels.has("node-role.kubernetes.io/control-plane")) {
+                return node.path("metadata").path("name").asText(null);
+            }
+        }
+        return null;
+    }
+
+    static Long tryGetNicSpeedMbps(CommandRunner runner, String workerNodeName) {
+        // On OpenShift, MachineConfigDaemon pods mount the host filesystem at /rootfs,
+        // giving us access to the host's /sys/class/net/<iface>/speed without needing
+        // a privileged pod or kubectl debug node.
+        try {
+            String mcdPod = runner.run("kubectl", "get", "pods",
+                    "-n", "openshift-machine-config-operator",
+                    "-l", "k8s-app=machine-config-daemon",
+                    "--field-selector", "spec.nodeName=" + workerNodeName,
+                    "-o", "jsonpath={.items[0].metadata.name}");
+            if (mcdPod.isBlank() || DEFAULT_UNKNOWN_VALUE.equals(mcdPod)) {
+                return null;
+            }
+            String speed = runner.run("kubectl", "exec",
+                    "-n", "openshift-machine-config-operator", mcdPod.trim(),
+                    "--", "chroot", "/rootfs", "sh", "-c",
+                    "cat /sys/class/net/$(ip route show default | awk '/default/{print $5; exit}')/speed");
+            return Long.parseLong(speed.trim());
+        }
+        catch (Exception e) {
+            LOGGER.atDebug().addKeyValue("workerNode", workerNodeName).setCause(e).log("Could not read NIC speed from node via MachineConfigDaemon");
+            return null;
+        }
+    }
+
+    private static Map<String, Object> orchestratorSystemInfo() {
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("os", System.getProperty("os.name"));
+        info.put("osVersion", System.getProperty("os.version"));
+        info.put("osArch", System.getProperty("os.arch"));
+        info.put("logicalCpus", Runtime.getRuntime().availableProcessors());
+        if (System.getProperty("os.name", "").startsWith("Linux")) {
+            info.putAll(parseProcEntries(Path.of("/proc/cpuinfo"), Path.of("/proc/meminfo")));
+        }
+        return info;
+    }
+
+    static Map<String, Object> parseProcEntries(Path cpuInfoPath, Path memInfoPath) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        try {
+            info.putAll(parseProcCpuInfo(cpuInfoPath));
+            info.putAll(parseProcMemInfo(memInfoPath));
+        }
+        catch (Exception e) {
+            LOGGER.error("Failed to parse proc entries", e);
+        }
+        return info;
+    }
+
+    static Map<String, Object> parseProcMemInfo(Path memInfoPath) throws IOException {
+        return Files.readAllLines(memInfoPath, StandardCharsets.UTF_8).stream()
+                .filter(l -> l.startsWith("MemTotal:"))
+                .findFirst()
+                .map(totalMem -> {
+                    String[] parts = totalMem.split("\\s+");
+                    if (parts.length >= 2) {
+                        return Map.<String, Object> of("totalMemoryGb", Long.parseLong(parts[1]) / (1024 * 1024));
+                    }
+                    else {
+                        return Map.<String, Object> of();
+                    }
+                })
+                .orElse(Map.of());
+    }
+
+    static Map<String, Object> parseProcCpuInfo(Path cpuInfoPath) throws IOException {
+        List<String> cpuInfo = Files.readAllLines(cpuInfoPath, StandardCharsets.UTF_8);
+        Map<String, Object> info = new LinkedHashMap<>();
+        cpuInfo.stream()
+                .filter(l -> l.startsWith("model name"))
+                .findFirst()
+                .map(l -> l.substring(l.indexOf(':') + 1).trim())
+                .ifPresent(model -> info.put("cpuModel", model));
+        cpuInfo.stream()
+                .filter(l -> l.startsWith("cpu MHz"))
+                .findFirst()
+                .map(l -> l.substring(l.indexOf(':') + 1).trim())
+                .ifPresent(mhz -> info.put("cpuMhz", mhz));
+        return info;
+    }
+
+    private static void extractProxyContainerResources(JsonNode pod, Map<String, Object> info) {
+        for (JsonNode container : pod.path("spec").path("containers")) {
+            if ("proxy".equals(container.path("name").asText())) {
+                JsonNode requests = container.path("resources").path("requests");
+                JsonNode limits = container.path("resources").path("limits");
+                if (!requests.isMissingNode()) {
+                    putIfPresent(info, "cpuRequest", requests.path("cpu").asText(null));
+                    putIfPresent(info, "memoryRequest", requests.path("memory").asText(null));
+                }
+                if (!limits.isMissingNode()) {
+                    putIfPresent(info, "cpuLimit", limits.path("cpu").asText(null));
+                    putIfPresent(info, "memoryLimit", limits.path("memory").asText(null));
+                }
+                break;
+            }
+        }
+    }
+
+    private static void putIfPresent(Map<String, Object> map, String key, Object value) {
+        if (value != null) {
+            map.put(key, value);
+        }
+    }
+
+    @SuppressFBWarnings(value = "COMMAND_INJECTION", justification = "command arguments are hardcoded string literals, not user input")
+    private static String execCommand(String command, String... args) throws IOException {
+        String[] fullCommand = new String[args.length + 1];
+        fullCommand[0] = command;
+        System.arraycopy(args, 0, fullCommand, 1, args.length);
+
+        ProcessBuilder pb = new ProcessBuilder(fullCommand);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        String output;
+        try (InputStream is = process.getInputStream()) {
+            output = new String(is.readAllBytes(), StandardCharsets.UTF_8).trim();
+        }
+
+        try {
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                return DEFAULT_UNKNOWN_VALUE;
+            }
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return DEFAULT_UNKNOWN_VALUE;
+        }
+
+        return output;
+    }
+}

@@ -1,0 +1,69 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: "Lint Pull Request"
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: 'Test for Slack secret'
+        env:
+          KROXYLICIOUS_SLACK_WEBHOOK: ${{ secrets.KROXYLICIOUS_SLACK_WEBHOOK }}
+        run: |
+          echo "SLACK_WEBHOOK_SET=$(test ${KROXYLICIOUS_SLACK_WEBHOOK} && echo true)" >> $GITHUB_ENV
+      - name: 'Check out repository'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: ./.github/actions/common/setup-java
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+      - name: 'Compile and lint the project'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # This is the authoritative QA check for all PRs. Explicitly enable the qa profile.
+          # ErrorProne automatically activates on JDK 17+ (errorprone-jdk-compatible profile).
+          # All quality checks run: formatting, licensing, checkstyle, spotbugs, dependency analysis, enforcer, errorprone.
+          # Other workflows skip QA to avoid duplication.
+          mvn --batch-mode \
+            --activate-profiles ci,qa \
+            --threads 1.5C \
+            -DskipTests \
+            -Djapicmp.skip=true \
+            verify
+      - name: Save PR number to file
+        run: echo ${{ github.event.number }} > PR_NUMBER.txt
+      - name: Archive PR number
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: PR_NUMBER
+          path: PR_NUMBER.txt

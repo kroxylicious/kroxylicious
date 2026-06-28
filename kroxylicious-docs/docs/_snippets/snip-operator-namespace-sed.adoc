@@ -1,0 +1,21 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: SNIPPET
+
+On Linux, use:
++
+[source, subs="+quotes"]
+----
+sed -i 's/namespace: .\*/namespace: my-kroxylicious-operator-namespace/' install/*.yaml
+----
++
+On MacOS, use:
++
+[source, subs="+quotes"]
+----
+sed -i '' 's/namespace: .\*/namespace: my-kroxylicious-operator-namespace/' install/*.yaml
+----

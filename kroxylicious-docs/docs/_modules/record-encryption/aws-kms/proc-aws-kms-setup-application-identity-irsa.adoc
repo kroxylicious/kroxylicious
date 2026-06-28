@@ -1,0 +1,107 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// con-aws-kms-setup.adoc
+
+[id='proc-aws-kms-setup-application-identity-irsa-{context}']
+
+= Authenticating using IAM Roles for Service Accounts (IRSA)
+
+[role="_abstract"]
+This procedure describes how to use {aws}/eks/latest/userguide/iam-roles-for-service-accounts.html[IAM Roles for Service Accounts (IRSA)] to authenticate the Record Encryption filter to AWS KMS when Kroxylicious is running on Amazon EKS.
+
+The filter authenticates by exchanging the projected service-account OIDC token for temporary credentials from AWS Security Token Service (STS) using the {aws}/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html[AssumeRoleWithWebIdentity] action.
+The credentials are refreshed automatically before they expire.
+
+.Prerequisites
+
+* An EKS cluster with an {aws}/eks/latest/userguide/enable-iam-roles-for-service-accounts.html[OIDC identity provider] enabled.
+* Access to the AWS CLI with sufficient permissions to create and manage IAM roles.
+* xref:con-aws-kms-setup-policy-{context}[An alias-based policy created for the Record Encryption filter].
+
+.Procedure
+
+. Identify the OIDC issuer URL of your EKS cluster:
++
+[source,shell]
+----
+CLUSTER_NAME=<eks_cluster_name>
+OIDC_PROVIDER=$(aws eks describe-cluster --name "${CLUSTER_NAME}" \
+  --query "cluster.identity.oidc.issuer" --output text | sed -e "s|^https://||")
+echo "${OIDC_PROVIDER}"
+----
+
+. Create a trust policy that allows the Kubernetes service account hosting Kroxylicious to assume the IAM role:
++
+[source,shell]
+----
+NAMESPACE=<kroxylicious_namespace>
+SERVICE_ACCOUNT=<kroxylicious_service_account>
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+cat > trustpolicy << EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/${OIDC_PROVIDER}"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "${OIDC_PROVIDER}:sub": "system:serviceaccount:${NAMESPACE}:${SERVICE_ACCOUNT}",
+                    "${OIDC_PROVIDER}:aud": "sts.amazonaws.com"
+                }
+            }
+        }
+    ]
+}
+EOF
+----
++
+The `sub` condition restricts the role to only the named service account, and the `aud` condition restricts to STS as the audience.
+This is the part of IRSA that is most often misconfigured -- a mismatch here results in `InvalidIdentityToken` errors at runtime.
+
+. Create the IAM role using the trust policy:
++
+[source,shell]
+----
+aws iam create-role --role-name KroxyliciousIRSA --assume-role-policy-document file://trustpolicy
+----
++
+This example uses `KroxyliciousIRSA` as the role name, but you can substitute a different name if necessary.
+
+. Attach the alias-based policy to the role:
++
+[source,shell]
+----
+aws iam attach-role-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption --role-name KroxyliciousIRSA
+----
+
+. Annotate the Kroxylicious service account so that the EKS pod-identity webhook injects the role ARN and projected token at pod-creation time:
++
+[source,shell]
+----
+ROLE_ARN=arn:aws:iam::${AWS_ACCOUNT_ID}:role/KroxyliciousIRSA
+kubectl -n ${NAMESPACE} annotate serviceaccount ${SERVICE_ACCOUNT} \
+    eks.amazonaws.com/role-arn=${ROLE_ARN} --overwrite
+----
++
+The webhook automatically projects the OIDC token at `/var/run/secrets/eks.amazonaws.com/serviceaccount/token` and sets the environment variables `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE` on the pod.
+The Record Encryption filter reads these environment variables by default, so an empty `webIdentityCredentials: {}` block in the AWS KMS configuration is sufficient on a properly-annotated pod.
+
+. Restart the Kroxylicious pods so that the webhook can inject the projection:
++
+[source,shell]
+----
+kubectl -n ${NAMESPACE} rollout restart deployment kroxylicious
+----

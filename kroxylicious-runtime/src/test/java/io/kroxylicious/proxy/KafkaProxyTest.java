@@ -1,0 +1,560 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIf;
+import org.junit.jupiter.api.condition.EnabledIf;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
+
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.uring.IoUringServerSocketChannel;
+
+import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class KafkaProxyTest {
+
+    private ConfigParser configParser;
+
+    @BeforeEach
+    void setUp() {
+        configParser = new ConfigParser();
+    }
+
+    static Stream<Arguments> missingTls() {
+        return Stream.of(Arguments.argumentSet("tls mismatch", """
+                virtualClusters:
+                  - name: demo1
+                    gateways:
+                    - name: default
+                      sniHostIdentifiesNode:
+                        bootstrapAddress: localhost:8192
+                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                """,
+                "When using 'sniHostIdentifiesNode', 'tls' must be provided (virtual cluster listener default)"));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void missingTls(String config, String expectedMessage) {
+        assertThatThrownBy(() -> configParser.parseConfiguration(config))
+                .hasStackTraceContaining(expectedMessage);
+    }
+
+    public static Stream<Arguments> parametersNonNullable() {
+        return Stream.of(Arguments.argumentSet("Null registry", null, Mockito.mock(Configuration.class), Features.defaultFeatures()),
+                Arguments.argumentSet("null config", Mockito.mock(PluginFactoryRegistry.class), null, Features.defaultFeatures()),
+                Arguments.argumentSet("null features", Mockito.mock(PluginFactoryRegistry.class), Mockito.mock(Configuration.class), null));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    @SuppressWarnings("resource")
+    void parametersNonNullable(PluginFactoryRegistry pfr, Configuration config, Features features) {
+        assertThatThrownBy(() -> new KafkaProxy(pfr, config, features)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void invalidConfigurationForFeatures() {
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: cluster1:9192
+                   development:
+                     a: b
+                """;
+
+        var configuration = configParser.parseConfiguration(config);
+        Features features = Features.defaultFeatures();
+        assertThatThrownBy(() -> KafkaProxy.validate(configuration, features))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("invalid configuration: test-only configuration for proxy present, but loading test-only configuration not enabled");
+    }
+
+    /**
+     * Tests that involve the proxy lifecycle (startup, shutdown, reconfigure).
+     * A zero shutdownQuietPeriod is set on all configs to avoid the 2-second default
+     * Netty shutdown wait that would otherwise accumulate across this test class.
+     */
+    @Nested
+    class RunningProxy {
+
+        // Zero quiet period avoids the 2-second default Netty shutdown wait in each test.
+        private static final String BASE_CONFIG = """
+                network:
+                  proxy:
+                    shutdownQuietPeriod: 0s
+                  management:
+                    shutdownQuietPeriod: 0s
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9192
+                """;
+
+        @Test
+        void shouldFailToStartIfRequireFilterConfigIsMissing() {
+            // Filter init runs during VCM construction (per the FCF-per-VC refactor), so a bad filter
+            // config now surfaces from the KafkaProxy constructor rather than from startup(). The
+            // wrap-as-LifecycleException in KafkaProxy.defaultRegistry preserves the exception type
+            // and cause that callers of the legacy startup() path had previously relied on.
+            var config = """
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: cluster1:9192
+                       filterDefinitions:
+                       - name: filter1
+                         type: RequiresConfigFactory
+                       defaultFilters:
+                       - filter1
+                    """;
+            var parsedConfig = configParser.parseConfiguration(config);
+            var features = Features.defaultFeatures();
+            assertThatThrownBy(() -> new KafkaProxy(configParser, parsedConfig, features))
+                    .isInstanceOf(LifecycleException.class)
+                    .cause()
+                    .isInstanceOf(PluginConfigurationException.class)
+                    .hasMessageContaining("Exception initializing filter factory filter1 with config null");
+        }
+
+        static Stream<Arguments> detectsConflictingPorts() {
+            return Stream.of(Arguments.argumentSet("bootstrap port conflict", """
+                    virtualClusters:
+                      - name: demo1
+                        targetCluster:
+                          bootstrapServers: kafka.example:1234
+                        gateways:
+                        - name: default
+                          portIdentifiesNode:
+                            bootstrapAddress: localhost:9192
+                      - name: demo2
+                        targetCluster:
+                          bootstrapServers: kafka.example:1234
+                        gateways:
+                        - name: default
+                          portIdentifiesNode:
+                            bootstrapAddress: localhost:9192 # Conflict
+                    """,
+                    "exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"),
+                    Arguments.argumentSet("broker port conflict", """
+                            virtualClusters:
+                              - name: demo1
+                                targetCluster:
+                                  bootstrapServers: kafka.example:1234
+                                gateways:
+                                - name: default
+                                  portIdentifiesNode:
+                                    bootstrapAddress: localhost:9192
+                                    nodeStartPort: 9193
+                              - name: demo2
+                                targetCluster:
+                                  bootstrapServers: kafka.example:1234
+                                gateways:
+                                - name: default
+                                  portIdentifiesNode:
+                                    bootstrapAddress: localhost:8192
+                                    nodeStartPort: 9193 # Conflict
+                            """,
+                            "exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"));
+        }
+
+        @ParameterizedTest()
+        @MethodSource
+        void detectsConflictingPorts(String config, String expectedMessage) {
+            try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                assertThatThrownBy(kafkaProxy::startup).isInstanceOf(LifecycleException.class)
+                        .cause()
+                        .hasMessageContaining(expectedMessage);
+            }
+        }
+
+        @Test
+        void supportsLivezEndpoint() throws Exception {
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
+                       management:
+                        port: 9190
+                       network:
+                         proxy:
+                           shutdownQuietPeriod: 0s
+                         management:
+                           shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """), Features.defaultFeatures())) {
+                proxy.startup();
+                @SuppressWarnings("resource") // it's not auto closable in java 17
+                var client = HttpClient.newHttpClient();
+                var uri = URI.create("http://localhost:9190/livez");
+                var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
+                assertThat(response.statusCode()).isEqualTo(200);
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Test
+        void shouldDefaultManagementThreadCountWhenNoNetworkNodePresent() {
+            var config = """
+                       management:
+                        port: 9190
+                       network:
+                         proxy:
+                           shutdownQuietPeriod: 0s
+                         management:
+                           shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """;
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                proxy.startup();
+
+                assertThat(proxy.managementEventGroup())
+                        .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                                .hasSize(Runtime.getRuntime().availableProcessors()));
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Test
+        void shouldDefaultManagementThreadCountWhenNetworkNodePresentWithoutManagementSettings() {
+            var config = """
+                       management:
+                        port: 9190
+                       network:
+                        proxy:
+                          workerThreadCount: 2
+                          shutdownQuietPeriod: 0s
+                        management:
+                          shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """;
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                proxy.startup();
+
+                assertThat(proxy.managementEventGroup())
+                        .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                                .hasSize(Runtime.getRuntime().availableProcessors()));
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Test
+        void shouldUseConfiguredManagementThreadCount() {
+            var config = """
+                       management:
+                        port: 9190
+                       network:
+                        proxy:
+                          shutdownQuietPeriod: 0s
+                        management:
+                          workerThreadCount: 2
+                          shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """;
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                proxy.startup();
+
+                assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2));
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Test
+        void shouldDefaultProxyThreadCountWhenNoNetworkNodePresent() {
+            var config = """
+                       management:
+                        port: 9190
+                       network:
+                         proxy:
+                           shutdownQuietPeriod: 0s
+                         management:
+                           shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """;
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                proxy.startup();
+
+                assertThat(proxy.proxyEventGroup())
+                        .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                                .hasSize(Runtime.getRuntime().availableProcessors()));
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Test
+        void shouldDefaultProxyThreadCountWhenNetworkNodePresentWithoutProxySettings() {
+            var config = """
+                       management:
+                        port: 9190
+                       network:
+                        proxy:
+                          shutdownQuietPeriod: 0s
+                        management:
+                          workerThreadCount: 2
+                          shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """;
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                proxy.startup();
+
+                assertThat(proxy.proxyEventGroup())
+                        .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                                .hasSize(Runtime.getRuntime().availableProcessors()));
+            }
+        }
+
+        @SuppressWarnings("resource")
+        @Test
+        void shouldUseConfiguredProxyThreadCount() {
+            var config = """
+                       management:
+                        port: 9190
+                       network:
+                        proxy:
+                          workerThreadCount: 2
+                          shutdownQuietPeriod: 0s
+                        management:
+                          shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """;
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+                proxy.startup();
+
+                assertThat(proxy.proxyEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2));
+            }
+        }
+
+        @Test
+        void startupTwiceReturnsSameFuture() {
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
+                var first = proxy.startup();
+                var second = proxy.startup();
+                assertThat(second).isSameAs(first);
+            }
+        }
+
+        @Test
+        void shouldAllowShuttingDownBeforeStartup() {
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
+                assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+            }
+        }
+
+        @SuppressWarnings("DataFlowIssue")
+        @Test
+        void shouldRejectReconfigureWithNullConfig() {
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
+                proxy.startup();
+                assertThatThrownBy(() -> proxy.reconfigure(null))
+                        .isInstanceOf(NullPointerException.class)
+                        .hasMessageContaining("newConfig");
+            }
+        }
+
+        @Test
+        void shouldRejectReconfigureBeforeStartup() {
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
+                var newConfig = configParser.parseConfiguration(BASE_CONFIG);
+                assertThatThrownBy(() -> proxy.reconfigure(newConfig))
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessage("This proxy is not running");
+            }
+        }
+
+        @Test
+        void shouldRejectReconfigureAfterShutdown() {
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
+                proxy.startup();
+                proxy.shutdown();
+                var newConfig = configParser.parseConfiguration(BASE_CONFIG);
+                assertThatThrownBy(() -> proxy.reconfigure(newConfig))
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessage("This proxy is not running");
+            }
+        }
+
+        @Test
+        void shouldDelegateReconfigureToOrchestrator() throws Exception {
+            // Proves the wiring: KafkaProxy.reconfigure() reaches the orchestrator, which
+            // runs its pipeline. With an identical config (no clusters changed) the orchestrator
+            // takes the no-op early-return path and returns a ReconfigureResult with no errors.
+            // The fact that a ReconfigureResult is produced at all proves the orchestrator's
+            // pipeline ran end-to-end (only the orchestrator's success path yields one).
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(BASE_CONFIG), Features.defaultFeatures())) {
+                proxy.startup();
+                var newConfig = configParser.parseConfiguration(BASE_CONFIG);
+                var result = proxy.reconfigure(newConfig).get(5, TimeUnit.SECONDS);
+                assertThat(result.hasErrors()).isFalse();
+            }
+        }
+
+        @Test
+        @EnabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is not available")
+        void shouldEnableIOUring() {
+            // Given
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
+                       useIoUring: true
+                       network:
+                         proxy:
+                           shutdownQuietPeriod: 0s
+                         management:
+                           shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """), Features.defaultFeatures())) {
+                // When
+                proxy.startup();
+
+                // Then
+                assertThat(proxy.managementEventGroup())
+                        .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(IoUringServerSocketChannel.class));
+            }
+        }
+
+        @Test
+        void shouldFallbackIfIOUringDisabled() {
+            // Given
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
+                       useIoUring: false
+                       network:
+                         proxy:
+                           shutdownQuietPeriod: 0s
+                         management:
+                           shutdownQuietPeriod: 0s
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """), Features.defaultFeatures())) {
+                // When
+                proxy.startup();
+
+                // Then
+                assertThat(proxy.managementEventGroup())
+                        .satisfiesAnyOf(eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(EpollServerSocketChannel.class),
+                                eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(NioServerSocketChannel.class),
+                                eventGroupConfig -> assertThat(eventGroupConfig.clazz()).isAssignableFrom(KQueueServerSocketChannel.class));
+            }
+        }
+
+        @Test
+        @DisabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is available")
+        void shouldFailToStartIfIouUringConfiguredAndUnavailable() {
+            // Given
+            try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
+                       useIoUring: true
+                       virtualClusters:
+                         - name: demo1
+                           targetCluster:
+                             bootstrapServers: kafka.example:1234
+                           gateways:
+                           - name: default
+                             portIdentifiesNode:
+                               bootstrapAddress: localhost:9192
+                    """), Features.defaultFeatures())) {
+                // When
+                // Then
+                assertThatThrownBy(proxy::startup).isInstanceOf(LifecycleException.class).cause().hasMessageStartingWith("io_uring not available due to: ");
+            }
+        }
+    }
+}

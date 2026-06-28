@@ -1,0 +1,56 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-oauth-bearer-validation-filter.adoc
+
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
+
+[role="_abstract"]
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProtocolFilter` resource to contain the filter configuration.
+
+Here's a complete example of a `KafkaProtocolFilter` resource configured for Oauth Bearer validation:
+
+.Example `KafkaProtocolFilter` resource for record validation
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: my-oauth-bearer-validation-filter
+spec:
+  type: OauthBearerValidation
+  configTemplate:
+      jwksEndpointUrl: https://oauth/JWKS
+      jwksEndpointRefreshMs: 3600000
+      jwksEndpointRetryBackoffMs: 100
+      jwksEndpointRetryBackoffMaxMs: 10000
+      scopeClaimName: scope
+      subClaimName: sub
+      authenticateBackOffMaxMs: 60000
+      authenticateCacheMaxSize: 1000
+      expectedAudience: https://first.audience, https//second.audience
+      expectedIssuer: https://your-domain.auth/
+----
+where:
+
+* `jwksEndpointUrl` (Required) specifies the OAuth/OIDC provider URL from which the provider's JSON Web Key Set (JWKS) is retrieved. 
+The following properties are optional:
+
+* `jwksEndpointRefreshMs` specifies the interval, in milliseconds, between refreshes of the JWKS cache used to verify JWT signatures.
+* `jwksEndpointRetryBackoffMs` specifies the initial delay, in milliseconds, between attempts to retrieve the JWKS from the external authentication provider.
+* `jwksEndpointRetryBackoffMaxMs` specifies the maximum delay, in milliseconds, between JWKS retrieval attempts.
+* `scopeClaimName` specifies an alternative claim name for the scope in the JWT payload.
+* `subClaimName` specifies an alternative claim name for the subject in the JWT payload.
+* `authenticateBackOffMaxMs` specifies the maximum backoff time, in milliseconds, applied to repeated authentication attempts. A value of 0 disables backoff. Otherwise, an exponential delay is added to each authenticate request until the `authenticateBackOffMaxMs` has been reached.
+* `authenticateCacheMaxSize` specifies the maximum number of failed tokens retained in the cache.
+* `expectedAudience` specifies a comma-delimited list of valid audiences used to verify the JWT.
+* `expectedIssuer` specifies the expected issuer used to verify the JWT.
+
+Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

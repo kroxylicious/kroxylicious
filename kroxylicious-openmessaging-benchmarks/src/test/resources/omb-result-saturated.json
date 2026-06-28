@@ -1,0 +1,22 @@
+{
+  "workload": "1-topic-1-partition-1kb",
+  "driver": "Kafka",
+  "topics": 1,
+  "producersPerTopic": 1,
+  "consumersPerTopic": 1,
+  "aggregatedPublishLatencyAvg": 1305.37,
+  "aggregatedPublishLatency50pct": 1258.50,
+  "aggregatedPublishLatency95pct": 1476.61,
+  "aggregatedPublishLatency99pct": 1535.38,
+  "aggregatedPublishLatency999pct": 1645.66,
+  "aggregatedPublishLatencyMax": 1703.94,
+  "publishRate": [49445.0, 49450.0, 49441.0],
+  "consumeRate": [49445.0, 49450.0, 49441.0],
+  "aggregatedEndToEndLatencyAvg": 1305.56,
+  "aggregatedEndToEndLatency50pct": 1258.69,
+  "aggregatedEndToEndLatency95pct": 1476.61,
+  "aggregatedEndToEndLatency99pct": 1536.01,
+  "aggregatedEndToEndLatency999pct": 1645.66,
+  "aggregatedPublishDelayLatencyAvg": 10589077.0,
+  "aggregatedPublishDelayLatency99pct": 15605823.0
+}

@@ -1,0 +1,194 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.systemtests.templates.kroxylicious;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.kafka.common.security.scram.internals.ScramMechanism;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+
+import io.kroxylicious.authorizer.provider.acl.AclAuthorizerConfig;
+import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
+import io.kroxylicious.filter.authorization.Authorization;
+import io.kroxylicious.filter.authorization.AuthorizationConfig;
+import io.kroxylicious.filter.encryption.RecordEncryption;
+import io.kroxylicious.filter.entityisolation.EntityIsolation;
+import io.kroxylicious.filter.sasl.inspection.Config;
+import io.kroxylicious.filter.sasl.inspection.SaslInspection;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.testing.kms.TestKmsFacade;
+
+/**
+ * The type Kroxylicious filter templates.
+ */
+public final class KroxyliciousFilterTemplates {
+    private static final ObjectMapper OBJECT_MAPPER = createBaseObjectMapper();
+
+    private KroxyliciousFilterTemplates() {
+    }
+
+    private static ObjectMapper createBaseObjectMapper() {
+        YAMLFactory yamlFactory = new YAMLFactory();
+        yamlFactory.configure(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID, false);
+        return new ObjectMapper(yamlFactory)
+                .setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE)
+                .setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+                .setVisibility(PropertyAccessor.CREATOR, JsonAutoDetect.Visibility.ANY)
+                .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
+                .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
+                .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
+                .setDefaultPropertyInclusion(JsonInclude.Include.NON_DEFAULT);
+    }
+
+    /**
+     * Default kafka cluster ref deployment.
+     *
+     * @param namespaceName the namespace name
+     * @param filterName the filter name
+     * @return the kafka service builder
+     */
+    public static KafkaProtocolFilterBuilder baseFilterDeployment(String namespaceName, String filterName) {
+        // @formatter:off
+        return new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                    .withName(filterName)
+                    .withNamespace(namespaceName)
+                .endMetadata()
+                .withNewSpec()
+                .endSpec();
+        // @formatter:on
+    }
+
+    /**
+     * Kroxylicious record encryption filter.
+     *
+     * @param namespaceName the namespace name
+     * @param testKmsFacade the test kms facade
+     * @param experimentalKmsConfig the experimental kms config
+     * @return the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
+                                                                                ExperimentalKmsConfig experimentalKmsConfig) {
+        DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.TRUSTSTORE_SECRET_NAME);
+        return baseFilterDeployment(namespaceName, Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)
+                .withNewSpec()
+                .withType(RecordEncryption.class.getTypeName())
+                .withConfigTemplate(getRecordEncryptionConfigMap(testKmsFacade, experimentalKmsConfig))
+                .endSpec();
+    }
+
+    private static Map<String, Object> getRecordEncryptionConfigMap(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+        Map<String, Object> kmsConfigMap = OBJECT_MAPPER
+                .convertValue(testKmsFacade.getKmsServiceConfig(), new TypeReference<>() {
+                });
+
+        var map = new HashMap<>(Map.of(
+                "kms", testKmsFacade.getKmsServiceClass().getSimpleName(),
+                "kmsConfig", kmsConfigMap,
+                "selector", "TemplateKekSelector",
+                "selectorConfig", Map.of("template", "KEK-$(topicName)")));
+
+        if (experimentalKmsConfig != null) {
+            Map<String, Object> experimentalKmsConfigMap = OBJECT_MAPPER
+                    .convertValue(experimentalKmsConfig, new TypeReference<>() {
+                    });
+            map.put("experimental", experimentalKmsConfigMap);
+        }
+
+        return map;
+    }
+
+    /**
+     * Kroxylicious authorization filter builder.
+     *
+     * @param namespace the namespace
+     * @param aclFile the acl file
+     * @return  the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousAuthorizationFilter(String namespace, String aclFile) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_AUTHORIZATION_FILTER_NAME)
+                .withNewSpec()
+                .withType(Authorization.class.getSimpleName())
+                .withConfigTemplate(getAuthorizationConfigMap(aclFile))
+                .endSpec();
+    }
+
+    private static Map<String, Object> getAuthorizationConfigMap(String aclFile) {
+        AuthorizationConfig authorizationConfig = new AuthorizationConfig(AclAuthorizerService.class.getSimpleName(),
+                new AclAuthorizerConfig(aclFile));
+
+        return OBJECT_MAPPER
+                .convertValue(authorizationConfig, new TypeReference<>() {
+                });
+    }
+
+    /**
+     * Kroxylicious sasl inspector filter builder.
+     *
+     * @param namespace the namespace
+     * @return  the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousSaslInspectorFilter(String namespace) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_SASL_INSPECTOR_FILTER_NAME)
+                .withNewSpec()
+                .withType(SaslInspection.class.getSimpleName())
+                .withConfigTemplate(getSaslInspectionConfigMap())
+                .endSpec();
+
+    }
+
+    private static Map<String, Object> getSaslInspectionConfigMap() {
+        Config saslInspectionConfig = new Config(Set.of(ScramMechanism.SCRAM_SHA_512.mechanismName()), null, null, true);
+
+        return OBJECT_MAPPER
+                .convertValue(saslInspectionConfig, new TypeReference<>() {
+                });
+    }
+
+    /**
+     * Kroxylicious entity isolation filter builder.
+     *
+     * @param namespace the namespace
+     * @param entityTypes the entity type supported
+     * @return  the kafka protocol filter builder
+     */
+    public static KafkaProtocolFilterBuilder kroxyliciousEntityIsolationFilter(String namespace, Set<EntityIsolation.EntityType> entityTypes,
+                                                                               Class<?> mapperServiceClass) {
+        return baseFilterDeployment(namespace, Constants.KROXYLICIOUS_ENTITY_ISOLATION_FILTER_NAME)
+                .withNewSpec()
+                .withType(EntityIsolation.class.getSimpleName())
+                .withConfigTemplate(getEntityIsolationConfigMap(entityTypes, mapperServiceClass))
+                .endSpec();
+    }
+
+    private static Map<String, Object> getEntityIsolationConfigMap(Set<EntityIsolation.EntityType> entityTypes, Class<?> mapperServiceClass) {
+        EntityIsolation.Config entityIsolationConfig = new EntityIsolation.Config(entityTypes, mapperServiceClass.getSimpleName(), "");
+
+        return OBJECT_MAPPER
+                .convertValue(entityIsolationConfig, new TypeReference<>() {
+                });
+    }
+}

@@ -1,0 +1,85 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "INCREMENTAL_ALTER_CONFIGS"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "INCREMENTAL_ALTER_CONFIGS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 44
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        resources:
+          - resourceType: 2
+            resourceName: "mytopic"
+            configs:
+              - name: "random-string-244"
+                configOperation: 7
+                value: "random-string-752"
+          - resourceType: 32
+            resourceName: "alice-mygroup"
+            configs:
+              - name: "random-string-244"
+                configOperation: 7
+                value: "random-string-752"
+        validateOnly: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        responses:
+          - errorCode: 0
+            errorMessage:
+            resourceType: 32
+            resourceName: "alice-mygroup"
+          - errorCode: 0
+            errorMessage:
+            resourceType: 2
+            resourceName: "mytopic"
+  entityTypes: ["GROUP_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 44
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    resources:
+      - resourceType: 2
+        resourceName: "mytopic"
+        configs:
+          - name: "random-string-244"
+            configOperation: 7
+            value: "random-string-752"
+      - resourceType: 32
+        resourceName: "mygroup"
+        configs:
+          - name: "random-string-244"
+            configOperation: 7
+            value: "random-string-752"
+    validateOnly: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    responses:
+      - errorCode: 0
+        errorMessage:
+        resourceType: 32
+        resourceName: "mygroup"
+      - errorCode: 0
+        errorMessage:
+        resourceType: 2
+        resourceName: "mytopic"

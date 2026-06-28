@@ -1,0 +1,23 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+// file included in the following:
+//
+// admission-webhook-guide/index.adoc
+
+[id='assembly-admission-webhook-install-{context}']
+= Installing the Admission Webhook
+
+[role="_abstract"]
+This section provides instructions for installing the Kroxylicious Admission Webhook.
+
+Install the admission webhook by applying the installation files included with the release artifacts.
+
+include::../_modules/admission-webhook/con-admission-webhook-prereqs.adoc[leveloffset=+1]
+include::../_modules/admission-webhook/con-admission-webhook-release-artifacts.adoc[leveloffset=+1]
+include::../_modules/admission-webhook/proc-install-admission-webhook.adoc[leveloffset=+1]

@@ -1,0 +1,70 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-operate-proxy.adoc
+
+[id='con-kafkaproxyingress-infrastructure-annotations-{context}']
+= Configuring infrastructure annotations for ingress resources
+
+[role="_abstract"]
+When the operator creates Kubernetes Services and Routes for a `KafkaProxyIngress`, you can specify custom annotations to be applied to those resources.
+This enables platform-specific behaviour such as load balancer configuration, certificate management, or timeout tuning.
+
+Infrastructure annotations are configured in the `spec.infrastructure.annotations` field of the `KafkaProxyIngress` resource.
+The annotations are applied to all Services and Routes created for the ingress, regardless of the ingress type (`clusterIP`, `loadBalancer`, or `openShiftRoute`).
+
+.Example `KafkaProxyIngress` with infrastructure annotations for an AWS Network Load Balancer
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: load-balancer
+spec:
+  proxyRef:
+    name: simple
+  infrastructure:
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+  loadBalancer:
+    bootstrapAddress: "$(virtualClusterName).kafkaproxy.example.com"
+    advertisedBrokerAddressPattern: "broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com"
+----
+
+.Example `KafkaProxyIngress` with infrastructure annotations for OpenShift Route timeouts
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: openshift-route
+spec:
+  proxyRef:
+    name: simple
+  infrastructure:
+    annotations:
+      haproxy.router.openshift.io/timeout: "60s"
+  openShiftRoute: {}
+----
+
+== Annotation key restrictions
+
+Annotation keys must be between 1 and 253 characters in length, following the Kubernetes qualified name convention.
+
+Annotations with the `kroxylicious.io/` prefix are reserved for operator use and are rejected by the API server.
+The operator manages its own annotations on the created resources (for example, `kroxylicious.io/bootstrap-servers`), and these take precedence over any infrastructure annotations with conflicting keys.
+
+[role="_additional-resources"]
+.Additional resources
+
+* https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/[Kubernetes documentation: Annotations^]

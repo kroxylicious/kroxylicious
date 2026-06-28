@@ -1,0 +1,56 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_CONFIGS"
+  apiVersion: 1
+  scenario: "denied group is not forwarded, a corresponding error is added to response"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_CONFIGS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 32
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        resources: []
+        includeSynonyms: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 640
+        results: []
+  authorizerRules:
+    allowed: []
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 32
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    resources:
+      - resourceType: 32
+        resourceName: "denied-group"
+        configurationKeys:
+          - "random-string-467"
+    includeSynonyms: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 640
+    results:
+      - errorCode: 30
+        errorMessage: "Group authorization failed."
+        resourceType: 32
+        resourceName: "denied-group"
+        configs: [ ]

@@ -1,0 +1,233 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.systemtests.clients;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.ScramMechanism;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.record.CompressionType;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.fabric8.kubernetes.api.model.ContainerStatus;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.client.readiness.Readiness;
+
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.executor.ExecResult;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+
+/**
+ * The interface Kafka client.
+ */
+public interface KafkaClient {
+    Logger LOGGER = LoggerFactory.getLogger(KafkaClient.class);
+
+    /**
+     * Gets the image of the corresponding test client
+     * @return the image
+     */
+    String getImage();
+
+    /**
+     * Sets the namespace where the kafka client will be deployed in kubernetes.
+     *
+     * @param namespace the namespace
+     * @return  the kafka client
+     */
+    KafkaClient inNamespace(String namespace);
+
+    /**
+     * Preload the image of the corresponding kafka client to fail fast if not available
+     *
+     */
+    default void preloadImage() {
+        String image = getImage();
+        LOGGER.info("Preloading Test Kafka Client Image from {}", image);
+        var pod = kubeClient().getClient().run().withName("preload-operand-image")
+                .withNewRunConfig()
+                .withImage(image)
+                .withRestartPolicy("Never").withCommand("ls").done();
+        checkPreloadedImage(pod);
+    }
+
+    static void checkPreloadedImage(Pod pod) {
+        try {
+            kubeClient().getClient().resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
+        }
+        finally {
+            var reread = kubeClient().getClient().resource(pod).get();
+            if (!Readiness.isPodSucceeded(reread)) {
+                var reasons = reread.getStatus().getContainerStatuses().stream().map(ContainerStatus::getState).map(Objects::toString)
+                        .collect(Collectors.joining(","));
+                kubeClient().logsInSpecificNamespace("default", "preload-operand-image");
+                LOGGER.error("Preloading operand image failed, phase: {}, container state: {}", reread.getStatus().getPhase(), reasons);
+            }
+            kubeClient().getClient().resource(pod).delete();
+        }
+    }
+
+    /**
+     * Gets additional sasl props.
+     *
+     * @param user the user
+     * @param password the password
+     * @return  the additional sasl props
+     */
+    default Map<String, String> getAdditionalSaslProps(String user, String password) {
+        return Map.of("sasl.username", user, "sasl.password", password, SaslConfigs.SASL_MECHANISM,
+                ScramMechanism.SCRAM_SHA_512.mechanismName(), CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numOfMessages the num of messages
+     * @return  the exec result
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
+        return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of());
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
+     * @param numOfMessages the num of messages
+     * @return  the exec result
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
+            throws KubeClusterException {
+        return produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
+    }
+
+    /**
+     * Produce messages without wait.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey the message key
+     * @param numOfMessages the num of messages
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages)
+            throws KubeClusterException {
+        produceMessagesWithoutWait(topicName, bootstrap, message, messageKey, numOfMessages, Map.of());
+    }
+
+    /**
+     * Produce messages without wait.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey the message key
+     * @param numOfMessages the num of messages
+     * @param additionalConfig the additional config
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    default void produceMessagesWithoutWait(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages,
+                                            Map<String, String> additionalConfig)
+            throws KubeClusterException {
+        produceMessages(topicName, bootstrap, message, messageKey, numOfMessages, additionalConfig);
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param compressionType the compression type
+     * @param numOfMessages the num of messages
+     * @return  the exec result
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    default ExecResult produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
+            throws KubeClusterException {
+        return produceMessages(topicName, bootstrap, message, null, numOfMessages, Map.of(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType.name));
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
+     * @param numOfMessages the num of messages
+     * @param additionalConfig the additional config
+     * @return  the exec result
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    ExecResult produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages, Map<String, String> additionalConfig)
+            throws KubeClusterException;
+
+    /**
+     * Consume messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numOfMessages the num of messages
+     * @param timeout the timeout
+     * @return  the list of ConsumerRecords
+     * @throws KubeClusterException the kubernetes cluster exception
+     */
+    default List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) throws KubeClusterException {
+        return consumeMessages(topicName, bootstrap, numOfMessages, timeout, Map.of(), Constants.CONSUMER_GROUP_NAME);
+    }
+
+    /**
+     * Consume messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param numOfMessages the num of messages
+     * @param timeout the timeout
+     * @param additionalConfig the additional config
+     * @param consumerGroup the consumer group
+     * @return  the list of ConsumerRecords
+     */
+    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout, Map<String, String> additionalConfig,
+                                         String consumerGroup)
+            throws KubeClusterException;
+
+    /**
+     * Extracts version from Docker image string.
+     *
+     * @param image the Docker image (e.g., "quay.io/kroxylicious/kcat:1.7.1")
+     * @return  the version (e.g., "1.7.1") or "unknown" if not found
+     */
+    static String extractVersionFromImage(String image) {
+        int colonIndex = image.lastIndexOf(':');
+        return colonIndex != -1 ? image.substring(colonIndex + 1) : "unknown";
+    }
+}

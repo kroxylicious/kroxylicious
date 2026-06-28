@@ -1,0 +1,28 @@
+---
+management:
+  endpoints:
+    prometheus: {}
+virtualClusters:
+  - name: demo
+    targetCluster:
+      bootstrapServers: localhost:9092
+    gateways:
+      - name: mygateway
+        portIdentifiesNode:
+          bootstrapAddress: localhost:9192
+    logNetwork: false
+    logFrames: false
+filterDefinitions:
+  - name: produce-request-filter
+    type: SampleProduceRequest
+    config:
+      findValue: foo
+      replacementValue: bar
+  - name: fetch-response-filter
+    type: SampleFetchResponse
+    config:
+      findValue: bar
+      replacementValue: baz
+defaultFilters:
+  - produce-request-filter
+  - fetch-response-filter

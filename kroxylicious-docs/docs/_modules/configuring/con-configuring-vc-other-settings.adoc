@@ -1,0 +1,34 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-vc-other-settings-{context}']
+= Configuring per-virtual cluster logging
+
+[role="_abstract"]
+You can enable low level logging on a per-virtual cluster basis.
+The `logNetwork` property controls logging of information about requests and responses at the network level, before they've been decoded into Kafka requests and responses.
+The `logFrames` property controls logging of the decoded requests and responses.
+
+
+[id='con-configuring-vc-logging-{context}']
+.Configuration fragment showing logging properties
+[source,yaml]
+----
+# ...
+virtualClusters:
+  - name: my-cluster-proxy
+    # ...
+    logNetwork: true
+    logFrames: true
+    # ...
+----
+where:
+
+* `logNetwork` enables low-level network logging for the virtual cluster.
+* `logFrames` enables low-level protocol frame logging for the virtual cluster.
+

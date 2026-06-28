@@ -1,0 +1,622 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.internal;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
+import org.apache.kafka.common.message.SaslHandshakeRequestData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.ssl.SniCompletionEvent;
+import io.netty.handler.ssl.SslContextBuilder;
+
+import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.CacheConfiguration;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.frame.DecodedFrame;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
+import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
+import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
+import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.testing.filter.RequestFactory;
+
+import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class KafkaProxyFrontendHandlerTest {
+
+    public static final String SNI_HOSTNAME = "external.example.com";
+    public static final String CLUSTER_HOST = "internal.example.org";
+    public static final int CLUSTER_PORT = 9092;
+    public static final String CLUSTER_NAME = "RandomCluster";
+    EmbeddedChannel inboundChannel;
+    EmbeddedChannel outboundChannel;
+
+    int corrId = 0;
+    private KafkaProxyBackendHandler backendHandler;
+
+    ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
+        var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession,
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn,
+                        ni, connectionCounter, errorCounter,
+                        backpressureMeter, connectionToken) {
+                    @Override
+                    Bootstrap configureBootstrap(
+                                                 KafkaProxyBackendHandler capturedBackendHandler,
+                                                 Channel inboundChannel) {
+                        backendHandler = capturedBackendHandler;
+                        outboundChannel = new EmbeddedChannel();
+                        Bootstrap bootstrap = new Bootstrap();
+                        bootstrap.group(outboundChannel.eventLoop())
+                                .channel(outboundChannel.getClass())
+                                .handler(capturedBackendHandler)
+                                .option(ChannelOption.AUTO_READ, true)
+                                .option(ChannelOption.TCP_NODELAY, true);
+                        return bootstrap;
+                    }
+
+                    @Override
+                    ChannelFuture initConnection(
+                                                 String remoteHost,
+                                                 int remotePort,
+                                                 Bootstrap bootstrap) {
+                        outboundChannel.pipeline().addFirst(backendHandler);
+                        outboundChannel.pipeline().fireChannelRegistered();
+                        return outboundChannel.newPromise();
+                    }
+                });
+    }
+
+    private PluginFactoryRegistry pfr;
+    private FilterChainFactory fcf;
+
+    private void writeRequest(short apiVersion, ApiMessage body) {
+        int downstreamCorrelationId = corrId++;
+
+        DecodedRequestFrame<ApiMessage> apiMessageDecodedRequestFrame = decodedRequestFrame(apiVersion, body, downstreamCorrelationId);
+        inboundChannel.writeInbound(apiMessageDecodedRequestFrame);
+    }
+
+    private DecodedRequestFrame<ApiMessage> decodedRequestFrame(short apiVersion, ApiMessage body, int downstreamCorrelationId) {
+        var apiKey = ApiKeys.forId(body.apiKey());
+
+        RequestHeaderData header = new RequestHeaderData()
+                .setRequestApiKey(apiKey.id)
+                .setRequestApiVersion(apiVersion)
+                .setClientId("client-id")
+                .setCorrelationId(downstreamCorrelationId);
+
+        return new DecodedRequestFrame<>(apiVersion, corrId, true, header, body);
+    }
+
+    @BeforeEach
+    void buildChannel() {
+        inboundChannel = new EmbeddedChannel();
+        corrId = 0;
+        this.pfr = mock(PluginFactoryRegistry.class);
+        this.fcf = mock(FilterChainFactory.class);
+    }
+
+    @AfterEach
+    void closeChannel() {
+        inboundChannel.close();
+        if (outboundChannel != null) {
+            outboundChannel.close();
+        }
+    }
+
+    public static List<Arguments> provideArgsForExpectedFlow() {
+        var result = new ArrayList<Arguments>();
+        boolean[] tf = { true, false };
+        for (boolean sslConfigured : tf) {
+            for (boolean haProxyConfigured : tf) {
+                for (boolean sendSasl : tf) {
+                    result.add(Arguments.of(sslConfigured, haProxyConfigured, sendSasl));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * If the client sends multiple messages immediately when connecting they may all be read
+     * from the socket despite the inbound channel auto-read being disabled. We need to tolerate
+     * messages being handled while in the CONNECTED/CONNECTING state before the outbound signals
+     * it is active.
+     */
+    @Test
+    void testMessageHandledAfterConnectingBeforeConnected() {
+        // Given
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel(CLUSTER_NAME);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        givenHandlerIsConnecting(clientConnectionStateMachine, handler, "initial");
+        writeInboundApiVersionsRequest("post-connecting");
+
+        // When
+        whenConnectedAndOutboundBecomesActive(clientConnectionStateMachine);
+
+        // Then
+        assertThat(outboundClientSoftwareNames()).containsExactly("initial", "post-connecting");
+    }
+
+    @Test
+    void testMessageHandledAfterConnectedBeforeOutboundActive() {
+        // Given
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        givenHandlerIsConnected(clientConnectionStateMachine, handler);
+        writeInboundApiVersionsRequest("post-connected");
+
+        // When
+        outboundChannelBecomesActive(clientConnectionStateMachine);
+
+        // Then
+        assertThat(outboundClientSoftwareNames()).containsExactly("initial", "post-connected");
+    }
+
+    @Test
+    void testUnexpectedMessageReceivedBeforeConnected() {
+        // Given
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        givenHandlerIsConnecting(clientConnectionStateMachine, handler, "initial");
+
+        // When
+        Object unexpectedMessage = new Object();
+        inboundChannel.writeInbound(unexpectedMessage);
+
+        // Then
+        assertStateIsClosed(clientConnectionStateMachine);
+    }
+
+    private VirtualClusterModel mockVirtualClusterModel(String cluster) {
+        VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
+        when(virtualClusterModel.getClusterName()).thenReturn(cluster);
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(CacheConfiguration.DEFAULT, cluster);
+        when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
+        // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
+        // mock through the VC so verify(fcf).createFilters(...) still works.
+        when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
+        return virtualClusterModel;
+    }
+
+    @Test
+    void testHandleFrameOversizedExceptionDownstreamTlsDisabled() throws Exception {
+        // Given
+
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        when(virtualClusterListenerModel.getDownstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualClusterModel.gateways()).thenReturn(Map.of("default", virtualClusterListenerModel));
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        ChannelPipeline pipeline = inboundChannel.pipeline();
+        pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
+        pipeline.addLast(handler);
+
+        ChannelHandlerContext mockChannelCtx = mockChannelContext();
+        handler.channelActive(mockChannelCtx);
+
+        // when
+        inboundChannel.writeInbound(new Object());
+
+        // then
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void testHandleFrameOversizedExceptionDownstreamTlsEnabled() throws Exception {
+        // Given
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster-for-oversize-frame");
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        when(virtualClusterListenerModel.getDownstreamSslContext()).thenReturn(Optional.of(SslContextBuilder.forClient().build()));
+        when(virtualClusterModel.gateways()).thenReturn(Map.of("default", virtualClusterListenerModel));
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        ChannelPipeline pipeline = inboundChannel.pipeline();
+        pipeline.addLast(throwOnReadHandler(new DecoderException(new FrameOversizedException(5, 6))));
+        pipeline.addLast(handler);
+
+        ChannelHandlerContext mockChannelCtx = mockChannelContext();
+        handler.channelActive(mockChannelCtx);
+
+        // when
+        inboundChannel.writeInbound(new Object());
+
+        // then
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void testUnexpectedMessageReceivedBeforeOutboundActive() {
+        // Given
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        givenHandlerIsConnected(clientConnectionStateMachine, handler);
+
+        // When
+        Object unexpectedMessage = new Object();
+        inboundChannel.writeInbound(unexpectedMessage);
+
+        // Then
+        assertStateIsClosed(clientConnectionStateMachine);
+    }
+
+    private void writeInboundApiVersionsRequest(String clientSoftwareName) {
+        writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
+                .setClientSoftwareName(clientSoftwareName).setClientSoftwareVersion("1.0.0"));
+    }
+
+    KafkaProxyFrontendHandler handler(DelegatingDecodePredicate dp, ClientConnectionStateMachine clientConnectionStateMachine) {
+        return new KafkaProxyFrontendHandler(pfr,
+                mock(EndpointReconciler.class),
+                new ApiVersionsServiceImpl(),
+                dp,
+                new DefaultSubjectBuilder(List.of()),
+                clientConnectionStateMachine,
+                Optional.empty());
+    }
+
+    /**
+     * Test the normal flow, in a number of configurations.
+     *
+     * @param sslConfigured         Whether SSL is configured
+     * @param haProxyConfigured
+     * @param sendSasl
+     */
+    @ParameterizedTest
+    @MethodSource("provideArgsForExpectedFlow")
+    void expectedFlow(boolean sslConfigured,
+                      boolean haProxyConfigured,
+                      boolean sendSasl) {
+
+        var dp = new DelegatingDecodePredicate();
+
+        VirtualClusterModel virtualCluster = mockVirtualClusterModel("cluster");
+        var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        var endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+
+        if (haProxyConfigured) {
+            // Simulate PROXY header arriving before channelActive (as in real pipeline).
+            // Store context in KafkaSession so CCSM picks it up during onClientActive.
+            clientConnectionStateMachine.kafkaSession().setHaProxyContext(
+                    new HaProxyContext("1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT, java.util.Map.of()));
+        }
+
+        var handler = handler(dp, clientConnectionStateMachine);
+        initialiseInboundChannel(clientConnectionStateMachine, handler);
+
+        if (sslConfigured) {
+            // Simulate the SSL handler
+            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
+        }
+
+        if (haProxyConfigured) {
+            assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.HaProxy.class);
+        }
+        else {
+            assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
+        }
+
+        if (sendSasl) {
+            // Simulate the client doing SaslHandshake and SaslAuthentication,
+            writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
+            handleConnect(clientConnectionStateMachine);
+            writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData());
+        }
+
+        // Simulate a Metadata request
+        writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
+
+    }
+
+    @ParameterizedTest
+    @MethodSource("requests")
+    void shouldTransitionToFailedOnException(Short version, ApiMessage apiMessage) {
+        // Given
+        VirtualClusterModel virtualClusterModel = mockVirtualClusterModel("cluster");
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        initialiseInboundChannel(clientConnectionStateMachine, handler);
+        final RequestHeaderData header = new RequestHeaderData();
+        final int correlationId = 1234;
+        header.setCorrelationId(correlationId);
+        final ApiKeys apiKey = ApiKeys.forId(apiMessage.apiKey());
+        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage));
+
+        // When
+        inboundChannel.pipeline().fireExceptionCaught(new DecoderException("boom"));
+
+        // Then
+        assertStateIsClosed(clientConnectionStateMachine);
+        assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).satisfies(decodedResponseFrame -> {
+            assertThat(decodedResponseFrame.apiKey()).isEqualTo(apiKey);
+            assertThat(decodedResponseFrame.body()).isNotNull()
+                    .isInstanceOf(apiKey.messageType.newResponse().getClass());
+        });
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("requests")
+    void shouldTransitionToFailedOnExceptionForFrameOversizedException(Short version, ApiMessage apiMessage) {
+        // Given
+        VirtualClusterModel model = mockVirtualClusterModel("cluster");
+        when(model.getClusterName()).thenReturn(CLUSTER_NAME);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(model);
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
+
+        KafkaProxyFrontendHandler handler = handler(new DelegatingDecodePredicate(), clientConnectionStateMachine);
+        initialiseInboundChannel(clientConnectionStateMachine, handler);
+        final RequestHeaderData header = new RequestHeaderData();
+        final int correlationId = 1234;
+        header.setCorrelationId(correlationId);
+        final ApiKeys apiKey = ApiKeys.forId(apiMessage.apiKey());
+        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage));
+
+        // When
+        inboundChannel.pipeline().fireExceptionCaught(new DecoderException(new FrameOversizedException(5, 6)));
+
+        // Then
+        assertStateIsClosed(clientConnectionStateMachine);
+        assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).satisfies(decodedResponseFrame -> {
+            assertThat(decodedResponseFrame.apiKey()).isEqualTo(apiKey);
+            assertThat(decodedResponseFrame.body()).isNotNull()
+                    .isInstanceOf(apiKey.messageType.newResponse().getClass());
+        });
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    static Stream<Arguments> requests() {
+        return RequestFactory.apiMessageFor(ApiKeys::latestVersion)
+                .map(apiMessageVersion -> Arguments.of(apiMessageVersion.apiVersion(), apiMessageVersion.apiMessage()));
+    }
+
+    private void initialiseInboundChannel(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler) {
+        final ChannelPipeline pipeline = inboundChannel.pipeline();
+        if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
+            // Add HaProxyMessageHandler before the frontend handler to intercept HAProxyMessage
+            // and prevent it from reaching FilterHandlers (which only expect Kafka protocol messages)
+            pipeline.addLast(new HaProxyMessageHandler(clientConnectionStateMachine.kafkaSession()));
+            pipeline.addLast(handler);
+            pipeline.addLast(new FilterChainCompletionHandler(clientConnectionStateMachine));
+        }
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Startup.class);
+        pipeline.fireChannelActive();
+        // After channelActive, state is ClientActive (or HaProxy if context was pre-set in KafkaSession)
+        assertThat(clientConnectionStateMachine.state()).isInstanceOfAny(ClientConnectionState.ClientActive.class, ClientConnectionState.HaProxy.class);
+    }
+
+    private void handleConnect(ClientConnectionStateMachine clientConnectionStateMachine) {
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
+        assertTrue(inboundChannel.config().isAutoRead(),
+                "Expect inbound autoRead=true, client already unblocked on entering Forwarding");
+
+        // Simulate the backend handler receiving channel active and telling the frontend handler
+        outboundChannelBecomesActive(clientConnectionStateMachine);
+    }
+
+    private void outboundChannelBecomesActive(ClientConnectionStateMachine clientConnectionStateMachine) {
+        outboundChannel.pipeline().fireChannelActive();
+        assertTrue(inboundChannel.config().isAutoRead(),
+                "Expect inbound autoRead=true, since outbound now active");
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
+        verify(fcf).createFilters(any(FilterFactoryContext.class));
+    }
+
+    private List<String> outboundClientSoftwareNames() {
+        return outboundApiVersionsFrames().stream()
+                .map(DecodedFrame::body)
+                .map(ApiVersionsRequestData::clientSoftwareName)
+                .toList();
+    }
+
+    private List<DecodedRequestFrame<ApiVersionsRequestData>> outboundApiVersionsFrames() {
+        ByteBuf outboundMessage;
+        List<DecodedRequestFrame<ApiVersionsRequestData>> result = new ArrayList<>();
+        while ((outboundMessage = outboundChannel.readOutbound()) != null) {
+            assertThat(outboundMessage).isNotNull();
+            ArrayList<Object> objects = new ArrayList<>();
+            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), null)
+                    .decode(outboundChannel.pipeline().firstContext(), outboundMessage, objects);
+            assertThat(objects).hasSize(1);
+            if (objects.get(0) instanceof DecodedRequestFrame<?> f) {
+                // noinspection unchecked
+                result.add((DecodedRequestFrame<ApiVersionsRequestData>) f);
+            }
+            else {
+                throw new IllegalStateException("message was not a DecodedRequestFrame");
+            }
+        }
+        return result;
+    }
+
+    private void whenConnectedAndOutboundBecomesActive(ClientConnectionStateMachine clientConnectionStateMachine) {
+        outboundChannelBecomesActive(clientConnectionStateMachine);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
+    }
+
+    private void givenHandlerIsConnected(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler) {
+        givenHandlerIsConnecting(clientConnectionStateMachine, handler, "initial");
+    }
+
+    private void givenHandlerIsConnecting(ClientConnectionStateMachine clientConnectionStateMachine, KafkaProxyFrontendHandler handler,
+                                          String initialClientSoftwareName) {
+        initialiseInboundChannel(clientConnectionStateMachine, handler);
+        writeInboundApiVersionsRequest(initialClientSoftwareName);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.Forwarding.class);
+    }
+
+    private static ChannelInboundHandlerAdapter throwOnReadHandler(Exception cause) {
+        return new ChannelInboundHandlerAdapter() {
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                ctx.fireExceptionCaught(cause);
+            }
+        };
+    }
+
+    // transitions from each state
+    // each of the events that can happen in that state
+
+    @Test
+    void transitionsFromStart() {
+        var dp = new DelegatingDecodePredicate();
+        var virtualCluster = mockVirtualClusterModel("test-cluster");
+        var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
+        when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
+        when(endpointBinding.nodeId()).thenReturn(null);
+        var clientConnectionStateMachine = clientConnectionStateMachine(endpointBinding);
+
+        var handler = handler(dp, clientConnectionStateMachine);
+        initialiseInboundChannel(clientConnectionStateMachine, handler);
+        assertThat(clientConnectionStateMachine.state()).isExactlyInstanceOf(ClientConnectionState.ClientActive.class);
+
+        // Simulate the SSL handler
+        inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
+    }
+
+    private void assertStateIsClosed(ClientConnectionStateMachine clientConnectionStateMachine) {
+        // As the embedded channels have their own threads we can't be certain which state we will be in here and it doesn't matter to this test
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+    }
+
+    private ChannelHandlerContext mockChannelContext() {
+        ChannelHandlerContext mockChannelCtx = mock(ChannelHandlerContext.class);
+        ChannelPipeline mockPipeline = mock(ChannelPipeline.class);
+        doReturn(inboundChannel).when(mockChannelCtx).channel();
+        doReturn(mockPipeline).when(mockChannelCtx).pipeline();
+        doReturn(inboundChannel.eventLoop()).when(mockChannelCtx).executor();
+        return mockChannelCtx;
+    }
+
+    @Test
+    void clientChannelReturnsNullBeforeChannelActive() {
+        // Given — fresh handler whose channelActive has not yet fired (clientCtx still null)
+        var psm = mock(ClientConnectionStateMachine.class);
+        var handler = handler(new DelegatingDecodePredicate(), psm);
+
+        // When / Then
+        assertThat(handler.clientChannel()).isNull();
+    }
+
+    @Test
+    void clientChannelReturnsContextChannelAfterChannelActive() throws Exception {
+        // Given
+        var psm = mock(ClientConnectionStateMachine.class);
+        var handler = handler(new DelegatingDecodePredicate(), psm);
+        var ctx = mockChannelContext();
+
+        // When — channelActive populates clientCtx with the supplied ctx
+        handler.channelActive(ctx);
+
+        // Then
+        assertThat(handler.clientChannel()).isSameAs(inboundChannel);
+    }
+
+}

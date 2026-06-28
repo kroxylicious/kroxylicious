@@ -1,0 +1,61 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "INCREMENTAL_ALTER_CONFIGS"
+  apiVersion: 0
+  scenario: "denied topic is not forwarded and error response is added"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "INCREMENTAL_ALTER_CONFIGS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 44
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        resources: []
+        validateOnly: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 292
+        responses: []
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "ALTER_CONFIGS"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 44
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    resources:
+      - resourceType: 2
+        resourceName: "my-topic2"
+        configs:
+          - name: "random-string-307"
+            configOperation: 7
+            value: "random-string-788"
+    validateOnly: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 292
+    responses:
+      - errorCode: 29
+        errorMessage: "Topic authorization failed."
+        resourceType: 2
+        resourceName: "my-topic2"

@@ -1,0 +1,53 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+metadata:
+  apiKeys: "END_TXN"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "END_TXN"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 26
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "alice-12345"
+        producerId: 0
+        producerEpoch: 0
+        committed: true
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 0
+        errorCode: 0
+        producerId: 0
+        producerEpoch: 0
+  entityTypes: ["TRANSACTIONAL_ID"]
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 26
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "12345"
+    producerId: 0
+    producerEpoch: 0
+    committed: true
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    errorCode: 0
+    producerId: 0
+    producerEpoch: 0

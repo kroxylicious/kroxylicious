@@ -1,0 +1,84 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: REFERENCE
+
+[id='ref-configuring-proxy-example-{context}']
+= Example Kroxylicious configuration
+
+[role="_abstract"]
+* Virtual clusters that represent the Kafka clusters
+* Network addresses for broker communication in a Kafka cluster
+* Filters to introduce additional functionality to the Kafka deployment
+
+In this example, configuration for the Record Encryption filter is shown.
+
+[id='con-deploying-upstream-tls-{context}']
+.Example Kroxylicious configuration
+[source,yaml]
+----
+filterDefinitions:
+  - name: encryption
+    type: RecordEncryption
+    config:
+      kms: VaultKmsService
+      kmsConfig:
+        vaultTransitEngineUrl: https://vault.vault.svc.cluster.local:8200/v1/transit
+        vaultToken:
+          passwordFile: /opt/proxy/server/token.txt
+        tls:
+          key:
+            storeFile: /opt/cert/server.p12
+            storePassword:
+              passwordFile: /opt/cert/store.password
+            keyPassword:
+              passwordFile: /opt/cert/key.password
+            storeType: PKCS12
+      selector: TemplateKekSelector
+      selectorConfig:
+        template: "$(topicName)"
+defaultFilters:
+  - encryption
+virtualClusters:
+  - name: my-cluster-proxy
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      bootstrapServerSelection:
+        strategy: "round-robin"
+      tls:
+        trust:
+          storeFile: /opt/proxy/trust/ca.p12
+          storePassword:
+            passwordFile: /opt/proxy/trust/ca.password
+    gateways:
+    - name: mygateway
+      sniHostIdentifiesNode:
+        bootstrapAddress: my-cluster-proxy.kafka:9092
+        advertisedBrokerAddressPattern: broker$(nodeId).my-cluster-proxy.kafka
+      tls:
+        key:
+          storeFile: /opt/proxy/server/key-material/keystore.p12
+          storePassword:
+            passwordFile: /opt/proxy/server/keystore-password/storePassword
+----
+where:
+
+* `filterDefinitions` provides a list of named filter configurations.
+** `name` identifies the filter
+** `type` provides the type of filter, which is the Record Encryption filter using Vault as the KMS in this example.
+** `config` defines configuration specific to the type of filter.
+* `tls` specifies the TLS configuration used to establish a connection to the KMS, including the key names under which TLS certificates are stored.
+* `virtualClusters` specifies the virtual cluster defintions.
+** `name` defines the name of the virtual cluster.
+** `targetCluster` defines the physical upstream cluster.
+*** `bootstrapServers` defines the bootstrap addresses of the Kafka Cluster being proxied.
+*** `strategy` defines the strategy used for selecting an address from `bootstrapServers` when the proxy receives a client connection. Options are `round-robin` (default) or `random`.
+*** `tls` provides TLS configuration for the connection to the target cluster.
+* `gateways` defines how the virtual cluster is exposed to the network.
+** The gateway routing scheme is configured using either `sniHostIdentifiesNode` or `portIdentifiesNode`.
+** `bootstrapAddress` defines the hostname and port of the bootstrap used by the Kafka clients to connect to the gateway. The hostname must be resolved by the clients.
+** `tls` defines the TLS configuration used by the gateway for securing connections with the clients.
+

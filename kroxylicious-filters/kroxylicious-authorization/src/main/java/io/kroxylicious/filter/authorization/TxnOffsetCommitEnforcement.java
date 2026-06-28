@@ -1,0 +1,101 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.filter.authorization;
+
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
+
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
+import org.apache.kafka.common.message.TxnOffsetCommitRequestData.TxnOffsetCommitRequestTopic;
+import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
+import org.apache.kafka.common.protocol.Errors;
+
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.AuthorizeResult;
+import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+
+class TxnOffsetCommitEnforcement extends ApiEnforcement<TxnOffsetCommitRequestData, TxnOffsetCommitResponseData> {
+    @Override
+    short minSupportedVersion() {
+        return 0;
+    }
+
+    @Override
+    short maxSupportedVersion() {
+        return 5;
+    }
+
+    @Override
+    CompletionStage<RequestFilterResult> onRequest(RequestHeaderData header,
+                                                   TxnOffsetCommitRequestData request,
+                                                   FilterContext context,
+                                                   AuthorizationFilter authorizationFilter) {
+        List<Action> actions = Stream.concat(topicReadActions(request), transactionAndGroupActions(request)).toList();
+        CompletionStage<AuthorizeResult> authorization = authorizationFilter.authorization(context, actions);
+        return authorization.thenCompose(result -> {
+            Decision transactionalResult = result.decision(TransactionalIdResource.WRITE, request.transactionalId());
+            if (transactionalResult == Decision.DENY) {
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.TRANSACTIONAL_ID_AUTHORIZATION_FAILED.exception()).completed();
+            }
+            Decision groupResult = result.decision(GroupResource.READ, request.groupId());
+            if (groupResult == Decision.DENY) {
+                return context.requestFilterResultBuilder().errorResponse(header, request, Errors.GROUP_AUTHORIZATION_FAILED.exception()).completed();
+            }
+            Map<Decision, List<TxnOffsetCommitRequestTopic>> partitioned = result.partition(request.topics(), TopicResource.READ,
+                    TxnOffsetCommitRequestTopic::name);
+            if (partitioned.get(Decision.DENY).isEmpty()) {
+                return context.forwardRequest(header, request);
+            }
+            else {
+                List<TxnOffsetCommitRequestTopic> toRemove = partitioned.get(Decision.DENY);
+                List<TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic> removed = toRemove.stream().map(
+                        requestTopic -> errorResponseTopic(requestTopic, Errors.TOPIC_AUTHORIZATION_FAILED)).toList();
+                if (partitioned.get(Decision.ALLOW).isEmpty()) {
+                    // short circuit, no topics in request allowed
+                    TxnOffsetCommitResponseData message = new TxnOffsetCommitResponseData();
+                    message.topics().addAll(removed);
+                    return context.requestFilterResultBuilder().shortCircuitResponse(message).completed();
+                }
+                else {
+                    request.topics().removeAll(toRemove);
+                    authorizationFilter.pushInflightState(header, (TxnOffsetCommitResponseData response) -> {
+                        // this RPC appears to have errors first in the response
+                        response.topics().addAll(0, removed);
+                        return response;
+                    });
+                    return context.forwardRequest(header, request);
+                }
+            }
+        });
+    }
+
+    private static Stream<Action> transactionAndGroupActions(TxnOffsetCommitRequestData request) {
+        return Stream.of(new Action(TransactionalIdResource.WRITE, request.transactionalId()),
+                new Action(GroupResource.READ, request.groupId()));
+    }
+
+    private static Stream<Action> topicReadActions(TxnOffsetCommitRequestData request) {
+        return request.topics().stream().map(TxnOffsetCommitRequestTopic::name).map(s -> new Action(TopicResource.READ, s));
+    }
+
+    private static TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic errorResponseTopic(TxnOffsetCommitRequestTopic requestTopic, Errors error) {
+        TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic responseTopic = new TxnOffsetCommitResponseData.TxnOffsetCommitResponseTopic();
+        responseTopic.setName(requestTopic.name());
+        List<TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition> partitionErrors = requestTopic.partitions().stream()
+                .map(requestPartition -> new TxnOffsetCommitResponseData.TxnOffsetCommitResponsePartition().setPartitionIndex(
+                        requestPartition.partitionIndex())
+                        .setErrorCode(error.code()))
+                .toList();
+        responseTopic.setPartitions(partitionErrors);
+        return responseTopic;
+    }
+}

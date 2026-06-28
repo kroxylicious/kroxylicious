@@ -1,0 +1,21 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: strimzi-kafka-operator
+  namespace: kafka
+spec:
+  channel: stable
+  name: strimzi-kafka-operator
+  source: operatorhubio-catalog
+  sourceNamespace: olm
+  config:
+    env:
+      - name: STRIMZI_OPERATOR_NAMESPACE
+        value: '*'

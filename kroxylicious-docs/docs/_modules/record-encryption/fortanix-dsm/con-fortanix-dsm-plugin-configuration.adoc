@@ -1,0 +1,33 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-record-encryption-filter
+
+[id='con-fortanix-dsm-plugin-configuration-{context}']
+= Fortanix DSM plugin configuration
+
+[role="_abstract"]
+For Fortanix DSM, the KMS configuration looks like this. Use the API key and Fortanix DSM Cluster URL values from the
+KMS setup.
+
+[source, yaml]
+----
+kms: FortanixDsmKmsService
+kmsConfig:
+  endpointUrl: <Fortanix DSM Cluster URL>
+  apiKeySessionProvider:
+    apiKey:
+      passwordFile: /opt/fortanix-dsm/api-key
+----
+where:
+
+* `kms` specifies the name of the KMS provider. Use `FortanixDsmKmsService`.
+* `endpointUrl` provides the xref:con-fortanix-dsm-setup-{context}[Fortanix DSM Cluster URL] including the protocol part, such as `https:` or `http:`.
+* `passwordFile` references a file containing the API key.

@@ -1,0 +1,22 @@
+{
+  "spec": {
+    "volumes": [{
+      "name": "config-volume",
+      "configMap": {
+        "name": "%CONFIGMAP_NAME%",
+        "items": [{
+          "key": "%CONFIG_NAME%",
+          "path": "%CONFIG_NAME%"
+        }]
+      }
+    }],
+    "containers": [{
+      "name": "%CONTAINER_NAME%",
+      "volumeMounts": [{
+        "mountPath": "%MOUNT_PATH%",
+        "name": "config-volume",
+        "readOnly": true
+      }]
+    }]
+  }
+}

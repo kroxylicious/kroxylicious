@@ -1,0 +1,16 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+
+[id='con-about-proxy-guide-{context}']
+[discrete]
+= About this guide
+
+[role="_abstract"]
+This guide covers installing, configuring, securing, and operating the Kroxylicious Proxy in a non-Kubernetes environment.
+Refer to other Kroxylicious guides for information on running the proxy on Kubernetes using the Kroxylicious Operator, or for advanced topics such as plugin development.

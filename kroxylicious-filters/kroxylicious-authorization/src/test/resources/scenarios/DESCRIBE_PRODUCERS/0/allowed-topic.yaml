@@ -1,0 +1,79 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_PRODUCERS"
+  apiVersion: 0
+  scenario: "topic is allowed, we forward it on"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DESCRIBE_PRODUCERS"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 61
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "client-id"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+            partitionIndexes:
+              - 244
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 55
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 297
+                errorCode: 266
+                errorMessage: "random-string-138"
+                activeProducers:
+                  - producerId: 965
+                    producerEpoch: 576
+                    lastSequence: 998
+                    lastTimestamp: 111
+                    coordinatorEpoch: 602
+                    currentTxnStartOffset: 172
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 61
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    topics:
+      - name: "my-topic"
+        partitionIndexes:
+          - 244
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 55
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 297
+            errorCode: 266
+            errorMessage: "random-string-138"
+            activeProducers:
+              - producerId: 965
+                producerEpoch: 576
+                lastSequence: 998
+                lastTimestamp: 111
+                coordinatorEpoch: 602
+                currentTxnStartOffset: 172

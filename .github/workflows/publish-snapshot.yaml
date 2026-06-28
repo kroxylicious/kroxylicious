@@ -1,0 +1,131 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Publish SNAPSHOT
+
+# Publishes SNAPSHOT Maven artifacts to the Central Portal snapshot repository
+# on every push to main, so that external users can test pre-release changes
+# without building from source.
+#
+# The workflow is a no-op when the POM version does not end with -SNAPSHOT
+# (e.g. during the release process).
+#
+# Prerequisites:
+# - SNAPSHOT publishing must be enabled for the io.kroxylicious namespace on the
+#   Central Portal (https://central.sonatype.com/publishing/namespaces).
+#
+# It requires the following:
+# variables:
+# KROXYLICIOUS_SONATYPE_TOKEN_USERNAME        - Sonatype Access User Token Username
+# secrets:
+# KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD        - Sonatype Access User Token Password
+#
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-snapshot:
+    runs-on: ubuntu-latest
+    if: github.repository == 'kroxylicious/kroxylicious'
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: 'Check out repository'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: 'Cache Maven packages'
+        uses: ./.github/actions/common/cache-maven-packages
+
+      - name: 'Set up Java'
+        uses: ./.github/actions/common/setup-java
+        with:
+          javaVersion: '21'
+          javaDistro: 'temurin'
+          server-id: central
+          server-username: SONATYPE_TOKEN_USERNAME
+          server-password: SONATYPE_TOKEN_PASSWORD
+          overwrite-settings: 'true'
+
+      - name: 'Determine project version'
+        id: version
+        run: |
+          PROJECT_VERSION=$(mvn --quiet help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "PROJECT_VERSION=${PROJECT_VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${PROJECT_VERSION}" == *-SNAPSHOT ]]; then
+            echo "is_snapshot=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_snapshot=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 'Deploy snapshot'
+        if: steps.version.outputs.is_snapshot == 'true'
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+        run: |
+          mvn --batch-mode \
+            -DskipTests \
+            -DskipDocs=true \
+            -Derrorprone.skip=true \
+            -P-qa \
+            -Pdist \
+            -DskipContainerImageBuild=true \
+            deploy
+
+      - name: 'Summary'
+        if: steps.version.outputs.is_snapshot == 'true'
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'SUMMARY'
+          ## SNAPSHOT Published
+
+          **Version:** `${{ steps.version.outputs.PROJECT_VERSION }}`
+          **Commit:** `${{ github.sha }}`
+
+          ### Consumer configuration
+
+          Add the Central Portal snapshot repository to your `pom.xml` or `settings.xml`:
+
+          ```xml
+          <repositories>
+            <repository>
+              <id>central-snapshots</id>
+              <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+              <snapshots>
+                <enabled>true</enabled>
+              </snapshots>
+            </repository>
+          </repositories>
+          ```
+          SUMMARY
+
+      - name: 'Summary (skipped)'
+        if: steps.version.outputs.is_snapshot != 'true'
+        run: |
+          echo "## SNAPSHOT Publish Skipped" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Version \`${{ steps.version.outputs.PROJECT_VERSION }}\` does not end with \`-SNAPSHOT\`, nothing to publish." >> "$GITHUB_STEP_SUMMARY"

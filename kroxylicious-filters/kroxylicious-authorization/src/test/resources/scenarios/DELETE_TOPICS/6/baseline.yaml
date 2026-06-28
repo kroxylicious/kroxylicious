@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DELETE_TOPICS"
+  apiVersion: 6
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "DELETE_TOPICS"
+      expectedRequestVersion: 6
+      expectedRequestHeader:
+        requestApiKey: 20
+        requestApiVersion: 6
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+            topicId: "ZVa4q4iBSXSGQewb2tFCJA"
+        timeoutMs: 268
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 945
+        responses:
+          - name: "my-topic"
+            topicId: "iIEpdMZBTBua0UIkDIeF7w"
+            errorCode: 268
+            errorMessage: "my-topic"
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DELETE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 20
+    requestApiVersion: 6
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "my-topic"
+        topicId: "ZVa4q4iBSXSGQewb2tFCJA"
+    timeoutMs: 268
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 945
+    responses:
+      - name: "my-topic"
+        topicId: "iIEpdMZBTBua0UIkDIeF7w"
+        errorCode: 268
+        errorMessage: "my-topic"

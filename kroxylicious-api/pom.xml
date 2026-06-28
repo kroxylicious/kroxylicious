@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.22.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>kroxylicious-api</artifactId>
+    <packaging>jar</packaging>
+
+    <properties>
+        <libs.dir>libs</libs.dir>
+        <ApiCompatability.ReferenceVersion>0.21.0</ApiCompatability.ReferenceVersion>
+        <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
+    </properties>
+
+    <name>Kroxylicious API</name>
+    <description>API for filters, and some dependant APIs</description>
+
+    <dependencies>
+        <!-- third party dependencies - runtime and compile -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+        </dependency>
+
+        <!-- third party dependencies - test -->
+        <!-- https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-slf4j-impl -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <phase>generate-sources</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- This actually shouldn't be needed, as the plug-in itself adds that directory as a source directory;
+                 Unfortunately, Eclipse/M2E doesn't reliably pick it up without this helper plug-in -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/krpc</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-krpc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-filters</id>
+                        <goals>
+                            <goal>generate-single</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>Kproxy/Filter.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <outputFilePattern>${messageSpecName}Filter.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious.proxy.filter</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>qa</id>
+            <activation>
+                <property>
+                    <name>!quick</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.github.siom79.japicmp</groupId>
+                        <artifactId>japicmp-maven-plugin</artifactId>
+                        <version>0.26.1</version>
+                        <configuration>
+                            <oldVersion>
+                                <!-- specify the old version directly so its deterministic -->
+                                <dependency>
+                                    <groupId>${project.groupId}</groupId>
+                                    <artifactId>${project.artifactId}</artifactId>
+                                    <version>${ApiCompatability.ReferenceVersion}</version>
+                                    <type>jar</type>
+                                </dependency>
+                            </oldVersion>
+                            <parameter>
+                                <accessModifier>public</accessModifier>
+                                <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
+                                <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
+                                <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                                <excludes>
+                                    <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
+                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter</exclude>
+                                    <!-- The following methods become deprecated and are given a default implementation at 0.19.0 which throws UnsupportedOperationException -->
+                                    <exclude>io.kroxylicious.proxy.filter.RequestFilter#onRequest(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.RequestHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                                    <exclude>io.kroxylicious.proxy.filter.ResponseFilter#onResponse(org.apache.kafka.common.protocol.ApiKeys, org.apache.kafka.common.message.ResponseHeaderData, org.apache.kafka.common.protocol.ApiMessage, io.kroxylicious.proxy.filter.FilterContext)</exclude>
+                                    <!-- The following method was deprecated since 0.18 and removed at 0.21.0, see https://github.com/kroxylicious/kroxylicious/issues/3620 -->
+                                    <exclude>io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(java.lang.String, java.lang.String)</exclude>
+                                </excludes>
+                                <!-- see documentation -->
+                            </parameter>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>cmp</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

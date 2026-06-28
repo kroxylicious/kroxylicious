@@ -1,0 +1,47 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: TXN_OFFSET_COMMIT
+  version: 3
+  request:
+    payload:
+      transactionalId: "12345"
+      groupId: mygroup
+      producerId: 0
+      producerEpoch: 0
+      generationId: 0
+      groupInstanceId: mygroupinstanceid
+      memberId: mymemberid
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              committedOffset: 0
+              committedLeaderEpoch: 0
+              committedMetadata: metadata
+    diff:
+      - op: replace
+        path: "/transactionalId"
+        value: tenant1-12345
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+      - op: replace
+        path: "/topics/0/name"
+        value: tenant1-foo
+  response:
+    payload:
+      topics:
+        - name: tenant1-foo
+          partitions:
+            - partitionIndex: 0
+              errorCode: 0
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/topics/0/name"
+        value: foo
+  disabled: false

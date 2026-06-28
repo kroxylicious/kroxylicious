@@ -1,0 +1,739 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.proxy.internal;
+
+import java.util.Collection;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.utils.ByteBufferOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.event.Level;
+import org.slf4j.spi.LoggingEventBuilder;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.filter.FilterContext;
+import io.kroxylicious.proxy.filter.FilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
+import io.kroxylicious.proxy.frame.DecodedFrame;
+import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueFrame;
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.util.Assertions;
+import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static org.slf4j.event.Level.DEBUG;
+import static org.slf4j.event.Level.INFO;
+import static org.slf4j.event.Level.TRACE;
+import static org.slf4j.event.Level.WARN;
+
+/**
+ * A {@code ChannelInboundHandler} (for handling requests from downstream)
+ * that applies a single {@link Filter}.
+ */
+public class FilterHandler extends ChannelDuplexHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
+    private final long timeoutMs;
+    private final @Nullable String sniHostname;
+    private final Channel inboundChannel;
+    private final FilterAndInvoker filterAndInvoker;
+    private final ClientConnectionStateMachine clientConnectionStateMachine;
+
+    /** Chains response processing to preserve ordering when filters defer work asynchronously. */
+    private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
+
+    /** Chains request processing to preserve ordering when filters defer work asynchronously. */
+    private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
+
+    /**
+     * Set in {@link #handlerAdded}. Guaranteed non-null when handler methods execute
+     * per Netty's lifecycle contract.
+     * Applies to {@link #promiseFactory} as well.
+     */
+    private @Nullable ChannelHandlerContext ctx;
+    private @Nullable PromiseFactory promiseFactory;
+
+    public FilterHandler(FilterAndInvoker filterAndInvoker,
+                         long timeoutMs,
+                         @Nullable String sniHostname,
+                         Channel inboundChannel,
+                         ClientConnectionStateMachine clientConnectionStateMachine) {
+        this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
+        this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
+        this.sniHostname = sniHostname;
+        this.inboundChannel = inboundChannel;
+        this.clientConnectionStateMachine = clientConnectionStateMachine;
+    }
+
+    @Override
+    public String toString() {
+        return "FilterHandler{" +
+                filterDescriptor() +
+                '}';
+    }
+
+    String filterDescriptor() {
+        return filterAndInvoker.filterName();
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        this.ctx = ctx;
+        this.promiseFactory = new PromiseFactory(ctx.channel().eventLoop(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
+        super.handlerAdded(ctx);
+    }
+
+    /**
+     * Handles outbound responses flowing toward the client.
+     * outbound writes are requests that can succeed or fail. The promise allows the
+     * original writer to be notified when data reaches the socket (or if an error occurs).
+     *
+     * @param ctx channel handler context for each filter handler
+     * @param msg the message being written
+     * @param promise the channel promise
+     * @throws Exception if an error occurs
+     */
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        switch (msg) {
+            case InternalResponseFrame<?> decodedFrame -> handleInternalResponseWrite(promise, decodedFrame);
+            case DecodedResponseFrame<?> decodedFrame -> handleDecodedResponseWrite(decodedFrame, promise);
+            case OpaqueResponseFrame orf -> handleOpaqueResponseWrite(ctx, msg, promise, orf);
+            case null, default -> throw new IllegalStateException(
+                    "Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to downstream: " + msgDescriptor(msg));
+        }
+    }
+
+    private void handleInternalResponseWrite(ChannelPromise promise, InternalResponseFrame<?> decodedFrame) {
+        // jump the queue, let responses to asynchronous requests flow back to their sender
+        if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
+            completeInternalResponse(decodedFrame);
+        }
+        else {
+            handleDecodedResponse(decodedFrame, promise);
+        }
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    private void handleDecodedResponseWrite(DecodedResponseFrame<?> decodedFrame, ChannelPromise promise) {
+        if (writeFuture.isDone()) {
+            writeFuture = handleDecodedResponse(decodedFrame, promise);
+        }
+        else {
+            writeFuture = writeFuture.thenCompose(ignored -> {
+                if (ctx.channel().isOpen()) {
+                    return handleDecodedResponse(decodedFrame, promise);
+                }
+                else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            }).exceptionally(throwable -> null);
+        }
+    }
+
+    private void handleOpaqueResponseWrite(ChannelHandlerContext ctx, Object msg, ChannelPromise promise, OpaqueResponseFrame orf) {
+        writeFuture = writeFuture.whenComplete((a, b) -> {
+            if (ctx.channel().isOpen()) {
+                ctx.write(msg, promise);
+            }
+            else {
+                orf.releaseBuffer();
+            }
+        });
+    }
+
+    private CompletableFuture<Void> handleDecodedResponse(DecodedResponseFrame<?> decodedFrame, ChannelPromise promise) {
+        var filterContext = new InternalFilterContext(decodedFrame);
+
+        final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
+        boolean defer = !future.isDone();
+        if (defer) {
+            return configureResponseFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
+                    .whenComplete(this::deferredResponseCompleted)
+                    .thenApply(responseFilterResult -> null);
+        }
+        else {
+            return configureResponseFilterChain(decodedFrame, promise, future)
+                    .thenApply(responseFilterResult -> null);
+        }
+    }
+
+    /**
+     * @param obj A message
+     * @return A descriptor for the message (for logging purposes). Does not include the message contents.
+     */
+    static String msgDescriptor(@Nullable Object obj) {
+        return switch (obj) {
+            case null -> "«null»";
+            case DecodedFrame<?, ?> df -> df.getClass().getSimpleName() + "(" + df.apiKey() + "@" + df.apiVersion() + " corrId=" + df.correlationId() + ")";
+            case OpaqueFrame of -> of.toString();
+            default -> obj.getClass().getName();
+        };
+    }
+
+    /**
+     * Handles inbound requests flowing toward the upstream broker.
+     * @param ctx channel handler context for each filter handler
+     * @param msg the message being read
+     * @throws Exception if an error occurs
+     */
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        switch (msg) {
+            case InternalRequestFrame<?> decodedFrame -> handleDecodedRequest(decodedFrame); // jump the queue, internal request must flow!
+            case DecodedRequestFrame<?> decodedFrame -> handleDecodedRequestRead(decodedFrame);
+            case OpaqueRequestFrame ignored -> handleOpaqueOrPassthroughRead(msg);
+            case ByteBuf ignored when msg == Unpooled.EMPTY_BUFFER -> handleOpaqueOrPassthroughRead(msg);
+            // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
+            // but, otherwise we don't expect any other kind of message
+            case null, default -> throw new IllegalStateException(
+                    "Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
+        }
+    }
+
+    LoggingEventBuilder log(Level level) {
+        LoggingEventBuilder builder = switch (level) {
+            case ERROR -> LOGGER.atError();
+            case WARN -> LOGGER.atWarn();
+            case INFO -> LOGGER.atInfo();
+            case DEBUG -> LOGGER.atDebug();
+            case TRACE -> LOGGER.atTrace();
+        };
+        if (ctx != null) {
+            builder = builder
+                    .addKeyValue("remoteAddress",
+                            ctx.channel().remoteAddress().toString())
+                    .addKeyValue("localAddress",
+                            ctx.channel().localAddress().toString());
+        }
+        return builder.addKeyValue("sessionId", clientConnectionStateMachine.sessionId())
+                .addKeyValue("filter", filterDescriptor());
+    }
+
+    private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame,
+                                                                                 InternalFilterContext filterContext) {
+
+        log(DEBUG)
+                .addKeyValue("apiKey", decodedFrame.apiKey())
+                .addKeyValue("frame", decodedFrame)
+                .log("Dispatching upstream response to filter");
+        var stage = filterAndInvoker.invoker().onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
+                decodedFrame.header(), decodedFrame.body(), filterContext);
+        return stage.toCompletableFuture();
+    }
+
+    private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame,
+                                                                                 ChannelPromise promise,
+                                                                                 CompletableFuture<ResponseFilterResult> future) {
+        return future.thenApply(FilterHandler::validateFilterResultNonNull)
+                .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr, promise))
+                .exceptionally(t -> handleFilteringException(t, decodedFrame));
+    }
+
+    /**
+     * Handle a decoded request frame through the filter chain.
+     * If the promise is null, propagate inbound (fireChannelRead), else write upstream.
+     * @param decodedFrame the decoded frame
+     * @return a future that completes when processing is complete
+     */
+    private CompletableFuture<Void> handleDecodedRequest(DecodedRequestFrame<?> decodedFrame) {
+        var filterContext = new InternalFilterContext(decodedFrame);
+        final var future = dispatchDecodedRequest(decodedFrame, filterContext);
+        boolean defer = !future.isDone();
+        if (defer) {
+            return configureRequestFilterChain(decodedFrame, handleDeferredStage(decodedFrame, future))
+                    .whenComplete(this::deferredRequestCompleted)
+                    .thenApply(requestFilterResult -> null);
+        }
+        else {
+            return configureRequestFilterChain(decodedFrame, future)
+                    .thenApply(requestFilterResult -> null);
+        }
+    }
+
+    private void handleDecodedRequestRead(DecodedRequestFrame<?> decodedFrame) {
+        if (readFuture.isDone()) {
+            readFuture = handleDecodedRequest(decodedFrame);
+        }
+        else {
+            readFuture = readFuture.thenCompose(ignored -> {
+                if (ctx.channel().isOpen()) {
+                    return handleDecodedRequest(decodedFrame);
+                }
+                else {
+                    return CompletableFuture.completedFuture(null);
+                }
+            }).exceptionally(throwable -> null);
+        }
+    }
+
+    private void handleOpaqueOrPassthroughRead(Object msg) {
+        readFuture = readFuture.whenComplete((unused, throwable) -> {
+            if (ctx.channel().isOpen()) {
+                ctx.fireChannelRead(msg);
+            }
+            else if (msg instanceof OpaqueRequestFrame orf) {
+                orf.releaseBuffer();
+            }
+        });
+    }
+
+    private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(DecodedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
+        log(DEBUG)
+                .addKeyValue("apiKey", decodedFrame.apiKey())
+                .addKeyValue("frame", decodedFrame)
+                .log("Dispatching downstream request to filter");
+        var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
+                decodedFrame.body(), filterContext);
+        return stage.toCompletableFuture();
+    }
+
+    private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame,
+                                                                               CompletableFuture<RequestFilterResult> future) {
+        return future.thenApply(FilterHandler::validateFilterResultNonNull)
+                .thenApply(fr -> handleRequestFilterResult(decodedFrame, fr))
+                .exceptionally(t -> handleFilteringException(t, decodedFrame));
+    }
+
+    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame,
+                                                            ResponseFilterResult responseFilterResult,
+                                                            ChannelPromise promise) {
+        if (responseFilterResult.drop()) {
+            log(DEBUG)
+                    .addKeyValue("apiKey", decodedFrame.apiKey())
+                    .log("Filter drops response");
+            return responseFilterResult;
+        }
+
+        ApiMessage message = responseFilterResult.message();
+        if (message != null) {
+            ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header()
+                    : (ResponseHeaderData) Objects.requireNonNull(responseFilterResult.header());
+            forwardResponse(decodedFrame, header, message, promise);
+        }
+
+        if (responseFilterResult.closeConnection()) {
+            if (responseFilterResult.message() != null) {
+                ctx.flush(); // ensure writes are flushed before closing
+            }
+            closeConnection();
+        }
+        return responseFilterResult;
+    }
+
+    private RequestFilterResult handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame,
+                                                          RequestFilterResult requestFilterResult) {
+        if (requestFilterResult.drop()) {
+            log(DEBUG)
+                    .addKeyValue("apiKey", decodedFrame.apiKey())
+                    .log("Filter drops request");
+            // When a request is dropped, trigger reading the next request to keep the channel active
+            inboundChannel.read();
+            return requestFilterResult;
+        }
+
+        if (requestFilterResult.message() != null) {
+            if (requestFilterResult.shortCircuitResponse()) {
+                forwardShortCircuitResponse(decodedFrame, requestFilterResult);
+                inboundChannel.read();
+            }
+            else {
+                forwardRequest(decodedFrame, requestFilterResult);
+            }
+        }
+
+        if (requestFilterResult.closeConnection()) {
+            if (requestFilterResult.message() != null) {
+                ctx.flush();
+            }
+            closeConnection();
+        }
+        return requestFilterResult;
+    }
+
+    private <F extends FilterResult> @Nullable F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
+        if (LOGGER.isWarnEnabled()) {
+            var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
+            log(WARN)
+                    .addKeyValue("direction", direction)
+                    .addKeyValue("apiKey", decodedFrame.apiKey())
+                    .addKeyValue("error", t.getMessage())
+                    .setCause(LOGGER.isDebugEnabled() ? t : null)
+                    .log(LOGGER.isDebugEnabled()
+                            ? "filter ended exceptionally, closing connection"
+                            : "filter ended exceptionally, closing connection, increase log level to DEBUG for stacktrace");
+        }
+        closeConnection();
+        return null;
+    }
+
+    private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
+        inboundChannel.config().setAutoRead(false);
+        promiseFactory.wrapWithTimeLimit(future,
+                () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
+                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
+        return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
+    }
+
+    /**
+     * Called when a deferred response filter operation completes.
+     * Unlike {@link #deferredRequestCompleted}, no immediate flush is needed here
+     * because responses always flow through the normal write path with its own flush handling.
+     */
+    private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
+        inboundChannel.config().setAutoRead(true);
+        // Ensure proper ordering of flushes to prevent race conditions
+        writeFuture.whenComplete((u, t) -> {
+            ctx.flush();
+            readFuture.whenComplete((u2, t2) -> inboundChannel.flush());
+        });
+    }
+
+    /**
+     * Called when a deferred (async) request filter operation completes.
+     * <p>
+     * Re-enables auto-read and ensures all pending writes are flushed.
+     * <p>
+     * <p><b>Why two flushes?</b>
+     * <pre>
+     * ctx.flush();                          // FLUSH #1: Immediate
+     * writeFuture.whenComplete((u, t) -> {
+     *     ctx.flush();                      // FLUSH #2: After pending writes complete
+     *     inboundChannel.flush();
+     * });
+     * </pre>
+     * <ul>
+     *   <li><b>FLUSH #1:</b> Handles short-circuit responses where {@code ctx.write()} already
+     *       happened synchronously. Ensures response is sent to client immediately.</li>
+     *   <li><b>FLUSH #2:</b> Handles async response writes that may complete after this method
+     *       returns. Waits for {@code writeFuture} to ensure all chained writes are flushed.</li>
+     * </ul>
+     * If no writes occurred, flush is a no-op (harmless). This belt-and-suspenders approach
+     * prevents race conditions between async writes and flush timing.
+     */
+    private void deferredRequestCompleted(RequestFilterResult ignored, Throwable throwable) {
+        inboundChannel.config().setAutoRead(true);
+        // Ensure proper ordering of flushes to prevent race conditions
+        // First flush any immediate writes, then chain additional flushes
+        ctx.flush();
+        writeFuture.whenComplete((u, t) -> {
+            ctx.flush();
+            // flush inbound in case of short-circuit, but only after context flush is done
+            inboundChannel.flush();
+        });
+    }
+
+    private void forwardRequest(DecodedRequestFrame<?> decodedFrame,
+                                RequestFilterResult requestFilterResult) {
+        var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
+        ApiMessage message = requestFilterResult.message();
+        if (decodedFrame.body() != message) {
+            throw new IllegalStateException();
+        }
+        if (decodedFrame.header() != header) {
+            throw new IllegalStateException();
+        }
+        // check it's a request
+        String name = message.getClass().getName();
+        if (!name.endsWith("RequestData")) {
+            throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardRequest with a non-request: " + name);
+        }
+
+        log(DEBUG)
+                .addKeyValue("frame", decodedFrame)
+                .log("Filter forwarding request");
+
+        ctx.fireChannelRead(decodedFrame);
+    }
+
+    /**
+     * Forwards a response toward the client.
+     *
+     * @param decodedFrame The decoded frame to respond to.
+     * @param header       The response header.
+     * @param message      The response message.
+     * @param promise The write promise from upstream, or {@code null} for short-circuit responses.
+     * <p>
+     * <b>Why nullable?</b>
+     * <ul>
+     *     <li><b>Non-null:</b> Normal response path — promise originated from an upstream
+     *         write() call and must be passed through so the original writer gets notified.</li>
+     *     <li><b>Null:</b> Short-circuit path — filter generated this response locally
+     *         (no broker round-trip), so no upstream writer is waiting for completion.</li>
+     * </ul>
+     * <p>
+     * When null, we use {@code ctx.voidPromise()} (avoids allocation) and flush
+     * immediately since no one else will trigger the flush.
+     */
+    private void forwardResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @Nullable ChannelPromise promise) {
+        // check it's a response
+        validateResponseMessage(message);
+        if (decodedFrame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
+
+            if (promise != null) {
+                throw new IllegalStateException("Filter '" + filterDescriptor() + "': Short-circuit response should not have a promise");
+            }
+
+            handleShortCircuitResponse(decodedRequestFrame, header, message);
+        }
+        else {
+
+            if (promise == null) {
+                throw new IllegalStateException("Filter '" + filterDescriptor() + "': Normal response path requires a promise");
+            }
+
+            handleUpstreamResponse(decodedFrame, header, message, promise);
+        }
+    }
+
+    private void handleUpstreamResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @NonNull ChannelPromise promise) {
+        if (decodedFrame.body() != message) {
+            throw new AssertionError();
+        }
+        if (decodedFrame.header() != header) {
+            throw new AssertionError();
+        }
+        log(DEBUG)
+                .addKeyValue("message", () -> msgDescriptor(decodedFrame))
+                .log("Filter forwarding response");
+        ctx.write(decodedFrame, promise);
+    }
+
+    private void handleShortCircuitResponse(DecodedRequestFrame<?> decodedRequestFrame, ResponseHeaderData header, ApiMessage message) {
+        if (message.apiKey() != decodedRequestFrame.apiKeyId()) {
+            throw new AssertionError(
+                    "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
+                            + decodedRequestFrame.apiKey());
+        }
+        DecodedResponseFrame<?> responseFrame = decodedRequestFrame.responseFrame(header, message);
+        decodedRequestFrame.transferBuffersTo(responseFrame);
+        log(DEBUG)
+                .addKeyValue("message", () -> msgDescriptor(decodedRequestFrame))
+                .log("Filter sending short-circuit response");
+        ctx.write(responseFrame, ctx.voidPromise());
+        ctx.flush();
+    }
+
+    private void validateResponseMessage(ApiMessage message) {
+        String name = message.getClass().getName();
+        if (!name.endsWith("ResponseData")) {
+            throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
+        }
+    }
+
+    private void forwardShortCircuitResponse(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult) {
+        if (decodedFrame.hasResponse()) {
+            var header = requestFilterResult.header() == null ? new ResponseHeaderData() : Objects.requireNonNull((ResponseHeaderData) requestFilterResult.header());
+            header.setCorrelationId(decodedFrame.correlationId());
+            forwardResponse(decodedFrame, header, Objects.requireNonNull(requestFilterResult.message()), null);
+        }
+        else {
+            log(DEBUG)
+                    .addKeyValue("apiKey", decodedFrame.apiKey())
+                    .log("Filter attempted to short-circuit respond to message with no response in Kafka Protocol, dropping response");
+        }
+    }
+
+    private void closeConnection() {
+        ctx.close().addListener(future -> log(DEBUG)
+                .log("Channel closed"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void completeInternalResponse(InternalResponseFrame<?> decodedFrame) {
+        CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
+                .promise();
+        boolean newlyCompleted = p.complete(decodedFrame.body());
+        if (newlyCompleted) {
+            log(DEBUG)
+                    .addKeyValue("apiKey", decodedFrame.apiKey())
+                    .addKeyValue("frame", decodedFrame)
+                    .log("Completed response for internal request to filter");
+        }
+        else {
+            log(TRACE)
+                    .addKeyValue("apiKey", decodedFrame.apiKey())
+                    .addKeyValue("frame", decodedFrame)
+                    .log("Response for internal request to filter was already completed");
+        }
+    }
+
+    private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
+        return Objects.requireNonNullElseGet(f, () -> {
+            throw new IllegalStateException("Filter completion must not yield a null result");
+        });
+    }
+
+    private class InternalFilterContext implements FilterContext {
+
+        private final DecodedFrame<?, ?> decodedFrame;
+
+        @Override
+        public Subject authenticatedSubject() {
+            return clientConnectionStateMachine.authenticatedSubject();
+        }
+
+        InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
+            this.decodedFrame = decodedFrame;
+        }
+
+        @Override
+        public String channelDescriptor() {
+            return Objects.requireNonNull(ctx).channel().toString();
+        }
+
+        @Override
+        public String sessionId() {
+            return clientConnectionStateMachine.sessionId();
+        }
+
+        @Override
+        public ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity) {
+            final ByteBuf buffer = ctx.alloc().ioBuffer(initialCapacity);
+            decodedFrame.add(buffer);
+            return new ByteBufOutputStream(buffer);
+        }
+
+        @Nullable
+        @Override
+        public String sniHostname() {
+            return sniHostname;
+        }
+
+        @Override
+        public String getVirtualClusterName() {
+            return clientConnectionStateMachine.clusterName();
+        }
+
+        @Override
+        public Optional<ClientTlsContext> clientTlsContext() {
+            return clientConnectionStateMachine.clientTlsContext();
+        }
+
+        @Override
+        public void clientSaslAuthenticationSuccess(String mechanism,
+                                                    Subject subject) {
+            log(INFO)
+                    .addKeyValue("mechanism", mechanism)
+                    .addKeyValue("subject", subject)
+                    .log("Filter announces client has passed SASL authentication");
+
+            clientConnectionStateMachine.onSessionSaslAuthenticated();
+
+            // dispatch principal injection
+            clientConnectionStateMachine.clientSaslAuthenticationSuccess(mechanism, subject);
+        }
+
+        @Override
+        public void clientSaslAuthenticationFailure(@Nullable String mechanism,
+                                                    @Nullable String authorizedId,
+                                                    Exception exception) {
+            log(INFO)
+                    .addKeyValue("mechanism", mechanism)
+                    .addKeyValue("authorizedId", authorizedId)
+                    .addKeyValue("error", exception.toString())
+                    .setCause(LOGGER.isDebugEnabled() ? exception : null)
+                    .log("Filter announces client has failed SASL authentication" +
+                            (LOGGER.isDebugEnabled() ? "" : ", increase log level to DEBUG for stacktrace"));
+            clientConnectionStateMachine.clientSaslAuthenticationFailure();
+        }
+
+        @Override
+        public Optional<ClientSaslContext> clientSaslContext() {
+            return clientConnectionStateMachine.clientSaslContext();
+        }
+
+        @Override
+        public RequestFilterResultBuilder requestFilterResultBuilder() {
+            return new RequestFilterResultBuilderImpl();
+        }
+
+        @Override
+        public ResponseFilterResultBuilder responseFilterResultBuilder() {
+            return new ResponseFilterResultBuilderImpl();
+        }
+
+        @Override
+        public CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request) {
+            return requestFilterResultBuilder().forward(header, request).completed();
+        }
+
+        @Override
+        public CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response) {
+            return responseFilterResultBuilder().forward(header, response).completed();
+        }
+
+        @Override
+        public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
+                                                                     ApiMessage request) {
+            Objects.requireNonNull(header);
+            Objects.requireNonNull(request);
+
+            var apiKey = ApiKeys.forId(request.apiKey());
+            header.setRequestApiKey(apiKey.id);
+            header.setCorrelationId(-1);
+
+            if (!apiKey.isVersionSupported(header.requestApiVersion())) {
+                throw new IllegalArgumentException(
+                        "Filter '%s': apiKey %s does not support version %d. the supported version range for this api key is %d...%d (inclusive)."
+                                .formatted(filterDescriptor(), apiKey, header.requestApiVersion(), apiKey.oldestVersion(), apiKey.latestVersion()));
+            }
+
+            var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
+            CompletableFuture<M> filterPromise = promiseFactory.newTimeLimitedPromise(
+                    () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
+            var frame = new InternalRequestFrame<>(
+                    header.requestApiVersion(), header.correlationId(), hasResponse,
+                    filterAndInvoker.filter(), filterPromise, header, request);
+
+            log(DEBUG)
+                    .addKeyValue("message", () -> msgDescriptor(frame))
+                    .log("Filter sending request");
+            Objects.requireNonNull(ctx).fireChannelRead(frame);
+            return filterPromise.minimalCompletionStage();
+        }
+
+        @Override
+        public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
+            return new TopicNameRetriever(this, Objects.requireNonNull(ctx).executor()).topicNames(topicIds);
+        }
+
+    }
+
+}

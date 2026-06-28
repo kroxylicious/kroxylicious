@@ -1,0 +1,116 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Scenario name - used in OMB result filenames to identify which scenario produced the results
+scenario: baseline
+
+# Kafka cluster configuration (Strimzi-based)
+kafka:
+  replicas: 3
+  # Replication settings (defaults match replica count for safety)
+  replicationFactor: 3  # Should be <= replicas
+  minInSyncReplicas: 2  # Should be < replicationFactor
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  storage:
+    size: "100Gi"
+    storageClass: ""  # Use default storage class
+  metrics:
+    enabled: true  # Enable Strimzi Metrics Reporter on Kafka brokers (port 9404)
+
+# Kroxylicious proxy (enabled for proxy scenarios)
+# Requires the Kroxylicious operator to be installed in the cluster.
+# When enabled, the chart creates operator CRs (KafkaProxy, KafkaProxyIngress,
+# KafkaService, VirtualKafkaCluster) and the operator manages the proxy deployment.
+kroxylicious:
+  enabled: false  # Disabled for baseline scenario
+  replicas: 1
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+# HashiCorp Vault (for encryption scenarios)
+# vault.provision controls whether the chart deploys a Vault instance.
+# Set to false when using an external Vault or a non-Vault KMS (e.g. AWS KMS).
+vault:
+  provision: false
+  token: benchmark-token  # Root token for the provisioned Vault dev instance
+  image: docker.io/hashicorp/vault:2.0.3@sha256:a296a888b118615dc01d5f1a6846e6d4a7277946caaed5b447008fff5fe06b54
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "200m"
+
+# Record encryption filter (for encryption scenarios)
+# encryption.enabled controls whether the KafkaProtocolFilter is created and
+# referenced by the VirtualKafkaCluster.
+# encryption.kms.type and encryption.kms.config are passed directly into the
+# filter configTemplate — swap these out (via --profile) for alternative KMS providers.
+encryption:
+  enabled: false
+  kekName: benchmark-kek  # Name of the KEK in the KMS
+  kms:
+    type: io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService
+    config:
+      vaultTransitEngineUrl: http://vault:8200/v1/transit
+      vaultToken:
+        password: benchmark-token
+
+# OpenMessaging Benchmark workers
+omb:
+  workerReplicas: 2
+  image: quay.io/kroxylicious/kroxylicious-omb:omb-8559989-krox-e329e4d-2@sha256:addb5ed87a1d1ed87e0a2df9223c25b33d25bf8331709c1d372124420572fe3c
+  imagePullPolicy: IfNotPresent
+  driver: baseline  # Can be 'baseline' or 'proxy'
+  workload: 1topic-1kb  # Workload name to run
+  workerJavaOpts: "-XX:MaxRAMPercentage=50"  # JVM opts for OMB workers
+  logLevel: warn  # SLF4J SimpleLogger log level (debug, info, warn, error)
+  createBenchmarkJob: false  # Job is created explicitly by run-benchmark.sh; not managed by Helm install
+  # Coordinator heap sizing passed as HEAP_OPTS to the OMB launcher script.
+  # The coordinator is an orchestrator only — workers do the actual producing/consuming.
+  coordinatorHeapOpts: "-Xms512m -Xmx1g"
+  resultsPvcName: "omb-results"  # PVC for result JSON; not Helm-managed, persists across runs
+  # Resources for the OMB coordinator (Job pod). Sized for 1 GB heap + native overhead.
+  coordinator:
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+  # Resources for each OMB worker (StatefulSet pods). Workers run producers and
+  # consumers — less JVM startup overhead than the coordinator.
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "500m"
+    limits:
+      memory: "6Gi"
+      cpu: "1000m"
+
+# Benchmark configuration
+# Defaults are production-quality: 15 min test + 5 min warmup gives reliable p99.9 latency
+# at 50K msg/sec (~45M samples). Use scenarios/smoke-values.yaml for quick validation.
+benchmark:
+  testDurationMinutes: 15
+  warmupDurationMinutes: 5
+  producerRate: 50000
+  producersPerTopic: 1
+  consumerPerSubscription: 1

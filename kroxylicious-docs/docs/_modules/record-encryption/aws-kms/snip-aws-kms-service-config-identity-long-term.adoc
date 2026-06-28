@@ -1,0 +1,41 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: SNIPPET
+
+// file included in the following:
+//
+// con-aws-kms-plugin-configuration.adoc
+
+
+.Configuration for authenticating with a long-term IAM identity
+[source, yaml]
+----
+kms: AwsKmsService
+kmsConfig:
+  endpointUrl: https://kms.<region>.amazonaws.com
+  tls:
+    # ...
+  credentials:
+    longTerm:
+      accessKeyId:
+        passwordFile: /opt/aws/accessKey
+      secretAccessKey:
+        passwordFile: /opt/aws/secretKey
+  region: <region>
+----
+where:
+
+* `kms` specifies the name of the KMS provider. Use `AwsKmsService`.
+* `kmsConfig` specifies the configuration of the KMS service.
+** `endpointUrl` specifies the AWS KMS endpoint URL, which must include the `https://` scheme.
+** `credentials` groups the authentication configuration.
+*** `longTerm` configures the KMS to authenticate with long-term credentials.
+**** `accessKeyId` references a file containing the AWS access key ID.
+**** `secretAccessKey` references a file containing the AWS secret access key.
+** `region` defines the AWS region identifier where KMS resources are located, such as `us-east-1`. This must match the region of the KMS endpoint you're using.
+
+NOTE: The legacy top-level `longTermCredentials` key is deprecated but continues to work for backward compatibility. New configurations should use `credentials.longTerm` instead.

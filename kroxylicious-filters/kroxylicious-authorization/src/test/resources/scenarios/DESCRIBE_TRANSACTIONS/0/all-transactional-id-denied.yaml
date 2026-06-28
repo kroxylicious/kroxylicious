@@ -1,0 +1,40 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "DESCRIBE_TRANSACTIONS"
+  apiVersion: 0
+  scenario: "all transactions and topics allowed"
+given:
+  mockedUpstreamResponses: []
+  authorizerRules:
+    allowed: []
+  topicNames: {}
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 65
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "client-id"
+  request:
+    transactionalIds:
+      - "my-transactional-id"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 0
+    transactionStates:
+      - errorCode: 53
+        transactionalId: "my-transactional-id"
+        transactionState: ""
+        transactionTimeoutMs: 0
+        transactionStartTimeMs: 0
+        producerId: 0
+        producerEpoch: 0
+        topics: [ ]

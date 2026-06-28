@@ -1,0 +1,47 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-record-validation-filter.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+Here's a complete example of a `filterDefinitions` entry configured for record validation:
+
+// .Example `filterDefinitions` configuration {foo}
+[source,yaml]
+----
+filterDefinitions:
+  - name: my-record-validation
+    type: RecordValidation
+    config:
+        rules:
+        - topicNames:
+            - <topic name>
+          keyRule:
+            <rule definition>
+          valueRule:
+            <rule definition>
+        defaultRule:
+          keyRule:
+            <rule definition>
+          valueRule:
+            <rule definition>
+----
+where:
+
+* `topicNames` provides the list of topic names to which the validation rules are applied.
+* `keyRule` provides the validation rules that are applied to the record's key.
+* `valueRule` provides the validation rules that are applied to the record's value.
+* `defaultRule` provides the default rule that is applied to any topics for which there is no explicit rule defined.
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.

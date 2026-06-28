@@ -1,0 +1,54 @@
+{
+  "apiVersion": "v1",
+  "kind": "NodeList",
+  "items": [
+    {
+      "metadata": { "name": "worker-0" },
+      "status": {
+        "nodeInfo": {
+          "architecture": "amd64",
+          "operatingSystem": "linux",
+          "osImage": "Red Hat Enterprise Linux CoreOS 416.94.202411260420-0",
+          "kernelVersion": "5.14.0-427.13.1.el9_4.x86_64",
+          "kubeletVersion": "v1.29.3+elf5e57"
+        },
+        "capacity": {
+          "cpu": "16",
+          "memory": "32401228Ki"
+        }
+      }
+    },
+    {
+      "metadata": { "name": "worker-1" },
+      "status": {
+        "nodeInfo": {
+          "architecture": "amd64",
+          "operatingSystem": "linux",
+          "osImage": "Red Hat Enterprise Linux CoreOS 416.94.202411260420-0",
+          "kernelVersion": "5.14.0-427.13.1.el9_4.x86_64",
+          "kubeletVersion": "v1.29.3+elf5e57"
+        },
+        "capacity": {
+          "cpu": "16",
+          "memory": "32401228Ki"
+        }
+      }
+    },
+    {
+      "metadata": { "name": "worker-2" },
+      "status": {
+        "nodeInfo": {
+          "architecture": "amd64",
+          "operatingSystem": "linux",
+          "osImage": "Red Hat Enterprise Linux CoreOS 416.94.202411260420-0",
+          "kernelVersion": "5.14.0-427.13.1.el9_4.x86_64",
+          "kubeletVersion": "v1.29.3+elf5e57"
+        },
+        "capacity": {
+          "cpu": "16",
+          "memory": "32401228Ki"
+        }
+      }
+    }
+  ]
+}

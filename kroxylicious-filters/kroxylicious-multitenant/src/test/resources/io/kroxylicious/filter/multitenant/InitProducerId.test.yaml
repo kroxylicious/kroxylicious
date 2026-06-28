@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: INIT_PRODUCER_ID
+  version: 4
+  description: Without transaction id
+  request:
+    payload:
+      transactionalId: ""
+      transactionTimeoutMs: 30000
+      producerId: 0
+      producerEpoch: 0
+    diff: []
+  disabled: false
+- apiMessageType: INIT_PRODUCER_ID
+  version: 4
+  description: With transaction id
+  request:
+    payload:
+      transactionalId: "12345"
+      transactionTimeoutMs: 30000
+      producerId: 0
+      producerEpoch: 0
+    diff:
+      - op: replace
+        path: "/transactionalId"
+        value: tenant1-12345
+  disabled: false

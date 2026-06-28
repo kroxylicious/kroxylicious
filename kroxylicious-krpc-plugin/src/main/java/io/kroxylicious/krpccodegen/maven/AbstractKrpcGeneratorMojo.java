@@ -1,0 +1,122 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+package io.kroxylicious.krpccodegen.maven;
+
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
+
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugins.annotations.Component;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.MavenProject;
+import org.codehaus.plexus.build.BuildContext;
+
+import io.kroxylicious.krpccodegen.main.KrpcGenerator;
+
+/**
+ * Abstract Maven plugin capable of generating java source from Apache Kafka message
+ * specifications definitions.
+ */
+abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
+
+    /**
+     * Gives access to the Maven project information.
+     */
+    @Parameter(defaultValue = "${project}", required = true, readonly = true)
+    private MavenProject project;
+
+    @Parameter(required = true)
+    private File messageSpecDirectory;
+
+    @Parameter(defaultValue = "*.json")
+    private String messageSpecFilter;
+
+    @Parameter(required = true)
+    private File templateDirectory;
+
+    @Parameter(required = true)
+    private String templateNames;
+
+    @Parameter(required = true)
+    private String outputPackage;
+
+    @Parameter(defaultValue = "${messageSpecName}.java")
+    private String outputFilePattern;
+
+    @Parameter(defaultValue = "compile")
+    private String addToProjectSourceRoots;
+
+    @Parameter(defaultValue = "${project.build.sourceDirectory}")
+    private File sourceDirectory;
+
+    @Parameter(defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc")
+    private File outputDirectory;
+
+    @Parameter(required = false)
+    private String inputSpecFilter;
+
+    @Parameter(required = false)
+    private boolean apiSpecMode;
+
+    @Parameter(required = false)
+    private boolean skipOutputIfSourceExists;
+
+    @Component
+    private BuildContext buildContext;
+
+    AbstractKrpcGeneratorMojo() {
+        super();
+    }
+
+    @Override
+    public void execute() throws MojoExecutionException {
+        if (buildContext == null || !buildContext.isIncremental()) {
+            List<String> templates = Stream.of(templateNames.split(","))
+                    .map(String::trim).toList();
+
+            KrpcGenerator gen = builder()
+                    .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
+                    .withMessageSpecDir(messageSpecDirectory)
+                    .withMessageSpecFilter(messageSpecFilter)
+                    .inputSpecFilter(inputSpecFilter)
+                    .withTemplateDir(templateDirectory)
+                    .withTemplateNames(templates)
+                    .withOutputPackage(outputPackage)
+                    .withSourceDir(sourceDirectory)
+                    .withOutputDir(outputDirectory)
+                    .withOutputFilePattern(outputFilePattern)
+                    .withApiSpecMode(apiSpecMode)
+                    .withSkipOutputIfSourceExists(skipOutputIfSourceExists)
+                    .build();
+
+            try {
+                gen.generate();
+            }
+            catch (Exception e) {
+                throw new MojoExecutionException("Couldn't generate messages", e);
+            }
+
+            String absolutePath = outputDirectory.getAbsolutePath();
+            Arrays.stream(addToProjectSourceRoots.split(",")).forEach(sourceRoot -> {
+                switch (sourceRoot) {
+                    case "compile" -> project.addCompileSourceRoot(absolutePath);
+                    case "testCompile" -> project.addTestCompileSourceRoot(absolutePath);
+                    default -> throw new IllegalArgumentException("unexpected source root " + sourceRoot);
+                }
+            });
+        }
+    }
+
+    // visible for testing
+    public MavenProject project() {
+        return project;
+    }
+
+    abstract KrpcGenerator.Builder builder();
+}

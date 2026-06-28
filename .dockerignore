@@ -1,0 +1,15 @@
+**/target
+**/out
+**/.idea
+**/*.iml
+**/*.iws
+**/*.ipr
+docs
+etc
+!etc/eclipse-formatter-config.xml
+scripts
+Dockerfile
+.dockerignore
+.github
+README.md
+kroxylicious-docs/release-manifest.yaml

@@ -1,0 +1,50 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-network-settings-{context}']
+= Configuring network and Netty settings
+
+[role="_abstract"]
+The proxy allows configuration of network settings for both the proxy endpoints (client-facing) and management endpoints using the `network.proxy` and `network.management` properties.
+These settings control low-level Netty behavior and are optional, with sensible defaults provided.
+
+.Configuration fragment showing network settings
+[source,yaml]
+----
+network:
+  proxy:
+    workerThreadCount: 8
+    shutdownQuietPeriod: 5s
+    shutdownTimeout: 20s
+  management:
+    workerThreadCount: 2
+    shutdownQuietPeriod: 5s
+    shutdownTimeout: 20s
+virtualClusters:
+  # ...
+----
+where:
+
+* `proxy` defines network settings for the proxy listener that handles client connections.
+* `management` defines network settings for the management HTTP server and can be configured independently of the proxy listener.
+* For both `proxy` and `management`:
+** `workerThreadCount` defines the number of Netty worker threads used to handle concurrent connections. Defaults to twice the number of available processors.
+** `shutdownQuietPeriod` defines the grace period during which the proxy continues to accept and complete in-flight requests before shutting down. If no new requests arrive during this window, shutdown proceeds. Defaults to `2s` if not specified. Uses Go-style duration format (for example, `30s`, `5m`).
+** `shutdownTimeout` defines the maximum time period allowed for the proxy to complete shutdown before it is forced. Defaults to `15s` if not specified. Uses Go-style duration format.
+
+Supported duration units are: `h` (hours), `m` (minutes), `s` (seconds), `ms` (milliseconds), `μs` or `us` (microseconds), and `ns` (nanoseconds).
+Units can be combined, for example `1m30s`.
+
+* The `workerThreadCount` setting allows tuning for high-concurrency deployments. Increasing this value can improve throughput when handling many simultaneous client connections.
+* The `shutdownQuietPeriod` and `shutdownTimeout` settings together control graceful shutdown behaviour. `shutdownQuietPeriod` should always be less than or equal to `shutdownTimeout`.
+
+[NOTE]
+====
+The `shutdownQuietPeriodSeconds` property (an integer number of seconds) is deprecated and will be removed in a future release.
+Use `shutdownQuietPeriod` with a Go-style duration string instead (for example, `shutdownQuietPeriod: 2s`).
+====

@@ -1,0 +1,41 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Patches the proxy Deployment to add hard pod anti-affinity against Kafka broker
+# pods and OMB worker pods.
+#
+# Ensures the proxy is never co-located with a Kafka broker or an OMB worker.
+# Co-location with either causes pod-to-pod traffic to bypass the real network
+# (OVS in-kernel path on OpenShift), artificially lowering measured latency and
+# inflating throughput ceilings.
+#
+# With 3 Kafka brokers on 3 nodes and OMB workers on the remaining nodes, the
+# proxy is forced onto a broker node when fewer than (brokers + workers + 1) nodes
+# are available — the proxy will go Pending if no node is free of both brokers and
+# workers. This is intentional: Pending is a visible signal to add capacity rather
+# than silently producing corrupted results.
+#
+# The PROXY_DEPLOYMENT and NAMESPACE placeholders are substituted by the script
+# using envsubst before applying.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${PROXY_DEPLOYMENT}
+  namespace: ${NAMESPACE}
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                strimzi.io/pool-name: kafka-pool
+            topologyKey: kubernetes.io/hostname
+          - labelSelector:
+              matchLabels:
+                app: omb-worker
+            topologyKey: kubernetes.io/hostname

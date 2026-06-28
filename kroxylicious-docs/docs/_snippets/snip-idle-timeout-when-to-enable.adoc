@@ -1,0 +1,13 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: SNIPPET
+
+Consider enabling idle timeouts in the following scenarios:
+
+* *Security posture*: unauthenticated connections can be closed quickly to limit the window for abuse, while authenticated connections get a more generous timeout.
+* *Unclosed connections*: clients that abandon connections without properly closing them, leaving resources allocated unnecessarily.
+* *Network infrastructure requirements*: environments where firewalls or load balancers drop idle connections, configure the proxy to disconnect gracefully first.

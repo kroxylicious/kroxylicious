@@ -1,0 +1,91 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+networks:
+  perf_network:
+    driver: bridge
+
+services:
+  kafka:
+    image: ${KAFKA_IMAGE}
+    ports:
+      - "9094:9092"
+    hostname: broker1
+    container_name: broker1
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker1:9092,BROKER://broker1:9093
+      SERVER_HOST: broker1
+      KAFKA_BROKER_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker1:9094
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,BROKER:PLAINTEXT
+      KAFKA_LISTENERS: BROKER://broker1:9093,PLAINTEXT://:9092,CONTROLLER://broker1:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_LOG_SEGMENT_DELETE_DELAY_MS: 1000
+      KAFKA_OFFSETS_TOPIC_NUM_PARTITIONS: 5
+    networks:
+      - perf_network
+  vault:
+    image: ${VAULT_IMAGE}
+    hostname: vault
+    container_name: vault
+    ports:
+      - "8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: token
+      VAULT_TOKEN:  token
+      VAULT_FORMAT: json
+      VAULT_DEV_LISTEN_ADDRESS: "[::]:8200"
+      VAULT_ADDR: http://localhost:8200 # TODO - shouldn't need this
+      # Workaround for Vault 2.x in rootless containers (SETFCAP capability unavailable). Acceptable for development/testing.
+      SKIP_SETCAP: "true"
+    networks:
+      - perf_network
+    healthcheck:
+      test:  wget --no-verbose --tries=1 --spider http://localhost:8200/v1/sys/health
+      interval: 5s
+      retries: 5
+      timeout: 10s
+  kroxylicious:
+    image: ${KROXYLICIOUS_IMAGE:-quay.io/kroxylicious/proxy:0.22.0-SNAPSHOT}
+    hostname: kroxylicious
+    container_name: kroxylicious
+    # this is to enable async_profiler
+    security_opt:
+      - seccomp:unconfined
+    # Set in perf_test.sh
+    command:
+      - "--config"
+      - "/opt/kroxylicious/config/config.yaml"
+    healthcheck:
+      test: grep 2384 /proc/1/net/tcp /proc/1/net/tcp6  # 0x2384 = 9092
+      interval: 5s
+      retries: 5
+      timeout: 10s
+    ports:
+      - "9092"
+    environment:
+      TEST_NAME: "${TEST_NAME:-manual}"
+      "ASYNC_PROFILER_FLAGS": "start,cpu,flamegraph,file=/tmp/profiler-results/%{TEST_NAME}/flamegraph-%t.html"
+    configs:
+      - source: proxy-config
+        target: /opt/kroxylicious/config/config.yaml
+    volumes:
+      - type: "bind"
+        source: "${PROFILING_OUTPUT_DIRECTORY:-/tmp/profiler-results/}"
+        target: "/tmp/profiler-results/"
+        read_only: false
+
+    networks:
+      - perf_network
+    depends_on:
+      - kafka
+
+configs:
+  proxy-config:
+    file: "proxy-config.yaml"

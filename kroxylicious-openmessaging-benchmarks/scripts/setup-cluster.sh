@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Operator versions (override via environment variables)
+STRIMZI_VERSION="${STRIMZI_VERSION:-latest}"
+KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION:-0.22.0-SNAPSHOT}"
+
+NAMESPACE="${NAMESPACE:-kafka}"
+KROXYLICIOUS_OPERATOR_NAMESPACE="kroxylicious-operator"
+
+# Resolve 'latest' to the actual current Strimzi release — GitHub releases has no literal 'latest' artifact path
+if [[ "${STRIMZI_VERSION}" == "latest" ]]; then
+    STRIMZI_VERSION="$(curl -fsSL -o /dev/null -w '%{url_effective}' \
+        "https://github.com/strimzi/strimzi-kafka-operator/releases/latest" \
+        | sed 's|.*/tag/||' | sed 's/^v//')"
+fi
+
+STRIMZI_BASE_URL="https://github.com/strimzi/strimzi-kafka-operator/releases/download/${STRIMZI_VERSION}"
+
+usage() {
+    cat >&2 <<EOF
+Usage: $(basename "$0") [--skip-kroxylicious]
+
+Sets up a Kubernetes cluster with the operators required to run benchmarks.
+Installs the Strimzi and (optionally) Kroxylicious operators and waits for
+them to be ready.
+
+Options:
+  --skip-kroxylicious   Skip Kroxylicious operator installation (baseline scenario only)
+  -h, --help            Show this help
+
+Environment:
+  NAMESPACE                     Kafka namespace (default: kafka)
+  STRIMZI_VERSION               Strimzi version to install from GitHub releases (default: resolved from latest release)
+  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.22.0-SNAPSHOT)
+
+Examples:
+  # Full setup (baseline + proxy scenarios)
+  $(basename "$0")
+
+  # Baseline only (no Kroxylicious operator needed)
+  $(basename "$0") --skip-kroxylicious
+
+  # Pin operator versions
+  STRIMZI_VERSION=0.45.0 KROXYLICIOUS_VERSION=0.18.0 $(basename "$0")
+EOF
+    exit 1
+}
+
+SKIP_KROXYLICIOUS=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-kroxylicious)
+            SKIP_KROXYLICIOUS=true
+            shift
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo "Error: unknown argument '$1'" >&2
+            usage
+            ;;
+    esac
+done
+
+echo "=== Benchmark cluster setup ==="
+echo "Namespace:            ${NAMESPACE}"
+echo "Strimzi version:      ${STRIMZI_VERSION}"
+if [[ "${SKIP_KROXYLICIOUS}" == "false" ]]; then
+    echo "Kroxylicious version: ${KROXYLICIOUS_VERSION}"
+fi
+echo ""
+
+# --- Storage class pre-flight ---
+
+if ! kubectl get storageclass &>/dev/null || \
+   [[ -z "$(kubectl get storageclass -o name 2>/dev/null)" ]]; then
+    echo "Error: no StorageClass found in this cluster." >&2
+    echo "" >&2
+    echo "Kafka requires persistent storage. Set up a StorageClass first, then re-run this script." >&2
+    echo "" >&2
+    echo "For clusters with local block devices (e.g. /dev/vdb):" >&2
+    echo "  $(dirname "$0")/setup-local-storage.sh --devices /dev/vdb" >&2
+    echo "" >&2
+    echo "Once a StorageClass exists, pass it to benchmarks with:" >&2
+    echo "  --set kafka.storage.storageClass=<name>" >&2
+    exit 1
+fi
+
+# --- Namespace ---
+
+if kubectl get namespace "${NAMESPACE}" &>/dev/null; then
+    echo "Namespace '${NAMESPACE}' already exists, skipping creation"
+else
+    echo "Creating namespace '${NAMESPACE}'..."
+    kubectl create namespace "${NAMESPACE}"
+fi
+
+# Label the namespace privileged so that async-profiler can set seccompProfile:Unconfined
+# on the proxy container, which is required for perf_event_open(2) to succeed.
+# This is a dedicated benchmark namespace — the relaxed policy is intentional.
+echo "Labelling namespace '${NAMESPACE}' with pod-security.kubernetes.io/enforce=privileged..."
+kubectl label namespace "${NAMESPACE}" \
+    pod-security.kubernetes.io/enforce=privileged \
+    pod-security.kubernetes.io/enforce-version=latest \
+    --overwrite
+
+# On OpenShift, SCCs are enforced in addition to PodSecurity admission.
+# Grant the privileged SCC to the proxy's service account so that the
+# seccompProfile:Unconfined patch can take effect.
+if kubectl api-resources --api-group=security.openshift.io 2>/dev/null | grep -q SecurityContextConstraints; then
+    echo "OpenShift detected: granting privileged SCC to default service account in '${NAMESPACE}'..."
+    if ! oc adm policy add-scc-to-user privileged -z default -n "${NAMESPACE}"; then
+        echo "" >&2
+        echo "Warning: failed to grant privileged SCC automatically." >&2
+        echo "         If profiling fails, run this manually:" >&2
+        echo "           oc adm policy add-scc-to-user privileged -z default -n ${NAMESPACE}" >&2
+        echo "" >&2
+    fi
+fi
+
+# --- Strimzi operator ---
+
+echo ""
+echo "Installing Strimzi operator (${STRIMZI_VERSION})..."
+# Apply CRDs first (cluster-scoped, no namespace substitution needed)
+curl -fsSL "${STRIMZI_BASE_URL}/strimzi-crds-${STRIMZI_VERSION}.yaml" \
+    | kubectl apply -f -
+# Apply the cluster operator with namespace substituted (default is 'myproject')
+curl -fsSL "${STRIMZI_BASE_URL}/strimzi-cluster-operator-${STRIMZI_VERSION}.yaml" \
+    | sed "s/namespace: myproject/namespace: ${NAMESPACE}/g" \
+    | kubectl apply -n "${NAMESPACE}" -f -
+
+echo "Waiting for Strimzi operator to be ready..."
+kubectl rollout status deployment/strimzi-cluster-operator \
+    -n "${NAMESPACE}" \
+    --timeout=300s
+
+echo "Strimzi operator is ready."
+
+# --- Kroxylicious operator ---
+
+if [[ "${SKIP_KROXYLICIOUS}" == "true" ]]; then
+    echo ""
+    echo "Skipping Kroxylicious operator installation (--skip-kroxylicious)."
+else
+    echo ""
+    echo "Installing Kroxylicious operator (${KROXYLICIOUS_VERSION})..."
+
+    WORK_DIR="$(mktemp -d)"
+    trap 'rm -rf "${WORK_DIR}"' EXIT
+
+    TARBALL="kroxylicious-operator-${KROXYLICIOUS_VERSION}.tar.gz"
+    TARBALL_URL="https://github.com/kroxylicious/kroxylicious/releases/download/v${KROXYLICIOUS_VERSION}/${TARBALL}"
+    echo "  Downloading ${TARBALL}..."
+    if command -v gh &>/dev/null; then
+        gh release download "v${KROXYLICIOUS_VERSION}" \
+            --repo kroxylicious/kroxylicious \
+            --pattern "${TARBALL}" \
+            --output "${WORK_DIR}/${TARBALL}"
+    else
+        curl -fsSL "${TARBALL_URL}" -o "${WORK_DIR}/${TARBALL}"
+    fi
+
+    echo "  Extracting..."
+    tar xzf "${WORK_DIR}/${TARBALL}" -C "${WORK_DIR}"
+
+    echo "  Applying manifests..."
+    kubectl apply -f "${WORK_DIR}/install/"
+
+    echo "Waiting for Kroxylicious operator to be ready..."
+    kubectl rollout status deployment/kroxylicious-operator \
+        -n "${KROXYLICIOUS_OPERATOR_NAMESPACE}" \
+        --timeout=300s
+
+    echo "Kroxylicious operator is ready."
+fi
+
+echo ""
+echo "=== Cluster setup complete ==="
+echo ""
+echo "Next steps:"
+echo ""
+echo "  Quick smoke test (single broker, ~2 min — not for measurement):"
+echo "    ./scripts/run-benchmark.sh --profile ./helm/kroxylicious-benchmark/scenarios/smoke-values.yaml \\"
+echo "      baseline 1topic-1kb ./results/smoke/"
+echo ""
+echo "  Full benchmark suite (requires multi-node cluster: 8 CPU / 16 GB RAM):"
+echo "    ./scripts/run-all-scenarios.sh ./results/run-\$(date +%Y%m%d-%H%M%S)/"
+echo ""
+echo "  Single scenario:"
+echo "    ./scripts/run-benchmark.sh baseline 1topic-1kb ./results/baseline/"
