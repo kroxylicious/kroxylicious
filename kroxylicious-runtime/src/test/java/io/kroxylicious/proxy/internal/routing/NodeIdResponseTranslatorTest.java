@@ -98,6 +98,33 @@ class NodeIdResponseTranslatorTest {
     }
 
     @Test
+    void shouldNotTranslateMetadataControllerIdWhenMinusOne() {
+        var data = new MetadataResponseData().setControllerId(-1);
+
+        NodeIdResponseTranslator.translate(data, (short) 12, mapping, ROUTE_A);
+
+        assertThat(data.controllerId()).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldNotTranslateMetadataPartitionLeaderIdWhenMinusOne() {
+        var data = new MetadataResponseData().setControllerId(0);
+        var partition = new MetadataResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(-1)
+                .setReplicaNodes(new ArrayList<>(List.of(0)))
+                .setIsrNodes(new ArrayList<>())
+                .setOfflineReplicas(new ArrayList<>());
+        var topic = new MetadataResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 12, mapping, ROUTE_A);
+
+        assertThat(partition.leaderId()).isEqualTo(-1);
+    }
+
+    @Test
     void shouldNotTranslateProduceResponseBelowV10() {
         var data = new ProduceResponseData();
         var partitionResp = new PartitionProduceResponse().setIndex(0);

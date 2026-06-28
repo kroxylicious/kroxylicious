@@ -47,7 +47,9 @@ final class NodeIdResponseTranslator {
     private static void translateMetadata(MetadataResponseData data,
                                           NodeIdMapping mapping,
                                           String route) {
-        data.setControllerId(mapping.toVirtual(route, data.controllerId()));
+        if (data.controllerId() >= 0) {
+            data.setControllerId(mapping.toVirtual(route, data.controllerId()));
+        }
 
         var translatedBrokers = new MetadataResponseBrokerCollection(data.brokers().size());
         for (var broker : List.copyOf(data.brokers())) {
@@ -59,7 +61,9 @@ final class NodeIdResponseTranslator {
 
         for (var topic : data.topics()) {
             for (var partition : topic.partitions()) {
-                partition.setLeaderId(mapping.toVirtual(route, partition.leaderId()));
+                if (partition.leaderId() >= 0) {
+                    partition.setLeaderId(mapping.toVirtual(route, partition.leaderId()));
+                }
                 translateIntList(partition.replicaNodes(), mapping, route);
                 translateIntList(partition.isrNodes(), mapping, route);
                 translateIntList(partition.offlineReplicas(), mapping, route);
