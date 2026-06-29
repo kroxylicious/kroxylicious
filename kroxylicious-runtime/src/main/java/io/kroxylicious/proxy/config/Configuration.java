@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -260,6 +261,9 @@ public record Configuration(
         TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster, routersByName, clustersByName);
         Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
                 virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
+        RouterChainFactory routerChainFactory = (virtualCluster.router() != null && pfr != null)
+                ? RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName)
+                : null;
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 resolvedTargetCluster,
@@ -271,7 +275,8 @@ public record Configuration(
                 virtualCluster.effectiveDrainTimeout(),
                 pfr,
                 virtualCluster.router(),
-                routeDescriptors);
+                routeDescriptors,
+                routerChainFactory);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();

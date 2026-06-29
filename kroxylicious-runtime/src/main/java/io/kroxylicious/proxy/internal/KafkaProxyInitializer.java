@@ -31,7 +31,6 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
@@ -66,8 +65,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
-    @Nullable
-    private final RouterChainFactory routerChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<NettySettings> proxyNettySettings;
@@ -77,8 +74,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final VirtualClusterRegistry virtualClusterRegistry;
 
     @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S107" })
-    public KafkaProxyInitializer(@Nullable RouterChainFactory routerChainFactory,
-                                 PluginFactoryRegistry pfr,
+    public KafkaProxyInitializer(PluginFactoryRegistry pfr,
                                  boolean tls,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
@@ -91,7 +87,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.proxyProtocolMode = proxyProtocolMode;
         this.tls = tls;
         this.bindingResolver = bindingResolver;
-        this.routerChainFactory = routerChainFactory;
         this.apiVersionsService = apiVersionsService;
         this.proxyNettySettings = proxyNettySettings;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
@@ -262,7 +257,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         pipeline.addLast("frontendHandler", frontendHandler);
         if (virtualCluster.usesRouter()) {
-            Objects.requireNonNull(routerChainFactory,
+            var routerChainFactory = Objects.requireNonNull(virtualCluster.routerChainFactory(),
                     "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
             Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
             Map<ApiKeys, String> staticRoutes = router.staticRoutes();

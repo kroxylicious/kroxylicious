@@ -87,6 +87,22 @@ public class RouterChainFactory implements AutoCloseable {
     private final Map<VcRouter, Wrapper> initialized;
     private final PluginFactoryRegistry pfr;
 
+    /**
+     * Creates a {@link RouterChainFactory} for a single virtual cluster. The factory
+     * initialises only the routers reachable from {@code vc}'s router graph.
+     *
+     * @param pfr the plugin factory registry
+     * @param vc the virtual cluster whose router graph to initialise
+     * @param routersByName all router definitions by name (the graph may reference any of them)
+     * @return a new factory whose lifetime should match that of the virtual cluster
+     */
+    public static RouterChainFactory forVirtualCluster(PluginFactoryRegistry pfr,
+                                                       VirtualCluster vc,
+                                                       @Nullable Map<String, RouterDefinition> routersByName) {
+        List<RouterDefinition> defs = routersByName == null ? null : new ArrayList<>(routersByName.values());
+        return new RouterChainFactory(pfr, List.of(vc), defs);
+    }
+
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public RouterChainFactory(PluginFactoryRegistry pfr,
                               List<VirtualCluster> virtualClusters,
