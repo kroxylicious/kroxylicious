@@ -104,7 +104,7 @@ public class CheckBackPressure implements Callable<Integer> {
         System.out.println("at the broker is masking overhead measurements.");
         System.out.println();
         System.out.println("Suggested rate sweep to find the saturation knee (adjust --min-rate/--max-rate as needed):");
-        Report first = saturated.get(0);
+        Report first = saturated.getFirst();
         System.out.println("  " + scriptsDir + "/rate-sweep.sh \\");
         if (resolvedWorkload != null) {
             System.out.println("    --workload " + resolvedWorkload + " \\");

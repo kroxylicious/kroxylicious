@@ -377,7 +377,7 @@ public class AwsV4SigningHttpRequestBuilder implements Builder {
     private static Map<String, String> getSingleValuedHeaders(HttpRequest request) {
         return request.headers().map().entrySet().stream()
                 .filter(AwsV4SigningHttpRequestBuilder::hasSingleValue)
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getFirst()));
     }
 
     private static boolean hasSingleValue(Map.Entry<String, List<String>> e) {

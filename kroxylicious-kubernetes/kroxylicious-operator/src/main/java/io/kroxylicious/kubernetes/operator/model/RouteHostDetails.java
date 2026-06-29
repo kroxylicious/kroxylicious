@@ -96,7 +96,7 @@ public record RouteHostDetails(
             return Optional.empty();
         }
 
-        return Optional.of(details.get(0).hostWithoutSubdomain());
+        return Optional.of(details.getFirst().hostWithoutSubdomain());
     }
 
     /**
@@ -133,7 +133,7 @@ public record RouteHostDetails(
             return Optional.empty();
         }
 
-        String hostWithSubdomain = ingress.get(0).getHost(); // one-bootstrap.apps-crc.testing
+        String hostWithSubdomain = ingress.getFirst().getHost(); // one-bootstrap.apps-crc.testing
         ArrayList<String> splitHostWithSubdomain = new ArrayList<>(Arrays.asList(hostWithSubdomain.split("\\.")));
         if (splitHostWithSubdomain.size() < 2) {
             return Optional.empty();
