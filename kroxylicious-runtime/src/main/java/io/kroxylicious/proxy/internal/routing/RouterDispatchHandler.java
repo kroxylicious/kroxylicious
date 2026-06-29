@@ -49,7 +49,12 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     private final ClientConnectionStateMachine ccsm;
     private final NodeIdMapping nodeIdMapping;
 
-    /** Tracks correlation IDs of in-flight requests that need response translation. */
+    /**
+     * Tracks correlation IDs of in-flight requests that need response translation.
+     * Entries are removed when the response arrives in {@link #write}. Any entries
+     * remaining at channel close are discarded with the handler — no explicit cleanup
+     * is required.
+     */
     private final Map<Integer, String> pendingRoutes = new HashMap<>();
 
     public RouterDispatchHandler(Router router,

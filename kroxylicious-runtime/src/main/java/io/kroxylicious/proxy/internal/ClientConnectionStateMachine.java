@@ -872,9 +872,11 @@ public class ClientConnectionStateMachine {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
             }
         }
+        var frontend = Objects.requireNonNull(frontendHandler);
         log(Level.DEBUG)
                 .addKeyValue("routeCount", () -> routeTargets.size())
                 .addKeyValue("routeTargets", () -> routeTargets.toString())
+                .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
                 .log("Route targets resolved for router VC");
     }
 
