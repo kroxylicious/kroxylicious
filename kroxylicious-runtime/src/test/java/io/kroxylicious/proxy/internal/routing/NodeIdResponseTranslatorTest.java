@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
+import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -23,6 +24,8 @@ import org.apache.kafka.common.message.ProduceResponseData.LeaderIdAndEpoch;
 import org.apache.kafka.common.message.ProduceResponseData.NodeEndpoint;
 import org.apache.kafka.common.message.ProduceResponseData.PartitionProduceResponse;
 import org.apache.kafka.common.message.ProduceResponseData.TopicProduceResponse;
+import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
+import org.apache.kafka.common.message.ShareFetchResponseData;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -216,5 +219,50 @@ class NodeIdResponseTranslatorTest {
         NodeIdResponseTranslator.translate(data, (short) 7, mapping, ROUTE_A);
 
         assertThat(data.throttleTimeMs()).isEqualTo(42);
+    }
+
+    @Test
+    void shouldTranslateFetchResponseV16NodeEndpoints() {
+        var data = new FetchResponseData();
+        data.nodeEndpoints().add(new FetchResponseData.NodeEndpoint().setNodeId(0).setHost("h0").setPort(9092));
+        data.nodeEndpoints().add(new FetchResponseData.NodeEndpoint().setNodeId(1).setHost("h1").setPort(9093));
+
+        NodeIdResponseTranslator.translate(data, (short) 16, mapping, ROUTE_A);
+
+        assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_A, 0))).isNotNull();
+        assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_A, 1))).isNotNull();
+    }
+
+    @Test
+    void shouldNotTranslateFetchResponseBeforeV16() {
+        var data = new FetchResponseData();
+
+        NodeIdResponseTranslator.translate(data, (short) 15, mapping, ROUTE_A);
+
+        assertThat(data.nodeEndpoints()).isEmpty();
+    }
+
+    @Test
+    void shouldTranslateShareFetchNodeEndpoints() {
+        var data = new ShareFetchResponseData();
+        data.nodeEndpoints().add(new ShareFetchResponseData.NodeEndpoint().setNodeId(0).setHost("h0").setPort(9092));
+        data.nodeEndpoints().add(new ShareFetchResponseData.NodeEndpoint().setNodeId(1).setHost("h1").setPort(9093));
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_B);
+
+        assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_B, 0))).isNotNull();
+        assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_B, 1))).isNotNull();
+    }
+
+    @Test
+    void shouldTranslateShareAcknowledgeNodeEndpoints() {
+        var data = new ShareAcknowledgeResponseData();
+        data.nodeEndpoints().add(new ShareAcknowledgeResponseData.NodeEndpoint().setNodeId(0).setHost("h0").setPort(9092));
+        data.nodeEndpoints().add(new ShareAcknowledgeResponseData.NodeEndpoint().setNodeId(1).setHost("h1").setPort(9093));
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_B);
+
+        assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_B, 0))).isNotNull();
+        assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_B, 1))).isNotNull();
     }
 }

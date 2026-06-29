@@ -42,7 +42,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             ApiKeys.METADATA,
             ApiKeys.FIND_COORDINATOR,
             ApiKeys.DESCRIBE_CLUSTER,
-            ApiKeys.PRODUCE);
+            ApiKeys.PRODUCE,
+            ApiKeys.FETCH,
+            ApiKeys.SHARE_FETCH,
+            ApiKeys.SHARE_ACKNOWLEDGE);
 
     private final Router router;
     private final Map<ApiKeys, String> staticRoutes;

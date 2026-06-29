@@ -9,11 +9,14 @@ import java.util.List;
 
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBrokerCollection;
+import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrokerCollection;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseData.NodeEndpointCollection;
+import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
+import org.apache.kafka.common.message.ShareFetchResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
@@ -41,6 +44,15 @@ final class NodeIdResponseTranslator {
         }
         else if (body instanceof DescribeClusterResponseData dc) {
             translateDescribeCluster(dc, mapping, route);
+        }
+        else if (body instanceof FetchResponseData fd) {
+            translateFetch(fd, apiVersion, mapping, route);
+        }
+        else if (body instanceof ShareFetchResponseData sfd) {
+            translateShareFetch(sfd, mapping, route);
+        }
+        else if (body instanceof ShareAcknowledgeResponseData sad) {
+            translateShareAcknowledge(sad, mapping, route);
         }
     }
 
@@ -126,6 +138,52 @@ final class NodeIdResponseTranslator {
             translatedBrokers.add(translated);
         }
         data.setBrokers(translatedBrokers);
+    }
+
+    private static void translateFetch(FetchResponseData data,
+                                       short apiVersion,
+                                       NodeIdMapping mapping,
+                                       String route) {
+        if (apiVersion < 16) {
+            return;
+        }
+        var translatedEndpoints = new FetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+        for (var ne : List.copyOf(data.nodeEndpoints())) {
+            var translated = ne.duplicate();
+            translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
+            translatedEndpoints.add(translated);
+        }
+        data.setNodeEndpoints(translatedEndpoints);
+    }
+
+    private static void translateShareFetch(ShareFetchResponseData data,
+                                            NodeIdMapping mapping,
+                                            String route) {
+        if (data.nodeEndpoints() == null) {
+            return;
+        }
+        var translatedEndpoints = new ShareFetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+        for (var ne : List.copyOf(data.nodeEndpoints())) {
+            var translated = ne.duplicate();
+            translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
+            translatedEndpoints.add(translated);
+        }
+        data.setNodeEndpoints(translatedEndpoints);
+    }
+
+    private static void translateShareAcknowledge(ShareAcknowledgeResponseData data,
+                                                  NodeIdMapping mapping,
+                                                  String route) {
+        if (data.nodeEndpoints() == null) {
+            return;
+        }
+        var translatedEndpoints = new ShareAcknowledgeResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+        for (var ne : List.copyOf(data.nodeEndpoints())) {
+            var translated = ne.duplicate();
+            translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
+            translatedEndpoints.add(translated);
+        }
+        data.setNodeEndpoints(translatedEndpoints);
     }
 
     private static void translateIntList(List<Integer> nodeIds,
