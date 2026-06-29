@@ -95,6 +95,7 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
  */
 public class TestLogCollector {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestLogCollector.class);
+    private static final Object SINGLETON_LOCK = new Object();
 
     private static final String CURRENT_DATE_TIME;
     private final LogCollector logCollector;
@@ -119,11 +120,13 @@ public class TestLogCollector {
      *
      * @return the instance
      */
-    public static synchronized TestLogCollector getInstance() {
-        if (instance == null) {
-            instance = new TestLogCollector();
+    public static TestLogCollector getInstance() {
+        synchronized (SINGLETON_LOCK) {
+            if (instance == null) {
+                instance = new TestLogCollector();
+            }
+            return instance;
         }
-        return instance;
     }
 
     /**
