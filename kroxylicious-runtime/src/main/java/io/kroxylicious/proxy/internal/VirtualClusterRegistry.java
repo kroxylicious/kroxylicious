@@ -291,13 +291,13 @@ public class VirtualClusterRegistry implements AutoCloseable {
      */
     private CompletableFuture<Void> initiateDrain(VirtualClusterLifecycle lifecycle) {
         var state = lifecycle.state();
-        if (state instanceof VirtualClusterLifecycleState.Serving) {
-            return lifecycle.startDraining();
-        }
-        if (state instanceof VirtualClusterLifecycleState.Draining) {
-            return lifecycle.drainFuture();
-        }
-        return CompletableFuture.completedFuture(null);
+        return switch (state) {
+            case VirtualClusterLifecycleState.Serving ignored -> lifecycle.startDraining();
+            case VirtualClusterLifecycleState.Draining ignored -> lifecycle.drainFuture();
+            case VirtualClusterLifecycleState.Failed ignored -> CompletableFuture.completedFuture(null);
+            case VirtualClusterLifecycleState.Initializing ignored -> CompletableFuture.completedFuture(null);
+            case VirtualClusterLifecycleState.Stopped ignored -> CompletableFuture.completedFuture(null);
+        };
     }
 
     /**
@@ -310,30 +310,31 @@ public class VirtualClusterRegistry implements AutoCloseable {
     @VisibleForTesting
     void transitionToStoppedAndClose(String clusterName, VirtualClusterLifecycle lifecycle) {
         var current = lifecycle.state();
-        if (current instanceof VirtualClusterLifecycleState.Draining) {
-            lifecycle.drainComplete();
-            closeAndFireStopped(clusterName, Optional.empty());
+        switch (current) {
+            case VirtualClusterLifecycleState.Draining ignored -> {
+                lifecycle.drainComplete();
+                closeAndFireStopped(clusterName, Optional.empty());
+            }
+            case VirtualClusterLifecycleState.Failed(var cause) -> {
+                lifecycle.stop();
+                closeAndFireStopped(clusterName, Optional.of(cause));
+            }
+            case VirtualClusterLifecycleState.Initializing ignored -> {
+                lifecycle.stop();
+                closeAndFireStopped(clusterName, Optional.empty());
+            }
+            case VirtualClusterLifecycleState.Stopped ignored -> {
+                // Expected — a concurrent dispatch already drove this cluster to Stopped.
+            }
+            case VirtualClusterLifecycleState.Serving ignored -> {
+                throw unexpectedState(clusterName, current, "transitionToStoppedAndClose");
+            }
         }
-        else if (current instanceof VirtualClusterLifecycleState.Failed failed) {
-            lifecycle.stop();
-            closeAndFireStopped(clusterName, Optional.of(failed.cause()));
-        }
-        else if (current instanceof VirtualClusterLifecycleState.Initializing) {
-            lifecycle.stop();
-            closeAndFireStopped(clusterName, Optional.empty());
-        }
-        else if (current instanceof VirtualClusterLifecycleState.Stopped) {
-            // Expected — a concurrent dispatch already drove this cluster to Stopped.
-        }
-        else {
-            // Unexpected: by the time this task runs, no other code path should put a cluster
-            // back into a non-terminal state. Most likely initializationSucceeded raced with
-            // our dispatch — log so the race shows up in operator diagnostics.
-            LOGGER.atWarn()
-                    .addKeyValue("virtualCluster", clusterName)
-                    .addKeyValue("state", current.getClass().getSimpleName())
-                    .log("transitionToStoppedAndClose observed unexpected state; no-op");
-        }
+    }
+
+    private static IllegalStateException unexpectedState(String clusterName, VirtualClusterLifecycleState current, String operation) {
+        return new IllegalStateException(
+                "Cannot " + operation + " for virtual cluster '" + clusterName + "' in state " + current.getClass().getSimpleName());
     }
 
     /**

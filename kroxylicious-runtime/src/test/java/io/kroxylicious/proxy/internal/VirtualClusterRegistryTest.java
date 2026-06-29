@@ -1088,7 +1088,7 @@ class VirtualClusterRegistryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void transitionToStoppedAndCloseLogsWhenObservingUnexpectedState() {
+    void transitionToStoppedAndCloseThrowsWhenObservingServingState() {
         // given — a cluster in Serving (the unexpected state for this method, which only ever
         // expects Draining / Failed / Initializing / Stopped on entry)
         var model = mockModel(CLUSTER_A);
@@ -1100,10 +1100,13 @@ class VirtualClusterRegistryTest {
 
         // when — direct invocation simulates the race where initializationSucceeded() raced
         // with our dispatch (left the cluster in Serving when transitionToStoppedAndClose ran)
-        registry.transitionToStoppedAndClose(CLUSTER_A, lifecycle);
+        assertThatThrownBy(() -> registry.transitionToStoppedAndClose(CLUSTER_A, lifecycle))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("transitionToStoppedAndClose")
+                .hasMessageContaining(CLUSTER_A)
+                .hasMessageContaining("Serving");
 
-        // then — silent no-op on the work, but the unexpected state was logged (logging
-        // verified implicitly: the method must not throw and must not fire close/callback)
+        // then — fail fast without closing the model or firing the stopped callback.
         verify(model, never()).close();
         verifyNoInteractions(callback);
     }
