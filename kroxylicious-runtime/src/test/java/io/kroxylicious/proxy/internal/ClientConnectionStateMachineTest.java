@@ -1245,7 +1245,6 @@ class ClientConnectionStateMachineTest {
         lenient().when(scsm1.isWritable()).thenReturn(true);
         lenient().when(scsm2.isWritable()).thenReturn(true);
 
-
         // When
         clientConnectionStateMachine.onServerWritable();
 
