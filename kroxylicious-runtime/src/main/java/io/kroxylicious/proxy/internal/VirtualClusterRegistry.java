@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -228,11 +229,20 @@ public class VirtualClusterRegistry implements AutoCloseable {
      *   <li>Stopped → Stopped (no-op)</li>
      * </ul>
      */
-    public void shutdownAllClusters() {
-        var drainFutures = entriesByCluster.entrySet().stream()
+    public List<Throwable> shutdownAllClusters() {
+        var clusterFutures = entriesByCluster.entrySet().stream()
                 .map(e -> shutdownCluster(e.getKey(), e.getValue().lifecycle()))
-                .toArray(CompletableFuture[]::new);
-        CompletableFuture.allOf(drainFutures).join();
+                .toList();
+        var failures = new ArrayList<Throwable>();
+        for (var future : clusterFutures) {
+            try {
+                future.join();
+            }
+            catch (CompletionException e) {
+                failures.add(e.getCause() != null ? e.getCause() : e);
+            }
+        }
+        return failures;
     }
 
     /**
@@ -330,29 +340,34 @@ public class VirtualClusterRegistry implements AutoCloseable {
      * The convergence point for every transition-to-{@code Stopped} branch of
      * {@link #shutdownCluster}: closes the cluster's model (which calls
      * {@code FilterFactory.close()}) and fires the {@link #onVirtualClusterStopped} callback.
+     * If the model close throws, the exception is propagated after the callback fires so that
+     * the cluster's shutdown future completes exceptionally while the callback is still guaranteed
+     * to run.
      */
     private void closeAndFireStopped(String clusterName, Optional<Throwable> failureCause) {
-        closeModel(clusterName);
-        onVirtualClusterStopped.accept(clusterName, failureCause);
+        var closeFailure = closeModel(clusterName);
+        onVirtualClusterStopped.accept(clusterName, closeFailure.<Optional<Throwable>> map(Optional::of).orElse(failureCause));
+        closeFailure.ifPresent(e -> {
+            throw e;
+        });
     }
 
     /**
      * Closes per-VC resources (FilterChainFactory, TLS credential supplier manager) at the
      * moment the lifecycle transitions into {@code Stopped}. Called from every transition-
-     * into-Stopped branch of {@link #shutdownCluster}
+     * into-Stopped branch of {@link #shutdownCluster}.
      *
-     * <p>If the model close throws, the failure is logged at WARN and swallowed — we don't
-     * want a noisy filter cleanup to stop us from firing {@link #onVirtualClusterStopped}
-     * or completing the shutdown future. The exception is recorded against the cluster name
-     * so operators can diagnose stuck cleanups.
+     * <p>If the model close throws, the failure is logged at WARN and returned so the caller
+     * can propagate it after ensuring the {@link #onVirtualClusterStopped} callback has fired.
      */
-    private void closeModel(String clusterName) {
+    private Optional<RuntimeException> closeModel(String clusterName) {
         var entry = entriesByCluster.get(clusterName);
         if (entry == null) {
-            return;
+            return Optional.empty();
         }
         try {
             entry.model().close();
+            return Optional.empty();
         }
         catch (RuntimeException e) {
             LOGGER.atWarn()
@@ -360,6 +375,7 @@ public class VirtualClusterRegistry implements AutoCloseable {
                     .addKeyValue("virtualCluster", clusterName)
                     .addKeyValue("error", e.getMessage())
                     .log("Failed to close virtual cluster resources on lifecycle transition to Stopped");
+            return Optional.of(e);
         }
     }
 
