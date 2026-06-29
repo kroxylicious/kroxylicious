@@ -12,6 +12,12 @@ import java.util.Map;
  * {@code V} is the virtual ID, {@code t} is the target node ID,
  * {@code S} is the total number of routes, and {@code id} is
  * the route's configured identifier.
+ * <p>
+ * Example with two routes (S=2) whose upstream clusters each have node IDs 0, 1, 2:
+ * <pre>
+ *   route[0] (id=0): V = 0 + 2×0, 0 + 2×1, 0 + 2×2  →  0, 2, 4
+ *   route[1] (id=1): V = 1 + 2×0, 1 + 2×1, 1 + 2×2  →  1, 3, 5
+ * </pre>
  */
 public record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
                                      int totalRoutes)
@@ -34,11 +40,11 @@ public record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
 
     @Override
     public int toVirtual(String route, int targetNodeId) {
-        Integer id = routeIds.get(route);
-        if (id == null) {
+        Integer routeId = routeIds.get(route);
+        if (routeId == null) {
             throw new IllegalArgumentException("Unknown route: " + route);
         }
-        return Math.addExact(id, Math.multiplyExact(totalRoutes, targetNodeId));
+        return Math.addExact(routeId, Math.multiplyExact(totalRoutes, targetNodeId));
     }
 
     @Override

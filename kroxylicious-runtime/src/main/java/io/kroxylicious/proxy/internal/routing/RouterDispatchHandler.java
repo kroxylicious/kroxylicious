@@ -38,7 +38,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
      * These keys are always decoded (even when statically routed) so the response bodies
      * are accessible for translation.
      */
-    public static final Set<ApiKeys> NODE_ID_TRANSLATION_KEYS = Set.of(
+    public static final Set<ApiKeys> NODE_ID_TRANSLATION_APIS = Set.of(
             ApiKeys.METADATA,
             ApiKeys.FIND_COORDINATOR,
             ApiKeys.DESCRIBE_CLUSTER,
@@ -81,7 +81,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             ApiKeys apiKey = ApiKeys.forId(frame.apiKeyId());
             String staticRoute = staticRoutes.get(apiKey);
             if (staticRoute != null) {
-                if (NODE_ID_TRANSLATION_KEYS.contains(apiKey)) {
+                if (NODE_ID_TRANSLATION_APIS.contains(apiKey)) {
                     pendingRoutes.put(frame.correlationId(), staticRoute);
                 }
                 ccsm.forwardToRoute(staticRoute, msg);

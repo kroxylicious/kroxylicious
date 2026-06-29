@@ -275,7 +275,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             }
             // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
             // can translate them, even when those keys are statically routed.
-            decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_KEYS);
+            decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
             dp.setRouterDecodingRequirements(decodedKeys);
             var nodeIdMapping = buildNodeIdMapping(virtualCluster);
             clientConnectionStateMachine.setNodeIdMapping(nodeIdMapping);
