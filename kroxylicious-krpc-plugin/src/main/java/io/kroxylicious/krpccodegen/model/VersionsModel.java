@@ -31,11 +31,11 @@ class VersionsModel implements TemplateHashModel, TemplateScalarModel, TemplateS
             case "highest" -> wrapper.wrap(versions.highest());
             case "lowest" -> wrapper.wrap(versions.lowest());
             case "intersect" -> wrapper.wrap((TemplateMethodModelEx) args -> {
-                Object o = args.get(0);
+                Object o = args.getFirst();
                 return versions.intersect(((VersionsModel) o).versions);
             });
             case "contains" -> wrapper.wrap((TemplateMethodModelEx) args -> {
-                Object o = args.get(0);
+                Object o = args.getFirst();
                 return versions.contains(((SimpleNumber) o).getAsNumber().shortValue());
             });
             default -> throw new TemplateModelException(versions.getClass().getSimpleName() + " doesn't have property " + key);

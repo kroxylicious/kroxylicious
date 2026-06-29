@@ -240,7 +240,7 @@ class SidecarConfigResolver implements Closeable {
             return errors;
         }
 
-        var vc = spec.getVirtualClusters().get(0);
+        var vc = spec.getVirtualClusters().getFirst();
         if (vc.getTargetBootstrapServers() == null || vc.getTargetBootstrapServers().isBlank()) {
             errors.add("spec.virtualClusters[0].targetBootstrapServers is required");
         }

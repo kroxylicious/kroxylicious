@@ -7,6 +7,7 @@ package io.kroxylicious.proxy;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -96,7 +97,7 @@ class KafkaProxyShutdownOrderingTest {
      * (Netty {@code shutdownGracefully}, meter registry cleanup, lifecycle transitions).
      */
     @Test
-    void drainFailureIsCaughtAndShutdownCompletes() throws Exception {
+    void drainFailureIsCaughtAndShutdownCompletes() {
         var config = """
                 virtualClusters:
                   - name: demo
@@ -130,7 +131,7 @@ class KafkaProxyShutdownOrderingTest {
             throw new UnsupportedOperationException("resolveModel not exercised by this test");
         }, noOpCallback()) {
             @Override
-            public void shutdownAllClusters() {
+            public List<Throwable> shutdownAllClusters() {
                 drainStarted.countDown();
                 try {
                     drainCanComplete.await();
@@ -138,6 +139,7 @@ class KafkaProxyShutdownOrderingTest {
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
+                return List.of();
             }
         };
     }
@@ -147,7 +149,7 @@ class KafkaProxyShutdownOrderingTest {
             throw new UnsupportedOperationException("resolveModel not exercised by this test");
         }, noOpCallback()) {
             @Override
-            public void shutdownAllClusters() {
+            public List<Throwable> shutdownAllClusters() {
                 throw new RuntimeException("simulated drain failure");
             }
         };

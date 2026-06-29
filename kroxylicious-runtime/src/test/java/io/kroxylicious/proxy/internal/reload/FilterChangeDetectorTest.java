@@ -173,7 +173,7 @@ class FilterChangeDetectorTest {
     private static Configuration configWith(@Nullable List<NamedFilterDefinition> filterDefs,
                                             @Nullable List<String> defaultFilters,
                                             VirtualCluster... clusters) {
-        return new Configuration(null, filterDefs, defaultFilters, List.of(clusters), null, false,
+        return new Configuration(null, null, filterDefs, defaultFilters, null, List.of(clusters), null, false,
                 Optional.empty(), null, null);
     }
 

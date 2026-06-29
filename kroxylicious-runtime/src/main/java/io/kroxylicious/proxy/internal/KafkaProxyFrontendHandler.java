@@ -432,7 +432,7 @@ public class KafkaProxyFrontendHandler
                                                   @Nullable Throwable errorCodeEx) {
         final Object triggerMsg;
         if (bufferedMsgs != null && !bufferedMsgs.isEmpty()) {
-            triggerMsg = bufferedMsgs.get(0);
+            triggerMsg = bufferedMsgs.getFirst();
         }
         else {
             triggerMsg = initialRequestForError;

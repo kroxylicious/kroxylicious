@@ -22,9 +22,6 @@
     <name>Azure Key Vault KMS</name>
     <description>An Azure Key Vault KMS Implementation</description>
 
-    <properties>
-        <java.test.version>21</java.test.version>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

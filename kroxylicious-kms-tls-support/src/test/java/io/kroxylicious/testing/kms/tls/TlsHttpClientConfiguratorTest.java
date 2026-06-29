@@ -150,11 +150,12 @@ class TlsHttpClientConfiguratorTest {
     }
 
     @Test
-    void testPemNotSupported() {
-        TrustStore store = new TrustStore("/tmp/store", null, "PEM", null);
-        assertThatThrownBy(() -> {
-            TlsHttpClientConfigurator.getTrustManagers(store);
-        }).isInstanceOf(SslConfigurationException.class).hasMessage("PEM trust not supported by vault yet");
+    void testPemSupported() {
+        CertificateGenerator.Keys keys = CertificateGenerator.generate();
+        java.nio.file.Path certPem = keys.selfSignedCertificatePem();
+        TrustStore store = new TrustStore(certPem.toString(), null, "PEM", null);
+        TrustManager[] trustManagers = TlsHttpClientConfigurator.getTrustManagers(store);
+        assertThat(trustManagers).isNotEmpty();
     }
 
     @Test
@@ -291,5 +292,36 @@ class TlsHttpClientConfiguratorTest {
         var tls = new TlsHttpClientConfigurator(new Tls(null, null, new AllowDeny<>(List.of(KNOWN_CIPHER_SUITE1), Set.of(KNOWN_CIPHER_SUITE1)), null, null));
         assertThatThrownBy(() -> tls.apply(builder))
                 .isInstanceOf(SslConfigurationException.class);
+    }
+
+    @Test
+    void testInsecureTlsDisablesHostnameVerification() {
+        var tls = new TlsHttpClientConfigurator(new Tls(null, new InsecureTls(true), null, null));
+
+        tls.apply(builder);
+
+        assertThat(builder.build().sslParameters().getEndpointIdentificationAlgorithm()).isNull();
+    }
+
+    @Test
+    void testSecureTlsEnablesHostnameVerification() throws NoSuchAlgorithmException {
+        var tls = new TlsHttpClientConfigurator(new Tls(null, new InsecureTls(false), null, null));
+
+        tls.apply(builder);
+
+        // When InsecureTls is false, hostname verification should use the platform default
+        assertThat(builder.build().sslParameters().getEndpointIdentificationAlgorithm())
+                .isEqualTo(SSLContext.getDefault().getDefaultSSLParameters().getEndpointIdentificationAlgorithm());
+    }
+
+    @Test
+    void testNullTlsEnablesHostnameVerification() throws NoSuchAlgorithmException {
+        var tls = new TlsHttpClientConfigurator(null);
+
+        tls.apply(builder);
+
+        // When TLS is null, hostname verification should use the platform default
+        assertThat(builder.build().sslParameters().getEndpointIdentificationAlgorithm())
+                .isEqualTo(SSLContext.getDefault().getDefaultSSLParameters().getEndpointIdentificationAlgorithm());
     }
 }

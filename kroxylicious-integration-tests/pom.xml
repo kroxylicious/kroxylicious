@@ -21,8 +21,6 @@
     <description>Integration tests where the runtime and filters are tested end-to-end with a real Kafka cluster.</description>
 
     <properties>
-        <java.version>21</java.version>
-        <java.test.version>21</java.test.version>
         <errorprone.skip>true</errorprone.skip>
     </properties>
 
@@ -102,6 +100,11 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-azure-key-vault-kms-test-support</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-provider-thales-ciphertrust-manager-test-support</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>

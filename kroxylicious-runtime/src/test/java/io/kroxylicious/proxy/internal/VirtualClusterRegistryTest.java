@@ -734,29 +734,27 @@ class VirtualClusterRegistryTest {
         // when
         vcc.removeVirtualCluster(CLUSTER_A).join();
 
-        // then — callback invoked with (clusterName, Optional.empty()) per the no-failure case
+        // then
         verify(noOpCallback).accept(CLUSTER_A, Optional.empty());
     }
 
     @Test
     void removeVirtualClusterIsNoOpWhenAlreadyStopped() {
-        // given — drive the cluster to Stopped via the normal remove path
+        // given
         vcc.initializationSucceeded(CLUSTER_A);
         vcc.removeVirtualCluster(CLUSTER_A).join();
         assertThat(requireLifecycle(CLUSTER_A).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
 
-        // when — call remove again on an already-Stopped cluster
+        // when
         var future = vcc.removeVirtualCluster(CLUSTER_A);
 
-        // then — completes immediately, no exception
+        // then
         assertThat(future).succeedsWithin(1, TimeUnit.SECONDS);
         assertThat(requireLifecycle(CLUSTER_A).state()).isInstanceOf(VirtualClusterLifecycleState.Stopped.class);
     }
 
     @Test
     void removeVirtualClusterThrowsForUnknownClusterName() {
-        // The real removeVirtualCluster validates via requireKnownCluster, unlike the previous
-        // stub which silently accepted unknown names.
         assertThatThrownBy(() -> vcc.removeVirtualCluster("never-existed"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown cluster");
@@ -771,8 +769,7 @@ class VirtualClusterRegistryTest {
         // when
         var future = vcc.addVirtualCluster(newModel);
 
-        // then — future already completed; lifecycle exists in INITIALIZING (orchestrator will
-        // call initializationSucceeded once gateways are bound).
+        // then
         assertThat(future).isCompleted();
         assertThat(vcc.lifecycleFor(CLUSTER_B)).isNotNull()
                 .extracting(VirtualClusterLifecycle::state)
@@ -970,19 +967,21 @@ class VirtualClusterRegistryTest {
     @Test
     @SuppressWarnings("unchecked")
     void shouldFireStoppedCallbackEvenWhenModelCloseThrows() {
-        // The swallow-and-log policy in closeModel means filter/TLS close failures cannot stall
-        // the shutdown future or block the onVirtualClusterStopped callback.
+        // closeModel logs and propagates the close failure — the onVirtualClusterStopped callback
+        // still fires (with the failure as cause) so the cluster is acknowledged as stopped,
+        // but the shutdown future completes exceptionally so callers know the close was not clean.
+        var closeFailure = new RuntimeException("KMS shutdown failed");
         var model = mockModel(CLUSTER_A);
-        doThrow(new RuntimeException("KMS shutdown failed")).when(model).close();
+        doThrow(closeFailure).when(model).close();
         BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
         var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, callback);
         registry.initializationSucceeded(CLUSTER_A);
 
         var shutdown = registry.removeVirtualCluster(CLUSTER_A);
 
-        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(shutdown).failsWithin(5, TimeUnit.SECONDS);
         verify(model).close();
-        verify(callback).accept(CLUSTER_A, Optional.empty());
+        verify(callback).accept(CLUSTER_A, Optional.of(closeFailure));
     }
 
     // ------------------------------------------------------------------------------------------

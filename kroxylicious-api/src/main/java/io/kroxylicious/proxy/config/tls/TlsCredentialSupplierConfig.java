@@ -32,6 +32,7 @@ public record TlsCredentialSupplierConfig(
                                           @PluginImplName(ServerTlsCredentialSupplierFactory.class) @JsonProperty(required = true) String type,
                                           @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {
 
+    /** Validates that the type is non-null. */
     @JsonCreator
     public TlsCredentialSupplierConfig {
         Objects.requireNonNull(type, "TLS credential supplier type must not be null");

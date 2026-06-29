@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -64,6 +65,7 @@ import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -131,7 +133,14 @@ class KafkaProxyInitializerTest {
                 logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
+    }
 
+    private VirtualClusterModel buildRouterVirtualCluster() {
+        final Optional<Tls> tls = Optional.empty();
+        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", null, false, false,
+                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myRouter", Map.of());
+        testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
+        return testCluster;
     }
 
     @Test
@@ -386,6 +395,20 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
+    void shouldThrowWhenRouterVirtualClusterHasNullRouterChainFactory() {
+        // Given
+        var routerCluster = buildRouterVirtualCluster();
+        when(endpointBinding.endpointGateway()).thenReturn(routerCluster.gateways().values().iterator().next());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
+
+        // When / Then
+        var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
+        assertThatThrownBy(() -> kafkaProxyInitializer.initConnection(channel, endpointBinding, session))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("routerChainFactory");
+    }
+
+    @Test
     void testLoggingErrorHandlerPreventsExceptionPropagatingToChannel() {
         EmbeddedChannel embeddedChannel = new EmbeddedChannel();
         embeddedChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
@@ -419,7 +442,8 @@ class KafkaProxyInitializerTest {
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
-        return new KafkaProxyInitializer(pfr,
+        return new KafkaProxyInitializer(null,
+                pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,

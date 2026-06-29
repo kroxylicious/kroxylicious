@@ -37,7 +37,7 @@ jobs:
         with:
           path: ./PR_NUMBER.txt
       - name: Request GitHub API for PR data
-        uses: octokit/request-action@45eef13998ff762839b0a0de9bbcf41970fd056d
+        uses: octokit/request-action@b66ca9cd744693e9c29b490fc08831ab66c4a970
         if: env.SONAR_TOKEN_SET == 'true'
         id: get_pr_data
         with:
@@ -59,12 +59,13 @@ jobs:
             echo "SANITIZED_HEAD_REF=${HEAD_BRANCH}" >> $GITHUB_ENV
           fi
         shell: bash
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           repository: ${{ github.event.workflow_run.head_repository.full_name }}
           ref: ${{env.SANITIZED_HEAD_REF}}
           fetch-depth: 0
+          allow-unsafe-pr-checkout: true
       - name: Checkout base branch
         if: env.SONAR_TOKEN_SET == 'true'
         run: |
@@ -82,7 +83,7 @@ jobs:
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
       - name: Cache SonarCloud packages
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: env.SONAR_TOKEN_SET == 'true'
         with:
           path: ~/.sonar/cache

@@ -62,7 +62,7 @@ public record WrappingKey(String keyName, String keyVersion, SupportedKeyType su
         String path = uri.getPath();
         validatePath(path);
         List<String> pathSegments = splitPath(path);
-        return pathSegments.get(pathSegments.size() - 1);
+        return pathSegments.getLast();
     }
 
     public static List<String> splitPath(String pathString) {

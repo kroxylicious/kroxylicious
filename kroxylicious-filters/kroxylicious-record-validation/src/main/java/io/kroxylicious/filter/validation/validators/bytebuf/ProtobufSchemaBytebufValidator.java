@@ -111,7 +111,7 @@ class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
             if (messageTypes.isEmpty()) {
                 throw new IllegalArgumentException("Protobuf schema has no message types defined");
             }
-            return messageTypes.get(0);
+            return messageTypes.getFirst();
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to resolve Protobuf schema", e);

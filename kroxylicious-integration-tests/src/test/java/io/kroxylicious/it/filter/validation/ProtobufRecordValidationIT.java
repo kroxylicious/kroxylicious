@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
-class ProtobufRecordValidationIT extends RecordValidationBaseIT {
+class ProtobufRecordValidationIT extends RecordSchemaValidationBaseIT {
 
     private static final String PROTOBUF_SCHEMA = """
             syntax = "proto3";

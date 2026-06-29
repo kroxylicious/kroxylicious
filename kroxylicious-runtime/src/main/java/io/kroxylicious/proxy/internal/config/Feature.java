@@ -18,6 +18,35 @@ import io.kroxylicious.proxy.config.Configuration;
 public enum Feature {
 
     /**
+     * Enables the routing API (routers, routes, and multi-cluster request dispatch).
+     * This is a preview feature: the API has no compatibility guarantees and may change
+     * or be removed in a future release.
+     * Unlock with: {@code KROXYLICIOUS_UNLOCK_ROUTING=true}
+     */
+    ROUTING {
+        @Override
+        public Optional<String> maybeWarning(boolean enabled) {
+            if (enabled) {
+                return Optional.of(
+                        "Routing is a preview feature. The API has no compatibility guarantees and may change or be removed in a future release.");
+            }
+            return Optional.empty();
+        }
+
+        @Override
+        public Stream<String> supports(Configuration configuration, boolean enabled) {
+            boolean hasRouting = configuration.routerDefinitions() != null
+                    && !configuration.routerDefinitions().isEmpty();
+            if (hasRouting && !enabled) {
+                return Stream.of(
+                        "routerDefinitions are configured but the routing preview feature is not enabled. "
+                                + "Set KROXYLICIOUS_UNLOCK_ROUTING=true to opt in.");
+            }
+            return Stream.empty();
+        }
+    },
+
+    /**
      * Enables loading specific nodes in the configuration file which configure test-only features. These are unsupported
      * for production usages and there are no compatibility guarantees for their configuration model.
      */
