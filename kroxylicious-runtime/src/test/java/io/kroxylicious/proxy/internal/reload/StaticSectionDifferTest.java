@@ -16,6 +16,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -23,6 +24,9 @@ import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.ProxyProtocolConfig;
 import io.kroxylicious.proxy.config.ProxyProtocolMode;
+import io.kroxylicious.proxy.config.RouteDefinition;
+import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -169,6 +173,24 @@ class StaticSectionDifferTest {
                 oldConfig.development(),
                 oldConfig.network(),
                 oldConfig.proxyProtocol());
+        assertThat(differ.diff(oldConfig, newConfig)).isEmpty();
+    }
+
+    @Test
+    void routerDefinitionsChangesAreReconcilable() {
+        // Given: a config with one router definition pointing to a known cluster
+        var cluster = new ClusterDefinition("upstream", "kafka:9092", null);
+        var route = new RouteDefinition("route-a", 0, null, new RouteTarget("upstream", null));
+        var oldRouterDef = new RouterDefinition("my-router", "SomeRouterType", null, List.of(route));
+        var oldConfig = new Configuration(null, List.of(cluster), null, null, List.of(oldRouterDef),
+                List.of(vc("base-cluster")), null, false, Optional.empty(), null, null);
+
+        // When: the router definition config changes
+        var newRouterDef = new RouterDefinition("my-router", "SomeRouterType", "new-config", List.of(route));
+        var newConfig = new Configuration(null, List.of(cluster), null, null, List.of(newRouterDef),
+                List.of(vc("base-cluster")), null, false, Optional.empty(), null, null);
+
+        // Then: routerDefinitions is reconcilable, so the differ reports no static diff
         assertThat(differ.diff(oldConfig, newConfig)).isEmpty();
     }
 
