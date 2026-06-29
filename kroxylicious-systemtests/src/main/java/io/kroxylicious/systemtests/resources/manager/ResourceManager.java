@@ -41,6 +41,7 @@ import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
  */
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
+    private static final Object SINGLETON_LOCK = new Object();
 
     private static ResourceManager instance;
 
@@ -84,12 +85,14 @@ public class ResourceManager {
      *
      * @return the instance
      */
-    public static synchronized ResourceManager getInstance() {
-        if (instance == null) {
-            instance = new ResourceManager();
-            KubeResourceManager.get().setResourceTypes(resourceTypes);
+    public static ResourceManager getInstance() {
+        synchronized (SINGLETON_LOCK) {
+            if (instance == null) {
+                instance = new ResourceManager();
+                KubeResourceManager.get().setResourceTypes(resourceTypes);
+            }
+            return instance;
         }
-        return instance;
     }
 
     /**

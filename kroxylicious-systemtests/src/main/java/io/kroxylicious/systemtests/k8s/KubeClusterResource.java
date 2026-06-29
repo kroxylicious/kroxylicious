@@ -27,6 +27,10 @@ import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
  */
 public class KubeClusterResource {
     private static final Logger LOGGER = LoggerFactory.getLogger(KubeClusterResource.class);
+    private static final Object SINGLETON_LOCK = new Object();
+    private final Object cmdClientLock = new Object();
+    private final Object clientLock = new Object();
+    private final Object clusterLock = new Object();
     private KubeCluster kubeCluster;
     private KubeCmdClient<?> cmdClient;
     private KubeClient client;
@@ -42,13 +46,15 @@ public class KubeClusterResource {
      *
      * @return the instance
      */
-    public static synchronized KubeClusterResource getInstance() {
-        if (kubeClusterResource == null) {
-            kubeClusterResource = new KubeClusterResource();
-            kubeClusterResource.setDefaultNamespace(cmdKubeClient().defaultNamespace());
-            LOGGER.info("Cluster default namespace is {}", kubeClusterResource.getNamespace());
+    public static KubeClusterResource getInstance() {
+        synchronized (SINGLETON_LOCK) {
+            if (kubeClusterResource == null) {
+                kubeClusterResource = new KubeClusterResource();
+                kubeClusterResource.setDefaultNamespace(cmdKubeClient().defaultNamespace());
+                LOGGER.info("Cluster default namespace is {}", kubeClusterResource.getNamespace());
+            }
+            return kubeClusterResource;
         }
-        return kubeClusterResource;
     }
 
     /**
@@ -125,11 +131,13 @@ public class KubeClusterResource {
      *
      * @return the kube cmd client
      */
-    public synchronized KubeCmdClient<?> cmdClient() {
-        if (cmdClient == null) {
-            cmdClient = cluster().defaultCmdClient();
+    public KubeCmdClient<?> cmdClient() {
+        synchronized (cmdClientLock) {
+            if (cmdClient == null) {
+                cmdClient = cluster().defaultCmdClient();
+            }
+            return cmdClient;
         }
-        return cmdClient;
     }
 
     private HelmClient helmClient() {
@@ -152,11 +160,13 @@ public class KubeClusterResource {
      *
      * @return the kube client
      */
-    public synchronized KubeClient client() {
-        if (client == null) {
-            this.client = cluster().defaultClient();
+    public KubeClient client() {
+        synchronized (clientLock) {
+            if (client == null) {
+                this.client = cluster().defaultClient();
+            }
+            return client;
         }
-        return client;
     }
 
     /**
@@ -164,10 +174,12 @@ public class KubeClusterResource {
      *
      * @return the kube cluster
      */
-    public synchronized KubeCluster cluster() {
-        if (kubeCluster == null) {
-            kubeCluster = KubeCluster.bootstrap();
+    public KubeCluster cluster() {
+        synchronized (clusterLock) {
+            if (kubeCluster == null) {
+                kubeCluster = KubeCluster.bootstrap();
+            }
+            return kubeCluster;
         }
-        return kubeCluster;
     }
 }
