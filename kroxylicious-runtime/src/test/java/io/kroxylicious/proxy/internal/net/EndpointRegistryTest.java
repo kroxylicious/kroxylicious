@@ -208,6 +208,122 @@ class EndpointRegistryTest {
     }
 
     @Test
+    void deregisterPortZeroVirtualCluster() {
+        int osAssignedPort = 58392;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false);
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(osAssignedPort))));
+        assertThat(rf.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(osAssignedPort, false));
+        assertThat(df.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+    }
+
+    @Test
+    void deregisterPortZeroVirtualClusterWithDiscoveryBrokers() {
+        int bootstrapOsPort = 58392;
+        int broker0OsPort = 58393;
+        int broker1OsPort = 58394;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        var broker0Address = new HostPort("broker0.kafka", 0);
+        var broker1Address = new HostPort("broker1.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false, false,
+                Map.of(0, broker0Address, 1, broker1Address), new FixedBootstrapSelectionStrategy(0));
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker0OsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
+        assertThat(rf).isDone();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkUnbindRequest(bootstrapOsPort, false),
+                createTestNetworkUnbindRequest(broker0OsPort, false),
+                createTestNetworkUnbindRequest(broker1OsPort, false));
+        assertThat(df.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+    }
+
+    @Test
+    void deregisterPortZeroVirtualClusterAfterReconciliation() {
+        int bootstrapOsPort = 58392;
+        int brokerOsPort = 58393;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false);
+
+        // Register on port 0
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))));
+        assertThat(rf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Reconcile adds a broker binding (also port 0 → new synthetic channel)
+        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(new HostPort("broker0.kafka", 0));
+        var recf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(brokerOsPort))));
+        assertThat(recf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        // Deregister — should close BOTH channels
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkUnbindRequest(bootstrapOsPort, false),
+                createTestNetworkUnbindRequest(brokerOsPort, false));
+        assertThat(df.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+    }
+
+    @Test
+    void deregisterPortZeroThenReRegisterOnExplicitPort() {
+        // Simulates ReplaceCluster: deregister the port-0 VC, then re-register on an explicit port.
+        int osAssignedPort = 58392;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false);
+
+        // Register on port 0
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(osAssignedPort))));
+        assertThat(rf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Deregister (RemoveCluster half)
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(osAssignedPort, false));
+        assertThat(df.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+
+        // Re-register on explicit port (AddCluster half with new model)
+        int explicitPort = 9192;
+        configureVirtualClusterMock(virtualClusterModel2, new HostPort("bootstrap.kafka", explicitPort), UPSTREAM_BOOTSTRAP, false);
+        var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(explicitPort, false));
+        assertThat(rf2.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+    }
+
+    @Test
     void deregisterSameVirtualClusterIsIdempotent() throws Exception {
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
 

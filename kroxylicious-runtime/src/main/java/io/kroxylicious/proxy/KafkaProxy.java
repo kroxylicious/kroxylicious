@@ -68,6 +68,7 @@ import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcesso
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -683,7 +684,12 @@ public final class KafkaProxy implements AutoCloseable {
         if (gateway == null) {
             throw new IllegalArgumentException("Gateway '" + gatewayName + "' not found in virtual cluster '" + virtualClusterName + "'");
         }
-        return gateway.getClusterBootstrapAddress();
+        var address = gateway.getClusterBootstrapAddress();
+        if (address.port() == 0) {
+            int resolvedPort = endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(gateway));
+            return new HostPort(address.host(), resolvedPort);
+        }
+        return address;
     }
 
     @Override

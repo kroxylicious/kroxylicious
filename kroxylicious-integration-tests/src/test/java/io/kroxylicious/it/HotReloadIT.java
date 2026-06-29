@@ -52,6 +52,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
@@ -475,37 +476,45 @@ class HotReloadIT extends BaseIT {
         // evicts them so the post-modify produce/consume round-trip rebuilds against the
         // new bootstrap and exercises the new port end-to-end.
         //
-        // To get a genuine port change without hard-coding, the VC starts on the discovered
-        // oldPort and relocates to port 0 (a fresh OS-assigned port).
-        int oldPort;
-        try (var ss = new ServerSocket(0)) {
-            oldPort = ss.getLocalPort();
-        }
-        var startingConfig = portConfig(portVc(cluster, "vc-relocate", oldPort));
-        var afterConfig = portConfig(portVc(cluster, "vc-relocate"));
-
-        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
-                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        // To get two known ports without pre-discovery races, both VCs start on port 0.
+        // We capture the donor VC's bound port, remove it, then reconfigure the main VC
+        // to relocate onto the freed port — a genuine explicit-port-to-explicit-port modify.
+        //
+        // workerThreadCount=1 serializes port-0 bind syscalls onto a single Netty boss
+        // thread. Without this, multiple boss threads race to bind(0) and the OS assigns
+        // ports out of order — the donor and relocate port ranges can interleave, causing
+        // the relocated VC's node ports to collide with relocate's old bootstrap.
+        var testerBuilder = singleThreadPortConfig(
+                portVc(cluster, "vc-relocate"),
+                portVc(cluster, "vc-donor"));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Given — VC serving on the discovered port.
+            // Given — both VCs serving; capture the ports we care about.
+            int oldPort = boundPort(tester, "vc-relocate");
+            int donorPort = boundPort(tester, "vc-donor");
             String topicBefore = tester.createTopic("vc-relocate");
             assertProduceConsumeRoundTrip(tester, "vc-relocate", topicBefore, "given-old-port");
 
-            // When — reconfigure relocates from oldPort to a fresh OS-assigned port (port 0).
-            LOGGER.info("Reconfiguring to modify vc-relocate from port {} to port 0", oldPort);
+            // Given — remove vc-donor to free its port for reuse.
+            var withoutDonor = singleThreadPortConfig(portVc(cluster, "vc-relocate")).build();
+            assertThat(tester.reconfigure(withoutDonor))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors()).isFalse());
+
+            // When — reconfigure relocates vc-relocate from oldPort to the freed donorPort.
+            var afterConfig = singleThreadPortConfig(portVc(cluster, "vc-relocate", donorPort)).build();
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a port-relocation modify")
                             .isFalse());
 
-            // Then — the old port is reclaimable from outside the proxy.
-            assertPortIsBindable(oldPort);
-
             // Then — drop the cached clients built around the old bootstrap so the next
             // tester.producer/consumer call rebuilds against the new port.
             tester.closeClientsFor("vc-relocate");
+
+            // Then — the old port is reclaimable from outside the proxy.
+            assertPortIsBindable(oldPort);
 
             // Then — a fresh Kafka client connects, produces, and consumes on the new port.
             String topicAfter = tester.createTopic("vc-relocate");
@@ -672,6 +681,17 @@ class HotReloadIT extends BaseIT {
         return builder.build();
     }
 
+    private static ConfigurationBuilder singleThreadPortConfig(VirtualCluster... vcs) {
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .editOrNewNetwork()
+                .withNewProxy().withWorkerThreadCount(1).withShutdownQuietPeriod(Duration.ZERO).endProxy()
+                .endNetwork();
+        for (var vc : vcs) {
+            builder.addToVirtualClusters(vc);
+        }
+        return builder;
+    }
+
     /**
      * Asserts the port is bindable from outside the proxy within 5s.
      */
@@ -679,12 +699,12 @@ class HotReloadIT extends BaseIT {
         await("port " + port + " to be bindable")
                 .atMost(Duration.ofSeconds(5))
                 .pollInterval(Duration.ofMillis(100))
-                .untilAsserted(() -> {
+                .untilAsserted(() -> assertThatCode(() -> {
                     try (var s = new ServerSocket()) {
                         s.setReuseAddress(true);
                         s.bind(new InetSocketAddress((InetAddress) null, port));
                     }
-                });
+                }).doesNotThrowAnyException());
     }
 
     /**
