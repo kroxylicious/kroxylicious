@@ -19,6 +19,7 @@ import javax.net.ssl.SSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -49,6 +50,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class VirtualClusterModelTest {
 
@@ -98,7 +100,6 @@ class VirtualClusterModelTest {
 
     @Test
     void usesDynamicTlsCredentialsReturnsFalseWhenDynamicRouting() {
-        // A router-targeting VC has no direct targetCluster — usesDynamicTlsCredentials must return false.
         var routeDescriptors = Map.of("r1",
                 new RouteDescriptor("r1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         VirtualClusterModel model = new VirtualClusterModel("wibble", new DynamicRouting("some-router", routeDescriptors),
@@ -249,6 +250,41 @@ class VirtualClusterModelTest {
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
+    }
+
+    @Test
+    void closeClosesRouterChainFactory() {
+        // Given
+        var rcf = mock(RouterChainFactory.class);
+        DynamicRouting routing = new DynamicRouting("r1", Map.of("a", new RouteDescriptor("a", 1, null, "router", List.of())));
+        var model = new VirtualClusterModel("routed-vc", routing, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, rcf);
+
+        // When
+        model.close();
+
+        // Then: the RouterChainFactory is closed
+        verify(rcf).close();
+    }
+
+    @Test
+    void closeStillClosesFilterChainFactoryWhenRouterChainFactoryCloseThrows() {
+        // Given: a RouterChainFactory that throws on close
+        var rcf = mock(RouterChainFactory.class);
+        org.mockito.Mockito.doThrow(new RuntimeException("rcf close boom")).when(rcf).close();
+        var onFilterClose = new AtomicInteger();
+        var flakyConfig = new FlakyConfig(null, null, null, c -> {
+        }, c -> onFilterClose.incrementAndGet());
+        var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), flakyConfig));
+        var targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        var model = new VirtualClusterModel("vc", new DirectRouting(targetCluster), false, false, filters,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry(), rcf);
+
+        // When
+        assertThatThrownBy(model::close).hasMessage("rcf close boom");
+
+        // Then: FilterChainFactory was still closed despite the exception
+        assertThat(onFilterClose.get()).as("FilterChainFactory close should fire despite RCF failure").isEqualTo(1);
     }
 
     /**

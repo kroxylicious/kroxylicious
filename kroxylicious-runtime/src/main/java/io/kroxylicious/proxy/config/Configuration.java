@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
@@ -261,9 +262,13 @@ public record Configuration(
                                                       Map<String, ClusterDefinition> clustersByName,
                                                       PluginFactoryRegistry pfr) {
         RoutingModel routing;
+        RouterChainFactory routerChainFactory = null;
         if (virtualCluster.router() != null) {
             routing = new DynamicRouting(virtualCluster.router(),
                     resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName));
+            if (pfr != null) {
+                routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
+            }
         }
         else {
             routing = new DirectRouting(resolveDirectTargetCluster(virtualCluster, clustersByName));
@@ -277,7 +282,8 @@ public record Configuration(
                 virtualCluster.topicNameCacheConfig(),
                 virtualCluster.subjectBuilder(),
                 virtualCluster.effectiveDrainTimeout(),
-                pfr);
+                pfr,
+                routerChainFactory);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
