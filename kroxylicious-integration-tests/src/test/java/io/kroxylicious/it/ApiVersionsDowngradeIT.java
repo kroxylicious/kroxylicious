@@ -65,7 +65,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * code is set to UNSUPPORTED_VERSION and the api_versions array populated with the supported versions
  * for ApiVersions, so that the client can retry with the highest supported ApiVersions version.
  * </p>
- * <br>
+ * <p>
  * In this case the proxy will respond with its own v0 response populated with the proxy's supported
  * ApiVersions versions. It may be that on the following request the upstream broker will be behind
  * the proxy and respond with it's own UNSUPPORTED_VERSION response. So the clients must be able to
