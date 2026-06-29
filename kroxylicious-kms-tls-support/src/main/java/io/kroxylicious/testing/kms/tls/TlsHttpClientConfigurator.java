@@ -236,6 +236,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
             }
 
             @Nullable
+            @SuppressFBWarnings(value = "HARD_CODE_PASSWORD", justification = "Password comes from PasswordProvider, not hardcoded. False positive from String.toCharArray() call.")
             private static char[] passwordOrNull(PasswordProvider value) {
                 return Optional.ofNullable(value).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
             }

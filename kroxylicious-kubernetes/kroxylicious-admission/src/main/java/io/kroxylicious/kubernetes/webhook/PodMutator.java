@@ -92,7 +92,7 @@ class PodMutator {
         try {
             ArrayNode patch = MAPPER.createArrayNode();
 
-            VirtualClusters vc = spec.getVirtualClusters().get(0);
+            VirtualClusters vc = spec.getVirtualClusters().getFirst();
             String targetClusterTrustStorePath = resolveTargetClusterTrustStorePath(vc);
             String proxyConfig = ProxyConfigGenerator.generateConfig(spec, targetClusterTrustStorePath);
             int bootstrapPort = ProxyConfigGenerator.resolveBootstrapPort(vc);
@@ -173,7 +173,7 @@ class PodMutator {
             addOp(patch, OP_ADD, "/spec/volumes", toJson(List.of(configVolume)));
         }
 
-        VirtualClusters vc = spec.getVirtualClusters().get(0);
+        VirtualClusters vc = spec.getVirtualClusters().getFirst();
         TargetClusterTls tls = vc.getTargetClusterTls();
         if (tls != null && tls.getTrustAnchorSecretRef() != null) {
             addOp(patch, OP_ADD, "/spec/volumes/-", toJson(buildTlsSecretVolume(tls)));
@@ -339,7 +339,7 @@ class PodMutator {
                 .withReadOnly(true)
                 .endVolumeMount();
 
-        VirtualClusters vcForTls = spec.getVirtualClusters().get(0);
+        VirtualClusters vcForTls = spec.getVirtualClusters().getFirst();
         if (vcForTls.getTargetClusterTls() != null && vcForTls.getTargetClusterTls().getTrustAnchorSecretRef() != null) {
             builder.addNewVolumeMount()
                     .withName(TARGET_CLUSTER_TLS_VOLUME_NAME)

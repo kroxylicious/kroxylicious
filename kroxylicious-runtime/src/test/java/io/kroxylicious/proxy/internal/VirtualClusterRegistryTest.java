@@ -967,19 +967,21 @@ class VirtualClusterRegistryTest {
     @Test
     @SuppressWarnings("unchecked")
     void shouldFireStoppedCallbackEvenWhenModelCloseThrows() {
-        // The swallow-and-log policy in closeModel means filter/TLS close failures cannot stall
-        // the shutdown future or block the onVirtualClusterStopped callback.
+        // closeModel logs and propagates the close failure — the onVirtualClusterStopped callback
+        // still fires (with the failure as cause) so the cluster is acknowledged as stopped,
+        // but the shutdown future completes exceptionally so callers know the close was not clean.
+        var closeFailure = new RuntimeException("KMS shutdown failed");
         var model = mockModel(CLUSTER_A);
-        doThrow(new RuntimeException("KMS shutdown failed")).when(model).close();
+        doThrow(closeFailure).when(model).close();
         BiConsumer<String, Optional<Throwable>> callback = mock(BiConsumer.class);
         var registry = new VirtualClusterRegistry(List.of(model), NO_OP_RESOLVER, callback);
         registry.initializationSucceeded(CLUSTER_A);
 
         var shutdown = registry.removeVirtualCluster(CLUSTER_A);
 
-        assertThat(shutdown).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(shutdown).failsWithin(5, TimeUnit.SECONDS);
         verify(model).close();
-        verify(callback).accept(CLUSTER_A, Optional.empty());
+        verify(callback).accept(CLUSTER_A, Optional.of(closeFailure));
     }
 
     // ------------------------------------------------------------------------------------------

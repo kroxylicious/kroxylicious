@@ -157,7 +157,7 @@ class DerivedResourcesTest {
 
     /**
      * Specialization of {@link DesiredFn} for BulkDependentResource
-     * (i.e. where the desired() method returns a Map<String, R>).
+     * (i.e. where the desired() method returns a {@code Map<String, R>}).
      */
     record BulkDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P> & BulkDependentResource<R, P, String>, P extends HasMetadata, R extends HasMetadata>(
                                                                                                                                                                            D dependentResource,

@@ -562,7 +562,7 @@ Refer to section [Building and pushing Kroxylicious Container Images](#building-
 
 ## Installing the operator
 
-Spin up a minikube custer:
+Spin up a minikube cluster:
 
 ```bash
 minikube start --kubernetes-version=latest
@@ -621,7 +621,7 @@ environments.
 
 ## Manual testing
 
-To help simplify local testing we also have a simple composefile in `compose/kafa-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
+To help simplify local testing we also have a simple composefile in `compose/kafka-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
 
 # Deprecation Policy
 

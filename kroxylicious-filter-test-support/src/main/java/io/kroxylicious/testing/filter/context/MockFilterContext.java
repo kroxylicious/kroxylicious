@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -80,8 +81,8 @@ public class MockFilterContext implements FilterContext {
     private final ClientTlsContext clientTlsContext;
     private final Subject authenticatedSubject;
     private final List<MockSendRequestResponse> sendRequestResponses;
-    private final List<SendRequestInvocation> sendRequestInvocations = Lists.newArrayList();
-    private final List<ClientSaslGestureInvocation> clientSaslGestureInvocations = Lists.newArrayList();
+    private final List<SendRequestInvocation> sendRequestInvocations = new CopyOnWriteArrayList<>();
+    private final List<ClientSaslGestureInvocation> clientSaslGestureInvocations = new CopyOnWriteArrayList<>();
     private final Map<Uuid, TopicNameMappingException> topicNameFailures;
 
     @SuppressWarnings("java:S107") // large constructor justified
@@ -316,11 +317,11 @@ public class MockFilterContext implements FilterContext {
     }
 
     public List<SendRequestInvocation> sendRequestInvocations() {
-        return sendRequestInvocations;
+        return List.copyOf(sendRequestInvocations);
     }
 
     public List<ClientSaslGestureInvocation> clientSaslGestureInvocations() {
-        return clientSaslGestureInvocations;
+        return List.copyOf(clientSaslGestureInvocations);
     }
 
     @Override
@@ -371,16 +372,12 @@ public class MockFilterContext implements FilterContext {
 
     @Override
     public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
-        synchronized (clientSaslGestureInvocations) {
-            clientSaslGestureInvocations.add(new ClientSaslGestureInvocation.AuthenticationSuccess(mechanism, subject));
-        }
+        clientSaslGestureInvocations.add(new ClientSaslGestureInvocation.AuthenticationSuccess(mechanism, subject));
     }
 
     @Override
     public void clientSaslAuthenticationFailure(@Nullable String mechanism, @Nullable String authorizedId, Exception exception) {
-        synchronized (clientSaslGestureInvocations) {
-            clientSaslGestureInvocations.add(new ClientSaslGestureInvocation.AuthenticationFailure(mechanism, authorizedId, exception));
-        }
+        clientSaslGestureInvocations.add(new ClientSaslGestureInvocation.AuthenticationFailure(mechanism, authorizedId, exception));
     }
 
     @Override

@@ -67,7 +67,7 @@ class ProxyConfigGenerator {
     static String generateConfig(
                                  KroxyliciousSidecarConfigSpec spec,
                                  @Nullable String targetClusterTrustStorePath) {
-        VirtualClusters vc = spec.getVirtualClusters().get(0);
+        VirtualClusters vc = spec.getVirtualClusters().getFirst();
 
         int bootstrapPort = resolveBootstrapPort(vc);
         int managementPort = resolveManagementPort(spec);
