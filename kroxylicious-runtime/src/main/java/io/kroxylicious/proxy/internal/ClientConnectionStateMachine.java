@@ -847,15 +847,17 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwardingWithRoutes(Forwarding forwarding) {
         setState(forwarding);
-        routeTargets = new HashMap<>();
         Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
-        if (descriptors != null) {
-            for (var entry : descriptors.entrySet()) {
-                RouteDescriptor rd = entry.getValue();
-                if (rd.targetsCluster()) {
-                    routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
-                            "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer"));
-                }
+        if (descriptors == null || descriptors.isEmpty()) {
+            throw new IllegalStateException(
+                    "toForwardingWithRoutes called but virtualCluster has no routeDescriptors — this is a bug");
+        }
+        routeTargets = new HashMap<>();
+        for (var entry : descriptors.entrySet()) {
+            RouteDescriptor rd = entry.getValue();
+            if (rd.targetsCluster()) {
+                routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
+                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer"));
             }
         }
         // For per-broker connections, the EndpointReconciler has already resolved the
@@ -864,7 +866,7 @@ public class ClientConnectionStateMachine {
         var nodeIdMapping = virtualCluster().nodeIdMapping();
         if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
             var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
-            RouteDescriptor owningDesc = descriptors != null ? descriptors.get(routeAndNode.route()) : null;
+            RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
             if (owningDesc != null && owningDesc.targetsCluster()) {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
             }
