@@ -371,6 +371,36 @@ class NodeIdResponseTranslatorTest {
     }
 
     @Test
+    void shouldTranslateShareAcknowledgeCurrentLeaderId() {
+        var data = new ShareAcknowledgeResponseData();
+        var partitionData = new ShareAcknowledgeResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareAcknowledgeResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new ShareAcknowledgeResponseData.ShareAcknowledgeTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
+    @Test
+    void shouldNotTranslateShareAcknowledgeCurrentLeaderIdWhenMinusOne() {
+        var data = new ShareAcknowledgeResponseData();
+        var partitionData = new ShareAcknowledgeResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareAcknowledgeResponseData.LeaderIdAndEpoch().setLeaderId(-1).setLeaderEpoch(-1));
+        var topicResponse = new ShareAcknowledgeResponseData.ShareAcknowledgeTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(-1);
+    }
+
+    @Test
     void shouldTranslateShareAcknowledgeNodeEndpoints() {
         var data = new ShareAcknowledgeResponseData();
         data.nodeEndpoints().add(new ShareAcknowledgeResponseData.NodeEndpoint().setNodeId(0).setHost("h0").setPort(9092));
