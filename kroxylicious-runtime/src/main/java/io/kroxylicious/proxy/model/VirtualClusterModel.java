@@ -47,6 +47,9 @@ import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.BijectiveNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.IdentityNodeIdMapping;
+import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
@@ -109,6 +112,7 @@ public class VirtualClusterModel implements AutoCloseable {
     private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
     private final @Nullable String routerName;
     private final @Nullable Map<String, RouteDescriptor> routeDescriptors;
+    private final @Nullable NodeIdMapping nodeIdMapping;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -174,6 +178,7 @@ public class VirtualClusterModel implements AutoCloseable {
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
         this.routerName = routerName;
         this.routeDescriptors = routeDescriptors;
+        this.nodeIdMapping = buildNodeIdMapping(routeDescriptors);
 
         if (targetCluster == null && routerName == null) {
             throw new IllegalConfigurationException(
@@ -229,6 +234,28 @@ public class VirtualClusterModel implements AutoCloseable {
     @Nullable
     public Map<String, RouteDescriptor> routeDescriptors() {
         return routeDescriptors;
+    }
+
+    /**
+     * @return the node ID mapping for this VC, or {@code null} if this VC does not use a router
+     */
+    @Nullable
+    public NodeIdMapping nodeIdMapping() {
+        return nodeIdMapping;
+    }
+
+    private static @Nullable NodeIdMapping buildNodeIdMapping(@Nullable Map<String, RouteDescriptor> routeDescriptors) {
+        if (routeDescriptors == null || routeDescriptors.isEmpty()) {
+            return null;
+        }
+        if (routeDescriptors.size() == 1) {
+            return new IdentityNodeIdMapping(routeDescriptors.keySet().iterator().next());
+        }
+        var routeIds = new java.util.HashMap<String, Integer>(routeDescriptors.size());
+        for (var entry : routeDescriptors.entrySet()) {
+            routeIds.put(entry.getKey(), entry.getValue().id());
+        }
+        return new BijectiveNodeIdMapping(routeIds, routeIds.size());
     }
 
     public void logVirtualClusterSummary() {
