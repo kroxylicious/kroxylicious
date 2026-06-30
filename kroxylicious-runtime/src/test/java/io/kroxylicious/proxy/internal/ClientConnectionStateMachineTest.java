@@ -981,35 +981,25 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void toForwardingWithRoutesShouldNotPopulateRouteTargetIfScsmCreationFails() {
-        // Given: a CCSM whose SCSM factory throws on creation
+    void forwardToRouteShouldTransitionToClosedIfScsmCreationFails() {
+        // Given: a CCSM whose SCSM factory throws on creation, in Forwarding state with a known route
         var failingCcsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
                 (remote, ccsm, vc, cn, ni, cc, ec, bpm, token) -> {
                     throw new RuntimeException("scsm creation failed");
                 });
-        failingCcsm.forceState(new ClientConnectionState.ClientActive(), frontendHandler,
-                Map.of(), TEST_KAFKA_SESSION, true);
-
         var target = new HostPort("broker", 9092);
-        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
-        when(targetCluster.bootstrapServer()).thenReturn(target);
-        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
-        when(routeDescriptor.targetsCluster()).thenReturn(true);
-        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        failingCcsm.forceState(new ClientConnectionState.Forwarding(), frontendHandler,
+                Map.of(), TEST_KAFKA_SESSION, true, Map.of("my-route", target));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
         when(routerVc.usesRouter()).thenReturn(true);
-        when(routerVc.routeDescriptors()).thenReturn(Map.of("my-route", routeDescriptor));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
-        // When: first request triggers toForwardingWithRoutes, which fails during SCSM creation
-        assertThatThrownBy(() -> failingCcsm.onClientRequest(metadataRequest()))
+        // When: forwardToRoute lazily tries to create an SCSM and fails
+        var msg = new Object();
+        assertThatThrownBy(() -> failingCcsm.forwardToRoute("my-route", msg))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("scsm creation failed");
-
-        // Then: routeTargets was not populated, so forwardToRoute transitions to Closed
-        failingCcsm.forwardToRoute("my-route", new Object());
-        assertThat(failingCcsm.state()).isInstanceOf(ClientConnectionState.Closed.class);
     }
 
     @Test
@@ -1112,10 +1102,12 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void forwardToRouteWithNoScsmForTargetShouldTransitionToClosed() {
-        // routeTargets maps a route to a target, but serverConnections has no SCSM for that target.
+    void forwardToRouteWithNoScsmForTargetShouldCreateConnectionLazily() {
+        // routeTargets maps a route to a target, but serverConnections has no SCSM yet.
+        // forwardToRoute should create the SCSM lazily and forward the request.
         stubAsRouterVirtualCluster();
         var orphanTarget = new HostPort("orphan", 9092);
+        var msg = new Object();
         clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Forwarding(),
                 frontendHandler,
@@ -1125,10 +1117,11 @@ class ClientConnectionStateMachineTest {
                 Map.of("route-a", orphanTarget));
 
         // When
-        clientConnectionStateMachine.forwardToRoute("route-a", new Object());
+        clientConnectionStateMachine.forwardToRoute("route-a", msg);
 
-        // Then
-        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        // Then: SCSM was created and the request forwarded; state remains Forwarding
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        verify(serverConnectionStateMachine).sendRequest(msg);
     }
 
     @Test
