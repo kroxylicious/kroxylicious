@@ -27,6 +27,8 @@ import org.apache.kafka.common.message.ProduceResponseData.TopicProduceResponse;
 import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
 import org.apache.kafka.common.message.ShareFetchResponseData;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -221,20 +223,43 @@ class NodeIdResponseTranslatorTest {
         assertThat(data.throttleTimeMs()).isEqualTo(42);
     }
 
+    @ParameterizedTest
+    @ValueSource(shorts = { 12, 13, 14, 15 })
+    void shouldTranslateFetchResponseCurrentLeaderV12toV15(short apiVersion) {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new FetchResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, apiVersion, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
     @Test
-    void shouldTranslateFetchResponseV16NodeEndpoints() {
+    void shouldTranslateFetchResponseV16NodeEndpointsAndCurrentLeader() {
         var data = new FetchResponseData();
         data.nodeEndpoints().add(new FetchResponseData.NodeEndpoint().setNodeId(0).setHost("h0").setPort(9092));
         data.nodeEndpoints().add(new FetchResponseData.NodeEndpoint().setNodeId(1).setHost("h1").setPort(9093));
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new FetchResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
 
         NodeIdResponseTranslator.translate(data, (short) 16, mapping, ROUTE_A);
 
         assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_A, 0))).isNotNull();
         assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_A, 1))).isNotNull();
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
     }
 
     @Test
-    void shouldNotTranslateFetchResponseBeforeV16() {
+    void shouldNotTranslateFetchResponseNodeEndpointsBeforeV16() {
         var data = new FetchResponseData();
 
         NodeIdResponseTranslator.translate(data, (short) 15, mapping, ROUTE_A);

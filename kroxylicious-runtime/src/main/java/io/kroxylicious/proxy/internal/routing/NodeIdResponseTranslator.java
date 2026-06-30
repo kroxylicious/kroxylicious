@@ -137,16 +137,23 @@ final class NodeIdResponseTranslator {
                                        short apiVersion,
                                        NodeIdMapping mapping,
                                        String route) {
-        if (apiVersion < 16) {
-            return;
+        if (apiVersion >= 12) {
+            for (var topicResponse : data.responses()) {
+                for (var partitionData : topicResponse.partitions()) {
+                    var leader = partitionData.currentLeader();
+                    leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
+                }
+            }
         }
-        var translatedEndpoints = new FetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
-        for (var ne : List.copyOf(data.nodeEndpoints())) {
-            var translated = ne.duplicate();
-            translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
-            translatedEndpoints.add(translated);
+        if (apiVersion >= 16) {
+            var translatedEndpoints = new FetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+            for (var ne : List.copyOf(data.nodeEndpoints())) {
+                var translated = ne.duplicate();
+                translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
+                translatedEndpoints.add(translated);
+            }
+            data.setNodeEndpoints(translatedEndpoints);
         }
-        data.setNodeEndpoints(translatedEndpoints);
     }
 
     private static void translateShareFetch(ShareFetchResponseData data,
