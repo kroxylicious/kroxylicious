@@ -40,6 +40,10 @@ public record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
 
     @Override
     public int toVirtual(String route, int targetNodeId) {
+        // Negative node IDs are Kafka protocol sentinels — pass through per NodeIdMapping contract.
+        if (targetNodeId < 0) {
+            return targetNodeId;
+        }
         Integer routeId = routeIds.get(route);
         if (routeId == null) {
             throw new IllegalArgumentException("Unknown route: " + route);
@@ -49,6 +53,10 @@ public record BijectiveNodeIdMapping(Map<String, Integer> routeIds,
 
     @Override
     public int fromVirtual(String route, int virtualNodeId) {
+        // Negative node IDs are Kafka protocol sentinels — pass through per NodeIdMapping contract.
+        if (virtualNodeId < 0) {
+            return virtualNodeId;
+        }
         return Math.floorDiv(virtualNodeId, totalRoutes);
     }
 

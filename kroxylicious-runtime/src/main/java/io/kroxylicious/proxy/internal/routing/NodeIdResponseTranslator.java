@@ -23,6 +23,11 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * Translates target-cluster node IDs to virtual node IDs in response
  * bodies, in-place. Only response types that contain node IDs are
  * affected; all others are no-ops.
+ * <p>
+ * No per-field guards for negative values are needed here: the
+ * {@link NodeIdMapping} contract guarantees that negative node IDs
+ * (Kafka protocol sentinels such as {@code -1} "no leader") are
+ * returned unchanged by every mapping implementation.
  */
 final class NodeIdResponseTranslator {
 
@@ -59,9 +64,7 @@ final class NodeIdResponseTranslator {
     private static void translateMetadata(MetadataResponseData data,
                                           NodeIdMapping mapping,
                                           String route) {
-        if (data.controllerId() >= 0) {
-            data.setControllerId(mapping.toVirtual(route, data.controllerId()));
-        }
+        data.setControllerId(mapping.toVirtual(route, data.controllerId()));
 
         var translatedBrokers = new MetadataResponseBrokerCollection(data.brokers().size());
         for (var broker : List.copyOf(data.brokers())) {
@@ -73,9 +76,7 @@ final class NodeIdResponseTranslator {
 
         for (var topic : data.topics()) {
             for (var partition : topic.partitions()) {
-                if (partition.leaderId() >= 0) {
-                    partition.setLeaderId(mapping.toVirtual(route, partition.leaderId()));
-                }
+                partition.setLeaderId(mapping.toVirtual(route, partition.leaderId()));
                 translateIntList(partition.replicaNodes(), mapping, route);
                 translateIntList(partition.isrNodes(), mapping, route);
                 translateIntList(partition.offlineReplicas(), mapping, route);
@@ -93,9 +94,7 @@ final class NodeIdResponseTranslator {
         for (var topicResponse : data.responses()) {
             for (var partitionResponse : topicResponse.partitionResponses()) {
                 var leader = partitionResponse.currentLeader();
-                if (leader.leaderId() >= 0) {
-                    leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
-                }
+                leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
             }
         }
         var translatedEndpoints = new NodeEndpointCollection(data.nodeEndpoints().size());
@@ -113,24 +112,18 @@ final class NodeIdResponseTranslator {
                                                  String route) {
         if (apiVersion >= 4) {
             for (var coordinator : data.coordinators()) {
-                if (coordinator.nodeId() >= 0) {
-                    coordinator.setNodeId(mapping.toVirtual(route, coordinator.nodeId()));
-                }
+                coordinator.setNodeId(mapping.toVirtual(route, coordinator.nodeId()));
             }
         }
         else {
-            if (data.nodeId() >= 0) {
-                data.setNodeId(mapping.toVirtual(route, data.nodeId()));
-            }
+            data.setNodeId(mapping.toVirtual(route, data.nodeId()));
         }
     }
 
     private static void translateDescribeCluster(DescribeClusterResponseData data,
                                                  NodeIdMapping mapping,
                                                  String route) {
-        if (data.controllerId() >= 0) {
-            data.setControllerId(mapping.toVirtual(route, data.controllerId()));
-        }
+        data.setControllerId(mapping.toVirtual(route, data.controllerId()));
         var translatedBrokers = new DescribeClusterBrokerCollection(data.brokers().size());
         for (var broker : List.copyOf(data.brokers())) {
             var translated = broker.duplicate();

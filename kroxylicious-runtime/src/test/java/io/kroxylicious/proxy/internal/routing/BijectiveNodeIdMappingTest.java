@@ -104,6 +104,23 @@ class BijectiveNodeIdMappingTest {
     }
 
     @Test
+    void shouldPassThroughNegativeTargetNodeIds() {
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
+        // Negative node IDs are Kafka protocol sentinels and must not be mapped.
+        for (String route : List.of(ROUTE_A, ROUTE_B)) {
+            assertThat(mapping.toVirtual(route, -1)).isEqualTo(-1);
+            assertThat(mapping.toVirtual(route, -2)).isEqualTo(-2);
+        }
+    }
+
+    @Test
+    void shouldPassThroughNegativeVirtualNodeIdsInFromVirtual() {
+        var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 1), 2);
+        assertThat(mapping.fromVirtual(ROUTE_A, -1)).isEqualTo(-1);
+        assertThat(mapping.fromVirtual(ROUTE_B, -2)).isEqualTo(-2);
+    }
+
+    @Test
     void shouldSupportNonContiguousIds() {
         var mapping = new BijectiveNodeIdMapping(Map.of(ROUTE_A, 0, ROUTE_B, 2), 3);
         assertThat(mapping.toVirtual(ROUTE_A, 0)).isZero();
