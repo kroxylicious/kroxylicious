@@ -9,8 +9,10 @@ import java.util.List;
 
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBrokerCollection;
+import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
+import org.apache.kafka.common.message.ListPartitionReassignmentsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrokerCollection;
 import org.apache.kafka.common.message.ProduceResponseData;
@@ -58,6 +60,12 @@ final class NodeIdResponseTranslator {
         }
         else if (body instanceof ShareAcknowledgeResponseData sad) {
             translateShareAcknowledge(sad, mapping, route);
+        }
+        else if (body instanceof DescribeTopicPartitionsResponseData dtp) {
+            translateDescribeTopicPartitions(dtp, mapping, route);
+        }
+        else if (body instanceof ListPartitionReassignmentsResponseData lpr) {
+            translateListPartitionReassignments(lpr, mapping, route);
         }
     }
 
@@ -205,6 +213,37 @@ final class NodeIdResponseTranslator {
             translatedEndpoints.add(translated);
         }
         data.setNodeEndpoints(translatedEndpoints);
+    }
+
+    private static void translateDescribeTopicPartitions(DescribeTopicPartitionsResponseData data,
+                                                         NodeIdMapping mapping,
+                                                         String route) {
+        for (var topic : data.topics()) {
+            for (var partition : topic.partitions()) {
+                partition.setLeaderId(mapping.toVirtual(route, partition.leaderId()));
+                translateIntList(partition.replicaNodes(), mapping, route);
+                translateIntList(partition.isrNodes(), mapping, route);
+                if (partition.eligibleLeaderReplicas() != null) {
+                    translateIntList(partition.eligibleLeaderReplicas(), mapping, route);
+                }
+                if (partition.lastKnownElr() != null) {
+                    translateIntList(partition.lastKnownElr(), mapping, route);
+                }
+                translateIntList(partition.offlineReplicas(), mapping, route);
+            }
+        }
+    }
+
+    private static void translateListPartitionReassignments(ListPartitionReassignmentsResponseData data,
+                                                            NodeIdMapping mapping,
+                                                            String route) {
+        for (var topic : data.topics()) {
+            for (var partition : topic.partitions()) {
+                translateIntList(partition.replicas(), mapping, route);
+                translateIntList(partition.addingReplicas(), mapping, route);
+                translateIntList(partition.removingReplicas(), mapping, route);
+            }
+        }
     }
 
     private static void translateIntList(List<Integer> nodeIds,

@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
+import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
@@ -398,6 +399,74 @@ class NodeIdResponseTranslatorTest {
         NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
 
         assertThat(partitionData.currentLeader().leaderId()).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldTranslateDescribeTopicPartitionsPartitionNodeIds() {
+        var data = new DescribeTopicPartitionsResponseData();
+        var partition = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(1)
+                .setReplicaNodes(new ArrayList<>(List.of(0, 1, 2)))
+                .setIsrNodes(new ArrayList<>(List.of(0, 1)))
+                .setEligibleLeaderReplicas(new ArrayList<>(List.of(2)))
+                .setLastKnownElr(new ArrayList<>(List.of(2)))
+                .setOfflineReplicas(new ArrayList<>(List.of(2)));
+        var topic = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_B);
+
+        assertThat(partition.leaderId()).isEqualTo(mapping.toVirtual(ROUTE_B, 1));
+        assertThat(partition.replicaNodes()).containsExactly(
+                mapping.toVirtual(ROUTE_B, 0),
+                mapping.toVirtual(ROUTE_B, 1),
+                mapping.toVirtual(ROUTE_B, 2));
+        assertThat(partition.isrNodes()).containsExactly(
+                mapping.toVirtual(ROUTE_B, 0),
+                mapping.toVirtual(ROUTE_B, 1));
+        assertThat(partition.eligibleLeaderReplicas()).containsExactly(mapping.toVirtual(ROUTE_B, 2));
+        assertThat(partition.lastKnownElr()).containsExactly(mapping.toVirtual(ROUTE_B, 2));
+        assertThat(partition.offlineReplicas()).containsExactly(mapping.toVirtual(ROUTE_B, 2));
+    }
+
+    @Test
+    void shouldTranslateDescribeTopicPartitionsWithNullableFieldsAbsent() {
+        var data = new DescribeTopicPartitionsResponseData();
+        var partition = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(1)
+                .setReplicaNodes(new ArrayList<>(List.of(0)))
+                .setIsrNodes(new ArrayList<>(List.of(0)))
+                .setOfflineReplicas(new ArrayList<>());
+        var topic = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partition.leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+        assertThat(partition.eligibleLeaderReplicas()).isNull();
+        assertThat(partition.lastKnownElr()).isNull();
+    }
+
+    @Test
+    void shouldNotTranslateDescribeTopicPartitionsLeaderIdWhenMinusOne() {
+        var data = new DescribeTopicPartitionsResponseData();
+        var partition = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(-1)
+                .setReplicaNodes(new ArrayList<>())
+                .setIsrNodes(new ArrayList<>())
+                .setOfflineReplicas(new ArrayList<>());
+        var topic = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partition.leaderId()).isEqualTo(-1);
     }
 
     @Test
