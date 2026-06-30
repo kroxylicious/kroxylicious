@@ -329,6 +329,36 @@ class NodeIdResponseTranslatorTest {
     }
 
     @Test
+    void shouldTranslateShareFetchCurrentLeaderId() {
+        var data = new ShareFetchResponseData();
+        var partitionData = new ShareFetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareFetchResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new ShareFetchResponseData.ShareFetchableTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
+    @Test
+    void shouldNotTranslateShareFetchCurrentLeaderIdWhenMinusOne() {
+        var data = new ShareFetchResponseData();
+        var partitionData = new ShareFetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareFetchResponseData.LeaderIdAndEpoch().setLeaderId(-1).setLeaderEpoch(-1));
+        var topicResponse = new ShareFetchResponseData.ShareFetchableTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(-1);
+    }
+
+    @Test
     void shouldTranslateShareFetchNodeEndpoints() {
         var data = new ShareFetchResponseData();
         data.nodeEndpoints().add(new ShareFetchResponseData.NodeEndpoint().setNodeId(0).setHost("h0").setPort(9092));

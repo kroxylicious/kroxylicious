@@ -166,6 +166,12 @@ final class NodeIdResponseTranslator {
     private static void translateShareFetch(ShareFetchResponseData data,
                                             NodeIdMapping mapping,
                                             String route) {
+        for (var topicResponse : data.responses()) {
+            for (var partitionData : topicResponse.partitions()) {
+                var leader = partitionData.currentLeader();
+                leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
+            }
+        }
         if (data.nodeEndpoints() == null) {
             return;
         }
