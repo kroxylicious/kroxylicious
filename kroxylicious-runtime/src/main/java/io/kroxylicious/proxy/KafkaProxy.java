@@ -65,7 +65,6 @@ import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
-import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.VirtualNodeId;
@@ -657,12 +656,6 @@ public final class KafkaProxy implements AutoCloseable {
     @Nullable
     VirtualClusterLifecycle lifecycleFor(String clusterName) {
         return virtualClusterRegistry.lifecycleFor(clusterName);
-    }
-
-    @SuppressWarnings("SameParameterValue") // the parameters allow us to call idempotently
-    @VisibleForTesting
-    int listeningPort(@Nullable String bindAddress, int port) {
-        return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
     }
 
     /**
