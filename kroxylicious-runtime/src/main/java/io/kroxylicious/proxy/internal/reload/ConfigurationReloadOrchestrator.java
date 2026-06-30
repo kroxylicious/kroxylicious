@@ -99,7 +99,7 @@ public class ConfigurationReloadOrchestrator {
      * {@link VirtualClusterChangeDetector} and {@link FilterChangeDetector}.
      */
     public static List<ChangeDetector> defaultDetectors() {
-        return List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector());
+        return List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector(), new ClusterDefinitionChangeDetector());
     }
 
     /**

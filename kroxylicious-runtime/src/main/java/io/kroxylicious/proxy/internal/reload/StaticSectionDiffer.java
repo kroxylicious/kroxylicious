@@ -39,7 +39,8 @@ final class StaticSectionDiffer {
     private static final Set<String> RECONCILABLE = Set.of(
             "filterDefinitions",
             "defaultFilters",
-            "virtualClusters");
+            "virtualClusters",
+            "clusterDefinitions");
 
     /**
      * Returns the names of static configuration sections that differ between {@code oldConfig}
