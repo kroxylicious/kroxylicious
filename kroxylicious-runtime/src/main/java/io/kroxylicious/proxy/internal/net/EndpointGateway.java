@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal.net;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import io.netty.handler.ssl.SslContext;
 
@@ -110,5 +111,43 @@ public interface EndpointGateway {
      * @return name
      */
     String name();
+
+    /**
+     * Returns the {@link BindingSelector} that determines how incoming connections on this
+     * gateway's acceptor channels are matched to bindings. The default delegates to
+     * {@link BindingSelector.Sni} or {@link BindingSelector.PortPerNode} based on
+     * whether this gateway {@linkplain #requiresServerNameIndication() requires SNI}.
+     *
+     * @return the binding selector for this gateway
+     */
+    default BindingSelector bindingSelector() {
+        return requiresServerNameIndication() ? new BindingSelector.Sni() : new BindingSelector.PortPerNode();
+    }
+
+    /**
+     * The binding specification describing what sockets this gateway needs.
+     *
+     * @return the binding spec
+     */
+    BindingSpec bindingSpec();
+
+    /**
+     * Resolves the actual bound port for the given virtual node.
+     *
+     * @param virtualNodeId the virtual node
+     * @return the actual bound port
+     * @throws IllegalStateException if the port cannot be resolved (e.g. port 0 before binding)
+     */
+    int resolvePort(VirtualNodeId virtualNodeId);
+
+    /**
+     * Binds the port resolver used by {@link #resolvePort(VirtualNodeId)}.
+     * Called from {@code KafkaProxy.startup()} after endpoint registration.
+     *
+     * @param resolver maps a {@link VirtualNodeId} to its actual bound port
+     */
+    default void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
+        // no-op for implementations that predate port resolution
+    }
 
 }

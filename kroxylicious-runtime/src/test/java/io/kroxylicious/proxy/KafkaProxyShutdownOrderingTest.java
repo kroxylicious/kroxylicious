@@ -19,11 +19,12 @@ import org.junit.jupiter.api.Timeout;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
-import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Timeout(30)
 class KafkaProxyShutdownOrderingTest {
@@ -63,7 +64,7 @@ class KafkaProxyShutdownOrderingTest {
 
         try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(), vcc)) {
             proxy.startup();
-            int proxyPort = proxy.listeningPort(null, EndpointRegistry.OS_ASSIGNED_PORT);
+            int proxyPort = proxy.getBootstrapAddress("demo", "default").port();
 
             assertThat(canConnect(proxyPort))
                     .as("port should be reachable before shutdown")
@@ -121,6 +122,134 @@ class KafkaProxyShutdownOrderingTest {
             // Shutdown should complete without throwing — the catch in shutdown()
             // swallows the drain failure and lets the rest of cleanup proceed.
             assertThatCode(proxy::shutdown).doesNotThrowAnyException();
+        }
+    }
+
+    @Test
+    void shouldBindPortResolverToGatewaysAfterStartup() throws Exception {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            // When
+            proxy.startup();
+
+            // Then - every gateway has a port resolver wired after startup
+            var allGateways = models.stream()
+                    .flatMap(vc -> vc.gateways().values().stream())
+                    .filter(VirtualClusterGatewayModel.class::isInstance)
+                    .map(VirtualClusterGatewayModel.class::cast)
+                    .toList();
+            assertThat(allGateways).isNotEmpty();
+            assertThat(allGateways).allSatisfy(gw -> assertThat(gw.isPortResolverBound()).isTrue());
+
+            proxy.shutdown();
+        }
+    }
+
+    @Test
+    void shouldReturnActualBoundPortFromGetBootstrapAddress() throws Exception {
+        // Given - proxy configured with OS-assigned port
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            proxy.startup();
+
+            // When
+            var bootstrapAddress = proxy.getBootstrapAddress("demo", "default");
+
+            // Then - port is the actual OS-bound port, not the configured port (0)
+            assertThat(bootstrapAddress.port()).isPositive();
+        }
+    }
+
+    @Test
+    void shouldThrowForUnknownVirtualClusterInGetBootstrapAddress() throws Exception {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            proxy.startup();
+
+            // When / Then
+            assertThatThrownBy(() -> proxy.getBootstrapAddress("unknown", "default"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("unknown");
+        }
+    }
+
+    @Test
+    void shouldThrowForUnknownGatewayInGetBootstrapAddress() throws Exception {
+        // Given
+        var config = """
+                virtualClusters:
+                  - name: demo
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:0
+                        nodeStartPort: 11000
+                """;
+        var parsed = configParser.parseConfiguration(config);
+        var models = parsed.virtualClusterModel(configParser);
+
+        try (var proxy = new KafkaProxy(configParser, parsed, Features.defaultFeatures(),
+                new VirtualClusterRegistry(models, (cfg, name) -> {
+                    throw new UnsupportedOperationException();
+                }, noOpCallback()))) {
+            proxy.startup();
+
+            // When / Then
+            assertThatThrownBy(() -> proxy.getBootstrapAddress("demo", "unknown"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("unknown");
         }
     }
 

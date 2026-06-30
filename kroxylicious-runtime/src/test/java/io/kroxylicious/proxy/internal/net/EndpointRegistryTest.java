@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -64,6 +65,7 @@ class EndpointRegistryTest {
     private static final HostPort UPSTREAM_BROKER_1 = HostPort.parse("upstream-broker1:19194");
     private final TestNetworkBindingOperationProcessor bindingOperationProcessor = new TestNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
+    private final Map<Endpoint, Channel> acceptorChannels = new java.util.concurrent.ConcurrentHashMap<>();
     @Mock(strictness = LENIENT)
     private EndpointGateway virtualClusterModel1;
     @Mock(strictness = LENIENT)
@@ -206,6 +208,122 @@ class EndpointRegistryTest {
     }
 
     @Test
+    void deregisterPortZeroVirtualCluster() {
+        int osAssignedPort = 58392;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false);
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(osAssignedPort))));
+        assertThat(rf.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(osAssignedPort, false));
+        assertThat(df.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+    }
+
+    @Test
+    void deregisterPortZeroVirtualClusterWithDiscoveryBrokers() {
+        int bootstrapOsPort = 58392;
+        int broker0OsPort = 58393;
+        int broker1OsPort = 58394;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        var broker0Address = new HostPort("broker0.kafka", 0);
+        var broker1Address = new HostPort("broker1.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false, false,
+                Map.of(0, broker0Address, 1, broker1Address), new FixedBootstrapSelectionStrategy(0));
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker0OsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
+        assertThat(rf).isDone();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
+
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkUnbindRequest(bootstrapOsPort, false),
+                createTestNetworkUnbindRequest(broker0OsPort, false),
+                createTestNetworkUnbindRequest(broker1OsPort, false));
+        assertThat(df.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+    }
+
+    @Test
+    void deregisterPortZeroVirtualClusterAfterReconciliation() {
+        int bootstrapOsPort = 58392;
+        int brokerOsPort = 58393;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false);
+
+        // Register on port 0
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))));
+        assertThat(rf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Reconcile adds a broker binding (also port 0 → new synthetic channel)
+        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(new HostPort("broker0.kafka", 0));
+        var recf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(brokerOsPort))));
+        assertThat(recf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
+
+        // Deregister — should close BOTH channels
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkUnbindRequest(bootstrapOsPort, false),
+                createTestNetworkUnbindRequest(brokerOsPort, false));
+        assertThat(df.isDone()).isTrue();
+
+        assertThat(endpointRegistry.isRegistered(virtualClusterModel1)).isFalse();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+    }
+
+    @Test
+    void deregisterPortZeroThenReRegisterOnExplicitPort() {
+        // Simulates ReplaceCluster: deregister the port-0 VC, then re-register on an explicit port.
+        int osAssignedPort = 58392;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false);
+
+        // Register on port 0
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(osAssignedPort))));
+        assertThat(rf.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Deregister (RemoveCluster half)
+        var df = endpointRegistry.deregisterVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkUnbindRequest(osAssignedPort, false));
+        assertThat(df.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isZero();
+
+        // Re-register on explicit port (AddCluster half with new model)
+        int explicitPort = 9192;
+        configureVirtualClusterMock(virtualClusterModel2, new HostPort("bootstrap.kafka", explicitPort), UPSTREAM_BOOTSTRAP, false);
+        var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(explicitPort, false));
+        assertThat(rf2.isDone()).isTrue();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+    }
+
+    @Test
     void deregisterSameVirtualClusterIsIdempotent() throws Exception {
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true);
 
@@ -308,25 +426,39 @@ class EndpointRegistryTest {
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), tls));
         assertThat(f.isDone()).isTrue();
 
-        var endpoint = Endpoint.createEndpoint(downstreamBootstrap.port(), tls);
-        var binding = endpointRegistry.resolve(endpoint, tls ? downstreamBootstrap.host() : null).toCompletableFuture().get();
+        var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(downstreamBootstrap.port(), tls)));
+        var binding = endpointRegistry.resolve(childChannel, tls ? downstreamBootstrap.host() : null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new BootstrapEndpointBinding(virtualClusterModel1));
     }
 
-    @ParameterizedTest
-    @CsvSource({ "mismatching host,mycluster1:9192,upstream1:9192,mycluster2:9192", "mistmatching port,mycluster1:9192,upstream1:9192,mycluster1:9191" })
-    void resolveBootstrapResolutionFailures(String name,
-                                            @ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
-                                            @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
-                                            @ConvertWith(HostPortConverter.class) HostPort resolveAddress) {
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true);
+    @Test
+    void resolveBootstrapResolutionFailsForMismatchingSni() {
+        // Given — registered with SNI "mycluster1", resolve with SNI "mycluster2"
+        var downstreamBootstrap = HostPort.parse("mycluster1:9192");
+        configureVirtualClusterMock(virtualClusterModel1, downstreamBootstrap, UPSTREAM_BOOTSTRAP, true);
 
         var f = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), true));
         assertThat(f.isDone()).isTrue();
 
+        // When — resolve with a different SNI hostname on the same acceptor
+        var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(downstreamBootstrap.port(), true)));
         var executionException = assertThrows(ExecutionException.class,
-                () -> endpointRegistry.resolve(Endpoint.createEndpoint(resolveAddress.port(), true), resolveAddress.host()).toCompletableFuture().get());
+                () -> endpointRegistry.resolve(childChannel, "mycluster2").toCompletableFuture().get());
+
+        // Then
+        assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
+    }
+
+    @Test
+    void resolveBootstrapResolutionFailsForChannelWithNoParent() {
+        // Given — a channel with no parent (not accepted from an acceptor)
+        var orphanChannel = mock(Channel.class);
+        when(orphanChannel.parent()).thenReturn(null);
+
+        // When / Then
+        var executionException = assertThrows(ExecutionException.class,
+                () -> endpointRegistry.resolve(orphanChannel, null).toCompletableFuture().get());
         assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
     }
 
@@ -343,7 +475,8 @@ class EndpointRegistryTest {
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), true));
         assertThat(f.isDone()).isTrue();
 
-        var binding = endpointRegistry.resolve(Endpoint.createEndpoint(resolveAddress.port(), true), resolveAddress.host()).toCompletableFuture().get();
+        var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(resolveAddress.port(), true)));
+        var binding = endpointRegistry.resolve(childChannel, resolveAddress.host()).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new BootstrapEndpointBinding(virtualClusterModel1));
     }
 
@@ -357,7 +490,8 @@ class EndpointRegistryTest {
 
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(0);
 
-        assertThat(endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()))
+        var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
+        assertThat(endpointRegistry.resolve(childChannel, SNI_DOWNSTREAM_BROKER_0.host()))
                 .succeedsWithin(Duration.ofSeconds(1))
                 .isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
     }
@@ -371,8 +505,9 @@ class EndpointRegistryTest {
         assertThat(regf).isCompleted();
 
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(null);
+        var childChannel = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
         var executionException = assertThrows(ExecutionException.class,
-                () -> endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
+                () -> endpointRegistry.resolve(childChannel, SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
                         .get());
         assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
     }
@@ -391,13 +526,15 @@ class EndpointRegistryTest {
         assertThat(recf).isCompleted();
 
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(0);
-        var brokerBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
+        var childChannel0 = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
+        var brokerBinding = endpointRegistry.resolve(childChannel0, SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
                 .get();
         assertThat(brokerBinding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
 
         // Now try to resolve another broker address that matches the pattern, but isn't resolved.
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_1)).thenReturn(1);
-        var sniMatchBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_1.port(), true), SNI_DOWNSTREAM_BROKER_1.host())
+        var childChannel1 = createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(SNI_DOWNSTREAM_BOOTSTRAP.port(), true)));
+        var sniMatchBinding = endpointRegistry.resolve(childChannel1, SNI_DOWNSTREAM_BROKER_1.host())
                 .toCompletableFuture()
                 .get();
         assertThat(sniMatchBinding).isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 1));
@@ -406,12 +543,12 @@ class EndpointRegistryTest {
     @Test
     void bindingAddressEndpointSeparation() throws Exception {
         var bindingAddress1 = Optional.of("127.0.0.1");
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"), false);
-        when(virtualClusterModel1.getBindAddress()).thenReturn(bindingAddress1);
+        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"),
+                false, false, Map.of(), new FixedBootstrapSelectionStrategy(0), bindingAddress1);
 
         var bindingAddress2 = Optional.of("192.168.0.1");
-        configureVirtualClusterMock(virtualClusterModel2, HostPort.parse("myhost:9192"), HostPort.parse("upstream2:9192"), false);
-        when(virtualClusterModel2.getBindAddress()).thenReturn(bindingAddress2);
+        configureVirtualClusterMock(virtualClusterModel2, HostPort.parse("myhost:9192"), HostPort.parse("upstream2:9192"),
+                false, false, Map.of(), new FixedBootstrapSelectionStrategy(0), bindingAddress2);
 
         var rf1 = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
@@ -419,17 +556,13 @@ class EndpointRegistryTest {
                 createTestNetworkBindRequest(bindingAddress2, 9192, false));
         assertThat(CompletableFuture.allOf(rf1, rf2).isDone()).isTrue();
 
-        var rsf1 = endpointRegistry.resolve(Endpoint.createEndpoint(bindingAddress1, 9192, false), null).toCompletableFuture().get();
+        var rsf1 = endpointRegistry.resolve(childChannelFor(bindingAddress1, 9192, false), null).toCompletableFuture().get();
         assertThat(rsf1).isNotNull();
         assertThat(rsf1.endpointGateway()).isEqualTo(virtualClusterModel1);
 
-        var rsf2 = endpointRegistry.resolve(Endpoint.createEndpoint(bindingAddress2, 9192, false), null).toCompletableFuture().get();
+        var rsf2 = endpointRegistry.resolve(childChannelFor(bindingAddress2, 9192, false), null).toCompletableFuture().get();
         assertThat(rsf2).isNotNull();
         assertThat(rsf2.endpointGateway()).isEqualTo(virtualClusterModel2);
-
-        var executionException = assertThrows(ExecutionException.class,
-                () -> endpointRegistry.resolve(Endpoint.createEndpoint(9192, false), null).toCompletableFuture().get());
-        assertThat(executionException).hasCauseInstanceOf(EndpointResolutionException.class);
     }
 
     @Test
@@ -469,7 +602,7 @@ class EndpointRegistryTest {
         assertThat(recf.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        var binding = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
     }
 
@@ -484,7 +617,7 @@ class EndpointRegistryTest {
         assertThat(regf).isCompleted();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        var binding = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(binding).isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
     }
 
@@ -533,7 +666,7 @@ class EndpointRegistryTest {
         assertThat(recf1.isDone()).isTrue();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        var resolvedBindingBeforeChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        var resolvedBindingBeforeChange = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolvedBindingBeforeChange).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
 
         // Target cluster updates the address for broker 0
@@ -543,7 +676,7 @@ class EndpointRegistryTest {
         assertThat(recf2.get()).isNull();
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
-        var resolvedBindingAfterChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        var resolvedBindingAfterChange = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolvedBindingAfterChange).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, upstreamBrokerUpdated0, 0));
     }
 
@@ -559,7 +692,7 @@ class EndpointRegistryTest {
                 createTestNetworkBindRequest(DOWNSTREAM_BROKER_1.port(), false));
         assertThat(regf).isDone();
 
-        var resolveBroker0BeforeReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        var resolveBroker0BeforeReconcile = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker0BeforeReconcile)
                 .describedAs("Resolving pre-bound broker 0 should yield the upstream address for bootstrap")
                 .isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
@@ -572,13 +705,13 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(3);
 
         // Now resolving broker 0 yields the upstream address for broker 0
-        var resolveBroker0AfterReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
+        var resolveBroker0AfterReconcile = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker0AfterReconcile)
                 .describedAs("Resolving reconciled broker 0 should yield the actual upstream address for broker0")
                 .isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0));
 
         // And resolving broker 1 still yields the bootstrap
-        var resolveBroker1AfterReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_1.port(), false), null).toCompletableFuture().get();
+        var resolveBroker1AfterReconcile = endpointRegistry.resolve(childChannelFor(DOWNSTREAM_BROKER_1.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker1AfterReconcile)
                 .describedAs("Resolving reconciled broker 1 should still yield bootstrap")
                 .isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 1));
@@ -694,42 +827,158 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
     }
 
+    // resolvePort
+
     @Test
-    void localPortForReturnsActualPortAfterBinding() throws Exception {
+    void shouldResolveBootstrapPortAfterRegistration() throws Exception {
+        // Given
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
         var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
-        verifyVirtualClusterRegisterFuture(DOWNSTREAM_BOOTSTRAP.port(), false, rf);
+        assertThat(rf).isDone();
 
-        var endpoint = Endpoint.createEndpoint(DOWNSTREAM_BOOTSTRAP.port(), false);
-        assertThat(endpointRegistry.localPortFor(endpoint)).isEqualTo(DOWNSTREAM_BOOTSTRAP.port());
+        // When
+        var port = endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1));
+
+        // Then
+        assertThat(port).isEqualTo(DOWNSTREAM_BOOTSTRAP.port());
     }
 
     @Test
-    void localPortForThrowsWhenEndpointNotRegistered() {
-        var endpoint = Endpoint.createEndpoint(EndpointRegistry.OS_ASSIGNED_PORT, false);
-        assertThatThrownBy(() -> endpointRegistry.localPortFor(endpoint))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("No listening channel for endpoint");
+    void shouldResolveBrokerPortAfterReconciliation() throws Exception {
+        // Given
+        configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
+        assertThat(rf).isDone();
+
+        when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
+        var recf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
+        assertThat(recf).isDone();
+
+        // When
+        var port = endpointRegistry.resolvePort(new VirtualNodeId.Broker(virtualClusterModel1, 0));
+
+        // Then
+        assertThat(port).isEqualTo(DOWNSTREAM_BROKER_0.port());
+    }
+
+    @Test
+    void shouldResolveOsAssignedBootstrapPort() throws Exception {
+        // Given - bootstrap configured with port=0; OS assigns the actual port at bind time
+        int osAssignedPort = 58392;
+        var bootstrapWithOsPort = new HostPort("bootstrap.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapWithOsPort, UPSTREAM_BOOTSTRAP, false);
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        var channelWithActualPort = createMockNettyChannel(osAssignedPort);
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(channelWithActualPort)));
+        assertThat(rf).isDone();
+
+        // When
+        var port = endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1));
+
+        // Then - registry returns the actual OS-assigned port, not the configured 0
+        assertThat(port).isEqualTo(osAssignedPort);
+    }
+
+    @Test
+    void shouldResolveOsAssignedPortsForBootstrapAndBrokers() throws Exception {
+        // Given - bootstrap and discovery brokers all configured with port=0
+        int bootstrapOsPort = 58392;
+        int broker0OsPort = 58393;
+        int broker1OsPort = 58394;
+        var bootstrapAddress = new HostPort("bootstrap.kafka", 0);
+        var broker0Address = new HostPort("broker0.kafka", 0);
+        var broker1Address = new HostPort("broker1.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false, false,
+                Map.of(0, broker0Address, 1, broker1Address), new FixedBootstrapSelectionStrategy(0));
+
+        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker0OsPort))),
+                createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
+        assertThat(rf).isDone();
+
+        // When / Then - each virtual node resolves to its own distinct OS-assigned port
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(bootstrapOsPort);
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Broker(virtualClusterModel1, 0))).isEqualTo(broker0OsPort);
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Broker(virtualClusterModel1, 1))).isEqualTo(broker1OsPort);
+    }
+
+    @Test
+    void shouldShareChannelForSniGatewaysWithPortZero() throws Exception {
+        // Given - two SNI gateways both configured with port=0
+        var sniBootstrap1 = new HostPort("vc1.kafka", 0);
+        var sniBootstrap2 = new HostPort("vc2.kafka", 0);
+        configureVirtualClusterMock(virtualClusterModel1, sniBootstrap1, UPSTREAM_BOOTSTRAP, true);
+        configureVirtualClusterMock(virtualClusterModel2, sniBootstrap2, UPSTREAM_BOOTSTRAP, true);
+
+        // When
+        int osAssignedPort = 58400;
+        var rf1 = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
+
+        // Then - only ONE bind request (shared channel), not two
+        var sharedChannel = createMockNettyChannel(osAssignedPort);
+        verifyAndProcessNetworkEventQueue(
+                createTestNetworkBindRequest(Optional.empty(), 0, true, CompletableFuture.completedFuture(sharedChannel)));
+        assertThat(rf1).isDone();
+        assertThat(rf2).isDone();
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
+
+        // Both resolve to the same OS-assigned port
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(osAssignedPort);
+        assertThat(endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel2))).isEqualTo(osAssignedPort);
+    }
+
+    @Test
+    void shouldThrowWhenResolvingPortForUnregisteredGateway() {
+        // Given - virtualClusterModel1 has never been registered
+
+        // When / Then
+        assertThatThrownBy(() -> endpointRegistry.resolvePort(new VirtualNodeId.Bootstrap(virtualClusterModel1)))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     private Channel createMockNettyChannel(int port) {
         var channel = mock(Channel.class);
         var attr = createTestAttribute(EndpointRegistry.CHANNEL_BINDINGS);
         when(channel.attr(EndpointRegistry.CHANNEL_BINDINGS)).thenReturn(attr);
+        var selectorAttr = createTestAttribute(EndpointRegistry.BINDING_SELECTOR);
+        when(channel.attr(EndpointRegistry.BINDING_SELECTOR)).thenReturn(selectorAttr);
         var localAddress = InetSocketAddress.createUnresolved("localhost", port); // This is lenient because not all tests exercise the unbind path
         lenient().when(channel.localAddress()).thenReturn(localAddress);
         return channel;
     }
 
+    private Channel createMockChildChannel(Channel acceptor) {
+        var child = mock(Channel.class);
+        when(child.parent()).thenReturn(acceptor);
+        return child;
+    }
+
+    private Channel childChannelFor(int port, boolean tls) {
+        return createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(port, tls)));
+    }
+
+    private Channel childChannelFor(Optional<String> bindingAddress, int port, boolean tls) {
+        return createMockChildChannel(acceptorChannels.get(Endpoint.createEndpoint(bindingAddress, port, tls)));
+    }
+
     private NetworkBindRequest createTestNetworkBindRequest(int expectedPort, boolean expectedTls) {
         var channelMock = createMockNettyChannel(expectedPort);
+        acceptorChannels.put(Endpoint.createEndpoint(expectedPort, expectedTls), channelMock);
         return createTestNetworkBindRequest(Optional.empty(), expectedPort, expectedTls, CompletableFuture.completedFuture(channelMock));
     }
 
     private NetworkBindRequest createTestNetworkBindRequest(Optional<String> expectedBindingAddress, int expectedPort, boolean expectedTls) {
         Objects.requireNonNull(expectedBindingAddress);
         var channelMock = createMockNettyChannel(expectedPort);
+        acceptorChannels.put(Endpoint.createEndpoint(expectedBindingAddress, expectedPort, expectedTls), channelMock);
         return createTestNetworkBindRequest(expectedBindingAddress, expectedPort, expectedTls, CompletableFuture.completedFuture(channelMock));
     }
 
@@ -752,18 +1001,35 @@ class EndpointRegistryTest {
     }
 
     private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
-        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, Map.of(), new FixedBootstrapSelectionStrategy(0));
+        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, Map.of(), new FixedBootstrapSelectionStrategy(0), Optional.empty());
     }
 
-    private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+    private void configureVirtualClusterMock(EndpointGateway gateway, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
                                              Map<Integer, HostPort> discoveryAddressMap, BootstrapSelectionStrategy selectionStrategy) {
-        when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
-        when(cluster.isUseTls()).thenReturn(tls);
-        when(cluster.requiresServerNameIndication()).thenReturn(sni);
-        when(cluster.discoveryAddressMap()).thenReturn(discoveryAddressMap);
+        configureVirtualClusterMock(gateway, downstreamBootstrap, upstreamBootstrap, tls, sni, discoveryAddressMap, selectionStrategy, Optional.empty());
+    }
+
+    private void configureVirtualClusterMock(EndpointGateway gateway, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+                                             Map<Integer, HostPort> discoveryAddressMap, BootstrapSelectionStrategy selectionStrategy,
+                                             Optional<String> bindAddress) {
+        when(gateway.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
+        when(gateway.isUseTls()).thenReturn(tls);
+        when(gateway.requiresServerNameIndication()).thenReturn(sni);
+        when(gateway.bindingSelector()).thenCallRealMethod();
+        when(gateway.discoveryAddressMap()).thenReturn(discoveryAddressMap);
+        when(gateway.getBindAddress()).thenReturn(bindAddress);
         var targetCluster = new TargetCluster(upstreamBootstrap.toString(), Optional.empty(), selectionStrategy);
-        when(cluster.targetCluster()).thenReturn(targetCluster);
-        when(cluster.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
+        when(gateway.targetCluster()).thenReturn(targetCluster);
+        when(gateway.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
+
+        var bindingSpec = mock(BindingSpec.class);
+        lenient().when(bindingSpec.getBootstrapBindAddress()).thenReturn(downstreamBootstrap);
+        lenient().when(bindingSpec.nodeBindAddresses()).thenReturn(discoveryAddressMap);
+        lenient().when(bindingSpec.getBindAddress()).thenReturn(bindAddress);
+        lenient().when(bindingSpec.getExclusivePorts()).thenReturn(Set.of());
+        lenient().when(bindingSpec.getSharedPorts()).thenReturn(Set.of());
+        lenient().when(bindingSpec.requiresServerNameIndication()).thenReturn(sni);
+        lenient().when(gateway.bindingSpec()).thenReturn(bindingSpec);
     }
 
     private void verifyVirtualClusterRegisterFuture(int expectedPort, boolean expectedTls, CompletableFuture<Endpoint> future) throws Exception {

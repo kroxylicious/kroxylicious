@@ -18,6 +18,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.serialization.Serde;
 
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.reload.ReconfigureResult;
 import io.kroxylicious.testing.integration.client.KafkaClient;
 
@@ -340,8 +341,21 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Restarts the Kroxylicious server under test without closing any other resources.
+     * Throws {@link IllegalStateException} if any gateway is configured with an OS-assigned
+     * (port 0) bootstrap port: after restart the proxy would bind to a different ephemeral
+     * port and existing clients would be unable to reconnect. Use
+     * {@link #restartProxy(ConfigurationBuilder)} with fixed ports in that case.
      */
     void restartProxy();
+
+    /**
+     * Restarts the Kroxylicious server under test using {@code configForRestart}, without
+     * closing any other resources. The caller is responsible for ensuring the new configuration
+     * uses ports that existing clients can reconnect to.
+     *
+     * @param configForRestart configuration to use for the restarted proxy
+     */
+    void restartProxy(ConfigurationBuilder configForRestart);
 
     /**
      * Submits {@code newConfig} to the underlying Kroxylicious server's

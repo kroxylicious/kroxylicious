@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -46,7 +47,10 @@ import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
@@ -518,6 +522,14 @@ public class VirtualClusterModel implements AutoCloseable {
         private final Optional<SslContext> downstreamSslContext;
         private final String name;
 
+        /**
+         * Resolves the actual bound port for a given virtual node. Set by
+         * {@link #bindPortResolver(Function)} during {@code KafkaProxy.startup()},
+         * which also pushes the resolver into the strategy's {@link AdvertisingSpec}.
+         */
+        @Nullable
+        private volatile Function<VirtualNodeId, Integer> portResolver = null;
+
         @VisibleForTesting
         VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls, String name) {
             this.virtualCluster = virtualCluster;
@@ -559,6 +571,9 @@ public class VirtualClusterModel implements AutoCloseable {
 
         @Override
         public HostPort getClusterBootstrapAddress() {
+            if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                return advertisingSpec.advertiseBootstrap(new VirtualNodeId.Bootstrap(this));
+            }
             return getNodeIdentificationStrategy().getClusterBootstrapAddress();
         }
 
@@ -608,7 +623,47 @@ public class VirtualClusterModel implements AutoCloseable {
         }
 
         @Override
+        public BindingSpec bindingSpec() {
+            return (BindingSpec) nodeIdentificationStrategy;
+        }
+
+        @Override
+        public int resolvePort(VirtualNodeId virtualNodeId) {
+            var resolver = portResolver;
+            if (resolver != null) {
+                return resolver.apply(virtualNodeId);
+            }
+            int configuredPort;
+            if (virtualNodeId instanceof VirtualNodeId.Bootstrap) {
+                configuredPort = getNodeIdentificationStrategy().getClusterBootstrapAddress().port();
+            }
+            else if (virtualNodeId instanceof VirtualNodeId.Broker broker) {
+                configuredPort = getNodeIdentificationStrategy().getBrokerAddress(broker.nodeId()).port();
+            }
+            else {
+                throw new IllegalArgumentException("Unknown VirtualNodeId type: " + virtualNodeId);
+            }
+            if (configuredPort == 0) {
+                throw new IllegalStateException("Port resolver not bound yet and configured port is 0 (OS-assigned)");
+            }
+            return configuredPort;
+        }
+
+        @Override
+        public void bindPortResolver(Function<VirtualNodeId, Integer> resolver) {
+            this.portResolver = Objects.requireNonNull(resolver);
+        }
+
+        @VisibleForTesting
+        public boolean isPortResolverBound() {
+            return portResolver != null;
+        }
+
+        @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
+            if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
+                return advertisingSpec.advertiseBroker(new VirtualNodeId.Broker(this, nodeId));
+            }
             return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
         }
 

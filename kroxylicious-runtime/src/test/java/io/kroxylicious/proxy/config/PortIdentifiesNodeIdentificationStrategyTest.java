@@ -15,11 +15,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.net.RoutingSpec;
+import io.kroxylicious.proxy.internal.net.VirtualNodeId;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class PortIdentifiesNodeIdentificationStrategyTest {
 
@@ -96,12 +104,42 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     }
 
     @Test
-    void computedNodeStartPortCannotBeLessThanOne() {
+    void computedNodeStartPortCannotBeNegative() {
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
-                "localhost", 0,
+                "localhost", -1,
                 null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("nodeStartPort cannot be less than 1");
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldDefaultAllNodePortsToZeroWhenBootstrapIsOsAssigned() {
+        // Given - bootstrap on port 0 (OS-assigned), no nodeStartPort specified
+        var bootstrap = HostPort.parse(BOOTSTRAP_HOST + ":0");
+
+        // When - no exception; node ports default to 0 (OS-assigned) rather than 1 (bootstrap+1)
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(bootstrap, null, null, null)
+                .buildStrategy("cluster");
+
+        // Then - all node bind addresses use port 0 (OS-assigned)
+        assertThat(spec.nodeBindAddresses().values()).allSatisfy(hp -> assertThat(hp.port()).isEqualTo(0));
+    }
+
+    @Test
+    void shouldMapAllNodesToPortZeroWhenNodeStartPortIsZero() {
+        // Given - bootstrap on port 0, nodeStartPort explicitly 0
+        var bootstrap = HostPort.parse(BOOTSTRAP_HOST + ":0");
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(bootstrap,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, 0,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+
+        // When
+        Map<Integer, HostPort> addresses = spec.nodeBindAddresses();
+
+        // Then - all nodes map to port 0 (OS-assigned independently)
+        assertThat(addresses).containsOnlyKeys(0, 1, 2);
+        assertThat(addresses.get(0).port()).isEqualTo(0);
+        assertThat(addresses.get(1).port()).isEqualTo(0);
+        assertThat(addresses.get(2).port()).isEqualTo(0);
     }
 
     @Test
@@ -301,6 +339,212 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
     private NodeIdentificationStrategy buildNodeIdentificationStrategy(PortIdentifiesNodeIdentificationStrategy config) {
         return config.buildStrategy("cluster");
+    }
+
+    // ---- AdvertisingSpec ----
+
+    @Test
+    void advertiseBrokerUsesGatewayResolvedPort() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 1))).buildStrategy("cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenReturn(1236);
+
+        // When
+        HostPort result = spec.advertiseBroker(new VirtualNodeId.Broker(gateway, 0));
+
+        // Then — delegates port resolution to the gateway
+        assertThat(result.host()).isEqualTo("broker0.kafka.example.com");
+        assertThat(result.port()).isEqualTo(1236);
+    }
+
+    @Test
+    void advertiseBrokerExpandsNodeIdInHost() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+        var gateway = mock(EndpointGateway.class);
+
+        // When / Then
+        assertThat(spec.advertiseBroker(new VirtualNodeId.Broker(gateway, 0)).host()).isEqualTo("broker0.kafka.example.com");
+        assertThat(spec.advertiseBroker(new VirtualNodeId.Broker(gateway, 1)).host()).isEqualTo("broker1.kafka.example.com");
+        assertThat(spec.advertiseBroker(new VirtualNodeId.Broker(gateway, 2)).host()).isEqualTo("broker2.kafka.example.com");
+    }
+
+    @Test
+    void advertiseBrokerUsesResolvedPort() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse(BOOTSTRAP_HOST + ":0"), ADVERTISED_BROKER_ADDRESS_PATTERN, 1,
+                List.of(new NamedRange("brokers", 0, 0))).buildStrategy("cluster");
+        var gateway = mock(EndpointGateway.class);
+        int resolvedPort = 54321;
+        when(gateway.resolvePort(any())).thenReturn(resolvedPort);
+
+        // When
+        HostPort result = spec.advertiseBroker(new VirtualNodeId.Broker(gateway, 0));
+
+        // Then
+        assertThat(result.host()).isEqualTo("broker0.kafka.example.com");
+        assertThat(result.port()).isEqualTo(resolvedPort);
+    }
+
+    @Test
+    void advertiseBootstrapUsesGatewayResolvedPort() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+        var gateway = mock(EndpointGateway.class);
+        when(gateway.resolvePort(any())).thenReturn(1235);
+
+        // When
+        HostPort result = spec.advertiseBootstrap(new VirtualNodeId.Bootstrap(gateway));
+
+        // Then — delegates port resolution to the gateway
+        assertThat(result.host()).isEqualTo(BOOTSTRAP_HOST);
+        assertThat(result.port()).isEqualTo(1235);
+    }
+
+    @Test
+    void advertiseBootstrapUsesResolvedPort() {
+        // Given
+        var spec = (AdvertisingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+        var gateway = mock(EndpointGateway.class);
+        int resolvedPort = 45678;
+        when(gateway.resolvePort(any())).thenReturn(resolvedPort);
+
+        // When
+        HostPort result = spec.advertiseBootstrap(new VirtualNodeId.Bootstrap(gateway));
+
+        // Then
+        assertThat(result.host()).isEqualTo(BOOTSTRAP_HOST);
+        assertThat(result.port()).isEqualTo(resolvedPort);
+    }
+
+    // ---- RoutingSpec ----
+
+    @Test
+    void identifyReturnsEmptyForBootstrapPort() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 1))).buildStrategy("cluster");
+
+        // When
+        var result = spec.identify(BOOSTRAP_HOSTPORT.port(), null);
+
+        // Then — empty signals a bootstrap connection (no specific node)
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void identifyReturnsMappedNodeIdForNodePort() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+        int node0Port = BOOSTRAP_HOSTPORT.port() + 1;
+        int node1Port = BOOSTRAP_HOSTPORT.port() + 2;
+        int node2Port = BOOSTRAP_HOSTPORT.port() + 3;
+
+        // When / Then — each node port maps to the correct nodeId
+        assertThat(spec.identify(node0Port, null)).contains(0);
+        assertThat(spec.identify(node1Port, null)).contains(1);
+        assertThat(spec.identify(node2Port, null)).contains(2);
+    }
+
+    @Test
+    void identifyIgnoresSniForPortBasedRouting() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 0))).buildStrategy("cluster");
+        int node0Port = BOOSTRAP_HOSTPORT.port() + 1;
+
+        // When — SNI is present but irrelevant for port-identifies-node routing
+        var result = spec.identify(node0Port, "some.sni.hostname.example.com");
+
+        // Then — nodeId is still correctly identified from port
+        assertThat(result).contains(0);
+    }
+
+    @Test
+    void identifyReturnsEmptyForBootstrapPortEvenWithSni() {
+        // Given
+        var spec = (RoutingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When
+        var result = spec.identify(BOOSTRAP_HOSTPORT.port(), "bootstrap.example.com");
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    // ---- BindingSpec ----
+
+    @Test
+    void bootstrapBindAddressMatchesConfiguredBootstrap() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When
+        HostPort addr = spec.getBootstrapBindAddress();
+
+        // Then
+        assertThat(addr).isEqualTo(BOOSTRAP_HOSTPORT);
+    }
+
+    @Test
+    void nodeBindAddressesContainsAllConfiguredNodes() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null,
+                List.of(new NamedRange("brokers", 0, 2))).buildStrategy("cluster");
+
+        // When
+        Map<Integer, HostPort> addresses = spec.nodeBindAddresses();
+
+        // Then — all three nodeIds are present with their assigned ports
+        assertThat(addresses).containsOnlyKeys(0, 1, 2);
+        assertThat(addresses.get(0).port()).isEqualTo(BOOSTRAP_HOSTPORT.port() + 1);
+        assertThat(addresses.get(1).port()).isEqualTo(BOOSTRAP_HOSTPORT.port() + 2);
+        assertThat(addresses.get(2).port()).isEqualTo(BOOSTRAP_HOSTPORT.port() + 3);
+    }
+
+    @Test
+    void bindingSpecDoesNotRequireServerNameIndication() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When / Then
+        assertThat(spec.requiresServerNameIndication()).isFalse();
+    }
+
+    @Test
+    void bindingSpecHasNoSharedPorts() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When / Then
+        assertThat(spec.getSharedPorts()).isEmpty();
+    }
+
+    @Test
+    void bindingSpecBindsOnAllInterfaces() {
+        // Given
+        var spec = (BindingSpec) new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
+                ADVERTISED_BROKER_ADDRESS_PATTERN, null, null).buildStrategy("cluster");
+
+        // When / Then — empty means bind on all interfaces (0.0.0.0)
+        assertThat(spec.getBindAddress()).isEmpty();
     }
 
 }

@@ -274,7 +274,6 @@ public record Configuration(
                 routeDescriptors);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
-        virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
     }
