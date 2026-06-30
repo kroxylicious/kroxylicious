@@ -90,6 +90,9 @@ class ServerConnectionStateMachine {
     boolean serverReadsBlocked;
 
     @VisibleForTesting
+    boolean serverChannelWritable = true;
+
+    @VisibleForTesting
     @Nullable
     Timer.Sample serverBackpressureTimer;
 
@@ -394,10 +397,12 @@ class ServerConnectionStateMachine {
     }
 
     void onServerUnwritable() {
+        serverChannelWritable = false;
         ccsm.onServerUnwritable();
     }
 
     void onServerWritable() {
+        serverChannelWritable = true;
         ccsm.onServerWritable();
     }
 
@@ -445,7 +450,7 @@ class ServerConnectionStateMachine {
     }
 
     boolean isWritable() {
-        return !serverReadsBlocked;
+        return serverChannelWritable;
     }
 
     void close() {
@@ -495,6 +500,7 @@ class ServerConnectionStateMachine {
         return "ServerConnectionStateMachine{" +
                 "state=" + state +
                 ", serverReadsBlocked=" + serverReadsBlocked +
+                ", serverChannelWritable=" + serverChannelWritable +
                 ", serverMessagesInFlightCount=" + serverMessagesInFlightCount +
                 '}';
     }
