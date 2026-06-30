@@ -40,7 +40,8 @@ final class StaticSectionDiffer {
             "filterDefinitions",
             "defaultFilters",
             "virtualClusters",
-            "routerDefinitions");
+            "routerDefinitions",
+            "clusterDefinitions");
 
     /**
      * Returns the names of static configuration sections that differ between {@code oldConfig}
