@@ -140,11 +140,14 @@ final class NodeIdResponseTranslator {
                                        short apiVersion,
                                        NodeIdMapping mapping,
                                        String route) {
-        if (apiVersion >= 12) {
+        if (apiVersion >= 11) {
             for (var topicResponse : data.responses()) {
                 for (var partitionData : topicResponse.partitions()) {
-                    var leader = partitionData.currentLeader();
-                    leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
+                    partitionData.setPreferredReadReplica(mapping.toVirtual(route, partitionData.preferredReadReplica()));
+                    if (apiVersion >= 12) {
+                        var leader = partitionData.currentLeader();
+                        leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
+                    }
                 }
             }
         }

@@ -273,6 +273,52 @@ class NodeIdResponseTranslatorTest {
         assertThat(partitionData.currentLeader().leaderId()).isEqualTo(1);
     }
 
+    @ParameterizedTest
+    @ValueSource(shorts = { 11, 12, 13, 14, 15 })
+    void shouldTranslateFetchResponsePreferredReadReplicaV11Plus(short apiVersion) {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setPreferredReadReplica(1);
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, apiVersion, mapping, ROUTE_A);
+
+        assertThat(partitionData.preferredReadReplica()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
+    @Test
+    void shouldNotTranslateFetchResponsePreferredReadReplicaBeforeV11() {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setPreferredReadReplica(1);
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 10, mapping, ROUTE_A);
+
+        assertThat(partitionData.preferredReadReplica()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldNotTranslateFetchResponsePreferredReadReplicaWhenMinusOne() {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setPreferredReadReplica(-1);
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 11, mapping, ROUTE_A);
+
+        assertThat(partitionData.preferredReadReplica()).isEqualTo(-1);
+    }
+
     @Test
     void shouldNotTranslateFetchResponseNodeEndpointsBeforeV16() {
         var data = new FetchResponseData();
