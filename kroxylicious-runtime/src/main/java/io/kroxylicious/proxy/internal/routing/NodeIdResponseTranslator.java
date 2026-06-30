@@ -67,6 +67,7 @@ final class NodeIdResponseTranslator {
         data.setControllerId(mapping.toVirtual(route, data.controllerId()));
 
         var translatedBrokers = new MetadataResponseBrokerCollection(data.brokers().size());
+        // Must copy and duplicate: mutating nodeId in-place corrupts the ImplicitLinkedHashCollection's hash table.
         for (var broker : List.copyOf(data.brokers())) {
             var translated = broker.duplicate();
             translated.setNodeId(mapping.toVirtual(route, broker.nodeId()));
@@ -98,6 +99,7 @@ final class NodeIdResponseTranslator {
             }
         }
         var translatedEndpoints = new NodeEndpointCollection(data.nodeEndpoints().size());
+        // Must copy and duplicate: mutating nodeId in-place corrupts the ImplicitLinkedHashCollection's hash table.
         for (var ne : List.copyOf(data.nodeEndpoints())) {
             var translated = ne.duplicate();
             translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
@@ -125,6 +127,7 @@ final class NodeIdResponseTranslator {
                                                  String route) {
         data.setControllerId(mapping.toVirtual(route, data.controllerId()));
         var translatedBrokers = new DescribeClusterBrokerCollection(data.brokers().size());
+        // Must copy and duplicate: mutating brokerId in-place corrupts the ImplicitLinkedHashCollection's hash table.
         for (var broker : List.copyOf(data.brokers())) {
             var translated = broker.duplicate();
             translated.setBrokerId(mapping.toVirtual(route, broker.brokerId()));
@@ -137,16 +140,24 @@ final class NodeIdResponseTranslator {
                                        short apiVersion,
                                        NodeIdMapping mapping,
                                        String route) {
-        if (apiVersion < 16) {
-            return;
+        if (apiVersion >= 12) {
+            for (var topicResponse : data.responses()) {
+                for (var partitionData : topicResponse.partitions()) {
+                    var leader = partitionData.currentLeader();
+                    leader.setLeaderId(mapping.toVirtual(route, leader.leaderId()));
+                }
+            }
         }
-        var translatedEndpoints = new FetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
-        for (var ne : List.copyOf(data.nodeEndpoints())) {
-            var translated = ne.duplicate();
-            translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
-            translatedEndpoints.add(translated);
+        if (apiVersion >= 16) {
+            var translatedEndpoints = new FetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+            // Must copy and duplicate: mutating nodeId in-place corrupts the ImplicitLinkedHashCollection's hash table.
+            for (var ne : List.copyOf(data.nodeEndpoints())) {
+                var translated = ne.duplicate();
+                translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
+                translatedEndpoints.add(translated);
+            }
+            data.setNodeEndpoints(translatedEndpoints);
         }
-        data.setNodeEndpoints(translatedEndpoints);
     }
 
     private static void translateShareFetch(ShareFetchResponseData data,
@@ -156,6 +167,7 @@ final class NodeIdResponseTranslator {
             return;
         }
         var translatedEndpoints = new ShareFetchResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+        // Must copy and duplicate: mutating nodeId in-place corrupts the ImplicitLinkedHashCollection's hash table.
         for (var ne : List.copyOf(data.nodeEndpoints())) {
             var translated = ne.duplicate();
             translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
@@ -171,6 +183,7 @@ final class NodeIdResponseTranslator {
             return;
         }
         var translatedEndpoints = new ShareAcknowledgeResponseData.NodeEndpointCollection(data.nodeEndpoints().size());
+        // Must copy and duplicate: mutating nodeId in-place corrupts the ImplicitLinkedHashCollection's hash table.
         for (var ne : List.copyOf(data.nodeEndpoints())) {
             var translated = ne.duplicate();
             translated.setNodeId(mapping.toVirtual(route, ne.nodeId()));
