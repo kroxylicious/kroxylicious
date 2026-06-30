@@ -44,7 +44,6 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
-import io.kroxylicious.proxy.internal.routing.NodeIdMapping;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -208,9 +207,6 @@ public class ClientConnectionStateMachine {
 
     @Nullable
     private Map<String, HostPort> routeTargets;
-
-    @Nullable
-    private NodeIdMapping nodeIdMapping;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
@@ -865,6 +861,7 @@ public class ClientConnectionStateMachine {
         // For per-broker connections, the EndpointReconciler has already resolved the
         // real upstream address. Override the owning route's bootstrap target with it.
         // Server connections are opened lazily in forwardToRoute().
+        var nodeIdMapping = virtualCluster().nodeIdMapping();
         if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
             var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
             RouteDescriptor owningDesc = descriptors != null ? descriptors.get(routeAndNode.route()) : null;
@@ -908,14 +905,6 @@ public class ClientConnectionStateMachine {
         else {
             illegalState("forwardToRoute in unexpected state");
         }
-    }
-
-    /**
-     * Sets the node ID mapping used for per-broker connection routing.
-     * Called by {@link io.kroxylicious.proxy.internal.KafkaProxyInitializer} when setting up a routed VC.
-     */
-    public void setNodeIdMapping(@Nullable NodeIdMapping nodeIdMapping) {
-        this.nodeIdMapping = nodeIdMapping;
     }
 
     @VisibleForTesting
