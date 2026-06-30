@@ -38,6 +38,7 @@ import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 
+import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -61,6 +62,7 @@ class RouterChangeHotReloadIT extends BaseIT {
     private static final int PORT_ROUTER_CHANGE = PORT_BLOCK_BASE;
     private static final int PORT_CROSS_VC_A = PORT_BLOCK_BASE + 100;
     private static final int PORT_CROSS_VC_B = PORT_BLOCK_BASE + 110;
+    private static final int PORT_ROUTING_DISABLED = PORT_BLOCK_BASE + 200;
 
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
 
@@ -202,6 +204,56 @@ class RouterChangeHotReloadIT extends BaseIT {
             // Then: both VCs still serve traffic.
             assertProduceConsumeRoundTrip(tester, "vc-a", topicA, "after-reconfigure-vc-a");
             assertProduceConsumeRoundTrip(tester, "vc-b", topicB, "after-reconfigure-vc-b");
+        }
+    }
+
+    @Test
+    void shouldNotInitializeRouterWhenRoutingFeatureIsDisabledAndRouterDefinitionSubmittedViaHotReload(
+                                                                                                       @BrokerCluster KafkaCluster cluster)
+            throws Exception {
+        // routerDefinitions is in the RECONCILABLE set, so the static-section differ permits
+        // the change. RouterChangeDetector detects the new router, but since no VC references
+        // it, no VC operations are planned and the reconfigure completes without errors.
+        // The factory is never initialized.
+        UUID routerId = UUID.randomUUID();
+
+        var clusterDef = clusterDefinition(cluster);
+        var vc = baseVirtualClusterBuilder(cluster, "vc-routing-disabled")
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", PORT_ROUTING_DISABLED)).build())
+                .build();
+
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToVirtualClusters(vc);
+
+        var afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDef)
+                .addToVirtualClusters(vc)
+                .addToRouterDefinitions(routerDef("unused-router", routerId))
+                .build();
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
+                // Intentionally no setFeatures(ROUTING_ENABLED)
+                .createDefaultKroxyliciousTester()) {
+
+            // Given: proxy serving traffic via a plain VC (no router)
+            String topic = tester.createTopic("vc-routing-disabled");
+            assertProduceConsumeRoundTrip(tester, "vc-routing-disabled", topic, "before-reconfigure");
+
+            // When: reconfigure submits routerDefinitions despite ROUTING being disabled
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("routerDefinitions change is reconcilable, no VC uses the router, so no errors expected")
+                            .isFalse());
+
+            // Then: the factory is never initialized — no VC references the router
+            assertThat(InvocationCountingRouterFactory.initializationCountFor(routerId))
+                    .as("factory must not be initialized when no VC references the router")
+                    .isZero();
+
+            // Then: plain VC continues serving traffic after reconfigure
+            assertProduceConsumeRoundTrip(tester, "vc-routing-disabled", topic, "after-reconfigure");
         }
     }
 

@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -265,7 +266,7 @@ class VirtualClusterModelTest {
     void closeStillClosesFilterChainFactoryWhenRouterChainFactoryCloseThrows() {
         // Given: a RouterChainFactory that throws on close
         var rcf = mock(RouterChainFactory.class);
-        org.mockito.Mockito.doThrow(new RuntimeException("rcf close boom")).when(rcf).close();
+        doThrow(new RuntimeException("rcf close boom")).when(rcf).close();
         var onFilterClose = new AtomicInteger();
         var flakyConfig = new FlakyConfig(null, null, null, c -> {
         }, c -> onFilterClose.incrementAndGet());
