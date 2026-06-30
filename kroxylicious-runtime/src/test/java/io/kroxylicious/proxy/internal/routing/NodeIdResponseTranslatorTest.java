@@ -259,6 +259,21 @@ class NodeIdResponseTranslatorTest {
     }
 
     @Test
+    void shouldNotTranslateFetchResponseCurrentLeaderBeforeV12() {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new FetchResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 11, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(1);
+    }
+
+    @Test
     void shouldNotTranslateFetchResponseNodeEndpointsBeforeV16() {
         var data = new FetchResponseData();
 
