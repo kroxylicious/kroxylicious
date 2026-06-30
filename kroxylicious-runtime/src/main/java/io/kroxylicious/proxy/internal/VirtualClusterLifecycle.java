@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -158,16 +157,13 @@ public class VirtualClusterLifecycle {
      */
     public void stop() {
         transition(current -> {
-            if (current instanceof Stopped) {
-                return current;
-            }
-            if (current instanceof Failed s) {
-                return s.toStopped();
-            }
-            if (current instanceof Initializing s) {
-                return s.toStopped();
-            }
-            throw unexpectedState(current, "stop");
+            return switch (current) {
+                case Stopped ignored -> current;
+                case Failed failed -> failed.toStopped();
+                case Initializing initializing -> initializing.toStopped();
+                case Serving ignored -> throw unexpectedState(current, "stop");
+                case Draining ignored -> throw unexpectedState(current, "stop");
+            };
         });
     }
 
@@ -204,7 +200,13 @@ public class VirtualClusterLifecycle {
             return;
         }
         recordTransitionMetrics(previous, state);
-        var logBuilder = (state instanceof Serving || state instanceof Failed || state instanceof Stopped) ? LOGGER.atInfo() : LOGGER.atDebug();
+        var logBuilder = switch (state) {
+            case Serving ignored -> LOGGER.atInfo();
+            case Failed ignored -> LOGGER.atInfo();
+            case Stopped ignored -> LOGGER.atInfo();
+            case Initializing ignored -> LOGGER.atDebug();
+            case Draining ignored -> LOGGER.atDebug();
+        };
         logBuilder
                 .addKeyValue("virtualCluster", clusterName)
                 .addKeyValue("from", () -> previous.getClass().getSimpleName())
@@ -222,7 +224,13 @@ public class VirtualClusterLifecycle {
     }
 
     private static String stateLabel(VirtualClusterLifecycleState state) {
-        return state.getClass().getSimpleName().toLowerCase(Locale.ROOT);
+        return switch (state) {
+            case Initializing ignored -> "initializing";
+            case Serving ignored -> "serving";
+            case Draining ignored -> "draining";
+            case Failed ignored -> "failed";
+            case Stopped ignored -> "stopped";
+        };
     }
 
     private IllegalStateException unexpectedState(VirtualClusterLifecycleState current, String operation) {

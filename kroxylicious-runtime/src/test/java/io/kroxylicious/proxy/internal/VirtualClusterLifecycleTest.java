@@ -191,6 +191,12 @@ class VirtualClusterLifecycleTest {
                     m.initializationSucceeded();
                     m.stop();
                 }),
+                argumentSet("stop from DRAINING", (Runnable) () -> {
+                    var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
+                    m.initializationSucceeded();
+                    m.startDraining();
+                    m.stop();
+                }),
                 argumentSet("initializationSucceeded from STOPPED", (Runnable) () -> {
                     var m = new VirtualClusterLifecycle("c", DRAIN_TIMEOUT);
                     m.initializationFailed(new RuntimeException("x"));
