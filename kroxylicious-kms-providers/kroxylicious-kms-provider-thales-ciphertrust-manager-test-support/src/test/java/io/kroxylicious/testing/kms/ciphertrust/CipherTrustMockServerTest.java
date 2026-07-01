@@ -887,11 +887,11 @@ class CipherTrustMockServerTest {
     @Test
     void clientCertificateAuthenticationWithTlsSucceeds() throws Exception {
         // Given
-        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true, true)) {
             tlsServer.start();
             String tlsBaseUrl = tlsServer.getBaseUrl();
 
-            Tls tls = tlsServer.createTls(true);
+            Tls tls = tlsServer.createTlsConfigForClient();
             TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(tls);
             try (HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build()) {
 
@@ -921,11 +921,11 @@ class CipherTrustMockServerTest {
     @Test
     void clientCertificateAuthenticationWithUnknownClientIdFails() throws Exception {
         // Given
-        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true, true)) {
             tlsServer.start();
             String tlsBaseUrl = tlsServer.getBaseUrl();
 
-            Tls tls = tlsServer.createTls(true);
+            Tls tls = tlsServer.createTlsConfigForClient();
             TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(tls);
             try (HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build()) {
 
@@ -977,7 +977,7 @@ class CipherTrustMockServerTest {
             String mtlsBaseUrl = mtlsServer.getBaseUrl();
 
             // And: HttpClient configured with client certificate and server trust
-            Tls tls = mtlsServer.createTls(true);
+            Tls tls = mtlsServer.createTlsConfigForClient();
             TlsHttpClientConfigurator configurator = new TlsHttpClientConfigurator(tls);
             try (HttpClient mtlsClient = configurator.apply(HttpClient.newBuilder()).build()) {
 
