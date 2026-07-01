@@ -203,7 +203,7 @@ public class CertificateGenerator {
         Path privateKeyPem = writeRsaPrivateKeyPem(pair);
         Path encryptedPrivateKeyPem = writeEncryptedRsaPrivateKeyPem(pair, ENCRYPTED_KEY_PASSWORD);
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
-        KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, ENCRYPTED_KEY_PASSWORD);
+        KeyStore keyStore = createKeystore(pair, x509Certificate, password, ENCRYPTED_KEY_PASSWORD, JKS);
         Path serverCert = generateCertPem(x509Certificate);
         TrustStore pkcs12ClientTruststore = createTrustStore(x509Certificate, password, PKCS_12);
         TrustStore pkcs12NoPasswordTruststore = createTrustStore(x509Certificate, null, PKCS_12);
@@ -238,10 +238,6 @@ public class CertificateGenerator {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword) {
-        return createKeystore(privateKeyPem, x509Certificate, storePassword, keyPassword, JKS);
     }
 
     private static void writeKeyStore(File tempFile, java.security.KeyStore store, char[] storePassword)

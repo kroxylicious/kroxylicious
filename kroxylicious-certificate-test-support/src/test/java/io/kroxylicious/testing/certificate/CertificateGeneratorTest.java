@@ -88,14 +88,6 @@ class CertificateGeneratorTest {
         });
     }
 
-    @Test
-    void createJksKeystore() throws Exception {
-        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
-        X509Certificate x509Certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
-        CertificateGenerator.KeyStore jksKeystore = CertificateGenerator.createJksKeystore(keyPair, x509Certificate, "storePazz", "keyPazz");
-        assertKeyStoreContains(jksKeystore, keyPair, x509Certificate, "keyPazz", "storePazz", CertificateGenerator.JKS);
-    }
-
     @ParameterizedTest
     @ValueSource(strings = { "JKS", "PKCS12" })
     void createKeystoreCreatesCorrectType(String type) throws Exception {

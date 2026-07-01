@@ -42,7 +42,6 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
 
-import static io.kroxylicious.testing.certificate.CertificateGenerator.createJksKeystore;
 import static io.kroxylicious.testing.certificate.CertificateGenerator.generateRsaKeyPair;
 import static io.kroxylicious.testing.certificate.CertificateGenerator.generateSelfSignedX509Certificate;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -231,7 +230,7 @@ class TlsHttpClientConfiguratorTest {
         java.security.KeyPair pair = generateRsaKeyPair();
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
         String password = "password";
-        CertificateGenerator.KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, password);
+        CertificateGenerator.KeyStore keyStore = CertificateGenerator.createKeystore(pair, x509Certificate, password, password, CertificateGenerator.PKCS_12);
         KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), null,
                 keyStore.type());
         KeyManager[] trustManagers = TlsHttpClientConfigurator.getKeyManagers(store);
