@@ -1005,7 +1005,8 @@ class ClientConnectionStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: first request triggers toForwardingWithRoutes, which fails during SCSM creation
-        assertThatThrownBy(() -> failingCcsm.onClientRequest(metadataRequest()))
+        var request = metadataRequest();
+        assertThatThrownBy(() -> failingCcsm.onClientRequest(request))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("scsm creation failed");
 
