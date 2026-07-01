@@ -212,21 +212,36 @@ public class CertificateGenerator {
                 pkcs12NoPasswordTruststore, keyStore);
     }
 
-    public static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword) {
+    /**
+     * Create a keystore containing the given key pair and certificate.
+     *
+     * @param privateKeyPem the private key
+     * @param x509Certificate the certificate
+     * @param storePassword password for the keystore
+     * @param keyPassword password for the key entry
+     * @param type the keystore type (e.g., "JKS", "PKCS12")
+     * @return KeyStore record containing path, type, passwords, and password files
+     */
+    public static KeyStore createKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword, String type) {
+        String suffix = PKCS_12.equals(type) ? ".p12" : ".jks";
         try {
-            File tempFile = createTempFile("keystore", "jks");
-            java.security.KeyStore store = java.security.KeyStore.getInstance(JKS);
+            File tempFile = createTempFile("keystore", suffix);
+            java.security.KeyStore store = java.security.KeyStore.getInstance(type);
             store.load(null);
             store.setKeyEntry(ALIAS, privateKeyPem.getPrivate(), keyPassword.toCharArray(), new Certificate[]{ x509Certificate });
             writeKeyStore(tempFile, store, storePassword.toCharArray());
             Path path = tempFile.toPath();
             Path storePasswordFile = writeToTempFile(storePassword);
             Path keyPasswordFile = writeToTempFile(keyPassword);
-            return new KeyStore(path, JKS, storePassword, storePasswordFile, keyPassword, keyPasswordFile);
+            return new KeyStore(path, type, storePassword, storePasswordFile, keyPassword, keyPasswordFile);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword) {
+        return createKeystore(privateKeyPem, x509Certificate, storePassword, keyPassword, JKS);
     }
 
     private static void writeKeyStore(File tempFile, java.security.KeyStore store, char[] storePassword)

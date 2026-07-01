@@ -93,7 +93,23 @@ class CertificateGeneratorTest {
         KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
         X509Certificate x509Certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
         CertificateGenerator.KeyStore jksKeystore = CertificateGenerator.createJksKeystore(keyPair, x509Certificate, "storePazz", "keyPazz");
-        assertKeyStoreContains(jksKeystore, keyPair, x509Certificate, "keyPazz", "storePazz");
+        assertKeyStoreContains(jksKeystore, keyPair, x509Certificate, "keyPazz", "storePazz", CertificateGenerator.JKS);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "JKS", "PKCS12" })
+    void createKeystoreCreatesCorrectType(String type) throws Exception {
+        // Given: a key pair, certificate, and passwords
+        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+        X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+        String storePassword = "storePazz";
+        String keyPassword = "keyPazz";
+
+        // When: creating keystore with specified type
+        CertificateGenerator.KeyStore keyStore = CertificateGenerator.createKeystore(keyPair, certificate, storePassword, keyPassword, type);
+
+        // Then: keystore contains the key and certificate with correct type and passwords
+        assertKeyStoreContains(keyStore, keyPair, certificate, keyPassword, storePassword, type);
     }
 
     @Test
@@ -147,7 +163,7 @@ class CertificateGeneratorTest {
 
         // Then: should create JKS keystore containing the private key and certificate
         X509Certificate certificate = loadCertificateFromPem(keys.selfSignedCertificatePem());
-        assertKeyStoreContains(keys.jksServerKeystore(), keys.serverKey(), certificate, "keypass", "changeit");
+        assertKeyStoreContains(keys.jksServerKeystore(), keys.serverKey(), certificate, "keypass", "changeit", CertificateGenerator.JKS);
     }
 
     @Test
@@ -256,7 +272,7 @@ class CertificateGeneratorTest {
     }
 
     private static void assertKeyStoreContains(CertificateGenerator.KeyStore jksKeystore, KeyPair keyPair, X509Certificate x509Certificate, String keyPassword,
-                                               String storePassword)
+                                               String storePassword, String type)
             throws Exception {
         assertThat(jksKeystore).isNotNull();
         assertThat(jksKeystore.keyPassword()).isNotNull().isEqualTo(keyPassword);
@@ -266,8 +282,8 @@ class CertificateGeneratorTest {
         assertThat(jksKeystore.storePasswordFile()).isNotNull();
         assertThat(Files.readString(jksKeystore.storePasswordFile())).isEqualTo(storePassword);
         assertThat(jksKeystore.path()).isNotNull();
-        assertThat(jksKeystore.type()).isEqualTo("JKS");
-        KeyStore store = loadKeyStore(jksKeystore.path(), jksKeystore.storePassword(), "JKS");
+        assertThat(jksKeystore.type()).isEqualTo(type);
+        KeyStore store = loadKeyStore(jksKeystore.path(), jksKeystore.storePassword(), type);
         Key key = store.getKey(CertificateGenerator.ALIAS, jksKeystore.keyPassword().toCharArray());
         assertThat(key).isEqualTo(keyPair.getPrivate());
         Certificate certificate = store.getCertificate(CertificateGenerator.ALIAS);
