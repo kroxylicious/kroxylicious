@@ -13,10 +13,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AlterConfigOp;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ShareConsumer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.ConfigResource;
+import org.apache.kafka.coordinator.group.GroupConfig;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -128,6 +134,38 @@ class RoutingPassThroughIT {
             var topics = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(topics).contains(topic.name());
         }
+    }
+
+    @Test
+    void shouldConsumeViaShareGroupWithPassThroughRouter(KafkaCluster cluster, Topic topic) throws Exception {
+        var config = routingConfig(cluster);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var admin = tester.admin();
+                var producer = tester.producer();
+                var shareConsumer = tester.shareConsumer("routing-share-group")) {
+
+            // Share group auto.offset.reset is broker-side config, not a consumer property
+            configureShareGroupEarliestReset(admin, "routing-share-group");
+            shareConsumer.subscribe(List.of(topic.name()));
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key", "value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+
+            var records = shareConsumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo("value");
+        }
+    }
+
+    private static void configureShareGroupEarliestReset(Admin admin, String groupName) {
+        var resource = new ConfigResource(ConfigResource.Type.GROUP, groupName);
+        var op = new AlterConfigOp(new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest"), AlterConfigOp.OpType.SET);
+        assertThat(admin.incrementalAlterConfigs(Map.of(resource, List.of(op))).all())
+                .succeedsWithin(Duration.ofSeconds(10));
     }
 
     @ParameterizedTest(name = "route to {0}")
