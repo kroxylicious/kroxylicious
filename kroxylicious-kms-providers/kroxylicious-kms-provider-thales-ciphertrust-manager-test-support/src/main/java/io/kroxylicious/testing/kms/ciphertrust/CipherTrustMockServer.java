@@ -225,11 +225,9 @@ public class CipherTrustMockServer implements AutoCloseable {
     }
 
     private CertificateGenerator.TrustStore createClientTrustStore() {
-        // We need to generate the client certificate first, so we can add it to the trust store
         if (clientCertificate == null) {
             generateClientCertificate();
         }
-
         return CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, "JKS");
     }
 
@@ -237,11 +235,6 @@ public class CipherTrustMockServer implements AutoCloseable {
      * Start the mock server and configure endpoints.
      */
     public void start() {
-        // Generate client certificate for testing client cert authentication (if not already done)
-        if (clientCertificate == null) {
-            generateClientCertificate();
-        }
-
         server.start();
         setupEndpoints();
     }
@@ -347,18 +340,17 @@ public class CipherTrustMockServer implements AutoCloseable {
     /**
      * Create TLS configuration for connecting to this mock server.
      *
-     * @param includeClientCert whether to include client certificate for mTLS
      * @return TLS configuration or null if TLS is not in use.
      */
     @VisibleForTesting
     @Nullable
-    Tls createTls(boolean includeClientCert) {
+    Tls createTlsConfigForClient() {
         if (!isHttps()) {
             return null;
         }
 
         io.kroxylicious.proxy.config.tls.KeyPair keyPair = null;
-        if (includeClientCert) {
+        if (requireClientAuth) {
             keyPair = new io.kroxylicious.proxy.config.tls.KeyPair(
                     getClientPrivateKeyPem().toString(),
                     getClientCertificatePem().toString(),
@@ -381,7 +373,7 @@ public class CipherTrustMockServer implements AutoCloseable {
         final String username = useClientCert ? null : TEST_USERNAME;
         final String password = useClientCert ? null : TEST_PASSWORD;
         final String clientId = useClientCert ? TEST_CLIENT_ID : null;
-        final Tls tls = createTls(useClientCert);
+        final Tls tls = createTlsConfigForClient();
 
         return new ConnectionConfig(username, password, clientId, tls);
     }
