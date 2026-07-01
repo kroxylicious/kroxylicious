@@ -26,11 +26,6 @@
         resources easier.
     </description>
 
-    <properties>
-        <!-- TODO: centralise josdk.version in the parent pom -->
-        <josdk.version>5.3.5</josdk.version>
-    </properties>
-
     <dependencyManagement>
         <dependencies>
             <dependency>
