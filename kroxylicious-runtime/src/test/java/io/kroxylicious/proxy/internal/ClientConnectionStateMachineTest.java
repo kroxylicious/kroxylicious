@@ -128,7 +128,6 @@ class ClientConnectionStateMachineTest {
         when(frontendHandler.clientChannel()).thenReturn(mock(Channel.class));
         // Make the executor run tasks synchronously for tests
         when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
-        when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
         lenient().when(serverConnectionStateMachine.isWritable()).thenReturn(true);
     }
 

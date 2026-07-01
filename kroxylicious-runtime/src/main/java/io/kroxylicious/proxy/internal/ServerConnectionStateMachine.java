@@ -89,6 +89,10 @@ class ServerConnectionStateMachine {
     @VisibleForTesting
     boolean serverReadsBlocked;
 
+    /**
+     * Tracks whether the server channel is writable.
+     * When false, client reads are paused to apply backpressure.
+     */
     @VisibleForTesting
     boolean serverChannelWritable = true;
 
