@@ -31,6 +31,28 @@ class KafkaServicePrimaryToStrimziKafkaSecondaryMapperTest {
     }
 
     @Test
+    void canMapFromKafkaServiceWithNamespacedStrimziKafkaRefToStrimziKafka() {
+        // Given
+        var mapper = new KafkaServicePrimaryToStrimziKafkaSecondaryMapper();
+        var service = new KafkaServiceBuilder(SERVICE)
+                .editMetadata()
+                .withNamespace("my-proxy")
+                .endMetadata()
+                .editSpec()
+                .editStrimziKafkaRef()
+                .withNamespace("my-kafka")
+                .endStrimziKafkaRef()
+                .endSpec()
+                .build();
+
+        // When
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(service);
+
+        // Then
+        assertThat(secondaryResourceIDs).containsExactly(new ResourceID("my-cluster", "my-kafka"));
+    }
+
+    @Test
     void canMapFromKafkaServiceWithoutStrimziKafkaRefToStrimziKafka() {
         // Given
         var mapper = new KafkaServicePrimaryToStrimziKafkaSecondaryMapper();

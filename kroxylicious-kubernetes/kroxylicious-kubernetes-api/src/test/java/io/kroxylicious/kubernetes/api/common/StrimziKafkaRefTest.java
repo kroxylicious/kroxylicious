@@ -12,6 +12,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class StrimziKafkaRefTest {
 
+    private static final String KUBERNETES_NAMESPACE_NAME_PATTERN = "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$";
+
+    @Test
+    void namespaceShouldUseKubernetesNamespaceNamePattern() throws NoSuchFieldException {
+        var namespacePattern = StrimziKafkaRef.class.getDeclaredField("namespace")
+                .getAnnotation(io.fabric8.generator.annotation.Pattern.class);
+
+        assertThat(namespacePattern).isNotNull();
+        assertThat(namespacePattern.value()).isEqualTo(KUBERNETES_NAMESPACE_NAME_PATTERN);
+
+        var pattern = java.util.regex.Pattern.compile(namespacePattern.value());
+        assertThat(pattern.matcher("kafka").matches()).isTrue();
+        assertThat(pattern.matcher("shared-kafka").matches()).isTrue();
+        assertThat(pattern.matcher("1").matches()).isTrue();
+        assertThat(pattern.matcher("Kafka").matches()).isFalse();
+        assertThat(pattern.matcher("foo_bar").matches()).isFalse();
+        assertThat(pattern.matcher("").matches()).isFalse();
+        assertThat(pattern.matcher(" ").matches()).isFalse();
+        assertThat(pattern.matcher("-kafka").matches()).isFalse();
+        assertThat(pattern.matcher("kafka-").matches()).isFalse();
+        assertThat(pattern.matcher("a".repeat(64)).matches()).isFalse();
+    }
+
     @Test
     // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
     // with the same group, kind and name.
@@ -28,11 +51,16 @@ class StrimziKafkaRefTest {
         var diffRefListener = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
                 .withListenerName("tls")
                 .build();
+        var diffNamespace = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withNamespace("other")
+                .withListenerName("plain")
+                .build();
 
         assertThat(strimziKafkaRefFoo)
                 .isNotEqualTo("salami")
                 .isNotEqualTo(diffRefName)
                 .isNotEqualTo(diffRefListener)
+                .isNotEqualTo(diffNamespace)
                 .isEqualTo(strimziKafkaRefFoo2)
                 .isEqualTo(strimziKafkaRefFoo)
                 .isNotEqualTo(diffRefKind)
