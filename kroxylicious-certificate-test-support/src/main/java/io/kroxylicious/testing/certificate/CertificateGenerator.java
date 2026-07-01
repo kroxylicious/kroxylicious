@@ -151,17 +151,17 @@ public class CertificateGenerator {
         }
     }
 
-    private static Path buildPkcs12TrustStore(X509Certificate cert, @Nullable String password) {
-        return buildTrustStore(cert, password, ".p12", PKCS_12);
-    }
-
-    public static TrustStore buildJksTrustStore(X509Certificate cert, @Nullable String password) {
-        Path path = buildTrustStore(cert, password, ".jks", JKS);
-        return new TrustStore(path, JKS, password, null);
-    }
-
+    /**
+     * Create a trust store containing the given certificate.
+     *
+     * @param cert the certificate to include in the trust store
+     * @param password optional password for the trust store
+     * @param type the trust store type (e.g., "JKS", "PKCS12")
+     * @return TrustStore record containing path, type, password, and password file
+     */
     @NonNull
-    private static Path buildTrustStore(X509Certificate cert, @Nullable String password, String suffix, String type) {
+    public static TrustStore createTrustStore(X509Certificate cert, @Nullable String password, String type) {
+        String suffix = PKCS_12.equals(type) ? ".p12" : ".jks";
         try {
             File certFile = createTempFile("trust", suffix);
             java.security.KeyStore store = java.security.KeyStore.getInstance(type);
@@ -169,7 +169,8 @@ public class CertificateGenerator {
             store.setCertificateEntry(ALIAS, cert);
             char[] pass = password != null ? password.toCharArray() : null;
             writeKeyStore(certFile, store, pass);
-            return certFile.toPath();
+            Path passwordFile = password != null ? writeToTempFile(password) : null;
+            return new TrustStore(certFile.toPath(), type, password, passwordFile);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -204,13 +205,9 @@ public class CertificateGenerator {
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
         KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, ENCRYPTED_KEY_PASSWORD);
         Path serverCert = generateCertPem(x509Certificate);
-        Path pkcs12Trust = buildPkcs12TrustStore(x509Certificate, password);
-        Path noPasswordPkcs12Trust = buildPkcs12TrustStore(x509Certificate, null);
-        TrustStore jksTrustStore = buildJksTrustStore(x509Certificate, password);
-        Path passwordFile = writeToTempFile(password);
-        TrustStore pkcs12ClientTruststore = new TrustStore(pkcs12Trust, PKCS_12, password, passwordFile);
-        TrustStore pkcs12NoPasswordTruststore = new TrustStore(noPasswordPkcs12Trust, PKCS_12, null, null);
-        TrustStore jksClientTruststore = new TrustStore(jksTrustStore.path(), JKS, password, passwordFile);
+        TrustStore pkcs12ClientTruststore = createTrustStore(x509Certificate, password, PKCS_12);
+        TrustStore pkcs12NoPasswordTruststore = createTrustStore(x509Certificate, null, PKCS_12);
+        TrustStore jksClientTruststore = createTrustStore(x509Certificate, password, JKS);
         return new Keys(pair, privateKeyPem, encryptedPrivateKeyPem, ENCRYPTED_KEY_PASSWORD, serverCert, pkcs12ClientTruststore, jksClientTruststore,
                 pkcs12NoPasswordTruststore, keyStore);
     }

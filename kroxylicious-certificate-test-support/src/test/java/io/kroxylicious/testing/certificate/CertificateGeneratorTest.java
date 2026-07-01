@@ -30,6 +30,8 @@ import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -281,6 +283,52 @@ class CertificateGeneratorTest {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "JKS", "PKCS12" })
+    void createTrustStoreCreatesCorrectType(String type) throws Exception {
+        // Given: a certificate and password
+        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+        X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+        String password = "trustpass";
+
+        // When: building trust store with specified type
+        CertificateGenerator.TrustStore trustStore = CertificateGenerator.createTrustStore(certificate, password, type);
+
+        // Then: trust store contains the certificate with correct type and password
+        assertTrustStore(trustStore, certificate, password, type);
+    }
+
+    @Test
+    void createTrustStoreHandlesNullPasswordForPkcs12() throws Exception {
+        // Given: a certificate with no password
+        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+        X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+
+        // When: building PKCS12 trust store without password
+        CertificateGenerator.TrustStore trustStore = CertificateGenerator.createTrustStore(certificate, null, "PKCS12");
+
+        // Then: trust store is created without password
+        assertThat(trustStore).isNotNull();
+        assertThat(trustStore.password()).isNull();
+        assertThat(trustStore.passwordFile()).isNull();
+        KeyStore keyStore = loadKeyStore(trustStore.path(), null, "PKCS12");
+        Certificate trustedCert = keyStore.getCertificate(CertificateGenerator.ALIAS);
+        assertThat(trustedCert).isNotNull().isEqualTo(certificate);
+    }
+
+    @Test
+    void createTrustStoreFailsWithInvalidType() {
+        // Given: a certificate
+        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+        X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+
+        // When/Then: building trust store with invalid type throws RuntimeException wrapping KeyStoreException
+        assertThatCode(() -> CertificateGenerator.createTrustStore(certificate, "pass", "INVALID_TYPE"))
+                .isInstanceOf(RuntimeException.class)
+                .hasCauseInstanceOf(java.security.KeyStoreException.class)
+                .hasMessageContaining("INVALID_TYPE");
     }
 
 }
