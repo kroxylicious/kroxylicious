@@ -13,15 +13,25 @@ import java.util.Properties;
 import org.slf4j.LoggerFactory;
 
 public interface VersionInfo {
-    VersionInfo VERSION_INFO = getVersionInfo();
+    VersionInfo VERSION_INFO = fromResource("META-INF/metadata.properties");
 
     String version();
 
     String commitId();
 
-    private static VersionInfo getVersionInfo() {
+    /**
+     * Loads version information from the named classpath properties resource, reading the
+     * {@code kroxylicious.version} and {@code git.commit.id} properties. Each module that wants to
+     * report its own build metadata should ship a distinctly named resource and load it here, so
+     * that the reported version reflects the module's own build rather than whichever
+     * {@code metadata.properties} happens to be first on the classpath.
+     *
+     * @param resourceName the classpath resource to load the metadata from
+     * @return the version information, or unknown values if the resource is absent or unreadable
+     */
+    static VersionInfo fromResource(String resourceName) {
 
-        try (var resource = Info.class.getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
+        try (var resource = Info.class.getClassLoader().getResourceAsStream(resourceName)) {
             if (resource != null) {
                 Properties properties = new Properties();
                 properties.load(resource);

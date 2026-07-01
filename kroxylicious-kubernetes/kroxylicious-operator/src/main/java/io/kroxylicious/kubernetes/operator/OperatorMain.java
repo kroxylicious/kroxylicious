@@ -73,6 +73,12 @@ public class OperatorMain {
      * name emitted by Prometheus will be called {@code kroxylicious_operator_build_info}.
      */
     private static final String BUILD_INFO_METRIC_NAME = "kroxylicious_operator_build.info";
+    /**
+     * Classpath resource holding the operator's own build metadata. It is distinct from the
+     * {@code kroxylicious-runtime} {@code META-INF/metadata.properties} so the version and commit id
+     * reported here reflect the operator's build rather than the runtime jar's.
+     */
+    static final String METADATA_RESOURCE = "META-INF/kroxylicious-operator.metadata.properties";
     private static final Pattern WATCHED_NAMESPACE_SPLITTER = Pattern.compile(" *, *");
     private final Operator operator;
     private final HttpServer managementServer;
@@ -139,7 +145,7 @@ public class OperatorMain {
         managementServer.start();
         addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
         operator.start();
-        var versionInfo = VersionInfo.VERSION_INFO;
+        var versionInfo = VersionInfo.fromResource(METADATA_RESOURCE);
         LOGGER.atInfo()
                 .addKeyValue("javaVersion", Runtime::version)
                 .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))

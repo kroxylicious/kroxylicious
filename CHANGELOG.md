@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4258](https://github.com/kroxylicious/kroxylicious/issues/4258): fix(operator): the version and commit id logged at operator startup (and exposed via the `kroxylicious_operator_info` metric) now reflect the operator's own build rather than the `kroxylicious-runtime` jar's
 * [#4144](https://github.com/kroxylicious/kroxylicious/pull/4144): build(deps): bump io.prometheus:prometheus-metrics-bom from 1.6.1 to 1.8.0
 * [#4207](https://github.com/kroxylicious/kroxylicious/pull/4207): build(deps): [record-validation] bump io.kiota:kiota-http-jdk from 0.0.35 to 0.0.36
 * [#4197](https://github.com/kroxylicious/kroxylicious/pull/4197): build(deps-dev): bump com.google.protobuf:protobuf-java from 4.35.0 to 4.35.1
