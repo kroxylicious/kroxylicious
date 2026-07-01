@@ -344,7 +344,7 @@ public class CipherTrustMockServer implements AutoCloseable {
      */
     @VisibleForTesting
     @Nullable
-    Tls createTlsConfigForClient() {
+    Tls createClientTlsConfig() {
         if (!isHttps()) {
             return null;
         }
@@ -366,14 +366,13 @@ public class CipherTrustMockServer implements AutoCloseable {
     /**
      * Create connection configuration for connecting to this mock server.
      *
-     * @param useClientCert whether to use client certificate authentication
      * @return connection configuration
      */
-    ConnectionConfig createConnectionConfig(boolean useClientCert) {
-        final String username = useClientCert ? null : TEST_USERNAME;
-        final String password = useClientCert ? null : TEST_PASSWORD;
-        final String clientId = useClientCert ? TEST_CLIENT_ID : null;
-        final Tls tls = createTlsConfigForClient();
+    ConnectionConfig createClientConnectionConfig() {
+        final String username = requireClientAuth ? null : TEST_USERNAME;
+        final String password = requireClientAuth ? null : TEST_PASSWORD;
+        final String clientId = requireClientAuth ? TEST_CLIENT_ID : null;
+        final Tls tls = createClientTlsConfig();
 
         return new ConnectionConfig(username, password, clientId, tls);
     }
