@@ -131,13 +131,6 @@ public class CipherTrustMockServer implements AutoCloseable {
     private KeyPair clientKeyPair;
 
     /**
-     * Create a CipherTrust mock server using HTTP.
-     */
-    public CipherTrustMockServer() {
-        this(false, false);
-    }
-
-    /**
      * Create a CipherTrust mock server with optional TLS support.
      *
      * @param useTls if true, configure HTTPS with self-signed certificate; if false, use HTTP
@@ -151,8 +144,12 @@ public class CipherTrustMockServer implements AutoCloseable {
      *
      * @param useTls if true, configure HTTPS with self-signed certificate; if false, use HTTP
      * @param requireClientAuth if true, require client certificates during TLS handshake (mutual TLS)
+     * @throws IllegalArgumentException if requireClientAuth is true but useTls is false
      */
     public CipherTrustMockServer(boolean useTls, boolean requireClientAuth) {
+        if (requireClientAuth && !useTls) {
+            throw new IllegalArgumentException("Client certificate authentication requires TLS (useTls must be true)");
+        }
         this.useTls = useTls;
         this.requireClientAuth = requireClientAuth;
         SecureRandom secureRandom;
@@ -183,6 +180,7 @@ public class CipherTrustMockServer implements AutoCloseable {
 
         if (useTls) {
             config.dynamicHttpsPort();
+            config.httpDisabled(true);
             configureTls(config);
         }
         else {
@@ -374,6 +372,10 @@ public class CipherTrustMockServer implements AutoCloseable {
     @VisibleForTesting
     @Nullable
     Tls createTls(boolean includeClientCert) {
+        if (!isHttps()) {
+            return null;
+        }
+
         io.kroxylicious.proxy.config.tls.KeyPair keyPair = null;
         if (includeClientCert) {
             keyPair = new io.kroxylicious.proxy.config.tls.KeyPair(
@@ -382,15 +384,10 @@ public class CipherTrustMockServer implements AutoCloseable {
                     null);
         }
 
-        TrustProvider trustProvider = null;
-        if (isHttps()) {
-            Path caCertPem = getServerCertificatePem();
-            trustProvider = new TrustStore(caCertPem.toString(), null, Tls.PEM, null);
-        }
+        Path caCertPem = getServerCertificatePem();
+        TrustProvider trustProvider = new TrustStore(caCertPem.toString(), null, Tls.PEM, null);
 
-        return keyPair != null || trustProvider != null
-                ? new Tls(keyPair, trustProvider, null, null)
-                : null;
+        return new Tls(keyPair, trustProvider, null, null);
     }
 
     /**

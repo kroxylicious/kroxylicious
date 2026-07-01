@@ -62,7 +62,7 @@ class CipherTrustMockServerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockServer = new CipherTrustMockServer();
+        mockServer = new CipherTrustMockServer(false);
         mockServer.start();
         baseUrl = mockServer.getBaseUrl();
         client = HttpClient.newHttpClient();
@@ -1007,7 +1007,7 @@ class CipherTrustMockServerTest {
     @SuppressWarnings("resource")
     void closeIsIdempotent() {
         // Given
-        CipherTrustMockServer server = new CipherTrustMockServer();
+        CipherTrustMockServer server = new CipherTrustMockServer(false);
         server.start();
 
         // When/Then

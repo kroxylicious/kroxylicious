@@ -196,11 +196,11 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
             connectionConfig = createConnectionConfigForReal();
         }
         else {
-            mockServer = new CipherTrustMockServer();
+            boolean useClientCert = authMode == AuthMode.CLIENT_CERT;
+            mockServer = new CipherTrustMockServer(true, useClientCert);
             mockServer.start();
             cipherTrustUrl = URI.create(mockServer.getBaseUrl());
 
-            boolean useClientCert = authMode == AuthMode.CLIENT_CERT;
             connectionConfig = mockServer.createConnectionConfig(useClientCert);
         }
 
