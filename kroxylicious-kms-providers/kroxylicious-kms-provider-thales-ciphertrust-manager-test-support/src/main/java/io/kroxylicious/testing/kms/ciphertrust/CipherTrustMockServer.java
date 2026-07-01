@@ -7,7 +7,6 @@
 package io.kroxylicious.testing.kms.ciphertrust;
 
 import java.net.URLDecoder;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.SecureRandom;
@@ -225,31 +224,13 @@ public class CipherTrustMockServer implements AutoCloseable {
         }
     }
 
-    @SuppressWarnings({ "java:S5443", "java:S2068", "java:S6437" }) // S5443: createTempFile is safe for test trust stores. S2068: STORE_PASSWORD is a test constant.
     private CertificateGenerator.TrustStore createClientTrustStore() {
         // We need to generate the client certificate first, so we can add it to the trust store
         if (clientCertificate == null) {
             generateClientCertificate();
         }
 
-        try {
-            // Create a JKS truststore containing the client certificate
-            java.security.KeyStore trustStore = java.security.KeyStore.getInstance("JKS");
-            trustStore.load(null);
-            trustStore.setCertificateEntry("client-cert", clientCertificate);
-
-            // Write to temporary file
-            var tempFile = Files.createTempFile("client-truststore-", ".jks");
-            tempFile.toFile().deleteOnExit();
-            try (var stream = Files.newOutputStream(tempFile)) {
-                trustStore.store(stream, STORE_PASSWORD.toCharArray());
-            }
-
-            return new CertificateGenerator.TrustStore(tempFile, "JKS", STORE_PASSWORD, null);
-        }
-        catch (Exception e) {
-            throw new MockServerException("Failed to create client truststore", e);
-        }
+        return CertificateGenerator.buildJksTrustStore(clientCertificate, STORE_PASSWORD);
     }
 
     /**

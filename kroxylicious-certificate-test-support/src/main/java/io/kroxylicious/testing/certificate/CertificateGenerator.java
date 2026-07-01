@@ -155,8 +155,9 @@ public class CertificateGenerator {
         return buildTrustStore(cert, password, ".p12", PKCS_12);
     }
 
-    private static Path buildJksTrustStore(X509Certificate cert, @Nullable String password) {
-        return buildTrustStore(cert, password, ".jks", JKS);
+    public static TrustStore buildJksTrustStore(X509Certificate cert, @Nullable String password) {
+        Path path = buildTrustStore(cert, password, ".jks", JKS);
+        return new TrustStore(path, JKS, password, null);
     }
 
     @NonNull
@@ -205,11 +206,11 @@ public class CertificateGenerator {
         Path serverCert = generateCertPem(x509Certificate);
         Path pkcs12Trust = buildPkcs12TrustStore(x509Certificate, password);
         Path noPasswordPkcs12Trust = buildPkcs12TrustStore(x509Certificate, null);
-        Path jksTrust = buildJksTrustStore(x509Certificate, password);
+        TrustStore jksTrustStore = buildJksTrustStore(x509Certificate, password);
         Path passwordFile = writeToTempFile(password);
         TrustStore pkcs12ClientTruststore = new TrustStore(pkcs12Trust, PKCS_12, password, passwordFile);
         TrustStore pkcs12NoPasswordTruststore = new TrustStore(noPasswordPkcs12Trust, PKCS_12, null, null);
-        TrustStore jksClientTruststore = new TrustStore(jksTrust, JKS, password, passwordFile);
+        TrustStore jksClientTruststore = new TrustStore(jksTrustStore.path(), JKS, password, passwordFile);
         return new Keys(pair, privateKeyPem, encryptedPrivateKeyPem, ENCRYPTED_KEY_PASSWORD, serverCert, pkcs12ClientTruststore, jksClientTruststore,
                 pkcs12NoPasswordTruststore, keyStore);
     }
