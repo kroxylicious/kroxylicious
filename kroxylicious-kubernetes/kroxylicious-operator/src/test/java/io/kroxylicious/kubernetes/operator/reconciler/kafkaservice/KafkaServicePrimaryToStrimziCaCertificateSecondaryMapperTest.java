@@ -31,6 +31,28 @@ class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapperTest {
     }
 
     @Test
+    void canMapFromKafkaServiceWithNamespacedStrimziKafkaRefToStrimziCaCertificate() {
+        // Given
+        var mapper = new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper();
+        var service = new KafkaServiceBuilder(SERVICE_WITH_TLS)
+                .editMetadata()
+                .withNamespace("my-proxy")
+                .endMetadata()
+                .editSpec()
+                .editStrimziKafkaRef()
+                .withNamespace("my-kafka")
+                .endStrimziKafkaRef()
+                .endSpec()
+                .build();
+
+        // When
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(service);
+
+        // Then
+        assertThat(secondaryResourceIDs).containsExactly(new ResourceID("my-cluster-cluster-ca-cert", "my-kafka"));
+    }
+
+    @Test
     void canMapFromKafkaServiceWithoutTrustAnchorToConfigMap() {
         // Given
         var mapper = new KafkaServicePrimaryToResourceSecondaryJoinedOnTlsTrustAnchorRefMapper();

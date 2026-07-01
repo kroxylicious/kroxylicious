@@ -12,6 +12,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -222,9 +223,73 @@ class KafkaServiceReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        // SharedInformerManager is only needed for prepareEventSources(), which these tests don't call
-        SharedInformerManager mockSharedInformerManager = mock(SharedInformerManager.class);
-        kafkaServiceReconciler = new KafkaServiceReconciler(Clock.systemUTC(), mockSharedInformerManager);
+        kafkaServiceReconciler = new KafkaServiceReconciler(
+                Clock.systemUTC(), new SharedInformerManager(mock(KubernetesClient.class), Set.of()));
+    }
+
+    @Test
+    void shouldSetResolvedRefsFalseWhenStrimziKafkaNamespaceNotWatched() {
+        // Given
+        var reconciler = new KafkaServiceReconciler(
+                TEST_CLOCK, new SharedInformerManager(mock(KubernetesClient.class), Set.of("service-namespace")));
+        Context<KafkaService> context = mock();
+        KafkaService service = new KafkaServiceBuilder(SERVICE)
+                .editMetadata()
+                .withNamespace("service-namespace")
+                .endMetadata()
+                .editSpec()
+                .editStrimziKafkaRef()
+                .withNamespace("kafka-namespace")
+                .withListenerName("plain")
+                .endStrimziKafkaRef()
+                .withTls(null)
+                .endSpec()
+                .build();
+
+        // When
+        final UpdateControl<KafkaService> updateControl = reconciler.reconcile(service, context);
+
+        // Then
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.getResource()).isPresent();
+        OperatorAssertions.assertThat(updateControl.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(service)
+                .singleCondition()
+                .isResolvedRefsFalse(
+                        Condition.REASON_REFS_NOT_FOUND,
+                        "spec.strimziKafkaRef.namespace: namespace kafka-namespace is not watched by this operator");
+    }
+
+    @Test
+    void shouldResolveCrossNamespaceStrimziKafkaWhenNamespaceWatched() {
+        // Given
+        var reconciler = new KafkaServiceReconciler(
+                TEST_CLOCK, new SharedInformerManager(mock(KubernetesClient.class), Set.of("service-namespace", "kafka-namespace")));
+        Context<KafkaService> context = mockContext(Kafka.class);
+        mockGetKafka(context, Optional.of(KAFKA));
+        KafkaService service = new KafkaServiceBuilder(SERVICE)
+                .editMetadata()
+                .withNamespace("service-namespace")
+                .endMetadata()
+                .editSpec()
+                .editStrimziKafkaRef()
+                .withNamespace("kafka-namespace")
+                .withListenerName("plain")
+                .endStrimziKafkaRef()
+                .withTls(null)
+                .endSpec()
+                .build();
+
+        // When
+        final UpdateControl<KafkaService> updateControl = reconciler.reconcile(service, context);
+
+        // Then
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.getResource()).isPresent();
+        OperatorAssertions.assertThat(updateControl.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(service)
+                .singleCondition()
+                .isResolvedRefsTrue();
     }
 
     @Test
@@ -589,7 +654,12 @@ class KafkaServiceReconcilerTest {
     private static void mockGetKafka(
                                      Context<KafkaService> context,
                                      Optional<Kafka> optional) {
-        when(context.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME)).thenReturn(optional);
+        KubernetesClient client = context.getClient();
+        if (client == null) {
+            client = mock(KubernetesClient.class);
+            when(context.getClient()).thenReturn(client);
+        }
+        mockClientKafkaLookup(client, optional.orElse(null));
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -616,6 +686,18 @@ class KafkaServiceReconcilerTest {
         when(secretsOp.inNamespace(namespace)).thenReturn(inNamespaceOp);
         when(inNamespaceOp.withName(secretName)).thenReturn(namedOp);
         when(namedOp.get()).thenReturn(secret);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void mockClientKafkaLookup(KubernetesClient client, Kafka kafka) {
+        var kafkaOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
+        var inNamespaceOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
+        var namedOp = mock(io.fabric8.kubernetes.client.dsl.Resource.class);
+
+        when(client.resources(Kafka.class)).thenReturn(kafkaOp);
+        when(kafkaOp.inNamespace(org.mockito.ArgumentMatchers.nullable(String.class))).thenReturn(inNamespaceOp);
+        when(inNamespaceOp.withName(org.mockito.ArgumentMatchers.nullable(String.class))).thenReturn(namedOp);
+        when(namedOp.get()).thenReturn(kafka);
     }
 
     @ParameterizedTest

@@ -10,7 +10,7 @@ For the purposes of this example we use:
 * Strimzi Operator installed from OLM
 * An in-cluster Kafka cluster with TLS-enabled listeners
 
-**Security note:** Using `trustStrimziCaCertificate: true` delegates certificate trust to the Strimzi Operator. The Strimzi CA secret must be in the same namespace as the KafkaService.
+**Security note:** Using `trustStrimziCaCertificate: true` delegates certificate trust to the Strimzi Operator. The Strimzi CA secret must be in the same namespace as the referenced Strimzi Kafka cluster. If `spec.strimziKafkaRef.namespace` is omitted, the Kafka cluster is assumed to be in the KafkaService namespace.
 
 To try this example out:
 1. Install `kubectl`
@@ -30,4 +30,4 @@ To try this example out:
 **Troubleshooting:** If the KafkaService shows `ResolvedRefs: False`, check:
 * Strimzi Operator is installed: `kubectl get crd kafkas.kafka.strimzi.io`
 * Kafka cluster exists and is ready: `kubectl get kafka my-cluster -n my-proxy`
-* Strimzi CA secret exists: `kubectl get secret my-cluster-cluster-ca-cert -n my-proxy`
+* Strimzi CA secret exists in the referenced Strimzi Kafka namespace: `kubectl get secret my-cluster-cluster-ca-cert -n my-proxy`
