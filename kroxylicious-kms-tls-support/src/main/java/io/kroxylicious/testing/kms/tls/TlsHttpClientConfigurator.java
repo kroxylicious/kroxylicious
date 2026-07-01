@@ -114,34 +114,27 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
         }
     }
 
-    @VisibleForTesting
-    SSLParameters sslParameters() {
-        // Use the configured SSL context (which may have client certificates) rather than
-        // the platform default. This ensures client certificates are properly configured
-        // in the SSLParameters returned by HttpClient.
-        SSLContext contextToUse = (tls == null || (tls.trust() == null && tls.key() == null))
-                ? PLATFORM_SSL_CONTEXT
-                : sslContext();
-        var defaultSslParameters = contextToUse.getDefaultSSLParameters();
+    private SSLParameters sslParameters(SSLContext context) {
+        var copy = context.getDefaultSSLParameters();
 
         // Disable hostname verification if using insecure TLS
         if (isInsecureTls()) {
-            defaultSslParameters.setEndpointIdentificationAlgorithm(null);
+            copy.setEndpointIdentificationAlgorithm(null);
         }
 
         if (tls == null || (tls.protocols() == null && tls.cipherSuites() == null)) {
-            return defaultSslParameters;
+            return copy;
         }
 
-        var supportedSSLParameters = contextToUse.getSupportedSSLParameters();
+        var supportedSSLParameters = context.getSupportedSSLParameters();
 
-        var protocols = applyRestriction("protocol", tls.protocols(), defaultSslParameters, supportedSSLParameters, SSLParameters::getProtocols);
-        var cipherSuites = applyRestriction("cipher suite", tls.cipherSuites(), defaultSslParameters, supportedSSLParameters, SSLParameters::getCipherSuites);
+        var protocols = applyRestriction("protocol", tls.protocols(), copy, supportedSSLParameters, SSLParameters::getProtocols);
+        var cipherSuites = applyRestriction("cipher suite", tls.cipherSuites(), copy, supportedSSLParameters, SSLParameters::getCipherSuites);
 
-        defaultSslParameters.setProtocols(protocols);
-        defaultSslParameters.setCipherSuites(cipherSuites);
+        copy.setProtocols(protocols);
+        copy.setCipherSuites(cipherSuites);
 
-        return defaultSslParameters;
+        return copy;
     }
 
     private boolean isInsecureTls() {
@@ -358,8 +351,9 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
     @Override
     public HttpClient.Builder apply(@NonNull HttpClient.Builder builder) {
         Objects.requireNonNull(builder);
-        builder.sslContext(sslContext())
-                .sslParameters(sslParameters());
+        SSLContext context = sslContext();
+        builder.sslContext(context)
+                .sslParameters(sslParameters(context));
         return builder;
     }
 }
