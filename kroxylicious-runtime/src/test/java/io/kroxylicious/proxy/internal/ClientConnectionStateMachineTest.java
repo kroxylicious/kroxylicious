@@ -999,7 +999,7 @@ class ClientConnectionStateMachineTest {
 
         // When: first request triggers toForwardingWithRoutes, which fails during SCSM creation
         var request = metadataRequest();
-        assertThatThrownBy(() -> failingCcsm.onClientRequest(request))
+        assertThatThrownBy(() -> failingCcsm.onClientRequest(request));
         // When: forwardToRoute lazily tries to create an SCSM and fails
         var msg = new Object();
         assertThatThrownBy(() -> failingCcsm.forwardToRoute("my-route", msg))
