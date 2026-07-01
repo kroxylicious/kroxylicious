@@ -9,6 +9,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import io.kroxylicious.proxy.config.TargetCluster;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Routing model for a virtual cluster that forwards to one or more upstream clusters via a named
  * router plugin. The {@link NodeIdMapping} is derived from the route descriptors at construction
@@ -32,6 +36,15 @@ public record DynamicRouting(
         Objects.requireNonNull(routeDescriptors, "routeDescriptors");
         Objects.requireNonNull(nodeIdMapping, "nodeIdMapping");
         routeDescriptors = Map.copyOf(routeDescriptors);
+    }
+
+    @Override
+    public @Nullable TargetCluster targetClusterFor(@Nullable String routeName) {
+        if (routeName == null) {
+            return null;
+        }
+        RouteDescriptor descriptor = routeDescriptors.get(routeName);
+        return descriptor != null ? descriptor.targetCluster() : null;
     }
 
     private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {
