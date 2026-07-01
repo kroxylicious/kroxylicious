@@ -194,15 +194,17 @@ public class CipherTrustMockServer implements AutoCloseable {
             KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
             X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
             this.serverCertificate = certificate; // Store for later access
-            CertificateGenerator.KeyStore keyStore = CertificateGenerator.createJksKeystore(
+            CertificateGenerator.KeyStore keyStore = CertificateGenerator.createKeystore(
                     keyPair,
                     certificate,
                     STORE_PASSWORD,
-                    KEY_PASSWORD);
+                    KEY_PASSWORD,
+                    CertificateGenerator.PKCS_12);
 
             config.keystorePath(keyStore.path().toString())
                     .keystorePassword(STORE_PASSWORD)
-                    .keyManagerPassword(KEY_PASSWORD);
+                    .keyManagerPassword(KEY_PASSWORD)
+                    .keystoreType(CertificateGenerator.PKCS_12);
 
             if (requireClientAuth) {
                 // Configure mutual TLS: server will require client certificates during TLS handshake.
@@ -214,9 +216,10 @@ public class CipherTrustMockServer implements AutoCloseable {
                 config.needClientAuth(true);
 
                 // Create trust store containing our test client certificate so WireMock will accept it
-                CertificateGenerator.TrustStore trustStore = CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, "JKS");
+                CertificateGenerator.TrustStore trustStore = CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, CertificateGenerator.PKCS_12);
                 config.trustStorePath(trustStore.path().toString())
-                        .trustStorePassword(trustStore.password());
+                        .trustStorePassword(trustStore.password())
+                        .trustStoreType(CertificateGenerator.PKCS_12);
             }
         }
         catch (Exception e) {
