@@ -230,7 +230,7 @@ public class CipherTrustMockServer implements AutoCloseable {
             generateClientCertificate();
         }
 
-        return CertificateGenerator.buildJksTrustStore(clientCertificate, STORE_PASSWORD);
+        return CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, "JKS");
     }
 
     /**
