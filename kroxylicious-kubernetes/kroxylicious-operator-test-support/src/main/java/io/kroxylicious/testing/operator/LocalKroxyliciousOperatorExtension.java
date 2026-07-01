@@ -72,6 +72,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     static final String DEFAULT_CLUSTER_ROLE_GLOB = "*.ClusterRole.*.yaml";
     private static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
     private static final String KROXYLICIOUS_IMAGE_PROPERTIES = "/kroxylicious-image.properties";
+    private static final String IMAGE_PRELOAD_NAMESPACE = "default";
 
     private final Supplier<LocallyRunningOperatorRbacHandler> rbacHandlerFactory;
     private final Function<LocallyRunningOperatorRbacHandler, LocallyRunOperatorExtension> extensionFactory;
@@ -189,7 +190,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     private static void preloadOperandImage() {
         String image = resolveOperandImage();
         try (var client = OperatorTestUtils.kubeClient()) {
-            var pod = client.run().withName("preload-operand-image")
+            var pod = client.run().inNamespace(IMAGE_PRELOAD_NAMESPACE).withName("preload-operand-image")
                     .withNewRunConfig()
                     .withImage(image)
                     .withRestartPolicy("Never")

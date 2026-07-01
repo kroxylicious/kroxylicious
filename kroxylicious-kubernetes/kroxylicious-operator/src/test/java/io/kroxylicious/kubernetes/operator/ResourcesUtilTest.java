@@ -405,6 +405,21 @@ class ResourcesUtilTest {
     }
 
     @Test
+    void strimziKafkaNamespaceShouldDefaultToServiceNamespaceWhenOmitted() {
+        var service = new KafkaServiceBuilder()
+                .withNewMetadata()
+                .withNamespace("service-namespace")
+                .endMetadata()
+                .build();
+
+        var omittedNamespaceRef = new StrimziKafkaRefBuilder().build();
+        assertThat(ResourcesUtil.strimziKafkaNamespace(service, omittedNamespaceRef)).isEqualTo("service-namespace");
+
+        var explicitNamespaceRef = new StrimziKafkaRefBuilder().withNamespace("strimzi-namespace").build();
+        assertThat(ResourcesUtil.strimziKafkaNamespace(service, explicitNamespaceRef)).isEqualTo("strimzi-namespace");
+    }
+
+    @Test
     void uid() {
         String uid = "uid";
         Secret secret = new SecretBuilder().withNewMetadata().withUid(uid).endMetadata().build();
@@ -777,6 +792,20 @@ class ResourcesUtilTest {
         return eventSourceContext;
     }
 
+    private static void mockKafkaClient(KubernetesClient client, @Nullable Kafka kafka) {
+        @SuppressWarnings("unchecked")
+        MixedOperation<Kafka, KubernetesResourceList<Kafka>, Resource<Kafka>> kafkaOperation = mock(MixedOperation.class);
+        @SuppressWarnings("unchecked")
+        NonNamespaceOperation<Kafka, KubernetesResourceList<Kafka>, Resource<Kafka>> namespacedKafkaOperation = mock(NonNamespaceOperation.class);
+        @SuppressWarnings("unchecked")
+        Resource<Kafka> kafkaResource = mock(Resource.class);
+
+        when(client.resources(Kafka.class)).thenReturn(kafkaOperation);
+        when(kafkaOperation.inNamespace(anyString())).thenReturn(namespacedKafkaOperation);
+        when(namespacedKafkaOperation.withName(anyString())).thenReturn(kafkaResource);
+        when(kafkaResource.get()).thenReturn(kafka);
+    }
+
     @ParameterizedTest
     @MethodSource("invalidTrustAnchorRefs")
     void shouldReturnResolvedRefsFalseStatusCondition(TrustAnchorRef trustAnchorRef,
@@ -814,19 +843,24 @@ class ResourcesUtilTest {
                                                       String expectedCondition,
                                                       ThrowingConsumer<String> stringThrowingConsumer) {
         // Given
-        KafkaService service = new KafkaServiceBuilder().withNewSpec().withStrimziKafkaRef(strimziKafkaRef).endSpec().build();
+        KafkaService service = new KafkaServiceBuilder()
+                .withNewMetadata()
+                .withNamespace("service-namespace")
+                .endMetadata()
+                .withNewSpec()
+                .withStrimziKafkaRef(strimziKafkaRef)
+                .endSpec()
+                .build();
         @SuppressWarnings("unchecked")
         Context<KafkaService> reconcilerContext = mock(Context.class);
         KubernetesClient client = mock();
         when(reconcilerContext.getClient()).thenReturn(client);
         when(reconcilerContext.getClient().supports(Kafka.class)).thenReturn(true);
-        when(reconcilerContext.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME))
-                .thenReturn(Optional.ofNullable(kafka));
+        mockKafkaClient(client, kafka);
 
         // When
         ResourceCheckResult<KafkaService> actual = ResourcesUtil.checkStrimziKafkaRef(service, reconcilerContext,
-                KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRef,
-                "spec.strimziKafkaRef", KafkaServiceReconciler.newStatusFactory(TEST_CLOCK));
+                strimziKafkaRef, "spec.strimziKafkaRef", KafkaServiceReconciler.newStatusFactory(TEST_CLOCK));
 
         // Then
         assertThat(actual)
@@ -863,7 +897,6 @@ class ResourcesUtilTest {
         ResourceCheckResult<KafkaService> actual = ResourcesUtil.checkStrimziKafkaRef(
                 service,
                 reconcilerContext,
-                KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME,
                 strimziKafkaRef,
                 "spec.strimziKafkaRef",
                 KafkaServiceReconciler.newStatusFactory(TEST_CLOCK));
