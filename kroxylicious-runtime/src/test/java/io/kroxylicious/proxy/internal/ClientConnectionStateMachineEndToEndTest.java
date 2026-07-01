@@ -55,6 +55,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -111,9 +112,10 @@ class ClientConnectionStateMachineEndToEndTest {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         // Override createServerConnection to substitute EmbeddedChannels for real TCP connections
         return new ClientConnectionStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession,
-                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn,
-                        ni, connectionCounter, errorCounter,
-                        backpressureMeter, connectionToken) {
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> new ServerConnectionStateMachine(remote,
+                        ccsm,
+                        vc, cn, ni, connectionCounter, errorCounter,
+                        backpressureMeter, connectionToken, tlsConfig) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,
@@ -510,6 +512,7 @@ class ClientConnectionStateMachineEndToEndTest {
             throw new RuntimeException(e);
         }
         when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
+        when(virtualClusterModel.getTlsCredentialSupplierManager()).thenReturn(TlsCredentialSupplierManager.unconfigured());
         when(virtualClusterModel.getClusterName()).thenReturn("RandomCluster");
         var clientConnectionStateMachine = clientConnectionStateMachine(endpointBinding);
 

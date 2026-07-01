@@ -40,6 +40,7 @@ import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -85,9 +86,10 @@ class KafkaProxyFrontendHandlerTest {
     ClientConnectionStateMachine clientConnectionStateMachine(EndpointBinding endpointBinding) {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         return new ClientConnectionStateMachine(Objects.requireNonNull(endpointBinding), new DefaultSubjectBuilder(List.of()), kafkaSession,
-                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> new ServerConnectionStateMachine(remote, ccsm, vc, cn,
-                        ni, connectionCounter, errorCounter,
-                        backpressureMeter, connectionToken) {
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> new ServerConnectionStateMachine(remote,
+                        ccsm,
+                        vc, cn, ni, connectionCounter, errorCounter,
+                        backpressureMeter, connectionToken, tlsConfig) {
                     @Override
                     Bootstrap configureBootstrap(
                                                  KafkaProxyBackendHandler capturedBackendHandler,
@@ -247,6 +249,8 @@ class KafkaProxyFrontendHandlerTest {
         // mock through the VC so verify(fcf).createFilters(...) still works.
         when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
         when(virtualClusterModel.routing()).thenReturn(new DirectRouting(new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
+        when(virtualClusterModel.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualClusterModel.getTlsCredentialSupplierManager()).thenReturn(TlsCredentialSupplierManager.unconfigured());
         return virtualClusterModel;
     }
 

@@ -5,6 +5,10 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import io.kroxylicious.proxy.config.TargetCluster;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Sealed hierarchy representing how a virtual cluster reaches its upstream Kafka cluster(s).
  * <ul>
@@ -16,4 +20,16 @@ public sealed interface RoutingModel extends AutoCloseable permits DirectRouting
     @Override
     default void close() {
     }
+
+    /**
+     * Returns the upstream {@link TargetCluster} for the given route name, or {@code null} if there
+     * is no cluster target for that name.
+     * <p>
+     * For {@link DirectRouting}, {@code routeName} is ignored and the single configured cluster is
+     * always returned. For {@link DynamicRouting}, {@code routeName} identifies the route descriptor
+     * to look up; returns {@code null} when the name is not found or the route targets a nested
+     * router rather than a cluster.
+     */
+    @Nullable
+    TargetCluster targetClusterFor(@Nullable String routeName);
 }

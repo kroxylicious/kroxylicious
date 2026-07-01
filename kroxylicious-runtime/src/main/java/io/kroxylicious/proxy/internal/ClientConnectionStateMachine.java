@@ -853,7 +853,8 @@ public class ClientConnectionStateMachine {
                                             Counter proxyToServerConnectionCounter,
                                             Counter proxyToServerErrorCounter,
                                             Timer serverToProxyBackpressureMeter,
-                                            ActivationToken proxyToServerConnectionToken);
+                                            ActivationToken proxyToServerConnectionToken,
+                                            ConnectionTlsConfig tlsConfig);
     }
 
     @SuppressWarnings("java:S5738")
@@ -907,7 +908,7 @@ public class ClientConnectionStateMachine {
                 return;
             }
             ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
-                var newScsm = createServerConnection(target);
+                var newScsm = createServerConnectionForRoute(routeName, target);
                 Channel clientChannel = Objects.requireNonNull(
                         Objects.requireNonNull(frontendHandler).clientChannel());
                 newScsm.connect(clientChannel);
@@ -922,8 +923,26 @@ public class ClientConnectionStateMachine {
 
     @VisibleForTesting
     ServerConnectionStateMachine createServerConnection(HostPort remote) {
-        return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId(),
-                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
+        var vc = virtualCluster();
+        var tlsConfig = new ConnectionTlsConfig(
+                vc.getUpstreamSslContext(),
+                vc.getTlsCredentialSupplierManager(),
+                vc.routing().targetClusterFor(null));
+        return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
+                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
+                tlsConfig);
+    }
+
+    @VisibleForTesting
+    ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
+        var vc = virtualCluster();
+        var tlsConfig = new ConnectionTlsConfig(
+                vc.getUpstreamSslContextForRoute(routeName),
+                vc.getTlsCredentialSupplierManagerForRoute(routeName),
+                vc.routing().targetClusterFor(routeName));
+        return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
+                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
+                tlsConfig);
     }
 
     /**

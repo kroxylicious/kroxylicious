@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.router.Router;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Routing model for a virtual cluster that forwards to one or more upstream clusters via a named
@@ -47,6 +50,15 @@ public record DynamicRouting(
     @Override
     public void close() {
         routerChainFactory.close();
+    }
+
+    @Override
+    public @Nullable TargetCluster targetClusterFor(@Nullable String routeName) {
+        if (routeName == null) {
+            return null;
+        }
+        RouteDescriptor descriptor = routeDescriptors.get(routeName);
+        return descriptor != null ? descriptor.targetCluster() : null;
     }
 
     private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {
