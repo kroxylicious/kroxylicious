@@ -26,6 +26,11 @@
         resources easier.
     </description>
 
+    <properties>
+        <!-- TODO: centralise josdk.version in the parent pom -->
+        <josdk.version>5.3.5</josdk.version>
+    </properties>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -64,7 +69,7 @@
         </dependency>
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
-            <artifactId>operator-framework-junit-5</artifactId>
+            <artifactId>operator-framework-junit</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
