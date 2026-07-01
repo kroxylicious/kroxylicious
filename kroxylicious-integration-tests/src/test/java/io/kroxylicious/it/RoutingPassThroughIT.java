@@ -355,6 +355,43 @@ class RoutingPassThroughIT {
     }
 
     @Test
+    void shouldVirtualizeNodeIdsInDescribeTopicPartitionsResponse(KafkaCluster clusterA, KafkaCluster clusterB) throws Exception {
+        // Given: two routes where route-b (id=1, totalRoutes=2) maps upstream broker 0
+        // to virtual ID 1 + 2×0 = 1. All traffic goes to route-b.
+        var clusterDefA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var routerConfig = new PassThroughRouterFactory.Config("route-b");
+        var routerDef = new RouterDefinition("two-cluster-router",
+                PassThroughRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "two-cluster-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefA)
+                .addToClusterDefinitions(clusterDefB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        var topicName = "describe-topic-parts-" + UUID.randomUUID();
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var admin = tester.admin()) {
+            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+            // When
+            var descriptions = admin.describeTopics(List.of(topicName)).allTopicNames().get(10, TimeUnit.SECONDS);
+
+            // Then: leader ID is the virtual ID (1), not the upstream broker ID (0)
+            assertThat(descriptions.get(topicName).partitions())
+                    .singleElement()
+                    .satisfies(p -> assertThat(p.leader().id()).isEqualTo(1));
+        }
+    }
+
+    @Test
     void shouldRouteConnectionsToCorrectUpstreamBrokerBasedOnVirtualNodeId() {
         // Given: two mock servers representing upstream broker 0 and broker 1 of a single route.
         // With IdentityNodeIdMapping (single route), virtual node 0 = upstream broker 0 and

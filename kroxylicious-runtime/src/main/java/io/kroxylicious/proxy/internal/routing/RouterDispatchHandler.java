@@ -45,7 +45,8 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             ApiKeys.PRODUCE,
             ApiKeys.FETCH,
             ApiKeys.SHARE_FETCH,
-            ApiKeys.SHARE_ACKNOWLEDGE);
+            ApiKeys.SHARE_ACKNOWLEDGE,
+            ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
     private final Router router;
     private final Map<ApiKeys, String> staticRoutes;
