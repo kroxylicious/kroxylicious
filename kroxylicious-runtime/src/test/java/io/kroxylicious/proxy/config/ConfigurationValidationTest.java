@@ -11,6 +11,8 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
@@ -116,8 +118,8 @@ class ConfigurationValidationTest {
                 List.of(virtualCluster), null, false, Optional.empty(), null, null);
         List<VirtualClusterModel> virtualClusterModels = config.virtualClusterModel(null);
         assertThat(virtualClusterModels).hasSize(1).singleElement().satisfies(vm -> {
-            assertThat(vm.usesRouter()).isTrue();
-            assertThat(vm.routerName()).isEqualTo("myrouter");
+            assertThat(vm.routing()).isInstanceOf(DynamicRouting.class);
+            assertThat(((DynamicRouting) vm.routing()).routerName()).isEqualTo("myrouter");
         });
     }
 
@@ -134,8 +136,8 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(null).get(0);
 
-        assertThat(model.routeDescriptors()).containsKey("route1");
-        RouteDescriptor rd = model.routeDescriptors().get("route1");
+        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("route1");
         assertThat(rd.name()).isEqualTo("route1");
         assertThat(rd.id()).isZero();
         assertThat(rd.targetsCluster()).isTrue();
@@ -143,7 +145,7 @@ class ConfigurationValidationTest {
     }
 
     @Test
-    void routerResolvesPrimaryTargetClusterFromFirstRoute() {
+    void routerResolvesRouteDescriptorsForMultipleRoutes() {
         var c1 = new ClusterDefinition("c1", "broker1:9092", null);
         var c2 = new ClusterDefinition("c2", "broker2:9092", null);
         var route1 = new RouteDefinition("r1", 0, null, new RouteTarget("c1", null));
@@ -157,9 +159,9 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(null).get(0);
 
-        assertThat(model.targetCluster()).isNotNull();
-        assertThat(model.targetCluster().bootstrapServersList()).containsExactly(
-                new io.kroxylicious.proxy.service.HostPort("broker1", 9092));
+        assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
+        var dr = (DynamicRouting) model.routing();
+        assertThat(dr.routeDescriptors()).containsKeys("r1", "r2");
     }
 
     @Test
@@ -177,7 +179,7 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(null).get(0);
 
-        assertThat(model.routeDescriptors()).hasSize(2).containsKeys("r1", "r2");
+        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).hasSize(2).containsKeys("r1", "r2");
     }
 
     @Test
@@ -194,19 +196,18 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(null).get(0);
 
-        RouteDescriptor rd = model.routeDescriptors().get("r1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("r1");
         assertThat(rd.filters()).hasSize(1);
         assertThat(rd.filters().get(0).name()).isEqualTo("f1");
     }
 
     @Test
-    void virtualClusterWithoutRouterHasNullRouteDescriptors() {
+    void virtualClusterWithoutRouterHasDirectRouting() {
         var config = config(List.of(SIMPLE_VC));
 
         var model = config.virtualClusterModel(null).get(0);
 
-        assertThat(model.usesRouter()).isFalse();
-        assertThat(model.routeDescriptors()).isNull();
+        assertThat(model.routing()).isInstanceOf(DirectRouting.class);
     }
 
     @Test
@@ -270,9 +271,10 @@ class ConfigurationValidationTest {
 
         var model = config.virtualClusterModel(null, "demo");
 
-        assertThat(model.usesRouter()).isTrue();
-        assertThat(model.routerName()).isEqualTo("myrouter");
-        assertThat(model.routeDescriptors()).containsKey("r1");
+        assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
+        var dr = (DynamicRouting) model.routing();
+        assertThat(dr.routerName()).isEqualTo("myrouter");
+        assertThat(dr.routeDescriptors()).containsKey("r1");
     }
 
     @Test

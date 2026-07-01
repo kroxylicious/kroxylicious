@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -491,7 +492,7 @@ public class ClientConnectionStateMachine {
      * @param msg the RPC received from the upstream
      */
     void onDirectClientFilterChainComplete(Object msg) {
-        if (virtualCluster().usesRouter()) {
+        if (virtualCluster().routing() instanceof DynamicRouting) {
             throw new IllegalStateException(
                     "onDirectClientFilterChainComplete must not be called for a virtual cluster that uses a router");
         }
@@ -857,11 +858,11 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwardingWithRoutes(Forwarding forwarding) {
         setState(forwarding);
-        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
-        if (descriptors == null || descriptors.isEmpty()) {
+        if (!(virtualCluster().routing() instanceof DynamicRouting dr)) {
             throw new IllegalStateException(
-                    "toForwardingWithRoutes called but virtualCluster has no routeDescriptors — this is a bug");
+                    "toForwardingWithRoutes called but virtualCluster has no router — this is a bug");
         }
+        var descriptors = dr.routeDescriptors();
         routeTargets = new HashMap<>();
         for (var entry : descriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
@@ -873,9 +874,8 @@ public class ClientConnectionStateMachine {
         // For per-broker connections, the EndpointReconciler has already resolved the
         // real upstream address. Override the owning route's bootstrap target with it.
         // Server connections are opened lazily in forwardToRoute().
-        var nodeIdMapping = virtualCluster().nodeIdMapping();
-        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
-            var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
+        if (endpointBinding instanceof BrokerEndpointBinding beb) {
+            var routeAndNode = dr.nodeIdMapping().fromVirtual(beb.nodeId());
             RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
             if (owningDesc != null && owningDesc.targetsCluster()) {
                 routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
@@ -895,7 +895,7 @@ public class ClientConnectionStateMachine {
      * for both static and dynamic routing paths.
      */
     public void forwardToRoute(String routeName, Object msg) {
-        if (!virtualCluster().usesRouter()) {
+        if (!(virtualCluster().routing() instanceof DynamicRouting)) {
             throw new IllegalStateException(
                     "forwardToRoute must not be called for a virtual cluster that does not use a router");
         }
@@ -953,7 +953,7 @@ public class ClientConnectionStateMachine {
             this.clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
         }
         if (msg instanceof RequestFrame) {
-            if (virtualCluster().usesRouter()) {
+            if (virtualCluster().routing() instanceof DynamicRouting) {
                 toForwardingWithRoutes(forwardingFactory.get());
             }
             else {

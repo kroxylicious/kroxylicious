@@ -12,7 +12,6 @@ import java.util.Set;
 
 import io.netty.handler.ssl.SslContext;
 
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -22,12 +21,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A gateway to an endpoint.
  */
 public interface EndpointGateway {
-    /**
-     * Target cluster associated with this listener.
-     * @return target cluster
-     */
-    TargetCluster targetCluster();
-
     /**
      * true if this listener uses TLS.
      *

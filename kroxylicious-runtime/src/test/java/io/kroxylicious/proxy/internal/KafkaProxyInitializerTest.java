@@ -59,6 +59,9 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
@@ -129,16 +132,20 @@ class KafkaProxyInitializerTest {
 
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
-        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), logNetwork,
-                logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster",
+                new DirectRouting(new TargetCluster("localhost:9090", tls)), logNetwork,
+                logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
     }
 
     private VirtualClusterModel buildRouterVirtualCluster() {
         final Optional<Tls> tls = Optional.empty();
-        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", null, false, false,
-                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myRouter", Map.of());
+        var routeDescriptors = Map.of("myRoute",
+                new RouteDescriptor("myRoute", 0, new TargetCluster("localhost:9090", tls), null, List.of()));
+        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster",
+                new DynamicRouting("myRouter", routeDescriptors), false, false,
+                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
     }

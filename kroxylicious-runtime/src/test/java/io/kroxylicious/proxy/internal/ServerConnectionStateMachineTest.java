@@ -26,8 +26,10 @@ import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslContext;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.internal.tls.TestCertificateUtil;
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
@@ -468,8 +470,9 @@ class ServerConnectionStateMachineTest {
 
         EmbeddedChannel channel = new EmbeddedChannel();
 
-        when(virtualCluster.targetCluster()).thenReturn(mock(io.kroxylicious.proxy.config.TargetCluster.class));
-        when(virtualCluster.targetCluster().tls()).thenReturn(Optional.empty());
+        var mockTargetCluster = mock(TargetCluster.class);
+        when(mockTargetCluster.tls()).thenReturn(Optional.empty());
+        when(virtualCluster.routing()).thenReturn(new DirectRouting(mockTargetCluster));
 
         scsm.applyTlsContextToChannel(creds, REMOTE, channel, channel.pipeline());
 
