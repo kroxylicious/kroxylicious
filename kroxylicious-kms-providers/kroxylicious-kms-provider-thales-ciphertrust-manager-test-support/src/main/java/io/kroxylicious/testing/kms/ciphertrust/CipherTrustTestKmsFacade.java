@@ -201,7 +201,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
             mockServer.start();
             cipherTrustUrl = URI.create(mockServer.getBaseUrl());
 
-            connectionConfig = mockServer.createConnectionConfig(useClientCert);
+            connectionConfig = mockServer.createClientConnectionConfig();
         }
 
         // Build HttpClient with TLS config (common for both real and mock)
