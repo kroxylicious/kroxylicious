@@ -214,7 +214,7 @@ public class CipherTrustMockServer implements AutoCloseable {
                 config.needClientAuth(true);
 
                 // Create trust store containing our test client certificate so WireMock will accept it
-                CertificateGenerator.TrustStore trustStore = createClientTrustStore();
+                CertificateGenerator.TrustStore trustStore = CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, "JKS");
                 config.trustStorePath(trustStore.path().toString())
                         .trustStorePassword(trustStore.password());
             }
@@ -222,13 +222,6 @@ public class CipherTrustMockServer implements AutoCloseable {
         catch (Exception e) {
             throw new MockServerException("Failed to configure TLS", e);
         }
-    }
-
-    private CertificateGenerator.TrustStore createClientTrustStore() {
-        if (clientCertificate == null) {
-            generateClientCertificate();
-        }
-        return CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, "JKS");
     }
 
     /**
