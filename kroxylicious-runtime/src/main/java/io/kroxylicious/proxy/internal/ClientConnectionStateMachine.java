@@ -41,6 +41,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
@@ -851,27 +852,35 @@ public class ClientConnectionStateMachine {
     private void toForwardingWithRoutes(Forwarding forwarding) {
         setState(forwarding);
         Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
+        if (descriptors == null || descriptors.isEmpty()) {
+            throw new IllegalStateException(
+                    "toForwardingWithRoutes called but virtualCluster has no routeDescriptors — this is a bug");
+        }
         routeTargets = new HashMap<>();
-        var frontend = Objects.requireNonNull(frontendHandler);
-        Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
         for (var entry : descriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
-                HostPort target = Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
-                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer");
-                serverConnections.computeIfAbsent(target, t -> {
-                    var newScsm = createServerConnection(t);
-                    newScsm.connect(clientChannel);
-                    return newScsm;
-                });
-                routeTargets.put(entry.getKey(), target);
+                routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
+                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer"));
             }
         }
+        // For per-broker connections, the EndpointReconciler has already resolved the
+        // real upstream address. Override the owning route's bootstrap target with it.
+        // Server connections are opened lazily in forwardToRoute().
+        var nodeIdMapping = virtualCluster().nodeIdMapping();
+        if (endpointBinding instanceof BrokerEndpointBinding beb && nodeIdMapping != null) {
+            var routeAndNode = nodeIdMapping.fromVirtual(beb.nodeId());
+            RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
+            if (owningDesc != null && owningDesc.targetsCluster()) {
+                routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
+            }
+        }
+        var frontend = Objects.requireNonNull(frontendHandler);
         log(Level.DEBUG)
                 .addKeyValue("routeCount", () -> routeTargets.size())
-                .addKeyValue("backendCount", () -> serverConnections.size())
+                .addKeyValue("routeTargets", () -> routeTargets.toString())
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
-                .log("Upstream connections initiated for routing VC");
+                .log("Route targets resolved for router VC");
     }
 
     /**
@@ -890,11 +899,13 @@ public class ClientConnectionStateMachine {
                 illegalState("Unknown route: " + routeName);
                 return;
             }
-            ServerConnectionStateMachine scsm = serverConnections.get(target);
-            if (scsm == null) {
-                illegalState("No server connection for target: " + target);
-                return;
-            }
+            ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
+                var newScsm = createServerConnection(target);
+                Channel clientChannel = Objects.requireNonNull(
+                        Objects.requireNonNull(frontendHandler).clientChannel());
+                newScsm.connect(clientChannel);
+                return newScsm;
+            });
             scsm.sendRequest(msg);
         }
         else {

@@ -266,12 +266,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                     "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
             Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
             Map<ApiKeys, String> staticRoutes = router.staticRoutes();
-            Set<ApiKeys> dynamicallyRoutedKeys = EnumSet.allOf(ApiKeys.class);
+            Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
             if (!staticRoutes.isEmpty()) {
-                dynamicallyRoutedKeys.removeAll(staticRoutes.keySet());
+                decodedKeys.removeAll(staticRoutes.keySet());
             }
-            dp.setRouterDecodingRequirements(dynamicallyRoutedKeys);
-            var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine);
+            // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
+            // can translate them, even when those keys are statically routed.
+            decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
+            dp.setRouterDecodingRequirements(decodedKeys);
+            var nodeIdMapping = virtualCluster.nodeIdMapping();
+            var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine, nodeIdMapping);
             pipeline.addLast("routerDispatchHandler", dispatchHandler);
         }
         else {
