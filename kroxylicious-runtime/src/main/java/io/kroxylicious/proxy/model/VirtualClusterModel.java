@@ -32,6 +32,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
@@ -68,8 +69,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * TLS configuration, and the components whose lifecycle is bound to this VC.
  *
  * <h2>Owned resources</h2>
- * The VCM owns and is responsible for closing two per-VC components:
+ * The VCM owns and is responsible for closing three per-VC components:
  * <ul>
+ *   <li>{@link RouterChainFactory} — the router chain factory for <em>this</em> VC, or
+ *       {@code null} for VCs that use a direct {@code targetCluster}. Each VCM has its own
+ *       factory; its lifetime is tied to this VCM.</li>
  *   <li>{@link FilterChainFactory} — the filter chain factory for <em>this</em> VC. Each VCM
  *       has its own FCF.</li>
  *   <li>{@link TlsCredentialSupplierManager} — the TLS credential supplier for this VC.</li>
@@ -121,6 +125,13 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     private final FilterChainFactory filterChainFactory;
 
+    /**
+     * The router chain factory for <em>this</em> virtual cluster, or {@code null} for VCs
+     * that use a direct {@code targetCluster}. Owned by the VCM — its lifetime is tied to
+     * this VCM's lifetime, closed when {@link #close()} is called.
+     */
+    private final @Nullable RouterChainFactory routerChainFactory;
+
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
@@ -128,7 +139,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
         this(clusterName, targetCluster, logNetwork, logFrames, filters,
-                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null, null, null);
+                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null, null, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
@@ -140,7 +151,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
                                Duration drainTimeout) {
         this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
-                transportSubjectBuilderConfig, drainTimeout, null, null, null);
+                transportSubjectBuilderConfig, drainTimeout, null, null, null, null);
     }
 
     public VirtualClusterModel(String clusterName,
@@ -153,7 +164,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
         this(clusterName, targetCluster, logNetwork, logFrames, filters, topicNameCacheConfig,
-                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, null, null);
+                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, null, null, null);
     }
 
     @SuppressWarnings("java:S107")
@@ -167,7 +178,8 @@ public class VirtualClusterModel implements AutoCloseable {
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry,
                                @Nullable String routerName,
-                               @Nullable Map<String, RouteDescriptor> routeDescriptors) {
+                               @Nullable Map<String, RouteDescriptor> routeDescriptors,
+                               @Nullable RouterChainFactory routerChainFactory) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
@@ -178,6 +190,7 @@ public class VirtualClusterModel implements AutoCloseable {
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
         this.routerName = routerName;
         this.routeDescriptors = routeDescriptors;
+        this.routerChainFactory = routerChainFactory;
         this.nodeIdMapping = buildNodeIdMapping(routeDescriptors);
 
         if (targetCluster == null && routerName == null) {
@@ -213,6 +226,16 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public FilterChainFactory filterChainFactory() {
         return filterChainFactory;
+    }
+
+    /**
+     * Returns this VC's router chain factory, or {@code null} if this VC uses a direct
+     * {@code targetCluster}. The returned factory is alive for the lifetime of this VCM;
+     * callers should not retain the reference past the VC's lifetime.
+     */
+    @Nullable
+    public RouterChainFactory routerChainFactory() {
+        return routerChainFactory;
     }
 
     public Duration drainTimeout() {
@@ -364,14 +387,27 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     @Override
     public void close() {
-        // Suppress exceptions from FCF close so the TLS close still runs; surface the first
-        // failure at the end so callers see something rather than nothing.
+        // Suppress exceptions so each component still gets a chance to close; surface the
+        // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
+        if (routerChainFactory != null) {
+            try {
+                routerChainFactory.close();
+            }
+            catch (RuntimeException e) {
+                firstFailure = e;
+            }
+        }
         try {
             filterChainFactory.close();
         }
         catch (RuntimeException e) {
-            firstFailure = e;
+            if (firstFailure == null) {
+                firstFailure = e;
+            }
+            else {
+                firstFailure.addSuppressed(e);
+            }
         }
         try {
             tlsCredentialSupplierManager.close();

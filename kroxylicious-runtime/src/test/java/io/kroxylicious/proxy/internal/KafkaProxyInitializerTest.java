@@ -138,7 +138,7 @@ class KafkaProxyInitializerTest {
     private VirtualClusterModel buildRouterVirtualCluster() {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", null, false, false,
-                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myRouter", Map.of());
+                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myRouter", Map.of(), null);
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
     }
@@ -442,8 +442,7 @@ class KafkaProxyInitializerTest {
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
-        return new KafkaProxyInitializer(null,
-                pfr,
+        return new KafkaProxyInitializer(pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,

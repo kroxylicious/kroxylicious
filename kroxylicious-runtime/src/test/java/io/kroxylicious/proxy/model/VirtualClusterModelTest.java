@@ -19,6 +19,7 @@ import javax.net.ssl.SSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -46,7 +47,9 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class VirtualClusterModelTest {
 
@@ -98,7 +101,7 @@ class VirtualClusterModelTest {
     void usesDynamicTlsCredentialsReturnsFalseWhenTargetClusterIsNull() {
         // A router-targeting VC has a null targetCluster — usesDynamicTlsCredentials must not NPE.
         VirtualClusterModel model = new VirtualClusterModel("wibble", null, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "some-router", null);
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "some-router", null, null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
     }
@@ -214,7 +217,7 @@ class VirtualClusterModelTest {
                 new RouteDescriptor("route1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
 
         VirtualClusterModel model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", routeDescriptors);
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", routeDescriptors, null);
 
         assertThat(model.targetCluster()).isNull();
         assertThat(model.usesRouter()).isTrue();
@@ -226,7 +229,7 @@ class VirtualClusterModelTest {
     @Test
     void logVirtualClusterSummaryHandlesNullTargetCluster() {
         VirtualClusterModel model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", null);
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", null, null);
 
         assertThatCode(model::logVirtualClusterSummary).doesNotThrowAnyException();
     }
@@ -243,6 +246,41 @@ class VirtualClusterModelTest {
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10)))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
+    }
+
+    @Test
+    void closeClosesRouterChainFactory() {
+        // Given
+        var rcf = mock(RouterChainFactory.class);
+        var model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "r1", null, rcf);
+
+        // When
+        model.close();
+
+        // Then: the RouterChainFactory is closed
+        verify(rcf).close();
+    }
+
+    @Test
+    void closeStillClosesFilterChainFactoryWhenRouterChainFactoryCloseThrows() {
+        // Given: a RouterChainFactory that throws on close
+        var rcf = mock(RouterChainFactory.class);
+        doThrow(new RuntimeException("rcf close boom")).when(rcf).close();
+        var onFilterClose = new AtomicInteger();
+        var flakyConfig = new FlakyConfig(null, null, null, c -> {
+        }, c -> onFilterClose.incrementAndGet());
+        var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), flakyConfig));
+        var targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
+        var model = new VirtualClusterModel("vc", targetCluster, false, false, filters,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry(),
+                null, null, rcf);
+
+        // When
+        assertThatThrownBy(model::close).hasMessage("rcf close boom");
+
+        // Then: FilterChainFactory was still closed despite the exception
+        assertThat(onFilterClose.get()).as("FilterChainFactory close should fire despite RCF failure").isEqualTo(1);
     }
 
     /**

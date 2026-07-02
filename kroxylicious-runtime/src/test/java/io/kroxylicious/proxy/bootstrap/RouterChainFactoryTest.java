@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -303,6 +304,43 @@ class RouterChainFactoryTest {
             assertThat(initCount.get()).isEqualTo(2);
             assertThat(factory.createRouter("parent", VC_NAME)).isNotNull();
             assertThat(factory.createRouter("child", VC_NAME)).isNotNull();
+        }
+    }
+
+    @Test
+    void forVirtualClusterInitialisesOnlyThatVcsRouterGraph() {
+        // Given: two router definitions but only one is reachable from the VC
+        var initCount = new AtomicInteger(0);
+        var pfr = testPfrWith(new TestRouterFactory() {
+            @Override
+            public Object initialize(RouterFactoryContext context, Object config) {
+                initCount.incrementAndGet();
+                return super.initialize(context, config);
+            }
+        });
+        var rdUsed = new RouterDefinition("used", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var rdOrphan = new RouterDefinition("orphan", TestRouterFactory.class.getName(), null, DUMMY_ROUTES);
+        var vc = testVc(VC_NAME, "used");
+
+        // When
+        try (var factory = RouterChainFactory.forVirtualCluster(pfr, vc,
+                Map.of("used", rdUsed, "orphan", rdOrphan))) {
+            // Then: only the referenced router was initialised
+            assertThat(initCount.get()).isEqualTo(1);
+            assertThat(factory.createRouter("used", VC_NAME)).isNotNull();
+        }
+    }
+
+    @Test
+    void forVirtualClusterWithNullRoutersByNameProducesEmptyFactory() {
+        // Given: a VC with a router reference but null routersByName (e.g. no routerDefinitions block)
+        var vc = testVc(VC_NAME, "r1");
+
+        // When
+        try (var factory = RouterChainFactory.forVirtualCluster(testPfr(), vc, null)) {
+            // Then: no routers initialised; createRouter throws as expected
+            assertThatThrownBy(() -> factory.createRouter("r1", VC_NAME))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
