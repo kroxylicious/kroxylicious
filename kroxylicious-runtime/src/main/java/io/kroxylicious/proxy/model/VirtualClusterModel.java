@@ -49,6 +49,7 @@ import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
@@ -100,15 +101,12 @@ public class VirtualClusterModel implements AutoCloseable {
 
     private final List<NamedFilterDefinition> filters;
 
-    private final Optional<SslContext> upstreamSslContext;
     private final CacheConfiguration topicNameCacheConfig;
     private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
     private final Duration drainTimeout;
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
-
-    private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -137,33 +135,49 @@ public class VirtualClusterModel implements AutoCloseable {
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
         this.clusterName = Objects.requireNonNull(clusterName);
-        this.routing = Objects.requireNonNull(routing);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
-
-        if (pluginFactoryRegistry != null) {
-            this.filterChainFactory = new FilterChainFactory(pluginFactoryRegistry, filters);
-            TlsCredentialSupplierConfig tlsSupplierConfig = switch (routing) {
-                case DirectRouting dr -> dr.targetCluster().tls().flatMap(tls -> Optional.ofNullable(tls.credentialSupplier())).orElse(null);
-                case DynamicRouting ignored -> null;
-            };
-            this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, tlsSupplierConfig);
-        }
-        else {
-            // Test-only constructors take this branch. They always pass an empty/null filter
-            // list, so an empty FCF is the right shape — FilterChainFactory tolerates a null
-            // pfr when the chain is empty, which spares tests from building a real
-            // PluginFactoryRegistry.
-            this.filterChainFactory = new FilterChainFactory(null, List.of());
-            this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
-        }
-
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
-        this.upstreamSslContext = buildUpstreamSslContext();
+        this.routing = resolveRoutingTls(Objects.requireNonNull(routing), pluginFactoryRegistry);
+        this.filterChainFactory = pluginFactoryRegistry != null
+                ? new FilterChainFactory(pluginFactoryRegistry, filters)
+                : new FilterChainFactory(null, List.of());
+    }
+
+    private static RoutingModel resolveRoutingTls(RoutingModel routing, @Nullable PluginFactoryRegistry pfr) {
+        return switch (routing) {
+            case DirectRouting dr -> {
+                TlsCredentialSupplierManager mgr = pfr != null
+                        ? new TlsCredentialSupplierManager(pfr, dr.targetCluster().tls()
+                                .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
+                                .orElse(null))
+                        : TlsCredentialSupplierManager.unconfigured();
+                yield new DirectRouting(dr.targetCluster(), buildUpstreamSslContextFor(dr.targetCluster()), mgr);
+            }
+            case DynamicRouting dr -> {
+                if (pfr == null) {
+                    yield dr;
+                }
+                var sslContexts = new HashMap<String, Optional<SslContext>>();
+                var tlsManagers = new HashMap<String, TlsCredentialSupplierManager>();
+                for (var entry : dr.routeDescriptors().entrySet()) {
+                    RouteDescriptor rd = entry.getValue();
+                    if (rd.targetsCluster()) {
+                        sslContexts.put(entry.getKey(), buildUpstreamSslContextFor(rd.targetCluster()));
+                        TlsCredentialSupplierConfig supplierConfig = rd.targetCluster().tls()
+                                .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
+                                .orElse(null);
+                        tlsManagers.put(entry.getKey(), new TlsCredentialSupplierManager(pfr, supplierConfig));
+                    }
+                }
+                yield new DynamicRouting(dr.routerName(), dr.routeDescriptors(), dr.nodeIdMapping(),
+                        sslContexts, tlsManagers);
+            }
+        };
     }
 
     /**
@@ -254,34 +268,47 @@ public class VirtualClusterModel implements AutoCloseable {
                 ", gateways=" + gateways +
                 ", logNetwork=" + logNetwork +
                 ", logFrames=" + logFrames +
-                ", upstreamSslContext=" + upstreamSslContext +
                 '}';
     }
 
     public Optional<SslContext> getUpstreamSslContext() {
-        return upstreamSslContext;
+        return routing.upstreamSslContextFor(null);
+    }
+
+    /**
+     * Returns the pre-built upstream SSL context for a specific route, or {@link Optional#empty()}
+     * if the route has no TLS configuration or is not a cluster-targeting route.
+     */
+    public Optional<SslContext> getUpstreamSslContextForRoute(String routeName) {
+        return routing.upstreamSslContextFor(routeName);
+    }
+
+    /**
+     * Returns the TLS credential supplier manager for a specific route, or the unconfigured
+     * singleton if the route has no dynamic TLS credential supplier configured.
+     */
+    public TlsCredentialSupplierManager getTlsCredentialSupplierManagerForRoute(String routeName) {
+        return routing.tlsManagerFor(routeName);
     }
 
     /**
      * Returns the TLS credential supplier manager for this virtual cluster.
      * This is never null; if no supplier is configured, an unconfigured manager is returned.
-     *
-     * @return The TLS credential supplier manager
      */
     public TlsCredentialSupplierManager getTlsCredentialSupplierManager() {
-        return tlsCredentialSupplierManager;
+        return routing.tlsManagerFor(null);
     }
 
     /**
      * Closes resources associated with this virtual cluster — the TLS credential supplier
-     * manager and the {@link FilterChainFactory}. Called by {@code VirtualClusterRegistry}
-     * on lifecycle transition into {@code Stopped}. Safe to call multiple times — the FCF's
-     * underlying {@code Wrapper.close} is idempotent via an internal {@code AtomicBoolean},
-     * and {@code TlsCredentialSupplierManager.close} tolerates re-entry.
+     * manager(s) held by the routing model and the {@link FilterChainFactory}. Called by
+     * {@code VirtualClusterRegistry} on lifecycle transition into {@code Stopped}. Safe to call
+     * multiple times — the FCF's underlying {@code Wrapper.close} is idempotent via an internal
+     * {@code AtomicBoolean}, and {@code TlsCredentialSupplierManager.close} tolerates re-entry.
      */
     @Override
     public void close() {
-        // Suppress exceptions from FCF close so the TLS close still runs; surface the first
+        // Suppress exceptions from FCF close so the routing close still runs; surface the first
         // failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
         try {
@@ -291,7 +318,7 @@ public class VirtualClusterModel implements AutoCloseable {
             firstFailure = e;
         }
         try {
-            tlsCredentialSupplierManager.close();
+            routing.close();
         }
         catch (RuntimeException e) {
             if (firstFailure == null) {
@@ -321,11 +348,16 @@ public class VirtualClusterModel implements AutoCloseable {
         return new NettyTrustProvider(trustProvider);
     }
 
-    private Optional<SslContext> buildUpstreamSslContext() {
-        if (!(routing instanceof DirectRouting dr)) {
+    /**
+     * Builds an upstream (client-side) {@link SslContext} from the given target cluster's TLS
+     * configuration. Returns {@link Optional#empty()} when {@code targetCluster} is {@code null}
+     * or has no TLS configuration.
+     */
+    public static Optional<SslContext> buildUpstreamSslContextFor(@Nullable TargetCluster targetCluster) {
+        if (targetCluster == null) {
             return Optional.empty();
         }
-        return dr.targetCluster().tls().map(targetClusterTls -> {
+        return targetCluster.tls().map(targetClusterTls -> {
             try {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
                         .orElse(SslContextBuilder.forClient());

@@ -124,7 +124,7 @@ class ClientConnectionStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> serverConnectionStateMachine);
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> serverConnectionStateMachine);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
         when(frontendHandler.remotePort()).thenReturn(9476);
@@ -193,7 +193,7 @@ class ClientConnectionStateMachineTest {
         var capturedCounter = new java.util.concurrent.atomic.AtomicReference<io.micrometer.core.instrument.Counter>();
         var ccsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, c, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> {
+                (remote, c, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> {
                     capturedCounter.set(connectionCounter);
                     return serverConnectionStateMachine;
                 });
@@ -991,7 +991,7 @@ class ClientConnectionStateMachineTest {
         // Given: a CCSM whose SCSM factory throws on creation, in Forwarding state with a known route
         var failingCcsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni, cc, ec, bpm, token) -> {
+                (remote, ccsm, vc, cn, ni, cc, ec, bpm, token, tlsConfig) -> {
                     throw new RuntimeException("scsm creation failed");
                 });
         var target = new HostPort("broker", 9092);
