@@ -6,7 +6,11 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Objects;
+import java.util.Optional;
 
+import io.netty.handler.ssl.SslContext;
+
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -14,15 +18,48 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Routing model for a virtual cluster that forwards directly to a single, statically-configured
  * upstream Kafka cluster.
+ * <p>
+ * Owns the pre-built {@link #upstreamSslContext()} and {@link #tlsManager()} for that cluster.
  */
-public record DirectRouting(TargetCluster targetCluster) implements RoutingModel {
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+public record DirectRouting(
+                            TargetCluster targetCluster,
+                            Optional<SslContext> upstreamSslContext,
+                            TlsCredentialSupplierManager tlsManager)
+        implements RoutingModel {
+
+    /**
+     * Convenience constructor for contexts where TLS resources are not yet resolved
+     * (tests, pre-{@code PluginFactoryRegistry} construction). The SSL context defaults
+     * to empty and the manager to unconfigured.
+     */
+    public DirectRouting(TargetCluster targetCluster) {
+        this(targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+    }
 
     public DirectRouting {
         Objects.requireNonNull(targetCluster, "targetCluster");
+        Objects.requireNonNull(upstreamSslContext, "upstreamSslContext");
+        Objects.requireNonNull(tlsManager, "tlsManager");
     }
 
     @Override
     public TargetCluster targetClusterFor(@Nullable String routeName) {
         return targetCluster;
+    }
+
+    @Override
+    public Optional<SslContext> upstreamSslContextFor(@Nullable String routeName) {
+        return upstreamSslContext;
+    }
+
+    @Override
+    public TlsCredentialSupplierManager tlsManagerFor(@Nullable String routeName) {
+        return tlsManager;
+    }
+
+    @Override
+    public void close() {
+        tlsManager.close();
     }
 }
