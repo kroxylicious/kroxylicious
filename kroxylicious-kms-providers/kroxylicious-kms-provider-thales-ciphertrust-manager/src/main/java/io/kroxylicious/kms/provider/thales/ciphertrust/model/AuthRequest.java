@@ -15,7 +15,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Request model for CipherTrust Manager authentication.
- * Supports both initial authentication (username/password) and token refresh (refresh_token).
+ * Supports:
+ * <ul>
+ *   <li>User authentication with username/password (grant_type=password)</li>
+ *   <li>Token refresh (grant_type=refresh_token)</li>
+ *   <li>Client certificate authentication (grant_type=client_credential)</li>
+ * </ul>
  *
  * @param username username for initial authentication
  * @param password password for initial authentication
@@ -25,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param refreshTokenRevokeUnusedIn optional refresh token revoke unused duration
  * @param renewRefreshToken optional flag to renew refresh token
  * @param authDomain optional auth domain
- * @param clientId optional client ID
+ * @param clientId client ID for client certificate authentication
  * @param connection optional connection
  * @param cookies optional cookies flag
  * @param domain optional domain
@@ -66,6 +71,20 @@ public record AuthRequest(
      */
     public static AuthRequest withRefreshToken(String refreshToken) {
         return new AuthRequest(null, null, refreshToken, "refresh_token", null, null, null, null, null, null, null, null, null);
+    }
+
+    /**
+     * Create an auth request for client certificate authentication.
+     * <p>
+     * The client certificate must be presented during the TLS handshake.
+     * The grant_type is set to "client_credential" (singular, as required by CTM API).
+     * </p>
+     *
+     * @param clientId the client ID obtained during client registration
+     * @return auth request
+     */
+    public static AuthRequest withClientCredential(String clientId) {
+        return new AuthRequest(null, null, null, "client_credential", null, null, null, null, clientId, null, null, null, null);
     }
 
     @Override

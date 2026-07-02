@@ -41,6 +41,10 @@ import io.kroxylicious.kms.provider.thales.ciphertrust.model.EncryptRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.EncryptResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.GetKeyResponse;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.RandomResponse;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyResponse;
@@ -70,7 +74,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Stores KEKs in-memory and validates JWT tokens.
  * </p>
  */
-public class CipherTrustMockServer {
+public class CipherTrustMockServer implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CipherTrustMockServer.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -99,6 +103,10 @@ public class CipherTrustMockServer {
     public static final String TEST_USERNAME = "testuser";
 
     /**
+     * Test client ID for client certificate authentication.
+     */
+    public static final String TEST_CLIENT_ID = "test-client-1";
+    /**
      * Test password for mock authentication.
      */
     @SuppressWarnings("java:S2068") // Suppressed warning as this is a test password
@@ -110,16 +118,16 @@ public class CipherTrustMockServer {
     private static final String KEY_PASSWORD = "keypass";
     private final WireMockServer server;
     private final boolean useTls;
+    private final boolean requireClientAuth;
 
     @Nullable
     private X509Certificate serverCertificate;
 
-    /**
-     * Create a CipherTrust mock server using HTTP.
-     */
-    public CipherTrustMockServer() {
-        this(false);
-    }
+    @Nullable
+    private X509Certificate clientCertificate;
+
+    @Nullable
+    private KeyPair clientKeyPair;
 
     /**
      * Create a CipherTrust mock server with optional TLS support.
@@ -127,13 +135,33 @@ public class CipherTrustMockServer {
      * @param useTls if true, configure HTTPS with self-signed certificate; if false, use HTTP
      */
     public CipherTrustMockServer(boolean useTls) {
+        this(useTls, false);
+    }
+
+    /**
+     * Create a CipherTrust mock server with optional TLS and mutual TLS support.
+     *
+     * @param useTls if true, configure HTTPS with self-signed certificate; if false, use HTTP
+     * @param requireClientAuth if true, require client certificates during TLS handshake (mutual TLS)
+     * @throws IllegalArgumentException if requireClientAuth is true but useTls is false
+     */
+    public CipherTrustMockServer(boolean useTls, boolean requireClientAuth) {
+        if (requireClientAuth && !useTls) {
+            throw new IllegalArgumentException("Client certificate authentication requires TLS (useTls must be true)");
+        }
         this.useTls = useTls;
+        this.requireClientAuth = requireClientAuth;
         SecureRandom secureRandom;
         try {
             secureRandom = SecureRandom.getInstanceStrong();
         }
         catch (Exception e) {
             throw new MockServerException("Failed to initialize SecureRandom", e);
+        }
+
+        // Generate client certificate early if we'll need it for mTLS trust store configuration
+        if (useTls && requireClientAuth) {
+            generateClientCertificate();
         }
 
         VersionedKeyStore keyStore = new VersionedKeyStore();
@@ -151,6 +179,7 @@ public class CipherTrustMockServer {
 
         if (useTls) {
             config.dynamicHttpsPort();
+            config.httpDisabled(true);
             configureTls(config);
         }
         else {
@@ -165,15 +194,33 @@ public class CipherTrustMockServer {
             KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
             X509Certificate certificate = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
             this.serverCertificate = certificate; // Store for later access
-            CertificateGenerator.KeyStore keyStore = CertificateGenerator.createJksKeystore(
+            CertificateGenerator.KeyStore keyStore = CertificateGenerator.createKeystore(
                     keyPair,
                     certificate,
                     STORE_PASSWORD,
-                    KEY_PASSWORD);
+                    KEY_PASSWORD,
+                    CertificateGenerator.PKCS_12);
 
             config.keystorePath(keyStore.path().toString())
                     .keystorePassword(STORE_PASSWORD)
-                    .keyManagerPassword(KEY_PASSWORD);
+                    .keyManagerPassword(KEY_PASSWORD)
+                    .keystoreType(CertificateGenerator.PKCS_12);
+
+            if (requireClientAuth) {
+                // Configure mutual TLS: server will require client certificates during TLS handshake.
+                // Note: WireMock cannot validate which specific client certificate was presented
+                // (see https://github.com/wiremock/wiremock/issues/1812), but it WILL reject
+                // connections that don't present any client certificate. This is sufficient to
+                // test that TlsHttpClientConfigurator properly configures HttpClient to present
+                // client certificates during the TLS handshake.
+                config.needClientAuth(true);
+
+                // Create trust store containing our test client certificate so WireMock will accept it
+                CertificateGenerator.TrustStore trustStore = CertificateGenerator.createTrustStore(clientCertificate, STORE_PASSWORD, CertificateGenerator.PKCS_12);
+                config.trustStorePath(trustStore.path().toString())
+                        .trustStorePassword(trustStore.password())
+                        .trustStoreType(CertificateGenerator.PKCS_12);
+            }
         }
         catch (Exception e) {
             throw new MockServerException("Failed to configure TLS", e);
@@ -188,6 +235,16 @@ public class CipherTrustMockServer {
         setupEndpoints();
     }
 
+    private void generateClientCertificate() {
+        try {
+            this.clientKeyPair = CertificateGenerator.generateRsaKeyPair();
+            this.clientCertificate = CertificateGenerator.generateSelfSignedX509Certificate(clientKeyPair);
+        }
+        catch (Exception e) {
+            throw new MockServerException("Failed to generate client certificate", e);
+        }
+    }
+
     /**
      * Stop the mock server.
      */
@@ -195,6 +252,11 @@ public class CipherTrustMockServer {
         if (server != null && server.isRunning()) {
             server.stop();
         }
+    }
+
+    @Override
+    public void close() {
+        stop();
     }
 
     /**
@@ -224,7 +286,8 @@ public class CipherTrustMockServer {
      * @throws IllegalStateException if TLS is not enabled
      */
     @Nullable
-    public X509Certificate getServerCertificate() {
+    @VisibleForTesting
+    X509Certificate getServerCertificate() {
         if (!useTls) {
             throw new IllegalStateException("Mock server not configured with TLS");
         }
@@ -237,8 +300,77 @@ public class CipherTrustMockServer {
      * @return path to temporary PEM file containing the server certificate
      * @throws IllegalStateException if TLS is not enabled
      */
-    public Path getServerCertificatePem() {
+    @VisibleForTesting
+    Path getServerCertificatePem() {
         return CertificateGenerator.generateCertPem(getServerCertificate());
+    }
+
+    /**
+     * Get the client certificate for testing client certificate authentication.
+     *
+     * @return the client X509 certificate
+     */
+    private X509Certificate getClientCertificate() {
+        return Objects.requireNonNull(clientCertificate, "Client certificate not initialized");
+    }
+
+    /**
+     * Get the client certificate as a PEM file.
+     *
+     * @return path to temporary PEM file containing the client certificate
+     */
+    private Path getClientCertificatePem() {
+        return CertificateGenerator.generateCertPem(getClientCertificate());
+    }
+
+    /**
+     * Get the client private key as a PEM file.
+     *
+     * @return path to temporary PEM file containing the client private key
+     */
+    private Path getClientPrivateKeyPem() {
+        KeyPair keyPair = Objects.requireNonNull(clientKeyPair, "Client key pair not initialized");
+        return CertificateGenerator.writeRsaPrivateKeyPem(keyPair);
+    }
+
+    /**
+     * Create TLS configuration for connecting to this mock server.
+     *
+     * @return TLS configuration or null if TLS is not in use.
+     */
+    @VisibleForTesting
+    @Nullable
+    Tls createClientTlsConfig() {
+        if (!isHttps()) {
+            return null;
+        }
+
+        io.kroxylicious.proxy.config.tls.KeyPair keyPair = null;
+        if (requireClientAuth) {
+            keyPair = new io.kroxylicious.proxy.config.tls.KeyPair(
+                    getClientPrivateKeyPem().toString(),
+                    getClientCertificatePem().toString(),
+                    null);
+        }
+
+        Path caCertPem = getServerCertificatePem();
+        TrustProvider trustProvider = new TrustStore(caCertPem.toString(), null, Tls.PEM, null);
+
+        return new Tls(keyPair, trustProvider, null, null);
+    }
+
+    /**
+     * Create connection configuration for connecting to this mock server.
+     *
+     * @return connection configuration
+     */
+    ConnectionConfig createClientConnectionConfig() {
+        final String username = requireClientAuth ? null : TEST_USERNAME;
+        final String password = requireClientAuth ? null : TEST_PASSWORD;
+        final String clientId = requireClientAuth ? TEST_CLIENT_ID : null;
+        final Tls tls = createClientTlsConfig();
+
+        return new ConnectionConfig(username, password, clientId, tls);
     }
 
     private void setupEndpoints() {
@@ -396,6 +528,7 @@ public class CipherTrustMockServer {
 
             String username = request.username();
             String password = request.password();
+            String clientId = request.clientId();
             String grantType = request.grantType();
 
             // Default to password grant type if not specified
@@ -405,6 +538,7 @@ public class CipherTrustMockServer {
 
             LOGGER.atDebug()
                     .addKeyValue("username", username)
+                    .addKeyValue("clientId", clientId)
                     .addKeyValue("grantType", grantType)
                     .log("Processing auth request");
 
@@ -418,6 +552,23 @@ public class CipherTrustMockServer {
                     ErrorResponse errorResponse = new ErrorResponse("Invalid credentials");
                     return jsonResponse(errorResponse, 401);
                 }
+                // Password authentication returns refresh token
+                AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
+                return jsonResponse(response, 200);
+            }
+            else if ("client_credential".equals(grantType)) {
+                // Client certificate authentication (note: singular "client_credential")
+                if (!TEST_CLIENT_ID.equals(clientId)) {
+                    LOGGER.atDebug()
+                            .addKeyValue("clientId", clientId)
+                            .log("Authentication failed: unknown client ID");
+
+                    ErrorResponse errorResponse = new ErrorResponse("Unknown client ID");
+                    return jsonResponse(errorResponse, 401);
+                }
+                // Client certificate authentication does NOT return refresh token (real CTM behavior)
+                AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, null);
+                return jsonResponse(response, 200);
             }
             else {
                 LOGGER.atWarn()
@@ -427,10 +578,6 @@ public class CipherTrustMockServer {
                 ErrorResponse errorResponse = new ErrorResponse("Unsupported grant type: " + grantType);
                 return jsonResponse(errorResponse, 400);
             }
-
-            // Successful authentication
-            AuthResponse response = new AuthResponse(MOCK_JWT_TOKEN, TOKEN_DURATION, MOCK_REFRESH_TOKEN);
-            return jsonResponse(response, 200);
         }
 
         @Override
@@ -665,7 +812,7 @@ public class CipherTrustMockServer {
             var name = getQueryParam(request, "name", null, Function.identity());
             var labelFilter = getQueryParam(request, "labels", null, Function.identity());
             var skip = Objects.requireNonNull(getQueryParam(request, "skip", 0, Integer::parseInt));
-            var limit = getQueryParam(request, "limit", 10, Integer::parseInt);
+            var limit = Objects.requireNonNull(getQueryParam(request, "limit", 10, Integer::parseInt));
 
             LOGGER.atDebug()
                     .addKeyValue("name", name)
