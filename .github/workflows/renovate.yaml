@@ -23,7 +23,8 @@ name: Renovate
 # interactions.  Otherwise, the action's initiator's token is used.
 on:
   schedule:
-    - cron: '0 0/9 * * 1-5'
+    # Run weekly on Saturday at 3am UTC to match Dependabot schedule
+    - cron: '0 3 * * 6'
   workflow_dispatch:
 jobs:
   renovate:
