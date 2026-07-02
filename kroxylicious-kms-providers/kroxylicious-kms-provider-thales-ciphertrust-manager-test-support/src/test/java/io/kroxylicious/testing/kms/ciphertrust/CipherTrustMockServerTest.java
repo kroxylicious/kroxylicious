@@ -33,12 +33,14 @@ import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyRequest;
 import io.kroxylicious.testing.kms.ciphertrust.model.CreateKeyResponse;
+import io.kroxylicious.testing.kms.ciphertrust.model.ErrorResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.GetKeysResponse;
 import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyRequest;
 import io.kroxylicious.testing.kms.ciphertrust.model.RotateKeyResponse;
 import io.kroxylicious.testing.kms.tls.TlsHttpClientConfigurator;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -60,7 +62,7 @@ class CipherTrustMockServerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockServer = new CipherTrustMockServer();
+        mockServer = new CipherTrustMockServer(false);
         mockServer.start();
         baseUrl = mockServer.getBaseUrl();
         client = HttpClient.newHttpClient();
@@ -69,6 +71,9 @@ class CipherTrustMockServerTest {
 
     @AfterEach
     void tearDown() {
+        if (client != null) {
+            client.close();
+        }
         if (mockServer != null) {
             mockServer.stop();
         }
@@ -184,7 +189,7 @@ class CipherTrustMockServerTest {
         // Given
         var authRequestJson = "{\"username\":\"" + CipherTrustMockServer.TEST_USERNAME
                 + "\",\"password\":\"" + CipherTrustMockServer.TEST_PASSWORD
-                + "\",\"grant_type\":\"client_credentials\"}";
+                + "\",\"grant_type\":\"unknown_grant_type\"}";
 
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
@@ -200,9 +205,55 @@ class CipherTrustMockServerTest {
         assertThat(response.headers().firstValue("Content-Type"))
                 .hasValue("application/json");
 
-        var errorResponse = OBJECT_MAPPER.readValue(response.body(), io.kroxylicious.testing.kms.ciphertrust.model.ErrorResponse.class);
+        var errorResponse = OBJECT_MAPPER.readValue(response.body(), ErrorResponse.class);
         assertThat(errorResponse.error()).contains("Unsupported grant type");
-        assertThat(errorResponse.error()).contains("client_credentials");
+        assertThat(errorResponse.error()).contains("unknown_grant_type");
+    }
+
+    @Test
+    void clientCertificateAuthenticationSucceeds() throws Exception {
+        // Given - client certificate authentication request with pre-configured test client
+        var authRequest = AuthRequest.withClientCredential(CipherTrustMockServer.TEST_CLIENT_ID);
+
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authRequest)))
+                .build();
+
+        // When - authenticate with client_credential grant type
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // Then - should return JWT without refresh token (matching real CTM behavior)
+        assertThat(response.statusCode())
+                .describedAs("Response status (body: %s)", response.body())
+                .isEqualTo(200);
+
+        var authResponse = OBJECT_MAPPER.readValue(response.body(), AuthResponse.class);
+        assertThat(authResponse.jwt()).isEqualTo(MOCK_JWT_TOKEN);
+        assertThat(authResponse.duration()).isEqualTo(300); // 5 minutes
+        // Client certificate authentication does NOT return refresh token (real CTM behavior)
+        assertThat(authResponse.refreshToken()).isNull();
+    }
+
+    @Test
+    void clientCertificateAuthenticationFailsWithUnknownClientId() throws Exception {
+        // Given - client certificate authentication request with unknown client ID
+        var authRequest = AuthRequest.withClientCredential("unknown-client-id");
+
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authRequest)))
+                .build();
+
+        // When - attempt to authenticate with unknown client
+        var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        // Then - should return 401 unauthorized
+        assertThat(response.statusCode()).isEqualTo(401);
+        assertThat(response.headers().firstValue("Content-Type"))
+                .hasValue("application/json");
     }
 
     @Test
@@ -692,14 +743,10 @@ class CipherTrustMockServerTest {
 
     @Test
     void tlsMockServerStartsSuccessfully() {
-        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
-        try {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
             tlsServer.start();
             assertThat(tlsServer.getBaseUrl()).startsWith("https://");
             assertThat(tlsServer.isHttps()).isTrue();
-        }
-        finally {
-            tlsServer.stop();
         }
     }
 
@@ -711,120 +758,113 @@ class CipherTrustMockServerTest {
 
     @Test
     void tlsAuthenticationSucceeds() throws Exception {
-        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
-        try {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
             tlsServer.start();
             String tlsBaseUrl = tlsServer.getBaseUrl();
 
             // Create HttpClient with insecure TLS (to accept self-signed certificate)
             Tls tls = new Tls(null, new InsecureTls(true), null, null);
             TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(tls);
-            HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build();
+            try (HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build()) {
 
-            // Authenticate
-            var authReq = AuthRequest.withPassword(
-                    CipherTrustMockServer.TEST_USERNAME,
-                    CipherTrustMockServer.TEST_PASSWORD);
-            var request = HttpRequest.newBuilder()
-                    .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authReq)))
-                    .build();
+                // Authenticate
+                var authReq = AuthRequest.withPassword(
+                        CipherTrustMockServer.TEST_USERNAME,
+                        CipherTrustMockServer.TEST_PASSWORD);
+                var request = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authReq)))
+                        .build();
 
-            var response = tlsClient.send(request, HttpResponse.BodyHandlers.ofString());
-            assertThat(response.statusCode()).isEqualTo(200);
+                var response = tlsClient.send(request, HttpResponse.BodyHandlers.ofString());
+                assertThat(response.statusCode()).isEqualTo(200);
 
-            var authResponse = OBJECT_MAPPER.readValue(response.body(), AuthResponse.class);
-            assertThat(authResponse.jwt()).isEqualTo(MOCK_JWT_TOKEN);
-            assertThat(authResponse.duration()).isEqualTo(300);
-        }
-        finally {
-            tlsServer.stop();
+                var authResponse = OBJECT_MAPPER.readValue(response.body(), AuthResponse.class);
+                assertThat(authResponse.jwt()).isEqualTo(MOCK_JWT_TOKEN);
+                assertThat(authResponse.duration()).isEqualTo(300);
+            }
         }
     }
 
     @Test
     void tlsEncryptionRoundTrip() throws Exception {
-        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
-        try {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
             tlsServer.start();
             String tlsBaseUrl = tlsServer.getBaseUrl();
 
             // Create HttpClient with insecure TLS
             Tls tls = new Tls(null, new InsecureTls(true), null, null);
             TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(tls);
-            HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build();
+            try (HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build()) {
 
-            // Authenticate
-            var authReq = AuthRequest.withPassword(
-                    CipherTrustMockServer.TEST_USERNAME,
-                    CipherTrustMockServer.TEST_PASSWORD);
-            var authRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authReq)))
-                    .build();
-            var authResponse = tlsClient.send(authRequest, HttpResponse.BodyHandlers.ofString());
-            var auth = OBJECT_MAPPER.readValue(authResponse.body(), AuthResponse.class);
-            String token = auth.jwt();
+                // Authenticate
+                var authReq = AuthRequest.withPassword(
+                        CipherTrustMockServer.TEST_USERNAME,
+                        CipherTrustMockServer.TEST_PASSWORD);
+                var authRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authReq)))
+                        .build();
+                var authResponse = tlsClient.send(authRequest, HttpResponse.BodyHandlers.ofString());
+                var auth = OBJECT_MAPPER.readValue(authResponse.body(), AuthResponse.class);
+                String token = auth.jwt();
 
-            // Create key
-            var keyRequest = new CreateKeyRequest("tls-test-key", "AES", 12, Map.of());
-            var createKeyReq = HttpRequest.newBuilder()
-                    .uri(URI.create(tlsBaseUrl + "/api/v1/vault/keys2/"))
-                    .header("Authorization", "Bearer " + token)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(keyRequest)))
-                    .build();
-            var createKeyResp = tlsClient.send(createKeyReq, HttpResponse.BodyHandlers.ofString());
-            var createKeyResponse = OBJECT_MAPPER.readValue(createKeyResp.body(), CreateKeyResponse.class);
-            String keyName = createKeyResponse.name();
+                // Create key
+                var keyRequest = new CreateKeyRequest("tls-test-key", "AES", 12, Map.of());
+                var createKeyReq = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/vault/keys2/"))
+                        .header("Authorization", "Bearer " + token)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(keyRequest)))
+                        .build();
+                var createKeyResp = tlsClient.send(createKeyReq, HttpResponse.BodyHandlers.ofString());
+                var createKeyResponse = OBJECT_MAPPER.readValue(createKeyResp.body(), CreateKeyResponse.class);
+                String keyName = createKeyResponse.name();
 
-            // Encrypt
-            byte[] plaintext = "HTTPS test data".getBytes(StandardCharsets.UTF_8);
-            var encryptReq = new EncryptRequest(keyName, plaintext, "name");
-            var encryptHttpReq = HttpRequest.newBuilder()
-                    .uri(URI.create(tlsBaseUrl + "/api/v1/crypto/encrypt"))
-                    .header("Authorization", "Bearer " + token)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(encryptReq)))
-                    .build();
-            var encryptResp = tlsClient.send(encryptHttpReq, HttpResponse.BodyHandlers.ofString());
-            var encryptResponse = OBJECT_MAPPER.readValue(encryptResp.body(), EncryptResponse.class);
+                // Encrypt
+                byte[] plaintext = "HTTPS test data".getBytes(StandardCharsets.UTF_8);
+                var encryptReq = new EncryptRequest(keyName, plaintext, "name");
+                var encryptHttpReq = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/crypto/encrypt"))
+                        .header("Authorization", "Bearer " + token)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(encryptReq)))
+                        .build();
+                var encryptResp = tlsClient.send(encryptHttpReq, HttpResponse.BodyHandlers.ofString());
+                var encryptResponse = OBJECT_MAPPER.readValue(encryptResp.body(), EncryptResponse.class);
 
-            // Decrypt
-            var decryptReq = new DecryptRequest(
-                    encryptResponse.ciphertext(),
-                    encryptResponse.tag(),
-                    encryptResponse.id(),
-                    encryptResponse.version(),
-                    encryptResponse.mode(),
-                    encryptResponse.iv());
-            var decryptHttpReq = HttpRequest.newBuilder()
-                    .uri(URI.create(tlsBaseUrl + "/api/v1/crypto/decrypt"))
-                    .header("Authorization", "Bearer " + token)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(decryptReq)))
-                    .build();
-            HttpResponse<String> decryptResp;
+                // Decrypt
+                var decryptReq = new DecryptRequest(
+                        encryptResponse.ciphertext(),
+                        encryptResponse.tag(),
+                        encryptResponse.id(),
+                        encryptResponse.version(),
+                        encryptResponse.mode(),
+                        encryptResponse.iv());
+                var decryptHttpReq = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/crypto/decrypt"))
+                        .header("Authorization", "Bearer " + token)
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(decryptReq)))
+                        .build();
+                HttpResponse<String> decryptResp;
 
-            decryptResp = tlsClient.send(decryptHttpReq, HttpResponse.BodyHandlers.ofString());
+                decryptResp = tlsClient.send(decryptHttpReq, HttpResponse.BodyHandlers.ofString());
 
-            var decryptResponse = OBJECT_MAPPER.readValue(decryptResp.body(), DecryptResponse.class);
+                var decryptResponse = OBJECT_MAPPER.readValue(decryptResp.body(), DecryptResponse.class);
 
-            // Verify round-trip
-            assertThat(decryptResponse.plaintext()).isEqualTo(plaintext);
-        }
-        finally {
-            tlsServer.stop();
+                // Verify round-trip
+                assertThat(decryptResponse.plaintext()).isEqualTo(plaintext);
+            }
         }
     }
 
     @Test
     void tlsServerProvidesCertificate() {
         // Given
-        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
-        try {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
             tlsServer.start();
 
             // When
@@ -834,24 +874,86 @@ class CipherTrustMockServerTest {
             assertThat(certificate).isNotNull();
             assertThat(certificate.getSubjectX500Principal().getName()).contains("CN=localhost");
         }
-        finally {
-            tlsServer.stop();
-        }
     }
 
     @Test
     void httpServerThrowsWhenAccessingCertificate() {
         // When/Then
-        assertThatThrownBy(() -> mockServer.getServerCertificate())
+        assertThatThrownBy(() -> mockServer.getServerCertificatePem())
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Mock server not configured with TLS");
     }
 
     @Test
+    void clientCertificateAuthenticationWithTlsSucceeds() throws Exception {
+        // Given
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true, true)) {
+            tlsServer.start();
+            String tlsBaseUrl = tlsServer.getBaseUrl();
+
+            Tls tls = tlsServer.createClientTlsConfig();
+            TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(tls);
+            try (HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build()) {
+
+                var authRequest = AuthRequest.withClientCredential(CipherTrustMockServer.TEST_CLIENT_ID);
+                var request = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authRequest)))
+                        .build();
+
+                // When
+                var response = tlsClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+                // Then
+                assertThat(response.statusCode())
+                        .describedAs("Response status (body: %s)", response.body())
+                        .isEqualTo(200);
+
+                var authResponse = OBJECT_MAPPER.readValue(response.body(), AuthResponse.class);
+                assertThat(authResponse.jwt()).isEqualTo(MOCK_JWT_TOKEN);
+                assertThat(authResponse.duration()).isEqualTo(300);
+                assertThat(authResponse.refreshToken()).isNull();
+            }
+        }
+    }
+
+    @Test
+    void clientCertificateAuthenticationWithUnknownClientIdFails() throws Exception {
+        // Given
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true, true)) {
+            tlsServer.start();
+            String tlsBaseUrl = tlsServer.getBaseUrl();
+
+            Tls tls = tlsServer.createClientTlsConfig();
+            TlsHttpClientConfigurator tlsConfigurator = new TlsHttpClientConfigurator(tls);
+            try (HttpClient tlsClient = tlsConfigurator.apply(HttpClient.newBuilder()).build()) {
+
+                var authRequest = AuthRequest.withClientCredential("unknown-client-id");
+                var request = HttpRequest.newBuilder()
+                        .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authRequest)))
+                        .build();
+
+                // When
+                var response = tlsClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+                // Then - should return 401 unauthorized (matching real CTM behavior)
+                assertThat(response.statusCode()).isEqualTo(401);
+                assertThat(response.headers().firstValue("Content-Type"))
+                        .hasValue("application/json");
+
+                var errorResponse = OBJECT_MAPPER.readValue(response.body(), ErrorResponse.class);
+                assertThat(errorResponse.error()).containsIgnoringCase("client");
+            }
+        }
+    }
+
+    @Test
     void tlsServerProvidesCertificatePem() {
         // Given
-        CipherTrustMockServer tlsServer = new CipherTrustMockServer(true);
-        try {
+        try (CipherTrustMockServer tlsServer = new CipherTrustMockServer(true)) {
             tlsServer.start();
 
             // When
@@ -865,9 +967,54 @@ class CipherTrustMockServerTest {
                     .startsWith("-----BEGIN CERTIFICATE-----")
                     .endsWith("-----END CERTIFICATE-----\n");
         }
-        finally {
-            tlsServer.stop();
+    }
+
+    @Test
+    void clientCertificatePresentedDuringTlsHandshake() throws Exception {
+        // Given: mock server requiring client certificates via needClientAuth(true)
+        try (CipherTrustMockServer mtlsServer = new CipherTrustMockServer(true, true)) {
+            mtlsServer.start();
+            String mtlsBaseUrl = mtlsServer.getBaseUrl();
+
+            // And: HttpClient configured with client certificate and server trust
+            Tls tls = mtlsServer.createClientTlsConfig();
+            TlsHttpClientConfigurator configurator = new TlsHttpClientConfigurator(tls);
+            try (HttpClient mtlsClient = configurator.apply(HttpClient.newBuilder()).build()) {
+
+                // When: we attempt to authenticate with client certificate
+                var authRequest = AuthRequest.withClientCredential(CipherTrustMockServer.TEST_CLIENT_ID);
+                var request = HttpRequest.newBuilder()
+                        .uri(URI.create(mtlsBaseUrl + "/api/v1/auth/tokens/"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(OBJECT_MAPPER.writeValueAsString(authRequest)))
+                        .build();
+
+                var response = mtlsClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+                // Then: authentication succeeds, proving the client certificate was presented
+                // during the TLS handshake.
+                assertThat(response.statusCode())
+                        .describedAs("Response status (body: %s)", response.body())
+                        .isEqualTo(200);
+
+                var authResponse = OBJECT_MAPPER.readValue(response.body(), AuthResponse.class);
+                assertThat(authResponse.jwt()).isEqualTo(MOCK_JWT_TOKEN);
+            }
         }
+    }
+
+    @Test
+    @SuppressWarnings("resource")
+    void closeIsIdempotent() {
+        // Given
+        CipherTrustMockServer server = new CipherTrustMockServer(false);
+        server.start();
+
+        // When/Then
+        assertThatCode(() -> {
+            server.close();
+            server.close();
+        }).doesNotThrowAnyException();
     }
 
 }

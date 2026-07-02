@@ -22,6 +22,22 @@
     <name>Thales CipherTrust Manager KMS test support</name>
     <description>Test support code for Thales CipherTrust Manager KMS</description>
 
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- https://junit-pioneer.org/docs/environment-variables/#warnings-for-reflective-access -->
+                    <argLine>
+                        @{jacoco.argline}
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
     <dependencies>
         <!-- Kroxylicious dependencies -->
         <dependency>
@@ -90,6 +106,11 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit-pioneer</groupId>
+            <artifactId>junit-pioneer</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
