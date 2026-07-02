@@ -12,7 +12,6 @@ import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClust
 import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.ListPartitionReassignmentsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBrokerCollection;
 import org.apache.kafka.common.message.ProduceResponseData;
@@ -63,9 +62,6 @@ final class NodeIdResponseTranslator {
         }
         else if (body instanceof DescribeTopicPartitionsResponseData dtp) {
             translateDescribeTopicPartitions(dtp, mapping, route);
-        }
-        else if (body instanceof ListPartitionReassignmentsResponseData lpr) {
-            translateListPartitionReassignments(lpr, mapping, route);
         }
     }
 
@@ -230,18 +226,6 @@ final class NodeIdResponseTranslator {
                     translateIntList(partition.lastKnownElr(), mapping, route);
                 }
                 translateIntList(partition.offlineReplicas(), mapping, route);
-            }
-        }
-    }
-
-    private static void translateListPartitionReassignments(ListPartitionReassignmentsResponseData data,
-                                                            NodeIdMapping mapping,
-                                                            String route) {
-        for (var topic : data.topics()) {
-            for (var partition : topic.partitions()) {
-                translateIntList(partition.replicas(), mapping, route);
-                translateIntList(partition.addingReplicas(), mapping, route);
-                translateIntList(partition.removingReplicas(), mapping, route);
             }
         }
     }
