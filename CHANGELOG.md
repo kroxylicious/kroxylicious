@@ -12,6 +12,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#4125](https://github.com/kroxylicious/kroxylicious/pull/4125): feat(runtime): add virtual cluster lifecycle and reconfiguration metrics — `kroxylicious_virtual_cluster_state` (StateSet), `kroxylicious_virtual_cluster_state_duration_seconds`, `kroxylicious_virtual_cluster_transitions_total`, `kroxylicious_reconfigure_total`, and `kroxylicious_reconfigure_duration_seconds` — for monitoring hot-reload operations.
 * [#4182](https://github.com/kroxylicious/kroxylicious/pull/4182): build(deps): Add client certificate authentication to Thales CipherTrust Manager KMS
 * [#4144](https://github.com/kroxylicious/kroxylicious/pull/4144): build(deps): bump io.prometheus:prometheus-metrics-bom from 1.6.1 to 1.8.0
+* [#4142](https://github.com/kroxylicious/kroxylicious/pull/4142): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.2.5 to 5.4.0
 * [#4207](https://github.com/kroxylicious/kroxylicious/pull/4207): build(deps): [record-validation] bump io.kiota:kiota-http-jdk from 0.0.35 to 0.0.36
 * [#4197](https://github.com/kroxylicious/kroxylicious/pull/4197): build(deps-dev): bump com.google.protobuf:protobuf-java from 4.35.0 to 4.35.1
 * [#4193](https://github.com/kroxylicious/kroxylicious/pull/4193): build(deps): bump com.github.ben-manes.caffeine:caffeine from 3.2.3 to 3.2.4
