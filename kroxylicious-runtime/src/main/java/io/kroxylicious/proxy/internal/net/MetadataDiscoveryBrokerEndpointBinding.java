@@ -30,7 +30,7 @@ public record MetadataDiscoveryBrokerEndpointBinding(EndpointGateway endpointGat
     @Override
     public HostPort upstreamTarget() {
         if (!(endpointGateway.virtualCluster().routing() instanceof DirectRouting dr)) {
-            throw new IllegalStateException("MetadataDiscoveryBrokerEndpointBinding is only valid for direct-routing virtual clusters");
+            throw new IllegalStateException("upstreamTarget() requires direct routing, but virtual cluster is using dynamic routing");
         }
         return dr.targetCluster().bootstrapServer();
     }

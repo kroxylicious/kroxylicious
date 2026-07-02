@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
@@ -953,12 +954,12 @@ public class ClientConnectionStateMachine {
             this.clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
         }
         if (msg instanceof RequestFrame) {
-            if (virtualCluster().routing() instanceof DynamicRouting) {
-                toForwardingWithRoutes(forwardingFactory.get());
-            }
-            else {
-                var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-                toForwarding(forwardingFactory.get(), target);
+            switch (virtualCluster().routing()) {
+                case DynamicRouting ignored -> toForwardingWithRoutes(forwardingFactory.get());
+                case DirectRouting ignored -> {
+                    var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+                    toForwarding(forwardingFactory.get(), target);
+                }
             }
             tryUnblockClient();
             return true;

@@ -48,6 +48,7 @@ import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
@@ -146,9 +147,10 @@ public class VirtualClusterModel implements AutoCloseable {
 
         if (pluginFactoryRegistry != null) {
             this.filterChainFactory = new FilterChainFactory(pluginFactoryRegistry, filters);
-            TlsCredentialSupplierConfig tlsSupplierConfig = routing instanceof DirectRouting dr
-                    ? dr.targetCluster().tls().flatMap(tls -> Optional.ofNullable(tls.credentialSupplier())).orElse(null)
-                    : null;
+            TlsCredentialSupplierConfig tlsSupplierConfig = switch (routing) {
+                case DirectRouting dr -> dr.targetCluster().tls().flatMap(tls -> Optional.ofNullable(tls.credentialSupplier())).orElse(null);
+                case DynamicRouting ignored -> null;
+            };
             this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, tlsSupplierConfig);
         }
         else {
@@ -194,13 +196,11 @@ public class VirtualClusterModel implements AutoCloseable {
             var logBuilder = LOGGER.atInfo()
                     .addKeyValue("gateway", name)
                     .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
-            if (routing instanceof DirectRouting dr) {
-                logBuilder = logBuilder.addKeyValue("upstream",
+            logBuilder = switch (routing) {
+                case DirectRouting dr -> logBuilder.addKeyValue("upstream",
                         dr.targetCluster().bootstrapServersList() + generateTlsSummary(dr.targetCluster().tls()));
-            }
-            else {
-                logBuilder = logBuilder.addKeyValue("upstream", "(via router)");
-            }
+                case DynamicRouting ignored -> logBuilder.addKeyValue("upstream", "(via router)");
+            };
             logBuilder.log("Gateway configuration");
         });
     }
