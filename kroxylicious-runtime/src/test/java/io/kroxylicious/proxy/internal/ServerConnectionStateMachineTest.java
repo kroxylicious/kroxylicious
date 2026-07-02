@@ -746,6 +746,7 @@ class ServerConnectionStateMachineTest {
         scsm.onServerUnwritable();
 
         verify(ccsm).onServerUnwritable();
+        assertThat(scsm.isWritable()).isFalse();
     }
 
     @Test
@@ -757,6 +758,47 @@ class ServerConnectionStateMachineTest {
         scsm.onServerWritable();
 
         verify(ccsm).onServerWritable();
+        assertThat(scsm.isWritable()).isTrue();
+    }
+
+    // === isWritable() / serverChannelWritable tests ===
+
+    @Test
+    void isWritableShouldDefaultToTrue() {
+        var scsm = createScsm();
+
+        assertThat(scsm.isWritable()).isTrue();
+    }
+
+    @Test
+    void onServerUnwritableShouldSetWritableFalse() {
+        var scsm = createScsm();
+
+        scsm.onServerUnwritable();
+
+        assertThat(scsm.isWritable()).isFalse();
+        assertThat(scsm.serverChannelWritable).isFalse();
+    }
+
+    @Test
+    void onServerWritableShouldSetWritableTrue() {
+        var scsm = createScsm();
+        scsm.onServerUnwritable();
+
+        scsm.onServerWritable();
+
+        assertThat(scsm.isWritable()).isTrue();
+        assertThat(scsm.serverChannelWritable).isTrue();
+    }
+
+    @Test
+    void isWritableShouldBeIndependentOfServerReadsBlocked() {
+        var scsm = createScsm();
+
+        scsm.applyBackpressure();
+
+        assertThat(scsm.serverReadsBlocked).isTrue();
+        assertThat(scsm.isWritable()).isTrue();
     }
 
     // === In-flight count tests ===
@@ -812,6 +854,7 @@ class ServerConnectionStateMachineTest {
         assertThat(scsm.toString())
                 .contains("state=")
                 .contains("serverReadsBlocked=")
+                .contains("serverChannelWritable=")
                 .contains("serverMessagesInFlightCount=");
     }
 

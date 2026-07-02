@@ -104,9 +104,15 @@ import static org.slf4j.LoggerFactory.getLogger;
  * {@link ServerConnectionStateMachine}.</p>
  *
  * <p>
- *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer.
- *     Thus, when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer(s).
+ *     Thus, when the proxy is notified that any peer is applying back pressure it results in action on the channels with the opposite peer(s).
+ *     Concretely this means:
  * </p>
+ * <ul>
+ *   <li>When any server channel becomes unwritable, client reads are paused (don't accept requests we can't forward).</li>
+ *   <li>Client reads resume only when all server channels are writable.</li>
+ *   <li>When the client channel becomes unwritable, reads are paused on all server channels (don't accept responses we can't deliver).</li>
+ * </ul>
  */
 @SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller for multi-backend routing
 public class ClientConnectionStateMachine {
@@ -368,12 +374,16 @@ public class ClientConnectionStateMachine {
      */
     void onServerWritable() {
         if (clientReadsBlocked) {
-            clientReadsBlocked = false;
-            if (clientToProxyBackpressureTimer != null) {
-                clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
-                clientToProxyBackpressureTimer = null;
+            boolean allWritable = serverConnections.values().stream()
+                    .allMatch(ServerConnectionStateMachine::isWritable);
+            if (allWritable) {
+                clientReadsBlocked = false;
+                if (clientToProxyBackpressureTimer != null) {
+                    clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
+                    clientToProxyBackpressureTimer = null;
+                }
+                Objects.requireNonNull(frontendHandler).relieveBackpressure();
             }
-            Objects.requireNonNull(frontendHandler).relieveBackpressure();
         }
     }
 

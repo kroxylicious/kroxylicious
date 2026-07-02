@@ -76,6 +76,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -127,6 +128,7 @@ class ClientConnectionStateMachineTest {
         when(frontendHandler.clientChannel()).thenReturn(mock(Channel.class));
         // Make the executor run tasks synchronously for tests
         when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
+        lenient().when(serverConnectionStateMachine.isWritable()).thenReturn(true);
     }
 
     @AfterEach
@@ -1191,6 +1193,56 @@ class ClientConnectionStateMachineTest {
         // Then
         verify(scsm1).relieveBackpressure();
         verify(scsm2).relieveBackpressure();
+    }
+
+    @Test
+    void shouldNotUnblockClientWhenOnlyOneBackendBecomesWritable() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true);
+        clientConnectionStateMachine.clientReadsBlocked = true;
+        lenient().when(scsm1.isWritable()).thenReturn(true);
+        when(scsm2.isWritable()).thenReturn(false);
+
+        // When
+        clientConnectionStateMachine.onServerWritable();
+
+        // Then
+        assertThat(clientConnectionStateMachine.clientReadsBlocked).isTrue();
+        verify(frontendHandler, never()).relieveBackpressure();
+    }
+
+    @Test
+    void shouldUnblockClientWhenAllBackendsWritable() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true);
+        clientConnectionStateMachine.clientReadsBlocked = true;
+        lenient().when(scsm1.isWritable()).thenReturn(true);
+        lenient().when(scsm2.isWritable()).thenReturn(true);
+
+        // When
+        clientConnectionStateMachine.onServerWritable();
+
+        // Then
+        assertThat(clientConnectionStateMachine.clientReadsBlocked).isFalse();
+        verify(frontendHandler).relieveBackpressure();
     }
 
     private int getVirtualNodeClientToProxyActiveConnections() {

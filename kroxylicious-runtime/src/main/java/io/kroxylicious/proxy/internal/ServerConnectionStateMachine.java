@@ -60,6 +60,14 @@ import static org.slf4j.LoggerFactory.getLogger;
  * concerns from the client session. The CCSM retains client-side state and delegates
  * server operations here.
  *
+ * <p>This class participates in TCP backpressure in both directions. When either side of the proxy
+ * starts applying back pressure the proxy should propagate that fact to the other peer.
+ * Concretely this means:</p>
+ * <ul>
+ *   <li>When the server channel becomes unwritable, client reads are paused (don't accept requests we can't forward).</li>
+ *   <li>When the client channel becomes unwritable, server reads are paused (don't accept responses we can't deliver).</li>
+ * </ul>
+ *
  * <pre>
  *     Connecting ──→ Active ────────────→ Closed
  *         │             │            │
@@ -88,6 +96,13 @@ class ServerConnectionStateMachine {
 
     @VisibleForTesting
     boolean serverReadsBlocked;
+
+    /**
+     * Tracks whether the server channel is writable.
+     * When false, client reads are paused to apply backpressure.
+     */
+    @VisibleForTesting
+    boolean serverChannelWritable = true;
 
     @VisibleForTesting
     @Nullable
@@ -394,10 +409,12 @@ class ServerConnectionStateMachine {
     }
 
     void onServerUnwritable() {
+        serverChannelWritable = false;
         ccsm.onServerUnwritable();
     }
 
     void onServerWritable() {
+        serverChannelWritable = true;
         ccsm.onServerWritable();
     }
 
@@ -442,6 +459,10 @@ class ServerConnectionStateMachine {
             }
             backendHandler.relieveBackpressure();
         }
+    }
+
+    boolean isWritable() {
+        return serverChannelWritable;
     }
 
     void close() {
@@ -491,6 +512,7 @@ class ServerConnectionStateMachine {
         return "ServerConnectionStateMachine{" +
                 "state=" + state +
                 ", serverReadsBlocked=" + serverReadsBlocked +
+                ", serverChannelWritable=" + serverChannelWritable +
                 ", serverMessagesInFlightCount=" + serverMessagesInFlightCount +
                 '}';
     }
