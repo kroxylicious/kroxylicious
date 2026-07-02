@@ -11,6 +11,9 @@
   ],
   "automergeStrategy": "merge-commit",
   "ignoreTests": true,
+  "schedule": [
+    "before 3am on Saturday"
+  ],
   "extends": [
     "config:best-practices",
     "docker:enableMajor",
