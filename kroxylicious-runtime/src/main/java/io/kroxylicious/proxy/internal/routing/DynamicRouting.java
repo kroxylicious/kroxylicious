@@ -8,8 +8,12 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+
+import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.router.Router;
 
@@ -20,19 +24,27 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * router plugin. The {@link NodeIdMapping} is derived from the route descriptors at construction
  * time. The {@link RouterChainFactory} is owned by this instance and is closed when the owning
  * {@link io.kroxylicious.proxy.model.VirtualClusterModel} is closed.
+ * <p>
+ * Owns per-route {@link #routeSslContexts()} and {@link #routeTlsManagers()}, which are populated
+ * from route descriptors during {@code VirtualClusterModel} construction. Empty maps are used when
+ * no TLS resources have been resolved (e.g. in test contexts without a {@code PluginFactoryRegistry}).
  */
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public record DynamicRouting(
                              String routerName,
                              Map<String, RouteDescriptor> routeDescriptors,
                              NodeIdMapping nodeIdMapping,
-                             RouterChainFactory routerChainFactory)
+                             RouterChainFactory routerChainFactory,
+                             Map<String, Optional<SslContext>> routeSslContexts,
+                             Map<String, TlsCredentialSupplierManager> routeTlsManagers)
         implements RoutingModel {
 
     /**
-     * Convenience constructor: computes the {@link NodeIdMapping} from the supplied route descriptors.
+     * Convenience constructor: computes the {@link NodeIdMapping} from the supplied route descriptors
+     * and uses empty maps for TLS resources (resolved later by {@code VirtualClusterModel}).
      */
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors, RouterChainFactory routerChainFactory) {
-        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory);
+        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of(), Map.of());
     }
 
     public DynamicRouting {
@@ -40,7 +52,11 @@ public record DynamicRouting(
         Objects.requireNonNull(routeDescriptors, "routeDescriptors");
         Objects.requireNonNull(nodeIdMapping, "nodeIdMapping");
         Objects.requireNonNull(routerChainFactory, "routerChainFactory");
+        Objects.requireNonNull(routeSslContexts, "routeSslContexts");
+        Objects.requireNonNull(routeTlsManagers, "routeTlsManagers");
         routeDescriptors = Map.copyOf(routeDescriptors);
+        routeSslContexts = Map.copyOf(routeSslContexts);
+        routeTlsManagers = Map.copyOf(routeTlsManagers);
     }
 
     public Router createRouter(String clusterName) {
@@ -49,7 +65,29 @@ public record DynamicRouting(
 
     @Override
     public void close() {
-        routerChainFactory.close();
+        RuntimeException firstFailure = null;
+        try {
+            routerChainFactory.close();
+        }
+        catch (RuntimeException e) {
+            firstFailure = e;
+        }
+        for (TlsCredentialSupplierManager manager : routeTlsManagers.values()) {
+            try {
+                manager.close();
+            }
+            catch (RuntimeException e) {
+                if (firstFailure == null) {
+                    firstFailure = e;
+                }
+                else {
+                    firstFailure.addSuppressed(e);
+                }
+            }
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
     }
 
     @Override
@@ -59,6 +97,22 @@ public record DynamicRouting(
         }
         RouteDescriptor descriptor = routeDescriptors.get(routeName);
         return descriptor != null ? descriptor.targetCluster() : null;
+    }
+
+    @Override
+    public Optional<SslContext> upstreamSslContextFor(@Nullable String routeName) {
+        if (routeName == null) {
+            return Optional.empty();
+        }
+        return routeSslContexts.getOrDefault(routeName, Optional.empty());
+    }
+
+    @Override
+    public TlsCredentialSupplierManager tlsManagerFor(@Nullable String routeName) {
+        if (routeName == null) {
+            return TlsCredentialSupplierManager.unconfigured();
+        }
+        return routeTlsManagers.getOrDefault(routeName, TlsCredentialSupplierManager.unconfigured());
     }
 
     private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {
