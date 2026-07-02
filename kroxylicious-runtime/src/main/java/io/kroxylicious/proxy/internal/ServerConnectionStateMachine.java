@@ -31,13 +31,13 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.ReferenceCountUtil;
 
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
@@ -320,17 +320,19 @@ class ServerConnectionStateMachine {
             SslContextBuilder sslContextBuilder = SslContextBuilder.forClient()
                     .keyManager(credentialsImpl.privateKey(), credentialsImpl.certificateChain());
 
-            Optional.ofNullable(virtualCluster.targetCluster()).flatMap(TargetCluster::tls).ifPresent(tls -> {
-                VirtualClusterModel.configureCipherSuites(sslContextBuilder, tls);
-                VirtualClusterModel.configureEnabledProtocols(sslContextBuilder, tls);
-                Optional.ofNullable(tls.trust())
-                        .map(TrustProvider::trustOptions)
-                        .filter(Predicate.not(TrustOptions::forClient))
-                        .ifPresent(to -> {
-                            throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
-                        });
-                VirtualClusterModel.configureTrustProvider(tls).apply(sslContextBuilder);
-            });
+            if (virtualCluster.routing() instanceof DirectRouting dr) {
+                dr.targetCluster().tls().ifPresent(tls -> {
+                    VirtualClusterModel.configureCipherSuites(sslContextBuilder, tls);
+                    VirtualClusterModel.configureEnabledProtocols(sslContextBuilder, tls);
+                    Optional.ofNullable(tls.trust())
+                            .map(TrustProvider::trustOptions)
+                            .filter(Predicate.not(TrustOptions::forClient))
+                            .ifPresent(to -> {
+                                throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
+                            });
+                    VirtualClusterModel.configureTrustProvider(tls).apply(sslContextBuilder);
+                });
+            }
 
             SslContext sslContext = sslContextBuilder.build();
 

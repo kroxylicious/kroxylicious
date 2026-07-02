@@ -62,6 +62,8 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
@@ -94,8 +96,9 @@ class ClientConnectionStateMachineTest {
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
-    private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
-            List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+    private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME,
+            new DirectRouting(new TargetCluster("", Optional.empty())), false, false,
+            List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ClientConnectionStateMachine clientConnectionStateMachine;
@@ -743,7 +746,9 @@ class ClientConnectionStateMachineTest {
 
     private void stubAsRouterVirtualCluster() {
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
+        var routeDescriptors = Map.of("route",
+                new RouteDescriptor("route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
     }
 
@@ -969,8 +974,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetsCluster()).thenReturn(true);
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
-        when(routerVc.routeDescriptors()).thenReturn(Map.of("my-route", routeDescriptor));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: first request triggers toForwardingWithRoutes
@@ -994,7 +998,9 @@ class ClientConnectionStateMachineTest {
         failingCcsm.forceState(new ClientConnectionState.Forwarding(), frontendHandler,
                 Map.of(), TEST_KAFKA_SESSION, true, Map.of("my-route", target));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
+        var routeDescriptors2 = Map.of("my-route",
+                new RouteDescriptor("my-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors2));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: forwardToRoute lazily tries to create an SCSM and fails
@@ -1021,8 +1027,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetsCluster()).thenReturn(true);
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
-        when(routerVc.routeDescriptors()).thenReturn(Map.of("bad-route", routeDescriptor));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("bad-route", routeDescriptor)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When / Then

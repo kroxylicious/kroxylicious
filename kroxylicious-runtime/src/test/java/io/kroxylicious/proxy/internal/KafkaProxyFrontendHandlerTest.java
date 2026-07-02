@@ -42,6 +42,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -53,6 +54,7 @@ import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
@@ -244,6 +246,7 @@ class KafkaProxyFrontendHandlerTest {
         // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
         // mock through the VC so verify(fcf).createFilters(...) still works.
         when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
+        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
         return virtualClusterModel;
     }
 

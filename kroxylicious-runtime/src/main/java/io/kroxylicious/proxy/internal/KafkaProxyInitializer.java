@@ -43,6 +43,8 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -261,25 +263,24 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 proxyNettySettings);
 
         pipeline.addLast("frontendHandler", frontendHandler);
-        if (virtualCluster.usesRouter()) {
-            Objects.requireNonNull(routerChainFactory,
-                    "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
-            Router router = routerChainFactory.createRouter(virtualCluster.routerName(), virtualCluster.getClusterName());
-            Map<ApiKeys, String> staticRoutes = router.staticRoutes();
-            Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
-            if (!staticRoutes.isEmpty()) {
-                decodedKeys.removeAll(staticRoutes.keySet());
+        switch (virtualCluster.routing()) {
+            case DynamicRouting dr -> {
+                Objects.requireNonNull(routerChainFactory,
+                        "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
+                Router router = routerChainFactory.createRouter(dr.routerName(), virtualCluster.getClusterName());
+                Map<ApiKeys, String> staticRoutes = router.staticRoutes();
+                Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
+                if (!staticRoutes.isEmpty()) {
+                    decodedKeys.removeAll(staticRoutes.keySet());
+                }
+                // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
+                // can translate them, even when those keys are statically routed.
+                decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
+                dp.setRouterDecodingRequirements(decodedKeys);
+                var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine, dr.nodeIdMapping());
+                pipeline.addLast("routerDispatchHandler", dispatchHandler);
             }
-            // Always decode API keys whose responses carry node IDs so RouterDispatchHandler
-            // can translate them, even when those keys are statically routed.
-            decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
-            dp.setRouterDecodingRequirements(decodedKeys);
-            var nodeIdMapping = virtualCluster.nodeIdMapping();
-            var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine, nodeIdMapping);
-            pipeline.addLast("routerDispatchHandler", dispatchHandler);
-        }
-        else {
-            pipeline.addLast("filterChainCompletionHandler",
+            case DirectRouting ignored -> pipeline.addLast("filterChainCompletionHandler",
                     new FilterChainCompletionHandler(clientConnectionStateMachine));
         }
         addLoggingErrorHandler(pipeline);

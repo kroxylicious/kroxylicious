@@ -57,6 +57,7 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
@@ -64,6 +65,7 @@ import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -499,6 +501,7 @@ class ClientConnectionStateMachineEndToEndTest {
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
+        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);

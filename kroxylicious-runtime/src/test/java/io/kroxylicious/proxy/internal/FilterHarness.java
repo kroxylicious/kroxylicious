@@ -40,6 +40,7 @@ import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -85,8 +86,8 @@ public abstract class FilterHarness {
 
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
-        var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, false,
-                false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+        var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting(targetCluster), false,
+                false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new CorrelationIdIssuer(), new InternalRequestTracker());
