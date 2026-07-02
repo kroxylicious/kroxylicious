@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
+import org.apache.kafka.common.message.DescribeTopicPartitionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
@@ -273,6 +274,52 @@ class NodeIdResponseTranslatorTest {
         assertThat(partitionData.currentLeader().leaderId()).isEqualTo(1);
     }
 
+    @ParameterizedTest
+    @ValueSource(shorts = { 11, 12, 13, 14, 15 })
+    void shouldTranslateFetchResponsePreferredReadReplicaV11Plus(short apiVersion) {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setPreferredReadReplica(1);
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, apiVersion, mapping, ROUTE_A);
+
+        assertThat(partitionData.preferredReadReplica()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
+    @Test
+    void shouldNotTranslateFetchResponsePreferredReadReplicaBeforeV11() {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setPreferredReadReplica(1);
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 10, mapping, ROUTE_A);
+
+        assertThat(partitionData.preferredReadReplica()).isEqualTo(1);
+    }
+
+    @Test
+    void shouldNotTranslateFetchResponsePreferredReadReplicaWhenMinusOne() {
+        var data = new FetchResponseData();
+        var partitionData = new FetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setPreferredReadReplica(-1);
+        var topicResponse = new FetchResponseData.FetchableTopicResponse().setTopic("test");
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 11, mapping, ROUTE_A);
+
+        assertThat(partitionData.preferredReadReplica()).isEqualTo(-1);
+    }
+
     @Test
     void shouldNotTranslateFetchResponseNodeEndpointsBeforeV16() {
         var data = new FetchResponseData();
@@ -280,6 +327,36 @@ class NodeIdResponseTranslatorTest {
         NodeIdResponseTranslator.translate(data, (short) 15, mapping, ROUTE_A);
 
         assertThat(data.nodeEndpoints()).isEmpty();
+    }
+
+    @Test
+    void shouldTranslateShareFetchCurrentLeaderId() {
+        var data = new ShareFetchResponseData();
+        var partitionData = new ShareFetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareFetchResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new ShareFetchResponseData.ShareFetchableTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
+    @Test
+    void shouldNotTranslateShareFetchCurrentLeaderIdWhenMinusOne() {
+        var data = new ShareFetchResponseData();
+        var partitionData = new ShareFetchResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareFetchResponseData.LeaderIdAndEpoch().setLeaderId(-1).setLeaderEpoch(-1));
+        var topicResponse = new ShareFetchResponseData.ShareFetchableTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(-1);
     }
 
     @Test
@@ -292,6 +369,104 @@ class NodeIdResponseTranslatorTest {
 
         assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_B, 0))).isNotNull();
         assertThat(data.nodeEndpoints().find(mapping.toVirtual(ROUTE_B, 1))).isNotNull();
+    }
+
+    @Test
+    void shouldTranslateShareAcknowledgeCurrentLeaderId() {
+        var data = new ShareAcknowledgeResponseData();
+        var partitionData = new ShareAcknowledgeResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareAcknowledgeResponseData.LeaderIdAndEpoch().setLeaderId(1).setLeaderEpoch(5));
+        var topicResponse = new ShareAcknowledgeResponseData.ShareAcknowledgeTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+    }
+
+    @Test
+    void shouldNotTranslateShareAcknowledgeCurrentLeaderIdWhenMinusOne() {
+        var data = new ShareAcknowledgeResponseData();
+        var partitionData = new ShareAcknowledgeResponseData.PartitionData()
+                .setPartitionIndex(0)
+                .setCurrentLeader(new ShareAcknowledgeResponseData.LeaderIdAndEpoch().setLeaderId(-1).setLeaderEpoch(-1));
+        var topicResponse = new ShareAcknowledgeResponseData.ShareAcknowledgeTopicResponse();
+        topicResponse.partitions().add(partitionData);
+        data.responses().add(topicResponse);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partitionData.currentLeader().leaderId()).isEqualTo(-1);
+    }
+
+    @Test
+    void shouldTranslateDescribeTopicPartitionsPartitionNodeIds() {
+        var data = new DescribeTopicPartitionsResponseData();
+        var partition = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(1)
+                .setReplicaNodes(new ArrayList<>(List.of(0, 1, 2)))
+                .setIsrNodes(new ArrayList<>(List.of(0, 1)))
+                .setEligibleLeaderReplicas(new ArrayList<>(List.of(2)))
+                .setLastKnownElr(new ArrayList<>(List.of(2)))
+                .setOfflineReplicas(new ArrayList<>(List.of(2)));
+        var topic = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_B);
+
+        assertThat(partition.leaderId()).isEqualTo(mapping.toVirtual(ROUTE_B, 1));
+        assertThat(partition.replicaNodes()).containsExactly(
+                mapping.toVirtual(ROUTE_B, 0),
+                mapping.toVirtual(ROUTE_B, 1),
+                mapping.toVirtual(ROUTE_B, 2));
+        assertThat(partition.isrNodes()).containsExactly(
+                mapping.toVirtual(ROUTE_B, 0),
+                mapping.toVirtual(ROUTE_B, 1));
+        assertThat(partition.eligibleLeaderReplicas()).containsExactly(mapping.toVirtual(ROUTE_B, 2));
+        assertThat(partition.lastKnownElr()).containsExactly(mapping.toVirtual(ROUTE_B, 2));
+        assertThat(partition.offlineReplicas()).containsExactly(mapping.toVirtual(ROUTE_B, 2));
+    }
+
+    @Test
+    void shouldTranslateDescribeTopicPartitionsWithNullableFieldsAbsent() {
+        var data = new DescribeTopicPartitionsResponseData();
+        var partition = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(1)
+                .setReplicaNodes(new ArrayList<>(List.of(0)))
+                .setIsrNodes(new ArrayList<>(List.of(0)))
+                .setOfflineReplicas(new ArrayList<>());
+        var topic = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partition.leaderId()).isEqualTo(mapping.toVirtual(ROUTE_A, 1));
+        assertThat(partition.eligibleLeaderReplicas()).isNull();
+        assertThat(partition.lastKnownElr()).isNull();
+    }
+
+    @Test
+    void shouldNotTranslateDescribeTopicPartitionsLeaderIdWhenMinusOne() {
+        var data = new DescribeTopicPartitionsResponseData();
+        var partition = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponsePartition()
+                .setPartitionIndex(0)
+                .setLeaderId(-1)
+                .setReplicaNodes(new ArrayList<>())
+                .setIsrNodes(new ArrayList<>())
+                .setOfflineReplicas(new ArrayList<>());
+        var topic = new DescribeTopicPartitionsResponseData.DescribeTopicPartitionsResponseTopic().setName("test");
+        topic.partitions().add(partition);
+        data.topics().add(topic);
+
+        NodeIdResponseTranslator.translate(data, (short) 0, mapping, ROUTE_A);
+
+        assertThat(partition.leaderId()).isEqualTo(-1);
     }
 
     @Test

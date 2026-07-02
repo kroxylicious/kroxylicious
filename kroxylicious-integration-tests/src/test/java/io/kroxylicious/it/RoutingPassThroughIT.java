@@ -13,10 +13,14 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.AlterConfigOp;
+import org.apache.kafka.clients.admin.ConfigEntry;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
@@ -25,6 +29,7 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.coordinator.group.GroupConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -128,6 +133,38 @@ class RoutingPassThroughIT {
             var topics = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(topics).contains(topic.name());
         }
+    }
+
+    @Test
+    void shouldConsumeViaShareGroupWithPassThroughRouter(KafkaCluster cluster, Topic topic) throws Exception {
+        var config = routingConfig(cluster);
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var admin = tester.admin();
+                var producer = tester.producer();
+                var shareConsumer = tester.shareConsumer("routing-share-group")) {
+
+            // Share group auto.offset.reset is broker-side config, not a consumer property
+            configureShareGroupEarliestReset(admin, "routing-share-group");
+            shareConsumer.subscribe(List.of(topic.name()));
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "key", "value")))
+                    .succeedsWithin(Duration.ofSeconds(10));
+
+            var records = shareConsumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo("value");
+        }
+    }
+
+    private static void configureShareGroupEarliestReset(Admin admin, String groupName) {
+        var resource = new ConfigResource(ConfigResource.Type.GROUP, groupName);
+        var op = new AlterConfigOp(new ConfigEntry(GroupConfig.SHARE_AUTO_OFFSET_RESET_CONFIG, "earliest"), AlterConfigOp.OpType.SET);
+        assertThat(admin.incrementalAlterConfigs(Map.of(resource, List.of(op))).all())
+                .succeedsWithin(Duration.ofSeconds(10));
     }
 
     @ParameterizedTest(name = "route to {0}")
@@ -351,6 +388,43 @@ class RoutingPassThroughIT {
                         .extracting(Request::apiKeys)
                         .containsExactly(ApiKeys.FETCH);
             }
+        }
+    }
+
+    @Test
+    void shouldVirtualizeNodeIdsInDescribeTopicPartitionsResponse(KafkaCluster clusterA, KafkaCluster clusterB) throws Exception {
+        // Given: two routes where route-b (id=1, totalRoutes=2) maps upstream broker 0
+        // to virtual ID 1 + 2×0 = 1. All traffic goes to route-b.
+        var clusterDefA = new ClusterDefinition("cluster-a", clusterA.getBootstrapServers(), null);
+        var clusterDefB = new ClusterDefinition("cluster-b", clusterB.getBootstrapServers(), null);
+        var routeA = new RouteDefinition("route-a", 0, List.of(), new RouteTarget("cluster-a", null));
+        var routeB = new RouteDefinition("route-b", 1, List.of(), new RouteTarget("cluster-b", null));
+        var routerConfig = new PassThroughRouterFactory.Config("route-b");
+        var routerDef = new RouterDefinition("two-cluster-router",
+                PassThroughRouterFactory.class.getName(), routerConfig, List.of(routeA, routeB));
+        var vc = new VirtualClusterBuilder()
+                .withName("demo")
+                .withTarget(new RouteTarget(null, "two-cluster-router"))
+                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("localhost:9192").build())
+                .build();
+        var config = baseConfigurationBuilder()
+                .addToClusterDefinitions(clusterDefA)
+                .addToClusterDefinitions(clusterDefB)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        var topicName = "describe-topic-parts-" + UUID.randomUUID();
+
+        try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
+                var admin = tester.admin()) {
+            admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
+            // When
+            var descriptions = admin.describeTopics(List.of(topicName)).allTopicNames().get(10, TimeUnit.SECONDS);
+
+            // Then: leader ID is the virtual ID (1), not the upstream broker ID (0)
+            assertThat(descriptions.get(topicName).partitions())
+                    .singleElement()
+                    .satisfies(p -> assertThat(p.leader().id()).isEqualTo(1));
         }
     }
 
