@@ -32,9 +32,20 @@ class KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper implements SecondaryTo
 
     @Override
     public Set<ResourceID> toPrimaryResourceIDs(KafkaProxyIngress ingress) {
+        var generation = ingress.getMetadata().getGeneration();
+        var observedGeneration = ingress.getStatus() != null ? ingress.getStatus().getObservedGeneration() : null;
+        var resourceVersion = ingress.getMetadata().getResourceVersion();
+        boolean fresh = ResourcesUtil.isStatusFresh(ingress);
+        LOGGER.atInfo()
+                .addKeyValue("ingress", ResourcesUtil.toLocalRef(ingress))
+                .addKeyValue("generation", generation)
+                .addKeyValue("observedGeneration", observedGeneration)
+                .addKeyValue("resourceVersion", resourceVersion)
+                .addKeyValue("fresh", fresh)
+                .log("Mapper invoked");
         // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
-        if (!ResourcesUtil.isStatusFresh(ingress)) {
-            LOGGER.atDebug()
+        if (!fresh) {
+            LOGGER.atInfo()
                     .addKeyValue("ingress", ResourcesUtil.toLocalRef(ingress))
                     .log("Ignoring event from ingress with stale status");
             return Set.of();
@@ -42,7 +53,7 @@ class KafkaProxyIngressSecondaryToKafkaProxyPrimaryMapper implements SecondaryTo
         // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
         // the previously referenced proxy too.
         Set<ResourceID> proxyIds = findAllKnownPrimariesInNamespace(context, ingress);
-        LOGGER.atDebug()
+        LOGGER.atInfo()
                 .addKeyValue("proxyIds", proxyIds)
                 .log("Event source KafkaProxyIngress SecondaryToPrimaryMapper");
         return proxyIds;

@@ -13,6 +13,12 @@
         <option value="$PROJECT_DIR$/kroxylicious-systemtests/pom.xml" />
       </list>
     </option>
+    <option name="enabledProfiles">
+      <list>
+        <option value="systemtest" />
+        <option value="dist" />
+      </list>
+    </option>
   </component>
   <component name="NullableNotNullManager">
     <option name="myDefaultNullable" value="edu.umd.cs.findbugs.annotations.Nullable" />
