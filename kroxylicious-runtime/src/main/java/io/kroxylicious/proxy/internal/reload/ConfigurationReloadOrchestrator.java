@@ -96,10 +96,10 @@ public class ConfigurationReloadOrchestrator {
 
     /**
      * The production-default set of change detectors:
-     * {@link VirtualClusterChangeDetector} and {@link FilterChangeDetector}.
+     * {@link VirtualClusterChangeDetector}, {@link FilterChangeDetector}, and {@link ClusterDefinitionChangeDetector}.
      */
     public static List<ChangeDetector> defaultDetectors() {
-        return List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector());
+        return List.of(new VirtualClusterChangeDetector(), new FilterChangeDetector(), new ClusterDefinitionChangeDetector());
     }
 
     /**
