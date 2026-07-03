@@ -6,6 +6,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+## 0.22.0
 
 * [#4152](https://github.com/kroxylicious/kroxylicious/pull/4152): feat(config): add `clusterDefinitions` top-level configuration property. Named cluster definitions can be defined once and referenced from virtual clusters via `target: { cluster: "<name>" }`, replacing the inline `targetCluster` field.
 * [#3672](https://github.com/kroxylicious/kroxylicious/pull/3672): feat(operator): add `KafkaProxyIngress.spec.infrastructure.annotations` to allow operators to propagate custom annotations to operator-managed Services and Routes, supporting platform-specific tooling such as AWS Load Balancer Controller, OpenShift service-serving-certificate, and HAProxy configuration.
