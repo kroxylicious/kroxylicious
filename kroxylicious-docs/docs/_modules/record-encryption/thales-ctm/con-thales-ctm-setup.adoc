@@ -162,11 +162,13 @@ CA_ID=<id of CA>
 
 .Generate client certificate signing request and private key
 
-Use `ksctl` to generate a Certificate Signing Request (CSR) and private key:
+Use `ksctl` to generate a Certificate Signing Request (CSR) and private key.
+Algorithm `RSA` is used so that the private key is generated in RSA format which works well in the Java ecosystem.
 
 [source,shell]
 ----
 ksctl ca csr \
+  --alg RSA \
   --cn "kroxylicious-production" \
   --csr-outfile kroxylicious-client.csr \
   --key-outfile kroxylicious-client.key
