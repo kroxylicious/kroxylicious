@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.22.0
 
 * [#4152](https://github.com/kroxylicious/kroxylicious/pull/4152): feat(config): add `clusterDefinitions` top-level configuration property. Named cluster definitions can be defined once and referenced from virtual clusters via `target: { cluster: "<name>" }`, replacing the inline `targetCluster` field.
