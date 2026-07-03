@@ -1,0 +1,276 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-preparing-thales-ctm.adoc
+
+[id='con-thales-ctm-setup-{context}']
+= Preparing Thales CipherTrust Manager for Kroxylicious
+
+[role="_abstract"]
+To use the Record Encryption filter with Thales CipherTrust Manager (CTM), you need to configure CTM with a group, policy, and application identity that has the minimal permissions required for envelope encryption operations.
+
+== CipherTrust Manager endpoint URL
+
+The filter requires the CTM endpoint URL to connect to your CipherTrust Manager instance.
+
+The URL format depends on your deployment:
+
+* Cloud instance: `\https://<instance-name>.ciphertrust.io`
+* On-premises instance: `\https://<hostname-or-ip>:<port>`
+
+The filter uses this URL to access the CTM REST API for cryptographic operations.
+
+== Prerequisites
+
+* Access to the CipherTrust Manager administrative interface
+* The `ksctl` command-line tool installed and configured to connect to your CTM instance
+* Administrator permissions in CTM to create groups, policies, and users (or client registrations)
+* For client certificate authentication: a Certificate Authority (CA) registered in CipherTrust Manager
+
+== Role of the administrator
+
+To use the filter, an administrator must:
+
+1. Create a group for Kroxylicious service account.
+2. Configure a policy that grants the minimal permissions Kroxylicious needs and attach the policy to the group.
+3. Create a user or client certificate registration for Kroxylicious that is a member of the group.
+
+The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
+
+== Create a group for Kroxylicious service account
+
+Create a dedicated group in CipherTrust Manager to organize Kroxylicious service accounts or client certificates.
+
+Using `ksctl`:
+
+[source,shell]
+----
+ksctl groups create \
+  --name "kroxylicious-record-encryption" \
+  --description "Kroxylicious service accounts for record encryption"
+----
+
+This group will be used when configuring the access control policy.
+
+== Create a least-privilege policy
+
+Create a policy that grants only the permissions Kroxylicious needs for envelope encryption operations.
+
+The policy must grant these actions:
+
+* `ReadKey` - Required to get key metadata (used for alias resolution)
+* `EncryptWithKey` - Required to encrypt DEKs with KEKs
+* `DecryptWithKey` - Required to decrypt EDEKs
+* `UseKey` - Also required for crypto operations to work
+
+IMPORTANT: All four actions are required. The `UseKey` action might seem redundant alongside `EncryptWithKey` and `DecryptWithKey`, but CipherTrust Manager requires it for crypto operations. Without `UseKey`, encrypt and decrypt operations will fail with `403 Forbidden` even if the specific actions are granted.
+
+Create the policy JSON file named `kroxylicious-policy.json`:
+
+[source,json]
+----
+{
+  "name": "kroxylicious-least-privilege",
+  "allow": true,
+  "resources": ["kylo:kylo:vault:keys:kek-*"],
+  "actions": ["ReadKey", "EncryptWithKey", "DecryptWithKey", "UseKey"]
+}
+----
+
+IMPORTANT: The resource pattern must use lowercase `kek-*` because CTM matches against the key's URI, which lowercases the key name. A key named `KEK-production` has the URI `kylo:kylo:vault:keys:kek-production`.
+
+Create the policy using `ksctl`:
+
+[source,shell]
+----
+POLICY_RESPONSE=$(ksctl policy create --jsonfile kroxylicious-policy.json)
+POLICY_ID=$(echo "$POLICY_RESPONSE" | jq -r '.id')
+----
+
+Record the policy ID. You will need it to attach the policy to the group.
+
+This policy ensures that the Kroxylicious application identity:
+
+* CAN perform encryption and decryption operations
+* CAN read key metadata (required for alias resolution)
+* CAN only access keys matching the `kek-*` pattern
+* CANNOT create, delete, or modify keys
+* CANNOT access keys that don't match the pattern
+* CANNOt perform other admin operations
+
+== Attach the policy to the group
+
+Attach the policy to the group you created.
+
+Create a principal JSON file named `principal.json`:
+
+[source,json]
+----
+{
+  "cust": {
+    "groups": ["kroxylicious-record-encryption"]
+  }
+}
+----
+
+Attach the policy using `ksctl`:
+
+[source,shell]
+----
+ksctl polattach create \
+  --polid "$POLICY_ID" \
+  --prinjson principal.json
+----
+
+== Establish an application identity
+
+CipherTrust Manager supports two authentication methods for Kroxylicious:
+
+* **Client certificate authentication** (recommended for production)
+* **Username and password authentication** (intended for development and testing)
+
+Choose the method that best fits your organization's security requirements.
+
+=== Client certificate authentication
+
+Client certificate authentication is recommended for production deployments as it provides stronger security and doesn't require storing passwords.
+
+.Prerequisites
+
+You need a Certificate Authority (CA) registered in CipherTrust Manager that can sign client certificates. This CA should already be configured in your CTM instance.
+
+To list available CAs:
+
+[source,shell]
+----
+ksctl ca locals list | jq '.resources[] | {name: .name, id: .id}'
+----
+
+Record the CA ID of the CA you will use to sign the client certificate.
+
+[source,shell]
+----
+CA_ID=<id of CA>
+----
+
+.Generate client certificate signing request and private key
+
+Use `ksctl` to generate a Certificate Signing Request (CSR) and private key:
+
+[source,shell]
+----
+ksctl ca csr \
+  --cn "kroxylicious-production" \
+  --csr-outfile kroxylicious-client.csr \
+  --key-outfile kroxylicious-client.key
+----
+
+This creates:
+
+* `kroxylicious-client.key` - The client's private key
+* `kroxylicious-client.csr` - The certificate signing request
+
+.Issue and sign the client certificate
+
+Sign the CSR with your CA to create the client certificate:
+
+[source,shell]
+----
+ksctl ca locals certs issue \
+  --ca-id "$CA_ID" \
+  --csr-infile kroxylicious-client.csr \
+  --cert-outfile kroxylicious-client.crt \
+  --duration 365 \
+  --purpose client
+----
+
+This creates `kroxylicious-client.crt` - the signed client certificate.
+
+.Create a client management profile
+
+Create a client management profile and associate it with the group:
+
+[source,shell]
+----
+PROFILE_RESPONSE=$(ksctl clientmgmt profiles create \
+  --name 'kroxylicious-production')
+PROFILE_ID=$(echo "$PROFILE_RESPONSE" | jq -r '.id')
+
+ksctl clientmgmt profiles update \
+  --profile-id "$PROFILE_ID" \
+  --ca_id "$CA_ID" \
+  --groups 'kroxylicious-record-encryption'
+----
+
+.Create a registration token
+
+Create a registration token for the client:
+
+[source,shell]
+----
+TOKEN_RESPONSE=$(ksctl clientmgmt tokens create \
+  --ca-id "$CA_ID" \
+  --cert-duration 365 \
+  --client-mgmt-profile-id "$PROFILE_ID")
+REG_TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r '.token')
+----
+
+.Register the client
+
+Register the client using the token and client certificate:
+
+[source,shell]
+----
+CLIENT_RESPONSE=$(ksctl clientmgmt clients register \
+  --reg-token "$REG_TOKEN" \
+  --cert-file kroxylicious-client.crt)
+CLIENT_ID=$(echo "$CLIENT_RESPONSE" | jq -r '.id')
+----
+
+Record the client ID, certificate file path, and private key file path. You will need these for the filter configuration:
+
+* Client ID: `$CLIENT_ID`
+* Certificate: `kroxylicious-client.crt`
+* Private key: `kroxylicious-client.key`
+
+=== Username and password authentication
+
+Alternatively, you can create a user account for Kroxylicious.
+
+.Create the user
+
+Generate a strong password and create the user:
+
+[source,shell]
+----
+# Generate a strong random password
+PASSWORD=$(openssl rand -base64 32)
+
+# Create the user
+USER_RESPONSE=$(ksctl users create \
+  --name kroxylicious-service \
+  --pword "$PASSWORD")
+USER_ID=$(echo "$USER_RESPONSE" | jq -r '.user_id')
+----
+
+.Add the user to the group
+
+Add the user to the group you created:
+
+[source,shell]
+----
+ksctl groups adduser \
+  --name kroxylicious-record-encryption \
+  --userid "$USER_ID"
+----
+
+IMPORTANT: Store the password securely. In production, use the `passwordFile` option in the filter configuration rather than embedding the password in the configuration file.
+
+Record the username and password. You will need these for the filter configuration.

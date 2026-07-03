@@ -1,0 +1,41 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// assembly-key-creation-thales-ctm.adoc
+
+[id='proc-thales-ctm-key-creation-{context}']
+= Creating keys in Thales CipherTrust Manager
+
+[role="_abstract"]
+Create AES-256 symmetric encryption keys in CipherTrust Manager for use as KEKs (Key Encryption Keys) with the Record Encryption filter.
+
+.Prerequisites
+
+* Access to the CipherTrust Manager administrative interface
+* The `ksctl` command-line tool installed and configured
+* Administrator permissions to create keys in CipherTrust Manager
+
+.Procedure
+
+. Create an AES-256 symmetric key with a name that follows your naming convention:
++
+[source,shell]
+----
+ksctl keys create \
+  --name KEK-production-topic \
+  --algorithm aes \
+  --size 256
+----
+
+. Record the key name for use in the Record Encryption filter configuration.
+
+. Repeat for each topic or encryption scope that requires a separate key.
+
+NOTE: We recommend using a naming convention such as a `KEK-` prefix to identify keys intended for Kroxylicious. This makes it clear which keys are used for envelope encryption and allows you to configure CTM policies to restrict access to these keys.

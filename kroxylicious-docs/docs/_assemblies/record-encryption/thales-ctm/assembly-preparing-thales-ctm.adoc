@@ -1,0 +1,15 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-preparing-thales-ctm-{context}']
+= Preparing Thales CipherTrust Manager
+
+[role="_abstract"]
+To prepare Thales CipherTrust Manager for use with the Record Encryption filter, configure a group with a least-privilege policy and create an application identity using either client certificate authentication (recommended) or username and password authentication.
+
+include::../../../_modules/record-encryption/thales-ctm/con-thales-ctm-setup.adoc[leveloffset=+1]

@@ -73,7 +73,7 @@ Start each file with an introductory paragraph. Mark it by adding a `[role="_abs
 To generate the guides in HTML, run the following Maven command from the project root directory (the parent directory of the `kroxylicious-docs` directory).
 
 ```shell
-mvn -P dist package --pl kroxylicious-docs 
+mvn -P dist package --pl kroxylicious-docs -am
 ```
 
 The HTML for each guide is output to a subdirectory of `target/docs`. 

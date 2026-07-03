@@ -24,4 +24,7 @@ include::azure-key-vault/assembly-preparing-azure-key-vault.adoc[leveloffset=+1]
 ifdef::include-fortanix-dsm-kms[]
 include::fortanix-dsm/assembly-preparing-fortanix-dsm.adoc[leveloffset=+1]
 endif::[]
+ifdef::include-thales-ctm-kms[]
+include::thales-ctm/assembly-preparing-thales-ctm.adoc[leveloffset=+1]
+endif::[]
 

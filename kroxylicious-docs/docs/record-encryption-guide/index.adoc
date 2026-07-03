@@ -35,6 +35,9 @@ Kroxylicious supports the following KMS providers:
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix DSM
 endif::[]
+ifdef::include-thales-ctm-kms[]
+* Thales CipherTrust Manager
+endif::[]
 
 You can provide implementations for your specific KMS systems.
 Additional KMS support may be added based on demand.
