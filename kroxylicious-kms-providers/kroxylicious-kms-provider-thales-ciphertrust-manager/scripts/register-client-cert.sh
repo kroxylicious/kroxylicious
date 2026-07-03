@@ -86,8 +86,12 @@ ksctl ca locals self-sign --duration 3650 --id "${CA_ID}" > /dev/null
 echo "    CA self-signed with 3650 day duration"
 
 echo "==> Step 2: Generating CSR and Private Key for the Client..."
+# Use RSA algorithm to generate PKCS#1 RSA keys which PemUtils converts
+# to PKCS#8. The default EC algorithm generates PKCS#1 EC keys which
+# PemUtils does not support.
 ksctl ca csr \
   --cn "my-auth-client" \
+  --alg RSA \
   --csr-outfile "$OUTPUT_DIR/kroxylicious-client.csr" \
   --key-outfile "$OUTPUT_DIR/kroxylicious-client.key" > /dev/null
 echo "    Private key: $OUTPUT_DIR/kroxylicious-client.key"
