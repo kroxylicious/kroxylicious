@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright Kroxylicious Authors.
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
@@ -34,6 +34,6 @@ class VaultEdekTest {
     @Test
     void toStringFormation() {
         var edek = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("VaultEdek{keyRef=keyref, edek=[1, 2, 3]}");
+        assertThat(edek).hasToString("VaultEdek{keyRef=keyref, edek=<redacted>}");
     }
 }

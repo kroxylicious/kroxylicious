@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright Kroxylicious Authors.
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
@@ -68,7 +68,7 @@ public record VaultEdek(String kekRef,
     public String toString() {
         return "VaultEdek{" +
                 "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
+                ", edek=<redacted>" +
                 '}';
     }
 }

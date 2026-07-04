@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright Kroxylicious Authors.
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
@@ -64,7 +64,7 @@ public record AwsKmsEdek(String kekRef,
     public String toString() {
         return "AwsKmsEdek{" +
                 "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
+                ", edek=<redacted>" +
                 '}';
     }
 }

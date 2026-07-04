@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright Kroxylicious Authors.
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
@@ -45,6 +45,13 @@ class AzureKeyVaultEdekTest {
         AzureKeyVaultEdek azureKeyVaultEdek = createEdek(KEY_NAME, repeatString(32, "z"), EDEK, VAULT_NAME, KEY_TYPE);
         Optional<byte[]> bytes = azureKeyVaultEdek.keyVersion128bit();
         assertThat(bytes).isEmpty();
+    }
+
+    @Test
+    void toStringFormation() {
+        AzureKeyVaultEdek edek = createEdek(KEY_NAME, KEY_VERSION, EDEK, VAULT_NAME, KEY_TYPE);
+        assertThat(edek).hasToString("AzureKeyVaultEdek{keyName=" + KEY_NAME + ", vaultName=" + VAULT_NAME
+                + ", supportedKeyType=" + KEY_TYPE + ", keyVersion=" + KEY_VERSION + ", edek=<redacted>}");
     }
 
     static Stream<Arguments> validEdek() {

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright Kroxylicious Authors.
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
@@ -40,6 +40,6 @@ class AwsKmsEdekTest {
     @Test
     void toStringFormation() {
         var edek = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("AwsKmsEdek{keyRef=keyref, edek=[1, 2, 3]}");
+        assertThat(edek).hasToString("AwsKmsEdek{keyRef=keyref, edek=<redacted>}");
     }
 }
