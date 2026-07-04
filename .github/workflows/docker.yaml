@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
 
       - name: Set up Docker Buildx
         id: buildx
@@ -144,7 +144,7 @@ jobs:
             package
 
       - name: Build and maybe push amd64 proxy image
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-app
           file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
@@ -157,7 +157,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=proxy-amd64
 
       - name: Build and maybe push operator image
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-kubernetes/kroxylicious-operator
           file: ./kroxylicious-kubernetes/kroxylicious-operator/src/main/docker/operator.dockerfile
@@ -170,7 +170,7 @@ jobs:
           cache-to: type=gha,mode=max,compression=zstd,scope=operator
 
       - name: Build and maybe push Admission webhook image
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-kubernetes/kroxylicious-admission
           file: ./kroxylicious-kubernetes/kroxylicious-admission/src/main/docker/webhook.dockerfile
@@ -203,7 +203,7 @@ jobs:
 
       - name: Build and push arm64 proxy image
         if: steps.build_configuration.outputs.multi_arch == 'true'
-        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a
         with:
           context: ./kroxylicious-app
           file: ./kroxylicious-app/src/main/docker/proxy.dockerfile
