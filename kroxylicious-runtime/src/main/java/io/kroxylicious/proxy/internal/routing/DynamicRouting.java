@@ -39,6 +39,11 @@ public record DynamicRouting(
         routeDescriptors = Map.copyOf(routeDescriptors);
     }
 
+    @Override
+    public void close() {
+        routerChainFactory.close();
+    }
+
     private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {
         Objects.requireNonNull(routeDescriptors, "routeDescriptors");
         if (routeDescriptors.isEmpty()) {

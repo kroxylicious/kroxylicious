@@ -288,13 +288,11 @@ public class VirtualClusterModel implements AutoCloseable {
         // Suppress exceptions so each component still gets a chance to close; surface the
         // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
-        if (routing instanceof DynamicRouting dr) {
-            try {
-                dr.routerChainFactory().close();
-            }
-            catch (RuntimeException e) {
-                firstFailure = e;
-            }
+        try {
+            routing.close();
+        }
+        catch (RuntimeException e) {
+            firstFailure = e;
         }
         try {
             filterChainFactory.close();
