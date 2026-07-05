@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.router.Router;
 
 /**
  * Routing model for a virtual cluster that forwards to one or more upstream clusters via a named
@@ -37,6 +38,10 @@ public record DynamicRouting(
         Objects.requireNonNull(nodeIdMapping, "nodeIdMapping");
         Objects.requireNonNull(routerChainFactory, "routerChainFactory");
         routeDescriptors = Map.copyOf(routeDescriptors);
+    }
+
+    public Router createRouter(String clusterName) {
+        return routerChainFactory.createRouter(routerName, clusterName);
     }
 
     @Override

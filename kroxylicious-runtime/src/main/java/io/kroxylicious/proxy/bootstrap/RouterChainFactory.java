@@ -41,7 +41,8 @@ public class RouterChainFactory implements AutoCloseable {
     private static final class Wrapper {
 
         private final RouterFactory<? super Object, ? super Object> routerFactory;
-        private final RouterDefinition routerDefinition;
+        private final String routerName;
+        private final RouterFactoryContext context;
         private final Object initResult;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -49,7 +50,8 @@ public class RouterChainFactory implements AutoCloseable {
                         RouterDefinition routerDefinition,
                         RouterFactory<? super Object, ? super Object> routerFactory) {
             this.routerFactory = routerFactory;
-            this.routerDefinition = routerDefinition;
+            this.routerName = routerDefinition.name();
+            this.context = context;
             Object config = routerDefinition.config();
             try {
                 initResult = routerFactory.initialize(context, config);
@@ -62,16 +64,16 @@ public class RouterChainFactory implements AutoCloseable {
             }
         }
 
-        private Router create(RouterFactoryContext context) {
+        private Router create() {
             if (closed.get()) {
-                throw new IllegalStateException("Router factory " + routerDefinition.name() + " is closed");
+                throw new IllegalStateException("Router factory " + routerName + " is closed");
             }
             try {
                 return routerFactory.createRouter(context, initResult);
             }
             catch (Exception e) {
                 throw new PluginConfigurationException(
-                        "Exception instantiating router " + routerDefinition.name()
+                        "Exception instantiating router " + routerName
                                 + " using factory " + routerFactory,
                         e);
             }
@@ -182,11 +184,7 @@ public class RouterChainFactory implements AutoCloseable {
                     "No router definition found for name: " + routerName
                             + " in virtual cluster: " + virtualClusterName);
         }
-        var routeNames = wrapper.routerDefinition.routes().stream()
-                .map(RouteDefinition::name)
-                .collect(Collectors.toUnmodifiableSet());
-        RouterFactoryContext context = createContext(virtualClusterName, routerName, routeNames);
-        return wrapper.create(context);
+        return wrapper.create();
     }
 
     private RouterFactoryContext createContext(String vcName, String routerName, Set<String> routeNames) {

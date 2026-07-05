@@ -56,6 +56,7 @@ import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -178,6 +179,13 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public FilterChainFactory filterChainFactory() {
         return filterChainFactory;
+    }
+
+    public Router createRouter() {
+        if (!(routing instanceof DynamicRouting dr)) {
+            throw new IllegalStateException("Virtual cluster '" + clusterName + "' does not use a router");
+        }
+        return dr.createRouter(clusterName);
     }
 
     public Duration drainTimeout() {
