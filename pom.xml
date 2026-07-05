@@ -54,7 +54,7 @@
         <junit.version>5.14.4</junit.version>
         <kafka.version>4.2.0</kafka.version>
         <kroxy.extension.version>0.15.0</kroxy.extension.version>
-        <log4j.version>2.26.0</log4j.version>
+        <log4j.version>2.26.1</log4j.version>
         <caffeine.version>3.2.4</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
         <netty.version>4.2.15.Final</netty.version>
@@ -783,7 +783,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.6.2</version>
+                    <version>3.6.3</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -967,7 +967,7 @@
                 <plugin>
                     <groupId>org.sonatype.central</groupId>
                     <artifactId>central-publishing-maven-plugin</artifactId>
-                    <version>0.10.0</version>
+                    <version>0.11.0</version>
                     <extensions>true</extensions>
                 </plugin>
             </plugins>
