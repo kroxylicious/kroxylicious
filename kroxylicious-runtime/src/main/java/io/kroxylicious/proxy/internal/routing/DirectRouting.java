@@ -13,16 +13,13 @@ import io.netty.handler.ssl.SslContext;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * Routing model for a virtual cluster that forwards directly to a single, statically-configured
  * upstream Kafka cluster.
  * <p>
  * Owns the pre-built {@link #upstreamSslContext()} and {@link #tlsManager()} for that cluster.
  */
-@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public record DirectRouting(
+public record DirectRouting(String routeName,
                             TargetCluster targetCluster,
                             Optional<SslContext> upstreamSslContext,
                             TlsCredentialSupplierManager tlsManager)
@@ -33,8 +30,8 @@ public record DirectRouting(
      * (tests, pre-{@code PluginFactoryRegistry} construction). The SSL context defaults
      * to empty and the manager to unconfigured.
      */
-    public DirectRouting(TargetCluster targetCluster) {
-        this(targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+    public DirectRouting(String routeName, TargetCluster targetCluster) {
+        this(routeName, targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
     }
 
     public DirectRouting {
@@ -44,18 +41,27 @@ public record DirectRouting(
     }
 
     @Override
-    public TargetCluster targetClusterFor(@Nullable String routeName) {
+    public TargetCluster targetClusterFor(String routeName) {
+        validateRouteName(routeName);
         return targetCluster;
     }
 
     @Override
-    public Optional<SslContext> upstreamSslContextFor(@Nullable String routeName) {
+    public Optional<SslContext> upstreamSslContextFor(String routeName) {
+        validateRouteName(routeName);
         return upstreamSslContext;
     }
 
     @Override
-    public TlsCredentialSupplierManager tlsManagerFor(@Nullable String routeName) {
+    public TlsCredentialSupplierManager tlsManagerFor(String routeName) {
+        validateRouteName(routeName);
         return tlsManager;
+    }
+
+    private void validateRouteName(String routeName) {
+        if (!routeName.equals(this.routeName)) {
+            throw new IllegalArgumentException("Invalid route name: " + routeName + " for direct routing. Expected: " + this.routeName);
+        }
     }
 
     @Override

@@ -98,7 +98,7 @@ class ClientConnectionStateMachineTest {
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME,
-            new DirectRouting(new TargetCluster("", Optional.empty())), false, false,
+            new DirectRouting("upstream", new TargetCluster("", Optional.empty())), false, false,
             List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");

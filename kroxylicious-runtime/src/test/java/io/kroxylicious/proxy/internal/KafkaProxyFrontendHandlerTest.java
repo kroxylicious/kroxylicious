@@ -77,6 +77,7 @@ class KafkaProxyFrontendHandlerTest {
     public static final String CLUSTER_HOST = "internal.example.org";
     public static final int CLUSTER_PORT = 9092;
     public static final String CLUSTER_NAME = "RandomCluster";
+    public static final String DIRECT_ROUTE_NAME = "upstream";
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
 
@@ -248,9 +249,9 @@ class KafkaProxyFrontendHandlerTest {
         // FCF is now resolved per-connection from the VC (see #4055). Wire the test's fcf
         // mock through the VC so verify(fcf).createFilters(...) still works.
         when(virtualClusterModel.filterChainFactory()).thenReturn(fcf);
-        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
-        when(virtualClusterModel.getUpstreamSslContext()).thenReturn(Optional.empty());
-        when(virtualClusterModel.getTlsCredentialSupplierManager()).thenReturn(TlsCredentialSupplierManager.unconfigured());
+        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
+        when(virtualClusterModel.getUpstreamSslContextForRoute(DIRECT_ROUTE_NAME)).thenReturn(Optional.empty());
+        when(virtualClusterModel.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME)).thenReturn(TlsCredentialSupplierManager.unconfigured());
         return virtualClusterModel;
     }
 
@@ -371,7 +372,7 @@ class KafkaProxyFrontendHandlerTest {
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
         when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualCluster.getUpstreamSslContextForRoute(DIRECT_ROUTE_NAME)).thenReturn(Optional.empty());
         when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
         var clientConnectionStateMachine = this.clientConnectionStateMachine(endpointBinding);
 
@@ -574,7 +575,7 @@ class KafkaProxyFrontendHandlerTest {
         var virtualCluster = mockVirtualClusterModel("test-cluster");
         var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
+        when(virtualCluster.getUpstreamSslContextForRoute(DIRECT_ROUTE_NAME)).thenReturn(Optional.empty());
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
         when(endpointBinding.nodeId()).thenReturn(null);

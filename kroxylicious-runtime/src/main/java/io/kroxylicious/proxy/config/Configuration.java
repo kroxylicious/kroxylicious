@@ -268,7 +268,7 @@ public record Configuration(
             routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory);
         }
         else {
-            routing = new DirectRouting(resolveDirectTargetCluster(virtualCluster, clustersByName));
+            routing = new DirectRouting(virtualCluster.name() + "Upstream", resolveDirectTargetCluster(virtualCluster, clustersByName));
         }
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),

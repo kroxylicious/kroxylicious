@@ -32,28 +32,21 @@ public sealed interface RoutingModel extends AutoCloseable permits DirectRouting
     /**
      * Returns the upstream {@link TargetCluster} for the given route name, or {@code null} if there
      * is no cluster target for that name.
-     * <p>
-     * For {@link DirectRouting}, {@code routeName} is ignored and the single configured cluster is
-     * always returned. For {@link DynamicRouting}, {@code routeName} identifies the route descriptor
-     * to look up; returns {@code null} when the name is not found or the route targets a nested
-     * router rather than a cluster.
      */
     @Nullable
-    TargetCluster targetClusterFor(@Nullable String routeName);
+    TargetCluster targetClusterFor(String routeName);
 
     /**
      * Returns the pre-built upstream {@link SslContext} for the given route, or
      * {@link Optional#empty()} when the route has no static TLS configuration.
-     * Pass {@code null} for non-routed (direct) virtual clusters.
      */
-    Optional<SslContext> upstreamSslContextFor(@Nullable String routeName);
+    Optional<SslContext> upstreamSslContextFor(String routeName);
 
     /**
      * Returns the {@link TlsCredentialSupplierManager} for the given route.
      * Returns the unconfigured singleton when no dynamic TLS credential supplier is configured
-     * for that route. Pass {@code null} for non-routed (direct) virtual clusters.
      */
-    TlsCredentialSupplierManager tlsManagerFor(@Nullable String routeName);
+    TlsCredentialSupplierManager tlsManagerFor(String routeName);
 
     /**
      * Closes any TLS resources owned by this routing model (e.g. per-route

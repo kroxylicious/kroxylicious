@@ -829,10 +829,11 @@ public class ClientConnectionStateMachine {
     }
 
     @SuppressWarnings("java:S5738")
-    private void toForwarding(Forwarding forwarding,
-                              HostPort remote) {
+    private void toDirectForwarding(Forwarding forwarding,
+                                    HostPort remote,
+                                    String routeName) {
         setState(forwarding);
-        var scsm = createServerConnection(remote);
+        var scsm = createServerConnectionForRoute(routeName, remote);
         serverConnections.put(remote, scsm);
         var frontend = Objects.requireNonNull(frontendHandler);
         scsm.connect(Objects.requireNonNull(frontend.clientChannel()));
@@ -921,20 +922,7 @@ public class ClientConnectionStateMachine {
         }
     }
 
-    @VisibleForTesting
-    ServerConnectionStateMachine createServerConnection(HostPort remote) {
-        var vc = virtualCluster();
-        var tlsConfig = new ConnectionTlsConfig(
-                vc.getUpstreamSslContext(),
-                vc.getTlsCredentialSupplierManager(),
-                vc.routing().targetClusterFor(null));
-        return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
-                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
-                tlsConfig);
-    }
-
-    @VisibleForTesting
-    ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
+    private ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
         var vc = virtualCluster();
         var tlsConfig = new ConnectionTlsConfig(
                 vc.getUpstreamSslContextForRoute(routeName),
@@ -975,9 +963,9 @@ public class ClientConnectionStateMachine {
         if (msg instanceof RequestFrame) {
             switch (virtualCluster().routing()) {
                 case DynamicRouting ignored -> toForwardingWithRoutes(forwardingFactory.get());
-                case DirectRouting ignored -> {
+                case DirectRouting dr -> {
                     var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-                    toForwarding(forwardingFactory.get(), target);
+                    toDirectForwarding(forwardingFactory.get(), target, dr.routeName());
                 }
             }
             tryUnblockClient();

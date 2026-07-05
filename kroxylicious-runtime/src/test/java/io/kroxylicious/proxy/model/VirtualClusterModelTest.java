@@ -55,6 +55,8 @@ import static org.mockito.Mockito.verify;
 
 class VirtualClusterModelTest {
 
+    public static final String DIRECT_ROUTE_NAME = "upstream";
+
     record TestSupplierConfig(String value) {}
 
     @Plugin(configType = TestSupplierConfig.class)
@@ -114,18 +116,18 @@ class VirtualClusterModelTest {
     void usesDynamicTlsCredentialsReturnsFalseWhenNoTlsConfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
-        assertThat(model.getTlsCredentialSupplierManager().isConfigured()).isFalse();
+        assertThat(model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME).isConfigured()).isFalse();
     }
 
     @Test
     void usesDynamicTlsCredentialsReturnsFalseWhenTlsHasNoCredentialSupplier() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, null)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
@@ -136,7 +138,7 @@ class VirtualClusterModelTest {
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isTrue();
@@ -147,18 +149,18 @@ class VirtualClusterModelTest {
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), pluginFactoryRegistry());
 
-        assertThat(model.getTlsCredentialSupplierManager().isConfigured()).isTrue();
-        assertThat(model.getTlsCredentialSupplierManager().getSupplier()).isNotNull();
+        assertThat(model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME).isConfigured()).isTrue();
+        assertThat(model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME).getSupplier()).isNotNull();
         model.close();
     }
 
     @Test
     void closeIsNoOpWhenTlsCredentialSupplierManagerIsUnconfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         model.close();
@@ -176,10 +178,10 @@ class VirtualClusterModelTest {
 
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         var targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
-        var model = new VirtualClusterModel("vc1", new DirectRouting(targetCluster), false, false, filters,
+        var model = new VirtualClusterModel("vc1", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, filters,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
 
-        var tlsManager = model.getTlsCredentialSupplierManager();
+        var tlsManager = model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME);
         assertThat(tlsManager.isConfigured()).isTrue();
         assertThat(tlsManager.getSupplier()).isNotNull();
         assertThat(onFilterClose.get()).isZero();
@@ -206,7 +208,7 @@ class VirtualClusterModelTest {
         var pfr = combinedPluginFactoryRegistry();
         var drainTimeout = Duration.ofSeconds(10);
 
-        assertThatThrownBy(() -> new VirtualClusterModel("vc1", new DirectRouting(targetCluster), false, false, filters,
+        assertThatThrownBy(() -> new VirtualClusterModel("vc1", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, filters,
                 CacheConfiguration.DEFAULT, null, drainTimeout, pfr))
                 .isExactlyInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("Exception initializing filter factory bad-filter")
@@ -249,7 +251,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        assertThatThrownBy(() -> new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");

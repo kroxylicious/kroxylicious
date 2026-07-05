@@ -97,6 +97,7 @@ class ClientConnectionStateMachineEndToEndTest {
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
     private static final Duration BACKGROUND_TASK_TIMEOUT = Duration.ofSeconds(1);
     public static final KafkaSession TEST_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
+    public static final String DIRECT_ROUTE_NAME = "upstream";
 
     private EmbeddedChannel inboundChannel;
     private ChannelHandlerContext inboundCtx;
@@ -503,7 +504,7 @@ class ClientConnectionStateMachineEndToEndTest {
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
-        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
+        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);
@@ -511,8 +512,8 @@ class ClientConnectionStateMachineEndToEndTest {
         catch (SSLException e) {
             throw new RuntimeException(e);
         }
-        when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
-        when(virtualClusterModel.getTlsCredentialSupplierManager()).thenReturn(TlsCredentialSupplierManager.unconfigured());
+        when(virtualClusterModel.getUpstreamSslContextForRoute(DIRECT_ROUTE_NAME)).thenReturn(sslContext);
+        when(virtualClusterModel.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME)).thenReturn(TlsCredentialSupplierManager.unconfigured());
         when(virtualClusterModel.getClusterName()).thenReturn("RandomCluster");
         var clientConnectionStateMachine = clientConnectionStateMachine(endpointBinding);
 

@@ -125,7 +125,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
-        this(clusterName, new DirectRouting(targetCluster), logNetwork, logFrames, filters,
+        this(clusterName, new DirectRouting(clusterName + "Upstream", targetCluster), logNetwork, logFrames, filters,
                 new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
     }
 
@@ -161,7 +161,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                 .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
                                 .orElse(null))
                         : TlsCredentialSupplierManager.unconfigured();
-                yield new DirectRouting(dr.targetCluster(), buildUpstreamSslContextFor(dr.targetCluster()), mgr);
+                yield new DirectRouting(dr.routeName(), dr.targetCluster(), buildUpstreamSslContextFor(dr.targetCluster()), mgr);
             }
             case DynamicRouting dr -> {
                 if (pfr == null) {
@@ -283,10 +283,6 @@ public class VirtualClusterModel implements AutoCloseable {
                 '}';
     }
 
-    public Optional<SslContext> getUpstreamSslContext() {
-        return routing.upstreamSslContextFor(null);
-    }
-
     /**
      * Returns the pre-built upstream SSL context for a specific route, or {@link Optional#empty()}
      * if the route has no TLS configuration or is not a cluster-targeting route.
@@ -301,14 +297,6 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public TlsCredentialSupplierManager getTlsCredentialSupplierManagerForRoute(String routeName) {
         return routing.tlsManagerFor(routeName);
-    }
-
-    /**
-     * Returns the TLS credential supplier manager for this virtual cluster.
-     * This is never null; if no supplier is configured, an unconfigured manager is returned.
-     */
-    public TlsCredentialSupplierManager getTlsCredentialSupplierManager() {
-        return routing.tlsManagerFor(null);
     }
 
     /**
