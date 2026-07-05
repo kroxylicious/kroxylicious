@@ -262,13 +262,10 @@ public record Configuration(
                                                       Map<String, ClusterDefinition> clustersByName,
                                                       PluginFactoryRegistry pfr) {
         RoutingModel routing;
-        RouterChainFactory routerChainFactory = null;
         if (virtualCluster.router() != null) {
-            routing = new DynamicRouting(virtualCluster.router(),
-                    resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName));
-            if (pfr != null) {
-                routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
-            }
+            var routeDescriptors = resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
+            var routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
+            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory);
         }
         else {
             routing = new DirectRouting(resolveDirectTargetCluster(virtualCluster, clustersByName));
@@ -282,8 +279,7 @@ public record Configuration(
                 virtualCluster.topicNameCacheConfig(),
                 virtualCluster.subjectBuilder(),
                 virtualCluster.effectiveDrainTimeout(),
-                pfr,
-                routerChainFactory);
+                pfr);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();

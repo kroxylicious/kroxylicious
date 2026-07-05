@@ -103,7 +103,8 @@ class VirtualClusterModelTest {
     void usesDynamicTlsCredentialsReturnsFalseWhenDynamicRouting() {
         var routeDescriptors = Map.of("r1",
                 new RouteDescriptor("r1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DynamicRouting("some-router", routeDescriptors),
+        VirtualClusterModel model = new VirtualClusterModel("wibble",
+                new DynamicRouting("some-router", routeDescriptors, mock(RouterChainFactory.class)),
                 false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
@@ -218,7 +219,7 @@ class VirtualClusterModelTest {
     void dynamicRoutingVcmHasNoUpstreamSslContext() {
         var routeDescriptors = Map.of("route1",
                 new RouteDescriptor("route1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
-        var dynamicRouting = new DynamicRouting("myrouter", routeDescriptors);
+        var dynamicRouting = new DynamicRouting("myrouter", routeDescriptors, mock(RouterChainFactory.class));
 
         VirtualClusterModel model = new VirtualClusterModel("routed-vc", dynamicRouting, false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
@@ -233,7 +234,8 @@ class VirtualClusterModelTest {
     void logVirtualClusterSummaryWorksForDynamicRouting() {
         var routeDescriptors = Map.of("route1",
                 new RouteDescriptor("route1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
-        VirtualClusterModel model = new VirtualClusterModel("routed-vc", new DynamicRouting("myrouter", routeDescriptors),
+        VirtualClusterModel model = new VirtualClusterModel("routed-vc",
+                new DynamicRouting("myrouter", routeDescriptors, mock(RouterChainFactory.class)),
                 false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThatCode(model::logVirtualClusterSummary).doesNotThrowAnyException();
@@ -257,9 +259,10 @@ class VirtualClusterModelTest {
     void closeClosesRouterChainFactory() {
         // Given
         var rcf = mock(RouterChainFactory.class);
-        DynamicRouting routing = new DynamicRouting("r1", Map.of("a", new RouteDescriptor("a", 1, null, "router", List.of())));
-        var model = new VirtualClusterModel("routed-vc", routing, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, rcf);
+        var routeDescriptor = new RouteDescriptor("r1", 0, null, "nested", List.of());
+        var model = new VirtualClusterModel("routed-vc",
+                new DynamicRouting("r1", Map.of("r1", routeDescriptor), rcf),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         // When
         model.close();
@@ -277,9 +280,11 @@ class VirtualClusterModelTest {
         var flakyConfig = new FlakyConfig(null, null, null, c -> {
         }, c -> onFilterClose.incrementAndGet());
         var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), flakyConfig));
-        var targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
-        var model = new VirtualClusterModel("vc", new DirectRouting(targetCluster), false, false, filters,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry(), rcf);
+        var routeDescriptor = new RouteDescriptor("r1", 0, new TargetCluster("bootstrap:9092", Optional.empty()), null, List.of());
+        var model = new VirtualClusterModel("vc",
+                new DynamicRouting("r1", Map.of("r1", routeDescriptor), rcf),
+                false, false, filters,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
 
         // When
         assertThatThrownBy(model::close).hasMessage("rcf close boom");

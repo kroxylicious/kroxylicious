@@ -32,7 +32,6 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
-import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
@@ -68,15 +67,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * TLS configuration, and the components whose lifecycle is bound to this VC.
  *
  * <h2>Owned resources</h2>
- * The VCM owns and is responsible for closing three per-VC components:
+ * The VCM owns and is responsible for closing two per-VC components directly:
  * <ul>
- *   <li>{@link RouterChainFactory} — the router chain factory for <em>this</em> VC, or
- *       {@code null} for VCs that use a direct {@code targetCluster}. Each VCM has its own
- *       factory; its lifetime is tied to this VCM.</li>
  *   <li>{@link FilterChainFactory} — the filter chain factory for <em>this</em> VC. Each VCM
  *       has its own FCF.</li>
  *   <li>{@link TlsCredentialSupplierManager} — the TLS credential supplier for this VC.</li>
  * </ul>
+ * For VCs that use dynamic routing, the {@link io.kroxylicious.proxy.internal.routing.DynamicRouting}
+ * instance carries and owns the {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory}; the VCM
+ * closes it via the routing model.
  *
  * <h2>Lifecycle</h2>
  * The VCM is created when the VC is configured (or reconfigured via hot-reload), and closed
@@ -121,13 +120,6 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     private final FilterChainFactory filterChainFactory;
 
-    /**
-     * The router chain factory for <em>this</em> virtual cluster, or {@code null} for VCs
-     * that use a direct {@code targetCluster}. Owned by the VCM — its lifetime is tied to
-     * this VCM's lifetime, closed when {@link #close()} is called.
-     */
-    private final @Nullable RouterChainFactory routerChainFactory;
-
     @VisibleForTesting
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
@@ -135,20 +127,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
         this(clusterName, new DirectRouting(targetCluster), logNetwork, logFrames, filters,
-                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null, null);
-    }
-
-    public VirtualClusterModel(String clusterName,
-                               RoutingModel routing,
-                               boolean logNetwork,
-                               boolean logFrames,
-                               List<NamedFilterDefinition> filters,
-                               CacheConfiguration topicNameCacheConfig,
-                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
-                               Duration drainTimeout,
-                               @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
-        this(clusterName, routing, logNetwork, logFrames, filters, topicNameCacheConfig,
-                transportSubjectBuilderConfig, drainTimeout, pluginFactoryRegistry, null);
+                new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
     }
 
     @SuppressWarnings("java:S107")
@@ -160,8 +139,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                CacheConfiguration topicNameCacheConfig,
                                @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig,
                                Duration drainTimeout,
-                               @Nullable PluginFactoryRegistry pluginFactoryRegistry,
-                               @Nullable RouterChainFactory routerChainFactory) {
+                               @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.routing = Objects.requireNonNull(routing);
         this.logNetwork = logNetwork;
@@ -170,7 +148,6 @@ public class VirtualClusterModel implements AutoCloseable {
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
-        this.routerChainFactory = routerChainFactory;
 
         if (pluginFactoryRegistry != null) {
             this.filterChainFactory = new FilterChainFactory(pluginFactoryRegistry, filters);
@@ -201,16 +178,6 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public FilterChainFactory filterChainFactory() {
         return filterChainFactory;
-    }
-
-    /**
-     * Returns this VC's router chain factory, or {@code null} if this VC uses a direct
-     * {@code targetCluster}. The returned factory is alive for the lifetime of this VCM;
-     * callers should not retain the reference past the VC's lifetime.
-     */
-    @Nullable
-    public RouterChainFactory routerChainFactory() {
-        return routerChainFactory;
     }
 
     public Duration drainTimeout() {
@@ -321,9 +288,9 @@ public class VirtualClusterModel implements AutoCloseable {
         // Suppress exceptions so each component still gets a chance to close; surface the
         // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
-        if (routerChainFactory != null) {
+        if (routing instanceof DynamicRouting dr) {
             try {
-                routerChainFactory.close();
+                dr.routerChainFactory().close();
             }
             catch (RuntimeException e) {
                 firstFailure = e;

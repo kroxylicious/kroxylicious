@@ -260,9 +260,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("frontendHandler", frontendHandler);
         switch (virtualCluster.routing()) {
             case DynamicRouting dr -> {
-                var routerChainFactory = Objects.requireNonNull(virtualCluster.routerChainFactory(),
-                        "routerChainFactory must not be null when virtual cluster '" + virtualCluster.getClusterName() + "' uses a router");
-                Router router = routerChainFactory.createRouter(dr.routerName(), virtualCluster.getClusterName());
+                Router router = dr.routerChainFactory().createRouter(dr.routerName(), virtualCluster.getClusterName());
                 Map<ApiKeys, String> staticRoutes = router.staticRoutes();
                 Set<ApiKeys> decodedKeys = EnumSet.allOf(ApiKeys.class);
                 if (!staticRoutes.isEmpty()) {
