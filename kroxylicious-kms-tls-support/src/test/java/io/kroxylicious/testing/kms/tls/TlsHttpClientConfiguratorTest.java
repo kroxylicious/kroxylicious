@@ -257,21 +257,19 @@ class TlsHttpClientConfiguratorTest {
     }
 
     @Test
-    void shouldAcceptEncryptedPemKeyPairWithPassword() {
-        // Given: an encrypted PEM private key with the correct password
+    void shouldRejectEncryptedPemKeyPairWithPassword() {
+        // Given: an encrypted PEM private key with password
         var keys = CertificateGenerator.generate();
         KeyPair keyPair = new KeyPair(keys.encryptedPrivateKeyPem().toString(), keys.selfSignedCertificatePem().toString(),
                 new InlinePassword(keys.encryptedPrivateKeyPassword()));
 
-        // When: attempting to get key managers with the password
-        var keyManagers = TlsHttpClientConfigurator.getKeyManagers(keyPair);
-
-        // Then: should succeed and return the correct private key
-        assertThat(keyManagers)
-                .singleElement()
-                .asInstanceOf(InstanceOfAssertFactories.type(X509KeyManager.class))
-                .extracting(x -> x.getPrivateKey("key"))
-                .isEqualTo(keys.serverKey().getPrivate());
+        // When: attempting to get key managers
+        // Then: should throw SslConfigurationException because encrypted keys are not supported
+        assertThatThrownBy(() -> TlsHttpClientConfigurator.getKeyManagers(keyPair))
+                .isInstanceOf(SslConfigurationException.class)
+                .cause()
+                .hasMessageContaining("Encrypted private keys are not supported")
+                .hasMessageContaining("JKS/PKCS12");
     }
 
     @Test
@@ -281,11 +279,11 @@ class TlsHttpClientConfiguratorTest {
         KeyPair keyPair = new KeyPair(keys.encryptedPrivateKeyPem().toString(), keys.selfSignedCertificatePem().toString(), null);
 
         // When: attempting to get key managers without a password
-        // Then: should throw SslConfigurationException with clear message
+        // Then: should throw SslConfigurationException because the key is encrypted (even though no password was provided)
         assertThatThrownBy(() -> TlsHttpClientConfigurator.getKeyManagers(keyPair))
                 .isInstanceOf(SslConfigurationException.class)
                 .cause()
-                .hasMessageContaining("Encrypted private key requires a password");
+                .isInstanceOf(IOException.class);
     }
 
     @Test

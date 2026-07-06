@@ -47,7 +47,6 @@ import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-import io.kroxylicious.testing.certificate.PemParser;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -216,8 +215,8 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
                     char[] keypassword = keyPair.keyPasswordProvider() != null
                             ? keyPair.keyPasswordProvider().getProvidedPassword().toCharArray()
                             : null;
-                    PrivateKey privateKey = PemParser.parsePrivateKey(keyBytes, keypassword);
-                    X509Certificate[] certs = PemParser.parseCertificateChain(certBytes);
+                    PrivateKey privateKey = PemUtils.parsePrivateKey(keyBytes, keypassword);
+                    X509Certificate[] certs = PemUtils.parseCertificateChain(certBytes);
 
                     // Create in-memory KeyStore
                     KeyStore ks = KeyStore.getInstance("JKS");
@@ -294,7 +293,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
     private static TrustManager[] loadPemTrustStore(TrustStore trustStore) {
         try {
             byte[] pemBytes = Files.readAllBytes(Paths.get(trustStore.storeFile()));
-            X509Certificate[] certs = PemParser.parseCertificateChain(pemBytes);
+            X509Certificate[] certs = PemUtils.parseCertificateChain(pemBytes);
 
             // Create in-memory KeyStore from PEM certificates
             KeyStore ks = KeyStore.getInstance("JKS");
