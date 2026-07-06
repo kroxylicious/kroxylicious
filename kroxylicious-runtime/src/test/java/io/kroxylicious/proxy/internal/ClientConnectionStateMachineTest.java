@@ -54,6 +54,7 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -748,7 +749,7 @@ class ClientConnectionStateMachineTest {
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
         var routeDescriptors = Map.of("route",
                 new RouteDescriptor("route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
     }
 
@@ -974,7 +975,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetsCluster()).thenReturn(true);
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor)));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor), mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: first request triggers toForwardingWithRoutes
@@ -1000,7 +1001,7 @@ class ClientConnectionStateMachineTest {
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
         var routeDescriptors2 = Map.of("my-route",
                 new RouteDescriptor("my-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors2));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors2, mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: forwardToRoute lazily tries to create an SCSM and fails
@@ -1027,7 +1028,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetsCluster()).thenReturn(true);
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("bad-route", routeDescriptor)));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("bad-route", routeDescriptor), mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When / Then

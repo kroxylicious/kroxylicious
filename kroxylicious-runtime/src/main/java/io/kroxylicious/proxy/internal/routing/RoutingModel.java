@@ -12,5 +12,8 @@ package io.kroxylicious.proxy.internal.routing;
  *   <li>{@link DynamicRouting} — one or more upstream clusters reached via a named router plugin</li>
  * </ul>
  */
-public sealed interface RoutingModel permits DirectRouting, DynamicRouting {
+public sealed interface RoutingModel extends AutoCloseable permits DirectRouting, DynamicRouting {
+    @Override
+    default void close() {
+    }
 }

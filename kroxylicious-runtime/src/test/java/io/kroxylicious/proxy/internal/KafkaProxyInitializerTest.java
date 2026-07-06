@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -60,15 +59,12 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
-import io.kroxylicious.proxy.internal.routing.DynamicRouting;
-import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -135,17 +131,6 @@ class KafkaProxyInitializerTest {
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster",
                 new DirectRouting(new TargetCluster("localhost:9090", tls)), logNetwork,
                 logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
-        testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
-        return testCluster;
-    }
-
-    private VirtualClusterModel buildRouterVirtualCluster() {
-        final Optional<Tls> tls = Optional.empty();
-        var routeDescriptors = Map.of("myRoute",
-                new RouteDescriptor("myRoute", 0, new TargetCluster("localhost:9090", tls), null, List.of()));
-        VirtualClusterModel testCluster = new VirtualClusterModel("testCluster",
-                new DynamicRouting("myRouter", routeDescriptors), false, false,
-                List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
     }
@@ -402,20 +387,6 @@ class KafkaProxyInitializerTest {
     }
 
     @Test
-    void shouldThrowWhenRouterVirtualClusterHasNullRouterChainFactory() {
-        // Given
-        var routerCluster = buildRouterVirtualCluster();
-        when(endpointBinding.endpointGateway()).thenReturn(routerCluster.gateways().values().iterator().next());
-        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage);
-
-        // When / Then
-        var session = new KafkaSession(KafkaSessionState.ESTABLISHING);
-        assertThatThrownBy(() -> kafkaProxyInitializer.initConnection(channel, endpointBinding, session))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("routerChainFactory");
-    }
-
-    @Test
     void testLoggingErrorHandlerPreventsExceptionPropagatingToChannel() {
         EmbeddedChannel embeddedChannel = new EmbeddedChannel();
         embeddedChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
@@ -449,8 +420,7 @@ class KafkaProxyInitializerTest {
                                                               ProxyProtocolMode proxyProtocolMode,
                                                               EndpointBindingResolver bindingResolver,
                                                               VirtualClusterRegistry vcc) {
-        return new KafkaProxyInitializer(null,
-                pfr,
+        return new KafkaProxyInitializer(pfr,
                 tls,
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,

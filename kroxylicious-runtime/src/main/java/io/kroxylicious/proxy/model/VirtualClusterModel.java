@@ -56,6 +56,7 @@ import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.internal.tls.SslContextBuildException;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -67,12 +68,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * TLS configuration, and the components whose lifecycle is bound to this VC.
  *
  * <h2>Owned resources</h2>
- * The VCM owns and is responsible for closing two per-VC components:
+ * The VCM owns and is responsible for closing two per-VC components directly:
  * <ul>
  *   <li>{@link FilterChainFactory} — the filter chain factory for <em>this</em> VC. Each VCM
  *       has its own FCF.</li>
  *   <li>{@link TlsCredentialSupplierManager} — the TLS credential supplier for this VC.</li>
  * </ul>
+ * For VCs that use dynamic routing, the {@link io.kroxylicious.proxy.internal.routing.DynamicRouting}
+ * instance carries and owns the {@link io.kroxylicious.proxy.bootstrap.RouterChainFactory}; the VCM
+ * closes it via the routing model.
  *
  * <h2>Lifecycle</h2>
  * The VCM is created when the VC is configured (or reconfigured via hot-reload), and closed
@@ -127,6 +131,7 @@ public class VirtualClusterModel implements AutoCloseable {
                 new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
     }
 
+    @SuppressWarnings("java:S107")
     public VirtualClusterModel(String clusterName,
                                RoutingModel routing,
                                boolean logNetwork,
@@ -174,6 +179,13 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public FilterChainFactory filterChainFactory() {
         return filterChainFactory;
+    }
+
+    public Router createRouter() {
+        if (!(routing instanceof DynamicRouting dr)) {
+            throw new IllegalStateException("Virtual cluster '" + clusterName + "' does not use a router");
+        }
+        return dr.createRouter(clusterName);
     }
 
     public Duration drainTimeout() {
@@ -281,14 +293,25 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     @Override
     public void close() {
-        // Suppress exceptions from FCF close so the TLS close still runs; surface the first
-        // failure at the end so callers see something rather than nothing.
+        // Suppress exceptions so each component still gets a chance to close; surface the
+        // first failure at the end so callers see something rather than nothing.
         RuntimeException firstFailure = null;
+        try {
+            routing.close();
+        }
+        catch (RuntimeException e) {
+            firstFailure = e;
+        }
         try {
             filterChainFactory.close();
         }
         catch (RuntimeException e) {
-            firstFailure = e;
+            if (firstFailure == null) {
+                firstFailure = e;
+            }
+            else {
+                firstFailure.addSuppressed(e);
+            }
         }
         try {
             tlsCredentialSupplierManager.close();
