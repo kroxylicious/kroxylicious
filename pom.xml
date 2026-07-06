@@ -49,21 +49,21 @@
         <freemarker.version>2.3.34</freemarker.version>
         <guava.version>33.5.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.21.1</jackson.version>
+        <jackson.version>2.21.4</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.3</junit.version>
         <kafka.version>4.2.0</kafka.version>
         <kroxy.extension.version>0.15.0</kroxy.extension.version>
-        <log4j.version>2.25.3</log4j.version>
+        <log4j.version>2.25.4</log4j.version>
         <caffeine.version>3.2.3</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.2.12.Final</netty.version>
+        <netty.version>4.2.15.Final</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
         <assertj-core.version>3.27.7</assertj-core.version>
         <mockito.version>5.23.0</mockito.version>
-        <micrometer.version>1.16.4</micrometer.version>
+        <micrometer.version>1.16.6</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
         <sundr-builder-annotations.version>0.230.2</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.9.8</spotbugs-annotations.version>
@@ -80,7 +80,7 @@
         <maven.core.version>3.9.13</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>2.0.4</testcontainers.version>
-        <azure.security.keyvault.keys.version>4.10.5</azure.security.keyvault.keys.version>
+        <azure.security.keyvault.keys.version>4.10.6</azure.security.keyvault.keys.version>
         <lowkey.version>7.1.13</lowkey.version>
         <bouncycastle.version>1.83</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
