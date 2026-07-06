@@ -65,6 +65,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <li>Encrypted keys are NOT supported - use JKS/PKCS12 keystore format for encrypted keys</li>
  * </ul>
  */
+@SuppressWarnings({ "java:S6035", "java:S5855", "java:S8786", "java:S5998" }) // These concern the formation of the REs As code is forked from Netty, I'm opting to keep the code as is.
 final class PemUtils {
 
     private static final Pattern CERT_HEADER = Pattern.compile(
@@ -244,6 +245,7 @@ final class PemUtils {
         return certificates.toArray(new X509Certificate[0]);
     }
 
+    @SuppressWarnings("java:S135") // S135 concerns the number of breaks in the loop. As code is forked from Netty, I'm opting to keep the code as is.
     private static byte[][] readCertificates(InputStream in) throws IOException {
         String content = readContent(in);
 
