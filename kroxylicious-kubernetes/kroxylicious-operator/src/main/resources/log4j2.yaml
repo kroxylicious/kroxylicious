@@ -43,7 +43,7 @@ Configuration:
         AppenderRef:
           - ref: STDOUT
       - name: io.javaoperatorsdk
-        level: "${env:KROXYLICIOUS_JOSDK_LOG_LEVEL:-DEBUG}"
+        level: "${env:KROXYLICIOUS_JOSDK_LOG_LEVEL:-INFO}"
         additivity: false
         AppenderRef:
           - ref: STDOUT
