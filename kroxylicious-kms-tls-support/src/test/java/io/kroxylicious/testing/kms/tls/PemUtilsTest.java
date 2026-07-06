@@ -187,7 +187,7 @@ class PemUtilsTest {
     }
 
     @Test
-    void mustRejectEncryptedPrivateKeyWithPassword() throws Exception {
+    void mustRejectEncryptedPrivateKeyWithPassword() {
         // Given: encrypted PKCS#8 key with password - from Netty test data
         byte[] encryptedKey = ("""
                 -----BEGIN ENCRYPTED PRIVATE KEY-----
@@ -214,7 +214,7 @@ class PemUtilsTest {
     }
 
     @Test
-    void mustRejectEncryptedPrivateKeyWithoutPassword() throws Exception {
+    void mustRejectEncryptedPrivateKeyWithoutPassword() {
         // Given: encrypted key without password - should fail during parsing
         byte[] encryptedKey = ("""
                 -----BEGIN ENCRYPTED PRIVATE KEY-----
