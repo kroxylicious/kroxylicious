@@ -72,6 +72,7 @@
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.1.3</apicurio-schema-validation.version>
         <apicurio-registry.version>3.1.6</apicurio-registry.version>
+        <vertx.version>4.5.28</vertx.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -331,6 +332,18 @@
                 <groupId>org.bitbucket.b_c</groupId>
                 <artifactId>jose4j</artifactId>
                 <version>${jose4j.version}</version>
+            </dependency>
+            <!--
+                Vert.x dependencies are transitive via apicurio-registry-schema-resolver.
+                We import the Vert.x BOM to ensure we get CVE fixes
+                (CVE-2026-1002, CVE-2026-6860) without needing to bump Apicurio itself.
+            -->
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-dependencies</artifactId>
+                <version>${vertx.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <!-- third party dependencies - test -->
