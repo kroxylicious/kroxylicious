@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -94,6 +95,7 @@ class HotReloadIT extends BaseIT {
     private static final int PORT_BLOCK_MODIFY_DIFF_PORT = PORT_BLOCK_BASE + 600; // shouldModifyPortAddressedVcWithDifferentPort
     private static final int PORT_BLOCK_MODIFY_FAIL = PORT_BLOCK_BASE + 700; // shouldSurfaceModifyFailureAsReconfigureError
     private static final int PORT_BLOCK_METRICS = PORT_BLOCK_BASE + 800; // shouldExposeReconfigureAndLifecycleMetricsViaScrape
+    private static final int PORT_BLOCK_ACTIVE_CONN = PORT_BLOCK_BASE + 900;
 
     static {
         // Log the chosen base so a CI failure with EADDRINUSE can be reproduced (and the
@@ -651,6 +653,52 @@ class HotReloadIT extends BaseIT {
                                         Map.of("virtual_cluster", "vc-metrics-added", "from", "initializing", "to", "serving"))
                                 .value().isEqualTo(1.0);
                     });
+        }
+    }
+
+    @Test
+    void shouldDrainActiveConnectionsWhenVcIsReconfiguredWithFilterChange(@BrokerCluster KafkaCluster cluster) {
+        // Given
+        int port = PORT_BLOCK_ACTIVE_CONN;
+
+        var startingConfig = portConfig(portVc(cluster, "vc-active-conn", port));
+        var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-active-conn", port, true));
+
+        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+
+            String topic = tester.createTopic("vc-active-conn");
+
+            // When — establish active producer/consumer connections BEFORE reconfigure
+            try (var producer = tester.producer("vc-active-conn", Map.of(ProducerConfig.LINGER_MS_CONFIG, 0))) {
+
+                // Verify connections work before reconfigure
+                assertThat(producer.send(new ProducerRecord<>(topic, "before-key", "before-value")))
+                        .succeedsWithin(PRODUCE_CONSUME_TIMEOUT);
+
+                // When — reconfigure the VC while these connections are active (flip logNetwork)
+                assertThat(tester.reconfigure(afterConfig))
+                        .succeedsWithin(RECONFIGURE_TIMEOUT)
+                        .satisfies(rr -> assertThat(rr.hasErrors())
+                                .as("ReconfigureResult should have no errors for logNetwork change")
+                                .isFalse());
+
+                // Then — the active connections should still work after the reconfigure
+                assertThat(producer.send(new ProducerRecord<>(topic, "after-key", "after-value")))
+                        .succeedsWithin(PRODUCE_CONSUME_TIMEOUT);
+
+                try (var consumer = tester.consumer("vc-active-conn", Map.of(
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_ID_CONFIG, "active-conn-test"))) {
+                    consumer.subscribe(List.of(topic));
+                    var records = consumer.poll(Duration.ofSeconds(2));
+                    assertThat(records.iterator())
+                            .toIterable()
+                            .extracting(ConsumerRecord::key)
+                            .containsExactly("before-key", "after-key");
+                }
+            }
         }
     }
 
