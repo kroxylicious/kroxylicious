@@ -5,19 +5,26 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
+import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
+
+import javax.net.ssl.SSLException;
 
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -70,7 +77,7 @@ public record UpstreamClusterModel(
      * the SSL context and TLS credential supplier manager from the cluster's TLS configuration.
      */
     public static UpstreamClusterModel build(TargetCluster targetCluster, @Nullable PluginFactoryRegistry pfr) {
-        var sslContext = VirtualClusterModel.buildUpstreamSslContextFor(targetCluster);
+        var sslContext = buildUpstreamSslContextFor(targetCluster);
         TlsCredentialSupplierManager mgr = pfr != null
                 ? targetCluster.tls()
                         .flatMap(t -> Optional.ofNullable(t.credentialSupplier()))
@@ -105,6 +112,31 @@ public record UpstreamClusterModel(
                 .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
 
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
+    }
+
+    private static Optional<SslContext> buildUpstreamSslContextFor(@Nullable TargetCluster targetCluster) {
+        if (targetCluster == null) {
+            return Optional.empty();
+        }
+        return targetCluster.tls().map(targetClusterTls -> {
+            try {
+                var sslContextBuilder = Optional.ofNullable(targetClusterTls.key())
+                        .map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
+                        .orElse(SslContextBuilder.forClient());
+                VirtualClusterModel.configureCipherSuites(sslContextBuilder, targetClusterTls);
+                VirtualClusterModel.configureEnabledProtocols(sslContextBuilder, targetClusterTls);
+                Optional.ofNullable(targetClusterTls.trust())
+                        .map(TrustProvider::trustOptions)
+                        .filter(Predicate.not(TrustOptions::forClient))
+                        .ifPresent(to -> {
+                            throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
+                        });
+                return VirtualClusterModel.configureTrustProvider(targetClusterTls).apply(sslContextBuilder).build();
+            }
+            catch (SSLException e) {
+                throw new UncheckedIOException(e);
+            }
+        });
     }
 
     @Override

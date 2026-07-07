@@ -42,7 +42,6 @@ import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -284,40 +283,6 @@ public class VirtualClusterModel implements AutoCloseable {
     public static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
         final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
         return new NettyTrustProvider(trustProvider);
-    }
-
-    /**
-     * Builds an upstream (client-side) {@link SslContext} from the given target cluster's TLS
-     * configuration. Returns {@link Optional#empty()} when {@code targetCluster} is {@code null}
-     * or has no TLS configuration.
-     */
-    public static Optional<SslContext> buildUpstreamSslContextFor(@Nullable TargetCluster targetCluster) {
-        if (targetCluster == null) {
-            return Optional.empty();
-        }
-        return targetCluster.tls().map(targetClusterTls -> {
-            try {
-                var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
-                        .orElse(SslContextBuilder.forClient());
-
-                configureCipherSuites(sslContextBuilder, targetClusterTls);
-                configureEnabledProtocols(sslContextBuilder, targetClusterTls);
-
-                Optional.ofNullable(targetClusterTls.trust())
-                        .map(TrustProvider::trustOptions)
-                        .filter(Predicate.not(TrustOptions::forClient))
-                        .ifPresent(to -> {
-                            throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
-                        });
-
-                var withTrust = configureTrustProvider(targetClusterTls).apply(sslContextBuilder);
-
-                return withTrust.build();
-            }
-            catch (SSLException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
     }
 
     public static void configureCipherSuites(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
