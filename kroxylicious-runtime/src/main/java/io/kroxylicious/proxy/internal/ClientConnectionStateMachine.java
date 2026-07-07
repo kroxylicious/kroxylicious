@@ -600,6 +600,17 @@ public class ClientConnectionStateMachine {
      */
     CompletableFuture<Void> drain(Duration timeout) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
+        // registerConnection can add this CCSM before Netty fires channelActive, so
+        // frontendHandler may be null here. No dispatch target, no in-flight traffic —
+        // complete as a no-op so the coordinator's allOf(drainFutures) doesn't hang.
+        if (frontendHandler == null) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
+                    .addKeyValue("virtualCluster", clusterName())
+                    .log("drain requested before onClientActive fired; completing as no-op");
+            promise.complete(null);
+            return promise;
+        }
         executeOnEventLoop(() -> {
             if (state instanceof ClientConnectionState.Draining existing) {
                 existing.closedFuture().whenComplete((v, t) -> {

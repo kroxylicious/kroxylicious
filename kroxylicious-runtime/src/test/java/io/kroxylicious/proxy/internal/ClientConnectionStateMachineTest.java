@@ -1417,6 +1417,22 @@ class ClientConnectionStateMachineTest {
         // --- drain(Duration) entry point ---
 
         @Test
+        void drainBeforeOnClientActiveIsFiredCompletesPromiseWithoutDispatch() {
+            // Given — freshly-constructed CCSM: frontendHandler is null because
+            // onClientActive has not fired yet. Models the race window between
+            // registerConnection and channelActive.
+
+            // When
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+            verifyNoInteractions(clientChannel);
+            verifyNoInteractions(eventLoop);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Startup.class);
+        }
+
+        @Test
         void drainFromForwardingWithNoInFlightImmediatelyClosesWithDrainCompleted() {
             // Given — Forwarding state, no in-flight requests
             stateMachineInForwarding();
