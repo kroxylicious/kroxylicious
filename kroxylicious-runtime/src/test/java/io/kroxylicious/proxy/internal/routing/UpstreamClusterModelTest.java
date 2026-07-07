@@ -12,12 +12,18 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
+import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
@@ -25,6 +31,7 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactory;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -213,6 +220,39 @@ class UpstreamClusterModelTest {
                 new TargetCluster("broker:9092", Optional.of(TLS_NO_CREDENTIAL_SUPPLIER)),
                 Optional.empty(), TlsCredentialSupplierManager.unconfigured());
         assertThat(model.tlsSummary()).isEqualTo(UpstreamClusterModel.generateTlsSummary(Optional.of(TLS_NO_CREDENTIAL_SUPPLIER)));
+    }
+
+    // build()
+
+    @Test
+    void buildCreatesModelWithSslContextAndUnconfiguredManagerForPlaintextCluster() {
+        var model = UpstreamClusterModel.build(PLAINTEXT_CLUSTER, null);
+        assertThat(model.upstreamSslContext()).isEmpty();
+        assertThat(model.tlsManager().isConfigured()).isFalse();
+    }
+
+    @Test
+    void buildCreatesModelWithConfiguredManagerWhenCredentialSupplierPresent() {
+        var supplierConfig = new TlsCredentialSupplierConfig("StubSupplierFactory", null);
+        var cluster = new TargetCluster("broker:9092", Optional.of(new Tls(null, null, null, null, supplierConfig)));
+
+        var model = UpstreamClusterModel.build(cluster, stubPfr());
+
+        assertThat(model.tlsManager().isConfigured()).isTrue();
+        model.close();
+    }
+
+    @Test
+    void buildThrowsWhenUpstreamTlsHasServerOptions() {
+        var client = TlsTestConstants.getResourceLocationOnFilesystem("client.jks");
+        var downstreamTls = new Tls(null,
+                new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(TlsClientAuth.REQUIRED)),
+                null, null, null);
+        var cluster = new TargetCluster("bootstrap:9092", Optional.of(downstreamTls));
+
+        assertThatThrownBy(() -> UpstreamClusterModel.build(cluster, null))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Cannot apply trust options");
     }
 
     // close()

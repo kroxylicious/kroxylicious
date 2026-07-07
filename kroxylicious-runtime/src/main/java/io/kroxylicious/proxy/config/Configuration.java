@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -265,10 +267,17 @@ public record Configuration(
         if (virtualCluster.router() != null) {
             var routeDescriptors = resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
             var routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
-            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory);
+            var clusterModels = new HashMap<String, UpstreamClusterModel>();
+            for (var entry : routeDescriptors.entrySet()) {
+                if (entry.getValue().targetsCluster()) {
+                    clusterModels.put(entry.getKey(), UpstreamClusterModel.build(entry.getValue().targetCluster(), pfr));
+                }
+            }
+            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory, clusterModels);
         }
         else {
-            routing = new DirectRouting(virtualCluster.name() + "Upstream", resolveDirectTargetCluster(virtualCluster, clustersByName));
+            var targetCluster = resolveDirectTargetCluster(virtualCluster, clustersByName);
+            routing = new DirectRouting(virtualCluster.name() + "Upstream", UpstreamClusterModel.build(targetCluster, pfr));
         }
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),

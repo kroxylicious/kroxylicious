@@ -11,6 +11,7 @@ import java.util.Objects;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -34,9 +35,18 @@ public record DynamicRouting(
         implements RoutingModel {
 
     /**
-     * Convenience constructor: computes the {@link NodeIdMapping} from the supplied route descriptors
-     * and uses an empty map for cluster models (resolved later by {@code VirtualClusterModel}).
+     * Production constructor: computes the {@link NodeIdMapping} from the supplied route descriptors.
      */
+    public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors,
+                          RouterChainFactory routerChainFactory, Map<String, UpstreamClusterModel> routeClusterModels) {
+        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, routeClusterModels);
+    }
+
+    /**
+     * Test-only constructor: uses an empty cluster model map.
+     * Production code should supply fully-built {@link UpstreamClusterModel} instances.
+     */
+    @VisibleForTesting
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors, RouterChainFactory routerChainFactory) {
         this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of());
     }

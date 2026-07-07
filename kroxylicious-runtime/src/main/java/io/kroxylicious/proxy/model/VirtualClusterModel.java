@@ -42,14 +42,12 @@ import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
-import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
@@ -147,42 +145,10 @@ public class VirtualClusterModel implements AutoCloseable {
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
-        // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
-        this.routing = resolveRoutingTls(Objects.requireNonNull(routing), pluginFactoryRegistry);
+        this.routing = Objects.requireNonNull(routing);
         this.filterChainFactory = pluginFactoryRegistry != null
                 ? new FilterChainFactory(pluginFactoryRegistry, filters)
                 : new FilterChainFactory(null, List.of());
-    }
-
-    private static RoutingModel resolveRoutingTls(RoutingModel routing, @Nullable PluginFactoryRegistry pfr) {
-        return switch (routing) {
-            case DirectRouting dr -> {
-                TlsCredentialSupplierManager mgr = dr.upstreamCluster()
-                        .buildTlsCredentialSupplierManager(pfr)
-                        .orElse(TlsCredentialSupplierManager.unconfigured());
-                var cluster = dr.upstreamCluster();
-                yield new DirectRouting(dr.routeName(), new UpstreamClusterModel(cluster.targetCluster(), buildUpstreamSslContextFor(cluster.targetCluster()), mgr));
-            }
-            case DynamicRouting dr -> {
-                if (pfr == null) {
-                    yield dr;
-                }
-                var clusterModels = new HashMap<String, UpstreamClusterModel>();
-                for (var entry : dr.routeDescriptors().entrySet()) {
-                    RouteDescriptor rd = entry.getValue();
-                    if (rd.targetsCluster()) {
-                        TlsCredentialSupplierConfig supplierConfig = rd.targetCluster().tls()
-                                .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
-                                .orElse(null);
-                        clusterModels.put(entry.getKey(), new UpstreamClusterModel(rd.targetCluster(),
-                                buildUpstreamSslContextFor(rd.targetCluster()),
-                                new TlsCredentialSupplierManager(pfr, supplierConfig)));
-                    }
-                }
-                yield new DynamicRouting(dr.routerName(), dr.routeDescriptors(), dr.nodeIdMapping(),
-                        dr.routerChainFactory(), clusterModels);
-            }
-        };
     }
 
     /**

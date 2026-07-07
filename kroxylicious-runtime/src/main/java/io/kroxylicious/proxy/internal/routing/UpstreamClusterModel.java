@@ -18,6 +18,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -62,6 +63,21 @@ public record UpstreamClusterModel(
         return tls()
                 .flatMap(t -> Optional.ofNullable(t.credentialSupplier()))
                 .map(config -> new TlsCredentialSupplierManager(pfr, config));
+    }
+
+    /**
+     * Builds a fully-resolved {@link UpstreamClusterModel} for the given target cluster, constructing
+     * the SSL context and TLS credential supplier manager from the cluster's TLS configuration.
+     */
+    public static UpstreamClusterModel build(TargetCluster targetCluster, @Nullable PluginFactoryRegistry pfr) {
+        var sslContext = VirtualClusterModel.buildUpstreamSslContextFor(targetCluster);
+        TlsCredentialSupplierManager mgr = pfr != null
+                ? targetCluster.tls()
+                        .flatMap(t -> Optional.ofNullable(t.credentialSupplier()))
+                        .map(config -> new TlsCredentialSupplierManager(pfr, config))
+                        .orElse(TlsCredentialSupplierManager.unconfigured())
+                : TlsCredentialSupplierManager.unconfigured();
+        return new UpstreamClusterModel(targetCluster, sslContext, mgr);
     }
 
     /** Returns a TLS summary string for this cluster's upstream TLS configuration. */
