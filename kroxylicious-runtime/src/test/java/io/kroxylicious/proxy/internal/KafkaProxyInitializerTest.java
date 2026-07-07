@@ -57,6 +57,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
+import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -423,7 +424,7 @@ class KafkaProxyInitializerTest {
         return new KafkaProxyInitializer(pfr,
                 tls,
                 bindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
+                Mockito.mock(EndpointReconciler.class),
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),

@@ -3,6 +3,9 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+io.kroxylicious.it.testplugins.AlternatingRouterFactory
+io.kroxylicious.it.testplugins.ContextCapturingRouterFactory
+io.kroxylicious.it.testplugins.DynamicProduceRouterFactory
 io.kroxylicious.it.testplugins.InvocationCountingRouterFactory
 io.kroxylicious.it.testplugins.PassThroughRouterFactory
 io.kroxylicious.it.testplugins.RouterContractCapturingFactory

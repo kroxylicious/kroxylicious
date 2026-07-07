@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
@@ -47,6 +48,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -217,6 +219,12 @@ public class ClientConnectionStateMachine {
     @Nullable
     private Map<String, HostPort> routeTargets;
 
+    @Nullable
+    private RoutingResponseCallback routingResponseCallback;
+
+    @Nullable
+    private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
+
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
                                         KafkaSession kafkaSession) {
@@ -308,7 +316,7 @@ public class ClientConnectionStateMachine {
     }
 
     @Nullable
-    Integer nodeId() {
+    public Integer nodeId() {
         return endpointBinding.nodeId();
     }
 
@@ -450,8 +458,14 @@ public class ClientConnectionStateMachine {
      * @param msg the object received from the upstream
      */
     void onResponseFromServer(Object msg) {
+        if (routingResponseCallback != null && routingResponseCallback.onResponse(msg)) {
+            return;
+        }
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+        decrementInFlightCount();
+    }
 
+    private void decrementInFlightCount() {
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
         if (state instanceof ClientConnectionState.Draining draining) {
@@ -836,8 +850,13 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
-    Subject authenticatedSubject() {
+    public Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
+    }
+
+    @Nullable
+    public Channel clientChannel() {
+        return frontendHandler != null ? frontendHandler.clientChannel() : null;
     }
 
     private void tryUnblockClient() {
@@ -937,6 +956,81 @@ public class ClientConnectionStateMachine {
         }
         else {
             illegalState("forwardToRoute in unexpected state");
+        }
+    }
+
+    /**
+     * Sets the callback invoked when a response arrives from a backend server.
+     * The callback may claim the response (returning {@code true}) when it belongs
+     * to a dynamically-routed request; unclaimed responses are forwarded to the client normally.
+     */
+    public void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
+        this.routingResponseCallback = callback;
+    }
+
+    /**
+     * Sets the resolver used by {@link #forwardToNode} to translate a virtual node ID to
+     * an upstream address. Must be set before any per-broker requests are sent.
+     */
+    public void setUpstreamAddressResolver(Function<Integer, Optional<HostPort>> resolver) {
+        this.upstreamAddressResolver = Objects.requireNonNull(resolver);
+    }
+
+    /**
+     * Signals that a dynamically-routed client request has been fully handled.
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * when the router's {@code onRequest} future completes and the response has been
+     * delivered to the client. Decrements the in-flight request count to maintain the
+     * 1:1 invariant even during fan-out routing.
+     */
+    public void onRoutedRequestComplete() {
+        decrementInFlightCount();
+    }
+
+    /**
+     * Forward a message to the backend broker identified by the virtual node ID.
+     * Creates a new server connection if one does not already exist for the
+     * resolved upstream address.
+     */
+    public void forwardToNode(int virtualNodeId, String routeName, Object msg) {
+        if (!(state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining)) {
+            illegalState("forwardToNode in unexpected state");
+            return;
+        }
+        if (upstreamAddressResolver == null) {
+            throw new IllegalStateException("No upstream address resolver configured");
+        }
+        Optional<HostPort> resolved = upstreamAddressResolver.apply(virtualNodeId);
+        if (resolved.isEmpty()) {
+            throw new IllegalStateException("Upstream address not yet known for virtual node ID " + virtualNodeId);
+        }
+        HostPort target = resolved.get();
+        ServerConnectionStateMachine scsm = serverConnections.get(target);
+        if (scsm == null) {
+            scsm = createServerConnectionForRoute(routeName, target);
+            serverConnections.put(target, scsm);
+            Channel clientChannel = Objects.requireNonNull(Objects.requireNonNull(frontendHandler).clientChannel());
+            scsm.connect(clientChannel);
+        }
+        scsm.sendRequest(msg);
+        log(Level.TRACE)
+                .addKeyValue("route", routeName)
+                .addKeyValue("virtualNodeId", virtualNodeId)
+                .addKeyValue("routeTarget", target)
+                .log("Request forwarded to specific node");
+    }
+
+    /**
+     * A message has emerged from the filter chain and is ready to be forwarded to the upstream node.
+     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} when a request
+     * does not match any dynamic or static route.
+     */
+    public void onClientFilterChainComplete(Object msg) {
+        if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
+            serverConnections.values().iterator().next().sendRequest(msg);
+        }
+        else {
+            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
 
