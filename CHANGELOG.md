@@ -8,6 +8,51 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 * [#4111](https://github.com/kroxylicious/kroxylicious/pull/4111): build(deps): Upgrade to JOSDK 5.2.5 to avoids informer health check defect.
+* [#4304](https://github.com/kroxylicious/kroxylicious/pull/4304): build(deps): Update dependencies to fix CVE vulnerabilities
+
+### CVE Fixes
+
+#### Jackson (com.fasterxml.jackson.core)
+* [SNYK-JAVA-COMFASTERXMLJACKSONCORE-15907551](https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-15907551) - Allocation of Resources Without Limits or Throttling in jackson-core (fixed in 2.21.4)
+
+**Note:** Jackson upgraded to 2.21.4. [CVE-2026-54515](https://nvd.nist.gov/vuln/detail/CVE-2026-54515) (Case-Insensitive Binding Reopening Ignored Fields) requires version 2.21.5 which is not yet released. See [jackson-databind#6074](https://github.com/FasterXML/jackson-databind/issues/6074)
+
+#### Log4j (org.apache.logging.log4j)
+* [CVE-2026-34477](https://nvd.nist.gov/vuln/detail/CVE-2026-34477) - TLS Hostname Verification Bypass (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
+* [CVE-2026-34478](https://nvd.nist.gov/vuln/detail/CVE-2026-34478) - CRLF Injection Vulnerability in Rfc5424Layout (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
+* [CVE-2026-34479](https://nvd.nist.gov/vuln/detail/CVE-2026-34479) - Log4j 1-to-Log4j 2 Bridge XML Sanitization Issue (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
+* [CVE-2026-34480](https://nvd.nist.gov/vuln/detail/CVE-2026-34480) - XML Layout Sanitization Issue (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
+
+#### Netty (io.netty)
+* [CVE-2026-44249](https://nvd.nist.gov/vuln/detail/CVE-2026-44249) - IPv6 subnet filter bypass in netty-handler (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-45416](https://nvd.nist.gov/vuln/detail/CVE-2026-45416) - Excessive memory usage from SNIHandler in netty-handler (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-50010](https://nvd.nist.gov/vuln/detail/CVE-2026-50010) - TLS hostname verification accidentally disabled in netty-handler (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42579](https://nvd.nist.gov/vuln/detail/CVE-2026-42579) - Fixed in netty-codec-dns 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-41417](https://nvd.nist.gov/vuln/detail/CVE-2026-41417) - Fixed in netty-codec-http 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42580](https://nvd.nist.gov/vuln/detail/CVE-2026-42580) - Fixed in netty-codec-http 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42581](https://nvd.nist.gov/vuln/detail/CVE-2026-42581) - Fixed in netty-codec-http 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42584](https://nvd.nist.gov/vuln/detail/CVE-2026-42584) - Fixed in netty-codec-http 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42585](https://nvd.nist.gov/vuln/detail/CVE-2026-42585) - Fixed in netty-codec-http 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42583](https://nvd.nist.gov/vuln/detail/CVE-2026-42583) - Fixed in netty-codec-compression 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42587](https://nvd.nist.gov/vuln/detail/CVE-2026-42587) - Fixed in netty-codec-http2 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-44893](https://nvd.nist.gov/vuln/detail/CVE-2026-44893) - Memory leak in netty-codec-haproxy (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-48059](https://nvd.nist.gov/vuln/detail/CVE-2026-48059) - Memory exhaustion in netty-codec-haproxy (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-47244](https://nvd.nist.gov/vuln/detail/CVE-2026-47244) - Denial of service in netty-codec-http2 (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-48043](https://nvd.nist.gov/vuln/detail/CVE-2026-48043) - Memory exhaustion in netty-codec-http2 (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-50560](https://nvd.nist.gov/vuln/detail/CVE-2026-50560) - DDoS in netty-codec-http2 (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42577](https://nvd.nist.gov/vuln/detail/CVE-2026-42577) - Fixed in netty-transport-classes-epoll 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-45673](https://nvd.nist.gov/vuln/detail/CVE-2026-45673) - DNS cache poisoning in netty-resolver-dns (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-45674](https://nvd.nist.gov/vuln/detail/CVE-2026-45674) - DNS cache poisoning in netty-resolver-dns (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-47691](https://nvd.nist.gov/vuln/detail/CVE-2026-47691) - DNS cache poisoning in netty-resolver-dns (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-42578](https://nvd.nist.gov/vuln/detail/CVE-2026-42578) - Fixed in netty-handler-proxy 4.2.15.Final ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+* [CVE-2026-45536](https://nvd.nist.gov/vuln/detail/CVE-2026-45536) - File descriptor leak in netty-transport-native-unix-common (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
+
+#### Micrometer (io.micrometer)
+* [CVE-2026-40983](https://nvd.nist.gov/vuln/detail/CVE-2026-40983) - gRPC server instrumentation DoS vulnerability (fixed in 1.16.6) ([Spring Advisory](https://spring.io/security/cve-2026-40983/))
+* [CVE-2026-40984](https://nvd.nist.gov/vuln/detail/CVE-2026-40984) - HTTP server instrumentations DoS vulnerability (fixed in 1.16.6) ([Spring Advisory](https://spring.io/security/cve-2026-40984/))
+
+#### Azure KeyVault Keys (com.azure)
+* [CVE-2026-33117](https://www.miggo.io/vulnerability-database/cve/CVE-2026-33117) - Integrity Bypass in Azure KeyVault Keys (fixed in 4.10.6)
 
 ## 0.20.0
 
