@@ -25,7 +25,7 @@ class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper implements Primar
                 .map(KafkaServiceSpec::getStrimziKafkaRef)
                 .map(strimziKafkaRef -> Set
                         .of(new ResourceID(strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX,
-                                ResourcesUtil.strimziKafkaNamespace(service, strimziKafkaRef))))
+                                ResourcesUtil.namespaceFor(service, strimziKafkaRef.getNamespace()))))
                 .orElse(Set.of());
     }
 }

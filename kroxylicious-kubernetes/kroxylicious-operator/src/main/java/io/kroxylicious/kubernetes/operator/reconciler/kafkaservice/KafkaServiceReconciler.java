@@ -187,7 +187,7 @@ public final class KafkaServiceReconciler implements
         }
 
         var strimziKafkaRef = strimziKafkaRefOpt.get();
-        var strimziNamespace = ResourcesUtil.strimziKafkaNamespace(service, strimziKafkaRef);
+        var strimziNamespace = ResourcesUtil.namespaceFor(service, strimziKafkaRef.getNamespace());
         if (!isWatchedNamespace(strimziNamespace)) {
             return ValidationResult.failure(statusFactory.newFalseConditionStatusPatch(service,
                     ResolvedRefs,
@@ -197,6 +197,7 @@ public final class KafkaServiceReconciler implements
 
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(
                 service, context,
+                STRIMZI_KAFKA_EVENT_SOURCE_NAME,
                 strimziKafkaRef, SPEC_REF, statusFactory);
 
         return result.resource() != null
@@ -283,7 +284,7 @@ public final class KafkaServiceReconciler implements
                                                         List<HasMetadata> existingReferents) {
 
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(
-                service, context, strimziRef, statusFactory);
+                service, context, SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, strimziRef, statusFactory);
 
         if (result.resource() != null) {
             return TrustAnchorResolution.failure(result.resource());
@@ -384,7 +385,7 @@ public final class KafkaServiceReconciler implements
                                                  @Nullable io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Tls statusTls) {
 
         Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(
-                context, service);
+                context, service, STRIMZI_KAFKA_EVENT_SOURCE_NAME);
 
         return listenerStatus
                 .map(status -> statusFactory.newTrueConditionStatusPatch(

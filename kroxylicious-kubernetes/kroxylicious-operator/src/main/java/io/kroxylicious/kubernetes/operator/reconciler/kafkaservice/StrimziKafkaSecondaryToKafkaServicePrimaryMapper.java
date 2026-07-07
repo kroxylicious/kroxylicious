@@ -28,7 +28,8 @@ class StrimziKafkaSecondaryToKafkaServicePrimaryMapper implements SecondaryToPri
         this.context = context;
         context.getPrimaryCache().addIndexer(STRIMZI_KAFKA_REF_INDEX, service -> Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef)
-                .map(strimziKafkaRef -> ResourcesUtil.namespacedName(ResourcesUtil.strimziKafkaNamespace(service, strimziKafkaRef), strimziKafkaRef.getRef().getName()))
+                .map(strimziKafkaRef -> ResourcesUtil.namespacedName(ResourcesUtil.namespaceFor(service, strimziKafkaRef.getNamespace()),
+                        strimziKafkaRef.getRef().getName()))
                 .stream()
                 .toList());
     }

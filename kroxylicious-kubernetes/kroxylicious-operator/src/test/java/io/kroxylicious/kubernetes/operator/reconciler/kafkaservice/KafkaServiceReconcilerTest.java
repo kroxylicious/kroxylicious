@@ -659,7 +659,8 @@ class KafkaServiceReconcilerTest {
             client = mock(KubernetesClient.class);
             when(context.getClient()).thenReturn(client);
         }
-        mockClientKafkaLookup(client, optional.orElse(null));
+        when(client.supports(Kafka.class)).thenReturn(true);
+        when(context.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -676,28 +677,11 @@ class KafkaServiceReconcilerTest {
         when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
-    @SuppressWarnings("unchecked")
-    private static void mockClientSecretsLookup(KubernetesClient client, String namespace, String secretName, Secret secret) {
-        var secretsOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
-        var inNamespaceOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
-        var namedOp = mock(io.fabric8.kubernetes.client.dsl.Resource.class);
-
-        when(client.secrets()).thenReturn(secretsOp);
-        when(secretsOp.inNamespace(namespace)).thenReturn(inNamespaceOp);
-        when(inNamespaceOp.withName(secretName)).thenReturn(namedOp);
-        when(namedOp.get()).thenReturn(secret);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static void mockClientKafkaLookup(KubernetesClient client, Kafka kafka) {
-        var kafkaOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
-        var inNamespaceOp = mock(io.fabric8.kubernetes.client.dsl.MixedOperation.class);
-        var namedOp = mock(io.fabric8.kubernetes.client.dsl.Resource.class);
-
-        when(client.resources(Kafka.class)).thenReturn(kafkaOp);
-        when(kafkaOp.inNamespace(org.mockito.ArgumentMatchers.nullable(String.class))).thenReturn(inNamespaceOp);
-        when(inNamespaceOp.withName(org.mockito.ArgumentMatchers.nullable(String.class))).thenReturn(namedOp);
-        when(namedOp.get()).thenReturn(kafka);
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static void mockGetStrimziCaSecret(
+                                               Context<KafkaService> context,
+                                               Optional<Secret> optional) {
+        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
     @ParameterizedTest
@@ -791,7 +775,7 @@ class KafkaServiceReconcilerTest {
         // Given
         Context<KafkaService> context = mockContext(Kafka.class);
         mockGetKafka(context, Optional.of(kafkaWithListener("tls")));
-        mockClientSecretsLookup(context.getClient(), "test", "my-cluster-cluster-ca-cert", STRIMZI_CA_SECRET);
+        mockGetStrimziCaSecret(context, Optional.of(STRIMZI_CA_SECRET));
 
         KafkaService service = new KafkaServiceBuilder(SERVICE)
                 .editMetadata()

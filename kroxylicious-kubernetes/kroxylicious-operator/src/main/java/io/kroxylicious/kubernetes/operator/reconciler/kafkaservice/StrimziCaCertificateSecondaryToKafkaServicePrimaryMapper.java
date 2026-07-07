@@ -32,7 +32,7 @@ class StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper implements Second
         context.getPrimaryCache().addIndexer(STRIMZI_CA_CERTIFICATE_REF_INDEX, service -> Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef)
                 .filter(StrimziKafkaRef::getTrustStrimziCaCertificate)
-                .map(strimziKafkaRef -> ResourcesUtil.namespacedName(ResourcesUtil.strimziKafkaNamespace(service, strimziKafkaRef),
+                .map(strimziKafkaRef -> ResourcesUtil.namespacedName(ResourcesUtil.namespaceFor(service, strimziKafkaRef.getNamespace()),
                         strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX))
                 .stream()
                 .toList());

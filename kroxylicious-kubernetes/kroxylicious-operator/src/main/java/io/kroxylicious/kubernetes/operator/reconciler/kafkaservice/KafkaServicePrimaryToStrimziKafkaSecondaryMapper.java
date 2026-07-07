@@ -21,7 +21,7 @@ class KafkaServicePrimaryToStrimziKafkaSecondaryMapper implements PrimaryToSecon
     public Set<ResourceID> toSecondaryResourceIDs(KafkaService cluster) {
         return Optional.ofNullable(cluster.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef)
-                .map(strimziKafkaRef -> Set.of(new ResourceID(strimziKafkaRef.getRef().getName(), ResourcesUtil.strimziKafkaNamespace(cluster, strimziKafkaRef))))
+                .map(strimziKafkaRef -> Set.of(new ResourceID(strimziKafkaRef.getRef().getName(), ResourcesUtil.namespaceFor(cluster, strimziKafkaRef.getNamespace()))))
                 .orElse(Set.of());
     }
 }
