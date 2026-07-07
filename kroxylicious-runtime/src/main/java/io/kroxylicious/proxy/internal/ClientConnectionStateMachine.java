@@ -924,10 +924,7 @@ public class ClientConnectionStateMachine {
 
     private ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
         var vc = virtualCluster();
-        var tlsConfig = new ConnectionTlsConfig(
-                vc.getUpstreamSslContextForRoute(routeName),
-                vc.getTlsCredentialSupplierManagerForRoute(routeName),
-                vc.routing().targetClusterFor(routeName));
+        var tlsConfig = ConnectionTlsConfig.from(vc.getUpstreamClusterForRoute(routeName));
         return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
                 proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
                 tlsConfig);

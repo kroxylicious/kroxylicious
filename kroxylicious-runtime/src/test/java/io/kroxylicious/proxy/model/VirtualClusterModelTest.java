@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.internal.filter.FlakyFactory;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -120,7 +121,7 @@ class VirtualClusterModelTest {
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
-        assertThat(model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME).isConfigured()).isFalse();
+        assertThat(model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME).tlsManager().isConfigured()).isFalse();
     }
 
     @Test
@@ -152,8 +153,8 @@ class VirtualClusterModelTest {
         VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), pluginFactoryRegistry());
 
-        assertThat(model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME).isConfigured()).isTrue();
-        assertThat(model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME).getSupplier()).isNotNull();
+        assertThat(model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME).tlsManager().isConfigured()).isTrue();
+        assertThat(model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME).tlsManager().getSupplier()).isNotNull();
         model.close();
     }
 
@@ -181,15 +182,15 @@ class VirtualClusterModelTest {
         var model = new VirtualClusterModel("vc1", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, filters,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
 
-        var tlsManager = model.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME);
-        assertThat(tlsManager.isConfigured()).isTrue();
-        assertThat(tlsManager.getSupplier()).isNotNull();
+        UpstreamClusterModel clusterModel = model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME);
+        assertThat(clusterModel.tlsManager().isConfigured()).isTrue();
+        assertThat(clusterModel.tlsManager().getSupplier()).isNotNull();
         assertThat(onFilterClose.get()).isZero();
 
         model.close();
 
         assertThat(onFilterClose.get()).as("FilterChainFactory close should fire").isEqualTo(1);
-        assertThatThrownBy(tlsManager::getSupplier)
+        assertThatThrownBy(() -> clusterModel.tlsManager().getSupplier())
                 .as("TlsCredentialSupplierManager close should fire — post-close getSupplier throws")
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -229,7 +230,7 @@ class VirtualClusterModelTest {
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         assertThat(((DynamicRouting) model.routing()).routerName()).isEqualTo("myrouter");
         assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
-        assertThat(model.getUpstreamSslContext()).isEmpty();
+        assertThat(model.getUpstreamClusterForRoute("route1")).isNull();
     }
 
     @Test

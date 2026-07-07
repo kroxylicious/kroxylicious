@@ -51,6 +51,7 @@ import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
@@ -157,30 +158,31 @@ public class VirtualClusterModel implements AutoCloseable {
         return switch (routing) {
             case DirectRouting dr -> {
                 TlsCredentialSupplierManager mgr = pfr != null
-                        ? new TlsCredentialSupplierManager(pfr, dr.targetCluster().tls()
+                        ? new TlsCredentialSupplierManager(pfr, dr.upstreamCluster().targetCluster().tls()
                                 .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
                                 .orElse(null))
                         : TlsCredentialSupplierManager.unconfigured();
-                yield new DirectRouting(dr.routeName(), dr.targetCluster(), buildUpstreamSslContextFor(dr.targetCluster()), mgr);
+                var targetCluster = dr.upstreamCluster().targetCluster();
+                yield new DirectRouting(dr.routeName(), new UpstreamClusterModel(targetCluster, buildUpstreamSslContextFor(targetCluster), mgr));
             }
             case DynamicRouting dr -> {
                 if (pfr == null) {
                     yield dr;
                 }
-                var sslContexts = new HashMap<String, Optional<SslContext>>();
-                var tlsManagers = new HashMap<String, TlsCredentialSupplierManager>();
+                var clusterModels = new HashMap<String, UpstreamClusterModel>();
                 for (var entry : dr.routeDescriptors().entrySet()) {
                     RouteDescriptor rd = entry.getValue();
                     if (rd.targetsCluster()) {
-                        sslContexts.put(entry.getKey(), buildUpstreamSslContextFor(rd.targetCluster()));
                         TlsCredentialSupplierConfig supplierConfig = rd.targetCluster().tls()
                                 .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
                                 .orElse(null);
-                        tlsManagers.put(entry.getKey(), new TlsCredentialSupplierManager(pfr, supplierConfig));
+                        clusterModels.put(entry.getKey(), new UpstreamClusterModel(rd.targetCluster(),
+                                buildUpstreamSslContextFor(rd.targetCluster()),
+                                new TlsCredentialSupplierManager(pfr, supplierConfig)));
                     }
                 }
                 yield new DynamicRouting(dr.routerName(), dr.routeDescriptors(), dr.nodeIdMapping(),
-                        dr.routerChainFactory(), sslContexts, tlsManagers);
+                        dr.routerChainFactory(), clusterModels);
             }
         };
     }
@@ -224,7 +226,8 @@ public class VirtualClusterModel implements AutoCloseable {
                     .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
             logBuilder = switch (routing) {
                 case DirectRouting dr -> logBuilder.addKeyValue("upstream",
-                        dr.targetCluster().bootstrapServersList() + generateTlsSummary(dr.targetCluster().tls()));
+                        dr.upstreamCluster().targetCluster().bootstrapServersList()
+                                + generateTlsSummary(dr.upstreamCluster().targetCluster().tls()));
                 case DynamicRouting ignored -> logBuilder.addKeyValue("upstream", "(via router)");
             };
             logBuilder.log("Gateway configuration");
@@ -284,19 +287,13 @@ public class VirtualClusterModel implements AutoCloseable {
     }
 
     /**
-     * Returns the pre-built upstream SSL context for a specific route, or {@link Optional#empty()}
-     * if the route has no TLS configuration or is not a cluster-targeting route.
+     * Returns the {@link UpstreamClusterModel} for a specific route, or {@code null} if the route
+     * does not target an upstream cluster (e.g. it targets a nested router, or no TLS has been
+     * resolved yet because no {@code PluginFactoryRegistry} was provided).
      */
-    public Optional<SslContext> getUpstreamSslContextForRoute(String routeName) {
-        return routing.upstreamSslContextFor(routeName);
-    }
-
-    /**
-     * Returns the TLS credential supplier manager for a specific route, or the unconfigured
-     * singleton if the route has no dynamic TLS credential supplier configured.
-     */
-    public TlsCredentialSupplierManager getTlsCredentialSupplierManagerForRoute(String routeName) {
-        return routing.tlsManagerFor(routeName);
+    @Nullable
+    public UpstreamClusterModel getUpstreamClusterForRoute(String routeName) {
+        return routing.upstreamClusterFor(routeName);
     }
 
     /**
@@ -340,7 +337,7 @@ public class VirtualClusterModel implements AutoCloseable {
      */
     public boolean usesDynamicTlsCredentials() {
         return routing instanceof DirectRouting dr
-                && dr.targetCluster().tls().map(tls -> tls.credentialSupplier() != null).orElse(false);
+                && dr.upstreamCluster().targetCluster().tls().map(tls -> tls.credentialSupplier() != null).orElse(false);
     }
 
     public static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {

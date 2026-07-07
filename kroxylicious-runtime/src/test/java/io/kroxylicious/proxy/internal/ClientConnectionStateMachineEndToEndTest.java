@@ -67,6 +67,7 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -504,7 +505,8 @@ class ClientConnectionStateMachineEndToEndTest {
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(endpointBinding.upstreamTarget()).thenReturn(new HostPort(CLUSTER_HOST, CLUSTER_PORT));
-        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(DIRECT_ROUTE_NAME, new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty())));
+        var targetCluster = new TargetCluster(CLUSTER_HOST + ":" + CLUSTER_PORT, Optional.empty());
+        when(virtualClusterModel.routing()).thenReturn(new DirectRouting(DIRECT_ROUTE_NAME, targetCluster));
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);
@@ -512,8 +514,8 @@ class ClientConnectionStateMachineEndToEndTest {
         catch (SSLException e) {
             throw new RuntimeException(e);
         }
-        when(virtualClusterModel.getUpstreamSslContextForRoute(DIRECT_ROUTE_NAME)).thenReturn(sslContext);
-        when(virtualClusterModel.getTlsCredentialSupplierManagerForRoute(DIRECT_ROUTE_NAME)).thenReturn(TlsCredentialSupplierManager.unconfigured());
+        when(virtualClusterModel.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME))
+                .thenReturn(new UpstreamClusterModel(targetCluster, sslContext, TlsCredentialSupplierManager.unconfigured()));
         when(virtualClusterModel.getClusterName()).thenReturn("RandomCluster");
         var clientConnectionStateMachine = clientConnectionStateMachine(endpointBinding);
 

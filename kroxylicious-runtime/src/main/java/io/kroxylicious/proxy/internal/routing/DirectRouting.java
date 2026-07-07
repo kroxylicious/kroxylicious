@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.internal.routing;
 import java.util.Objects;
 import java.util.Optional;
 
-import io.netty.handler.ssl.SslContext;
-
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
 
@@ -17,12 +15,9 @@ import io.kroxylicious.proxy.config.TargetCluster;
  * Routing model for a virtual cluster that forwards directly to a single, statically-configured
  * upstream Kafka cluster.
  * <p>
- * Owns the pre-built {@link #upstreamSslContext()} and {@link #tlsManager()} for that cluster.
+ * Owns the {@link UpstreamClusterModel} for that cluster and closes it when {@link #close()} is called.
  */
-public record DirectRouting(String routeName,
-                            TargetCluster targetCluster,
-                            Optional<SslContext> upstreamSslContext,
-                            TlsCredentialSupplierManager tlsManager)
+public record DirectRouting(String routeName, UpstreamClusterModel upstreamCluster)
         implements RoutingModel {
 
     /**
@@ -31,31 +26,18 @@ public record DirectRouting(String routeName,
      * to empty and the manager to unconfigured.
      */
     public DirectRouting(String routeName, TargetCluster targetCluster) {
-        this(routeName, targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+        this(routeName, new UpstreamClusterModel(targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured()));
     }
 
     public DirectRouting {
-        Objects.requireNonNull(targetCluster, "targetCluster");
-        Objects.requireNonNull(upstreamSslContext, "upstreamSslContext");
-        Objects.requireNonNull(tlsManager, "tlsManager");
+        Objects.requireNonNull(routeName, "routeName");
+        Objects.requireNonNull(upstreamCluster, "upstreamCluster");
     }
 
     @Override
-    public TargetCluster targetClusterFor(String routeName) {
+    public UpstreamClusterModel upstreamClusterFor(String routeName) {
         validateRouteName(routeName);
-        return targetCluster;
-    }
-
-    @Override
-    public Optional<SslContext> upstreamSslContextFor(String routeName) {
-        validateRouteName(routeName);
-        return upstreamSslContext;
-    }
-
-    @Override
-    public TlsCredentialSupplierManager tlsManagerFor(String routeName) {
-        validateRouteName(routeName);
-        return tlsManager;
+        return upstreamCluster;
     }
 
     private void validateRouteName(String routeName) {
@@ -66,6 +48,6 @@ public record DirectRouting(String routeName,
 
     @Override
     public void close() {
-        tlsManager.close();
+        upstreamCluster.close();
     }
 }

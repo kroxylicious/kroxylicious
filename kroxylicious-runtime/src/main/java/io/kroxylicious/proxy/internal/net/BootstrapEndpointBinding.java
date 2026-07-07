@@ -29,7 +29,7 @@ public record BootstrapEndpointBinding(EndpointGateway endpointGateway) implemen
         if (!(endpointGateway().virtualCluster().routing() instanceof DirectRouting dr)) {
             throw new IllegalStateException("BootstrapEndpointBinding only has an upstream target for direct-routing virtual clusters");
         }
-        return dr.targetCluster().bootstrapServer();
+        return dr.upstreamCluster().targetCluster().bootstrapServer();
     }
 
     @Nullable
