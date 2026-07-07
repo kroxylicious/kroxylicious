@@ -157,13 +157,11 @@ public class VirtualClusterModel implements AutoCloseable {
     private static RoutingModel resolveRoutingTls(RoutingModel routing, @Nullable PluginFactoryRegistry pfr) {
         return switch (routing) {
             case DirectRouting dr -> {
-                TlsCredentialSupplierManager mgr = pfr != null
-                        ? new TlsCredentialSupplierManager(pfr, dr.upstreamCluster().targetCluster().tls()
-                                .flatMap(tls -> Optional.ofNullable(tls.credentialSupplier()))
-                                .orElse(null))
-                        : TlsCredentialSupplierManager.unconfigured();
-                var targetCluster = dr.upstreamCluster().targetCluster();
-                yield new DirectRouting(dr.routeName(), new UpstreamClusterModel(targetCluster, buildUpstreamSslContextFor(targetCluster), mgr));
+                TlsCredentialSupplierManager mgr = dr.upstreamCluster()
+                        .buildTlsCredentialSupplierManager(pfr)
+                        .orElse(TlsCredentialSupplierManager.unconfigured());
+                var cluster = dr.upstreamCluster();
+                yield new DirectRouting(dr.routeName(), new UpstreamClusterModel(cluster.targetCluster(), buildUpstreamSslContextFor(cluster.targetCluster()), mgr));
             }
             case DynamicRouting dr -> {
                 if (pfr == null) {
@@ -219,40 +217,18 @@ public class VirtualClusterModel implements AutoCloseable {
 
         gateways.forEach((name, gateway) -> {
             var downstreamBootstrap = gateway.getClusterBootstrapAddress();
-            var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
+            var downstreamTlsSummary = UpstreamClusterModel.generateTlsSummary(gateway.getTls());
 
             var logBuilder = LOGGER.atInfo()
                     .addKeyValue("gateway", name)
                     .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
             logBuilder = switch (routing) {
                 case DirectRouting dr -> logBuilder.addKeyValue("upstream",
-                        dr.upstreamCluster().targetCluster().bootstrapServersList()
-                                + generateTlsSummary(dr.upstreamCluster().targetCluster().tls()));
+                        dr.upstreamCluster().bootstrapServersList() + dr.upstreamCluster().tlsSummary());
                 case DynamicRouting ignored -> logBuilder.addKeyValue("upstream", "(via router)");
             };
             logBuilder.log("Gateway configuration");
         });
-    }
-
-    private static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
-        var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
-                .map(TrustProvider::trustOptions)
-                .map(TrustOptions::toString).orElse("-"))
-                .map(options -> " (TLS: " + options + ") ").orElse("");
-        var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
-                .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
-        var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
-                .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
-        var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
-                .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
-        var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
-                .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
-
-        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
     public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {
@@ -336,8 +312,7 @@ public class VirtualClusterModel implements AutoCloseable {
      * @return true if a credential supplier is configured
      */
     public boolean usesDynamicTlsCredentials() {
-        return routing instanceof DirectRouting dr
-                && dr.upstreamCluster().targetCluster().tls().map(tls -> tls.credentialSupplier() != null).orElse(false);
+        return routing instanceof DirectRouting dr && dr.upstreamCluster().usesDynamicTlsCredentials();
     }
 
     public static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
