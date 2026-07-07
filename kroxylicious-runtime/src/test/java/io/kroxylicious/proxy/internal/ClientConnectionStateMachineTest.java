@@ -1454,18 +1454,53 @@ class ClientConnectionStateMachineTest {
         }
 
         @Test
-        void drainWhenStateIsNotForwardingStillCompletesFuture() {
-            // Given — CCSM stuck in HaProxy state (not Forwarding)
+        void drainOnHaProxyClosesChannelAndCompletesPromise() {
+            // Given — connection has parsed the PROXY protocol header but has not yet reached
+            // Forwarding.
             clientConnectionStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, Map.of(), TEST_KAFKA_SESSION, true);
 
             // When
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
-            // Then — the reject path in onDraining still fires the onDrained policy so DC
-            // (or any caller awaiting the future) doesn't hang waiting for a drain that never starts
+            // Then — drain promise completes AND channel closes AND state advances to Closed
             assertThat(closedFuture).isCompleted();
-            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
+            verify(frontendHandler).inClosed(null);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             // No autoRead change because we never entered Draining
+            verify(frontendHandler, never()).applyBackpressure();
+        }
+
+        @Test
+        void drainOnStartupClosesChannelAndCompletesPromise() {
+            // Given — connection has just been accepted; the CCSM is in the initial Startup
+            // state. registerConnection has already added it to the VC's activeConnections, so
+            // startDraining will call drain() on it during ReplaceCluster.
+            clientConnectionStateMachine.forceState(ClientConnectionState.Startup.STARTING_STATE,
+                    frontendHandler, Map.of(), TEST_KAFKA_SESSION, true);
+
+            // When
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+            verify(frontendHandler).inClosed(null);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            verify(frontendHandler, never()).applyBackpressure();
+        }
+
+        @Test
+        void drainOnClientActiveClosesChannelAndCompletesPromise() {
+            // Given — client sent its ApiVersions handshake but has not yet issued a Metadata
+            // request that would drive the transition to Forwarding.
+            stateMachineInClientActive();
+
+            // When
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+            verify(frontendHandler).inClosed(null);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             verify(frontendHandler, never()).applyBackpressure();
         }
 

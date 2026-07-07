@@ -644,7 +644,13 @@ public class ClientConnectionStateMachine {
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
-                    .log("Cannot start draining — not in Forwarding state");
+                    .log("Cannot start draining — not in Forwarding state, closing immediately");
+            // The connection is pre-Forwarding: there is no in-flight traffic to drain, but
+            // the channel is still open and holding Netty pipeline / SSL engine / filter chain
+            // resources. Silently completing without closing (previous behaviour) leaks those
+            // resources across every reconfigure, because ch.closeFuture()'s deregisterConnection
+            // listener could never fire. Close the channel now, then complete the drain promise:
+            toClosed(null, DisconnectCause.DRAIN_COMPLETED);
             onDrained.run();
             return;
         }
