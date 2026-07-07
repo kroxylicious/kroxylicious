@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4314](https://github.com/kroxylicious/kroxylicious/pull/4314): build(deps): Upgrade Jackson to 2.21.5 to fix CVE-2026-54515
 * [#4310](https://github.com/kroxylicious/kroxylicious/pull/4310): deps(apicurio): [0.20.x] bump Apicurio Registry from 3.1 to 3.2 to avoid CVEs in dependencies (and switch to JDK HTTP)
 * [#4111](https://github.com/kroxylicious/kroxylicious/pull/4111): build(deps): Upgrade to JOSDK 5.2.5 to avoids informer health check defect.
 * [#4304](https://github.com/kroxylicious/kroxylicious/pull/4304): build(deps): Update dependencies to fix CVE vulnerabilities
@@ -21,8 +22,7 @@ Format `<github issue/pr number>: <short description>`.
 
 #### Jackson (com.fasterxml.jackson.core)
 * [SNYK-JAVA-COMFASTERXMLJACKSONCORE-15907551](https://security.snyk.io/vuln/SNYK-JAVA-COMFASTERXMLJACKSONCORE-15907551) - Allocation of Resources Without Limits or Throttling in jackson-core (fixed in 2.21.4)
-
-**Note:** Jackson upgraded to 2.21.4. [CVE-2026-54515](https://nvd.nist.gov/vuln/detail/CVE-2026-54515) (Case-Insensitive Binding Reopening Ignored Fields) requires version 2.21.5 which is not yet released. See [jackson-databind#6074](https://github.com/FasterXML/jackson-databind/issues/6074)
+* [CVE-2026-54515](https://nvd.nist.gov/vuln/detail/CVE-2026-54515) - Case-Insensitive Binding Reopening Ignored Fields in jackson-databind (fixed in 2.21.5) ([Jackson Release](https://github.com/FasterXML/jackson/wiki/Jackson-Release-2.21.5))
 
 #### Log4j (org.apache.logging.log4j)
 * [CVE-2026-34477](https://nvd.nist.gov/vuln/detail/CVE-2026-34477) - TLS Hostname Verification Bypass (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
