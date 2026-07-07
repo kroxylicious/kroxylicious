@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -607,6 +608,48 @@ class HotReloadIT extends BaseIT {
                                         Map.of("virtual_cluster", "vc-metrics-added", "from", "initializing", "to", "serving"))
                                 .value().isEqualTo(1.0);
                     });
+        }
+    }
+
+    @Test
+    void shouldDrainActiveConnectionsWhenVcIsReconfiguredWithFilterChange(@BrokerCluster KafkaCluster cluster) {
+        var startingConfig = portConfig(portVc(cluster, "vc-active-conn"));
+
+        var testerBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
+
+            String topic = tester.createTopic("vc-active-conn");
+            int port = boundPort(tester, "vc-active-conn");
+
+            // Given
+            try (var producer = tester.producer("vc-active-conn", Map.of(ProducerConfig.LINGER_MS_CONFIG, 0))) {
+                assertThat(producer.send(new ProducerRecord<>(topic, "before-key", "before-value")))
+                        .succeedsWithin(PRODUCE_CONSUME_TIMEOUT);
+
+                // When
+                var afterConfig = portConfig(portVcWithLogNetwork(cluster, "vc-active-conn", port, true));
+                assertThat(tester.reconfigure(afterConfig))
+                        .succeedsWithin(RECONFIGURE_TIMEOUT)
+                        .satisfies(rr -> assertThat(rr.hasErrors())
+                                .as("ReconfigureResult should have no errors for logNetwork change")
+                                .isFalse());
+
+                // Then
+                assertThat(producer.send(new ProducerRecord<>(topic, "after-key", "after-value")))
+                        .succeedsWithin(PRODUCE_CONSUME_TIMEOUT);
+
+                try (var consumer = tester.consumer("vc-active-conn", Map.of(
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.GROUP_ID_CONFIG, "active-conn-test"))) {
+                    consumer.subscribe(List.of(topic));
+                    var records = consumer.poll(PRODUCE_CONSUME_TIMEOUT);
+                    assertThat(records.iterator())
+                            .toIterable()
+                            .extracting(ConsumerRecord::key)
+                            .containsExactly("before-key", "after-key");
+                }
+            }
         }
     }
 
