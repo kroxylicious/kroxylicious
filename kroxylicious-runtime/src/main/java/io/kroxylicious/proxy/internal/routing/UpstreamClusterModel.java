@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.io.UncheckedIOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -20,7 +19,6 @@ import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
@@ -85,33 +83,6 @@ public record UpstreamClusterModel(
                         .orElse(TlsCredentialSupplierManager.unconfigured())
                 : TlsCredentialSupplierManager.unconfigured();
         return new UpstreamClusterModel(targetCluster, sslContext, mgr);
-    }
-
-    /** Returns a TLS summary string for this cluster's upstream TLS configuration. */
-    public String tlsSummary() {
-        return generateTlsSummary(tls());
-    }
-
-    /** Generates a TLS summary string for an arbitrary TLS configuration. */
-    public static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
-        var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
-                .map(TrustProvider::trustOptions)
-                .map(TrustOptions::toString).orElse("-"))
-                .map(options -> " (TLS: " + options + ") ").orElse("");
-        var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
-                .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
-        var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
-                .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
-        var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
-                .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
-        var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
-                .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
-
-        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
     private static Optional<SslContext> buildUpstreamSslContextFor(@Nullable TargetCluster targetCluster) {

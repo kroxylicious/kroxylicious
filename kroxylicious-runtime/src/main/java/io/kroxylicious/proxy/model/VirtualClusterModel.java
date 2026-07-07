@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
@@ -182,18 +183,38 @@ public class VirtualClusterModel implements AutoCloseable {
 
         gateways.forEach((name, gateway) -> {
             var downstreamBootstrap = gateway.getClusterBootstrapAddress();
-            var downstreamTlsSummary = UpstreamClusterModel.generateTlsSummary(gateway.getTls());
+            var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
             var logBuilder = LOGGER.atInfo()
                     .addKeyValue("gateway", name)
                     .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
             logBuilder = switch (routing) {
                 case DirectRouting dr -> logBuilder.addKeyValue("upstream",
-                        dr.upstreamCluster().bootstrapServersList() + dr.upstreamCluster().tlsSummary());
+                        dr.upstreamCluster().bootstrapServersList() + generateTlsSummary(dr.upstreamCluster().tls()));
                 case DynamicRouting ignored -> logBuilder.addKeyValue("upstream", "(via router)");
             };
             logBuilder.log("Gateway configuration");
         });
+    }
+
+    static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
+        var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
+                .map(TrustProvider::trustOptions)
+                .map(TrustOptions::toString).orElse("-"))
+                .map(options -> " (TLS: " + options + ") ").orElse("");
+        var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
+        var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
+        var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
+        var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
+        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
     public void addGateway(String name, NodeIdentificationStrategy nodeIdentificationStrategy, Optional<Tls> tls) {

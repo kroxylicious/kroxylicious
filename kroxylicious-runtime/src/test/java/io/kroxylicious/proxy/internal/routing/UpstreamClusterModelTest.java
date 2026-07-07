@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.routing;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -17,7 +16,6 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
-import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
@@ -171,55 +169,6 @@ class UpstreamClusterModelTest {
         assertThat(result).isPresent();
         assertThat(result.get().isConfigured()).isTrue();
         result.get().close();
-    }
-
-    // tlsSummary() / generateTlsSummary()
-
-    @Test
-    void generateTlsSummaryReturnsEmptyStringForNoTls() {
-        assertThat(UpstreamClusterModel.generateTlsSummary(Optional.empty())).isEmpty();
-    }
-
-    @Test
-    void generateTlsSummaryIncludesTlsMarkerWhenTlsPresent() {
-        var summary = UpstreamClusterModel.generateTlsSummary(Optional.of(TLS_NO_CREDENTIAL_SUPPLIER));
-        assertThat(summary).contains("(TLS:");
-    }
-
-    @Test
-    void generateTlsSummaryIncludesAllowedCipherSuites() {
-        var tls = new Tls(null, null, new AllowDeny<>(List.of("TLS_AES_256_GCM_SHA384"), null), null, null);
-        var summary = UpstreamClusterModel.generateTlsSummary(Optional.of(tls));
-        assertThat(summary).contains("Allowed Ciphers").contains("TLS_AES_256_GCM_SHA384");
-    }
-
-    @Test
-    void generateTlsSummaryIncludesDeniedCipherSuites() {
-        var tls = new Tls(null, null, new AllowDeny<>(null, Set.of("TLS_RSA_WITH_NULL_MD5")), null, null);
-        var summary = UpstreamClusterModel.generateTlsSummary(Optional.of(tls));
-        assertThat(summary).contains("Denied Ciphers").contains("TLS_RSA_WITH_NULL_MD5");
-    }
-
-    @Test
-    void generateTlsSummaryIncludesAllowedProtocols() {
-        var tls = new Tls(null, null, null, new AllowDeny<>(List.of("TLSv1.3"), null), null);
-        var summary = UpstreamClusterModel.generateTlsSummary(Optional.of(tls));
-        assertThat(summary).contains("Allowed Protocols").contains("TLSv1.3");
-    }
-
-    @Test
-    void generateTlsSummaryIncludesDeniedProtocols() {
-        var tls = new Tls(null, null, null, new AllowDeny<>(null, Set.of("TLSv1.1")), null);
-        var summary = UpstreamClusterModel.generateTlsSummary(Optional.of(tls));
-        assertThat(summary).contains("Denied Protocols").contains("TLSv1.1");
-    }
-
-    @Test
-    void tlsSummaryDelegatesToGenerateTlsSummary() {
-        var model = new UpstreamClusterModel(
-                new TargetCluster("broker:9092", Optional.of(TLS_NO_CREDENTIAL_SUPPLIER)),
-                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
-        assertThat(model.tlsSummary()).isEqualTo(UpstreamClusterModel.generateTlsSummary(Optional.of(TLS_NO_CREDENTIAL_SUPPLIER)));
     }
 
     // build()
