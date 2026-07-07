@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -28,7 +29,10 @@ public record MetadataDiscoveryBrokerEndpointBinding(EndpointGateway endpointGat
 
     @Override
     public HostPort upstreamTarget() {
-        return endpointGateway.targetCluster().bootstrapServer();
+        if (!(endpointGateway.virtualCluster().routing() instanceof DirectRouting dr)) {
+            throw new IllegalStateException("upstreamTarget() requires direct routing, but virtual cluster is using dynamic routing");
+        }
+        return dr.targetCluster().bootstrapServer();
     }
 
     @Override

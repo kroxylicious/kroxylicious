@@ -19,6 +19,7 @@ import javax.net.ssl.SSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -35,6 +36,8 @@ import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -46,7 +49,9 @@ import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplierFactoryContext;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class VirtualClusterModelTest {
 
@@ -95,10 +100,12 @@ class VirtualClusterModelTest {
     }
 
     @Test
-    void usesDynamicTlsCredentialsReturnsFalseWhenTargetClusterIsNull() {
-        // A router-targeting VC has a null targetCluster — usesDynamicTlsCredentials must not NPE.
-        VirtualClusterModel model = new VirtualClusterModel("wibble", null, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "some-router", null);
+    void usesDynamicTlsCredentialsReturnsFalseWhenDynamicRouting() {
+        var routeDescriptors = Map.of("r1",
+                new RouteDescriptor("r1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        VirtualClusterModel model = new VirtualClusterModel("wibble",
+                new DynamicRouting("some-router", routeDescriptors, mock(RouterChainFactory.class)),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
     }
@@ -107,8 +114,8 @@ class VirtualClusterModelTest {
     void usesDynamicTlsCredentialsReturnsFalseWhenNoTlsConfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
         assertThat(model.getTlsCredentialSupplierManager().isConfigured()).isFalse();
@@ -118,8 +125,8 @@ class VirtualClusterModelTest {
     void usesDynamicTlsCredentialsReturnsFalseWhenTlsHasNoCredentialSupplier() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, null)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
     }
@@ -129,8 +136,8 @@ class VirtualClusterModelTest {
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isTrue();
     }
@@ -140,7 +147,7 @@ class VirtualClusterModelTest {
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), pluginFactoryRegistry());
 
         assertThat(model.getTlsCredentialSupplierManager().isConfigured()).isTrue();
@@ -151,8 +158,8 @@ class VirtualClusterModelTest {
     @Test
     void closeIsNoOpWhenTlsCredentialSupplierManagerIsUnconfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
-        VirtualClusterModel model = new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         model.close();
     }
@@ -169,7 +176,7 @@ class VirtualClusterModelTest {
 
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         var targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
-        var model = new VirtualClusterModel("vc1", targetCluster, false, false, filters,
+        var model = new VirtualClusterModel("vc1", new DirectRouting(targetCluster), false, false, filters,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
 
         var tlsManager = model.getTlsCredentialSupplierManager();
@@ -199,7 +206,7 @@ class VirtualClusterModelTest {
         var pfr = combinedPluginFactoryRegistry();
         var drainTimeout = Duration.ofSeconds(10);
 
-        assertThatThrownBy(() -> new VirtualClusterModel("vc1", targetCluster, false, false, filters,
+        assertThatThrownBy(() -> new VirtualClusterModel("vc1", new DirectRouting(targetCluster), false, false, filters,
                 CacheConfiguration.DEFAULT, null, drainTimeout, pfr))
                 .isExactlyInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("Exception initializing filter factory bad-filter")
@@ -209,24 +216,27 @@ class VirtualClusterModelTest {
     }
 
     @Test
-    void routerBasedVcmHasNullTargetClusterAndEmptyUpstreamSslContext() {
+    void dynamicRoutingVcmHasNoUpstreamSslContext() {
         var routeDescriptors = Map.of("route1",
                 new RouteDescriptor("route1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        var dynamicRouting = new DynamicRouting("myrouter", routeDescriptors, mock(RouterChainFactory.class));
 
-        VirtualClusterModel model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", routeDescriptors);
+        VirtualClusterModel model = new VirtualClusterModel("routed-vc", dynamicRouting, false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        assertThat(model.targetCluster()).isNull();
-        assertThat(model.usesRouter()).isTrue();
-        assertThat(model.routerName()).isEqualTo("myrouter");
-        assertThat(model.routeDescriptors()).containsKey("route1");
+        assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
+        assertThat(((DynamicRouting) model.routing()).routerName()).isEqualTo("myrouter");
+        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
         assertThat(model.getUpstreamSslContext()).isEmpty();
     }
 
     @Test
-    void logVirtualClusterSummaryHandlesNullTargetCluster() {
-        VirtualClusterModel model = new VirtualClusterModel("routed-vc", null, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null, "myrouter", null);
+    void logVirtualClusterSummaryWorksForDynamicRouting() {
+        var routeDescriptors = Map.of("route1",
+                new RouteDescriptor("route1", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        VirtualClusterModel model = new VirtualClusterModel("routed-vc",
+                new DynamicRouting("myrouter", routeDescriptors, mock(RouterChainFactory.class)),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThatCode(model::logVirtualClusterSummary).doesNotThrowAnyException();
     }
@@ -239,10 +249,48 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10)))
+        assertThatThrownBy(() -> new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
+    }
+
+    @Test
+    void closeClosesRouterChainFactory() {
+        // Given
+        var rcf = mock(RouterChainFactory.class);
+        var routeDescriptor = new RouteDescriptor("r1", 0, null, "nested", List.of());
+        var model = new VirtualClusterModel("routed-vc",
+                new DynamicRouting("r1", Map.of("r1", routeDescriptor), rcf),
+                false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
+
+        // When
+        model.close();
+
+        // Then: the RouterChainFactory is closed
+        verify(rcf).close();
+    }
+
+    @Test
+    void closeStillClosesFilterChainFactoryWhenRouterChainFactoryCloseThrows() {
+        // Given: a RouterChainFactory that throws on close
+        var rcf = mock(RouterChainFactory.class);
+        doThrow(new RuntimeException("rcf close boom")).when(rcf).close();
+        var onFilterClose = new AtomicInteger();
+        var flakyConfig = new FlakyConfig(null, null, null, c -> {
+        }, c -> onFilterClose.incrementAndGet());
+        var filters = List.<NamedFilterDefinition> of(new NamedFilterDefinition("flaky", FlakyFactory.class.getName(), flakyConfig));
+        var routeDescriptor = new RouteDescriptor("r1", 0, new TargetCluster("bootstrap:9092", Optional.empty()), null, List.of());
+        var model = new VirtualClusterModel("vc",
+                new DynamicRouting("r1", Map.of("r1", routeDescriptor), rcf),
+                false, false, filters,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
+
+        // When
+        assertThatThrownBy(model::close).hasMessage("rcf close boom");
+
+        // Then: FilterChainFactory was still closed despite the exception
+        assertThat(onFilterClose.get()).as("FilterChainFactory close should fire despite RCF failure").isEqualTo(1);
     }
 
     /**

@@ -6,65 +6,51 @@
 
 package io.kroxylicious.kms.provider.thales.ciphertrust.config;
 
-import java.io.IOException;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class UserCredentialsTest {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    @Test
-    void successfulParse() throws IOException {
-        String json = """
-                {
-                    "username": "testuser",
-                    "password": { "password": "testpass" }
-                }
-                """;
-        UserCredentials credentials = MAPPER.reader().readValue(json, UserCredentials.class);
-        assertThat(credentials.username()).isEqualTo("testuser");
-        assertThat(credentials.password()).isInstanceOf(InlinePassword.class);
-        assertThat(credentials.password().getProvidedPassword()).isEqualTo("testpass");
+    @ParameterizedTest
+    @MethodSource("invalidConstructorArguments")
+    void constructorValidation(String username, PasswordProvider password, Class<? extends Exception> expectedExceptionType, String expectedMessage) {
+        // When/Then
+        assertThatThrownBy(() -> new UserCredentials(username, password))
+                .isInstanceOf(expectedExceptionType)
+                .hasMessageContaining(expectedMessage);
+    }
+
+    static Stream<Arguments> invalidConstructorArguments() {
+        PasswordProvider validPassword = new InlinePassword("validPassword");
+        return Stream.of(
+                Arguments.of(null, validPassword, NullPointerException.class, "username cannot be null"),
+                Arguments.of("validUser", null, NullPointerException.class, "password cannot be null"),
+                Arguments.of("", validPassword, IllegalArgumentException.class, "username cannot be empty"));
     }
 
     @Test
-    void usernameRequired() {
-        assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "password": { "password": "testpass" }
-                    }
-                    """;
-            MAPPER.reader().readValue(json, UserCredentials.class);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("username");
-    }
+    void toStringMasksPassword() {
+        // Given
+        var credentials = new UserCredentials("testuser", new InlinePassword("secret"));
 
-    @Test
-    void passwordRequired() {
-        assertThatThrownBy(() -> {
-            String json = """
-                    {
-                        "username": "testuser"
-                    }
-                    """;
-            MAPPER.reader().readValue(json, UserCredentials.class);
-        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("password");
-    }
+        // When
+        String result = credentials.toString();
 
-    @Test
-    void usernameCannotBeEmpty() {
-        var password = new InlinePassword("password");
-        assertThatThrownBy(() -> new UserCredentials("", password))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("username cannot be empty");
+        // Then
+        assertThat(result)
+                .contains("testuser")
+                .contains("***")
+                .doesNotContain("secret");
     }
 
 }

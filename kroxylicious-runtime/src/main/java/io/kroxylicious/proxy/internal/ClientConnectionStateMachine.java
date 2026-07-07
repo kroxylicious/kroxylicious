@@ -41,8 +41,11 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -103,9 +106,15 @@ import static org.slf4j.LoggerFactory.getLogger;
  * {@link ServerConnectionStateMachine}.</p>
  *
  * <p>
- *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer.
- *     Thus, when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ *     When either side of the proxy starts applying back pressure the proxy should propagate that fact to the other peer(s).
+ *     Thus, when the proxy is notified that any peer is applying back pressure it results in action on the channels with the opposite peer(s).
+ *     Concretely this means:
  * </p>
+ * <ul>
+ *   <li>When any server channel becomes unwritable, client reads are paused (don't accept requests we can't forward).</li>
+ *   <li>Client reads resume only when all server channels are writable.</li>
+ *   <li>When the client channel becomes unwritable, reads are paused on all server channels (don't accept responses we can't deliver).</li>
+ * </ul>
  */
 @SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller for multi-backend routing
 public class ClientConnectionStateMachine {
@@ -367,12 +376,16 @@ public class ClientConnectionStateMachine {
      */
     void onServerWritable() {
         if (clientReadsBlocked) {
-            clientReadsBlocked = false;
-            if (clientToProxyBackpressureTimer != null) {
-                clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
-                clientToProxyBackpressureTimer = null;
+            boolean allWritable = serverConnections.values().stream()
+                    .allMatch(ServerConnectionStateMachine::isWritable);
+            if (allWritable) {
+                clientReadsBlocked = false;
+                if (clientToProxyBackpressureTimer != null) {
+                    clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
+                    clientToProxyBackpressureTimer = null;
+                }
+                Objects.requireNonNull(frontendHandler).relieveBackpressure();
             }
-            Objects.requireNonNull(frontendHandler).relieveBackpressure();
         }
     }
 
@@ -480,7 +493,7 @@ public class ClientConnectionStateMachine {
      * @param msg the RPC received from the upstream
      */
     void onDirectClientFilterChainComplete(Object msg) {
-        if (virtualCluster().usesRouter()) {
+        if (virtualCluster().routing() instanceof DynamicRouting) {
             throw new IllegalStateException(
                     "onDirectClientFilterChainComplete must not be called for a virtual cluster that uses a router");
         }
@@ -846,28 +859,35 @@ public class ClientConnectionStateMachine {
     @SuppressWarnings("java:S5738")
     private void toForwardingWithRoutes(Forwarding forwarding) {
         setState(forwarding);
-        Map<String, RouteDescriptor> descriptors = virtualCluster().routeDescriptors();
+        if (!(virtualCluster().routing() instanceof DynamicRouting dr)) {
+            throw new IllegalStateException(
+                    "toForwardingWithRoutes called but virtualCluster has no router — this is a bug");
+        }
+        var descriptors = dr.routeDescriptors();
         routeTargets = new HashMap<>();
-        var frontend = Objects.requireNonNull(frontendHandler);
-        Channel clientChannel = Objects.requireNonNull(frontend.clientChannel());
         for (var entry : descriptors.entrySet()) {
             RouteDescriptor rd = entry.getValue();
             if (rd.targetsCluster()) {
-                HostPort target = Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
-                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer");
-                serverConnections.computeIfAbsent(target, t -> {
-                    var newScsm = createServerConnection(t);
-                    newScsm.connect(clientChannel);
-                    return newScsm;
-                });
-                routeTargets.put(entry.getKey(), target);
+                routeTargets.put(entry.getKey(), Objects.requireNonNull(rd.targetCluster().bootstrapServer(),
+                        "route '" + entry.getKey() + "' targetCluster has a null bootstrapServer"));
             }
         }
+        // For per-broker connections, the EndpointReconciler has already resolved the
+        // real upstream address. Override the owning route's bootstrap target with it.
+        // Server connections are opened lazily in forwardToRoute().
+        if (endpointBinding instanceof BrokerEndpointBinding beb) {
+            var routeAndNode = dr.nodeIdMapping().fromVirtual(beb.nodeId());
+            RouteDescriptor owningDesc = descriptors.get(routeAndNode.route());
+            if (owningDesc != null && owningDesc.targetsCluster()) {
+                routeTargets.put(routeAndNode.route(), beb.upstreamTarget());
+            }
+        }
+        var frontend = Objects.requireNonNull(frontendHandler);
         log(Level.DEBUG)
                 .addKeyValue("routeCount", () -> routeTargets.size())
-                .addKeyValue("backendCount", () -> serverConnections.size())
+                .addKeyValue("routeTargets", () -> routeTargets.toString())
                 .addKeyValue("clientAddress", () -> HostPort.asString(frontend.remoteHost(), frontend.remotePort()))
-                .log("Upstream connections initiated for routing VC");
+                .log("Route targets resolved for router VC");
     }
 
     /**
@@ -876,7 +896,7 @@ public class ClientConnectionStateMachine {
      * for both static and dynamic routing paths.
      */
     public void forwardToRoute(String routeName, Object msg) {
-        if (!virtualCluster().usesRouter()) {
+        if (!(virtualCluster().routing() instanceof DynamicRouting)) {
             throw new IllegalStateException(
                     "forwardToRoute must not be called for a virtual cluster that does not use a router");
         }
@@ -886,11 +906,13 @@ public class ClientConnectionStateMachine {
                 illegalState("Unknown route: " + routeName);
                 return;
             }
-            ServerConnectionStateMachine scsm = serverConnections.get(target);
-            if (scsm == null) {
-                illegalState("No server connection for target: " + target);
-                return;
-            }
+            ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
+                var newScsm = createServerConnection(target);
+                Channel clientChannel = Objects.requireNonNull(
+                        Objects.requireNonNull(frontendHandler).clientChannel());
+                newScsm.connect(clientChannel);
+                return newScsm;
+            });
             scsm.sendRequest(msg);
         }
         else {
@@ -932,12 +954,12 @@ public class ClientConnectionStateMachine {
             this.clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
         }
         if (msg instanceof RequestFrame) {
-            if (virtualCluster().usesRouter()) {
-                toForwardingWithRoutes(forwardingFactory.get());
-            }
-            else {
-                var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-                toForwarding(forwardingFactory.get(), target);
+            switch (virtualCluster().routing()) {
+                case DynamicRouting ignored -> toForwardingWithRoutes(forwardingFactory.get());
+                case DirectRouting ignored -> {
+                    var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
+                    toForwarding(forwardingFactory.get(), target);
+                }
             }
             tryUnblockClient();
             return true;

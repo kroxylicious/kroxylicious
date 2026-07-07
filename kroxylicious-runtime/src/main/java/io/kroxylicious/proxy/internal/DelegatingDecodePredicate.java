@@ -76,7 +76,16 @@ class DelegatingDecodePredicate implements DecodePredicate {
 
     @Override
     public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
-        return delegate == null || delegate.shouldDecodeResponse(apiKey, apiVersion);
+        if (apiKey == ApiKeys.API_VERSIONS) {
+            return true;
+        }
+        if (delegate == null) {
+            return true;
+        }
+        if (delegate.shouldDecodeResponse(apiKey, apiVersion)) {
+            return true;
+        }
+        return routerRequiresDecoding != null && routerRequiresDecoding.contains(apiKey);
     }
 
     @Override

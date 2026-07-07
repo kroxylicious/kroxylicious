@@ -33,7 +33,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
-                             @Deprecated @Nullable TargetCluster targetCluster,
+                             @Deprecated(since = "0.22.0", forRemoval = true) @Nullable TargetCluster targetCluster,
                              @Nullable RouteTarget target,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,

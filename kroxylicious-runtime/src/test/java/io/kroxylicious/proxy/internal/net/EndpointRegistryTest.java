@@ -35,7 +35,6 @@ import io.netty.util.AttributeKey;
 import io.kroxylicious.proxy.HostPortConverter;
 import io.kroxylicious.proxy.bootstrap.BootstrapSelectionStrategy;
 import io.kroxylicious.proxy.bootstrap.FixedBootstrapSelectionStrategy;
-import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -761,8 +760,6 @@ class EndpointRegistryTest {
         when(cluster.isUseTls()).thenReturn(tls);
         when(cluster.requiresServerNameIndication()).thenReturn(sni);
         when(cluster.discoveryAddressMap()).thenReturn(discoveryAddressMap);
-        var targetCluster = new TargetCluster(upstreamBootstrap.toString(), Optional.empty(), selectionStrategy);
-        when(cluster.targetCluster()).thenReturn(targetCluster);
         when(cluster.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
     }
 

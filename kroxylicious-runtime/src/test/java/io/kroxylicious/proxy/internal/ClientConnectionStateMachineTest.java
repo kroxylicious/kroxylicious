@@ -54,6 +54,7 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -62,6 +63,8 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.HaProxyContext;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
@@ -76,6 +79,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -93,8 +97,9 @@ class ClientConnectionStateMachineTest {
     private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
-    private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
-            List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10));
+    private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME,
+            new DirectRouting(new TargetCluster("", Optional.empty())), false, false,
+            List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ClientConnectionStateMachine clientConnectionStateMachine;
@@ -127,6 +132,7 @@ class ClientConnectionStateMachineTest {
         when(frontendHandler.clientChannel()).thenReturn(mock(Channel.class));
         // Make the executor run tasks synchronously for tests
         when(frontendHandler.eventLoopExecutor()).thenReturn(Runnable::run);
+        lenient().when(serverConnectionStateMachine.isWritable()).thenReturn(true);
     }
 
     @AfterEach
@@ -741,7 +747,9 @@ class ClientConnectionStateMachineTest {
 
     private void stubAsRouterVirtualCluster() {
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
+        var routeDescriptors = Map.of("route",
+                new RouteDescriptor("route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
     }
 
@@ -967,8 +975,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetsCluster()).thenReturn(true);
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
-        when(routerVc.routeDescriptors()).thenReturn(Map.of("my-route", routeDescriptor));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor), mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: first request triggers toForwardingWithRoutes
@@ -981,35 +988,27 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void toForwardingWithRoutesShouldNotPopulateRouteTargetIfScsmCreationFails() {
-        // Given: a CCSM whose SCSM factory throws on creation
+    void forwardToRouteShouldTransitionToClosedIfScsmCreationFails() {
+        // Given: a CCSM whose SCSM factory throws on creation, in Forwarding state with a known route
         var failingCcsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
                 (remote, ccsm, vc, cn, ni, cc, ec, bpm, token) -> {
                     throw new RuntimeException("scsm creation failed");
                 });
-        failingCcsm.forceState(new ClientConnectionState.ClientActive(), frontendHandler,
-                Map.of(), TEST_KAFKA_SESSION, true);
-
         var target = new HostPort("broker", 9092);
-        var targetCluster = mock(TargetCluster.class, withSettings().lenient());
-        when(targetCluster.bootstrapServer()).thenReturn(target);
-        var routeDescriptor = mock(RouteDescriptor.class, withSettings().lenient());
-        when(routeDescriptor.targetsCluster()).thenReturn(true);
-        when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
+        failingCcsm.forceState(new ClientConnectionState.Forwarding(), frontendHandler,
+                Map.of(), TEST_KAFKA_SESSION, true, Map.of("my-route", target));
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
-        when(routerVc.routeDescriptors()).thenReturn(Map.of("my-route", routeDescriptor));
+        var routeDescriptors2 = Map.of("my-route",
+                new RouteDescriptor("my-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors2, mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
-        // When: first request triggers toForwardingWithRoutes, which fails during SCSM creation
-        assertThatThrownBy(() -> failingCcsm.onClientRequest(metadataRequest()))
+        // When: forwardToRoute lazily tries to create an SCSM and fails
+        var msg = new Object();
+        assertThatThrownBy(() -> failingCcsm.forwardToRoute("my-route", msg))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("scsm creation failed");
-
-        // Then: routeTargets was not populated, so forwardToRoute transitions to Closed
-        failingCcsm.forwardToRoute("my-route", new Object());
-        assertThat(failingCcsm.state()).isInstanceOf(ClientConnectionState.Closed.class);
     }
 
     @Test
@@ -1029,8 +1028,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetsCluster()).thenReturn(true);
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
-        when(routerVc.usesRouter()).thenReturn(true);
-        when(routerVc.routeDescriptors()).thenReturn(Map.of("bad-route", routeDescriptor));
+        when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("bad-route", routeDescriptor), mock(RouterChainFactory.class)));
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When / Then
@@ -1112,10 +1110,12 @@ class ClientConnectionStateMachineTest {
     }
 
     @Test
-    void forwardToRouteWithNoScsmForTargetShouldTransitionToClosed() {
-        // routeTargets maps a route to a target, but serverConnections has no SCSM for that target.
+    void forwardToRouteWithNoScsmForTargetShouldCreateConnectionLazily() {
+        // routeTargets maps a route to a target, but serverConnections has no SCSM yet.
+        // forwardToRoute should create the SCSM lazily and forward the request.
         stubAsRouterVirtualCluster();
         var orphanTarget = new HostPort("orphan", 9092);
+        var msg = new Object();
         clientConnectionStateMachine.forceState(
                 new ClientConnectionState.Forwarding(),
                 frontendHandler,
@@ -1125,10 +1125,11 @@ class ClientConnectionStateMachineTest {
                 Map.of("route-a", orphanTarget));
 
         // When
-        clientConnectionStateMachine.forwardToRoute("route-a", new Object());
+        clientConnectionStateMachine.forwardToRoute("route-a", msg);
 
-        // Then
-        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        // Then: SCSM was created and the request forwarded; state remains Forwarding
+        assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+        verify(serverConnectionStateMachine).sendRequest(msg);
     }
 
     @Test
@@ -1198,6 +1199,56 @@ class ClientConnectionStateMachineTest {
         // Then
         verify(scsm1).relieveBackpressure();
         verify(scsm2).relieveBackpressure();
+    }
+
+    @Test
+    void shouldNotUnblockClientWhenOnlyOneBackendBecomesWritable() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true);
+        clientConnectionStateMachine.clientReadsBlocked = true;
+        lenient().when(scsm1.isWritable()).thenReturn(true);
+        when(scsm2.isWritable()).thenReturn(false);
+
+        // When
+        clientConnectionStateMachine.onServerWritable();
+
+        // Then
+        assertThat(clientConnectionStateMachine.clientReadsBlocked).isTrue();
+        verify(frontendHandler, never()).relieveBackpressure();
+    }
+
+    @Test
+    void shouldUnblockClientWhenAllBackendsWritable() {
+        // Given
+        var scsm1 = mock(ServerConnectionStateMachine.class);
+        var scsm2 = mock(ServerConnectionStateMachine.class);
+        var addr1 = new HostPort("host1", 9092);
+        var addr2 = new HostPort("host2", 9092);
+        clientConnectionStateMachine.forceState(
+                new ClientConnectionState.Forwarding(),
+                frontendHandler,
+                Map.of(addr1, scsm1, addr2, scsm2),
+                TEST_KAFKA_SESSION,
+                true);
+        clientConnectionStateMachine.clientReadsBlocked = true;
+        lenient().when(scsm1.isWritable()).thenReturn(true);
+        lenient().when(scsm2.isWritable()).thenReturn(true);
+
+        // When
+        clientConnectionStateMachine.onServerWritable();
+
+        // Then
+        assertThat(clientConnectionStateMachine.clientReadsBlocked).isFalse();
+        verify(frontendHandler).relieveBackpressure();
     }
 
     private int getVirtualNodeClientToProxyActiveConnections() {

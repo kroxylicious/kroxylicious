@@ -23,8 +23,12 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RoutingModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -257,21 +261,25 @@ public record Configuration(
                                                       Map<String, RouterDefinition> routersByName,
                                                       Map<String, ClusterDefinition> clustersByName,
                                                       PluginFactoryRegistry pfr) {
-        TargetCluster resolvedTargetCluster = resolveTargetCluster(virtualCluster, routersByName, clustersByName);
-        Map<String, RouteDescriptor> routeDescriptors = resolveRouteDescriptors(
-                virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
+        RoutingModel routing;
+        if (virtualCluster.router() != null) {
+            var routeDescriptors = resolveRouteDescriptors(virtualCluster, filterDefinitionsByName, routersByName, clustersByName);
+            var routerChainFactory = RouterChainFactory.forVirtualCluster(pfr, virtualCluster, routersByName);
+            routing = new DynamicRouting(virtualCluster.router(), routeDescriptors, routerChainFactory);
+        }
+        else {
+            routing = new DirectRouting(resolveDirectTargetCluster(virtualCluster, clustersByName));
+        }
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
-                resolvedTargetCluster,
+                routing,
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
                 filterDefinitions,
                 virtualCluster.topicNameCacheConfig(),
                 virtualCluster.subjectBuilder(),
                 virtualCluster.effectiveDrainTimeout(),
-                pfr,
-                virtualCluster.router(),
-                routeDescriptors);
+                pfr);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
@@ -279,10 +287,8 @@ public record Configuration(
         return virtualClusterModel;
     }
 
-    @Nullable
-    private TargetCluster resolveTargetCluster(VirtualCluster virtualCluster,
-                                               Map<String, RouterDefinition> routersByName,
-                                               Map<String, ClusterDefinition> clustersByName) {
+    private TargetCluster resolveDirectTargetCluster(VirtualCluster virtualCluster,
+                                                     Map<String, ClusterDefinition> clustersByName) {
         if (virtualCluster.targetCluster() != null) {
             return virtualCluster.targetCluster();
         }
@@ -293,27 +299,8 @@ public record Configuration(
                                     + virtualCluster.namedTargetCluster() + "'"))
                     .toTargetCluster();
         }
-        if (virtualCluster.router() != null) {
-            return resolveRouterPrimaryTargetCluster(virtualCluster, routersByName, clustersByName);
-        }
-        return null;
-    }
-
-    @Nullable
-    private TargetCluster resolveRouterPrimaryTargetCluster(VirtualCluster virtualCluster,
-                                                            Map<String, RouterDefinition> routersByName,
-                                                            Map<String, ClusterDefinition> clustersByName) {
-        RouterDefinition rd = routersByName.get(virtualCluster.router());
-        if (rd == null) {
-            throw new IllegalConfigurationException(
-                    "Virtual cluster '" + virtualCluster.name() + "' references unknown router '"
-                            + virtualCluster.router() + "'");
-        }
-        return rd.routes().stream()
-                .filter(route -> route.cluster() != null)
-                .findFirst()
-                .map(route -> resolveNamedTargetCluster(route.cluster(), clustersByName))
-                .orElse(null);
+        throw new IllegalConfigurationException(
+                "Virtual cluster '" + virtualCluster.name() + "' must specify either a targetCluster, a namedTargetCluster, or a router");
     }
 
     @Nullable
@@ -322,15 +309,11 @@ public record Configuration(
         return cd != null ? cd.toTargetCluster() : null;
     }
 
-    @Nullable
     private Map<String, RouteDescriptor> resolveRouteDescriptors(
                                                                  VirtualCluster virtualCluster,
                                                                  Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                                  Map<String, RouterDefinition> routersByName,
                                                                  Map<String, ClusterDefinition> clustersByName) {
-        if (virtualCluster.router() == null) {
-            return null;
-        }
         RouterDefinition rd = routersByName.get(virtualCluster.router());
         if (rd == null) {
             throw new IllegalConfigurationException(

@@ -26,10 +26,12 @@ body alone, combined with the test name. A reader should be able to identify the
 and immediately know what is being tested without reading the class Javadoc or surrounding
 context.
 
-Numbered phase comments (`// Phase 1`, `// Phase 2`) tell you sequence but hide intent:
-"Phase 3: reconfigure swaps the filter chain" and "When: proxy reconfigured with new filter
-chain" carry the same information, but only the second tells you that reconfigure is the action
-being tested, not more setup.
+Numbered phase comments (`// Phase 1`, `// Phase 2`) tell you sequence but hide intent —
+use `// Given`, `// When`, `// Then` instead.
+
+**Write bare labels only:** `// Given`, `// When`, `// Then` — no text after the label.
+The code already says what's happening through types, variable names, and method names.
+Text like `// Given: a key pair and passwords` just narrates what the code already says.
 
 ## Given — minimum state, no assertions
 

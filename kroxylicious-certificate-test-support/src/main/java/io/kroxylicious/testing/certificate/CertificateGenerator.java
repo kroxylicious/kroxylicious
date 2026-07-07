@@ -7,18 +7,20 @@
 package io.kroxylicious.testing.certificate;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,21 +33,31 @@ import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.openssl.jcajce.JcePEMEncryptorBuilder;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * Test utility to create key material in a variety of forms.
+ */
 public class CertificateGenerator {
 
     public static final String PKCS_12 = "PKCS12";
     public static final String JKS = "JKS";
     public static final String ALIAS = "alias";
+    @SuppressWarnings("java:S2068") // This is a test password. A constant is not inappropriate.
+    public static final String ENCRYPTED_KEY_PASSWORD = "keypass";
+
+    private CertificateGenerator() {
+        // utility class - do not construct
+    }
 
     public static KeyPair generateRsaKeyPair() {
         try {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-            generator.initialize(1024, new SecureRandom());
+            generator.initialize(2048, new SecureRandom());
             return generator.generateKeyPair();
         }
         catch (NoSuchAlgorithmException e) {
@@ -63,6 +75,21 @@ public class CertificateGenerator {
         }
     }
 
+    static Path writeEncryptedRsaPrivateKeyPem(KeyPair pair, String password) {
+        try {
+            var rsakey = createTempFile("encrypted-rsakey", ".pem");
+            try (var pemWriter = new JcaPEMWriter(Files.newBufferedWriter(rsakey.toPath(), StandardCharsets.UTF_8))) {
+                var encryptorBuilder = new JcePEMEncryptorBuilder("AES-256-CBC");
+                encryptorBuilder.setProvider(new BouncyCastleProvider());
+                pemWriter.writeObject(pair.getPrivate(), encryptorBuilder.build(password.toCharArray()));
+            }
+            return rsakey.toPath();
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @NonNull
     private static Path writeToPem(Object obj, File file) throws IOException {
         try (JcaPEMWriter pemWriter = new JcaPEMWriter(new FileWriter(file, StandardCharsets.UTF_8))) {
@@ -72,6 +99,7 @@ public class CertificateGenerator {
     }
 
     @NonNull
+    @SuppressWarnings("java:S5443") // These files are used exclusively on test path, file permissions aren't a concern
     private static File createTempFile(String prefix, String suffix) {
         try {
             File file = File.createTempFile(prefix, suffix);
@@ -123,26 +151,26 @@ public class CertificateGenerator {
         }
     }
 
-    private static Path buildPkcs12TrustStore(X509Certificate cert, @Nullable String password) {
-        return buildTrustStore(cert, password, ".p12", PKCS_12);
-    }
-
-    private static Path buildJksTrustStore(X509Certificate cert, @Nullable String password) {
-        return buildTrustStore(cert, password, ".jks", JKS);
-    }
-
+    /**
+     * Create a trust store containing the given certificate.
+     *
+     * @param cert the certificate to include in the trust store
+     * @param password optional password for the trust store
+     * @param type the trust store type (e.g., "JKS", "PKCS12")
+     * @return TrustStore record containing path, type, password, and password file
+     */
     @NonNull
-    private static Path buildTrustStore(X509Certificate cert, @Nullable String password, String suffix, String type) {
+    public static TrustStore createTrustStore(X509Certificate cert, @Nullable String password, String type) {
+        String suffix = PKCS_12.equals(type) ? ".p12" : ".jks";
         try {
             File certFile = createTempFile("trust", suffix);
             java.security.KeyStore store = java.security.KeyStore.getInstance(type);
             store.load(null, null);
             store.setCertificateEntry(ALIAS, cert);
             char[] pass = password != null ? password.toCharArray() : null;
-            try (FileOutputStream outputStream = new FileOutputStream(certFile)) {
-                store.store(outputStream, pass);
-            }
-            return certFile.toPath();
+            writeKeyStore(certFile, store, pass);
+            Path passwordFile = password != null ? writeToTempFile(password) : null;
+            return new TrustStore(certFile.toPath(), type, password, passwordFile);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -160,6 +188,8 @@ public class CertificateGenerator {
 
     public record Keys(KeyPair serverKey,
                        Path privateKeyPem,
+                       Path encryptedPrivateKeyPem,
+                       String encryptedPrivateKeyPassword,
                        Path selfSignedCertificatePem,
                        TrustStore pkcs12ClientTruststore,
                        TrustStore jksClientTruststore,
@@ -171,35 +201,49 @@ public class CertificateGenerator {
         String password = "changeit";
         KeyPair pair = generateRsaKeyPair();
         Path privateKeyPem = writeRsaPrivateKeyPem(pair);
+        Path encryptedPrivateKeyPem = writeEncryptedRsaPrivateKeyPem(pair, ENCRYPTED_KEY_PASSWORD);
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
-        KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, "keypass");
+        KeyStore keyStore = createKeystore(pair, x509Certificate, password, ENCRYPTED_KEY_PASSWORD, JKS);
         Path serverCert = generateCertPem(x509Certificate);
-        Path pkcs12Trust = buildPkcs12TrustStore(x509Certificate, password);
-        Path noPasswordPkcs12Trust = buildPkcs12TrustStore(x509Certificate, null);
-        Path jksTrust = buildJksTrustStore(x509Certificate, password);
-        Path passwordFile = writeToTempFile(password);
-        TrustStore pkcs12ClientTruststore = new TrustStore(pkcs12Trust, PKCS_12, password, passwordFile);
-        TrustStore pkcs12NoPasswordTruststore = new TrustStore(noPasswordPkcs12Trust, PKCS_12, null, null);
-        TrustStore jksClientTruststore = new TrustStore(jksTrust, JKS, password, passwordFile);
-        return new Keys(pair, privateKeyPem, serverCert, pkcs12ClientTruststore, jksClientTruststore, pkcs12NoPasswordTruststore, keyStore);
+        TrustStore pkcs12ClientTruststore = createTrustStore(x509Certificate, password, PKCS_12);
+        TrustStore pkcs12NoPasswordTruststore = createTrustStore(x509Certificate, null, PKCS_12);
+        TrustStore jksClientTruststore = createTrustStore(x509Certificate, password, JKS);
+        return new Keys(pair, privateKeyPem, encryptedPrivateKeyPem, ENCRYPTED_KEY_PASSWORD, serverCert, pkcs12ClientTruststore, jksClientTruststore,
+                pkcs12NoPasswordTruststore, keyStore);
     }
 
-    public static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword) {
+    /**
+     * Create a keystore containing the given key pair and certificate.
+     *
+     * @param privateKeyPem the private key
+     * @param x509Certificate the certificate
+     * @param storePassword password for the keystore
+     * @param keyPassword password for the key entry
+     * @param type the keystore type (e.g., "JKS", "PKCS12")
+     * @return KeyStore record containing path, type, passwords, and password files
+     */
+    public static KeyStore createKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword, String type) {
+        String suffix = PKCS_12.equals(type) ? ".p12" : ".jks";
         try {
-            File tempFile = createTempFile("keystore", "jks");
-            java.security.KeyStore store = java.security.KeyStore.getInstance(JKS);
+            File tempFile = createTempFile("keystore", suffix);
+            java.security.KeyStore store = java.security.KeyStore.getInstance(type);
             store.load(null);
             store.setKeyEntry(ALIAS, privateKeyPem.getPrivate(), keyPassword.toCharArray(), new Certificate[]{ x509Certificate });
-            try (FileOutputStream stream = new FileOutputStream(tempFile)) {
-                store.store(stream, storePassword.toCharArray());
-            }
+            writeKeyStore(tempFile, store, storePassword.toCharArray());
             Path path = tempFile.toPath();
             Path storePasswordFile = writeToTempFile(storePassword);
             Path keyPasswordFile = writeToTempFile(keyPassword);
-            return new KeyStore(path, JKS, storePassword, storePasswordFile, keyPassword, keyPasswordFile);
+            return new KeyStore(path, type, storePassword, storePasswordFile, keyPassword, keyPasswordFile);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static void writeKeyStore(File tempFile, java.security.KeyStore store, char[] storePassword)
+            throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+        try (var stream = Files.newOutputStream(tempFile.toPath())) {
+            store.store(stream, storePassword);
         }
     }
 
@@ -207,7 +251,7 @@ public class CertificateGenerator {
         try {
             File tempFile = createTempFile("pass", "raw");
             Path path = tempFile.toPath();
-            java.nio.file.Files.writeString(path, password, StandardCharsets.UTF_8);
+            Files.writeString(path, password, StandardCharsets.UTF_8);
             return path;
         }
         catch (IOException e) {

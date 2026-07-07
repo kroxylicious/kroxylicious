@@ -5,9 +5,10 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -40,21 +41,19 @@ public record RouterDefinition(
         if (routes == null || routes.isEmpty()) {
             throw new IllegalConfigurationException("Router '" + name + "' must have at least one route");
         }
-        var routeNames = routes.stream()
+        Set<String> seenNames = new HashSet<>();
+        Set<String> nameDuplicates = routes.stream()
                 .map(RouteDefinition::name)
-                .toList();
-        var nameDuplicates = routeNames.stream()
-                .filter(n -> Collections.frequency(routeNames, n) > 1)
+                .filter(n -> !seenNames.add(n))
                 .collect(Collectors.toSet());
         if (!nameDuplicates.isEmpty()) {
             throw new IllegalConfigurationException(
                     "Router '" + name + "' has duplicate route names: " + nameDuplicates);
         }
-        var routeIds = routes.stream()
+        Set<Integer> seenIds = new HashSet<>();
+        Set<Integer> idDuplicates = routes.stream()
                 .map(RouteDefinition::id)
-                .toList();
-        var idDuplicates = routeIds.stream()
-                .filter(id -> Collections.frequency(routeIds, id) > 1)
+                .filter(id -> !seenIds.add(id))
                 .collect(Collectors.toSet());
         if (!idDuplicates.isEmpty()) {
             throw new IllegalConfigurationException(

@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -46,7 +47,6 @@ import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-import io.kroxylicious.testing.certificate.PemParser;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -84,9 +84,6 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
      * @param tls tls parameters
      */
     public TlsHttpClientConfigurator(@Nullable Tls tls) {
-        if (tls != null && tls.key() != null) {
-            LOGGER.warn("TLS key material is currently not supported by this client");
-        }
         this.tls = tls;
     }
 
@@ -116,27 +113,27 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
         }
     }
 
-    private SSLParameters sslParameters() {
-        var defaultSslParameters = PLATFORM_SSL_CONTEXT.getDefaultSSLParameters();
+    private SSLParameters sslParameters(SSLContext context) {
+        var copy = context.getDefaultSSLParameters();
 
         // Disable hostname verification if using insecure TLS
         if (isInsecureTls()) {
-            defaultSslParameters.setEndpointIdentificationAlgorithm(null);
+            copy.setEndpointIdentificationAlgorithm(null);
         }
 
         if (tls == null || (tls.protocols() == null && tls.cipherSuites() == null)) {
-            return defaultSslParameters;
+            return copy;
         }
 
-        var supportedSSLParameters = PLATFORM_SSL_CONTEXT.getSupportedSSLParameters();
+        var supportedSSLParameters = context.getSupportedSSLParameters();
 
-        var protocols = applyRestriction("protocol", tls.protocols(), defaultSslParameters, supportedSSLParameters, SSLParameters::getProtocols);
-        var cipherSuites = applyRestriction("cipher suite", tls.cipherSuites(), defaultSslParameters, supportedSSLParameters, SSLParameters::getCipherSuites);
+        var protocols = applyRestriction("protocol", tls.protocols(), copy, supportedSSLParameters, SSLParameters::getProtocols);
+        var cipherSuites = applyRestriction("cipher suite", tls.cipherSuites(), copy, supportedSSLParameters, SSLParameters::getCipherSuites);
 
-        defaultSslParameters.setProtocols(protocols);
-        defaultSslParameters.setCipherSuites(cipherSuites);
+        copy.setProtocols(protocols);
+        copy.setCipherSuites(cipherSuites);
 
-        return defaultSslParameters;
+        return copy;
     }
 
     private boolean isInsecureTls() {
@@ -207,9 +204,37 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
     @VisibleForTesting
     static KeyManager[] getKeyManagers(KeyProvider key) {
         return key.accept(new KeyProviderVisitor<>() {
+            @SuppressFBWarnings({ "PATH_TRAVERSAL_IN", "HARD_CODE_PASSWORD" })
             @Override
             public KeyManager[] visit(KeyPair keyPair) {
-                throw new SslConfigurationException("KeyPair is not supported by this client");
+                try {
+                    // Read private key and certificate from PEM files
+                    byte[] keyBytes = Files.readAllBytes(Paths.get(keyPair.privateKeyFile()));
+                    byte[] certBytes = Files.readAllBytes(Paths.get(keyPair.certificateFile()));
+
+                    char[] keypassword = keyPair.keyPasswordProvider() != null
+                            ? keyPair.keyPasswordProvider().getProvidedPassword().toCharArray()
+                            : null;
+                    PrivateKey privateKey = PemUtils.parsePrivateKey(keyBytes, keypassword);
+                    X509Certificate[] certs = PemUtils.parseCertificateChain(certBytes);
+
+                    // Create in-memory KeyStore
+                    KeyStore ks = KeyStore.getInstance("JKS");
+                    ks.load(null, null);
+                    // Use empty password for both store and key entry for in-memory keystore
+                    char[] storePassword = "".toCharArray();
+                    ks.setKeyEntry("key", privateKey, storePassword, certs);
+
+                    KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                    kmf.init(ks, storePassword);
+                    return kmf.getKeyManagers();
+                }
+                catch (IOException e) {
+                    throw new SslConfigurationException("Failed to read PEM key material from " + keyPair.certificateFile() + " or " + keyPair.privateKeyFile(), e);
+                }
+                catch (Exception e) {
+                    throw new SslConfigurationException("Failed to load PEM key material", e);
+                }
             }
 
             @SuppressFBWarnings("PATH_TRAVERSAL_IN")
@@ -236,6 +261,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
             }
 
             @Nullable
+            @SuppressFBWarnings(value = "HARD_CODE_PASSWORD", justification = "Password comes from PasswordProvider, not hardcoded. False positive from String.toCharArray() call.")
             private static char[] passwordOrNull(PasswordProvider value) {
                 return Optional.ofNullable(value).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(null);
             }
@@ -267,7 +293,7 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
     private static TrustManager[] loadPemTrustStore(TrustStore trustStore) {
         try {
             byte[] pemBytes = Files.readAllBytes(Paths.get(trustStore.storeFile()));
-            X509Certificate[] certs = PemParser.parseCertificateChain(pemBytes);
+            X509Certificate[] certs = PemUtils.parseCertificateChain(pemBytes);
 
             // Create in-memory KeyStore from PEM certificates
             KeyStore ks = KeyStore.getInstance("JKS");
@@ -324,8 +350,9 @@ public class TlsHttpClientConfigurator implements UnaryOperator<HttpClient.Build
     @Override
     public HttpClient.Builder apply(@NonNull HttpClient.Builder builder) {
         Objects.requireNonNull(builder);
-        builder.sslContext(sslContext())
-                .sslParameters(sslParameters());
+        SSLContext context = sslContext();
+        builder.sslContext(context)
+                .sslParameters(sslParameters(context));
         return builder;
     }
 }

@@ -24,6 +24,7 @@ public class ContainerTemplates {
     }
 
     private static final List<String> SNAPSHOT_STRINGS = List.of("latest", "snapshot");
+    private static final Object IMAGE_PULL_LOCK = new Object();
 
     private static final Set<String> snapshotImagesPulledOnce = new HashSet<>();
 
@@ -36,12 +37,14 @@ public class ContainerTemplates {
      * @param image         image
      * @return container builder
      */
-    public static synchronized ContainerBuilder baseImageBuilder(String containerName, String image) {
+    public static ContainerBuilder baseImageBuilder(String containerName, String image) {
         var imagePullPolicy = Constants.PULL_IMAGE_IF_NOT_PRESENT;
         String lowerCaseImage = image.toLowerCase();
-        if (SNAPSHOT_STRINGS.stream().anyMatch(lowerCaseImage::contains) && !snapshotImagesPulledOnce.contains(image)) {
-            imagePullPolicy = Constants.PULL_IMAGE_ALWAYS;
-            snapshotImagesPulledOnce.add(image);
+        synchronized (IMAGE_PULL_LOCK) {
+            if (SNAPSHOT_STRINGS.stream().anyMatch(lowerCaseImage::contains) && !snapshotImagesPulledOnce.contains(image)) {
+                imagePullPolicy = Constants.PULL_IMAGE_ALWAYS;
+                snapshotImagesPulledOnce.add(image);
+            }
         }
         return new ContainerBuilder()
                 .withName(containerName)

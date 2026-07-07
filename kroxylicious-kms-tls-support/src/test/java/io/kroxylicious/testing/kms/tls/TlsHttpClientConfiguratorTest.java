@@ -9,6 +9,7 @@ package io.kroxylicious.testing.kms.tls;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.http.HttpClient;
+import java.nio.file.NoSuchFileException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -22,8 +23,10 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509KeyManager;
 import javax.net.ssl.X509TrustManager;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -33,12 +36,12 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.testing.certificate.CertificateGenerator;
 
-import static io.kroxylicious.testing.certificate.CertificateGenerator.createJksKeystore;
 import static io.kroxylicious.testing.certificate.CertificateGenerator.generateRsaKeyPair;
 import static io.kroxylicious.testing.certificate.CertificateGenerator.generateSelfSignedX509Certificate;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -134,10 +137,36 @@ class TlsHttpClientConfiguratorTest {
     }
 
     @Test
-    void testFileNotFound() {
+    void shouldDetectMissingTrustMaterialFile() {
         TrustStore store = new TrustStore("/tmp/" + UUID.randomUUID(), new InlinePassword("changeit"), null, null);
-        assertThatThrownBy(() -> TlsHttpClientConfigurator.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class).cause()
+        assertThatThrownBy(() -> TlsHttpClientConfigurator.getTrustManagers(store))
+                .isInstanceOf(SslConfigurationException.class).cause()
                 .isInstanceOf(FileNotFoundException.class);
+    }
+
+    static Stream<Arguments> missingKeyMaterialFiles() {
+        String nonExistentPath = "/tmp/nonexistent-" + UUID.randomUUID();
+        CertificateGenerator.Keys validKeys = CertificateGenerator.generate();
+        return Stream.of(
+                argumentSet("KeyPair with missing private key file",
+                        new KeyPair(nonExistentPath + "-key.pem", validKeys.selfSignedCertificatePem().toString(), null)),
+                argumentSet("KeyPair with missing certificate file",
+                        new KeyPair(validKeys.privateKeyPem().toString(), nonExistentPath + "-cert.pem", null)),
+                argumentSet("KeyStore with missing store file",
+                        new io.kroxylicious.proxy.config.tls.KeyStore(nonExistentPath + ".jks", new InlinePassword("changeit"), null, null)));
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingKeyMaterialFiles")
+    void shouldDetectMissingKeyMaterialFile(KeyProvider keyProvider) {
+        // Given: a KeyProvider pointing to non-existent file(s)
+
+        // When: attempting to get key managers
+        // Then: should throw SslConfigurationException with IOException cause
+        assertThatThrownBy(() -> TlsHttpClientConfigurator.getKeyManagers(keyProvider))
+                .isInstanceOf(SslConfigurationException.class)
+                .cause()
+                .isInstanceOfAny(FileNotFoundException.class, NoSuchFileException.class);
     }
 
     @Test
@@ -150,12 +179,21 @@ class TlsHttpClientConfiguratorTest {
     }
 
     @Test
-    void testPemSupported() {
-        CertificateGenerator.Keys keys = CertificateGenerator.generate();
-        java.nio.file.Path certPem = keys.selfSignedCertificatePem();
-        TrustStore store = new TrustStore(certPem.toString(), null, "PEM", null);
-        TrustManager[] trustManagers = TlsHttpClientConfigurator.getTrustManagers(store);
-        assertThat(trustManagers).isNotEmpty();
+    void shouldAcceptPemTrust() {
+        // Given
+        var keys = CertificateGenerator.generate();
+        var certPem = keys.selfSignedCertificatePem();
+        var store = new TrustStore(certPem.toString(), null, "PEM", null);
+
+        // When
+        var trustManagers = TlsHttpClientConfigurator.getTrustManagers(store);
+
+        // Then
+        assertThat(trustManagers)
+                .singleElement()
+                .asInstanceOf(InstanceOfAssertFactories.type(X509TrustManager.class))
+                .extracting(X509TrustManager::getAcceptedIssuers, InstanceOfAssertFactories.array(X509Certificate[].class))
+                .hasSize(1);
     }
 
     @Test
@@ -192,7 +230,7 @@ class TlsHttpClientConfiguratorTest {
         java.security.KeyPair pair = generateRsaKeyPair();
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
         String password = "password";
-        CertificateGenerator.KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, password);
+        CertificateGenerator.KeyStore keyStore = CertificateGenerator.createKeystore(pair, x509Certificate, password, password, CertificateGenerator.PKCS_12);
         KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), null,
                 keyStore.type());
         KeyManager[] trustManagers = TlsHttpClientConfigurator.getKeyManagers(store);
@@ -200,11 +238,52 @@ class TlsHttpClientConfiguratorTest {
     }
 
     @Test
-    void testKeyPairNotSupported() {
-        KeyPair store = new KeyPair("/tmp/keypair", "/tmp/cert", null);
-        assertThatThrownBy(() -> {
-            TlsHttpClientConfigurator.getKeyManagers(store);
-        }).isInstanceOf(SslConfigurationException.class).hasMessageContaining("KeyPair is not supported by this client");
+    void shouldAcceptPemKeyPair() {
+        // Given
+        var keys = CertificateGenerator.generate();
+        var privateKeyPem = keys.privateKeyPem().toString();
+        var certPem = keys.selfSignedCertificatePem().toString();
+        var keyPair = new KeyPair(privateKeyPem, certPem, null);
+
+        // When
+        var keyManagers = TlsHttpClientConfigurator.getKeyManagers(keyPair);
+
+        // Then
+        assertThat(keyManagers)
+                .singleElement()
+                .asInstanceOf(InstanceOfAssertFactories.type(X509KeyManager.class))
+                .extracting(x -> x.getPrivateKey("key"))
+                .isEqualTo(keys.serverKey().getPrivate());
+    }
+
+    @Test
+    void shouldRejectEncryptedPemKeyPairWithPassword() {
+        // Given: an encrypted PEM private key with password
+        var keys = CertificateGenerator.generate();
+        KeyPair keyPair = new KeyPair(keys.encryptedPrivateKeyPem().toString(), keys.selfSignedCertificatePem().toString(),
+                new InlinePassword(keys.encryptedPrivateKeyPassword()));
+
+        // When: attempting to get key managers
+        // Then: should throw SslConfigurationException because encrypted keys are not supported
+        assertThatThrownBy(() -> TlsHttpClientConfigurator.getKeyManagers(keyPair))
+                .isInstanceOf(SslConfigurationException.class)
+                .cause()
+                .hasMessageContaining("Encrypted private keys are not supported")
+                .hasMessageContaining("JKS/PKCS12");
+    }
+
+    @Test
+    void shouldRejectEncryptedPemKeyPairWithoutPassword() {
+        // Given: an encrypted PEM private key without a password
+        var keys = CertificateGenerator.generate();
+        KeyPair keyPair = new KeyPair(keys.encryptedPrivateKeyPem().toString(), keys.selfSignedCertificatePem().toString(), null);
+
+        // When: attempting to get key managers without a password
+        // Then: should throw SslConfigurationException because the key is encrypted (even though no password was provided)
+        assertThatThrownBy(() -> TlsHttpClientConfigurator.getKeyManagers(keyPair))
+                .isInstanceOf(SslConfigurationException.class)
+                .cause()
+                .isInstanceOf(IOException.class);
     }
 
     @Test

@@ -15,21 +15,16 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-kubernetes-parent</artifactId>
-        <version>0.22.0-SNAPSHOT</version>
+        <version>0.23.0-SNAPSHOT</version>
     </parent>
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-operator-test-support</artifactId>
-    <version>0.22.0-SNAPSHOT</version>
+    <version>0.23.0-SNAPSHOT</version>
     <name>Kubernetes Operator test support</name>
     <description>Custom assertions and other tooling to make writing tests about the state of Kroxylicious Kubernetes
         resources easier.
     </description>
-
-    <properties>
-        <!-- TODO: centralise josdk.version in the parent pom -->
-        <josdk.version>5.3.5</josdk.version>
-    </properties>
 
     <dependencyManagement>
         <dependencies>

@@ -8,16 +8,25 @@ package io.kroxylicious.proxy.config;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.router.RouterFactory;
+import io.kroxylicious.proxy.router.RouterFactoryContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@ExtendWith(MockitoExtension.class)
 class ConfigurationValidationTest {
 
     private static final VirtualCluster SIMPLE_VC = new VirtualCluster("demo",
@@ -34,6 +43,41 @@ class ConfigurationValidationTest {
 
     private static Configuration config(List<VirtualCluster> vcs) {
         return new Configuration(null, null, null, null, null, vcs, null, false, Optional.empty(), null, null);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private static PluginFactoryRegistry noOpRouterPfr() {
+        return new PluginFactoryRegistry() {
+            @Override
+            public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
+                return (PluginFactory<P>) new PluginFactory<RouterFactory<?, ?>>() {
+                    @Override
+                    public RouterFactory<?, ?> pluginInstance(String instanceName) {
+                        return new RouterFactory<Object, Object>() {
+                            @Override
+                            public Object initialize(RouterFactoryContext context, Object config) {
+                                return null;
+                            }
+
+                            @Override
+                            public Router createRouter(RouterFactoryContext context, Object initializationData) {
+                                throw new UnsupportedOperationException("no-op router factory");
+                            }
+                        };
+                    }
+
+                    @Override
+                    public Class<?> configType(String instanceName) {
+                        return Object.class;
+                    }
+
+                    @Override
+                    public Set<String> registeredInstanceNames() {
+                        return Set.of();
+                    }
+                };
+            }
+        };
     }
 
     @Test
@@ -114,10 +158,10 @@ class ConfigurationValidationTest {
                 List.of(simpleGateway("gateway")), false, false, null, null, null, null);
         var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
                 List.of(virtualCluster), null, false, Optional.empty(), null, null);
-        List<VirtualClusterModel> virtualClusterModels = config.virtualClusterModel(null);
+        List<VirtualClusterModel> virtualClusterModels = config.virtualClusterModel(noOpRouterPfr());
         assertThat(virtualClusterModels).hasSize(1).singleElement().satisfies(vm -> {
-            assertThat(vm.usesRouter()).isTrue();
-            assertThat(vm.routerName()).isEqualTo("myrouter");
+            assertThat(vm.routing()).isInstanceOf(DynamicRouting.class);
+            assertThat(((DynamicRouting) vm.routing()).routerName()).isEqualTo("myrouter");
         });
     }
 
@@ -132,10 +176,10 @@ class ConfigurationValidationTest {
         var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
                 List.of(vc), null, false, Optional.empty(), null, null);
 
-        var model = config.virtualClusterModel(null).get(0);
+        var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(model.routeDescriptors()).containsKey("route1");
-        RouteDescriptor rd = model.routeDescriptors().get("route1");
+        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("route1");
         assertThat(rd.name()).isEqualTo("route1");
         assertThat(rd.id()).isZero();
         assertThat(rd.targetsCluster()).isTrue();
@@ -143,7 +187,7 @@ class ConfigurationValidationTest {
     }
 
     @Test
-    void routerResolvesPrimaryTargetClusterFromFirstRoute() {
+    void routerResolvesRouteDescriptorsForMultipleRoutes() {
         var c1 = new ClusterDefinition("c1", "broker1:9092", null);
         var c2 = new ClusterDefinition("c2", "broker2:9092", null);
         var route1 = new RouteDefinition("r1", 0, null, new RouteTarget("c1", null));
@@ -155,11 +199,11 @@ class ConfigurationValidationTest {
         var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router),
                 List.of(vc), null, false, Optional.empty(), null, null);
 
-        var model = config.virtualClusterModel(null).get(0);
+        var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(model.targetCluster()).isNotNull();
-        assertThat(model.targetCluster().bootstrapServersList()).containsExactly(
-                new io.kroxylicious.proxy.service.HostPort("broker1", 9092));
+        assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
+        var dr = (DynamicRouting) model.routing();
+        assertThat(dr.routeDescriptors()).containsKeys("r1", "r2");
     }
 
     @Test
@@ -175,9 +219,9 @@ class ConfigurationValidationTest {
         var config = new Configuration(null, List.of(c1, c2), null, null, List.of(router),
                 List.of(vc), null, false, Optional.empty(), null, null);
 
-        var model = config.virtualClusterModel(null).get(0);
+        var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        assertThat(model.routeDescriptors()).hasSize(2).containsKeys("r1", "r2");
+        assertThat(((DynamicRouting) model.routing()).routeDescriptors()).hasSize(2).containsKeys("r1", "r2");
     }
 
     @Test
@@ -192,21 +236,20 @@ class ConfigurationValidationTest {
         var config = new Configuration(null, List.of(cluster), filterDefs, null, List.of(router),
                 List.of(vc), null, false, Optional.empty(), null, null);
 
-        var model = config.virtualClusterModel(null).get(0);
+        var model = config.virtualClusterModel(noOpRouterPfr()).get(0);
 
-        RouteDescriptor rd = model.routeDescriptors().get("r1");
+        RouteDescriptor rd = ((DynamicRouting) model.routing()).routeDescriptors().get("r1");
         assertThat(rd.filters()).hasSize(1);
         assertThat(rd.filters().get(0).name()).isEqualTo("f1");
     }
 
     @Test
-    void virtualClusterWithoutRouterHasNullRouteDescriptors() {
+    void virtualClusterWithoutRouterHasDirectRouting() {
         var config = config(List.of(SIMPLE_VC));
 
         var model = config.virtualClusterModel(null).get(0);
 
-        assertThat(model.usesRouter()).isFalse();
-        assertThat(model.routeDescriptors()).isNull();
+        assertThat(model.routing()).isInstanceOf(DirectRouting.class);
     }
 
     @Test
@@ -268,11 +311,12 @@ class ConfigurationValidationTest {
         var config = new Configuration(null, List.of(cluster), null, null, List.of(router),
                 List.of(vc), null, false, Optional.empty(), null, null);
 
-        var model = config.virtualClusterModel(null, "demo");
+        var model = config.virtualClusterModel(noOpRouterPfr(), "demo");
 
-        assertThat(model.usesRouter()).isTrue();
-        assertThat(model.routerName()).isEqualTo("myrouter");
-        assertThat(model.routeDescriptors()).containsKey("r1");
+        assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
+        var dr = (DynamicRouting) model.routing();
+        assertThat(dr.routerName()).isEqualTo("myrouter");
+        assertThat(dr.routeDescriptors()).containsKey("r1");
     }
 
     @Test

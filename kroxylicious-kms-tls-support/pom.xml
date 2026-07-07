@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.22.0-SNAPSHOT</version>
+        <version>0.23.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-kms-tls-support</artifactId>
@@ -25,9 +25,19 @@
     </properties>
 
     <dependencies>
+        <!-- project dependencies - runtime and compile -->
+
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+
+        <!-- project dependencies - test -->
+
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-certificate-test-support</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <!-- third party dependencies - build and compile -->
@@ -39,10 +49,6 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-certificate-test-support</artifactId>
         </dependency>
 
         <!-- third party dependencies - test -->
