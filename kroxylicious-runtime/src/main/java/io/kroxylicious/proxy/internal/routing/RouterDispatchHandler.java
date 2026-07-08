@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -73,6 +72,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
             ApiKeys.SHARE_ACKNOWLEDGE,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
+    private static final int ROUTING_ID_RANGE_START_INC = Integer.MIN_VALUE / 2;
+    private static final int ROUTING_ID_RANGE_END_EXC = 0;
+
     private final Router router;
     final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
@@ -88,7 +90,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
 
     final Map<Integer, PendingResponse> pendingResponses = new ConcurrentHashMap<>();
 
-    private final AtomicInteger nextRoutingCorrelationId = new AtomicInteger(Integer.MIN_VALUE / 2);
+    private final CorrelationIdAllocator nextRoutingCorrelationId = new CorrelationIdAllocator(ROUTING_ID_RANGE_START_INC, ROUTING_ID_RANGE_END_EXC);
 
     @Nullable
     private ResponseSequencer responseSequencer;
@@ -302,7 +304,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = nextRoutingCorrelationId.getAndIncrement();
+        int routingCorrelationId = nextRoutingCorrelationId.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
         var listener = RoutingEvent.EVENT_LISTENER.get();
@@ -355,7 +357,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
 
         ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = nextRoutingCorrelationId.getAndIncrement();
+        int routingCorrelationId = nextRoutingCorrelationId.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
         var listener = RoutingEvent.EVENT_LISTENER.get();
