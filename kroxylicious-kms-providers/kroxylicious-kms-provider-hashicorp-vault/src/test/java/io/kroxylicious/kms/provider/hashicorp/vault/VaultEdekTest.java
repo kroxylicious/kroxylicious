@@ -34,6 +34,6 @@ class VaultEdekTest {
     @Test
     void toStringFormation() {
         var edek = new VaultEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("VaultEdek{keyRef=keyref, edek=[1, 2, 3]}");
+        assertThat(edek).hasToString("VaultEdek{keyRef=keyref, edek=<redacted>}");
     }
 }

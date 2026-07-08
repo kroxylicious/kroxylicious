@@ -68,7 +68,7 @@ public record VaultEdek(String kekRef,
     public String toString() {
         return "VaultEdek{" +
                 "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
+                ", edek=<redacted>" +
                 '}';
     }
 }
