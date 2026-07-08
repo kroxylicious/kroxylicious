@@ -604,7 +604,7 @@ public class ClientConnectionStateMachine {
         // frontendHandler may be null here. No dispatch target, no in-flight traffic —
         // complete as a no-op so the coordinator's allOf(drainFutures) doesn't hang.
         if (frontendHandler == null) {
-            LOGGER.atWarn()
+            LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .log("drain requested before onClientActive fired; completing as no-op");
@@ -651,7 +651,7 @@ public class ClientConnectionStateMachine {
      */
     private void onDraining(Runnable onDrained, CompletableFuture<Void> closedFuture) {
         if (!(state instanceof Forwarding)) {
-            LOGGER.atWarn()
+            LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
