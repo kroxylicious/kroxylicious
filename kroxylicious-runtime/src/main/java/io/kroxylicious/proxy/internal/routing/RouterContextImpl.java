@@ -37,10 +37,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 class RouterContextImpl implements RouterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterContextImpl.class);
+    private static final String LOG_KEY_SESSION_ID = "sessionId";
+    private static final String LOG_KEY_ROUTE = "route";
+    private static final String LOG_KEY_CLIENT_CORRELATION_ID = "clientCorrelationId";
+    private static final String LOG_KEY_ROUTING_CORRELATION_ID = "routingCorrelationId";
+    private static final String LOG_KEY_API_VERSION = "apiVersion";
+    private static final String LOG_KEY_TARGET_NODE_ID = "targetNodeId";
+    private static final String LOG_KEY_ERROR = "error";
 
-    private final DecodedRequestFrame<?> clientFrame;
     private final int clientCorrelationId;
-    private final short apiVersion;
     private final String sessionId;
     private final Subject subject;
     private final Map<String, RouteDescriptor> routes;
@@ -49,7 +54,6 @@ class RouterContextImpl implements RouterContext {
     private final NodeIdMapping nodeIdMapping;
     private final IntSupplier routingCorrelationIdAllocator;
     private final Channel clientChannel;
-    private final ResponseSequencer responseSequencer;
     private final long sequenceNumber;
     @Nullable
     private final Integer endpointVirtualNodeId;
@@ -64,6 +68,7 @@ class RouterContextImpl implements RouterContext {
         void forward(int virtualNodeId, String routeName, Object msg);
     }
 
+    @SuppressWarnings("java:S107")
     RouterContextImpl(DecodedRequestFrame<?> clientFrame,
                       Channel clientChannel,
                       String sessionId,
@@ -75,9 +80,7 @@ class RouterContextImpl implements RouterContext {
                       NodeIdMapping nodeIdMapping,
                       IntSupplier routingCorrelationIdAllocator,
                       ResponseSequencer responseSequencer) {
-        this.clientFrame = Objects.requireNonNull(clientFrame);
         this.clientCorrelationId = clientFrame.correlationId();
-        this.apiVersion = clientFrame.apiVersion();
         this.clientChannel = Objects.requireNonNull(clientChannel);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
@@ -86,7 +89,6 @@ class RouterContextImpl implements RouterContext {
         this.nodeForwarder = Objects.requireNonNull(nodeForwarder);
         this.nodeIdMapping = Objects.requireNonNull(nodeIdMapping);
         this.routingCorrelationIdAllocator = Objects.requireNonNull(routingCorrelationIdAllocator);
-        this.responseSequencer = Objects.requireNonNull(responseSequencer);
         this.sequenceNumber = responseSequencer.allocateSequence();
         this.endpointVirtualNodeId = endpointVirtualNodeId;
     }
@@ -122,14 +124,14 @@ class RouterContextImpl implements RouterContext {
     public CompletionStage<ApiMessage> sendRequest(VirtualNode node,
                                                    RequestHeaderData header,
                                                    ApiMessage request) {
-        if (!(node instanceof VirtualNodeImpl vni)) {
+        if (!(node instanceof VirtualNodeImpl(String route, Integer nodeId))) {
             throw new IllegalArgumentException("Unrecognised VirtualNode type: " + node.getClass().getName());
         }
-        if (vni.nodeId() == null) {
-            return sendToAnyNode(vni.route(), header, request);
+        if (nodeId == null) {
+            return sendToAnyNode(route, header, request);
         }
         else {
-            return sendToSpecificNode(vni.nodeId(), vni.route(), header, request);
+            return sendToSpecificNode(nodeId, route, header, request);
         }
     }
 
@@ -139,17 +141,17 @@ class RouterContextImpl implements RouterContext {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_ROUTE, route)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, clientCorrelationId)
                     .log("Router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
         if (!rd.targetsCluster()) {
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_ROUTE, route)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, clientCorrelationId)
                     .log("Router attempted unsupported nested router route");
             return CompletableFuture.failedFuture(
                     new UnsupportedOperationException("Routing to nested routers is not yet supported (route: " + route + ")"));
@@ -168,10 +170,10 @@ class RouterContextImpl implements RouterContext {
         if (!frame.hasResponse()) {
             requestForwarder.forward(route, frame);
             LOGGER.atTrace()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
-                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_ROUTE, route)
+                    .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, clientCorrelationId)
+                    .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                     .log("Fire-and-forget request sent to route (no response expected)");
             return CompletableFuture.completedFuture(null);
         }
@@ -181,11 +183,11 @@ class RouterContextImpl implements RouterContext {
 
         requestForwarder.forward(route, frame);
         LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
-                .addKeyValue("apiVersion", requestApiVersion)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_ROUTE, route)
+                .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, clientCorrelationId)
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
+                .addKeyValue(LOG_KEY_API_VERSION, requestApiVersion)
                 .log("Request sent to route");
         attachEventListener(listener, future, route, routingCorrelationId, apiKey);
         return future;
@@ -198,9 +200,9 @@ class RouterContextImpl implements RouterContext {
         RouteDescriptor rd = routes.get(route);
         if (rd == null || !rd.targetsCluster()) {
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("targetNodeId", targetNodeId)
-                    .addKeyValue("route", route)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
+                    .addKeyValue(LOG_KEY_ROUTE, route)
                     .log("Target node resolved to invalid route");
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
@@ -225,11 +227,11 @@ class RouterContextImpl implements RouterContext {
         catch (Exception e) {
             RouterDispatchHandler.deregisterPendingResponse(clientChannel, routingCorrelationId);
             LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("targetNodeId", targetNodeId)
-                    .addKeyValue("route", route)
+                    .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                    .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
+                    .addKeyValue(LOG_KEY_ROUTE, route)
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addKeyValue("error", e.getMessage())
+                    .addKeyValue(LOG_KEY_ERROR, e.getMessage())
                     .log(LOGGER.isDebugEnabled()
                             ? "Failed to forward request to node"
                             : "Failed to forward request to node, increase log level to DEBUG for stacktrace");
@@ -237,11 +239,11 @@ class RouterContextImpl implements RouterContext {
         }
 
         LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
-                .addKeyValue("targetNodeId", targetNodeId)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
-                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .addKeyValue(LOG_KEY_SESSION_ID, sessionId)
+                .addKeyValue(LOG_KEY_ROUTE, route)
+                .addKeyValue(LOG_KEY_TARGET_NODE_ID, targetNodeId)
+                .addKeyValue(LOG_KEY_CLIENT_CORRELATION_ID, clientCorrelationId)
+                .addKeyValue(LOG_KEY_ROUTING_CORRELATION_ID, routingCorrelationId)
                 .log("Request sent to specific node");
         attachEventListener(listener, future, route, routingCorrelationId, apiKey);
         return future;

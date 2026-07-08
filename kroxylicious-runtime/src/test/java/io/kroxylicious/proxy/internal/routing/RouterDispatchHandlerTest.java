@@ -422,7 +422,7 @@ class RouterDispatchHandlerTest {
 
         // Then
         assertThat(claimed).isTrue();
-        assertThat(future).isCompletedWithValueMatching(body -> body instanceof ProduceResponseData);
+        assertThat(future).isCompletedWithValueMatching(ProduceResponseData.class::isInstance);
     }
 
     @Test

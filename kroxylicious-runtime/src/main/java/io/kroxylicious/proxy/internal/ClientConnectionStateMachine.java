@@ -1005,13 +1005,12 @@ public class ClientConnectionStateMachine {
             throw new IllegalStateException("Upstream address not yet known for virtual node ID " + virtualNodeId);
         }
         HostPort target = resolved.get();
-        ServerConnectionStateMachine scsm = serverConnections.get(target);
-        if (scsm == null) {
-            scsm = createServerConnectionForRoute(routeName, target);
-            serverConnections.put(target, scsm);
+        ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, hostPort -> {
+            var serverConnectionStateMachine = createServerConnectionForRoute(routeName, target);
             Channel clientChannel = Objects.requireNonNull(Objects.requireNonNull(frontendHandler).clientChannel());
-            scsm.connect(clientChannel);
-        }
+            serverConnectionStateMachine.connect(clientChannel);
+            return serverConnectionStateMachine;
+        });
         scsm.sendRequest(msg);
         log(Level.TRACE)
                 .addKeyValue("route", routeName)

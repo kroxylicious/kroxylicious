@@ -118,7 +118,7 @@ class RouterContextImplTest {
         // Then: IdentityNodeIdMapping: fromVirtual(0) → RouteAndNode(DEFAULT_ROUTE, 0)
         assertThat(vn).isPresent();
         assertThat(((VirtualNodeImpl) vn.get()).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) vn.get()).nodeId()).isEqualTo(0);
+        assertThat(((VirtualNodeImpl) vn.get()).nodeId()).isZero();
     }
 
     @Test
@@ -253,8 +253,10 @@ class RouterContextImplTest {
         var ctx = createContext();
         var unknownNode = mock(VirtualNode.class);
 
+        RequestHeaderData header = new RequestHeaderData();
+        FetchRequestData data = new FetchRequestData();
         // When / Then
-        assertThatThrownBy(() -> ctx.sendRequest(unknownNode, new RequestHeaderData(), new FetchRequestData()))
+        assertThatThrownBy(() -> ctx.sendRequest(unknownNode, header, data))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unrecognised VirtualNode type");
     }

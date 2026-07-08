@@ -424,7 +424,7 @@ class KafkaProxyInitializerTest {
         return new KafkaProxyInitializer(pfr,
                 tls,
                 bindingResolver,
-                Mockito.mock(EndpointReconciler.class),
+                mock(EndpointReconciler.class),
                 proxyProtocolMode,
                 new ApiVersionsServiceImpl(),
                 Optional.ofNullable(proxyNettySettings),

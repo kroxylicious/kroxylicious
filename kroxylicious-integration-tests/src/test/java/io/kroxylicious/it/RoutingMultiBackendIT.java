@@ -131,7 +131,7 @@ class RoutingMultiBackendIT {
         assertThat(recordsB).as("cluster B should have one batch (1)").hasSize(BATCH_SIZE);
     }
 
-    private List<ConsumerRecord<String, String>> consumeDirectly(KafkaCluster cluster) throws Exception {
+    private List<ConsumerRecord<String, String>> consumeDirectly(KafkaCluster cluster) {
         var props = new java.util.Properties();
         props.putAll(cluster.getKafkaClientConfiguration());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "direct-verify-" + cluster.getBootstrapServers());
