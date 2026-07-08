@@ -86,8 +86,8 @@ class ClusterDefinitionChangeDetectorTest {
     }
 
     @Test
-    void ignoresVcUsingRouter() {
-        // Given: a cluster definition changes but some VCs target a router, not a named cluster
+    void detectsVcReferencingChangedClusterDefinitionViaRouter() {
+        // Given: a cluster definition changes; one VC references it directly, one via a router
         var oldCd = clusterDef("upstream", "kafka:9092");
         var newCd = clusterDef("upstream", "kafka-new:9092");
         var router = routerDef("my-router", "upstream");
@@ -101,8 +101,42 @@ class ClusterDefinitionChangeDetectorTest {
         // When
         var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
 
-        // Then: only the directly-referencing VC is affected
-        assertThat(result.clustersToModify()).containsExactly("direct");
+        // Then: both VCs are affected — the router-backed one transitively references the changed cluster definition
+        assertThat(result.clustersToModify()).containsExactlyInAnyOrder("direct", "routed");
+    }
+
+    @Test
+    void doesNotRestartVcWhenRouterTargetsUnchangedClusterDefinition() {
+        // Given: cluster definition is identical in both configs; VC reaches it via a router
+        var cd = clusterDef("upstream", "kafka:9092");
+        var router = routerDef("my-router", "upstream");
+        var oldConfig = configWithRouter(List.of(cd), List.of(router), vcWithRouter("routed", "my-router"));
+        var newConfig = configWithRouter(List.of(cd), List.of(router), vcWithRouter("routed", "my-router"));
+
+        // When / Then
+        assertThat(detector.detect(new ConfigurationChangeContext(oldConfig, newConfig)).isEmpty()).isTrue();
+    }
+
+    @Test
+    void doesNotRestartRouterVcWhenUnrelatedClusterDefinitionChanges() {
+        // Given: two cluster definitions, two router-backed VCs, only cluster-a changes
+        var oldA = clusterDef("cluster-a", "kafka-a-old:9092");
+        var newA = clusterDef("cluster-a", "kafka-a-new:9092");
+        var b = clusterDef("cluster-b", "kafka-b:9092");
+        var routerA = routerDef("router-a", "cluster-a");
+        var routerB = routerDef("router-b", "cluster-b");
+        var oldConfig = configWithRouter(List.of(oldA, b), List.of(routerA, routerB),
+                vcWithRouter("vc-a", "router-a"),
+                vcWithRouter("vc-b", "router-b"));
+        var newConfig = configWithRouter(List.of(newA, b), List.of(routerA, routerB),
+                vcWithRouter("vc-a", "router-a"),
+                vcWithRouter("vc-b", "router-b"));
+
+        // When
+        var result = detector.detect(new ConfigurationChangeContext(oldConfig, newConfig));
+
+        // Then: only vc-a, which reaches cluster-a through router-a, is flagged
+        assertThat(result.clustersToModify()).containsExactly("vc-a");
     }
 
     @Test
@@ -203,6 +237,11 @@ class ClusterDefinitionChangeDetectorTest {
 
     private static RouterDefinition routerDef(String name, String clusterTarget) {
         var route = new RouteDefinition("route", 0, null, new RouteTarget(clusterTarget, null));
+        return new RouterDefinition(name, "SomeRouterType", "cfg", List.of(route));
+    }
+
+    private static RouterDefinition routerDefWithRouterTarget(String name, String routerTarget) {
+        var route = new RouteDefinition("route", 0, null, new RouteTarget(null, routerTarget));
         return new RouterDefinition(name, "SomeRouterType", "cfg", List.of(route));
     }
 

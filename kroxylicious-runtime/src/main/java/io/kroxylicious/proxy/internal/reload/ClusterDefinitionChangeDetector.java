@@ -16,20 +16,20 @@ import java.util.stream.Stream;
 
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Identifies virtual clusters that need to be restarted because a cluster definition they
- * directly reference has changed.
+ * reference has changed.
  * <p>
  * A cluster is affected if it names a cluster definition (via {@code target.cluster()}) whose
- * content — bootstrap servers or TLS config — differs between the old and new configuration.
+ * content — bootstrap servers or TLS config — differs between the old and new configuration,
+ * or if it targets a router whose DAG transitively references a changed cluster definition.
  * <p>
- * VCs that target a router (via {@code target.router()}) or use an inline {@code targetCluster}
- * are not affected by this detector. Walking the router DAG to find cluster definitions
- * referenced transitively through routers is deferred.
+ * VCs using an inline {@code targetCluster} are not affected by this detector.
  * <p>
  * This detector only produces {@code clustersToModify} entries. Added and removed clusters
  * are the concern of {@link VirtualClusterChangeDetector}.
@@ -48,6 +48,7 @@ final class ClusterDefinitionChangeDetector implements ChangeDetector {
 
         Map<String, VirtualCluster> newByName = newConfig.virtualClusters().stream()
                 .collect(Collectors.toMap(VirtualCluster::name, Function.identity()));
+        Map<String, RouterDefinition> newRoutersByName = indexRouterDefinitionsByName(newConfig.routerDefinitions());
 
         Set<String> toModify = new HashSet<>();
         for (VirtualCluster oldCluster : oldConfig.virtualClusters()) {
@@ -60,9 +61,19 @@ final class ClusterDefinitionChangeDetector implements ChangeDetector {
             if (namedTarget != null && changedClusterNames.contains(namedTarget)) {
                 toModify.add(newCluster.name());
             }
+            else if (newCluster.router() != null
+                    && RouterGraphWalker.anyInRouterGraph(newCluster.router(), newRoutersByName,
+                            name -> false, changedClusterNames::contains)) {
+                toModify.add(newCluster.name());
+            }
         }
 
         return new ChangeResult(Set.of(), Set.of(), toModify);
+    }
+
+    private static Map<String, RouterDefinition> indexRouterDefinitionsByName(@Nullable List<RouterDefinition> defs) {
+        return defs == null ? Map.of()
+                : defs.stream().collect(Collectors.toMap(RouterDefinition::name, Function.identity()));
     }
 
     /**

@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
 
@@ -88,39 +87,12 @@ final class RouterChangeDetector implements ChangeDetector {
                 : defs.stream().collect(Collectors.toMap(RouterDefinition::name, Function.identity()));
     }
 
-    /**
-     * Returns {@code true} if the VC's router graph (traversed recursively from its root router)
-     * contains any router whose name is in {@code changedRouterNames}.
-     */
     private static boolean transitivelyReferencesChangedRouter(VirtualCluster vc,
                                                                Map<String, RouterDefinition> routersByName,
                                                                Set<String> changedRouterNames) {
         if (vc.router() == null) {
             return false;
         }
-        return routerGraphContainsChange(vc.router(), routersByName, changedRouterNames, new HashSet<>());
-    }
-
-    private static boolean routerGraphContainsChange(String routerName,
-                                                     Map<String, RouterDefinition> routersByName,
-                                                     Set<String> changedRouterNames,
-                                                     Set<String> visited) {
-        if (!visited.add(routerName)) {
-            return false;
-        }
-        if (changedRouterNames.contains(routerName)) {
-            return true;
-        }
-        RouterDefinition rd = routersByName.get(routerName);
-        if (rd == null) {
-            return false;
-        }
-        for (RouteDefinition route : rd.routes()) {
-            if (route.router() != null
-                    && routerGraphContainsChange(route.router(), routersByName, changedRouterNames, visited)) {
-                return true;
-            }
-        }
-        return false;
+        return RouterGraphWalker.anyInRouterGraph(vc.router(), routersByName, changedRouterNames::contains, name -> false);
     }
 }
