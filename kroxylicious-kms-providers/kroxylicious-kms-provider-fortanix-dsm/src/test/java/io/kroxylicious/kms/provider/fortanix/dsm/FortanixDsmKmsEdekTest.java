@@ -71,6 +71,6 @@ class FortanixDsmKmsEdekTest {
     @Test
     void toStringFormation() {
         var edek = new FortanixDsmKmsEdek("keyref", IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("FortanixDsmKmsEdek{keyRef=keyref, iv=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], edek=[1, 2, 3]}");
+        assertThat(edek).hasToString("FortanixDsmKmsEdek{kekRef=keyref, iv=<redacted>, edek=<redacted>}");
     }
 }
