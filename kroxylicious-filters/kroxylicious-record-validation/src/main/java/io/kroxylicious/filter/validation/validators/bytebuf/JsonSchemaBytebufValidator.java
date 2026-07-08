@@ -9,11 +9,9 @@ package io.kroxylicious.filter.validation.validators.bytebuf;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
-import io.apicurio.schema.validation.ValidationResult;
 import io.apicurio.schema.validation.json.JsonValidator;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
@@ -37,8 +35,6 @@ class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
 
     @Override
     protected CompletionStage<Result> doValidate(ByteBuffer buffer) {
-        ValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
-        return jsonValidationResult.success() ? Result.VALID_RESULT_STAGE
-                : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
+        return toResult(jsonValidator.validateByArtifactReference(buffer));
     }
 }
