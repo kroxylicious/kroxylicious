@@ -13,7 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
-import io.apicurio.schema.validation.json.JsonValidationResult;
+import io.apicurio.schema.validation.ValidationResult;
 import io.apicurio.schema.validation.json.JsonValidator;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
@@ -37,7 +37,7 @@ class JsonSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
 
     @Override
     protected CompletionStage<Result> doValidate(ByteBuffer buffer) {
-        JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
+        ValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
         return jsonValidationResult.success() ? Result.VALID_RESULT_STAGE
                 : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
     }

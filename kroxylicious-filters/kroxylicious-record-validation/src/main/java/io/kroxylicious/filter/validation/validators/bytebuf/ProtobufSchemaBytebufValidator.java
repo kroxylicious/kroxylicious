@@ -23,8 +23,8 @@ import io.apicurio.registry.resolver.DefaultSchemaResolver;
 import io.apicurio.registry.resolver.SchemaResolver;
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
 import io.apicurio.registry.utils.protobuf.schema.ProtobufSchema;
+import io.apicurio.schema.validation.ValidationResult;
 import io.apicurio.schema.validation.protobuf.ProtobufSchemaParser;
-import io.apicurio.schema.validation.protobuf.ProtobufValidationResult;
 import io.apicurio.schema.validation.protobuf.ProtobufValidator;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
@@ -93,7 +93,7 @@ class ProtobufSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
             byte[] bytes = new byte[buffer.remaining()];
             buffer.get(bytes);
             DynamicMessage message = DynamicMessage.parseFrom(messageDescriptor, bytes);
-            ProtobufValidationResult protobufValidationResult = protobufValidator.validateByArtifactReference(message);
+            ValidationResult protobufValidationResult = protobufValidator.validateByArtifactReference(message);
             return protobufValidationResult.success() ? Result.VALID_RESULT_STAGE
                     : CompletableFuture.completedFuture(new Result(false, protobufValidationResult.toString()));
         }

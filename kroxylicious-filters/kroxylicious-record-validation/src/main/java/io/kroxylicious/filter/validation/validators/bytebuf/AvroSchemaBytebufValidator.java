@@ -22,8 +22,8 @@ import org.apache.avro.io.DecoderFactory;
 import io.apicurio.registry.resolver.DefaultSchemaResolver;
 import io.apicurio.registry.resolver.SchemaResolver;
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
+import io.apicurio.schema.validation.ValidationResult;
 import io.apicurio.schema.validation.avro.AvroSchemaParser;
-import io.apicurio.schema.validation.avro.AvroValidationResult;
 import io.apicurio.schema.validation.avro.AvroValidator;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
@@ -52,7 +52,7 @@ class AvroSchemaBytebufValidator extends AbstractSchemaBytebufValidator {
     protected CompletionStage<Result> doValidate(ByteBuffer buffer) {
         try {
             GenericRecord record = deserialize(buffer);
-            AvroValidationResult avroValidationResult = avroValidator.validateByArtifactReference(record);
+            ValidationResult avroValidationResult = avroValidator.validateByArtifactReference(record);
             return avroValidationResult.success() ? Result.VALID_RESULT_STAGE
                     : CompletableFuture.completedFuture(new Result(false, avroValidationResult.toString()));
         }
