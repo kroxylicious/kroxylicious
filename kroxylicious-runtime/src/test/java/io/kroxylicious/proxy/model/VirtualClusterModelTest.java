@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -128,8 +129,7 @@ class VirtualClusterModelTest {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
         VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
-
-        model.close();
+        assertThatCode(model::close).doesNotThrowAnyException();
     }
 
     @Test
@@ -148,14 +148,15 @@ class VirtualClusterModelTest {
         var model = new VirtualClusterModel("vc1", new DirectRouting(DIRECT_ROUTE_NAME, clusterModel), false, false, filters,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
 
-        assertThat(clusterModel.tlsManager().isConfigured()).isTrue();
-        assertThat(clusterModel.tlsManager().getSupplier()).isNotNull();
+        TlsCredentialSupplierManager tlsManager = clusterModel.tlsManager();
+        assertThat(tlsManager.isConfigured()).isTrue();
+        assertThat(tlsManager.getSupplier()).isNotNull();
         assertThat(onFilterClose.get()).isZero();
 
         model.close();
 
         assertThat(onFilterClose.get()).as("FilterChainFactory close should fire").isEqualTo(1);
-        assertThatThrownBy(() -> clusterModel.tlsManager().getSupplier())
+        assertThatThrownBy(tlsManager::getSupplier)
                 .as("TlsCredentialSupplierManager close should fire — post-close getSupplier throws")
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -174,7 +175,8 @@ class VirtualClusterModelTest {
         var pfr = combinedPluginFactoryRegistry();
         var drainTimeout = Duration.ofSeconds(10);
 
-        assertThatThrownBy(() -> new VirtualClusterModel("vc1", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, filters,
+        DirectRouting directRouting = new DirectRouting(DIRECT_ROUTE_NAME, targetCluster);
+        assertThatThrownBy(() -> new VirtualClusterModel("vc1", directRouting, false, false, filters,
                 CacheConfiguration.DEFAULT, null, drainTimeout, pfr))
                 .isExactlyInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("Exception initializing filter factory bad-filter")

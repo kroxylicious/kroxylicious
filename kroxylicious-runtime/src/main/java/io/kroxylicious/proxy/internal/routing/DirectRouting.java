@@ -10,7 +10,6 @@ import java.util.Optional;
 
 import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Routing model for a virtual cluster that forwards directly to a single, statically-configured
@@ -25,7 +24,6 @@ public record DirectRouting(String routeName, UpstreamClusterModel upstreamClust
      * Test-only constructor: creates a routing model with no TLS resources resolved.
      * Production code should always supply a fully-built {@link UpstreamClusterModel}.
      */
-    @VisibleForTesting
     public DirectRouting(String routeName, TargetCluster targetCluster) {
         this(routeName, new UpstreamClusterModel(targetCluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured()));
     }
