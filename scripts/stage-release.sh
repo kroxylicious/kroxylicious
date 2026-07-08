@@ -199,7 +199,7 @@ replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION
 
 # bump the docs for the development version
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${NEXT_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
-replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: main_g" kroxylicious-docs/docs/_assets/attributes.adoc # this doesn't make a lot sense...
+replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: ${BRANCH_FROM}_g" kroxylicious-docs/docs/_assets/attributes.adoc
 
 replaceInFile "s_image: 'quay.io/kroxylicious/proxy:.*'_image: 'quay.io/kroxylicious/proxy:${NEXT_VERSION}'_g" compose/kafka-compose.yaml
 
