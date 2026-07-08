@@ -91,4 +91,39 @@ class ResponseSequencerTest {
         order.verify(channel).write(frame2);
         order.verify(channel).flush();
     }
+
+    @Test
+    void shouldHandleMultipleRoundsOfOrdering() {
+        // Given: first wave — seq 0, 1, 2
+        long seq0 = sequencer.allocateSequence();
+        long seq1 = sequencer.allocateSequence();
+        long seq2 = sequencer.allocateSequence();
+        Object frame0 = new Object();
+        Object frame1 = new Object();
+        Object frame2 = new Object();
+
+        // When: seq 0 arrives in order — immediately flushed
+        sequencer.submit(seq0, frame0);
+
+        // Second wave — seq 3
+        long seq3 = sequencer.allocateSequence();
+        Object frame3 = new Object();
+
+        // seq 2 arrives before seq 1 — must buffer
+        sequencer.submit(seq2, frame2);
+        // seq 1 arrives — drains 1 and 2 together with a single flush
+        sequencer.submit(seq1, frame1);
+        // seq 3 arrives in order immediately after — its own flush
+        sequencer.submit(seq3, frame3);
+
+        // Then: flush after seq 0, then flush after draining seq 1+2, then flush after seq 3
+        InOrder order = inOrder(channel);
+        order.verify(channel).write(frame0);
+        order.verify(channel).flush();
+        order.verify(channel).write(frame1);
+        order.verify(channel).write(frame2);
+        order.verify(channel).flush();
+        order.verify(channel).write(frame3);
+        order.verify(channel).flush();
+    }
 }

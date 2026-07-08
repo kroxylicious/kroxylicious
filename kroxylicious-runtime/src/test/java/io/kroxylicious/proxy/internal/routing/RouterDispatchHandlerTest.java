@@ -14,9 +14,11 @@ import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -277,5 +279,170 @@ class RouterDispatchHandlerTest {
         DecodedResponseFrame<?> out = channel.readOutbound();
         assertThat(out).isNotNull();
         assertThat(((MetadataResponseData) out.body()).controllerId()).isEqualTo(5);
+    }
+
+    @Test
+    void shouldCloseChannelWhenRouterReturnedFutureFails() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("boom")));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldCloseChannelWhenRouterReturnsNullResult() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldCloseChannelAfterRespondWithWhenCloseConnectionIsTrue() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWith(null, new MetadataRequestData(), true)));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(channel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldCallOnRoutedRequestCompleteAfterDynamicDispatch() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then
+        verify(ccsm).onRoutedRequestComplete();
+    }
+
+    @Test
+    void shouldNotWriteOutboundFrameForRespondWithoutReply() {
+        // Given
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWithoutReply(false)));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.runPendingTasks();
+
+        // Then: no frame written to client
+        assertThat((Object) channel.readOutbound()).isNull();
+    }
+
+    @Test
+    void shouldCloseRouterWhenHandlerRemoved() {
+        // Given
+        var handler = handlerWithIdentityMapping(Map.of());
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.pipeline().remove(handler);
+
+        // Then
+        verify(router).close();
+    }
+
+    @Test
+    void onResponseShouldReturnFalseForNonFrame() {
+        // Given
+        var handler = handlerWithIdentityMapping(Map.of());
+        channel = new EmbeddedChannel(handler);
+
+        // When / Then
+        assertThat(handler.onResponse("not-a-frame")).isFalse();
+    }
+
+    @Test
+    void onResponseShouldReturnFalseForNonNegativeCorrelationId() {
+        // Given
+        var handler = handlerWithIdentityMapping(Map.of());
+        channel = new EmbeddedChannel(handler);
+        var frame = new DecodedResponseFrame<>((short) 9, 99, new ResponseHeaderData(), new ProduceResponseData());
+
+        // When / Then
+        assertThat(handler.onResponse(frame)).isFalse();
+    }
+
+    @Test
+    void onResponseShouldClaimMatchingRoutingCorrelationId() {
+        // Given
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var handler = new RouterDispatchHandler(
+                router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
+                Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE));
+        channel = new EmbeddedChannel(handler);
+        when(ccsm.clientChannel()).thenReturn(channel);
+
+        int routingCorrelationId = Integer.MIN_VALUE / 2;
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        RouterDispatchHandler.registerPendingResponse(
+                channel, routingCorrelationId,
+                new RouterDispatchHandler.PendingResponse(future, DEFAULT_ROUTE));
+
+        var responseFrame = new DecodedResponseFrame<>((short) 9, routingCorrelationId,
+                new ResponseHeaderData(), new ProduceResponseData());
+
+        // When
+        boolean claimed = handler.onResponse(responseFrame);
+
+        // Then
+        assertThat(claimed).isTrue();
+        assertThat(future).isCompletedWithValueMatching(body -> body instanceof ProduceResponseData);
+    }
+
+    @Test
+    void onResponseShouldReturnFalseForUnmatchedNegativeCorrelationId() {
+        // Given
+        when(ccsm.sessionId()).thenReturn("test-session");
+        var handler = new RouterDispatchHandler(
+                router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
+                Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE));
+        channel = new EmbeddedChannel(handler);
+        when(ccsm.clientChannel()).thenReturn(channel);
+
+        int routingCorrelationId = Integer.MIN_VALUE / 2;
+        var frame = new DecodedResponseFrame<>((short) 9, routingCorrelationId,
+                new ResponseHeaderData(), new ProduceResponseData());
+
+        // When: no pending response registered
+        boolean claimed = handler.onResponse(frame);
+
+        // Then
+        assertThat(claimed).isFalse();
     }
 }
