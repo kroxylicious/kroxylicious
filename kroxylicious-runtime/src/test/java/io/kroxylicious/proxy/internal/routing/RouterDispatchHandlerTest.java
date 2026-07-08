@@ -18,7 +18,6 @@ import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,8 +35,13 @@ import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyShort;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -183,6 +187,12 @@ class RouterDispatchHandlerTest {
     private RouterDispatchHandler handlerWithRoute(String routeName) {
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
+        var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
+        return new RouterDispatchHandler(
+                router, Map.of(routeName, rd), Map.of(), ccsm, new IdentityNodeIdMapping(routeName));
+    }
+
+    private RouterDispatchHandler handlerWithRouteForSendTests(String routeName) {
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
         return new RouterDispatchHandler(
                 router, Map.of(routeName, rd), Map.of(), ccsm, new IdentityNodeIdMapping(routeName));
@@ -406,14 +416,14 @@ class RouterDispatchHandlerTest {
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
                 Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE));
         channel = new EmbeddedChannel(handler);
-        when(ccsm.clientChannel()).thenReturn(channel);
+
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion((short) 9);
+        var pendingFuture = handler.sendToAnyNode(DEFAULT_ROUTE, header, new ProduceRequestData().setAcks((short) 1), "test-session", 100)
+                .toCompletableFuture();
 
         int routingCorrelationId = Integer.MIN_VALUE / 2;
-        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
-        RouterDispatchHandler.registerPendingResponse(
-                channel, routingCorrelationId,
-                new RouterDispatchHandler.PendingResponse(future, DEFAULT_ROUTE));
-
         var responseFrame = new DecodedResponseFrame<>((short) 9, routingCorrelationId,
                 new ResponseHeaderData(), new ProduceResponseData());
 
@@ -422,7 +432,7 @@ class RouterDispatchHandlerTest {
 
         // Then
         assertThat(claimed).isTrue();
-        assertThat(future).isCompletedWithValueMatching(ProduceResponseData.class::isInstance);
+        assertThat(pendingFuture).isCompletedWithValueMatching(ProduceResponseData.class::isInstance);
     }
 
     @Test
@@ -433,7 +443,6 @@ class RouterDispatchHandlerTest {
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
                 Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE));
         channel = new EmbeddedChannel(handler);
-        when(ccsm.clientChannel()).thenReturn(channel);
 
         int routingCorrelationId = Integer.MIN_VALUE / 2;
         var frame = new DecodedResponseFrame<>((short) 9, routingCorrelationId,
@@ -444,5 +453,136 @@ class RouterDispatchHandlerTest {
 
         // Then
         assertThat(claimed).isFalse();
+    }
+
+    @Test
+    void sendToAnyNodeShouldForwardToRouteForKnownRoute() {
+        // Given
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When
+        var future = handler.sendToAnyNode(DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        verify(ccsm).forwardToRoute(eq(DEFAULT_ROUTE), any());
+        assertThat(future.toCompletableFuture()).isNotDone();
+    }
+
+    @Test
+    void sendToAnyNodeShouldReturnFailedFutureForUnknownRoute() {
+        // Given
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When: bypass anyNode() validation by constructing VirtualNodeImpl with an unknown route
+        var future = handler.sendToAnyNode("no-such-route", header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThatThrownBy(() -> future.toCompletableFuture().get())
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .cause().hasMessageContaining("Unknown route");
+    }
+
+    @Test
+    void sendToAnyNodeShouldReturnFailedFutureForNestedRouterRoute() {
+        // Given: routes include a route targeting a nested router (no targetCluster)
+        var rd = new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of());
+        var routerRd = new RouteDescriptor("router-route", 1, null, "some-router-name", List.of());
+        var handler = new RouterDispatchHandler(
+                router, Map.of(DEFAULT_ROUTE, rd, "router-route", routerRd),
+                Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE));
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When
+        var future = handler.sendToAnyNode("router-route", header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThatThrownBy(() -> future.toCompletableFuture().get())
+                .hasCauseInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void sendToAnyNodeShouldReturnCompletedNullFutureForFireAndForget() {
+        // Given: PRODUCE with acks=0 has hasResponse()=false, so no response is expected
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion((short) 9);
+
+        // When
+        var future = handler.sendToAnyNode(DEFAULT_ROUTE, header, new ProduceRequestData().setAcks((short) 0), "test-session", 100);
+
+        // Then
+        verify(ccsm).forwardToRoute(eq(DEFAULT_ROUTE), any());
+        assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
+    }
+
+    @Test
+    void sendToSpecificNodeShouldForwardToNode() {
+        // Given
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When
+        var future = handler.sendToSpecificNode(3, DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        verify(ccsm).forwardToNode(eq(3), eq(DEFAULT_ROUTE), any());
+        assertThat(future.toCompletableFuture()).isNotDone();
+    }
+
+    @Test
+    void sendToSpecificNodeShouldReturnFailedFutureForUnknownRoute() {
+        // Given
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When
+        var future = handler.sendToSpecificNode(3, "no-such-route", header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThatThrownBy(() -> future.toCompletableFuture().get())
+                .hasCauseInstanceOf(IllegalStateException.class)
+                .cause().hasMessageContaining("resolved to invalid route");
+    }
+
+    @Test
+    void sendToSpecificNodeShouldReturnFailedFutureWhenForwardThrows() {
+        // Given
+        doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToNode(anyInt(), anyString(), any());
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When
+        var future = handler.sendToSpecificNode(3, DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThatThrownBy(() -> future.toCompletableFuture().get())
+                .hasCauseInstanceOf(RuntimeException.class)
+                .cause().hasMessage("forward failed");
     }
 }

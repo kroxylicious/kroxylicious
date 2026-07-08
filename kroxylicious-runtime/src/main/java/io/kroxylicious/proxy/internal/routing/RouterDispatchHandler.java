@@ -10,9 +10,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -20,11 +24,9 @@ import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -55,8 +57,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class RouterDispatchHandler extends ChannelDuplexHandler implements RoutingResponseCallback {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
-    private static final AttributeKey<Map<Integer, PendingResponse>> PENDING_RESPONSES = AttributeKey.valueOf(RouterDispatchHandler.class,
-            "pendingResponses");
 
     /**
      * API keys whose responses carry node IDs that must be translated to virtual node IDs.
@@ -74,10 +74,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
     private final Router router;
-    private final Map<String, RouteDescriptor> routes;
+    final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
-    private final NodeIdMapping nodeIdMapping;
+    final NodeIdMapping nodeIdMapping;
     private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
 
     /**
@@ -86,7 +86,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
      */
     private final Map<Integer, String> pendingRoutes = new HashMap<>();
 
-    private int nextRoutingCorrelationId = Integer.MIN_VALUE / 2;
+    final Map<Integer, PendingResponse> pendingResponses = new ConcurrentHashMap<>();
+
+    private final AtomicInteger nextRoutingCorrelationId = new AtomicInteger(Integer.MIN_VALUE / 2);
 
     @Nullable
     private ResponseSequencer responseSequencer;
@@ -169,15 +171,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
 
         var routingContext = new RouterContextImpl(
                 frame,
-                ctx.channel(),
+                this,
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
                 ccsm.nodeId(),
-                routes,
-                ccsm::forwardToRoute,
-                ccsm::forwardToNode,
-                nodeIdMapping,
-                () -> nextRoutingCorrelationId++,
                 responseSequencer);
 
         long sequence = routingContext.sequenceNumber();
@@ -249,8 +246,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
             if (correlationId >= 0) {
                 return false;
             }
-            Map<Integer, PendingResponse> pending = getPendingResponses(ccsm.clientChannel());
-            PendingResponse pendingResponse = pending.remove(correlationId);
+            PendingResponse pendingResponse = pendingResponses.remove(correlationId);
             if (pendingResponse != null) {
                 NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
                 cacheNodeAddressesIfMetadata(frame.body());
@@ -280,22 +276,137 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         ctx.write(msg, promise);
     }
 
-    static void registerPendingResponse(Channel channel, int correlationId, PendingResponse pendingResponse) {
-        getPendingResponses(channel).put(correlationId, pendingResponse);
-    }
-
-    static void deregisterPendingResponse(Channel channel, int correlationId) {
-        getPendingResponses(channel).remove(correlationId);
-    }
-
-    private static Map<Integer, PendingResponse> getPendingResponses(Channel channel) {
-        var attr = channel.attr(PENDING_RESPONSES);
-        Map<Integer, PendingResponse> map = attr.get();
-        if (map == null) {
-            map = new ConcurrentHashMap<>();
-            attr.set(map);
+    CompletionStage<ApiMessage> sendToAnyNode(String route,
+                                              RequestHeaderData header,
+                                              ApiMessage request,
+                                              String sessionId,
+                                              int clientCorrelationId) {
+        RouteDescriptor rd = routes.get(route);
+        if (rd == null) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .log("Router attempted to send to unknown route");
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
-        return map;
+        if (!rd.targetsCluster()) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .log("Router attempted unsupported nested router route");
+            return CompletableFuture.failedFuture(
+                    new UnsupportedOperationException("Routing to nested routers is not yet supported (route: " + route + ")"));
+        }
+
+        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        short requestApiVersion = header.requestApiVersion();
+        int routingCorrelationId = nextRoutingCorrelationId.getAndIncrement();
+        var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
+
+        var listener = RoutingEvent.EVENT_LISTENER.get();
+        if (listener != null) {
+            listener.accept(new RoutingEvent.Request(sessionId, route, clientCorrelationId, routingCorrelationId, apiKey, requestApiVersion, header, request));
+        }
+
+        if (!frame.hasResponse()) {
+            ccsm.forwardToRoute(route, frame);
+            LOGGER.atTrace()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("route", route)
+                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .log("Fire-and-forget request sent to route (no response expected)");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
+
+        ccsm.forwardToRoute(route, frame);
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("route", route)
+                .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .addKeyValue("apiVersion", requestApiVersion)
+                .log("Request sent to route");
+        attachEventListener(listener, future, route, routingCorrelationId, apiKey, sessionId);
+        return future;
+    }
+
+    CompletionStage<ApiMessage> sendToSpecificNode(int targetNodeId,
+                                                   String route,
+                                                   RequestHeaderData header,
+                                                   ApiMessage request,
+                                                   String sessionId,
+                                                   int clientCorrelationId) {
+        RouteDescriptor rd = routes.get(route);
+        if (rd == null || !rd.targetsCluster()) {
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("targetNodeId", targetNodeId)
+                    .addKeyValue("route", route)
+                    .log("Target node resolved to invalid route");
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
+        }
+
+        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
+        short requestApiVersion = header.requestApiVersion();
+        int routingCorrelationId = nextRoutingCorrelationId.getAndIncrement();
+        var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
+
+        var listener = RoutingEvent.EVENT_LISTENER.get();
+        if (listener != null) {
+            listener.accept(new RoutingEvent.Request(sessionId, route, clientCorrelationId, routingCorrelationId, apiKey, requestApiVersion, header, request));
+        }
+
+        CompletableFuture<ApiMessage> future = new CompletableFuture<>();
+        pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
+
+        try {
+            ccsm.forwardToNode(targetNodeId, route, frame);
+        }
+        catch (Exception e) {
+            pendingResponses.remove(routingCorrelationId);
+            LOGGER.atWarn()
+                    .addKeyValue("sessionId", sessionId)
+                    .addKeyValue("targetNodeId", targetNodeId)
+                    .addKeyValue("route", route)
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addKeyValue("error", e.getMessage())
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Failed to forward request to node"
+                            : "Failed to forward request to node, increase log level to DEBUG for stacktrace");
+            return CompletableFuture.failedFuture(e);
+        }
+
+        LOGGER.atTrace()
+                .addKeyValue("sessionId", sessionId)
+                .addKeyValue("route", route)
+                .addKeyValue("targetNodeId", targetNodeId)
+                .addKeyValue("clientCorrelationId", clientCorrelationId)
+                .addKeyValue("routingCorrelationId", routingCorrelationId)
+                .log("Request sent to specific node");
+        attachEventListener(listener, future, route, routingCorrelationId, apiKey, sessionId);
+        return future;
+    }
+
+    private void attachEventListener(Consumer<RoutingEvent> listener,
+                                     CompletableFuture<ApiMessage> future,
+                                     String route,
+                                     int routingCorrelationId,
+                                     ApiKeys apiKey,
+                                     String sessionId) {
+        if (listener != null) {
+            future.whenComplete((body, error) -> {
+                if (body != null) {
+                    listener.accept(new RoutingEvent.Response(sessionId, route, routingCorrelationId, apiKey, new ResponseHeaderData(), body));
+                }
+            });
+        }
     }
 
     private void cacheNodeAddressesIfMetadata(Object body) {
