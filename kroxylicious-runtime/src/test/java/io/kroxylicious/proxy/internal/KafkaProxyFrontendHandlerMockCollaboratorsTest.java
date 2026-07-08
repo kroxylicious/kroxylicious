@@ -100,7 +100,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @BeforeEach
     void setUp() {
         when(virtualCluster.getClusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.filterChainFactory()).thenReturn(new FilterChainFactory(null, List.of()));
+        when(virtualCluster.filterChainFactory()).thenReturn(FilterChainFactory.empty());
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
         when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         when(clientConnectionStateMachine.endpointBinding()).thenReturn(endpointBinding);

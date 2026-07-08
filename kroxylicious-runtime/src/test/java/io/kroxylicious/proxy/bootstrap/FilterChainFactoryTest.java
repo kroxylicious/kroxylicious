@@ -113,12 +113,21 @@ class FilterChainFactoryTest {
     }
 
     @Test
-    void testNullFiltersInConfigResultsInEmptyList() {
-        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr));
-        assertThat(filters)
-                .isNotNull()
-                .isEmpty();
+    void testNullArgumentsAreRejected() {
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new FilterChainFactory(null, List.of()))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void testEmptyFactoryCreatesNoFilters() {
+        try (FilterChainFactory filterChainFactory = FilterChainFactory.empty()) {
+            List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr));
+            assertThat(filters)
+                    .isNotNull()
+                    .isEmpty();
+        }
     }
 
     @Test

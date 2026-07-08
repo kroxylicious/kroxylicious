@@ -501,7 +501,7 @@ class ClientConnectionStateMachineEndToEndTest {
         when(virtualClusterModel.getTopicNameCacheFilter()).thenReturn(topicNameCacheFilter);
         // FCF is now resolved per-connection from the VC (see #4055). An empty FCF here is
         // sufficient — these tests don't exercise filter behavior, just connection flow.
-        when(virtualClusterModel.filterChainFactory()).thenReturn(new io.kroxylicious.proxy.bootstrap.FilterChainFactory(null, java.util.List.of()));
+        when(virtualClusterModel.filterChainFactory()).thenReturn(io.kroxylicious.proxy.bootstrap.FilterChainFactory.empty());
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         EndpointGateway endpointGateway = mock(EndpointGateway.class);
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
