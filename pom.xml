@@ -310,6 +310,11 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-validation-common</artifactId>
+                <version>${apicurio-schema-validation.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-validation-avro</artifactId>
                 <version>${apicurio-schema-validation.version}</version>
             </dependency>
