@@ -49,4 +49,8 @@ public record DirectRouting(String routeName, UpstreamClusterModel upstreamClust
     public void close() {
         upstreamCluster.close();
     }
+
+    public static String routeName(String virtualClusterName) {
+        return virtualClusterName + "Upstream";
+    }
 }

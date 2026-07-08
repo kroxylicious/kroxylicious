@@ -124,7 +124,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
-        this(clusterName, new DirectRouting(clusterName + "Upstream", targetCluster), logNetwork, logFrames, filters,
+        this(clusterName, new DirectRouting(DirectRouting.routeName(clusterName), targetCluster), logNetwork, logFrames, filters,
                 new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
     }
 
