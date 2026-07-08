@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -855,7 +856,7 @@ public class ClientConnectionStateMachine {
                                             Counter proxyToServerErrorCounter,
                                             Timer serverToProxyBackpressureMeter,
                                             ActivationToken proxyToServerConnectionToken,
-                                            ConnectionTlsConfig tlsConfig);
+                                            UpstreamClusterModel upstreamClusterModel);
     }
 
     @SuppressWarnings("java:S5738")
@@ -924,10 +925,10 @@ public class ClientConnectionStateMachine {
 
     private ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
         var vc = virtualCluster();
-        var tlsConfig = ConnectionTlsConfig.from(vc.getUpstreamClusterForRoute(routeName));
         return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
                 proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
-                tlsConfig);
+                Objects.requireNonNull(vc.getUpstreamClusterForRoute(routeName),
+                        "route '" + routeName + "' has no upstream cluster"));
     }
 
     /**
