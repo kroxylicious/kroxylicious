@@ -10,6 +10,6 @@
 = Creating keys in Thales CipherTrust Manager
 
 [role="_abstract"]
-To create encryption keys in Thales CipherTrust Manager for use with the Record Encryption filter, use the `ksctl` command-line tool to create AES-256 symmetric keys.
+To create AES-256 symmetric encryption keys in Thales CipherTrust Manager for the Record Encryption filter, use the ksctl command-line tool.
 
 include::../../../_modules/record-encryption/thales-ctm/proc-thales-ctm-key-creation.adoc[leveloffset=+1]

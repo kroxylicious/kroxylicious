@@ -10,6 +10,6 @@
 = Preparing Thales CipherTrust Manager
 
 [role="_abstract"]
-To prepare Thales CipherTrust Manager for use with the Record Encryption filter, configure a group with a least-privilege policy and create an application identity using either client certificate authentication (recommended) or username and password authentication.
+To prepare Thales CipherTrust Manager to use with the Record Encryption filter, configure a group with a least-privilege policy and create an application identity using either client certificate authentication (recommended) or username and password authentication.
 
 include::../../../_modules/record-encryption/thales-ctm/con-thales-ctm-setup.adoc[leveloffset=+1]

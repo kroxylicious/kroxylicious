@@ -43,7 +43,7 @@ where:
 
 == Username and password authentication
 
-For username and password authentication, use the username and password from the KMS setup:
+For username and password authentication, use the credentials from the KMS setup:
 
 [source, yaml]
 ----

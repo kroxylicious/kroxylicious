@@ -14,7 +14,7 @@
 = Preparing Thales CipherTrust Manager for Kroxylicious
 
 [role="_abstract"]
-To use the Record Encryption filter with Thales CipherTrust Manager (CTM), you need to configure CTM with a group, policy, and application identity that has the minimal permissions required for envelope encryption operations.
+To use the Record Encryption filter with Thales CipherTrust Manager (CTM), you must configure CTM with a group, policy, and application identity that has the minimal permissions required for envelope encryption operations.
 
 == CipherTrust Manager endpoint URL
 
@@ -98,12 +98,12 @@ Record the policy ID. You will need it to attach the policy to the group.
 
 This policy ensures that the Kroxylicious application identity:
 
-* CAN perform encryption and decryption operations
-* CAN read key metadata (required for alias resolution)
-* CAN only access keys matching the `kek-*` pattern
-* CANNOT create, delete, or modify keys
-* CANNOT access keys that don't match the pattern
-* CANNOt perform other admin operations
+* **Can** perform encryption and decryption operations
+* **Can** read key metadata (required for alias resolution)
+* **Can** only access keys matching the `kek-*` pattern
+* **Cannot** create, delete, or modify keys
+* **Cannot** access keys that do not match the pattern
+* **Cannot** perform other admin operations
 
 == Attach the policy to the group
 
@@ -140,7 +140,7 @@ Choose the method that best fits your organization's security requirements.
 
 === Client certificate authentication
 
-Client certificate authentication is recommended for production deployments as it provides stronger security and doesn't require storing passwords.
+Client certificate authentication is recommended for production deployments as it provides stronger security and does not require storing passwords.
 
 .Prerequisites
 

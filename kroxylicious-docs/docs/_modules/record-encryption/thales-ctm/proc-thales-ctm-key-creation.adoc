@@ -34,7 +34,7 @@ ksctl keys create \
   --size 256
 ----
 
-. Record the key name for use in the Record Encryption filter configuration.
+. Record the key name to use in the Record Encryption filter configuration.
 
 . Repeat for each topic or encryption scope that requires a separate key.
 
