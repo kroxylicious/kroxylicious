@@ -57,20 +57,6 @@ public record UpstreamClusterModel(
     }
 
     /**
-     * Builds a {@link TlsCredentialSupplierManager} from this cluster's TLS credential supplier
-     * configuration, or returns {@link Optional#empty()} when no {@link PluginFactoryRegistry} is
-     * available or no credential supplier is configured.
-     */
-    public Optional<TlsCredentialSupplierManager> buildTlsCredentialSupplierManager(@Nullable PluginFactoryRegistry pfr) {
-        if (pfr == null) {
-            return Optional.empty();
-        }
-        return tls()
-                .flatMap(t -> Optional.ofNullable(t.credentialSupplier()))
-                .map(config -> new TlsCredentialSupplierManager(pfr, config));
-    }
-
-    /**
      * Builds a fully-resolved {@link UpstreamClusterModel} for the given target cluster, constructing
      * the SSL context and TLS credential supplier manager from the cluster's TLS configuration.
      */

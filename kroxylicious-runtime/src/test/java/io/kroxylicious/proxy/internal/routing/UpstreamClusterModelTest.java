@@ -138,39 +138,6 @@ class UpstreamClusterModelTest {
         assertThat(model.usesDynamicTlsCredentials()).isTrue();
     }
 
-    // buildTlsCredentialSupplierManager()
-
-    @Test
-    void buildTlsCredentialSupplierManagerReturnsEmptyWhenPfrIsNull() {
-        assertThat(plaintext().buildTlsCredentialSupplierManager(null)).isEmpty();
-    }
-
-    @Test
-    void buildTlsCredentialSupplierManagerReturnsEmptyWhenNoTlsConfigured() {
-        assertThat(plaintext().buildTlsCredentialSupplierManager(stubPfr())).isEmpty();
-    }
-
-    @Test
-    void buildTlsCredentialSupplierManagerReturnsEmptyWhenNoCredentialSupplier() {
-        var cluster = new TargetCluster("broker:9092", Optional.of(TLS_NO_CREDENTIAL_SUPPLIER));
-        var model = new UpstreamClusterModel(cluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
-        assertThat(model.buildTlsCredentialSupplierManager(stubPfr())).isEmpty();
-    }
-
-    @Test
-    void buildTlsCredentialSupplierManagerReturnsConfiguredManagerWhenCredentialSupplierPresent() {
-        var supplierConfig = new TlsCredentialSupplierConfig("StubSupplierFactory", null);
-        var tls = new Tls(null, null, null, null, supplierConfig);
-        var cluster = new TargetCluster("broker:9092", Optional.of(tls));
-        var model = new UpstreamClusterModel(cluster, Optional.empty(), TlsCredentialSupplierManager.unconfigured());
-
-        var result = model.buildTlsCredentialSupplierManager(stubPfr());
-
-        assertThat(result).isPresent();
-        assertThat(result.get().isConfigured()).isTrue();
-        result.get().close();
-    }
-
     // build()
 
     @Test
