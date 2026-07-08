@@ -213,7 +213,7 @@ class RoutingTlsIT {
         try (var expectedAdmin = CloseableAdmin.create(expectedCluster.getKafkaClientConfiguration());
                 var unexpectedAdmin = CloseableAdmin.create(unexpectedCluster.getKafkaClientConfiguration())) {
             assertThat(expectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS)).contains(topicName);
-            assertThat(unexpectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS)).doesNotContain(topicName);
+            assertThat(unexpectedAdmin.listTopics().names().get(10, TimeUnit.SECONDS)).isEmpty();
         }
     }
 
