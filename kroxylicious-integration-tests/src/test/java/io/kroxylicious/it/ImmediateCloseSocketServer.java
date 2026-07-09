@@ -7,7 +7,6 @@ package io.kroxylicious.it;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -25,7 +24,7 @@ public class ImmediateCloseSocketServer implements AutoCloseable {
 
     public ImmediateCloseSocketServer() {
         try {
-            this.serverSocket = new ServerSocket(0, 50, InetAddress.getLocalHost());
+            this.serverSocket = new ServerSocket(0, 50);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
