@@ -13,8 +13,6 @@ import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * Routing model for a virtual cluster that forwards to one or more upstream clusters via a named
  * router plugin. The {@link NodeIdMapping} is derived from the route descriptors at construction
@@ -93,11 +91,21 @@ public record DynamicRouting(
     }
 
     @Override
-    public @Nullable UpstreamClusterModel upstreamClusterFor(@Nullable String routeName) {
-        if (routeName == null) {
-            return null;
+    public UpstreamClusterModel upstreamClusterFor(String routeName) {
+        UpstreamClusterModel upstreamClusterModel = routeClusterModels.get(routeName);
+        if (upstreamClusterModel == null) {
+            RouteDescriptor routeDescriptor = routeDescriptors.get(routeName);
+            if (routeDescriptor == null) {
+                throw new NoUpstreamClusterForRouteException("route " + routeName + " does not exist");
+            }
+            else if (!routeDescriptor.targetsCluster()) {
+                throw new NoUpstreamClusterForRouteException("route " + routeName + " does not target a cluster, but targets router " + routeDescriptor.routerName());
+            }
+            else {
+                throw new NoUpstreamClusterForRouteException("route " + routeName + " has no upstream cluster");
+            }
         }
-        return routeClusterModels.get(routeName);
+        return upstreamClusterModel;
     }
 
     private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {

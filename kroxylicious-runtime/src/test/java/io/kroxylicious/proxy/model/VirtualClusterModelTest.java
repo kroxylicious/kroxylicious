@@ -30,6 +30,7 @@ import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -197,7 +198,7 @@ class VirtualClusterModelTest {
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         assertThat(((DynamicRouting) model.routing()).routerName()).isEqualTo("myrouter");
         assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
-        assertThat(model.getUpstreamClusterForRoute("route1")).isNull();
+        assertThatThrownBy(() -> model.getUpstreamClusterForRoute("route1")).isInstanceOf(NoUpstreamClusterForRouteException.class);
     }
 
     @Test

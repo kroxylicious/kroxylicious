@@ -35,7 +35,10 @@ public record DirectRouting(String routeName, UpstreamClusterModel upstreamClust
 
     @Override
     public UpstreamClusterModel upstreamClusterFor(String routeName) {
-        return this.routeName.equals(routeName) ? upstreamCluster : null;
+        if (!routeName.equals(this.routeName)) {
+            throw new NoUpstreamClusterForRouteException("no upstream cluster for " + routeName + " direct routing handles fixed route name: " + this.routeName);
+        }
+        return upstreamCluster;
     }
 
     @Override
