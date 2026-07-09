@@ -600,6 +600,17 @@ public class ClientConnectionStateMachine {
      */
     CompletableFuture<Void> drain(Duration timeout) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
+        // registerConnection can add this CCSM before Netty fires channelActive, so
+        // frontendHandler may be null here. No dispatch target, no in-flight traffic —
+        // complete as a no-op so the coordinator's allOf(drainFutures) doesn't hang.
+        if (frontendHandler == null) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
+                    .addKeyValue("virtualCluster", clusterName())
+                    .log("drain requested before onClientActive fired; completing as no-op");
+            promise.complete(null);
+            return promise;
+        }
         executeOnEventLoop(() -> {
             if (state instanceof ClientConnectionState.Draining existing) {
                 existing.closedFuture().whenComplete((v, t) -> {
@@ -640,11 +651,17 @@ public class ClientConnectionStateMachine {
      */
     private void onDraining(Runnable onDrained, CompletableFuture<Void> closedFuture) {
         if (!(state instanceof Forwarding)) {
-            LOGGER.atWarn()
+            LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
-                    .log("Cannot start draining — not in Forwarding state");
+                    .log("Cannot start draining — not in Forwarding state, closing immediately");
+            // The connection is pre-Forwarding: there is no in-flight traffic to drain, but
+            // the channel is still open and holding Netty pipeline / SSL engine / filter chain
+            // resources. Silently completing without closing (previous behaviour) leaks those
+            // resources across every reconfigure, because ch.closeFuture()'s deregisterConnection
+            // listener could never fire. Close the channel now, then complete the drain promise:
+            toClosed(null, DisconnectCause.DRAIN_COMPLETED);
             onDrained.run();
             return;
         }
