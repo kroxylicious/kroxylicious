@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -600,6 +601,17 @@ public class ClientConnectionStateMachine {
      */
     CompletableFuture<Void> drain(Duration timeout) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
+        // registerConnection can add this CCSM before Netty fires channelActive, so
+        // frontendHandler may be null here. No dispatch target, no in-flight traffic —
+        // complete as a no-op so the coordinator's allOf(drainFutures) doesn't hang.
+        if (frontendHandler == null) {
+            LOGGER.atDebug()
+                    .addKeyValue("sessionId", kafkaSession.sessionId())
+                    .addKeyValue("virtualCluster", clusterName())
+                    .log("drain requested before onClientActive fired; completing as no-op");
+            promise.complete(null);
+            return promise;
+        }
         executeOnEventLoop(() -> {
             if (state instanceof ClientConnectionState.Draining existing) {
                 existing.closedFuture().whenComplete((v, t) -> {
@@ -640,11 +652,17 @@ public class ClientConnectionStateMachine {
      */
     private void onDraining(Runnable onDrained, CompletableFuture<Void> closedFuture) {
         if (!(state instanceof Forwarding)) {
-            LOGGER.atWarn()
+            LOGGER.atDebug()
                     .addKeyValue("sessionId", kafkaSession.sessionId())
                     .addKeyValue("virtualCluster", clusterName())
                     .addKeyValue("state", state.getClass().getSimpleName())
-                    .log("Cannot start draining — not in Forwarding state");
+                    .log("Cannot start draining — not in Forwarding state, closing immediately");
+            // The connection is pre-Forwarding: there is no in-flight traffic to drain, but
+            // the channel is still open and holding Netty pipeline / SSL engine / filter chain
+            // resources. Silently completing without closing (previous behaviour) leaks those
+            // resources across every reconfigure, because ch.closeFuture()'s deregisterConnection
+            // listener could never fire. Close the channel now, then complete the drain promise:
+            toClosed(null, DisconnectCause.DRAIN_COMPLETED);
             onDrained.run();
             return;
         }
@@ -829,10 +847,11 @@ public class ClientConnectionStateMachine {
     }
 
     @SuppressWarnings("java:S5738")
-    private void toForwarding(Forwarding forwarding,
-                              HostPort remote) {
+    private void toDirectForwarding(Forwarding forwarding,
+                                    HostPort remote,
+                                    String routeName) {
         setState(forwarding);
-        var scsm = createServerConnection(remote);
+        var scsm = createServerConnectionForRoute(routeName, remote);
         serverConnections.put(remote, scsm);
         var frontend = Objects.requireNonNull(frontendHandler);
         scsm.connect(Objects.requireNonNull(frontend.clientChannel()));
@@ -853,7 +872,8 @@ public class ClientConnectionStateMachine {
                                             Counter proxyToServerConnectionCounter,
                                             Counter proxyToServerErrorCounter,
                                             Timer serverToProxyBackpressureMeter,
-                                            ActivationToken proxyToServerConnectionToken);
+                                            ActivationToken proxyToServerConnectionToken,
+                                            UpstreamClusterModel upstreamClusterModel);
     }
 
     @SuppressWarnings("java:S5738")
@@ -907,7 +927,7 @@ public class ClientConnectionStateMachine {
                 return;
             }
             ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
-                var newScsm = createServerConnection(target);
+                var newScsm = createServerConnectionForRoute(routeName, target);
                 Channel clientChannel = Objects.requireNonNull(
                         Objects.requireNonNull(frontendHandler).clientChannel());
                 newScsm.connect(clientChannel);
@@ -920,10 +940,12 @@ public class ClientConnectionStateMachine {
         }
     }
 
-    @VisibleForTesting
-    ServerConnectionStateMachine createServerConnection(HostPort remote) {
-        return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId(),
-                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
+    private ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
+        var vc = virtualCluster();
+        return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
+                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
+                Objects.requireNonNull(vc.getUpstreamClusterForRoute(routeName),
+                        "route '" + routeName + "' has no upstream cluster"));
     }
 
     /**
@@ -956,9 +978,9 @@ public class ClientConnectionStateMachine {
         if (msg instanceof RequestFrame) {
             switch (virtualCluster().routing()) {
                 case DynamicRouting ignored -> toForwardingWithRoutes(forwardingFactory.get());
-                case DirectRouting ignored -> {
+                case DirectRouting dr -> {
                     var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-                    toForwarding(forwardingFactory.get(), target);
+                    toDirectForwarding(forwardingFactory.get(), target, dr.routeName());
                 }
             }
             tryUnblockClient();

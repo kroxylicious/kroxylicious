@@ -55,6 +55,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.ScheduledFuture;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -66,6 +67,7 @@ import io.kroxylicious.proxy.internal.net.HaProxyContext;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultSubjectBuilder;
 import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -98,7 +100,7 @@ class ClientConnectionStateMachineTest {
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME,
-            new DirectRouting(new TargetCluster("", Optional.empty())), false, false,
+            new DirectRouting("upstream", new TargetCluster("", Optional.empty())), false, false,
             List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
     public static final KafkaSession TEST_KAFKA_SESSION = new KafkaSession("testSession", KafkaSessionState.NOT_AUTHENTICATED);
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
@@ -125,7 +127,7 @@ class ClientConnectionStateMachineTest {
         when(endpointGateway.virtualCluster()).thenReturn(VIRTUAL_CLUSTER_MODEL);
         clientConnectionStateMachine = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> serverConnectionStateMachine);
+                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> serverConnectionStateMachine);
         when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
         when(frontendHandler.remoteHost()).thenReturn("testhost.example.com");
         when(frontendHandler.remotePort()).thenReturn(9476);
@@ -194,7 +196,7 @@ class ClientConnectionStateMachineTest {
         var capturedCounter = new java.util.concurrent.atomic.AtomicReference<io.micrometer.core.instrument.Counter>();
         var ccsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, c, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken) -> {
+                (remote, c, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> {
                     capturedCounter.set(connectionCounter);
                     return serverConnectionStateMachine;
                 });
@@ -745,11 +747,17 @@ class ClientConnectionStateMachineTest {
                 argumentSet("Closed", (Runnable) this::stateMachineInClosed));
     }
 
+    private static UpstreamClusterModel noTlsClusterModel() {
+        return new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty()),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+    }
+
     private void stubAsRouterVirtualCluster() {
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
         var routeDescriptors = Map.of("route",
                 new RouteDescriptor("route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors, mock(RouterChainFactory.class)));
+        when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(noTlsClusterModel());
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
     }
 
@@ -976,6 +984,7 @@ class ClientConnectionStateMachineTest {
         when(routeDescriptor.targetCluster()).thenReturn(targetCluster);
         var routerVc = mock(VirtualClusterModel.class, withSettings().lenient());
         when(routerVc.routing()).thenReturn(new DynamicRouting("router", Map.of("my-route", routeDescriptor), mock(RouterChainFactory.class)));
+        when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(noTlsClusterModel());
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: first request triggers toForwardingWithRoutes
@@ -992,7 +1001,7 @@ class ClientConnectionStateMachineTest {
         // Given: a CCSM whose SCSM factory throws on creation, in Forwarding state with a known route
         var failingCcsm = new ClientConnectionStateMachine(endpointBinding, new DefaultSubjectBuilder(List.of()),
                 new KafkaSession(KafkaSessionState.ESTABLISHING),
-                (remote, ccsm, vc, cn, ni, cc, ec, bpm, token) -> {
+                (remote, ccsm, vc, cn, ni, cc, ec, bpm, token, tlsConfig) -> {
                     throw new RuntimeException("scsm creation failed");
                 });
         var target = new HostPort("broker", 9092);
@@ -1002,6 +1011,7 @@ class ClientConnectionStateMachineTest {
         var routeDescriptors2 = Map.of("my-route",
                 new RouteDescriptor("my-route", 0, new TargetCluster("broker:9092", Optional.empty()), null, List.of()));
         when(routerVc.routing()).thenReturn(new DynamicRouting("router", routeDescriptors2, mock(RouterChainFactory.class)));
+        when(routerVc.getUpstreamClusterForRoute(any())).thenReturn(noTlsClusterModel());
         when(endpointGateway.virtualCluster()).thenReturn(routerVc);
 
         // When: forwardToRoute lazily tries to create an SCSM and fails
@@ -1417,6 +1427,22 @@ class ClientConnectionStateMachineTest {
         // --- drain(Duration) entry point ---
 
         @Test
+        void drainBeforeOnClientActiveIsFiredCompletesPromiseWithoutDispatch() {
+            // Given — freshly-constructed CCSM: frontendHandler is null because
+            // onClientActive has not fired yet. Models the race window between
+            // registerConnection and channelActive.
+
+            // When
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+            verifyNoInteractions(clientChannel);
+            verifyNoInteractions(eventLoop);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Startup.class);
+        }
+
+        @Test
         void drainFromForwardingWithNoInFlightImmediatelyClosesWithDrainCompleted() {
             // Given — Forwarding state, no in-flight requests
             stateMachineInForwarding();
@@ -1454,18 +1480,53 @@ class ClientConnectionStateMachineTest {
         }
 
         @Test
-        void drainWhenStateIsNotForwardingStillCompletesFuture() {
-            // Given — CCSM stuck in HaProxy state (not Forwarding)
+        void drainOnHaProxyClosesChannelAndCompletesPromise() {
+            // Given — connection has parsed the PROXY protocol header but has not yet reached
+            // Forwarding.
             clientConnectionStateMachine.forceState(new ClientConnectionState.HaProxy(), frontendHandler, Map.of(), TEST_KAFKA_SESSION, true);
 
             // When
             CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
 
-            // Then — the reject path in onDraining still fires the onDrained policy so DC
-            // (or any caller awaiting the future) doesn't hang waiting for a drain that never starts
+            // Then — drain promise completes AND channel closes AND state advances to Closed
             assertThat(closedFuture).isCompleted();
-            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.HaProxy.class);
+            verify(frontendHandler).inClosed(null);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             // No autoRead change because we never entered Draining
+            verify(frontendHandler, never()).applyBackpressure();
+        }
+
+        @Test
+        void drainOnStartupClosesChannelAndCompletesPromise() {
+            // Given — connection has just been accepted; the CCSM is in the initial Startup
+            // state. registerConnection has already added it to the VC's activeConnections, so
+            // startDraining will call drain() on it during ReplaceCluster.
+            clientConnectionStateMachine.forceState(ClientConnectionState.Startup.STARTING_STATE,
+                    frontendHandler, Map.of(), TEST_KAFKA_SESSION, true);
+
+            // When
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+            verify(frontendHandler).inClosed(null);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+            verify(frontendHandler, never()).applyBackpressure();
+        }
+
+        @Test
+        void drainOnClientActiveClosesChannelAndCompletesPromise() {
+            // Given — client sent its ApiVersions handshake but has not yet issued a Metadata
+            // request that would drive the transition to Forwarding.
+            stateMachineInClientActive();
+
+            // When
+            CompletableFuture<Void> closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+            verify(frontendHandler).inClosed(null);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
             verify(frontendHandler, never()).applyBackpressure();
         }
 

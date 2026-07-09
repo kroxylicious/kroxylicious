@@ -86,7 +86,7 @@ public abstract class FilterHarness {
 
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
-        var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting(targetCluster), false,
+        var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", new DirectRouting("upstream", targetCluster), false,
                 false, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
         var inboundChannel = new EmbeddedChannel();

@@ -129,7 +129,7 @@ class KafkaProxyInitializerTest {
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster",
-                new DirectRouting(new TargetCluster("localhost:9090", tls)), logNetwork,
+                new DirectRouting("upstream", new TargetCluster("localhost:9090", tls)), logNetwork,
                 logFrames, List.of(), CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
         testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;

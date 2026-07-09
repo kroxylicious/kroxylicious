@@ -11,25 +11,42 @@ import java.util.Objects;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.router.Router;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Routing model for a virtual cluster that forwards to one or more upstream clusters via a named
  * router plugin. The {@link NodeIdMapping} is derived from the route descriptors at construction
  * time. The {@link RouterChainFactory} is owned by this instance and is closed when the owning
  * {@link io.kroxylicious.proxy.model.VirtualClusterModel} is closed.
+ * <p>
+ * Owns per-route {@link UpstreamClusterModel} instances in {@link #routeClusterModels()}, which are
+ * populated from route descriptors during {@code VirtualClusterModel} construction. An empty map is
+ * used when no TLS resources have been resolved (e.g. in test contexts without a
+ * {@code PluginFactoryRegistry}).
  */
 public record DynamicRouting(
                              String routerName,
                              Map<String, RouteDescriptor> routeDescriptors,
                              NodeIdMapping nodeIdMapping,
-                             RouterChainFactory routerChainFactory)
+                             RouterChainFactory routerChainFactory,
+                             Map<String, UpstreamClusterModel> routeClusterModels)
         implements RoutingModel {
 
     /**
-     * Convenience constructor: computes the {@link NodeIdMapping} from the supplied route descriptors.
+     * Production constructor: computes the {@link NodeIdMapping} from the supplied route descriptors.
      */
+    public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors,
+                          RouterChainFactory routerChainFactory, Map<String, UpstreamClusterModel> routeClusterModels) {
+        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, routeClusterModels);
+    }
+
+    /**
+     * Test-only constructor: uses an empty cluster model map.
+     * Production code should supply fully-built {@link UpstreamClusterModel} instances.
+     */
+    @VisibleForTesting
     public DynamicRouting(String routerName, Map<String, RouteDescriptor> routeDescriptors, RouterChainFactory routerChainFactory) {
-        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory);
+        this(routerName, routeDescriptors, buildNodeIdMapping(routeDescriptors), routerChainFactory, Map.of());
     }
 
     public DynamicRouting {
@@ -37,7 +54,9 @@ public record DynamicRouting(
         Objects.requireNonNull(routeDescriptors, "routeDescriptors");
         Objects.requireNonNull(nodeIdMapping, "nodeIdMapping");
         Objects.requireNonNull(routerChainFactory, "routerChainFactory");
+        Objects.requireNonNull(routeClusterModels, "routeClusterModels");
         routeDescriptors = Map.copyOf(routeDescriptors);
+        routeClusterModels = Map.copyOf(routeClusterModels);
     }
 
     public Router createRouter(String clusterName) {
@@ -46,7 +65,47 @@ public record DynamicRouting(
 
     @Override
     public void close() {
-        routerChainFactory.close();
+        RuntimeException firstFailure = null;
+        try {
+            routerChainFactory.close();
+        }
+        catch (RuntimeException e) {
+            firstFailure = e;
+        }
+        for (UpstreamClusterModel model : routeClusterModels.values()) {
+            try {
+                model.close();
+            }
+            catch (RuntimeException e) {
+                if (firstFailure == null) {
+                    firstFailure = e;
+                }
+                else {
+                    firstFailure.addSuppressed(e);
+                }
+            }
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
+        }
+    }
+
+    @Override
+    public UpstreamClusterModel upstreamClusterFor(String routeName) {
+        UpstreamClusterModel upstreamClusterModel = routeClusterModels.get(routeName);
+        if (upstreamClusterModel == null) {
+            RouteDescriptor routeDescriptor = routeDescriptors.get(routeName);
+            if (routeDescriptor == null) {
+                throw new NoUpstreamClusterForRouteException("route " + routeName + " does not exist");
+            }
+            else if (!routeDescriptor.targetsCluster()) {
+                throw new NoUpstreamClusterForRouteException("route " + routeName + " does not target a cluster, but targets router " + routeDescriptor.routerName());
+            }
+            else {
+                throw new NoUpstreamClusterForRouteException("route " + routeName + " has no upstream cluster");
+            }
+        }
+        return upstreamClusterModel;
     }
 
     private static NodeIdMapping buildNodeIdMapping(Map<String, RouteDescriptor> routeDescriptors) {

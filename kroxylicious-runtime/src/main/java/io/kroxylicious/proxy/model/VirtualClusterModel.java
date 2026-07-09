@@ -42,7 +42,6 @@ import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.filter.impl.TopicNameCacheFilter;
@@ -50,6 +49,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RoutingModel;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.internal.tls.NettyTrustProvider;
@@ -104,15 +104,12 @@ public class VirtualClusterModel implements AutoCloseable {
 
     private final List<NamedFilterDefinition> filters;
 
-    private final Optional<SslContext> upstreamSslContext;
     private final CacheConfiguration topicNameCacheConfig;
     private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
     private final Duration drainTimeout;
     // lazily initialize to delay statistics registration until after the meter registry has been configured
     @Nullable
     private TopicNameCacheFilter topicNameCacheFilter = null;
-
-    private final TlsCredentialSupplierManager tlsCredentialSupplierManager;
 
     /**
      * The filter chain factory for <em>this</em> virtual cluster. Owned by the VCM — its
@@ -127,7 +124,7 @@ public class VirtualClusterModel implements AutoCloseable {
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
-        this(clusterName, new DirectRouting(targetCluster), logNetwork, logFrames, filters,
+        this(clusterName, new DirectRouting(DirectRouting.routeName(clusterName), targetCluster), logNetwork, logFrames, filters,
                 new CacheConfiguration(null, null, null), null, Duration.ofSeconds(10), null);
     }
 
@@ -142,33 +139,16 @@ public class VirtualClusterModel implements AutoCloseable {
                                Duration drainTimeout,
                                @Nullable PluginFactoryRegistry pluginFactoryRegistry) {
         this.clusterName = Objects.requireNonNull(clusterName);
-        this.routing = Objects.requireNonNull(routing);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
         this.topicNameCacheConfig = topicNameCacheConfig;
         this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
         this.drainTimeout = Objects.requireNonNull(drainTimeout);
-
-        if (pluginFactoryRegistry != null) {
-            this.filterChainFactory = new FilterChainFactory(pluginFactoryRegistry, filters);
-            TlsCredentialSupplierConfig tlsSupplierConfig = switch (routing) {
-                case DirectRouting dr -> dr.targetCluster().tls().flatMap(tls -> Optional.ofNullable(tls.credentialSupplier())).orElse(null);
-                case DynamicRouting ignored -> null;
-            };
-            this.tlsCredentialSupplierManager = new TlsCredentialSupplierManager(pluginFactoryRegistry, tlsSupplierConfig);
-        }
-        else {
-            // Test-only constructors take this branch. They always pass an empty/null filter
-            // list, so an empty FCF is the right shape — FilterChainFactory tolerates a null
-            // pfr when the chain is empty, which spares tests from building a real
-            // PluginFactoryRegistry.
-            this.filterChainFactory = new FilterChainFactory(null, List.of());
-            this.tlsCredentialSupplierManager = TlsCredentialSupplierManager.unconfigured();
-        }
-
-        // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
-        this.upstreamSslContext = buildUpstreamSslContext();
+        this.routing = Objects.requireNonNull(routing);
+        this.filterChainFactory = pluginFactoryRegistry != null
+                ? new FilterChainFactory(pluginFactoryRegistry, filters)
+                : new FilterChainFactory(null, List.of());
     }
 
     /**
@@ -210,14 +190,14 @@ public class VirtualClusterModel implements AutoCloseable {
                     .addKeyValue("downstream", downstreamBootstrap + downstreamTlsSummary);
             logBuilder = switch (routing) {
                 case DirectRouting dr -> logBuilder.addKeyValue("upstream",
-                        dr.targetCluster().bootstrapServersList() + generateTlsSummary(dr.targetCluster().tls()));
+                        dr.upstreamCluster().bootstrapServersList() + generateTlsSummary(dr.upstreamCluster().tls()));
                 case DynamicRouting ignored -> logBuilder.addKeyValue("upstream", "(via router)");
             };
             logBuilder.log("Gateway configuration");
         });
     }
 
-    private static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
+    static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
         var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
                 .map(TrustProvider::trustOptions)
                 .map(TrustOptions::toString).orElse("-"))
@@ -234,7 +214,6 @@ public class VirtualClusterModel implements AutoCloseable {
         var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
                 .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
-
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
@@ -266,30 +245,24 @@ public class VirtualClusterModel implements AutoCloseable {
                 ", gateways=" + gateways +
                 ", logNetwork=" + logNetwork +
                 ", logFrames=" + logFrames +
-                ", upstreamSslContext=" + upstreamSslContext +
                 '}';
     }
 
-    public Optional<SslContext> getUpstreamSslContext() {
-        return upstreamSslContext;
-    }
-
     /**
-     * Returns the TLS credential supplier manager for this virtual cluster.
-     * This is never null; if no supplier is configured, an unconfigured manager is returned.
-     *
-     * @return The TLS credential supplier manager
+     * Returns the {@link UpstreamClusterModel} for a specific route, or {@code null} if the route
+     * does not target an upstream cluster (e.g. it targets a nested router).
      */
-    public TlsCredentialSupplierManager getTlsCredentialSupplierManager() {
-        return tlsCredentialSupplierManager;
+    @Nullable
+    public UpstreamClusterModel getUpstreamClusterForRoute(String routeName) {
+        return routing.upstreamClusterFor(routeName);
     }
 
     /**
      * Closes resources associated with this virtual cluster — the TLS credential supplier
-     * manager and the {@link FilterChainFactory}. Called by {@code VirtualClusterRegistry}
-     * on lifecycle transition into {@code Stopped}. Safe to call multiple times — the FCF's
-     * underlying {@code Wrapper.close} is idempotent via an internal {@code AtomicBoolean},
-     * and {@code TlsCredentialSupplierManager.close} tolerates re-entry.
+     * manager(s) held by the routing model and the {@link FilterChainFactory}. Called by
+     * {@code VirtualClusterRegistry} on lifecycle transition into {@code Stopped}. Safe to call
+     * multiple times — the FCF's underlying {@code Wrapper.close} is idempotent via an internal
+     * {@code AtomicBoolean}, and {@code TlsCredentialSupplierManager.close} tolerates re-entry.
      */
     @Override
     public void close() {
@@ -313,17 +286,6 @@ public class VirtualClusterModel implements AutoCloseable {
                 firstFailure.addSuppressed(e);
             }
         }
-        try {
-            tlsCredentialSupplierManager.close();
-        }
-        catch (RuntimeException e) {
-            if (firstFailure == null) {
-                firstFailure = e;
-            }
-            else {
-                firstFailure.addSuppressed(e);
-            }
-        }
         if (firstFailure != null) {
             throw firstFailure;
         }
@@ -335,42 +297,12 @@ public class VirtualClusterModel implements AutoCloseable {
      * @return true if a credential supplier is configured
      */
     public boolean usesDynamicTlsCredentials() {
-        return routing instanceof DirectRouting dr
-                && dr.targetCluster().tls().map(tls -> tls.credentialSupplier() != null).orElse(false);
+        return routing instanceof DirectRouting dr && dr.upstreamCluster().usesDynamicTlsCredentials();
     }
 
     public static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
         final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
         return new NettyTrustProvider(trustProvider);
-    }
-
-    private Optional<SslContext> buildUpstreamSslContext() {
-        if (!(routing instanceof DirectRouting dr)) {
-            return Optional.empty();
-        }
-        return dr.targetCluster().tls().map(targetClusterTls -> {
-            try {
-                var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
-                        .orElse(SslContextBuilder.forClient());
-
-                configureCipherSuites(sslContextBuilder, targetClusterTls);
-                configureEnabledProtocols(sslContextBuilder, targetClusterTls);
-
-                Optional.ofNullable(targetClusterTls.trust())
-                        .map(TrustProvider::trustOptions)
-                        .filter(Predicate.not(TrustOptions::forClient))
-                        .ifPresent(to -> {
-                            throw new IllegalConfigurationException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
-                        });
-
-                var withTrust = configureTrustProvider(targetClusterTls).apply(sslContextBuilder);
-
-                return withTrust.build();
-            }
-            catch (SSLException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
     }
 
     public static void configureCipherSuites(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
