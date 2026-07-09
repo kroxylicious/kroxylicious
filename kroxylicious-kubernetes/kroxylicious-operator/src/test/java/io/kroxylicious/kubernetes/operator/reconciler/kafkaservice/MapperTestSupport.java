@@ -6,7 +6,11 @@
 
 package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -31,6 +35,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -181,9 +186,26 @@ class MapperTestSupport {
 
     public static void stubPrimaryCache(EventSourceContext<KafkaService> context, KafkaService... services) {
         IndexerResourceCache<KafkaService> primaryCache = mock();
+        Map<String, Function<KafkaService, List<String>>> indexers = new HashMap<>();
+        when(primaryCache.byIndex(any(), any())).thenAnswer(invocation -> {
+            String indexName = invocation.getArgument(0);
+            String indexKey = invocation.getArgument(1);
+            Function<KafkaService, List<String>> indexer = indexers.get(indexName);
+            if (indexer == null) {
+                return List.of();
+            }
+            return Stream.of(services).filter(service -> indexer.apply(service).contains(indexKey)).toList();
+        });
+        doAnswer(invocation -> {
+            indexers.put(invocation.getArgument(0), invocation.getArgument(1));
+            return null;
+        }).when(primaryCache).addIndexer(any(), any());
         when(primaryCache.list(any(), any())).thenAnswer(invocation -> {
+            String namespace = invocation.getArgument(0);
             Predicate<KafkaService> predicate = invocation.getArgument(1);
-            return Stream.of(services).filter(predicate);
+            return Stream.of(services)
+                    .filter(service -> Objects.equals(namespace, service.getMetadata().getNamespace()))
+                    .filter(predicate);
         });
         when(context.getPrimaryCache()).thenReturn(primaryCache);
     }

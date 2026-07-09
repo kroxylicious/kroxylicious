@@ -18,13 +18,11 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
-import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
@@ -122,15 +120,6 @@ public final class KafkaServiceReconciler implements
                 new SecretSecondaryJoinedOnTlsTrustAnchorRefToKafkaServicePrimaryMapper(context),
                 allowedNamespaces);
 
-        // Strimzi CA certificate Secrets - uses shared informer
-        var serviceToStrimziCaCertificate = new SharedInformerEventSource<>(
-                Secret.class,
-                SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
-                sharedSecretInformer,
-                new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper(),
-                new StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper(context),
-                allowedNamespaces);
-
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(serviceToSecret);
@@ -141,14 +130,22 @@ public final class KafkaServiceReconciler implements
             LOGGER.atDebug()
                     .addKeyValue(OperatorLoggingKeys.NAMESPACE, context.getClient().getNamespace())
                     .log("Adding kafkas.strimzi.io.kafka informer because the Kafka CRD is supported by the cluster");
-            InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
+            var sharedStrimziKafkaInformer = sharedInformerManager.getOrCreateInformer(Kafka.class);
+            var serviceToStrimziKafka = new SharedInformerEventSource<>(
                     Kafka.class,
-                    KafkaService.class)
-                    .withName(STRIMZI_KAFKA_EVENT_SOURCE_NAME)
-                    .withPrimaryToSecondaryMapper(new KafkaServicePrimaryToStrimziKafkaSecondaryMapper())
-                    .withSecondaryToPrimaryMapper(new StrimziKafkaSecondaryToKafkaServicePrimaryMapper(context))
-                    .build();
-            informersList.add(new InformerEventSource<>(serviceToStrimziKafka, context));
+                    STRIMZI_KAFKA_EVENT_SOURCE_NAME,
+                    sharedStrimziKafkaInformer,
+                    new KafkaServicePrimaryToStrimziKafkaSecondaryMapper(),
+                    new StrimziKafkaSecondaryToKafkaServicePrimaryMapper(context),
+                    allowedNamespaces);
+            var serviceToStrimziCaCertificate = new SharedInformerEventSource<>(
+                    Secret.class,
+                    SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME,
+                    sharedSecretInformer,
+                    new KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper(),
+                    new StrimziCaCertificateSecondaryToKafkaServicePrimaryMapper(context),
+                    allowedNamespaces);
+            informersList.add(serviceToStrimziKafka);
             informersList.add(serviceToStrimziCaCertificate);
         }
 
@@ -189,13 +186,28 @@ public final class KafkaServiceReconciler implements
             return ValidationResult.success();
         }
 
+        var strimziKafkaRef = strimziKafkaRefOpt.get();
+        var strimziNamespace = ResourcesUtil.namespaceFor(service, strimziKafkaRef.getNamespace());
+        if (!isWatchedNamespace(strimziNamespace)) {
+            return ValidationResult.failure(statusFactory.newFalseConditionStatusPatch(service,
+                    ResolvedRefs,
+                    Condition.REASON_REFS_NOT_FOUND,
+                    SPEC_REF + ".namespace: namespace %s is not watched by this operator".formatted(strimziNamespace)));
+        }
+
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(
-                service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME,
-                strimziKafkaRefOpt.get(), SPEC_REF, statusFactory);
+                service, context,
+                STRIMZI_KAFKA_EVENT_SOURCE_NAME,
+                strimziKafkaRef, SPEC_REF, statusFactory);
 
         return result.resource() != null
                 ? ValidationResult.failure(result.resource())
                 : ValidationResult.success(result.referents());
+    }
+
+    private boolean isWatchedNamespace(String namespace) {
+        var allowedNamespaces = sharedInformerManager.effectiveNamespaces();
+        return allowedNamespaces.isEmpty() || allowedNamespaces.contains(namespace);
     }
 
     private TrustAnchorResolution resolveTrustAnchor(
@@ -272,7 +284,7 @@ public final class KafkaServiceReconciler implements
                                                         List<HasMetadata> existingReferents) {
 
         ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziTrustAnchor(
-                service, context, strimziRef, statusFactory);
+                service, context, SECRETS_STRIMZI_TRUST_ANCHOR_REF_EVENT_SOURCE_NAME, strimziRef, statusFactory);
 
         if (result.resource() != null) {
             return TrustAnchorResolution.failure(result.resource());

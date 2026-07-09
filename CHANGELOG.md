@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 * [#933](https://github.com/kroxylicious/kroxylicious/issues/933): feat(pem-support): Support PEM format key material in the KMS integrations.
+* [#3970](https://github.com/kroxylicious/kroxylicious/issues/3970): feat(operator): allow `KafkaService.spec.strimziKafkaRef.namespace` to reference Strimzi `Kafka` clusters in watched namespaces other than the `KafkaService` namespace
 
 ## 0.22.0
 

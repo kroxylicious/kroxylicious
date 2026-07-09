@@ -65,7 +65,8 @@ spec:
                       description: Name of the cluster
                       type: string
                     namespace:
-                      description: Namespace of the Kafka cluster(same as KafkaService namespace)
+                      description: Namespace of the Kafka cluster. Defaults to the KafkaService namespace.
+                      pattern: ^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$
                       type: string
                     listenerName:
                       description: listener name of the cluster
@@ -74,7 +75,7 @@ spec:
                       description: |
                         If true, automatically trust the Strimzi cluster CA certificate for TLS connections
                         to the upstream Kafka cluster. The proxy will discover the CA certificate from the
-                        Secret created by Strimzi (<kafka-name>-cluster-ca-cert in the same namespace).
+                        Secret created by Strimzi (<kafka-name>-cluster-ca-cert in the same namespace as the referenced Kafka CR).
 
                         Security note: This delegates certificate trust to the Strimzi operator.
                       type: boolean

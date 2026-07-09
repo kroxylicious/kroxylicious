@@ -14,13 +14,18 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
 
 class KafkaServicePrimaryToStrimziCaCertificateSecondaryMapper implements PrimaryToSecondaryMapper<KafkaService> {
     @Override
     public Set<ResourceID> toSecondaryResourceIDs(KafkaService service) {
         return Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef)
-                .map(strimziKafkaRef -> Set.of(new ResourceID(strimziKafkaRef.getRef().getName() + "-cluster-ca-cert", service.getMetadata().getNamespace())))
+                .map(strimziKafkaRef -> Set
+                        .of(new ResourceID(strimziKafkaRef.getRef().getName() + STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX,
+                                ResourcesUtil.namespaceFor(service, strimziKafkaRef.getNamespace()))))
                 .orElse(Set.of());
     }
 }

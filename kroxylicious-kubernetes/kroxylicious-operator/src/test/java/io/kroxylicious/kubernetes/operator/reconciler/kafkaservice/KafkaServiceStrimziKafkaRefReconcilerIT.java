@@ -8,7 +8,9 @@ package io.kroxylicious.kubernetes.operator.reconciler.kafkaservice;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -27,6 +30,7 @@ import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -119,6 +123,50 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
         // Then
         assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+    }
+
+    @Test
+    void shouldResolveStrimziKafkaInDifferentNamespace() {
+        String strimziNamespace = "strimzi-" + UUID.randomUUID();
+
+        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+            client.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(strimziNamespace).endMetadata().build()).create();
+            try {
+                var kafka = client.resources(Kafka.class).inNamespace(strimziNamespace).resource(kafkaResource(KAFKA_RESOURCE_NAME)).create();
+                reconcileStrimziResource(kafka, strimziNamespace);
+
+                KafkaService service = clusterUser.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME, strimziNamespace));
+
+                assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+            }
+            finally {
+                client.namespaces().withName(strimziNamespace).delete();
+            }
+        }
+
+    }
+
+    @Test
+    void shouldResolveStrimziCaSecretInReferencedKafkaNamespace() {
+        String strimziNamespace = "strimzi-" + UUID.randomUUID();
+
+        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+            client.namespaces().resource(new NamespaceBuilder().withNewMetadata().withName(strimziNamespace).endMetadata().build()).create();
+            try {
+                var kafka = client.resources(Kafka.class).inNamespace(strimziNamespace).resource(kafkaResourceWithTls(KAFKA_RESOURCE_NAME)).create();
+                reconcileStrimziResource(kafka, strimziNamespace);
+                String clusterCaSecretName = KAFKA_RESOURCE_NAME + ResourcesUtil.STRIMZI_CLUSTER_CA_CERT_SECRET_SUFFIX;
+                client.secrets().inNamespace(strimziNamespace).resource(strimziTrustAnchorSecret(clusterCaSecretName)).create();
+
+                KafkaService service = clusterUser.create(kafkaServiceWithCrossNamespaceStrimziCa("service-cross-namespace-strimzi-ca", "tls", strimziNamespace));
+
+                assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
+                assertKafkaService("service-cross-namespace-strimzi-ca", clusterCaSecretName, "Secret");
+            }
+            finally {
+                client.namespaces().withName(strimziNamespace).delete();
+            }
+        }
     }
 
     @Test
@@ -289,7 +337,18 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
     }
 
     private Secret createStrimziTrustAnchorSecret(String name) {
-        return createTrustAnchorSecret(name, STRIMZI_CLUSTER_CA_BUNDLE);
+        Secret secret = strimziTrustAnchorSecret(name);
+        clusterUser.create(secret);
+        return secret;
+    }
+
+    private Secret strimziTrustAnchorSecret(String name) {
+        return new SecretBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData(STRIMZI_CLUSTER_CA_BUNDLE, "whatever")
+                .build();
     }
 
     private KafkaService kafkaServiceWithStrimziKafkaRefAndOptionalTrustAnchor(String serviceName,
@@ -369,6 +428,45 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                         .withName(clusterName)
                      .endRef()
                     .endStrimziKafkaRef()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private static KafkaService kafkaServiceWithStrimziKafkaRef(String resourceName, String listenerName, String clusterName, String clusterNamespace) {
+        // @formatter:off
+        return new KafkaServiceBuilder()
+                .withNewMetadata()
+                .withName(resourceName)
+                .endMetadata()
+                .editOrNewSpec()
+                .withNewStrimziKafkaRef()
+                .withListenerName(listenerName)
+                .withNamespace(clusterNamespace)
+                .withNewRef()
+                .withName(clusterName)
+                .endRef()
+                .endStrimziKafkaRef()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private static KafkaService kafkaServiceWithCrossNamespaceStrimziCa(String resourceName, String listenerName, String clusterNamespace) {
+        // @formatter:off
+        return new KafkaServiceBuilder()
+                .withNewMetadata()
+                .withName(resourceName)
+                .endMetadata()
+                .editOrNewSpec()
+                .withNewStrimziKafkaRef()
+                .withListenerName(listenerName)
+                .withTrustStrimziCaCertificate(true)
+                .withNamespace(clusterNamespace)
+                .withNewRef()
+                .withName(KAFKA_RESOURCE_NAME)
+                .endRef()
+                .endStrimziKafkaRef()
                 .endSpec()
                 .build();
         // @formatter:on
@@ -459,8 +557,30 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
 
     // simulates what the Strimzi operator would do
     private void reconcileStrimziResource(Kafka kafka) {
+        externalOperator.updateStatus(Kafka.class, kafka.getMetadata().getName(), fresh -> new KafkaBuilder(fresh)
+                .withNewStatus()
+                .addAllToListeners(listenerStatuses(kafka))
+                .endStatus()
+                .build());
+    }
+
+    // simulates what the Strimzi operator would do
+    private void reconcileStrimziResource(Kafka kafka, String namespace) {
+        var statusListeners = listenerStatuses(kafka);
+
+        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+            Kafka fresh = client.resources(Kafka.class).inNamespace(namespace).withName(kafka.getMetadata().getName()).get();
+            client.resource(new KafkaBuilder(fresh)
+                    .withNewStatus()
+                    .addAllToListeners(statusListeners)
+                    .endStatus()
+                    .build()).inNamespace(namespace).patchStatus();
+        }
+    }
+
+    private List<ListenerStatus> listenerStatuses(Kafka kafka) {
         // @formatter:off
-        var statusListeners = kafka.getSpec().getKafka().getListeners().stream().map(specListener ->
+        return kafka.getSpec().getKafka().getListeners().stream().map(specListener ->
                 new ListenerStatusBuilder()
                         .withName(specListener.getName())
                         .addNewAddress()
@@ -469,12 +589,6 @@ class KafkaServiceStrimziKafkaRefReconcilerIT {
                         .endAddress()
                         .build()).toList();
         // @formatter:on
-
-        externalOperator.updateStatus(Kafka.class, kafka.getMetadata().getName(), fresh -> new KafkaBuilder(fresh)
-                .withNewStatus()
-                .addAllToListeners(statusListeners)
-                .endStatus()
-                .build());
     }
 
     private TrustAnchorRef createTrustAnchorRef(String name, String kind) {
