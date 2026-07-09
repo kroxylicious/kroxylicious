@@ -123,7 +123,7 @@ public record AzureKeyVaultEdek(String keyName,
                 ", vaultName=" + vaultName +
                 ", supportedKeyType=" + supportedKeyType +
                 ", keyVersion=" + keyVersion +
-                ", edek=" + Arrays.toString(edek) +
+                ", edek=<redacted>" +
                 '}';
     }
 }

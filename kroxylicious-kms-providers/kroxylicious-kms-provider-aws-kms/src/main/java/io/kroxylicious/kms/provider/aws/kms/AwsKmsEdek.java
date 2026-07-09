@@ -64,7 +64,7 @@ public record AwsKmsEdek(String kekRef,
     public String toString() {
         return "AwsKmsEdek{" +
                 "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
+                ", edek=<redacted>" +
                 '}';
     }
 }

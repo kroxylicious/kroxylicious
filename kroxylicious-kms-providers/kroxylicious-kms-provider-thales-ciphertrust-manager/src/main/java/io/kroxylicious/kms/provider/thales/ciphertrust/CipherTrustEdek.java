@@ -104,11 +104,11 @@ public record CipherTrustEdek(
     public String toString() {
         return "CipherTrustEdek{" +
                 "id='" + id + '\'' +
-                ", ciphertext=" + Arrays.toString(ciphertext) +
-                ", tag=" + Arrays.toString(tag) +
+                ", ciphertext=<redacted>" +
+                ", tag=<redacted>" +
                 ", version=" + version +
                 ", mode='" + mode + '\'' +
-                ", iv=" + Arrays.toString(iv) +
+                ", iv=<redacted>" +
                 '}';
     }
 }

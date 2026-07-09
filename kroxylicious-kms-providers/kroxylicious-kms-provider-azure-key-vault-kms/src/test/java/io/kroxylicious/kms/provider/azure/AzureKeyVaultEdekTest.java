@@ -47,6 +47,13 @@ class AzureKeyVaultEdekTest {
         assertThat(bytes).isEmpty();
     }
 
+    @Test
+    void toStringFormation() {
+        AzureKeyVaultEdek edek = createEdek(KEY_NAME, KEY_VERSION, EDEK, VAULT_NAME, KEY_TYPE);
+        assertThat(edek).hasToString("AzureKeyVaultEdek{keyName=" + KEY_NAME + ", vaultName=" + VAULT_NAME
+                + ", supportedKeyType=" + KEY_TYPE + ", keyVersion=" + KEY_VERSION + ", edek=<redacted>}");
+    }
+
     static Stream<Arguments> validEdek() {
         return Stream.of(argumentSet("simple", KEY_NAME, KEY_VERSION, EDEK),
                 argumentSet("key name with uppercase alpha", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", KEY_VERSION, EDEK),
