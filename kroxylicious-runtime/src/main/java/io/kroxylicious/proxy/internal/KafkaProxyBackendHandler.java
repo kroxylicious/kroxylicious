@@ -222,6 +222,18 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             if (outboundChannel.isActive()) {
                 outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             }
+            else {
+                // serverCtx is populated in channelRegistered(), which fires as soon as the
+                // outbound channel exists — well before Bootstrap.connect()'s TCP/TLS handshake
+                // to the upstream broker completes, at which point isActive() is still false.
+                // Without this branch, a drain landing in that window (real, and proportionally
+                // wider under real network latency to a remote broker than to a local one) never
+                // closes the channel: the in-flight connect completes on its own moments later,
+                // fully connected and permanently orphaned, since nothing ever revisits it.
+                // close() is safe regardless of connection phase — it cancels an in-flight
+                // connect, or no-ops on an already-closed channel.
+                outboundChannel.close();
+            }
         }
     }
 

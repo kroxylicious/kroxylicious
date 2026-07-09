@@ -154,6 +154,28 @@ class KafkaProxyBackendHandlerTest {
     }
 
     @Test
+    void shouldCloseChannelWhenInClosedStateBeforeConnectCompletes() throws Exception {
+        // Given — serverCtx is populated in channelRegistered(), which fires as soon as the
+        // outbound channel exists, well before Bootstrap.connect()'s TCP/TLS handshake to the
+        // real upstream broker completes. isActive() is false throughout that window (this is
+        // the scenario an EmbeddedChannel, which is active from construction, can't simulate —
+        // hence the mock, matching the pattern used elsewhere in this file).
+        final ChannelHandlerContext handlerContext = mock(ChannelHandlerContext.class);
+        final Channel channel = mock(Channel.class);
+        when(handlerContext.channel()).thenReturn(channel);
+        when(channel.isActive()).thenReturn(false);
+        kafkaProxyBackendHandler.channelRegistered(handlerContext);
+
+        // When
+        kafkaProxyBackendHandler.inClosed();
+
+        // Then — without the else branch, this connection would leak forever: the in-flight
+        // connect completes on its own moments later, fully connected, with nothing left to
+        // ever close it.
+        verify(channel).close();
+    }
+
+    @Test
     void shouldNotifyStateMachineWhenChannelBecomesUnWriteable() throws Exception {
         // Given
         // Using a mock as we can't influence the writeability of an embedded channel
