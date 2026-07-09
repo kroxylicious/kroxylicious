@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.model;
 
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -14,32 +13,26 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.net.ssl.SSLContext;
-
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.CacheConfiguration;
-import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.config.secret.InlinePassword;
-import io.kroxylicious.proxy.config.tls.KeyPair;
-import io.kroxylicious.proxy.config.tls.ServerOptions;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsCredentialSupplierConfig;
-import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.FlakyConfig;
 import io.kroxylicious.proxy.internal.filter.FlakyFactory;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.NoUpstreamClusterForRouteException;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.tls.TlsTestConstants;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tls.ServerTlsCredentialSupplier;
@@ -54,6 +47,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 class VirtualClusterModelTest {
+
+    public static final String DIRECT_ROUTE_NAME = "upstream";
 
     record TestSupplierConfig(String value) {}
 
@@ -71,33 +66,7 @@ class VirtualClusterModelTest {
         }
     }
 
-    private static final InlinePassword PASSWORD_PROVIDER = new InlinePassword("storepass");
-
-    private static final String KNOWN_CIPHER_SUITE;
     private static final List<NamedFilterDefinition> EMPTY_FILTERS = List.of();
-
-    static {
-        try {
-            var defaultSSLParameters = SSLContext.getDefault().getDefaultSSLParameters();
-            KNOWN_CIPHER_SUITE = defaultSSLParameters.getCipherSuites()[0];
-            assertThat(KNOWN_CIPHER_SUITE).isNotNull();
-            assertThat(defaultSSLParameters.getProtocols()).contains("TLSv1.2", "TLSv1.3");
-        }
-        catch (NoSuchAlgorithmException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
-    private String client;
-    private KeyPair keyPair;
-
-    @BeforeEach
-    void setUp() {
-        String privateKeyFile = TlsTestConstants.getResourceLocationOnFilesystem("server.key");
-        String cert = TlsTestConstants.getResourceLocationOnFilesystem("server.crt");
-        client = TlsTestConstants.getResourceLocationOnFilesystem("client.jks");
-        keyPair = new KeyPair(privateKeyFile, cert, null);
-    }
 
     @Test
     void usesDynamicTlsCredentialsReturnsFalseWhenDynamicRouting() {
@@ -114,18 +83,18 @@ class VirtualClusterModelTest {
     void usesDynamicTlsCredentialsReturnsFalseWhenNoTlsConfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
-        assertThat(model.getTlsCredentialSupplierManager().isConfigured()).isFalse();
+        assertThat(model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME).tlsManager().isConfigured()).isFalse();
     }
 
     @Test
     void usesDynamicTlsCredentialsReturnsFalseWhenTlsHasNoCredentialSupplier() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, null)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isFalse();
@@ -136,32 +105,32 @@ class VirtualClusterModelTest {
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThat(model.usesDynamicTlsCredentials()).isTrue();
     }
 
     @Test
-    void initializesTlsCredentialSupplierManagerWhenPluginRegistryProvided() {
+    void tlsCredentialSupplierManagerIsAccessibleViaRoute() {
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
+        var clusterModel = UpstreamClusterModel.build(targetCluster, pluginFactoryRegistry());
 
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), pluginFactoryRegistry());
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, clusterModel), false, false, EMPTY_FILTERS,
+                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
-        assertThat(model.getTlsCredentialSupplierManager().isConfigured()).isTrue();
-        assertThat(model.getTlsCredentialSupplierManager().getSupplier()).isNotNull();
+        assertThat(model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME).tlsManager().isConfigured()).isTrue();
+        assertThat(model.getUpstreamClusterForRoute(DIRECT_ROUTE_NAME).tlsManager().getSupplier()).isNotNull();
         model.close();
     }
 
     @Test
     void closeIsNoOpWhenTlsCredentialSupplierManagerIsUnconfigured() {
         TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
-        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
+        VirtualClusterModel model = new VirtualClusterModel("wibble", new DirectRouting(DIRECT_ROUTE_NAME, targetCluster), false, false, EMPTY_FILTERS,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
-
-        model.close();
+        assertThatCode(model::close).doesNotThrowAnyException();
     }
 
     @Test
@@ -176,10 +145,11 @@ class VirtualClusterModelTest {
 
         var credentialSupplierConfig = new TlsCredentialSupplierConfig("TestSupplierFactory", new TestSupplierConfig("test"));
         var targetCluster = new TargetCluster("bootstrap:9092", Optional.of(new Tls(null, null, null, null, credentialSupplierConfig)));
-        var model = new VirtualClusterModel("vc1", new DirectRouting(targetCluster), false, false, filters,
+        var clusterModel = UpstreamClusterModel.build(targetCluster, combinedPluginFactoryRegistry());
+        var model = new VirtualClusterModel("vc1", new DirectRouting(DIRECT_ROUTE_NAME, clusterModel), false, false, filters,
                 CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), combinedPluginFactoryRegistry());
 
-        var tlsManager = model.getTlsCredentialSupplierManager();
+        TlsCredentialSupplierManager tlsManager = clusterModel.tlsManager();
         assertThat(tlsManager.isConfigured()).isTrue();
         assertThat(tlsManager.getSupplier()).isNotNull();
         assertThat(onFilterClose.get()).isZero();
@@ -206,7 +176,8 @@ class VirtualClusterModelTest {
         var pfr = combinedPluginFactoryRegistry();
         var drainTimeout = Duration.ofSeconds(10);
 
-        assertThatThrownBy(() -> new VirtualClusterModel("vc1", new DirectRouting(targetCluster), false, false, filters,
+        DirectRouting directRouting = new DirectRouting(DIRECT_ROUTE_NAME, targetCluster);
+        assertThatThrownBy(() -> new VirtualClusterModel("vc1", directRouting, false, false, filters,
                 CacheConfiguration.DEFAULT, null, drainTimeout, pfr))
                 .isExactlyInstanceOf(PluginConfigurationException.class)
                 .hasMessageContaining("Exception initializing filter factory bad-filter")
@@ -227,7 +198,7 @@ class VirtualClusterModelTest {
         assertThat(model.routing()).isInstanceOf(DynamicRouting.class);
         assertThat(((DynamicRouting) model.routing()).routerName()).isEqualTo("myrouter");
         assertThat(((DynamicRouting) model.routing()).routeDescriptors()).containsKey("route1");
-        assertThat(model.getUpstreamSslContext()).isEmpty();
+        assertThatThrownBy(() -> model.getUpstreamClusterForRoute("route1")).isInstanceOf(NoUpstreamClusterForRouteException.class);
     }
 
     @Test
@@ -239,20 +210,6 @@ class VirtualClusterModelTest {
                 false, false, EMPTY_FILTERS, CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null);
 
         assertThatCode(model::logVirtualClusterSummary).doesNotThrowAnyException();
-    }
-
-    @Test
-    void shouldNotAllowUpstreamToProvideTlsServerOptions() {
-        // Given
-        final Optional<Tls> downstreamTls = Optional
-                .of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, new ServerOptions(TlsClientAuth.REQUIRED)), null, null, null));
-        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
-
-        // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", new DirectRouting(targetCluster), false, false, EMPTY_FILTERS,
-                CacheConfiguration.DEFAULT, null, Duration.ofSeconds(10), null))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("Cannot apply trust options");
     }
 
     @Test
@@ -339,6 +296,47 @@ class VirtualClusterModelTest {
                 };
             }
         };
+    }
+
+    // generateTlsSummary()
+
+    @Test
+    void generateTlsSummaryReturnsEmptyStringForNoTls() {
+        assertThat(VirtualClusterModel.generateTlsSummary(Optional.empty())).isEmpty();
+    }
+
+    @Test
+    void generateTlsSummaryIncludesTlsMarkerWhenTlsPresent() {
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(new Tls(null, null, null, null, null)));
+        assertThat(summary).contains("(TLS:");
+    }
+
+    @Test
+    void generateTlsSummaryIncludesAllowedCipherSuites() {
+        var tls = new Tls(null, null, new AllowDeny<>(List.of("TLS_AES_256_GCM_SHA384"), null), null, null);
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
+        assertThat(summary).contains("Allowed Ciphers").contains("TLS_AES_256_GCM_SHA384");
+    }
+
+    @Test
+    void generateTlsSummaryIncludesDeniedCipherSuites() {
+        var tls = new Tls(null, null, new AllowDeny<>(null, Set.of("TLS_RSA_WITH_NULL_MD5")), null, null);
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
+        assertThat(summary).contains("Denied Ciphers").contains("TLS_RSA_WITH_NULL_MD5");
+    }
+
+    @Test
+    void generateTlsSummaryIncludesAllowedProtocols() {
+        var tls = new Tls(null, null, null, new AllowDeny<>(List.of("TLSv1.3"), null), null);
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
+        assertThat(summary).contains("Allowed Protocols").contains("TLSv1.3");
+    }
+
+    @Test
+    void generateTlsSummaryIncludesDeniedProtocols() {
+        var tls = new Tls(null, null, null, new AllowDeny<>(null, Set.of("TLSv1.1")), null);
+        var summary = VirtualClusterModel.generateTlsSummary(Optional.of(tls));
+        assertThat(summary).contains("Denied Protocols").contains("TLSv1.1");
     }
 
     private static PluginFactoryRegistry pluginFactoryRegistry() {

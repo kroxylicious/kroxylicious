@@ -26,10 +26,11 @@ import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslContext;
 
+import io.kroxylicious.proxy.bootstrap.TlsCredentialSupplierManager;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.internal.routing.DirectRouting;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.tls.ServerTlsCredentialSupplierContextImpl;
 import io.kroxylicious.proxy.internal.tls.TestCertificateUtil;
 import io.kroxylicious.proxy.internal.tls.TlsCredentialsImpl;
@@ -65,10 +66,9 @@ class ServerConnectionStateMachineTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
         var virtualCluster = mock(VirtualClusterModel.class);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
         return new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                connectionCounter, errorCounter, backpressureMeter, token);
+                connectionCounter, errorCounter, backpressureMeter, token, noTlsClusterModel());
     }
 
     @Test
@@ -119,11 +119,10 @@ class ServerConnectionStateMachineTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
         var virtualCluster = mock(VirtualClusterModel.class);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
                 mock(Counter.class), mock(Counter.class),
-                mock(Timer.class), mock(ActivationToken.class));
+                mock(Timer.class), mock(ActivationToken.class), noTlsClusterModel());
 
         scsm.sendRequest("req-1");
 
@@ -205,13 +204,11 @@ class ServerConnectionStateMachineTest {
                                                                EmbeddedChannel[] outboundHolder) {
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
-        when(virtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
         when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
                 io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         return new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), noTlsClusterModel()) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -279,14 +276,12 @@ class ServerConnectionStateMachineTest {
         var virtualCluster = mock(VirtualClusterModel.class);
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
-        when(virtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
         when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
                 io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         var tcpFailure = new RuntimeException("Connection refused");
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), noTlsClusterModel()) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler,
                                          Channel inboundChannel) {
@@ -314,11 +309,21 @@ class ServerConnectionStateMachineTest {
 
     // === TLS credential tests ===
 
+    private static UpstreamClusterModel noTlsClusterModel() {
+        return new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty()),
+                Optional.empty(), TlsCredentialSupplierManager.unconfigured());
+    }
+
     private ServerConnectionStateMachine createScsmWithMocks(ClientConnectionStateMachine ccsm,
                                                              VirtualClusterModel virtualCluster) {
+        return createScsmWithMocks(ccsm, virtualCluster, noTlsClusterModel());
+    }
+
+    private ServerConnectionStateMachine createScsmWithMocks(ClientConnectionStateMachine ccsm,
+                                                             VirtualClusterModel virtualCluster,
+                                                             UpstreamClusterModel upstreamClusterModel) {
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
         return new ServerConnectionStateMachine(
                 REMOTE,
                 ccsm,
@@ -327,7 +332,8 @@ class ServerConnectionStateMachineTest {
                 null,
                 mock(Counter.class), mock(Counter.class),
                 mock(Timer.class),
-                mock(ActivationToken.class));
+                mock(ActivationToken.class),
+                upstreamClusterModel);
     }
 
     @Test
@@ -335,8 +341,12 @@ class ServerConnectionStateMachineTest {
         var ccsm = mock(ClientConnectionStateMachine.class);
         var virtualCluster = mock(VirtualClusterModel.class);
         RuntimeException failure = new RuntimeException("manager failed");
-        when(virtualCluster.getTlsCredentialSupplierManager()).thenThrow(failure);
-        var scsm = createScsmWithMocks(ccsm, virtualCluster);
+        var failingManager = mock(TlsCredentialSupplierManager.class);
+        when(failingManager.isConfigured()).thenReturn(true);
+        when(failingManager.getSupplier()).thenThrow(failure);
+        var clusterModel = new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty()),
+                Optional.empty(), failingManager);
+        var scsm = createScsmWithMocks(ccsm, virtualCluster, clusterModel);
 
         Channel channel = mock(Channel.class);
         ChannelPipeline pipeline = mock(ChannelPipeline.class);
@@ -470,10 +480,6 @@ class ServerConnectionStateMachineTest {
 
         EmbeddedChannel channel = new EmbeddedChannel();
 
-        var mockTargetCluster = mock(TargetCluster.class);
-        when(mockTargetCluster.tls()).thenReturn(Optional.empty());
-        when(virtualCluster.routing()).thenReturn(new DirectRouting(mockTargetCluster));
-
         scsm.applyTlsContextToChannel(creds, REMOTE, channel, channel.pipeline());
 
         assertThat(channel.pipeline().get("ssl")).isNotNull();
@@ -492,13 +498,11 @@ class ServerConnectionStateMachineTest {
         var outboundHolder = new EmbeddedChannel[1];
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
-        when(virtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
         when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
                 io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), noTlsClusterModel()) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
                 outboundHolder[0] = new EmbeddedChannel();
@@ -528,13 +532,11 @@ class ServerConnectionStateMachineTest {
         var tcpFailure = new RuntimeException("connection refused");
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
-        when(virtualCluster.usesDynamicTlsCredentials()).thenReturn(false);
         when(virtualCluster.socketFrameMaxSizeBytes()).thenReturn(
                 io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES);
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class)) {
+                connectionCounter, mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), noTlsClusterModel()) {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
                 var ch = new EmbeddedChannel();
@@ -833,10 +835,11 @@ class ServerConnectionStateMachineTest {
         var virtualCluster = mock(VirtualClusterModel.class);
         when(ccsm.sessionId()).thenReturn("test-session");
         when(ccsm.clusterName()).thenReturn(CLUSTER_NAME);
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.of(mock(SslContext.class)));
+        var clusterModel = new UpstreamClusterModel(new TargetCluster("broker:9092", Optional.empty()),
+                Optional.of(mock(SslContext.class)), TlsCredentialSupplierManager.unconfigured());
         var scsm = new ServerConnectionStateMachine(
                 REMOTE, ccsm, virtualCluster, CLUSTER_NAME, null,
-                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class));
+                mock(Counter.class), mock(Counter.class), mock(Timer.class), mock(ActivationToken.class), clusterModel);
 
         assertThat(scsm.isUpstreamTls()).isTrue();
     }

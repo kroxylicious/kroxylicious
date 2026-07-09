@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
@@ -846,10 +847,11 @@ public class ClientConnectionStateMachine {
     }
 
     @SuppressWarnings("java:S5738")
-    private void toForwarding(Forwarding forwarding,
-                              HostPort remote) {
+    private void toDirectForwarding(Forwarding forwarding,
+                                    HostPort remote,
+                                    String routeName) {
         setState(forwarding);
-        var scsm = createServerConnection(remote);
+        var scsm = createServerConnectionForRoute(routeName, remote);
         serverConnections.put(remote, scsm);
         var frontend = Objects.requireNonNull(frontendHandler);
         scsm.connect(Objects.requireNonNull(frontend.clientChannel()));
@@ -870,7 +872,8 @@ public class ClientConnectionStateMachine {
                                             Counter proxyToServerConnectionCounter,
                                             Counter proxyToServerErrorCounter,
                                             Timer serverToProxyBackpressureMeter,
-                                            ActivationToken proxyToServerConnectionToken);
+                                            ActivationToken proxyToServerConnectionToken,
+                                            UpstreamClusterModel upstreamClusterModel);
     }
 
     @SuppressWarnings("java:S5738")
@@ -924,7 +927,7 @@ public class ClientConnectionStateMachine {
                 return;
             }
             ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, k -> {
-                var newScsm = createServerConnection(target);
+                var newScsm = createServerConnectionForRoute(routeName, target);
                 Channel clientChannel = Objects.requireNonNull(
                         Objects.requireNonNull(frontendHandler).clientChannel());
                 newScsm.connect(clientChannel);
@@ -937,10 +940,12 @@ public class ClientConnectionStateMachine {
         }
     }
 
-    @VisibleForTesting
-    ServerConnectionStateMachine createServerConnection(HostPort remote) {
-        return serverConnectionFactory.create(remote, this, virtualCluster(), clusterName(), nodeId(),
-                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken);
+    private ServerConnectionStateMachine createServerConnectionForRoute(String routeName, HostPort remote) {
+        var vc = virtualCluster();
+        return serverConnectionFactory.create(remote, this, vc, clusterName(), nodeId(),
+                proxyToServerConnectionCounter, proxyToServerErrorCounter, serverToProxyBackpressureMeter, proxyToServerConnectionToken,
+                Objects.requireNonNull(vc.getUpstreamClusterForRoute(routeName),
+                        "route '" + routeName + "' has no upstream cluster"));
     }
 
     /**
@@ -973,9 +978,9 @@ public class ClientConnectionStateMachine {
         if (msg instanceof RequestFrame) {
             switch (virtualCluster().routing()) {
                 case DynamicRouting ignored -> toForwardingWithRoutes(forwardingFactory.get());
-                case DirectRouting ignored -> {
+                case DirectRouting dr -> {
                     var target = Objects.requireNonNull(endpointBinding.upstreamTarget());
-                    toForwarding(forwardingFactory.get(), target);
+                    toDirectForwarding(forwardingFactory.get(), target, dr.routeName());
                 }
             }
             tryUnblockClient();
