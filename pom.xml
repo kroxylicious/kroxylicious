@@ -49,7 +49,7 @@
         <freemarker.version>2.3.34</freemarker.version>
         <guava.version>33.5.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.21.4</jackson.version>
+        <jackson.version>2.21.5</jackson.version>
         <re2j.version>1.8</re2j.version>
         <junit.version>5.14.3</junit.version>
         <kafka.version>4.2.0</kafka.version>
@@ -71,7 +71,8 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.1.3</apicurio-schema-validation.version>
-        <apicurio-registry.version>3.1.6</apicurio-registry.version>
+        <apicurio-registry.version>3.2.6</apicurio-registry.version>
+        <kiota.version>0.0.34</kiota.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -85,7 +86,7 @@
         <bouncycastle.version>1.83</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.2</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.2</wiremock.version>
-        <docker-java.version>3.7.0</docker-java.version>
+        <docker-java.version>3.7.1</docker-java.version>
         <test-frame.version>1.4.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
@@ -326,6 +327,11 @@
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-java-sdk-common</artifactId>
                 <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.kiota</groupId>
+                <artifactId>kiota-http-jdk</artifactId>
+                <version>${kiota.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.bitbucket.b_c</groupId>
