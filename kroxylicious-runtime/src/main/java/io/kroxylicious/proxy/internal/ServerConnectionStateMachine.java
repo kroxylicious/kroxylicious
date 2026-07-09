@@ -151,7 +151,7 @@ class ServerConnectionStateMachine {
     }
 
     boolean isUpstreamTls() {
-        return upstreamClusterModel.upstreamSslContext().isPresent();
+        return upstreamClusterModel.requiresTls();
     }
 
     /**

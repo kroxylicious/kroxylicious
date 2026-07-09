@@ -56,26 +56,16 @@ public record UpstreamClusterModel(
         return tls().map(t -> t.credentialSupplier() != null).orElse(false);
     }
 
+    public boolean requiresTls() {
+        return upstreamSslContext().isPresent();
+    }
+
     /**
      * Builds a fully-resolved {@link UpstreamClusterModel} for the given target cluster, constructing
      * the SSL context and TLS credential supplier manager from the cluster's TLS configuration.
      */
     public static UpstreamClusterModel build(TargetCluster targetCluster, @Nullable PluginFactoryRegistry pfr) {
-        var sslContext = buildUpstreamSslContextFor(targetCluster);
-        TlsCredentialSupplierManager mgr = pfr != null
-                ? targetCluster.tls()
-                        .flatMap(t -> Optional.ofNullable(t.credentialSupplier()))
-                        .map(config -> new TlsCredentialSupplierManager(pfr, config))
-                        .orElse(TlsCredentialSupplierManager.unconfigured())
-                : TlsCredentialSupplierManager.unconfigured();
-        return new UpstreamClusterModel(targetCluster, sslContext, mgr);
-    }
-
-    private static Optional<SslContext> buildUpstreamSslContextFor(@Nullable TargetCluster targetCluster) {
-        if (targetCluster == null) {
-            return Optional.empty();
-        }
-        return targetCluster.tls().map(targetClusterTls -> {
+        var sslContext = targetCluster.tls().map(targetClusterTls -> {
             try {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key())
                         .map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
@@ -94,6 +84,13 @@ public record UpstreamClusterModel(
                 throw new UncheckedIOException(e);
             }
         });
+        TlsCredentialSupplierManager mgr = pfr != null
+                ? targetCluster.tls()
+                        .flatMap(t -> Optional.ofNullable(t.credentialSupplier()))
+                        .map(config -> new TlsCredentialSupplierManager(pfr, config))
+                        .orElse(TlsCredentialSupplierManager.unconfigured())
+                : TlsCredentialSupplierManager.unconfigured();
+        return new UpstreamClusterModel(targetCluster, sslContext, mgr);
     }
 
     @Override

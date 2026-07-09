@@ -26,10 +26,6 @@ public sealed interface RoutingModel extends AutoCloseable permits DirectRouting
     @Nullable
     UpstreamClusterModel upstreamClusterFor(String routeName);
 
-    /**
-     * Closes any TLS resources owned by this routing model. Called by the owning
-     * {@code VirtualClusterModel} on shutdown.
-     */
     @Override
     void close();
 }

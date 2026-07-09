@@ -250,8 +250,7 @@ public class VirtualClusterModel implements AutoCloseable {
 
     /**
      * Returns the {@link UpstreamClusterModel} for a specific route, or {@code null} if the route
-     * does not target an upstream cluster (e.g. it targets a nested router, or no TLS has been
-     * resolved yet because no {@code PluginFactoryRegistry} was provided).
+     * does not target an upstream cluster (e.g. it targets a nested router).
      */
     @Nullable
     public UpstreamClusterModel getUpstreamClusterForRoute(String routeName) {

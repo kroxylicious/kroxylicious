@@ -35,14 +35,7 @@ public record DirectRouting(String routeName, UpstreamClusterModel upstreamClust
 
     @Override
     public UpstreamClusterModel upstreamClusterFor(String routeName) {
-        validateRouteName(routeName);
-        return upstreamCluster;
-    }
-
-    private void validateRouteName(String routeName) {
-        if (!routeName.equals(this.routeName)) {
-            throw new IllegalArgumentException("Invalid route name: " + routeName + " for direct routing. Expected: " + this.routeName);
-        }
+        return this.routeName.equals(routeName) ? upstreamCluster : null;
     }
 
     @Override

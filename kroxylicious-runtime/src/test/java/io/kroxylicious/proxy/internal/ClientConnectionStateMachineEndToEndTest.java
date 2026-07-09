@@ -114,39 +114,41 @@ class ClientConnectionStateMachineEndToEndTest {
         var kafkaSession = new KafkaSession(KafkaSessionState.ESTABLISHING);
         // Override createServerConnection to substitute EmbeddedChannels for real TCP connections
         return new ClientConnectionStateMachine(binding, new DefaultSubjectBuilder(List.of()), kafkaSession,
-                (remote, ccsm, vc, cn, ni, connectionCounter, errorCounter, backpressureMeter, connectionToken, tlsConfig) -> new ServerConnectionStateMachine(remote,
-                        ccsm,
-                        vc, cn, ni, connectionCounter, errorCounter,
-                        backpressureMeter, connectionToken, tlsConfig) {
-                    @Override
-                    Bootstrap configureBootstrap(
-                                                 KafkaProxyBackendHandler capturedBackendHandler,
-                                                 Channel inboundChannel) {
-                        ClientConnectionStateMachineEndToEndTest.this.backendHandler = capturedBackendHandler;
-                        newOutboundChannel();
-                        Bootstrap bootstrap = new Bootstrap();
-                        bootstrap.group(outboundChannel.eventLoop())
-                                .channel(outboundChannel.getClass())
-                                .handler(capturedBackendHandler)
-                                .option(ChannelOption.AUTO_READ, true)
-                                .option(ChannelOption.TCP_NODELAY, true);
-                        return bootstrap;
-                    }
+                (remote, ccsm, vc, cn, ni,
+                 connectionCounter, errorCounter, backpressureMeter,
+                 connectionToken, tlsConfig) -> new ServerConnectionStateMachine(
+                         remote, ccsm, vc, cn, ni,
+                         connectionCounter, errorCounter, backpressureMeter,
+                         connectionToken, tlsConfig) {
+                     @Override
+                     Bootstrap configureBootstrap(
+                                                  KafkaProxyBackendHandler capturedBackendHandler,
+                                                  Channel inboundChannel) {
+                         ClientConnectionStateMachineEndToEndTest.this.backendHandler = capturedBackendHandler;
+                         newOutboundChannel();
+                         Bootstrap bootstrap = new Bootstrap();
+                         bootstrap.group(outboundChannel.eventLoop())
+                                 .channel(outboundChannel.getClass())
+                                 .handler(capturedBackendHandler)
+                                 .option(ChannelOption.AUTO_READ, true)
+                                 .option(ChannelOption.TCP_NODELAY, true);
+                         return bootstrap;
+                     }
 
-                    @Override
-                    ChannelFuture initConnection(
-                                                 String remoteHost,
-                                                 int remotePort,
-                                                 Bootstrap bootstrap) {
-                        outboundChannel.pipeline().addFirst(
-                                ClientConnectionStateMachineEndToEndTest.this.backendHandler);
-                        outboundChannel.pipeline().fireChannelRegistered();
-                        if (ClientConnectionStateMachineEndToEndTest.this.activateOutboundChannelAutomatically) {
-                            outboundChannel.pipeline().fireChannelActive();
-                        }
-                        return outboundChannel.newPromise();
-                    }
-                });
+                     @Override
+                     ChannelFuture initConnection(
+                                                  String remoteHost,
+                                                  int remotePort,
+                                                  Bootstrap bootstrap) {
+                         outboundChannel.pipeline().addFirst(
+                                 ClientConnectionStateMachineEndToEndTest.this.backendHandler);
+                         outboundChannel.pipeline().fireChannelRegistered();
+                         if (ClientConnectionStateMachineEndToEndTest.this.activateOutboundChannelAutomatically) {
+                             outboundChannel.pipeline().fireChannelActive();
+                         }
+                         return outboundChannel.newPromise();
+                     }
+                 });
     }
 
     @AfterEach
