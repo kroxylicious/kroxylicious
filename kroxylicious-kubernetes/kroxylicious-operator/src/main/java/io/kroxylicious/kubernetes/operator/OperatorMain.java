@@ -73,9 +73,18 @@ public class OperatorMain {
      * name emitted by Prometheus will be called {@code kroxylicious_operator_build_info}.
      */
     private static final String BUILD_INFO_METRIC_NAME = "kroxylicious_operator_build.info";
+    /**
+     * Operator build metadata resource. This intentionally does
+     * not use {@code META-INF/metadata.properties}, because that resource
+     * is provided by the runtime artifact and may be resolved first from
+     * the classpath.
+     */
+    private static final String OPERATOR_METADATA_RESOURCE = "META-INF/kroxylicious/operator/metadata.properties";
+
     private final Operator operator;
     private final HttpServer managementServer;
     private final ControllerConfigurer controllerConfigurer;
+
     @Nullable
     private SharedInformerManager sharedInformerManager;
 
@@ -100,6 +109,11 @@ public class OperatorMain {
         });
         this.managementServer = managementServer;
         this.controllerConfigurer = controllerConfigurer;
+    }
+
+    @VisibleForTesting
+    static VersionInfo versionInfo() {
+        return VersionInfo.fromResource(OPERATOR_METADATA_RESOURCE);
     }
 
     public static void main(String[] args) {
@@ -139,7 +153,7 @@ public class OperatorMain {
         managementServer.start();
         addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
         operator.start();
-        var versionInfo = VersionInfo.VERSION_INFO;
+        var versionInfo = versionInfo();
         LOGGER.atInfo()
                 .addKeyValue("javaVersion", Runtime::version)
                 .addKeyValue("javaVendor", () -> System.getProperty("java.vendor"))
