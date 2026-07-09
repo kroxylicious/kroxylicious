@@ -204,7 +204,10 @@ class CipherTrustEdekSerdeTest {
         assertThat(toString)
                 .contains(KEY_ID)
                 .contains("gcm")
-                .contains("version=1");
+                .contains("version=1")
+                .contains("<redacted>")
+                .doesNotContain("1, 2")
+                .doesNotContain("4, 5");
     }
 
 }

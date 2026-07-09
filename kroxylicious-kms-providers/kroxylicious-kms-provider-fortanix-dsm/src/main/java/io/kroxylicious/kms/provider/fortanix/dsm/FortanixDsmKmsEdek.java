@@ -72,9 +72,9 @@ public record FortanixDsmKmsEdek(String kekRef,
     @Override
     public String toString() {
         return "FortanixDsmKmsEdek{" +
-                "keyRef=" + kekRef +
-                ", iv=" + Arrays.toString(iv) +
-                ", edek=" + Arrays.toString(edek) +
+                "kekRef=" + kekRef +
+                ", iv=<redacted>" +
+                ", edek=<redacted>" +
                 '}';
     }
 }

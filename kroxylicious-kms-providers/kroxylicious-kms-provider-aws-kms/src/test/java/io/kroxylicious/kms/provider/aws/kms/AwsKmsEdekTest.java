@@ -40,6 +40,6 @@ class AwsKmsEdekTest {
     @Test
     void toStringFormation() {
         var edek = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("AwsKmsEdek{keyRef=keyref, edek=[1, 2, 3]}");
+        assertThat(edek).hasToString("AwsKmsEdek{keyRef=keyref, edek=<redacted>}");
     }
 }
