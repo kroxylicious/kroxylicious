@@ -252,6 +252,9 @@ public class FilterChainFactory implements AutoCloseable {
      * @return an empty {@code FilterChainFactory}
      */
     public static FilterChainFactory empty() {
+        // A fresh instance per call rather than a shared constant: FilterChainFactory is
+        // AutoCloseable, so a shared empty instance could be closed by one caller while
+        // another still holds it.
         return new FilterChainFactory();
     }
 
