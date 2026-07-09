@@ -154,7 +154,7 @@ class KafkaProxyBackendHandlerTest {
     }
 
     @Test
-    void shouldCloseChannelWhenInClosedStateBeforeConnectCompletes() throws Exception {
+    void shouldCloseChannelWhenInClosedBeforeChannelIsActive() throws Exception {
         // Given — serverCtx is populated in channelRegistered(), which fires as soon as the
         // outbound channel exists, well before Bootstrap.connect()'s TCP/TLS handshake to the
         // real upstream broker completes. isActive() is false throughout that window (this is
