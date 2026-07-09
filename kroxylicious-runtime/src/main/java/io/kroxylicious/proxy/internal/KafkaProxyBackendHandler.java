@@ -222,6 +222,11 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             if (outboundChannel.isActive()) {
                 outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
             }
+            else {
+                // The outboundChannel can be open without being active during protocol negotiation.
+                // Ensure it gets closed.
+                outboundChannel.close();
+            }
         }
     }
 
