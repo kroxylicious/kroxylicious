@@ -18,7 +18,7 @@ name: Stage Release
 
 # This workflow will stage a kroxylicious release.  The release artefacts will be
 # built, signed, and staged on Nexus.  The staging repository will be closed.  A PR will be opened
-# containing commits that versions the release and reopen main for development at the next snapshot version.
+# containing commits that versions the release and reopen the base branch for development at the next snapshot version.
 #
 # Once the staged artefacts have been verified, run the workflow deploy_release with the argument `release` to
 # release the artefacts to Maven Central and merge the release PR.
@@ -200,13 +200,14 @@ jobs:
       - name: 'Comment on PR to prompt next phase of the release'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
+          RELEASE_BRANCH: ${{ inputs.branch }}
         run: |
           export REPO="https://central.sonatype.com/api/v1/publisher/deployment/${{ env.DEPLOYMENT_ID }}/download"
           envsubst << "EOF" | gh pr comment ${{ env.WORK_BRANCH }} --body-file -
-          Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }} which will reopen main for new work.
-          
+          Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }} which will reopen ${RELEASE_BRANCH} for new work.
+
           There are a couple of steps to do before the release is completed.
-          
+
           * [ ] Let the CI workflow on this PR complete
           * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious/blob/main/RELEASING.md#verify-the-release) using the staged Maven artefacts (available at `${REPO}`).
                 You can use this Maven snippet in your test project's pom.xml to configure Maven to download from the Portal. You also need to configure Maven to [authenticate](https://central.sonatype.org/publish/publish-portal-api/#maven) using
@@ -220,8 +221,8 @@ jobs:
             </repositories>
             ```
           * [ ] Approve this PR.
-          
-          Once the above is done, comment <code>&commat;kroxylicious-robot promote-release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to main.
+
+          Once the above is done, comment <code>&commat;kroxylicious-robot promote-release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to ${RELEASE_BRANCH}.
           If things don't look good, abort the release by saying <code>&commat;kroxylicious-robot drop-release</code>.
           
           Thank you,
