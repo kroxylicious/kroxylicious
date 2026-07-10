@@ -49,5 +49,5 @@ jobs:
 
       - name: 'Check rate limit status'
         run: |
-          echo "=== Checking GitHub rate limit ==="
-          curl -v -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/rate_limit
+          echo "=== Checking GitHub rate limit (with authentication from ~/.curlrc) ==="
+          curl -v -H "X-GitHub-Api-Version: 2026-03-10" https://api.github.com/rate_limit
