@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.CredentialsConfig;
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProviderFactory;
@@ -63,7 +64,7 @@ class AwsKmsServiceTest {
     @SuppressWarnings("resource")
     void initializeCreatesCredentialsProvider() {
         // Given
-        var config = new Config(URI.create("https://host.invalid"), longTermCredentialsProviderConfig, null, null, "us-east-1", null);
+        var config = new Config(URI.create("https://host.invalid"), new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null), "us-east-1", null);
 
         // When
         awsKmsService.initialize(config);
@@ -81,7 +82,7 @@ class AwsKmsServiceTest {
     @Test
     void credentialsProviderLifecycle() {
         // Given
-        var config = new Config(URI.create("https://host.invalid"), longTermCredentialsProviderConfig, null, null, "us-east-1", null);
+        var config = new Config(URI.create("https://host.invalid"), new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null), "us-east-1", null);
         awsKmsService.initialize(config);
 
         // When
@@ -95,7 +96,7 @@ class AwsKmsServiceTest {
     void applesTlsConfiguration() {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
         var config = new Config(URI.create("https://host.invalid"),
-                longTermCredentialsProviderConfig, null, null, "us-east1", new Tls(null, null, new AllowDeny<>(
+                new CredentialsConfig(longTermCredentialsProviderConfig, null, null, null), "us-east1", new Tls(null, null, new AllowDeny<>(
                         List.of(validButUnusualCipherSuite), null), null, null));
         awsKmsService.initialize(
                 config);

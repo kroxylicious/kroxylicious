@@ -19,6 +19,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.KmsException;
@@ -117,56 +118,10 @@ class CredentialsProviderFactoryTest {
         cp.close();
     }
 
-    // --- Backward-compat: deprecated flat fields ---
-
-    @Test
-    void longTermCredentialsBackwardCompat() {
-        var config = buildConfig("""
-                endpointUrl: https://unused.invalid
-                region: unused
-                longTermCredentials:
-                    accessKeyId:
-                        password: accessKeyId
-                    secretAccessKey:
-                        password: secretAccessKey
-                """);
-
-        var cp = FACTORY.createCredentialsProvider(config);
-
-        assertThat(cp)
-                .asInstanceOf(InstanceOfAssertFactories.type(LongTermCredentialsProvider.class))
-                .satisfies(ltcp -> {
-                    assertThat(ltcp.getCredentials())
-                            .succeedsWithin(Duration.ofSeconds(1))
-                            .satisfies(c -> {
-                                assertThat(c.accessKeyId()).isEqualTo("accessKeyId");
-                                assertThat(c.secretAccessKey()).isEqualTo("secretAccessKey");
-                            });
-                });
-        cp.close();
-    }
-
-    @Test
-    void ec2MetadataCredentialsBackwardCompat() {
-        var config = buildConfig("""
-                endpointUrl: https://unused.invalid
-                region: unused
-                ec2MetadataCredentials:
-                    iamRole: foo
-                """);
-
-        var cp = FACTORY.createCredentialsProvider(config);
-
-        assertThat(cp)
-                .isInstanceOf(Ec2MetadataCredentialsProvider.class)
-                .isNotNull();
-        cp.close();
-    }
-
     // --- Invalid configs ---
 
     public static Stream<Arguments> invalidConfig() {
-        return Stream.of(
+        return Stream.<Arguments>of(
                 Arguments.argumentSet("no credential provider", """
                             endpointUrl: https://unused.invalid
                             region: unused
@@ -193,30 +148,6 @@ class CredentialsProviderFactoryTest {
                                 podIdentity:
                                     credentialsFullUri: http://169.254.170.23/v1/credentials
                                     authorizationTokenFile: /tmp/agent-token
-                        """),
-                Arguments.argumentSet("deprecated longTerm and ec2Metadata conflict", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            longTermCredentials:
-                                accessKeyId:
-                                    password: accessKeyId
-                                secretAccessKey:
-                                    password: secretAccessKey
-                            ec2MetadataCredentials:
-                                iamRole: foo
-                        """),
-                Arguments.argumentSet("deprecated flat field with credentials node conflict", """
-                            endpointUrl: https://unused.invalid
-                            region: us-east-1
-                            longTermCredentials:
-                                accessKeyId:
-                                    password: accessKeyId
-                                secretAccessKey:
-                                    password: secretAccessKey
-                            credentials:
-                                webIdentity:
-                                    roleArn: arn:aws:iam::123456789012:role/r
-                                    webIdentityTokenFile: /tmp/token
                         """));
     }
 
@@ -227,12 +158,14 @@ class CredentialsProviderFactoryTest {
         // KmsException may be thrown directly (factory-time) or wrapped in
         // ValueInstantiationException (deserialization-time, e.g. when the
         // compact constructor rejects conflicting deprecated + new-style fields).
+        // Jackson MismatchedInputException occurs when required fields are missing.
         assertThatThrownBy(() -> {
             var config = buildConfig(yaml);
             FACTORY.createCredentialsProvider(config);
         }).satisfiesAnyOf(
                 t -> assertThat(t).isInstanceOf(KmsException.class),
-                t -> assertThat(t).rootCause().isInstanceOf(KmsException.class));
+                t -> assertThat(t).rootCause().isInstanceOf(KmsException.class),
+                t -> assertThat(t).rootCause().isInstanceOf(MismatchedInputException.class));
     }
 
     private Config buildConfig(String content) {
