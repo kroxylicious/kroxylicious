@@ -252,60 +252,6 @@ class JsonSchemaBytebufValidatorTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
-    void v2WireFormatUsesLegacy8ByteIdHandler() {
-        // V2 wire format uses 8-byte global IDs
-        var value = asV2SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
-        Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
-        var future = validator.validate(record.value(), record, false);
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void v2ValueWithCorrectGlobalIdInHeaderPassesValidation() {
-        // V2 mode should read globalId from headers (not contentId)
-        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(CONTENT_ID)) };
-        Record record = record(RECORD_KEY, VALID_JSON, headers);
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
-        var future = validator.validate(record.value(), record, false);
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void v2ValueWithWrongGlobalIdInHeaderRejected() {
-        // V2 mode should reject wrong globalId in headers
-        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(CONTENT_ID + 1)) };
-        Record record = record(RECORD_KEY, VALID_JSON, headers);
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
-        var future = validator.validate(record.value(), record, false);
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void v2ValueWithContentIdInHeaderFallsBackToMagicByte() {
-        // V2 mode should ignore contentId header (only reads globalId)
-        // If contentId header is present but no globalId, it should fall back to magic byte detection
-        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_CONTENT_ID, toByteArray(CONTENT_ID)) };
-        var value = asV2SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
-        Record record = record(RECORD_KEY, value, headers);
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
-        var future = validator.validate(record.value(), record, false);
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
-    }
-
-    @Test
     void v3WireFormatUsesDefault4ByteIdHandler() {
         // V3 wire format uses 4-byte content IDs (Confluent-compatible)
         var value = asV3SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
@@ -315,32 +261,6 @@ class JsonSchemaBytebufValidatorTest {
         assertThat(future)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, Result::valid);
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void v2ValidatorRejectsV3WireFormat() {
-        // V2 validator should reject V3 format (4-byte content ID)
-        var value = asV3SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
-        Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V2);
-        var future = validator.validate(record.value(), record, false);
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
-    }
-
-    @Test
-    @SuppressWarnings("removal")
-    void v3ValidatorRejectsV2WireFormat() {
-        // V3 validator should reject V2 format (8-byte global ID)
-        var value = asV2SchemaIdPrefixBuf(CONTENT_ID, VALID_JSON);
-        Record record = record(RECORD_KEY, value);
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, CONTENT_ID, WireFormatVersion.V3);
-        var future = validator.validate(record.value(), record, false);
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
     }
 
     private byte[] toByteArray(long contentId) {
@@ -364,12 +284,4 @@ class JsonSchemaBytebufValidatorTest {
         return buf.array();
     }
 
-    private byte[] asV2SchemaIdPrefixBuf(long contentId, byte[] content) {
-        // V2 wire format: 1 byte magic + 8 bytes global ID
-        ByteBuffer buf = ByteBuffer.allocate(1 /* magic */ + Long.BYTES /* global id */ + content.length);
-        buf.put(BaseSerde.MAGIC_BYTE);
-        buf.putLong(contentId);
-        buf.put(content);
-        return buf.array();
-    }
 }

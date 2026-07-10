@@ -50,20 +50,10 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl,
     }
 
     /**
-     * Wire format versions for Apicurio Registry schema identifiers.
-     * <p>
+     * Wire format version for Apicurio Registry schema identifiers.
      * V3 uses 4-byte content IDs (Confluent-compatible format) and is the default.
-     * V2 uses 8-byte global IDs and is deprecated.
-     * </p>
      */
     public enum WireFormatVersion {
-        /**
-         * Apicurio Registry v2 wire format using 8-byte global IDs.
-         * @deprecated Use {@link #V3} instead for Confluent compatibility. This option will be removed in a future release.
-         */
-        @Deprecated(since = "0.19.0", forRemoval = true)
-        V2,
-
         /**
          * Apicurio Registry v3 wire format using 4-byte content IDs (Confluent-compatible).
          * This is the recommended and default format.

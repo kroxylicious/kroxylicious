@@ -18,7 +18,6 @@ import org.apache.kafka.common.record.Record;
 import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.Default4ByteIdHandler;
 import io.apicurio.registry.serde.IdHandler;
-import io.apicurio.registry.serde.Legacy8ByteIdHandler;
 import io.apicurio.registry.serde.kafka.headers.DefaultHeadersHandler;
 import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
 
@@ -98,7 +97,6 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
         // default: no extra bytes to skip
     }
 
-    @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
         // Try headers first
         var headerId = extractSchemaIdFromHeaders(kafkaRecord, isKey);
@@ -112,26 +110,17 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
         if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {
             buffer.get(); // ignore magic
             var ref = idHandler.readId(buffer);
-            Long id = switch (wireFormatVersion) {
-                case V2 -> ref.getGlobalId();
-                case V3 -> ref.getContentId();
-            };
-            return Optional.ofNullable(id);
+            return Optional.ofNullable(ref.getContentId());
         }
         return Optional.empty();
     }
 
-    @SuppressWarnings("removal")
     private Optional<Long> extractSchemaIdFromHeaders(Record kafkaRecord, boolean isKey) {
         if (kafkaRecord.headers().length > 0) {
             var recordHeaders = new RecordHeaders(kafkaRecord.headers());
             var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
             var ref = headerHandler.readHeaders(recordHeaders);
-
-            Long id = switch (wireFormatVersion) {
-                case V2 -> ref.getGlobalId();
-                case V3 -> ref.getContentId();
-            };
+            Long id = ref.getContentId();
             if (id != null) {
                 return Optional.of(id);
             }
@@ -145,12 +134,8 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
         return handler;
     }
 
-    @SuppressWarnings("removal")
     private static IdHandler buildIdHandler(boolean isKey, WireFormatVersion wireFormatVersion) {
-        IdHandler handler = switch (wireFormatVersion) {
-            case V2 -> new Legacy8ByteIdHandler();
-            case V3 -> new Default4ByteIdHandler();
-        };
+        var handler = new Default4ByteIdHandler();
         handler.configure(Map.of(), isKey);
         return handler;
     }
