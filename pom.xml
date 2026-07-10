@@ -70,7 +70,6 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-        <apicurio-schema-validation.version>0.1.4</apicurio-schema-validation.version>
         <apicurio-registry.version>3.3.0</apicurio-registry.version>
         <kiota.version>0.0.36</kiota.version>
         <avro.version>1.12.1</avro.version>
@@ -306,17 +305,22 @@
             <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
-                <version>${apicurio-schema-validation.version}</version>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-validation-common</artifactId>
+                <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-validation-avro</artifactId>
-                <version>${apicurio-schema-validation.version}</version>
+                <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-validation-protobuf</artifactId>
-                <version>${apicurio-schema-validation.version}</version>
+                <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
