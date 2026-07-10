@@ -1,0 +1,53 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Test Curl Authentication
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test_curl_auth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Configure curl for GitHub authentication'
+        run: |
+          cat > ~/.curlrc << 'EOF'
+          --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"
+          EOF
+          echo "Created ~/.curlrc"
+          cat ~/.curlrc
+
+      - name: 'Test curl with authentication (verbose)'
+        run: |
+          echo "=== Testing curl with verbose output ==="
+          curl -v -o kafka-single-node.yaml https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.51.0/examples/kafka/kafka-single-node.yaml
+          echo ""
+          echo "=== Download result ==="
+          if [ -f kafka-single-node.yaml ]; then
+            echo "File downloaded successfully"
+            wc -l kafka-single-node.yaml
+            head -5 kafka-single-node.yaml
+          else
+            echo "File download failed"
+            exit 1
+          fi
+
+      - name: 'Check rate limit status'
+        run: |
+          echo "=== Checking GitHub rate limit ==="
+          curl -v -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/rate_limit
