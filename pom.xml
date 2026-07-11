@@ -97,7 +97,7 @@
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
         <logcaptor.version>2.12.6</logcaptor.version>
         <async-profiler.version>4.3</async-profiler.version>
-        <json-unit-assertj.version>5.1.2</json-unit-assertj.version>
+        <json-unit-assertj.version>6.0.1</json-unit-assertj.version>
 
         <!-- Error Prone -->
         <errorprone.version>2.50.0</errorprone.version>
