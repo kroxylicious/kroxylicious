@@ -440,10 +440,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     @Override
-    public Optional<HostPort> upstreamAddress(EndpointGateway gateway, int nodeId) {
+    public Optional<HostPort> upstreamAddress(EndpointGateway gateway, int upstreamNodeId) {
         return Optional.ofNullable(registeredVirtualClusters.get(gateway))
                 .map(vcr -> vcr.reconciliationRecord().get())
-                .map(rec -> rec.upstreamNodeMap().get(nodeId));
+                .map(rec -> rec.upstreamNodeMap().get(upstreamNodeId));
     }
 
     @VisibleForTesting
