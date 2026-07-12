@@ -22,7 +22,7 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A router that forwards every request to a single named route, delivering
+ * A test router that forwards every request to a single named route, delivering
  * the response back to the client unchanged.
  */
 @Plugin(configType = PassThroughRouterFactory.Config.class)

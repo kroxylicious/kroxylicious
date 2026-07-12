@@ -27,7 +27,7 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A router that alternates PRODUCE requests between two routes in configurable batch sizes.
+ * A test router that alternates PRODUCE requests between two routes in configurable batch sizes.
  * All other API keys are statically routed to {@code routeA}. API_VERSIONS responses are
  * intercepted to cap the PRODUCE version below the threshold where topic IDs replace topic
  * names, since the two backing clusters have independent topic IDs.

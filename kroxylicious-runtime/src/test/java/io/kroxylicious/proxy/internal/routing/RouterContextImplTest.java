@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.UnknownServerException;
@@ -59,7 +60,7 @@ class RouterContextImplTest {
         nodeIdMapping = new IdentityNodeIdMapping(DEFAULT_ROUTE);
         routes = Map.of(DEFAULT_ROUTE, new RouteDescriptor(
                 DEFAULT_ROUTE, 0,
-                new TargetCluster("localhost:9092", null),
+                new TargetCluster("localhost:9092", Optional.empty()),
                 null, List.of()));
     }
 

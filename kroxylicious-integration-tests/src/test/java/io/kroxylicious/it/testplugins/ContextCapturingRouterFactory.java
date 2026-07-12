@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.it.testplugins;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
@@ -109,10 +108,6 @@ public class ContextCapturingRouterFactory
                         .thenCompose(body -> ctx.respondWith(body).completed());
             }
 
-            @Override
-            public Map<ApiKeys, String> staticRoutes() {
-                return Map.of();
-            }
         };
     }
 

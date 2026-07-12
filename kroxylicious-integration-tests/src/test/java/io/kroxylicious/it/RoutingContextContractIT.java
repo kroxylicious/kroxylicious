@@ -129,9 +129,6 @@ class RoutingContextContractIT {
         try (var mockBroker0 = MockServer.startOnRandomPort();
                 var mockBroker1 = MockServer.startOnRandomPort()) {
 
-            mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
-            mockBroker1.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
-
             var md = new MetadataResponseData();
             md.brokers().add(new MetadataResponseBroker().setNodeId(0).setHost("localhost").setPort(mockBroker0.port()));
             md.brokers().add(new MetadataResponseBroker().setNodeId(1).setHost("localhost").setPort(mockBroker1.port()));

@@ -59,10 +59,6 @@ sealed interface RouterResponseImpl extends RouterResponse
      */
     record RespondWithoutReply(boolean closeConnection) implements RouterResponseImpl {}
 
-    // -------------------------------------------------------------------------
-    // Builder
-    // -------------------------------------------------------------------------
-
     /**
      * Mutable builder that implements {@link CloseOrTerminalStage} so router
      * implementations can chain {@code .withCloseConnection().build()} or just

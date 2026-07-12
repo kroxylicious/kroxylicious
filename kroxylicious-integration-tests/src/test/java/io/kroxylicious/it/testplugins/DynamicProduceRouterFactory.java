@@ -22,7 +22,7 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A router factory that forwards everything to a single named route but routes
+ * A test router factory that forwards everything to a single named route but routes
  * PRODUCE requests dynamically (via {@code onRequest}) rather than statically.
  * Used by integration tests to verify that the dynamic routing path handles
  * real Kafka requests end-to-end.

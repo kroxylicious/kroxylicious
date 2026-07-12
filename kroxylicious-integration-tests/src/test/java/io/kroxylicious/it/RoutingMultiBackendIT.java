@@ -117,8 +117,8 @@ class RoutingMultiBackendIT {
                         "linger.ms", 0))) {
 
             for (int i = 0; i < TOTAL_RECORDS; i++) {
-                producer.send(new ProducerRecord<>(TOPIC, "key-" + i, "value-" + i))
-                        .get(10, TimeUnit.SECONDS);
+                assertThat(producer.send(new ProducerRecord<>(TOPIC, "key-" + i, "value-" + i)))
+                        .succeedsWithin(Duration.ofSeconds(10));
             }
         }
 

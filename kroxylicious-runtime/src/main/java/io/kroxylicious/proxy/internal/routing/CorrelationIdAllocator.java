@@ -8,14 +8,15 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.kroxylicious.proxy.tag.ThreadSafe;
+
 /**
  * Allocates integer correlation IDs from a bounded circular range {@code [minInc, maxExc)}.
  * <p>
  * Each call to {@link #allocateId()} returns the next available ID. When the allocated
  * value reaches {@code maxExc - 1}, subsequent allocations wrap back to {@code minInc}.
- * <p>
- * This class is thread-safe.
  */
+@ThreadSafe
 class CorrelationIdAllocator {
     private final AtomicInteger nextRoutingCorrelationId;
     private final int minInc;
@@ -55,7 +56,7 @@ class CorrelationIdAllocator {
         if (initial >= maxExc) {
             throw new IllegalArgumentException("start must be less than " + maxExc);
         }
-        this.nextRoutingCorrelationId = nextRoutingCorrelationId;
+        this.nextRoutingCorrelationId = new AtomicInteger(initial);
         this.minInc = minInc;
         this.maxExc = maxExc;
     }
