@@ -12,7 +12,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -307,11 +306,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         int routingCorrelationId = nextRoutingCorrelationId.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
-        var listener = RoutingEvent.EVENT_LISTENER.get();
-        if (listener != null) {
-            listener.accept(new RoutingEvent.Request(sessionId, route, clientCorrelationId, routingCorrelationId, apiKey, requestApiVersion, header, request));
-        }
-
         if (!frame.hasResponse()) {
             ccsm.forwardToRoute(route, frame);
             LOGGER.atTrace()
@@ -334,7 +328,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", requestApiVersion)
                 .log("Request sent to route");
-        attachEventListener(listener, future, route, routingCorrelationId, apiKey, sessionId);
         return future;
     }
 
@@ -359,11 +352,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = nextRoutingCorrelationId.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
-
-        var listener = RoutingEvent.EVENT_LISTENER.get();
-        if (listener != null) {
-            listener.accept(new RoutingEvent.Request(sessionId, route, clientCorrelationId, routingCorrelationId, apiKey, requestApiVersion, header, request));
-        }
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
@@ -392,23 +380,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                 .addKeyValue("clientCorrelationId", clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .log("Request sent to specific node");
-        attachEventListener(listener, future, route, routingCorrelationId, apiKey, sessionId);
         return future;
-    }
-
-    private void attachEventListener(Consumer<RoutingEvent> listener,
-                                     CompletableFuture<ApiMessage> future,
-                                     String route,
-                                     int routingCorrelationId,
-                                     ApiKeys apiKey,
-                                     String sessionId) {
-        if (listener != null) {
-            future.whenComplete((body, error) -> {
-                if (body != null) {
-                    listener.accept(new RoutingEvent.Response(sessionId, route, routingCorrelationId, apiKey, new ResponseHeaderData(), body));
-                }
-            });
-        }
     }
 
     private void cacheNodeAddressesIfMetadata(Object body) {
