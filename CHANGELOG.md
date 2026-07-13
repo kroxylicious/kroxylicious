@@ -7,7 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-* build(deps): Upgrade Log4j to 2.25.5 to fix CVE-2026-49844
+* [#4350](https://github.com/kroxylicious/kroxylicious/pull/4350): build(deps): Upgrade Log4j to 2.25.5 to fix CVE-2026-49844
 * [#4314](https://github.com/kroxylicious/kroxylicious/pull/4314): build(deps): Upgrade Jackson to 2.21.5 to fix CVE-2026-54515
 * [#4310](https://github.com/kroxylicious/kroxylicious/pull/4310): deps(apicurio): [0.20.x] bump Apicurio Registry from 3.1 to 3.2 to avoid CVEs in dependencies (and switch to JDK HTTP)
 * [#4111](https://github.com/kroxylicious/kroxylicious/pull/4111): build(deps): Upgrade to JOSDK 5.2.5 to avoids informer health check defect.
