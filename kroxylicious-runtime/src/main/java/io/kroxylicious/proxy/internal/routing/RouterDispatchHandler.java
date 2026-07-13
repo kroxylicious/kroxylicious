@@ -303,9 +303,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                               ApiMessage request,
                                               String sessionId,
                                               int clientCorrelationId) {
-        if (eventExecutor != null && !eventExecutor.inEventLoop()) {
+        var executor = Objects.requireNonNull(eventExecutor, "sendRequest called before handlerAdded");
+        if (!executor.inEventLoop()) {
             CompletableFuture<ApiMessage> bridge = new CompletableFuture<>();
-            eventExecutor.execute(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId)
+            executor.execute(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId)
                     .whenComplete((r, e) -> {
                         if (e != null) {
                             bridge.completeExceptionally(e);
@@ -363,9 +364,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                                    ApiMessage request,
                                                    String sessionId,
                                                    int clientCorrelationId) {
-        if (eventExecutor != null && !eventExecutor.inEventLoop()) {
+        var executor = Objects.requireNonNull(eventExecutor, "sendRequest called before handlerAdded");
+        if (!executor.inEventLoop()) {
             CompletableFuture<ApiMessage> bridge = new CompletableFuture<>();
-            eventExecutor.execute(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId)
+            executor.execute(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId)
                     .whenComplete((r, e) -> {
                         if (e != null) {
                             bridge.completeExceptionally(e);
