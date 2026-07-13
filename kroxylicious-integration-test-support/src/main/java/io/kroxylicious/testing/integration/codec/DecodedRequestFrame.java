@@ -31,7 +31,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
      * @param correlationId correlationId
      * @param header header
      * @param body body
-     * @param responseApiVersion
+     * @param responseApiVersion the api version with which the response will be decoded
      */
     public DecodedRequestFrame(short apiVersion,
                                int correlationId,

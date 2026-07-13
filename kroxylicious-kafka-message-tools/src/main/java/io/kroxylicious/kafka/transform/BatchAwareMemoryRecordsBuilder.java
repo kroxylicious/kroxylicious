@@ -66,18 +66,18 @@ public class BatchAwareMemoryRecordsBuilder {
     /**
      * Starts a batch
      *
-     * @param magic
-     * @param compression
-     * @param timestampType
-     * @param baseOffset
-     * @param logAppendTime
-     * @param producerId
-     * @param producerEpoch
-     * @param baseSequence
-     * @param isTransactional
-     * @param isControlBatch
-     * @param partitionLeaderEpoch
-     * @param deleteHorizonMs
+     * @param magic the record batch magic byte
+     * @param compression the compression type of the batch
+     * @param timestampType the timestamp type of the batch
+     * @param baseOffset the base offset of the batch
+     * @param logAppendTime the log append time of the batch
+     * @param producerId the producer id
+     * @param producerEpoch the producer epoch
+     * @param baseSequence the base sequence number
+     * @param isTransactional whether the batch is transactional
+     * @param isControlBatch whether the batch is a control batch
+     * @param partitionLeaderEpoch the partition leader epoch
+     * @param deleteHorizonMs the delete horizon timestamp in milliseconds
      * @return this builder
      */
     public BatchAwareMemoryRecordsBuilder addBatch(byte magic,

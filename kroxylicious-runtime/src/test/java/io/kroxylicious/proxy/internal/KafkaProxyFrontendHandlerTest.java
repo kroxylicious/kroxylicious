@@ -356,8 +356,8 @@ class KafkaProxyFrontendHandlerTest {
      * Test the normal flow, in a number of configurations.
      *
      * @param sslConfigured         Whether SSL is configured
-     * @param haProxyConfigured
-     * @param sendSasl
+     * @param haProxyConfigured     Whether the HAProxy PROXY protocol is configured
+     * @param sendSasl              Whether the client sends SASL authentication
      */
     @ParameterizedTest
     @MethodSource("provideArgsForExpectedFlow")
