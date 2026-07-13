@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.routing;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -21,6 +22,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.requests.AbstractResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.spi.LoggingEventBuilder;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -216,7 +218,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                 ResponseHeaderData header = rw.header() != null ? rw.header() : new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
                 var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, rw.body());
-                responseSequencer.submit(sequence, responseFrame);
+                Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithError rwe -> {
                 AbstractResponse errorResponse = KafkaProxyExceptionMapper.errorResponseForMessage(
@@ -224,7 +226,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                 ResponseHeaderData header = new ResponseHeaderData();
                 header.setCorrelationId(correlationId);
                 var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, errorResponse.data());
-                responseSequencer.submit(sequence, responseFrame);
+                Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> LOGGER.atTrace()
                     .addKeyValue("sessionId", ccsm.sessionId())
@@ -282,36 +284,31 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                               ApiMessage request,
                                               String sessionId,
                                               int clientCorrelationId) {
+        return doSendToAny(route, header, request, sessionId, clientCorrelationId);
+    }
+
+    private CompletableFuture<ApiMessage> doSendToAny(String route, RequestHeaderData header, ApiMessage request, String sessionId,
+                                                      int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+            withSendContext(LOGGER.atWarn(), sessionId, route, clientCorrelationId)
                     .log("Router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
         if (!rd.targetsCluster()) {
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+            withSendContext(LOGGER.atWarn(), sessionId, route, clientCorrelationId)
                     .log("Router attempted unsupported nested router route");
             return CompletableFuture.failedFuture(
                     new UnsupportedOperationException("Routing to nested routers is not yet supported (route: " + route + ")"));
         }
 
-        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = nextRoutingCorrelationId.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
         if (!frame.hasResponse()) {
             ccsm.forwardToRoute(route, frame);
-            LOGGER.atTrace()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("route", route)
-                    .addKeyValue("clientCorrelationId", clientCorrelationId)
+            withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
                     .log("Fire-and-forget request sent to route (no response expected)");
             return CompletableFuture.completedFuture(null);
@@ -321,10 +318,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
 
         ccsm.forwardToRoute(route, frame);
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
+        withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", requestApiVersion)
                 .log("Request sent to route");
@@ -339,16 +333,12 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                                    int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null || !rd.targetsCluster()) {
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("targetNodeId", targetNodeId)
-                    .addKeyValue("route", route)
+            withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
                     .log("Target node resolved to invalid route");
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
         }
 
-        ApiKeys apiKey = ApiKeys.forId(header.requestApiKey());
         short requestApiVersion = header.requestApiVersion();
         int routingCorrelationId = nextRoutingCorrelationId.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
@@ -361,10 +351,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         }
         catch (Exception e) {
             pendingResponses.remove(routingCorrelationId);
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", sessionId)
-                    .addKeyValue("targetNodeId", targetNodeId)
-                    .addKeyValue("route", route)
+            withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addKeyValue("error", e.getMessage())
                     .log(LOGGER.isDebugEnabled()
@@ -373,14 +360,23 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
             return CompletableFuture.failedFuture(e);
         }
 
-        LOGGER.atTrace()
-                .addKeyValue("sessionId", sessionId)
-                .addKeyValue("route", route)
+        withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
                 .addKeyValue("targetNodeId", targetNodeId)
-                .addKeyValue("clientCorrelationId", clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .log("Request sent to specific node");
         return future;
+    }
+
+    private static LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, int clientCorrelationId) {
+        return event.addKeyValue("sessionId", sessionId)
+                .addKeyValue("route", route)
+                .addKeyValue("clientCorrelationId", clientCorrelationId);
+    }
+
+    private static LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String sessionId, String route, int targetNodeId) {
+        return event.addKeyValue("sessionId", sessionId)
+                .addKeyValue("targetNodeId", targetNodeId)
+                .addKeyValue("route", route);
     }
 
     private void cacheNodeAddressesIfMetadata(Object body) {
