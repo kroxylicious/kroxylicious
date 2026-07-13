@@ -41,7 +41,6 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
-        String route = config.route();
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(
@@ -50,9 +49,7 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
-                var node = routerContext.anyNode(route);
-                return routerContext.sendRequest(node, header, request)
-                        .thenCompose(body -> routerContext.respondWith(body).completed());
+                throw new IllegalStateException("all RPCs should be statically routed, onRequest invoked unexpectedly!");
             }
 
             @Override
