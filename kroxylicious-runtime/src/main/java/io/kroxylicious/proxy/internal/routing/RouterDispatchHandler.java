@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -303,21 +304,24 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                               ApiMessage request,
                                               String sessionId,
                                               int clientCorrelationId) {
+        return executeOnEventLoop(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId));
+    }
+
+    private <T> CompletionStage<T> executeOnEventLoop(Supplier<CompletableFuture<T>> work) {
         var executor = Objects.requireNonNull(eventExecutor, "sendRequest called before handlerAdded");
-        if (!executor.inEventLoop()) {
-            CompletableFuture<ApiMessage> bridge = new CompletableFuture<>();
-            executor.execute(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId)
-                    .whenComplete((r, e) -> {
-                        if (e != null) {
-                            bridge.completeExceptionally(e);
-                        }
-                        else {
-                            bridge.complete(r);
-                        }
-                    }));
-            return bridge;
+        if (executor.inEventLoop()) {
+            return work.get();
         }
-        return doSendToAny(route, header, request, sessionId, clientCorrelationId);
+        CompletableFuture<T> bridge = new CompletableFuture<>();
+        executor.execute(() -> work.get().whenComplete((r, e) -> {
+            if (e != null) {
+                bridge.completeExceptionally(e);
+            }
+            else {
+                bridge.complete(r);
+            }
+        }));
+        return bridge;
     }
 
     private CompletableFuture<ApiMessage> doSendToAny(String route, RequestHeaderData header, ApiMessage request, String sessionId,
@@ -364,21 +368,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                                    ApiMessage request,
                                                    String sessionId,
                                                    int clientCorrelationId) {
-        var executor = Objects.requireNonNull(eventExecutor, "sendRequest called before handlerAdded");
-        if (!executor.inEventLoop()) {
-            CompletableFuture<ApiMessage> bridge = new CompletableFuture<>();
-            executor.execute(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId)
-                    .whenComplete((r, e) -> {
-                        if (e != null) {
-                            bridge.completeExceptionally(e);
-                        }
-                        else {
-                            bridge.complete(r);
-                        }
-                    }));
-            return bridge;
-        }
-        return doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId);
+        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
     }
 
     private CompletableFuture<ApiMessage> doSendToSpecificNode(int targetNodeId,
