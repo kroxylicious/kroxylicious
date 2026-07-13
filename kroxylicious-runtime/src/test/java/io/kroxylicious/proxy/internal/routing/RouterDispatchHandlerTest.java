@@ -388,28 +388,32 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void onResponseShouldReturnFalseForNonFrame() {
+    void writeShouldPassThroughNonFrame() {
         // Given
         var handler = handlerWithIdentityMapping(Map.of());
         channel = new EmbeddedChannel(handler);
 
         // When / Then
-        assertThat(handler.onResponse("not-a-frame")).isFalse();
+        channel.writeOutbound("not-a-frame");
+        assertThat((Object) channel.readOutbound()).isEqualTo("not-a-frame");
     }
 
     @Test
-    void onResponseShouldReturnFalseForNonNegativeCorrelationId() {
+    void writeShouldPassThroughFrameWithNonRoutingCorrelationId() {
         // Given
         var handler = handlerWithIdentityMapping(Map.of());
         channel = new EmbeddedChannel(handler);
         var frame = new DecodedResponseFrame<>((short) 9, 99, new ResponseHeaderData(), new ProduceResponseData());
 
-        // When / Then
-        assertThat(handler.onResponse(frame)).isFalse();
+        // When
+        channel.writeOutbound(frame);
+
+        // Then
+        assertThat((Object) channel.readOutbound()).isSameAs(frame);
     }
 
     @Test
-    void onResponseShouldClaimMatchingRoutingCorrelationId() {
+    void writeShouldInterceptRoutingResponseAndCompleteItsFuture() {
         // Given
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
@@ -428,15 +432,15 @@ class RouterDispatchHandlerTest {
                 new ResponseHeaderData(), new ProduceResponseData());
 
         // When
-        boolean claimed = handler.onResponse(responseFrame);
+        channel.writeOutbound(responseFrame);
 
-        // Then
-        assertThat(claimed).isTrue();
+        // Then: frame was consumed by the handler, not forwarded to the client
+        assertThat((Object) channel.readOutbound()).isNull();
         assertThat(pendingFuture).isCompletedWithValueMatching(ProduceResponseData.class::isInstance);
     }
 
     @Test
-    void onResponseShouldReturnFalseForUnmatchedNegativeCorrelationId() {
+    void writeShouldForwardUnmatchedRoutingCorrelationId() {
         // Given
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
@@ -449,10 +453,10 @@ class RouterDispatchHandlerTest {
                 new ResponseHeaderData(), new ProduceResponseData());
 
         // When: no pending response registered
-        boolean claimed = handler.onResponse(frame);
+        channel.writeOutbound(frame);
 
-        // Then
-        assertThat(claimed).isFalse();
+        // Then: frame was forwarded towards the client
+        assertThat((Object) channel.readOutbound()).isSameAs(frame);
     }
 
     @Test

@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
@@ -48,7 +49,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
-import io.kroxylicious.proxy.internal.routing.RoutingResponseCallback;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -219,8 +220,7 @@ public class ClientConnectionStateMachine {
     @Nullable
     private Map<String, HostPort> routeTargets;
 
-    @Nullable
-    private RoutingResponseCallback routingResponseCallback;
+    private boolean routerActive;
 
     @Nullable
     private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
@@ -458,11 +458,12 @@ public class ClientConnectionStateMachine {
      * @param msg the object received from the upstream
      */
     void onResponseFromServer(Object msg) {
-        if (routingResponseCallback != null && routingResponseCallback.onResponse(msg)) {
-            return;
-        }
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
-        decrementInFlightCount();
+        if (!routerActive
+                || !(msg instanceof DecodedResponseFrame<?> frame)
+                || !RouterDispatchHandler.isRoutingCorrelationId(frame.correlationId())) {
+            decrementInFlightCount();
+        }
     }
 
     private void decrementInFlightCount() {
@@ -960,12 +961,12 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * Sets the callback invoked when a response arrives from a backend server.
-     * The callback may claim the response (returning {@code true}) when it belongs
-     * to a dynamically-routed request; unclaimed responses are forwarded to the client normally.
+     * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
+     * When active, routing-range correlation IDs are not forwarded to the client or counted
+     * against the client in-flight limit.
      */
-    public void setRoutingResponseCallback(@Nullable RoutingResponseCallback callback) {
-        this.routingResponseCallback = callback;
+    public void setRouterActive() {
+        this.routerActive = true;
     }
 
     /**

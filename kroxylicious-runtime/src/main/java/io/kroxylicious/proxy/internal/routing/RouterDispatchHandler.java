@@ -55,7 +55,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>The {@link #write} override applies node ID translation for statically-routed
  * API keys whose responses carry broker node IDs.
  */
-public class RouterDispatchHandler extends ChannelDuplexHandler implements RoutingResponseCallback {
+public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouterDispatchHandler.class);
 
@@ -256,38 +256,37 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         ccsm.onRoutedRequestComplete();
     }
 
-    @Override
-    public boolean onResponse(Object msg) {
-        if (msg instanceof DecodedResponseFrame<?> frame) {
-            int correlationId = frame.correlationId();
-            // Routing correlation IDs are negative (allocated from Integer.MIN_VALUE / 2 upward).
-            // Non-negative IDs belong to client requests forwarded via the normal path.
-            if (correlationId >= 0) {
-                return false;
-            }
-            PendingResponse pendingResponse = pendingResponses.remove(correlationId);
-            if (pendingResponse != null) {
-                NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
-                cacheNodeAddressesIfMetadata(frame.body());
-                pendingResponse.future().complete(frame.body());
-                LOGGER.atTrace()
-                        .addKeyValue("sessionId", ccsm.sessionId())
-                        .addKeyValue("routingCorrelationId", correlationId)
-                        .log("Routed response matched to pending request");
-                return true;
-            }
-            LOGGER.atWarn()
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("routingCorrelationId", correlationId)
-                    .log("Received response with no pending routing future");
-        }
-        return false;
+    public static boolean isRoutingCorrelationId(int correlationId) {
+        return correlationId >= ROUTING_ID_RANGE_START_INC && correlationId < ROUTING_ID_RANGE_END_EXC;
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof DecodedResponseFrame<?> frame) {
-            String routeName = pendingRoutes.remove(frame.correlationId());
+            int correlationId = frame.correlationId();
+            if (isRoutingCorrelationId(correlationId)) {
+                PendingResponse pendingResponse = pendingResponses.remove(correlationId);
+                if (pendingResponse != null) {
+                    NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
+                    cacheNodeAddressesIfMetadata(frame.body());
+                    pendingResponse.future().complete(frame.body());
+                    LOGGER.atTrace()
+                            .addKeyValue("sessionId", ccsm.sessionId())
+                            .addKeyValue("routingCorrelationId", correlationId)
+                            .log("Routed response matched to pending request");
+                }
+                else {
+                    LOGGER.atDebug()
+                            .addKeyValue("sessionId", ccsm.sessionId())
+                            .addKeyValue("routingCorrelationId", correlationId)
+                            .log("Received response with no pending routing future");
+                    ctx.write(msg, promise);
+                    return;
+                }
+                promise.setSuccess();
+                return;
+            }
+            String routeName = pendingRoutes.remove(correlationId);
             if (routeName != null) {
                 NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, routeName);
             }
