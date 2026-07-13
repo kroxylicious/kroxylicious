@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -27,6 +26,7 @@ import org.slf4j.spi.LoggingEventBuilder;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.concurrent.EventExecutor;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -89,7 +89,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
      */
     private final Map<Integer, String> pendingRoutes = new HashMap<>();
 
-    final Map<Integer, PendingResponse> pendingResponses = new ConcurrentHashMap<>();
+    final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
 
     private final CorrelationIdAllocator nextRoutingCorrelationId = new CorrelationIdAllocator(ROUTING_ID_RANGE_START_INC, ROUTING_ID_RANGE_END_EXC);
 
@@ -98,6 +98,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
 
     @Nullable
     private ChannelHandlerContext ctx;
+
+    @Nullable
+    private EventExecutor eventExecutor;
 
     @Nullable
     private final Integer nodeId;
@@ -121,6 +124,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
         this.ctx = ctx;
+        this.eventExecutor = ctx.executor();
     }
 
     @Override
@@ -299,6 +303,19 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                               ApiMessage request,
                                               String sessionId,
                                               int clientCorrelationId) {
+        if (eventExecutor != null && !eventExecutor.inEventLoop()) {
+            CompletableFuture<ApiMessage> bridge = new CompletableFuture<>();
+            eventExecutor.execute(() -> doSendToAny(route, header, request, sessionId, clientCorrelationId)
+                    .whenComplete((r, e) -> {
+                        if (e != null) {
+                            bridge.completeExceptionally(e);
+                        }
+                        else {
+                            bridge.complete(r);
+                        }
+                    }));
+            return bridge;
+        }
         return doSendToAny(route, header, request, sessionId, clientCorrelationId);
     }
 
@@ -346,6 +363,28 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                                                    ApiMessage request,
                                                    String sessionId,
                                                    int clientCorrelationId) {
+        if (eventExecutor != null && !eventExecutor.inEventLoop()) {
+            CompletableFuture<ApiMessage> bridge = new CompletableFuture<>();
+            eventExecutor.execute(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId)
+                    .whenComplete((r, e) -> {
+                        if (e != null) {
+                            bridge.completeExceptionally(e);
+                        }
+                        else {
+                            bridge.complete(r);
+                        }
+                    }));
+            return bridge;
+        }
+        return doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId);
+    }
+
+    private CompletableFuture<ApiMessage> doSendToSpecificNode(int targetNodeId,
+                                                               String route,
+                                                               RequestHeaderData header,
+                                                               ApiMessage request,
+                                                               String sessionId,
+                                                               int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null || !rd.targetsCluster()) {
             withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
