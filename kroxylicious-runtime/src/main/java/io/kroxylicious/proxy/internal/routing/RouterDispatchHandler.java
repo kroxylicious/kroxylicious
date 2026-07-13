@@ -280,10 +280,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("routingCorrelationId", correlationId)
                     .log("Received response with no pending routing future");
-            if (ctx != null) {
-                ctx.channel().close();
-            }
-            return true;
         }
         return false;
     }
