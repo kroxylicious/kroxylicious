@@ -6,24 +6,19 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
@@ -39,6 +34,9 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Name;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
+import io.kroxylicious.testing.kafka.junit5ext.TopicNameMethodSource;
 
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.baseConfigurationBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
@@ -53,31 +51,30 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(NettyLeakDetectorExtension.class)
 class RoutingMultiBackendIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RoutingMultiBackendIT.class);
     private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
 
     private static final String TOPIC = "routing-multi-backend-test";
     private static final int BATCH_SIZE = 10;
     private static final int TOTAL_RECORDS = 30;
 
+    @Name("clusterA")
     static KafkaCluster clusterA;
+    @Name("clusterB")
     static KafkaCluster clusterB;
 
-    @BeforeEach
-    void createTopics() throws Exception {
-        LOGGER.info("clusterA bootstrap: {}, clusterB bootstrap: {}",
-                clusterA.getBootstrapServers(), clusterB.getBootstrapServers());
-        assertThat(clusterA.getBootstrapServers())
-                .as("clusters must be distinct instances")
-                .isNotEqualTo(clusterB.getBootstrapServers());
+    @SuppressWarnings("unused") // topic creation managed by KafkaClusterExtension
+    @Name("clusterA")
+    @TopicNameMethodSource(value = "fixedTopicName")
+    static Topic clusterATopic;
 
-        var newTopic = new NewTopic(TOPIC, Optional.of(1), Optional.empty());
-        try (var admin = AdminClient.create(clusterA.getKafkaClientConfiguration())) {
-            admin.createTopics(List.of(newTopic)).all().get(10, TimeUnit.SECONDS);
-        }
-        try (var admin = AdminClient.create(clusterB.getKafkaClientConfiguration())) {
-            admin.createTopics(List.of(newTopic)).all().get(10, TimeUnit.SECONDS);
-        }
+    @SuppressWarnings("unused") // topic creation managed by KafkaClusterExtension
+    @Name("clusterB")
+    @TopicNameMethodSource(value = "fixedTopicName")
+    static Topic clusterBTopic;
+
+    @SuppressWarnings("unused") // referenced by @TopicNameMethodSource
+    static String fixedTopicName() {
+        return TOPIC;
     }
 
     private ConfigurationBuilder routingConfig() {
@@ -123,32 +120,28 @@ class RoutingMultiBackendIT {
         }
 
         // Then: batch 0 (records 0-9) → cluster A, batch 1 (10-19) → cluster B, batch 2 (20-29) → cluster A
-        var recordsA = consumeDirectly(clusterA);
-        var recordsB = consumeDirectly(clusterB);
+        var clusterAKeys = IntStream.concat(IntStream.range(0, BATCH_SIZE), IntStream.range(2 * BATCH_SIZE, TOTAL_RECORDS))
+                .mapToObj(i -> "key-" + i)
+                .toArray(String[]::new);
+        var clusterBKeys = IntStream.range(BATCH_SIZE, 2 * BATCH_SIZE)
+                .mapToObj(i -> "key-" + i)
+                .toArray(String[]::new);
 
-        LOGGER.info("Records on cluster A: {}, cluster B: {}", recordsA.size(), recordsB.size());
-        assertThat(recordsA).as("cluster A should have two batches (0 and 2)").hasSize(2 * BATCH_SIZE);
-        assertThat(recordsB).as("cluster B should have one batch (1)").hasSize(BATCH_SIZE);
+        assertThat(consumeFrom(clusterA))
+                .extracting(ConsumerRecord::key)
+                .containsExactly(clusterAKeys);
+        assertThat(consumeFrom(clusterB))
+                .extracting(ConsumerRecord::key)
+                .containsExactly(clusterBKeys);
     }
 
-    private List<ConsumerRecord<String, String>> consumeDirectly(KafkaCluster cluster) {
-        var props = new java.util.Properties();
-        props.putAll(cluster.getKafkaClientConfiguration());
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, "direct-verify-" + cluster.getBootstrapServers());
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-
-        List<ConsumerRecord<String, String>> result = new ArrayList<>();
-        try (var consumer = new KafkaConsumer<>(props, new StringDeserializer(), new StringDeserializer())) {
+    private List<ConsumerRecord<String, String>> consumeFrom(KafkaCluster cluster) {
+        var config = new HashMap<>(cluster.getKafkaClientConfiguration());
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "direct-verify");
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        try (var consumer = new KafkaConsumer<>(config, new StringDeserializer(), new StringDeserializer())) {
             consumer.subscribe(List.of(TOPIC));
-            long deadline = System.currentTimeMillis() + 10_000;
-            while (System.currentTimeMillis() < deadline) {
-                var records = consumer.poll(Duration.ofMillis(500));
-                records.forEach(result::add);
-                if (!records.isEmpty()) {
-                    break;
-                }
-            }
+            return StreamSupport.stream(consumer.poll(Duration.ofSeconds(10)).records(TOPIC).spliterator(), false).toList();
         }
-        return result;
     }
 }
