@@ -82,12 +82,15 @@ jobs:
           key: strimzi-manifest-${{ steps.strimzi.outputs.version }}
       - name: 'Download Strimzi manifest'
         if: steps.strimzi-cache.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STRIMZI_VERSION: ${{ steps.strimzi.outputs.version }}
         run: |
           curl --fail --silent --show-error \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             -o /tmp/strimzi-manifest/kafka-single-node.yaml \
             --create-dirs \
-            "https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/${{ steps.strimzi.outputs.version }}/examples/kafka/kafka-single-node.yaml"
+            "https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/${STRIMZI_VERSION}/examples/kafka/kafka-single-node.yaml"
       - name: 'Run documentation tests'
         env:
           STRIMZI_MANIFEST: /tmp/strimzi-manifest/kafka-single-node.yaml
