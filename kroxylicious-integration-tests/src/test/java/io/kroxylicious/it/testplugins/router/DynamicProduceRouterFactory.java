@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.it.testplugins;
+package io.kroxylicious.it.testplugins.router;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -22,39 +22,44 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A test router that forwards every request to a single named route, delivering
- * the response back to the client unchanged.
+ * A test router factory that forwards everything to a single named route but routes
+ * PRODUCE requests dynamically (via {@code onRequest}) rather than statically.
+ * Used by integration tests to verify that the dynamic routing path handles
+ * real Kafka requests end-to-end.
  */
-@Plugin(configType = PassThroughRouterFactory.Config.class)
-public class PassThroughRouterFactory implements RouterFactory<PassThroughRouterFactory.Config, PassThroughRouterFactory.Config> {
+@Plugin(configType = DynamicProduceRouterFactory.Config.class)
+public class DynamicProduceRouterFactory
+        implements RouterFactory<DynamicProduceRouterFactory.Config, DynamicProduceRouterFactory.Config> {
 
     public record Config(String route) {}
 
-    private Map<ApiKeys, String> allStatic;
-
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
-        allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> config.route()));
         return config;
     }
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
+        String route = config.route();
+        Map<ApiKeys, String> staticMap = Arrays.stream(ApiKeys.values())
+                .filter(k -> k != ApiKeys.PRODUCE)
+                .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
+
         return new Router() {
             @Override
-            public CompletionStage<RouterResponse> onRequest(
-                                                             ApiKeys apiKey,
+            public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
                                                              RequestHeaderData header,
                                                              ApiMessage request,
-                                                             RouterContext routerContext) {
-                throw new IllegalStateException("all RPCs should be statically routed, onRequest invoked unexpectedly!");
+                                                             RouterContext ctx) {
+                var node = ctx.anyNode(route);
+                return ctx.sendRequest(node, header, request)
+                        .thenCompose(body -> ctx.respondWith(body).completed());
             }
 
             @Override
             public Map<ApiKeys, String> staticRoutes() {
-                return allStatic;
+                return staticMap;
             }
         };
     }

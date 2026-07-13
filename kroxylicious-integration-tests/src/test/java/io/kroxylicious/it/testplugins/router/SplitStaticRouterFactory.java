@@ -3,9 +3,11 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.it.testplugins;
+package io.kroxylicious.it.testplugins.router;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -22,16 +24,19 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A test router factory that forwards everything to a single named route but routes
- * PRODUCE requests dynamically (via {@code onRequest}) rather than statically.
- * Used by integration tests to verify that the dynamic routing path handles
- * real Kafka requests end-to-end.
+ * A router that statically routes a named subset of API keys to one route and
+ * everything else to a default route. Useful for testing multi-upstream static
+ * routing without a real Kafka client.
  */
-@Plugin(configType = DynamicProduceRouterFactory.Config.class)
-public class DynamicProduceRouterFactory
-        implements RouterFactory<DynamicProduceRouterFactory.Config, DynamicProduceRouterFactory.Config> {
+@Plugin(configType = SplitStaticRouterFactory.Config.class)
+public class SplitStaticRouterFactory implements RouterFactory<SplitStaticRouterFactory.Config, SplitStaticRouterFactory.Config> {
 
-    public record Config(String route) {}
+    /**
+     * @param defaultRoute route name for all API keys not listed in {@code splitApiKeys}
+     * @param splitRoute   route name for API keys listed in {@code splitApiKeys}
+     * @param splitApiKeys names of {@link ApiKeys} constants to send to {@code splitRoute}
+     */
+    public record Config(String defaultRoute, String splitRoute, List<String> splitApiKeys) {}
 
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
@@ -40,27 +45,28 @@ public class DynamicProduceRouterFactory
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
-        String route = config.route();
-        Map<ApiKeys, String> staticMap = Arrays.stream(ApiKeys.values())
-                .filter(k -> k != ApiKeys.PRODUCE)
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> route));
-
+        var split = new HashSet<>(config.splitApiKeys());
+        Map<ApiKeys, String> routes = Arrays.stream(ApiKeys.values())
+                .collect(Collectors.toUnmodifiableMap(k -> k,
+                        k -> split.contains(k.name()) ? config.splitRoute() : config.defaultRoute()));
         return new Router() {
             @Override
             public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
                                                              RequestHeaderData header,
                                                              ApiMessage request,
-                                                             RouterContext ctx) {
-                var node = ctx.anyNode(route);
-                return ctx.sendRequest(node, header, request)
-                        .thenCompose(body -> ctx.respondWith(body).completed());
+                                                             RouterContext routerContext) {
+                throw new IllegalStateException("Dynamic routing is not supported");
             }
 
             @Override
             public Map<ApiKeys, String> staticRoutes() {
-                return staticMap;
+                return routes;
             }
         };
+    }
+
+    @Override
+    public void close(Config config) {
     }
 }
