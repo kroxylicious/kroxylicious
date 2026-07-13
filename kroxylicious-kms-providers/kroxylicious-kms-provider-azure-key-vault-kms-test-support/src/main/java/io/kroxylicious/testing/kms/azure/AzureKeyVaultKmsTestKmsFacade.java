@@ -80,7 +80,7 @@ public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestK
 
     @VisibleForTesting
     static LowkeyVaultContainer createLowKeyContainer() {
-        String image = "nagyesta/lowkey-vault:7.2.0-ubi10-minimal@sha256:79ad37ec96fc04b60c14a396f6b013b820b63c83614bac328e4ef9dacce5e59c";
+        String image = "nagyesta/lowkey-vault:7.3.0-ubi10-minimal@sha256:9dae6295b5e07fdb587605c0f71a2928e1a455d6ebdb6c938838b9a852df347a";
         final DockerImageName imageName = DockerImageName.parse("mirror.gcr.io/" + image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image.substring(0, image.indexOf("@"))));
         final LowkeyVaultContainer lowkeyVaultContainer = lowkeyVault(imageName)

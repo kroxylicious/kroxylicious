@@ -160,9 +160,11 @@ This is the Kafka Cluster that will be proxied.
 We'll just use one from the Strimzi Quickstart.
 It will create a cluster in the `kafka` namespace.
 
+TIP: To use a local Strimzi manifest (for example, in air-gapped environments), set `STRIMZI_MANIFEST=/path/to/kafka-single-node.yaml` before running these commands.
+
 [source,terminal,subs="attributes"]
 ----
-$ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml
+$ kubectl apply -n kafka -f ${STRIMZI_MANIFEST:-https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml}
 $ kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 ----
 
@@ -304,7 +306,7 @@ To clean up, remove the proxy and the kafka cluster
 [source,terminal,subs="attributes"]
 ----
 $ kubectl delete -f examples/record-encryption/
-$ kubectl delete -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml
+$ kubectl delete -n kafka -f ${STRIMZI_MANIFEST:-https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml}
 ----
 
 Remove the Kroxylicious and Strimzi Operator.

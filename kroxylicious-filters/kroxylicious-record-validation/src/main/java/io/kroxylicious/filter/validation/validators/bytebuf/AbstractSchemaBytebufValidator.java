@@ -21,6 +21,7 @@ import io.apicurio.registry.serde.IdHandler;
 import io.apicurio.registry.serde.Legacy8ByteIdHandler;
 import io.apicurio.registry.serde.kafka.headers.DefaultHeadersHandler;
 import io.apicurio.registry.serde.kafka.headers.HeadersHandler;
+import io.apicurio.schema.validation.ValidationResult;
 
 import io.kroxylicious.filter.validation.config.SchemaValidationConfig.WireFormatVersion;
 import io.kroxylicious.filter.validation.validators.Result;
@@ -96,6 +97,19 @@ abstract class AbstractSchemaBytebufValidator implements BytebufValidator {
      */
     protected void skipExtraSerdeBytes(ByteBuffer buffer) {
         // default: no extra bytes to skip
+    }
+
+    /**
+     * Converts an Apicurio ValidationResult to a CompletionStage&lt;Result&gt;.
+     * On success, returns the pre-allocated valid result stage for efficiency.
+     * On failure, wraps the validation error message in a failed Result.
+     *
+     * @param validationResult the Apicurio validation result
+     * @return a completion stage containing the validation outcome
+     */
+    protected CompletionStage<Result> toResult(ValidationResult validationResult) {
+        return validationResult.success() ? Result.VALID_RESULT_STAGE
+                : CompletableFuture.completedFuture(new Result(false, validationResult.toString()));
     }
 
     @SuppressWarnings("removal")

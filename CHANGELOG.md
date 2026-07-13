@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4196](https://github.com/kroxylicious/kroxylicious/pull/4196): build(deps): bump apicurio-schema-validation from 0.1.4 to 3.3.0, version aligning with the rest of the component.
 * [#933](https://github.com/kroxylicious/kroxylicious/issues/933): feat(pem-support): Support PEM format key material in the KMS integrations.
 * [#3970](https://github.com/kroxylicious/kroxylicious/issues/3970): feat(operator): allow `KafkaService.spec.strimziKafkaRef.namespace` to reference Strimzi `Kafka` clusters in watched namespaces other than the `KafkaService` namespace
 
