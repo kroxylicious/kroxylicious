@@ -707,7 +707,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
             var apiKey = ApiKeys.forId(request.apiKey());
             header.setRequestApiKey(apiKey.id);
-            header.setCorrelationId(-1);
+            header.setCorrelationId(CorrelationIdSpace.RESERVED_OUT_OF_BAND_CORRELATION_ID);
 
             if (!apiKey.isVersionSupported(header.requestApiVersion())) {
                 throw new IllegalArgumentException(
