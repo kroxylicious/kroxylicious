@@ -436,7 +436,7 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void onResponseShouldReturnFalseForUnmatchedNegativeCorrelationId() {
+    void onResponseShouldClaimAndCloseChannelForUnmatchedNegativeCorrelationId() {
         // Given
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
@@ -451,8 +451,9 @@ class RouterDispatchHandlerTest {
         // When: no pending response registered
         boolean claimed = handler.onResponse(frame);
 
-        // Then
-        assertThat(claimed).isFalse();
+        // Then: the frame is claimed (not forwarded to the client) and the channel is closed
+        assertThat(claimed).isTrue();
+        assertThat(channel.isOpen()).isFalse();
     }
 
     @Test

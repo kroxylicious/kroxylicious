@@ -96,6 +96,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
     @Nullable
     private ResponseSequencer responseSequencer;
 
+    @Nullable
+    private ChannelHandlerContext ctx;
+
     record PendingResponse(CompletableFuture<ApiMessage> future, String route) {}
 
     public RouterDispatchHandler(Router router,
@@ -108,6 +111,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
         this.nodeIdMapping = nodeIdMapping;
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) {
+        this.ctx = ctx;
     }
 
     @Override
@@ -264,6 +272,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("routingCorrelationId", correlationId)
                     .log("Received response with no pending routing future");
+            if (ctx != null) {
+                ctx.channel().close();
+            }
+            return true;
         }
         return false;
     }
