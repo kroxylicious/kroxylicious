@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.20.1
 
 * [#4350](https://github.com/kroxylicious/kroxylicious/pull/4350): build(deps): Upgrade Log4j to 2.25.5 to fix CVE-2026-49844
