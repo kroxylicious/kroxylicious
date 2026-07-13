@@ -143,11 +143,11 @@ class RoutingContextContractIT {
                 }
                 mockBroker0.clear();
                 mockBroker1.clear();
-                mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
+                mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
 
                 // When: connect to the broker-specific port for virtual node 0
                 try (var nodeZero = tester.simpleTestClient("localhost:9193", false)) {
-                    nodeZero.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
+                    nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
                 }
 
                 // Then: a broker-specific connection has a non-empty virtualNode
@@ -191,26 +191,26 @@ class RoutingContextContractIT {
                 }
                 mockBroker0.clear();
                 mockBroker1.clear();
-                mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
-                mockBroker1.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
+                mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
+                mockBroker1.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
 
                 // When: connect to virtual-node-0 port and send a request
                 try (var nodeZero = tester.simpleTestClient("localhost:9193", false)) {
-                    nodeZero.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
+                    nodeZero.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
                 }
 
                 // When: connect to virtual-node-1 port and send a request
                 try (var nodeOne = tester.simpleTestClient("localhost:9194", false)) {
-                    nodeOne.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
+                    nodeOne.getSync(new Request(ApiKeys.LIST_GROUPS, (short) 3, "client", new ListGroupsRequestData()));
                 }
 
                 // Then: each virtual-node connection routed to the corresponding upstream broker
                 assertThat(mockBroker0.getReceivedRequests())
                         .extracting(Request::apiKeys)
-                        .containsExactly(ApiKeys.API_VERSIONS);
+                        .containsExactly(ApiKeys.LIST_GROUPS);
                 assertThat(mockBroker1.getReceivedRequests())
                         .extracting(Request::apiKeys)
-                        .containsExactly(ApiKeys.API_VERSIONS);
+                        .containsExactly(ApiKeys.LIST_GROUPS);
             }
         }
     }
