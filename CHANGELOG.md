@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* build(deps): Upgrade Log4j to 2.25.5 to fix CVE-2026-49844
 * [#4314](https://github.com/kroxylicious/kroxylicious/pull/4314): build(deps): Upgrade Jackson to 2.21.5 to fix CVE-2026-54515
 * [#4310](https://github.com/kroxylicious/kroxylicious/pull/4310): deps(apicurio): [0.20.x] bump Apicurio Registry from 3.1 to 3.2 to avoid CVEs in dependencies (and switch to JDK HTTP)
 * [#4111](https://github.com/kroxylicious/kroxylicious/pull/4111): build(deps): Upgrade to JOSDK 5.2.5 to avoids informer health check defect.
@@ -29,6 +30,7 @@ Format `<github issue/pr number>: <short description>`.
 * [CVE-2026-34478](https://nvd.nist.gov/vuln/detail/CVE-2026-34478) - CRLF Injection Vulnerability in Rfc5424Layout (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
 * [CVE-2026-34479](https://nvd.nist.gov/vuln/detail/CVE-2026-34479) - Log4j 1-to-Log4j 2 Bridge XML Sanitization Issue (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
 * [CVE-2026-34480](https://nvd.nist.gov/vuln/detail/CVE-2026-34480) - XML Layout Sanitization Issue (fixed in 2.25.4) ([Apache Advisory](https://logging.apache.org/security.html))
+* [CVE-2026-49844](https://nvd.nist.gov/vuln/detail/CVE-2026-49844) - Fixed in 2.25.5 ([Apache Advisory](https://logging.apache.org/security.html))
 
 #### Netty (io.netty)
 * [CVE-2026-44249](https://nvd.nist.gov/vuln/detail/CVE-2026-44249) - IPv6 subnet filter bypass in netty-handler (fixed in 4.2.15.Final) ([Netty Release](https://netty.io/news/2026/06/01/4-2-15-Final.html))
