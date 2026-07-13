@@ -99,18 +99,23 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
     @Nullable
     private ChannelHandlerContext ctx;
 
+    @Nullable
+    private final Integer nodeId;
+
     record PendingResponse(CompletableFuture<ApiMessage> future, String route) {}
 
     public RouterDispatchHandler(Router router,
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
                                  ClientConnectionStateMachine ccsm,
-                                 NodeIdMapping nodeIdMapping) {
+                                 NodeIdMapping nodeIdMapping,
+                                 @Nullable Integer nodeId) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
         this.nodeIdMapping = nodeIdMapping;
+        this.nodeId = nodeId;
     }
 
     @Override
@@ -186,7 +191,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
                 this,
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
-                ccsm.nodeId());
+                nodeId);
 
         router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
                 .whenComplete((result, error) -> {

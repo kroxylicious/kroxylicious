@@ -316,7 +316,7 @@ public class ClientConnectionStateMachine {
     }
 
     @Nullable
-    public Integer nodeId() {
+    Integer nodeId() {
         return endpointBinding.nodeId();
     }
 
