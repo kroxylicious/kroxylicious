@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -84,7 +85,7 @@ class OperatorMainIT {
     @BeforeEach
     void beforeEach() throws Exception {
         managementServer = createManagementServer();
-        operatorMain = new OperatorMain(managementServer, null, null);
+        operatorMain = new OperatorMain(managementServer, null, new ControllerConfigurer());
     }
 
     @AfterEach
@@ -249,7 +250,8 @@ class OperatorMainIT {
                 .create();
 
         managementServer = createManagementServer();
-        operatorMain = new OperatorMain(managementServer, null, Set.of(watched.getMetadata().getName()));
+        var configurer = new ControllerConfigurer(Set.of(watched.getMetadata().getName()), Duration.ofMinutes(3));
+        operatorMain = new OperatorMain(managementServer, null, configurer);
 
         // When
         operatorMain.start();
