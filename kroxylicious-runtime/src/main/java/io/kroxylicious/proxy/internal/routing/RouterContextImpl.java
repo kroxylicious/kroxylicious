@@ -32,7 +32,6 @@ class RouterContextImpl implements RouterContext {
     private final String sessionId;
     private final Subject subject;
     private final RouterDispatchHandler handler;
-    private final long sequenceNumber;
     @Nullable
     private final Integer endpointVirtualNodeId;
 
@@ -40,18 +39,12 @@ class RouterContextImpl implements RouterContext {
                       RouterDispatchHandler handler,
                       String sessionId,
                       Subject subject,
-                      @Nullable Integer endpointVirtualNodeId,
-                      ResponseSequencer responseSequencer) {
+                      @Nullable Integer endpointVirtualNodeId) {
         this.clientCorrelationId = clientFrame.correlationId();
         this.handler = Objects.requireNonNull(handler);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
-        this.sequenceNumber = responseSequencer.allocateSequence();
         this.endpointVirtualNodeId = endpointVirtualNodeId;
-    }
-
-    long sequenceNumber() {
-        return sequenceNumber;
     }
 
     @Override

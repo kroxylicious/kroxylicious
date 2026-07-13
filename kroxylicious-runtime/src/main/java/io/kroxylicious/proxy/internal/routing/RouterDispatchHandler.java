@@ -180,15 +180,13 @@ public class RouterDispatchHandler extends ChannelDuplexHandler implements Routi
             responseSequencer = new ResponseSequencer(ctx.channel());
         }
 
+        long sequence = responseSequencer.allocateSequence();
         var routingContext = new RouterContextImpl(
                 frame,
                 this,
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
-                ccsm.nodeId(),
-                responseSequencer);
-
-        long sequence = routingContext.sequenceNumber();
+                ccsm.nodeId());
 
         router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
                 .whenComplete((result, error) -> {

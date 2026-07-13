@@ -21,8 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.netty.channel.embedded.EmbeddedChannel;
-
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -46,15 +44,12 @@ class RouterContextImplTest {
     @Mock
     private ClientConnectionStateMachine ccsm;
 
-    private ResponseSequencer sequencer;
     private DecodedRequestFrame<?> clientFrame;
     private NodeIdMapping nodeIdMapping;
     private Map<String, RouteDescriptor> routes;
 
     @BeforeEach
     void setUp() {
-        var channel = new EmbeddedChannel();
-        sequencer = new ResponseSequencer(channel);
         clientFrame = new DecodedRequestFrame<>((short) 12, 100, true,
                 new RequestHeaderData(), new MetadataRequestData());
         nodeIdMapping = new IdentityNodeIdMapping(DEFAULT_ROUTE);
@@ -72,7 +67,7 @@ class RouterContextImplTest {
         var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm, nodeIdMapping);
         return new RouterContextImpl(
                 clientFrame, handler, "test-session", Subject.anonymous(),
-                endpointVirtualNodeId, sequencer);
+                endpointVirtualNodeId);
     }
 
     @Test
