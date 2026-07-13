@@ -6,17 +6,15 @@
 package io.kroxylicious.it;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
 
+import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -33,6 +31,7 @@ import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -61,6 +60,16 @@ class RoutingMultiBackendIT {
     static KafkaCluster clusterA;
     @Name("clusterB")
     static KafkaCluster clusterB;
+
+    @Name("clusterA")
+    @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "direct-verify-a")
+    @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest")
+    static Consumer<String, String> consumerA;
+
+    @Name("clusterB")
+    @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "direct-verify-b")
+    @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest")
+    static Consumer<String, String> consumerB;
 
     @SuppressWarnings("unused") // topic creation managed by KafkaClusterExtension
     @Name("clusterA")
@@ -101,7 +110,7 @@ class RoutingMultiBackendIT {
     }
 
     @Test
-    void shouldAlternateProducesBetweenBackendClusters() throws Exception {
+    void shouldAlternateProducesBetweenBackendClusters() {
         // Given
         var config = routingConfig();
 
@@ -127,21 +136,16 @@ class RoutingMultiBackendIT {
                 .mapToObj(i -> "key-" + i)
                 .toArray(String[]::new);
 
-        assertThat(consumeFrom(clusterA))
+        assertThat(consumeFrom(consumerA))
                 .extracting(ConsumerRecord::key)
                 .containsExactly(clusterAKeys);
-        assertThat(consumeFrom(clusterB))
+        assertThat(consumeFrom(consumerB))
                 .extracting(ConsumerRecord::key)
                 .containsExactly(clusterBKeys);
     }
 
-    private List<ConsumerRecord<String, String>> consumeFrom(KafkaCluster cluster) {
-        var config = new HashMap<>(cluster.getKafkaClientConfiguration());
-        config.put(ConsumerConfig.GROUP_ID_CONFIG, "direct-verify");
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        try (var consumer = new KafkaConsumer<>(config, new StringDeserializer(), new StringDeserializer())) {
-            consumer.subscribe(List.of(TOPIC));
-            return StreamSupport.stream(consumer.poll(Duration.ofSeconds(10)).records(TOPIC).spliterator(), false).toList();
-        }
+    private List<ConsumerRecord<String, String>> consumeFrom(Consumer<String, String> consumer) {
+        consumer.subscribe(List.of(TOPIC));
+        return StreamSupport.stream(consumer.poll(Duration.ofSeconds(10)).records(TOPIC).spliterator(), false).toList();
     }
 }
