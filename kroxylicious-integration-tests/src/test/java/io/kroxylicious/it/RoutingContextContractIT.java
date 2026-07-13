@@ -47,6 +47,7 @@ import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
 import io.kroxylicious.testing.integration.server.MockServer;
+import io.kroxylicious.testing.integration.tester.KroxyliciousTester;
 import io.kroxylicious.testing.integration.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -137,10 +138,7 @@ class RoutingContextContractIT {
             try (var tester = KroxyliciousTesters.newBuilder(configWithNodeRange("localhost:" + mockBroker0.port(), 0, 1))
                     .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
 
-                // Prime reconciliation so port 9193 is bound to mockBroker0
-                try (var bootstrap = tester.simpleTestClient()) {
-                    bootstrap.getSync(new Request(ApiKeys.METADATA, (short) 12, "client", new MetadataRequestData()));
-                }
+                primeProxyWithBrokerAddresses(tester);
                 mockBroker0.clear();
                 mockBroker1.clear();
                 mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
@@ -186,9 +184,7 @@ class RoutingContextContractIT {
             try (var tester = KroxyliciousTesters.newBuilder(configWithNodeRange("localhost:" + mockBroker0.port(), 0, 1))
                     .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
 
-                try (var bootstrap = tester.simpleTestClient()) {
-                    bootstrap.getSync(new Request(ApiKeys.METADATA, (short) 12, "client", new MetadataRequestData()));
-                }
+                primeProxyWithBrokerAddresses(tester);
                 mockBroker0.clear();
                 mockBroker1.clear();
                 mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.LIST_GROUPS, (short) 3, new ListGroupsResponseData()));
@@ -261,10 +257,7 @@ class RoutingContextContractIT {
             try (var tester = KroxyliciousTesters.newBuilder(configWithNodeRange("localhost:" + mockBroker0.port(), 0, 1))
                     .setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester()) {
 
-                // Prime METADATA reconciliation from bootstrap
-                try (var bootstrap = tester.simpleTestClient()) {
-                    bootstrap.getSync(new Request(ApiKeys.METADATA, (short) 12, "client", new MetadataRequestData()));
-                }
+                primeProxyWithBrokerAddresses(tester);
                 mockBroker0.clear();
                 mockBroker0.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, new ApiVersionsResponseData()));
 
@@ -412,6 +405,12 @@ class RoutingContextContractIT {
 
             // Then: the router's onRequest was invoked and chose respondWithoutReply
             assertThat(produceHandled).succeedsWithin(Duration.ofSeconds(10));
+        }
+    }
+
+    private static void primeProxyWithBrokerAddresses(KroxyliciousTester tester) {
+        try (var bootstrap = tester.simpleTestClient()) {
+            bootstrap.getSync(new Request(ApiKeys.METADATA, (short) 12, "client", new MetadataRequestData()));
         }
     }
 }
