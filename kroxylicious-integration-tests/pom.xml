@@ -13,7 +13,7 @@
     <parent>
         <artifactId>kroxylicious-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.20.1-SNAPSHOT</version>
+        <version>0.20.1</version>
     </parent>
 
     <artifactId>kroxylicious-integration-tests</artifactId>
