@@ -80,7 +80,7 @@ class OperatorMainTest {
         when(managementServer.createContext(eq("/"), rootCaptor.capture())).thenReturn(rootHttpContext);
         when(managementServer.createContext(eq(OperatorMain.HTTP_PATH_METRICS), any(HttpHandler.class))).thenReturn(metricsHttpContext);
         when(managementServer.createContext(eq(OperatorMain.HTTP_PATH_LIVEZ), livezCaptor.capture())).thenReturn(livezHttpContext);
-        operatorMain = new OperatorMain(managementServer, kubeClient, null);
+        operatorMain = new OperatorMain(managementServer, kubeClient, new ControllerConfigurer());
     }
 
     @AfterEach

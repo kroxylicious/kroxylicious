@@ -35,6 +35,20 @@ The operator watches CRs and reconciles them:
 3. **Reconcile**: Create/update/delete Kubernetes resources to match desired state
 4. **Update status**: Write reconciliation result to CR status field
 
+**Periodic reconciliation:**
+
+The operator is configured with a maximum reconciliation interval (default: 3 minutes) as a failsafe mechanism. This ensures reconciliation runs periodically even when no Kubernetes events occur, which helps detect and correct drift caused by external modifications or transient reconciliation failures. Each custom resource is independently reconciled after the interval expires. Event-driven reconciliation (in response to CR changes) remains the primary mechanism and triggers immediately.
+
+Note: Periodic reconciliation reads from the informer cache, not directly from the API server. If watch connections fail, the cache may become stale until the watch reconnects and re-synchronizes.
+
+To customize the interval, set the `KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS` environment variable in the operator deployment. For example, to use a 5-minute interval:
+
+```yaml
+env:
+  - name: KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS
+    value: "300"
+```
+
 **Pattern:**
 
 ```java

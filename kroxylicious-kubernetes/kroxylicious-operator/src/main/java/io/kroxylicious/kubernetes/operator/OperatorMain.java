@@ -10,14 +10,11 @@ import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.IntSupplier;
-import java.util.function.Predicate;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +22,8 @@ import org.slf4j.LoggerFactory;
 import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
-import io.javaoperatorsdk.operator.api.config.ControllerConfigurationOverrider;
 import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetrics;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Metrics;
@@ -48,7 +43,6 @@ import io.kroxylicious.proxy.VersionInfo;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -59,10 +53,16 @@ public class OperatorMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
     private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
     /**
-     * Name of an environment variable specifing a comma separated list of Kubernetes namespaces that the operator will watch.
+     * Name of an environment variable specifying a comma separated list of Kubernetes namespaces that the operator will watch.
      * If the environment variable is not set, or is empty, the Operator will watch all namespaces.
      */
     static final String KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME = "KROXYLICIOUS_WATCHED_NAMESPACES";
+    /**
+     * Name of an environment variable specifying the maximum reconciliation interval in seconds.
+     * This is the failsafe interval for periodic reconciliation to catch missed events.
+     * If not set, defaults to 180 seconds (3 minutes).
+     */
+    static final String KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS_VAR_NAME = "KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
     static final String HTTP_PATH_LIVEZ = "/livez";
     static final String HTTP_PATH_METRICS = "/metrics";
@@ -73,22 +73,22 @@ public class OperatorMain {
      * name emitted by Prometheus will be called {@code kroxylicious_operator_build_info}.
      */
     private static final String BUILD_INFO_METRIC_NAME = "kroxylicious_operator_build.info";
-    private static final Pattern WATCHED_NAMESPACE_SPLITTER = Pattern.compile(" *, *");
     private final Operator operator;
     private final HttpServer managementServer;
-    @Nullable
-    private final Set<String> watchedNamespaces;
+    private final ControllerConfigurer controllerConfigurer;
     @Nullable
     private SharedInformerManager sharedInformerManager;
 
     public OperatorMain() throws IOException {
-        this(createHttpServer(), null, null);
+        this(createHttpServer(), null, new ControllerConfigurer());
     }
 
     @VisibleForTesting
     OperatorMain(HttpServer managementServer,
                  @Nullable KubernetesClient kubeClient,
-                 @Nullable Set<String> watchedNamespaces) {
+                 ControllerConfigurer controllerConfigurer) {
+        Objects.requireNonNull(managementServer);
+        Objects.requireNonNull(controllerConfigurer);
 
         configurePrometheusMetrics(managementServer);
         // o.withMetrics is invoked multiple times so can cause issues with enabling metrics.
@@ -99,7 +99,7 @@ public class OperatorMain {
             }
         });
         this.managementServer = managementServer;
-        this.watchedNamespaces = Optional.ofNullable(watchedNamespaces).orElse(getWatchedNamespacesFromEnvironment());
+        this.controllerConfigurer = controllerConfigurer;
     }
 
     public static void main(String[] args) {
@@ -122,18 +122,18 @@ public class OperatorMain {
 
         // Create SharedInformerManager to share informer caches across reconcilers
         // This reduces memory usage by preventing duplicate caches for the same resource types
-        Set<String> effectiveNamespaces = Optional.ofNullable(watchedNamespaces).orElse(Set.of());
+        Set<String> effectiveNamespaces = Optional.ofNullable(controllerConfigurer.getWatchedNamespaces()).orElse(Set.of());
         sharedInformerManager = new SharedInformerManager(
                 operator.getKubernetesClient(),
                 effectiveNamespaces);
 
-        operator.register(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR), getNsOverriddingConfigurationOverriderConsumer());
+        operator.register(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR), controllerConfigurer.configurationOverrider());
         operator.register(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create(), sharedInformerManager),
-                getNsOverriddingConfigurationOverriderConsumer());
-        operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()), getNsOverriddingConfigurationOverriderConsumer());
-        operator.register(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager), getNsOverriddingConfigurationOverriderConsumer());
+                controllerConfigurer.configurationOverrider());
+        operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()), controllerConfigurer.configurationOverrider());
+        operator.register(new KafkaServiceReconciler(Clock.systemUTC(), sharedInformerManager), controllerConfigurer.configurationOverrider());
         operator.register(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, sharedInformerManager),
-                getNsOverriddingConfigurationOverriderConsumer());
+                controllerConfigurer.configurationOverrider());
 
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
@@ -152,16 +152,6 @@ public class OperatorMain {
                 .addKeyValue("commitId", versionInfo::commitId)
                 .log("Operator started");
         versionInfoMetric(versionInfo);
-
-        Optional.ofNullable(watchedNamespaces)
-                .ifPresentOrElse(
-                        tns -> LOGGER.atInfo().addKeyValue("namespaces", tns).log("Watching namespaces"),
-                        () -> LOGGER.atInfo().log("Watching all namespaces"));
-    }
-
-    @NonNull
-    private <T extends HasMetadata> Consumer<ControllerConfigurationOverrider<T>> getNsOverriddingConfigurationOverriderConsumer() {
-        return configOverrider -> Optional.ofNullable(watchedNamespaces).filter(Predicate.not(Set::isEmpty)).ifPresent(configOverrider::settingNamespaces);
     }
 
     private void addHttpGetHandler(String path,
@@ -271,24 +261,7 @@ public class OperatorMain {
     @Nullable
     @VisibleForTesting
     Set<String> getWatchedNamespaces() {
-        return watchedNamespaces;
-    }
-
-    @Nullable
-    private static Set<String> getWatchedNamespacesFromEnvironment() {
-        var targets = Optional.ofNullable(System.getenv().get(KROXYLICIOUS_WATCHED_NAMESPACES_VAR_NAME))
-                .map(String::trim)
-                .filter(Predicate.not(String::isEmpty));
-
-        if (targets.isEmpty()) {
-            return null;
-        }
-
-        return targets.stream()
-                .flatMap(WATCHED_NAMESPACE_SPLITTER::splitAsStream)
-                .map(String::trim)
-                .filter(Predicate.not(String::isEmpty))
-                .collect(Collectors.toSet());
+        return controllerConfigurer.getWatchedNamespaces();
     }
 
 }
