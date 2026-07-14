@@ -54,15 +54,15 @@ class Wrapping96BitCounter implements Destroyable {
         iv[0] = (byte) (hi >> 24);
         iv[1] = (byte) (hi >> 16);
         iv[2] = (byte) (hi >> 8);
-        iv[3] = (byte) (hi);
+        iv[3] = (byte) hi;
         iv[4] = (byte) (mid >> 24);
         iv[5] = (byte) (mid >> 16);
         iv[6] = (byte) (mid >> 8);
-        iv[7] = (byte) (mid);
+        iv[7] = (byte) mid;
         iv[8] = (byte) (low >> 24);
         iv[9] = (byte) (low >> 16);
         iv[10] = (byte) (low >> 8);
-        iv[11] = (byte) (low);
+        iv[11] = (byte) low;
         try {
             low = Math.addExact(low, 1);
         }

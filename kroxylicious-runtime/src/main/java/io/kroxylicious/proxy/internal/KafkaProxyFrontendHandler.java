@@ -368,7 +368,7 @@ public class KafkaProxyFrontendHandler
         int i = 0;
         String addNextFilterAfter = clientCtx().name();
         for (FilterAndInvoker protocolFilter : filters) {
-            String handlerName = "filter-" + (++i) + "-" + protocolFilter.filterName();
+            String handlerName = "filter-" + ++i + "-" + protocolFilter.filterName();
             pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(

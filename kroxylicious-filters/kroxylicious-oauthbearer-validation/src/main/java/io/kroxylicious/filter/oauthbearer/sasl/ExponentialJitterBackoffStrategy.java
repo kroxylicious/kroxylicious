@@ -61,6 +61,6 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
         if (attempts == 0) {
             return Duration.ZERO;
         }
-        return Duration.ofMillis((long) (initialDelay.toMillis() * (Math.pow(multiplier, (double) attempts - 1))));
+        return Duration.ofMillis((long) (initialDelay.toMillis() * Math.pow(multiplier, (double) attempts - 1)));
     }
 }

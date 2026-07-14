@@ -30,7 +30,7 @@ class TargetClusterTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    @MethodSource()
+    @MethodSource
     @ParameterizedTest
     void parseBootstrapServers(String bootstrapServers, List<HostPort> expected) {
         // given
