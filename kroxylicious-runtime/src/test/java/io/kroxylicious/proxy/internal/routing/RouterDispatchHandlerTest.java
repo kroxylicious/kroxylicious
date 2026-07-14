@@ -375,6 +375,28 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
+    void respondWithoutReplyShouldNotBlockSubsequentResponse() {
+        // Given: first request gets no reply, second gets a response
+        when(router.onRequest(any(), anyShort(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(new RouterResponseImpl.RespondWithoutReply(false)))
+                .thenReturn(CompletableFuture.completedFuture(
+                        new RouterResponseImpl.RespondWith(null, new MetadataResponseData(), false)));
+        var handler = handlerWithRoute(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+
+        // When
+        channel.writeInbound(produceFrame(CORRELATION_ID));
+        channel.writeInbound(produceFrame(CORRELATION_ID + 1));
+        channel.runPendingTasks();
+
+        // Then: second request's response is delivered; no response for the first
+        DecodedResponseFrame<?> out = channel.readOutbound();
+        assertThat(out).isNotNull();
+        assertThat(out.correlationId()).isEqualTo(CORRELATION_ID + 1);
+        assertThat((Object) channel.readOutbound()).isNull();
+    }
+
+    @Test
     void shouldCloseRouterWhenHandlerRemoved() {
         // Given
         var handler = handlerWithIdentityMapping(Map.of());

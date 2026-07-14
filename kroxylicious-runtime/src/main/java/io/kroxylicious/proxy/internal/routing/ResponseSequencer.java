@@ -17,6 +17,8 @@ import io.netty.channel.Channel;
  */
 class ResponseSequencer {
 
+    private static final Object SKIP_SENTINEL = new Object();
+
     private final Channel clientChannel;
     private final Map<Long, Object> buffered = new HashMap<>();
     private long nextSequenceToWrite;
@@ -43,14 +45,36 @@ class ResponseSequencer {
         if (sequence == nextSequenceToWrite) {
             clientChannel.write(responseFrame);
             nextSequenceToWrite++;
-            while (buffered.containsKey(nextSequenceToWrite)) {
-                clientChannel.write(buffered.remove(nextSequenceToWrite));
-                nextSequenceToWrite++;
-            }
-            clientChannel.flush();
+            drainAndFlush();
         }
         else {
             buffered.put(sequence, responseFrame);
         }
+    }
+
+    /**
+     * Marks the given sequence as having no response to write. If this is the
+     * next expected sequence, any consecutively buffered successors are flushed
+     * to the client channel immediately.
+     */
+    void skip(long sequence) {
+        if (sequence == nextSequenceToWrite) {
+            nextSequenceToWrite++;
+            drainAndFlush();
+        }
+        else {
+            buffered.put(sequence, SKIP_SENTINEL);
+        }
+    }
+
+    private void drainAndFlush() {
+        while (buffered.containsKey(nextSequenceToWrite)) {
+            Object value = buffered.remove(nextSequenceToWrite);
+            nextSequenceToWrite++;
+            if (value != SKIP_SENTINEL) {
+                clientChannel.write(value);
+            }
+        }
+        clientChannel.flush();
     }
 }

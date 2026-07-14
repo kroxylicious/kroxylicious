@@ -205,6 +205,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                 .addKeyValue("clientCorrelationId", correlationId)
                                 .setCause(error)
                                 .log("Router returned failed future");
+                        responseSequencer.skip(sequence);
                         ctx.channel().close();
                         return;
                     }
@@ -215,6 +216,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                 .addKeyValue("apiKey", apiKey)
                                 .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
                                 .log("Router returned unrecognised RouterResponse type; closing connection");
+                        responseSequencer.skip(sequence);
                         ctx.channel().close();
                         return;
                     }
@@ -243,12 +245,15 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 var responseFrame = new DecodedResponseFrame<>(apiVersion, correlationId, header, errorResponse.data());
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
-            case RouterResponseImpl.RespondWithoutReply ignored -> LOGGER.atTrace()
-                    .addKeyValue("virtualCluster", virtualClusterName)
-                    .addKeyValue("sessionId", ccsm.sessionId())
-                    .addKeyValue("apiKey", apiKey)
-                    .addKeyValue("clientCorrelationId", correlationId)
-                    .log("Router completed request with no reply");
+            case RouterResponseImpl.RespondWithoutReply ignored -> {
+                LOGGER.atTrace()
+                        .addKeyValue("virtualCluster", virtualClusterName)
+                        .addKeyValue("sessionId", ccsm.sessionId())
+                        .addKeyValue("apiKey", apiKey)
+                        .addKeyValue("clientCorrelationId", correlationId)
+                        .log("Router completed request with no reply");
+                Objects.requireNonNull(responseSequencer).skip(sequence);
+            }
         }
         if (rri.closeConnection()) {
             ctx.channel().close();

@@ -15,8 +15,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.netty.channel.Channel;
 
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class ResponseSequencerTest {
@@ -89,6 +91,78 @@ class ResponseSequencerTest {
         order.verify(channel).write(frame0);
         order.verify(channel).write(frame1);
         order.verify(channel).write(frame2);
+        order.verify(channel).flush();
+    }
+
+    @Test
+    void skipInOrderShouldDrainBufferedSuccessors() {
+        // Given
+        long seq0 = sequencer.allocateSequence();
+        long seq1 = sequencer.allocateSequence();
+        Object frame1 = new Object();
+        sequencer.submit(seq1, frame1);
+
+        // When
+        sequencer.skip(seq0);
+
+        // Then: seq1's frame is written and flushed; seq0 produces no write
+        InOrder order = inOrder(channel);
+        order.verify(channel).write(frame1);
+        order.verify(channel).flush();
+        verifyNoMoreInteractions(channel);
+    }
+
+    @Test
+    void skipInOrderShouldFlushWhenNothingBuffered() {
+        // Given
+        long seq0 = sequencer.allocateSequence();
+
+        // When
+        sequencer.skip(seq0);
+
+        // Then: no write, one flush to unblock any previously pending data
+        verify(channel, times(0)).write(org.mockito.ArgumentMatchers.any());
+        verify(channel).flush();
+    }
+
+    @Test
+    void skipOutOfOrderShouldNotInteractWithChannel() {
+        // Given
+        long seq0 = sequencer.allocateSequence();
+        long seq1 = sequencer.allocateSequence();
+        Object frame0 = new Object();
+
+        // When: seq1 is skipped before seq0 arrives
+        sequencer.skip(seq1);
+
+        // Then: nothing written or flushed yet
+        verifyNoInteractions(channel);
+
+        // When: seq0 arrives — should drain past the skip sentinel for seq1
+        sequencer.submit(seq0, frame0);
+
+        // Then: only frame0 written; sentinel for seq1 produces no write
+        InOrder order = inOrder(channel);
+        order.verify(channel).write(frame0);
+        order.verify(channel).flush();
+        verifyNoMoreInteractions(channel);
+    }
+
+    @Test
+    void skipFollowedBySubmitShouldWriteSubmittedFrame() {
+        // Given
+        long seq0 = sequencer.allocateSequence();
+        long seq1 = sequencer.allocateSequence();
+        Object frame1 = new Object();
+
+        // When
+        sequencer.skip(seq0);
+        sequencer.submit(seq1, frame1);
+
+        // Then: frame1 written immediately after the skip unblocks seq1
+        InOrder order = inOrder(channel);
+        order.verify(channel).flush(); // flush from skip(seq0) with nothing buffered
+        order.verify(channel).write(frame1);
         order.verify(channel).flush();
     }
 
