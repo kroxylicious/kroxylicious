@@ -365,10 +365,11 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
-        int i = 0;
+        int filterIndex = 0;
         String addNextFilterAfter = clientCtx().name();
         for (FilterAndInvoker protocolFilter : filters) {
-            String handlerName = "filter-" + ++i + "-" + protocolFilter.filterName();
+            ++filterIndex;
+            String handlerName = "filter-" + filterIndex + "-" + protocolFilter.filterName();
             pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(
