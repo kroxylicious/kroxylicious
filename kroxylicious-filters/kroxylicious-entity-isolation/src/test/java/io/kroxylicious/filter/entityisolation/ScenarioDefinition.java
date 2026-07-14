@@ -60,8 +60,8 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     }
 
     /**
-     * @param expectedResponseHeader
-     * @param expectedResponse
+     * @param expectedResponseHeader the expected response header as JSON, or null if not asserted
+     * @param expectedResponse the expected response body as JSON, or null if not asserted
      * @param expectedErrorResponse in the case that we expect an error response (the message generation is a framework responsibility)
      * @param hasResponse true if we expect a response (zero-ack produce request is the only case known with no response). default true
      * @param expectRequestDropped true if we expect the request to be dropped. default false

@@ -74,8 +74,8 @@ public class OffsetFetchEnforcement extends ApiEnforcement<OffsetFetchRequestDat
      * should be filtered out (for the "all topics" case), or
      * returned with partition-level TOPIC_AUTHZ_FAILED errors (for the specific topics kind of request).</p>
      *
-     * @param topLevelAllTopics
-     * @param groupsWithAllTopics
+     * @param topLevelAllTopics whether the request asked for all topics via a top-level null topic list
+     * @param groupsWithAllTopics ids of the groups that asked for all topics
      * @param groupDenials groups that were denied in the request, to be augmented into the response
      */
     record RequestKind(boolean topLevelAllTopics,

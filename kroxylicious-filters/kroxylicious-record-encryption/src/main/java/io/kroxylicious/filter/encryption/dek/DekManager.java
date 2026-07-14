@@ -44,10 +44,10 @@ public class DekManager<K, E> {
     }
 
     /**
-     * Result a key alias
+     * Resolve a key alias
      * @see Kms#resolveAlias(String)
-     * @param alias
-     * @return
+     * @param alias The alias to resolve.
+     * @return A completion stage that completes with the key id for the given alias, or fails if the alias cannot be resolved.
      */
     public CompletionStage<K> resolveAlias(String alias) {
         return kms.resolveAlias(alias);

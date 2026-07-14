@@ -38,7 +38,7 @@ public class CorrelationManager {
      * @param apiVersion The API version.
      * @param correlationId The request's correlation id.
      * @param responseFuture The future to complete with the response
-     * @param responseApiVersion
+     * @param responseApiVersion The API version with which the response will be decoded.
      */
     public void putBrokerRequest(short apiKey,
                                  short apiVersion,
