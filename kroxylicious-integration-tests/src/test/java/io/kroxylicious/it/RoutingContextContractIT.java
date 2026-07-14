@@ -42,7 +42,8 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.proxy.topology.EndpointType;
+import io.kroxylicious.proxy.topology.Bootstrap;
+import io.kroxylicious.proxy.topology.VirtualNode;
 import io.kroxylicious.testing.integration.Request;
 import io.kroxylicious.testing.integration.Response;
 import io.kroxylicious.testing.integration.ResponsePayload;
@@ -119,7 +120,7 @@ class RoutingContextContractIT {
             client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
 
             // Then
-            assertThat(ContextCapturingRouterFactory.lastCapture.get().endpoint()).isInstanceOf(EndpointType.Bootstrap.class);
+            assertThat(ContextCapturingRouterFactory.lastCapture.get().endpoint()).isInstanceOf(Bootstrap.class);
         }
     }
 
@@ -149,7 +150,7 @@ class RoutingContextContractIT {
                 }
 
                 // Then
-                assertThat(ContextCapturingRouterFactory.lastCapture.get().endpoint()).isInstanceOf(EndpointType.VirtualNode.class);
+                assertThat(ContextCapturingRouterFactory.lastCapture.get().endpoint()).isInstanceOf(VirtualNode.class);
             }
         }
     }
@@ -172,7 +173,7 @@ class RoutingContextContractIT {
 
             // Router: for any non-METADATA request, use endpoint() to route to the connected broker
             ContextCapturingRouterFactory.currentAction.set((apiKey, apiVersion, header, request, ctx) -> {
-                if (ctx.endpoint() instanceof EndpointType.VirtualNode vn) {
+                if (ctx.endpoint() instanceof VirtualNode vn) {
                     return ctx.sendRequest(vn, header, request)
                             .thenCompose(body -> ctx.respondWith(body).completed());
                 }
@@ -224,7 +225,7 @@ class RoutingContextContractIT {
             assertThat(ContextCapturingRouterFactory.lastCapture.get().nodeForIdZero())
                     .as("nodeForId(0) must return a non-null VirtualNode for a single-route setup")
                     .isNotNull()
-                    .isInstanceOf(EndpointType.VirtualNode.class);
+                    .isInstanceOf(VirtualNode.class);
         }
     }
 

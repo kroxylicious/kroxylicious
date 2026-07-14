@@ -17,11 +17,8 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
-import io.kroxylicious.proxy.topology.Bootstrap;
 import io.kroxylicious.proxy.topology.EndpointType;
 import io.kroxylicious.proxy.topology.VirtualNode;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Per-request implementation of {@link RouterContext}. Created by
@@ -33,27 +30,23 @@ class RouterContextImpl implements RouterContext {
     private final String sessionId;
     private final Subject subject;
     private final RouterDispatchHandler handler;
-    @Nullable
-    private final Integer endpointVirtualNodeId;
+    private final EndpointType endpoint;
 
     RouterContextImpl(DecodedRequestFrame<?> clientFrame,
                       RouterDispatchHandler handler,
                       String sessionId,
                       Subject subject,
-                      @Nullable Integer endpointVirtualNodeId) {
+                      EndpointType endpoint) {
         this.clientCorrelationId = clientFrame.correlationId();
         this.handler = Objects.requireNonNull(handler);
         this.sessionId = Objects.requireNonNull(sessionId);
         this.subject = Objects.requireNonNull(subject);
-        this.endpointVirtualNodeId = endpointVirtualNodeId;
+        this.endpoint = Objects.requireNonNull(endpoint);
     }
 
     @Override
     public EndpointType endpoint() {
-        if (endpointVirtualNodeId == null) {
-            return new EndpointType.Bootstrap();
-        }
-        return new EndpointType.VirtualNode(endpointVirtualNodeId);
+        return endpoint;
     }
 
     /**
@@ -64,12 +57,12 @@ class RouterContextImpl implements RouterContext {
      * selection per call.</p>
      */
     @Override
-    public EndpointType.VirtualNode nodeForId(int virtualNodeId) {
-        return new EndpointType.VirtualNode(virtualNodeId);
+    public VirtualNode nodeForId(int virtualNodeId) {
+        return new VirtualNode(virtualNodeId);
     }
 
     @Override
-    public CompletionStage<ApiMessage> sendRequest(EndpointType.VirtualNode node,
+    public CompletionStage<ApiMessage> sendRequest(VirtualNode node,
                                                    RequestHeaderData header,
                                                    ApiMessage request) {
         NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(node.downstreamNodeId());

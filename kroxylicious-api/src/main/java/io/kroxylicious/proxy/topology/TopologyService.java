@@ -185,7 +185,7 @@ public interface TopologyService {
      * @param node the virtual node
      * @return the broker info, or empty if not cached
      */
-    Optional<BrokerInfo> brokerInfo(EndpointType.VirtualNode node);
+    Optional<BrokerInfo> brokerInfo(VirtualNode node);
 
     /**
      * Coarse invalidation: clears all partition info, coordinators,

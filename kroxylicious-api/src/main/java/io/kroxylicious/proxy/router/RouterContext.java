@@ -14,7 +14,9 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.topology.Bootstrap;
 import io.kroxylicious.proxy.topology.EndpointType;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 /**
  * Context passed to {@link Router#onRequest} for issuing requests
@@ -49,9 +51,9 @@ public interface RouterContext {
      *
      * <p>When the client connected to a broker-specific endpoint (i.e. an
      * address that corresponds to a particular broker in the cluster topology),
-     * this returns a {@link EndpointType.VirtualNode} identifying that broker.
+     * this returns a {@link VirtualNode} identifying that broker.
      * When the client connected to a bootstrap address, this returns a
-     * {@link EndpointType.Bootstrap}.</p>
+     * {@link Bootstrap}.</p>
      *
      * @return the endpoint type for this connection
      */
@@ -59,7 +61,7 @@ public interface RouterContext {
 
     /**
      * Converts an integer node ID from a protocol response body into a
-     * {@link EndpointType.VirtualNode}.
+     * {@link VirtualNode}.
      *
      * <p>This is the bridge between the Kafka wire protocol (which uses
      * integer node IDs) and the {@code VirtualNode} API. Routers need this
@@ -71,7 +73,7 @@ public interface RouterContext {
      * @param virtualNodeId the integer node ID from a protocol response
      * @return the corresponding virtual node
      */
-    EndpointType.VirtualNode nodeForId(int virtualNodeId);
+    VirtualNode nodeForId(int virtualNodeId);
 
     /**
      * Sends a request to a specific broker identified by virtual node.
@@ -82,7 +84,7 @@ public interface RouterContext {
      *
      * <p>The {@code node} can be:</p>
      * <ul>
-     *   <li>A {@link EndpointType.VirtualNode} obtained from
+     *   <li>A {@link VirtualNode} obtained from
      *       {@link #endpoint()} — sends to the broker the client
      *       connected to</li>
      *   <li>A value obtained from {@link #nodeForId(int)} — sends to a
@@ -102,7 +104,7 @@ public interface RouterContext {
      *         not yet known (metadata not yet reconciled)
      */
     CompletionStage<ApiMessage> sendRequest(
-                                            EndpointType.VirtualNode node,
+                                            VirtualNode node,
                                             RequestHeaderData header,
                                             ApiMessage request);
 

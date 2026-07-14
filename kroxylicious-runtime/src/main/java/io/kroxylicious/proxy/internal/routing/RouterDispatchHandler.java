@@ -38,6 +38,9 @@ import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.topology.Bootstrap;
+import io.kroxylicious.proxy.topology.EndpointType;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -96,8 +99,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     @Nullable
     private EventExecutor eventExecutor;
 
-    @Nullable
-    private final Integer nodeId;
+    private final EndpointType endpoint;
 
     record PendingResponse(CompletableFuture<ApiMessage> future, String route) {}
 
@@ -114,7 +116,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         this.ccsm = ccsm;
         this.virtualClusterName = virtualClusterName;
         this.nodeIdMapping = nodeIdMapping;
-        this.nodeId = nodeId;
+        this.endpoint = nodeId != null ? new VirtualNode(nodeId) : new Bootstrap();
     }
 
     @Override
@@ -193,7 +195,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 this,
                 ccsm.sessionId(),
                 ccsm.authenticatedSubject(),
-                nodeId);
+                endpoint);
 
         router.onRequest(apiKey, apiVersion, frame.header(), frame.body(), routingContext)
                 .whenComplete((result, error) -> {

@@ -20,6 +20,7 @@ import io.kroxylicious.proxy.router.RouterFactory;
 import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 import io.kroxylicious.proxy.topology.EndpointType;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -47,7 +48,7 @@ public class ContextCapturingRouterFactory
      * @param authenticatedSubject result of {@link RouterContext#authenticatedSubject()}
      */
     public record ContextCapture(EndpointType endpoint,
-                                 @Nullable EndpointType.VirtualNode nodeForIdZero,
+                                 @Nullable VirtualNode nodeForIdZero,
                                  String sessionId,
                                  Subject authenticatedSubject) {}
 
@@ -108,7 +109,7 @@ public class ContextCapturingRouterFactory
         };
     }
 
-    private static @Nullable EndpointType.VirtualNode safeNodeForId(RouterContext ctx, int virtualNodeId) {
+    private static @Nullable VirtualNode safeNodeForId(RouterContext ctx, int virtualNodeId) {
         try {
             return ctx.nodeForId(virtualNodeId);
         }

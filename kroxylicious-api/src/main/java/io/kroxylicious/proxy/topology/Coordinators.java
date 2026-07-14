@@ -27,5 +27,5 @@ public interface Coordinators {
      * @param key the group or transaction ID
      * @return the coordinator's virtual node, or empty
      */
-    Optional<EndpointType.VirtualNode> coordinatorFor(String key);
+    Optional<VirtualNode> coordinatorFor(String key);
 }

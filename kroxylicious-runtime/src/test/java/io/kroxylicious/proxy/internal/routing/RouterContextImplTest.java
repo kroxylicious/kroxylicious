@@ -26,7 +26,9 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
+import io.kroxylicious.proxy.topology.Bootstrap;
 import io.kroxylicious.proxy.topology.EndpointType;
+import io.kroxylicious.proxy.topology.VirtualNode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,36 +60,36 @@ class RouterContextImplTest {
     }
 
     private RouterContextImpl createContext() {
-        return createContext(null);
+        return createContext(new Bootstrap());
     }
 
-    private RouterContextImpl createContext(Integer endpointVirtualNodeId) {
+    private RouterContextImpl createContext(EndpointType endpoint) {
         var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm, "test-cluster", nodeIdMapping, null);
         return new RouterContextImpl(
                 clientFrame, handler, "test-session", Subject.anonymous(),
-                endpointVirtualNodeId);
+                endpoint);
     }
 
     @Test
     void endpointShouldBeBootstrapForNullNodeId() {
         // Given
-        var ctx = createContext(null);
+        var ctx = createContext(new Bootstrap());
 
         // When / Then
-        assertThat(ctx.endpoint()).isInstanceOf(EndpointType.Bootstrap.class);
+        assertThat(ctx.endpoint()).isInstanceOf(Bootstrap.class);
     }
 
     @Test
     void endpointShouldBeVirtualNodeForBrokerConnection() {
         // Given
-        var ctx = createContext(0);
+        var ctx = createContext(new VirtualNode(0));
 
         // When
         var endpoint = ctx.endpoint();
 
         // Then
-        assertThat(endpoint).isInstanceOf(EndpointType.VirtualNode.class);
-        assertThat(((EndpointType.VirtualNode) endpoint).downstreamNodeId()).isZero();
+        assertThat(endpoint).isInstanceOf(VirtualNode.class);
+        assertThat(((VirtualNode) endpoint).downstreamNodeId()).isZero();
     }
 
     @Test
@@ -110,7 +112,7 @@ class RouterContextImplTest {
         var node = ctx.nodeForId(3);
 
         // Then
-        assertThat(node).isInstanceOf(EndpointType.VirtualNode.class);
+        assertThat(node).isInstanceOf(VirtualNode.class);
         assertThat(node.downstreamNodeId()).isEqualTo(3);
     }
 
