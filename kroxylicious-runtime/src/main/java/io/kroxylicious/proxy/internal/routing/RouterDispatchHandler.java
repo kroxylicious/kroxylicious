@@ -370,6 +370,15 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
+        if (!frame.hasResponse()) {
+            ccsm.forwardToNode(targetNodeId, route, frame);
+            withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
+                    .addKeyValue("targetNodeId", targetNodeId)
+                    .addKeyValue("routingCorrelationId", routingCorrelationId)
+                    .log("Fire-and-forget request sent to specific node (no response expected)");
+            return CompletableFuture.completedFuture(null);
+        }
+
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
 

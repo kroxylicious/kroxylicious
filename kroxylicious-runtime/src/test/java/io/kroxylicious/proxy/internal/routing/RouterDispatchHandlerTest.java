@@ -572,6 +572,24 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
+    void sendToSpecificNodeShouldNotRegisterPendingResponseForFireAndForgetRequest() {
+        // Given: PRODUCE with acks=0 has hasResponse()=false, so no response is expected
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiVersion((short) 9);
+
+        // When
+        var future = handler.sendToSpecificNode(0, DEFAULT_ROUTE, header, new ProduceRequestData().setAcks((short) 0), "test-session", 100);
+
+        // Then: request forwarded, no pending entry left, future already complete
+        verify(ccsm).forwardToNode(eq(0), eq(DEFAULT_ROUTE), any());
+        assertThat(handler.pendingResponses).isEmpty();
+        assertThat(future.toCompletableFuture()).isCompletedWithValue(null);
+    }
+
+    @Test
     void sendToSpecificNodeShouldReturnFailedFutureWhenForwardThrows() {
         // Given
         doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToNode(anyInt(), anyString(), any());
