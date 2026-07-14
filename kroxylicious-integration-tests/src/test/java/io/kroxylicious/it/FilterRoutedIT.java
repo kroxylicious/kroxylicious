@@ -7,7 +7,7 @@ package io.kroxylicious.it;
 
 import java.util.List;
 
-import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
+import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;

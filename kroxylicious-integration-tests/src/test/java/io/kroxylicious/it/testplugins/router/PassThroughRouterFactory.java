@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.it.testplugins;
+package io.kroxylicious.it.testplugins.router;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -22,7 +22,7 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A router that forwards every request to a single named route, delivering
+ * A test router that forwards every request to a single named route, delivering
  * the response back to the client unchanged.
  */
 @Plugin(configType = PassThroughRouterFactory.Config.class)
@@ -49,7 +49,7 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
                                                              RequestHeaderData header,
                                                              ApiMessage request,
                                                              RouterContext routerContext) {
-                throw new IllegalStateException("Dynamic routing is not supported");
+                throw new IllegalStateException("all RPCs should be statically routed, onRequest invoked unexpectedly!");
             }
 
             @Override

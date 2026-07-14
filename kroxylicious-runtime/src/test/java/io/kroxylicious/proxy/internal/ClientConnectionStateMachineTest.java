@@ -1383,6 +1383,95 @@ class ClientConnectionStateMachineTest {
         }
     }
 
+    @Test
+    void setUpstreamAddressResolverWithNullThrowsNpe() {
+        assertThatThrownBy(() -> clientConnectionStateMachine.setUpstreamAddressResolver(null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Nested
+    class ForwardToNodeTests {
+
+        @Test
+        void forwardToNodeNotInForwardingShouldTransitionToClosed() {
+            // Given
+            stubAsRouterVirtualCluster();
+            stateMachineInClientActive();
+
+            // When
+            clientConnectionStateMachine.forwardToNode(0, "route", new Object());
+
+            // Then
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        }
+
+        @Test
+        void forwardToNodeWithNoResolverShouldThrow() {
+            // Given
+            stateMachineInForwarding();
+
+            // When / Then
+            assertThatThrownBy(() -> clientConnectionStateMachine.forwardToNode(0, "route", new Object()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("No upstream address resolver");
+        }
+
+        @Test
+        void forwardToNodeWithUnresolvableNodeIdShouldThrow() {
+            // Given
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setUpstreamAddressResolver(id -> Optional.empty());
+
+            // When / Then
+            assertThatThrownBy(() -> clientConnectionStateMachine.forwardToNode(42, "route", new Object()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("not yet known for virtual node ID");
+        }
+
+        @Test
+        void forwardToNodeHappyPathSendsRequestToScsm() {
+            // Given
+            stubAsRouterVirtualCluster();
+            clientConnectionStateMachine.forceState(
+                    new ClientConnectionState.Forwarding(),
+                    frontendHandler,
+                    Map.of(),
+                    TEST_KAFKA_SESSION,
+                    true);
+            clientConnectionStateMachine.setUpstreamAddressResolver(id -> Optional.of(BROKER_ADDRESS));
+            var msg = new Object();
+
+            // When
+            clientConnectionStateMachine.forwardToNode(1, "route", msg);
+
+            // Then
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
+            verify(serverConnectionStateMachine).sendRequest(msg);
+        }
+
+        @Test
+        void forwardToNodeReusesSameScsmForSameResolvedAddress() {
+            // Given: two virtual node IDs that resolve to the same upstream address
+            stubAsRouterVirtualCluster();
+            clientConnectionStateMachine.forceState(
+                    new ClientConnectionState.Forwarding(),
+                    frontendHandler,
+                    Map.of(),
+                    TEST_KAFKA_SESSION,
+                    true);
+            clientConnectionStateMachine.setUpstreamAddressResolver(id -> Optional.of(BROKER_ADDRESS));
+            var msg = new Object();
+
+            // When
+            clientConnectionStateMachine.forwardToNode(0, "route", msg);
+            clientConnectionStateMachine.forwardToNode(1, "route", msg);
+
+            // Then: one SCSM created (connect called once), request forwarded twice
+            verify(serverConnectionStateMachine, times(1)).connect(any());
+            verify(serverConnectionStateMachine, times(2)).sendRequest(msg);
+        }
+    }
+
     /**
      * Focused tests for the drain branches of {@link ClientConnectionStateMachine}.
      * <p>
@@ -1712,6 +1801,147 @@ class ClientConnectionStateMachineTest {
             // Then — the second future completes along with the connection closing
             assertThat(secondFuture).isCompleted();
             assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Closed.class);
+        }
+
+        @Test
+        void onResponseFromServer_whenRouterActiveAndMsgNotAFrame_decrementsInFlight() {
+            // Given
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setRouterActive();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When: a non-frame response arrives
+            clientConnectionStateMachine.onResponseFromServer(new Object());
+
+            // Then: in-flight count reached zero → drain fired
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onResponseFromServer_whenRouterActiveAndNonRoutingCorrelationId_decrementsInFlight() {
+            // Given
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setRouterActive();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+            var frame = new DecodedResponseFrame<>((short) 12, 0 /* not a routing ID */,
+                    new ResponseHeaderData(), new MetadataResponseData());
+
+            // When
+            clientConnectionStateMachine.onResponseFromServer(frame);
+
+            // Then: non-routing ID → decrement happens → drain fired
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onResponseFromServer_whenRouterActiveAndRoutingCorrelationId_doesNotDecrementInFlight() {
+            // Given
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setRouterActive();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+            var routingFrame = new DecodedResponseFrame<>((short) 12,
+                    CorrelationIdSpace.RESERVED_ROUTING_ID_RANGE_START_INC,
+                    new ResponseHeaderData(), new MetadataResponseData());
+
+            // When
+            clientConnectionStateMachine.onResponseFromServer(routingFrame);
+
+            // Then: routing-range ID with routerActive → decrement skipped → drain NOT fired
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
+        @Test
+        void forwardToRouteInDrainingShouldForwardToExistingScsm() {
+            // Given
+            stubAsRouterVirtualCluster();
+            clientConnectionStateMachine.forceState(
+                    new ClientConnectionState.Forwarding(),
+                    frontendHandler,
+                    Map.of(BROKER_ADDRESS, serverConnectionStateMachine),
+                    TEST_KAFKA_SESSION,
+                    true,
+                    Map.of("route", BROKER_ADDRESS));
+            bumpClientInFlightCount();
+            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            var msg = new Object();
+
+            // When
+            clientConnectionStateMachine.forwardToRoute("route", msg);
+
+            // Then
+            verify(serverConnectionStateMachine).sendRequest(msg);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
+        @Test
+        void forwardToNodeInDrainingShouldStillForwardRequest() {
+            // Given
+            stubAsRouterVirtualCluster();
+            stateMachineInForwarding();
+            clientConnectionStateMachine.setUpstreamAddressResolver(id -> Optional.of(BROKER_ADDRESS));
+            bumpClientInFlightCount();
+            clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+            var msg = new Object();
+
+            // When
+            clientConnectionStateMachine.forwardToNode(1, "route", msg);
+
+            // Then
+            verify(serverConnectionStateMachine).sendRequest(msg);
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
+        @Test
+        void onRoutedRequestCompleteShouldDecrementAndFireDrainWhenCountReachesZero() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onRoutedRequestComplete();
+
+            // Then
+            assertThat(closedFuture).isCompleted();
+        }
+
+        @Test
+        void onRoutedRequestCompleteShouldDecrementWithoutFiringDrainWhenCountStillPositive() {
+            // Given
+            stateMachineInForwarding();
+            bumpClientInFlightCount();
+            bumpClientInFlightCount();
+            var closedFuture = clientConnectionStateMachine.drain(DRAIN_TIMEOUT);
+            assertThat(closedFuture).isNotCompleted();
+
+            // When
+            clientConnectionStateMachine.onRoutedRequestComplete();
+
+            // Then: one decrement, one still in-flight
+            assertThat(closedFuture).isNotCompleted();
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Draining.class);
+        }
+
+        @Test
+        void onRoutedRequestCompleteShouldNotTransitionWhenNotDraining() {
+            // Given
+            stateMachineInForwarding();
+
+            // When
+            clientConnectionStateMachine.onRoutedRequestComplete();
+
+            // Then: no crash, state unchanged
+            assertThat(clientConnectionStateMachine.state()).isInstanceOf(ClientConnectionState.Forwarding.class);
         }
 
         /**

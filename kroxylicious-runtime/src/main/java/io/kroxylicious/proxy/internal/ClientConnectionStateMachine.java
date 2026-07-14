@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
@@ -37,6 +38,7 @@ import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Closed;
 import io.kroxylicious.proxy.internal.ClientConnectionState.Forwarding;
@@ -47,6 +49,7 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
+import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
 import io.kroxylicious.proxy.internal.routing.UpstreamClusterModel;
 import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
@@ -117,7 +120,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *   <li>When the client channel becomes unwritable, reads are paused on all server channels (don't accept responses we can't deliver).</li>
  * </ul>
  */
-@SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller for multi-backend routing
+@SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
 public class ClientConnectionStateMachine {
     private static final Logger LOGGER = getLogger(ClientConnectionStateMachine.class);
 
@@ -216,6 +219,11 @@ public class ClientConnectionStateMachine {
 
     @Nullable
     private Map<String, HostPort> routeTargets;
+
+    private boolean routerActive;
+
+    @Nullable
+    private Function<Integer, Optional<HostPort>> upstreamAddressResolver;
 
     public ClientConnectionStateMachine(EndpointBinding endpointBinding,
                                         TransportSubjectBuilder transportSubjectBuilder,
@@ -451,7 +459,14 @@ public class ClientConnectionStateMachine {
      */
     void onResponseFromServer(Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
+        if (!routerActive
+                || !(msg instanceof DecodedResponseFrame<?> frame)
+                || !CorrelationIdSpace.isRoutingCorrelationId(frame.correlationId())) {
+            decrementInFlightCount();
+        }
+    }
 
+    private void decrementInFlightCount() {
         clientMessagesInFlightCount = Math.max(0, clientMessagesInFlightCount - 1);
 
         if (state instanceof ClientConnectionState.Draining draining) {
@@ -491,7 +506,7 @@ public class ClientConnectionStateMachine {
      * autoRead is disabled on entry to Draining, so no NEW requests can join the filter chain
      * after that point — the only messages reaching here in Draining are ones already mid-flight.
      *
-     * @param msg the RPC received from the upstream
+     * @param msg the RPC to be forwarded to the upstream node
      */
     void onDirectClientFilterChainComplete(Object msg) {
         if (virtualCluster().routing() instanceof DynamicRouting) {
@@ -836,8 +851,13 @@ public class ClientConnectionStateMachine {
         tryUnblockClient();
     }
 
-    Subject authenticatedSubject() {
+    public Subject authenticatedSubject() {
         return Objects.requireNonNull(clientSubjectManager).authenticatedSubject();
+    }
+
+    @Nullable
+    public Channel clientChannel() {
+        return frontendHandler != null ? frontendHandler.clientChannel() : null;
     }
 
     private void tryUnblockClient() {
@@ -937,6 +957,78 @@ public class ClientConnectionStateMachine {
         }
         else {
             illegalState("forwardToRoute in unexpected state");
+        }
+    }
+
+    /**
+     * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
+     * When active, responses bearing routing-range correlation IDs are not counted
+     * against the client in-flight limit (because they are synthetic, not client requests).
+     */
+    public void setRouterActive() {
+        this.routerActive = true;
+    }
+
+    /**
+     * Sets the resolver used by {@link #forwardToNode} to translate a virtual node ID to
+     * an upstream address. Must be set before any per-broker requests are sent.
+     */
+    public void setUpstreamAddressResolver(Function<Integer, Optional<HostPort>> resolver) {
+        this.upstreamAddressResolver = Objects.requireNonNull(resolver);
+    }
+
+    /**
+     * Signals that a dynamically-routed client request has been fully handled.
+     * Called by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler}
+     * when the router's {@code onRequest} future completes and the response has been
+     * delivered to the client. Decrements the in-flight request count to maintain the
+     * 1:1 invariant even during fan-out routing.
+     */
+    public void onRoutedRequestComplete() {
+        decrementInFlightCount();
+    }
+
+    /**
+     * Forward a message to the backend broker identified by the virtual node ID.
+     * Creates a new server connection if one does not already exist for the
+     * resolved upstream address.
+     */
+    public void forwardToNode(int virtualNodeId, String routeName, Object msg) {
+        if (!(state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining)) {
+            illegalState("forwardToNode in unexpected state");
+            return;
+        }
+        if (upstreamAddressResolver == null) {
+            throw new IllegalStateException("No upstream address resolver configured");
+        }
+        Optional<HostPort> resolved = upstreamAddressResolver.apply(virtualNodeId);
+        if (resolved.isEmpty()) {
+            throw new IllegalStateException("Upstream address not yet known for virtual node ID " + virtualNodeId);
+        }
+        HostPort target = resolved.get();
+        ServerConnectionStateMachine scsm = serverConnections.computeIfAbsent(target, hostPort -> {
+            var serverConnectionStateMachine = createServerConnectionForRoute(routeName, target);
+            Channel clientChannel = Objects.requireNonNull(Objects.requireNonNull(frontendHandler).clientChannel());
+            serverConnectionStateMachine.connect(clientChannel);
+            return serverConnectionStateMachine;
+        });
+        scsm.sendRequest(msg);
+        log(Level.TRACE)
+                .addKeyValue("route", routeName)
+                .addKeyValue("virtualNodeId", virtualNodeId)
+                .addKeyValue("routeTarget", target)
+                .log("Request forwarded to specific node");
+    }
+
+    /**
+     * A message has emerged from the filter chain and is ready to be forwarded to the upstream node.
+     */
+    public void onClientFilterChainComplete(Object msg) {
+        if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {
+            serverConnections.values().iterator().next().sendRequest(msg);
+        }
+        else {
+            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
 

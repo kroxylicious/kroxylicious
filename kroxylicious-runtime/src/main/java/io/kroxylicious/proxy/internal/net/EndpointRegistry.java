@@ -439,6 +439,13 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         return creations;
     }
 
+    @Override
+    public Optional<HostPort> upstreamAddress(EndpointGateway gateway, int upstreamNodeId) {
+        return Optional.ofNullable(registeredVirtualClusters.get(gateway))
+                .map(vcr -> vcr.reconciliationRecord().get())
+                .map(rec -> rec.upstreamNodeMap().get(upstreamNodeId));
+    }
+
     @VisibleForTesting
     boolean isRegistered(EndpointGateway virtualClusterModel) {
         return registeredVirtualClusters.containsKey(virtualClusterModel);

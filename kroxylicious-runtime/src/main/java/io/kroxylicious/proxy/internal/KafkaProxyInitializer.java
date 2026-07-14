@@ -270,7 +270,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 // can translate them, even when those keys are statically routed.
                 decodedKeys.addAll(RouterDispatchHandler.NODE_ID_TRANSLATION_APIS);
                 dp.setRouterDecodingRequirements(decodedKeys);
-                var dispatchHandler = new RouterDispatchHandler(router, staticRoutes, clientConnectionStateMachine, dr.nodeIdMapping());
+
+                var dispatchHandler = new RouterDispatchHandler(
+                        router, dr.routeDescriptors(), staticRoutes, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(), dr.nodeIdMapping(),
+                        binding.nodeId());
+                clientConnectionStateMachine.setRouterActive();
+                clientConnectionStateMachine.setUpstreamAddressResolver(
+                        virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)
+                                .or(() -> endpointReconciler.upstreamAddress(
+                                        clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
                 pipeline.addLast("routerDispatchHandler", dispatchHandler);
             }
             case DirectRouting ignored -> pipeline.addLast("filterChainCompletionHandler",

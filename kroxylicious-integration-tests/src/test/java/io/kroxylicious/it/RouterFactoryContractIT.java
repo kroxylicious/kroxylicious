@@ -14,7 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.it.testplugins.RouterContractCapturingFactory;
+import io.kroxylicious.it.testplugins.router.RouterContractCapturingFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.RouteDefinition;
