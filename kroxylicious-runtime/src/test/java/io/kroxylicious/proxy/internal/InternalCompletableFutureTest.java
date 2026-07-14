@@ -284,7 +284,7 @@ class InternalCompletableFutureTest {
                                         captureThread(s.captor()), s.executor()))));
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allCompositionMethods")
     void minimalStageCanCompose(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -300,7 +300,7 @@ class InternalCompletableFutureTest {
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allCompositionMethods")
     void futureCanCompose(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -315,7 +315,7 @@ class InternalCompletableFutureTest {
         assertThat(resultFuture).succeedsWithin(2, TimeUnit.SECONDS);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allChainingMethods")
     void chainedWorkIsExecutedOnEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -333,7 +333,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource({ "allChainingMethods", "allExceptionalMethods" })
     void chainingToStageProducesFutureOfExpectedType(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -347,7 +347,7 @@ class InternalCompletableFutureTest {
         assertThat(result.getClass()).isAssignableTo(InternalCompletionStage.class);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource({ "allChainingMethods", "allExceptionalMethods" })
     void chainingToFutureProducesFutureOfExpectedType(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -360,7 +360,7 @@ class InternalCompletableFutureTest {
         assertThat(result.getClass()).isAssignableTo(InternalCompletableFuture.class);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allChainingMethods")
     void chainedWorkIsExecutedOnEventLoop_CompletionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -379,7 +379,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allChainingMethods")
     void chainedWorkIsExecutedOnEventLoopFuture(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -398,7 +398,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allChainingMethods")
     void chainedWorkIsExecutedOnEventLoopFuture_CompletionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -417,7 +417,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allExceptionalMethods")
     void exceptionHandlingWorkIsExecutedOnEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -437,7 +437,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allExceptionalMethods")
     void exceptionHandlingWorkIsExecutedOnEventLoop_completionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -456,7 +456,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allExceptionalMethods")
     void exceptionHandlingWorkIsExecutedOnEventLoopFuture(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given
@@ -475,7 +475,7 @@ class InternalCompletableFutureTest {
         assertThat(captor.actualThread()).hasValue(threadOfExecutor);
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource("allExceptionalMethods")
     void exceptionHandlingWorkIsExecutedOnEventLoopFuture_completionDrivenByEventLoop(Function<StageChainingContext, CompletionStage<Void>> func) {
         // Given

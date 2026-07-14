@@ -118,7 +118,7 @@ class RecordEncryptionConfigTest {
                 argumentSet("max size negative", Map.of("encryptionBufferMaximumSizeBytes", "-1")));
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource
     void invalidExperimentalEncryptionBufferConfig(Map<String, Object> configMap) {
         RecordEncryptionConfig config = createConfig(configMap);
@@ -132,7 +132,7 @@ class RecordEncryptionConfigTest {
                 argumentSet("equal minimum and maximum", Map.of("encryptionBufferMinimumSizeBytes", "1", "encryptionBufferMaximumSizeBytes", "1"), 1, 1));
     }
 
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource
     void validExperimentalEncryptionBufferConfig(Map<String, Object> configMap, int expectedMinSize, int expectedMaxSize) {
         RecordEncryptionConfig config = createConfig(configMap);

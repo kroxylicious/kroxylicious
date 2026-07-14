@@ -62,7 +62,7 @@ class NettyKeyProviderTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource()
+    @MethodSource
     void serverWithKeyStore(String name,
                             String storeType,
                             String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
@@ -102,7 +102,7 @@ class NettyKeyProviderTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource()
+    @MethodSource
     void clientWithKeyStore(String name,
                             String storeType,
                             String storeFile, PasswordProvider storePassword, PasswordProvider keyPassword)
