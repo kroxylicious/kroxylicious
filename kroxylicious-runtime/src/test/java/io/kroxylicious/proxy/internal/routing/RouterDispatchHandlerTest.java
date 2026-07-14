@@ -440,7 +440,7 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
-    void writeShouldForwardUnmatchedRoutingCorrelationId() {
+    void writeShouldCloseChannelForUnmatchedRoutingCorrelationId() {
         // Given
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
@@ -455,8 +455,9 @@ class RouterDispatchHandlerTest {
         // When: no pending response registered
         channel.writeOutbound(frame);
 
-        // Then: frame was forwarded towards the client
-        assertThat((Object) channel.readOutbound()).isSameAs(frame);
+        // Then: frame was consumed (not forwarded) and the channel was closed
+        assertThat((Object) channel.readOutbound()).isNull();
+        assertThat(channel.isOpen()).isFalse();
     }
 
     @Test

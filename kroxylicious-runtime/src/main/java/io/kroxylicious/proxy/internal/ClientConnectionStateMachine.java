@@ -962,8 +962,8 @@ public class ClientConnectionStateMachine {
 
     /**
      * Signals that a {@link RouterDispatchHandler} is active on this connection's pipeline.
-     * When active, routing-range correlation IDs are not forwarded to the client or counted
-     * against the client in-flight limit.
+     * When active, responses bearing routing-range correlation IDs are not counted
+     * against the client in-flight limit (because they are synthetic, not client requests).
      */
     public void setRouterActive() {
         this.routerActive = true;

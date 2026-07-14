@@ -263,12 +263,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                             .log("Routed response matched to pending request");
                 }
                 else {
-                    LOGGER.atDebug()
+                    LOGGER.atWarn()
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("routingCorrelationId", correlationId)
                             .log("Received response with no pending routing future");
-                    ctx.write(msg, promise);
-                    return;
+                    ctx.channel().close();
                 }
                 promise.setSuccess();
                 return;
