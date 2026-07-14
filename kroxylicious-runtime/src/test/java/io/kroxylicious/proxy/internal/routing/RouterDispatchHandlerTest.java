@@ -61,7 +61,7 @@ class RouterDispatchHandlerTest {
 
     private RouterDispatchHandler handlerWithIdentityMapping(Map<ApiKeys, String> staticRoutes) {
         return new RouterDispatchHandler(
-                router, Map.of(), staticRoutes, ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                router, Map.of(), staticRoutes, ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
     }
 
     @Test
@@ -156,7 +156,7 @@ class RouterDispatchHandlerTest {
         // Given: bijective mapping with two routes; METADATA statically routed to route-a
         var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
         var handler = new RouterDispatchHandler(
-                router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), ccsm, mapping, null);
+                router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), ccsm, "test-cluster", mapping, null);
         channel = new EmbeddedChannel(handler);
 
         // Record the pending METADATA request
@@ -189,13 +189,13 @@ class RouterDispatchHandlerTest {
         when(ccsm.authenticatedSubject()).thenReturn(Subject.anonymous());
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
         return new RouterDispatchHandler(
-                router, Map.of(routeName, rd), Map.of(), ccsm, new IdentityNodeIdMapping(routeName), null);
+                router, Map.of(routeName, rd), Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(routeName), null);
     }
 
     private RouterDispatchHandler handlerWithRouteForSendTests(String routeName) {
         var rd = new RouteDescriptor(routeName, 0, new TargetCluster("localhost:9092", null), null, List.of());
         return new RouterDispatchHandler(
-                router, Map.of(routeName, rd), Map.of(), ccsm, new IdentityNodeIdMapping(routeName), null);
+                router, Map.of(routeName, rd), Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(routeName), null);
     }
 
     private DecodedRequestFrame<ProduceRequestData> produceFrame(int correlationId) {
@@ -418,7 +418,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
-                Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = new EmbeddedChannel(handler);
 
         var header = new RequestHeaderData()
@@ -445,7 +445,7 @@ class RouterDispatchHandlerTest {
         when(ccsm.sessionId()).thenReturn("test-session");
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
-                Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = new EmbeddedChannel(handler);
 
         int routingCorrelationId = Integer.MIN_VALUE / 2;
@@ -503,7 +503,7 @@ class RouterDispatchHandlerTest {
         var routerRd = new RouteDescriptor("router-route", 1, null, "some-router-name", List.of());
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, rd, "router-route", routerRd),
-                Map.of(), ccsm, new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
+                Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
         channel = new EmbeddedChannel(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)

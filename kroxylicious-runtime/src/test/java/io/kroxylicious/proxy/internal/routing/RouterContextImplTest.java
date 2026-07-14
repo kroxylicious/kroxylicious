@@ -64,7 +64,7 @@ class RouterContextImplTest {
     }
 
     private RouterContextImpl createContext(Integer endpointVirtualNodeId) {
-        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm, nodeIdMapping, null);
+        var handler = new RouterDispatchHandler(router, routes, Map.of(), ccsm, "test-cluster", nodeIdMapping, null);
         return new RouterContextImpl(
                 clientFrame, handler, "test-session", Subject.anonymous(),
                 endpointVirtualNodeId);

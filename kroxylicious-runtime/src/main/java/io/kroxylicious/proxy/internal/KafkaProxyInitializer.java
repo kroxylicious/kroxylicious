@@ -272,7 +272,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 dp.setRouterDecodingRequirements(decodedKeys);
 
                 var dispatchHandler = new RouterDispatchHandler(
-                        router, dr.routeDescriptors(), staticRoutes, clientConnectionStateMachine, dr.nodeIdMapping(), binding.nodeId());
+                        router, dr.routeDescriptors(), staticRoutes, clientConnectionStateMachine, clientConnectionStateMachine.clusterName(), dr.nodeIdMapping(),
+                        binding.nodeId());
                 clientConnectionStateMachine.setRouterActive();
                 clientConnectionStateMachine.setUpstreamAddressResolver(
                         virtualNodeId -> dispatchHandler.resolveRouterNodeAddress(virtualNodeId)

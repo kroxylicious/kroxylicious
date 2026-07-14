@@ -76,6 +76,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
     final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
     private final ClientConnectionStateMachine ccsm;
+    private final String virtualClusterName;
     final NodeIdMapping nodeIdMapping;
     private final Map<Integer, HostPort> routerNodeAddresses = new HashMap<>();
 
@@ -104,12 +105,14 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                  Map<String, RouteDescriptor> routes,
                                  Map<ApiKeys, String> staticRoutes,
                                  ClientConnectionStateMachine ccsm,
+                                 String virtualClusterName,
                                  NodeIdMapping nodeIdMapping,
                                  @Nullable Integer nodeId) {
         this.router = router;
         this.routes = routes;
         this.staticRoutes = staticRoutes;
         this.ccsm = ccsm;
+        this.virtualClusterName = virtualClusterName;
         this.nodeIdMapping = nodeIdMapping;
         this.nodeId = nodeId;
     }
@@ -143,6 +146,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 }
                 ccsm.forwardToRoute(staticRoute, msg);
                 LOGGER.atTrace()
+                        .addKeyValue("virtualCluster", virtualClusterName)
                         .addKeyValue("sessionId", ccsm.sessionId())
                         .addKeyValue("apiKey", apiKey)
                         .addKeyValue("route", staticRoute)
@@ -155,6 +159,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 return;
             }
             LOGGER.atWarn()
+                    .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("apiKey", apiKey)
                     .log("Dynamically-routed API key arrived as opaque frame, forwarding to CCSM");
@@ -170,6 +175,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         int correlationId = frame.correlationId();
 
         LOGGER.atTrace()
+                .addKeyValue("virtualCluster", virtualClusterName)
                 .addKeyValue("sessionId", ccsm.sessionId())
                 .addKeyValue("apiKey", apiKey)
                 .addKeyValue("apiVersion", apiVersion)
@@ -193,6 +199,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 .whenComplete((result, error) -> {
                     if (error != null) {
                         LOGGER.atError()
+                                .addKeyValue("virtualCluster", virtualClusterName)
                                 .addKeyValue("sessionId", ccsm.sessionId())
                                 .addKeyValue("apiKey", apiKey)
                                 .addKeyValue("clientCorrelationId", correlationId)
@@ -203,6 +210,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     }
                     if (!(result instanceof RouterResponseImpl rri)) {
                         LOGGER.atError()
+                                .addKeyValue("virtualCluster", virtualClusterName)
                                 .addKeyValue("sessionId", ccsm.sessionId())
                                 .addKeyValue("apiKey", apiKey)
                                 .addKeyValue("resultType", result == null ? "null" : result.getClass().getName())
@@ -236,6 +244,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 Objects.requireNonNull(responseSequencer).submit(sequence, responseFrame);
             }
             case RouterResponseImpl.RespondWithoutReply ignored -> LOGGER.atTrace()
+                    .addKeyValue("virtualCluster", virtualClusterName)
                     .addKeyValue("sessionId", ccsm.sessionId())
                     .addKeyValue("apiKey", apiKey)
                     .addKeyValue("clientCorrelationId", correlationId)
@@ -258,12 +267,14 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                     cacheNodeAddressesIfMetadata(frame.body());
                     pendingResponse.future().complete(frame.body());
                     LOGGER.atTrace()
+                            .addKeyValue("virtualCluster", virtualClusterName)
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("routingCorrelationId", correlationId)
                             .log("Routed response matched to pending request");
                 }
                 else {
                     LOGGER.atWarn()
+                            .addKeyValue("virtualCluster", virtualClusterName)
                             .addKeyValue("sessionId", ccsm.sessionId())
                             .addKeyValue("routingCorrelationId", correlationId)
                             .log("Received response with no pending routing future");
@@ -309,12 +320,12 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                                       int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null) {
-            withSendContext(LOGGER.atWarn(), sessionId, route, clientCorrelationId)
+            withSendContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, clientCorrelationId)
                     .log("Router attempted to send to unknown route");
             return CompletableFuture.failedFuture(new IllegalArgumentException("Unknown route: " + route));
         }
         if (!rd.targetsCluster()) {
-            withSendContext(LOGGER.atWarn(), sessionId, route, clientCorrelationId)
+            withSendContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, clientCorrelationId)
                     .log("Router attempted unsupported nested router route");
             return CompletableFuture.failedFuture(
                     new UnsupportedOperationException("Routing to nested routers is not yet supported (route: " + route + ")"));
@@ -326,7 +337,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
         if (!frame.hasResponse()) {
             ccsm.forwardToRoute(route, frame);
-            withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
+            withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
                     .log("Fire-and-forget request sent to route (no response expected)");
             return CompletableFuture.completedFuture(null);
@@ -336,7 +347,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
 
         ccsm.forwardToRoute(route, frame);
-        withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
+        withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", requestApiVersion)
                 .log("Request sent to route");
@@ -360,7 +371,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                                                int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null || !rd.targetsCluster()) {
-            withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
+            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
                     .log("Target node resolved to invalid route");
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
@@ -372,7 +383,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
         if (!frame.hasResponse()) {
             ccsm.forwardToNode(targetNodeId, route, frame);
-            withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
+            withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                     .addKeyValue("targetNodeId", targetNodeId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
                     .log("Fire-and-forget request sent to specific node (no response expected)");
@@ -387,7 +398,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         }
         catch (Exception e) {
             pendingResponses.remove(routingCorrelationId);
-            withNodeContext(LOGGER.atWarn(), sessionId, route, targetNodeId)
+            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addKeyValue("error", e.getMessage())
                     .log(LOGGER.isDebugEnabled()
@@ -396,21 +407,23 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             return CompletableFuture.failedFuture(e);
         }
 
-        withSendContext(LOGGER.atTrace(), sessionId, route, clientCorrelationId)
+        withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("targetNodeId", targetNodeId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .log("Request sent to specific node");
         return future;
     }
 
-    private static LoggingEventBuilder withSendContext(LoggingEventBuilder event, String sessionId, String route, int clientCorrelationId) {
-        return event.addKeyValue("sessionId", sessionId)
+    private static LoggingEventBuilder withSendContext(LoggingEventBuilder event, String virtualClusterName, String sessionId, String route, int clientCorrelationId) {
+        return event.addKeyValue("virtualCluster", virtualClusterName)
+                .addKeyValue("sessionId", sessionId)
                 .addKeyValue("route", route)
                 .addKeyValue("clientCorrelationId", clientCorrelationId);
     }
 
-    private static LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String sessionId, String route, int targetNodeId) {
-        return event.addKeyValue("sessionId", sessionId)
+    private static LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String virtualClusterName, String sessionId, String route, int targetNodeId) {
+        return event.addKeyValue("virtualCluster", virtualClusterName)
+                .addKeyValue("sessionId", sessionId)
                 .addKeyValue("targetNodeId", targetNodeId)
                 .addKeyValue("route", route);
     }
@@ -423,6 +436,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             }
             if (!md.brokers().isEmpty()) {
                 LOGGER.atDebug()
+                        .addKeyValue("virtualCluster", virtualClusterName)
                         .addKeyValue("sessionId", ccsm.sessionId())
                         .addKeyValue("brokerCount", md.brokers().size())
                         .log("Cached upstream node addresses from internal METADATA response");
