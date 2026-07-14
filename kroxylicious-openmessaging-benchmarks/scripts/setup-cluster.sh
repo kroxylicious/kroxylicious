@@ -40,7 +40,7 @@ Options:
 Environment:
   NAMESPACE                     Kafka namespace (default: kafka)
   STRIMZI_VERSION               Strimzi version to install from GitHub releases (default: resolved from latest release)
-  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: 0.22.0-SNAPSHOT)
+  KROXYLICIOUS_VERSION          Kroxylicious operator version to install (default: ${KROXYLICIOUS_VERSION})
 
 Examples:
   # Full setup (baseline + proxy scenarios)
