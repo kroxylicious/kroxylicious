@@ -432,7 +432,7 @@ class RoutingPassThroughIT {
     }
 
     @Test
-    void shouldRouteConnectionsToCorrectUpstreamBrokerBasedOnVirtualNodeId() {
+    void shouldRouteConnectionsToCorrectUpstreamBrokerBasedOnProxyNodeId() {
         // Given: two mock servers representing upstream broker 0 and broker 1 of a single route.
         // With IdentityNodeIdMapping (single route), virtual node 0 = upstream broker 0 and
         // virtual node 1 = upstream broker 1, exposed on proxy ports 9193 and 9194 respectively.
@@ -511,7 +511,7 @@ class RoutingPassThroughIT {
 
     @ParameterizedTest(name = "all traffic routed to {0}")
     @CsvSource({ "route-a", "route-b" })
-    void shouldRouteConnectionsToCorrectUpstreamBrokerBasedOnVirtualNodeIdWithTwoRoutes(String selectedRoute) {
+    void shouldRouteConnectionsToCorrectUpstreamBrokerBasedOnProxyNodeIdWithTwoRoutes(String selectedRoute) {
         // Given: two routes (route-a and route-b), each backed by two upstream brokers.
         // With BijectiveNodeIdMapping (2 routes × 2 brokers each):
         // route-a broker 0 → virtual node 0 → proxy port 9193
