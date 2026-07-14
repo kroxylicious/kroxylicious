@@ -34,8 +34,6 @@ import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.internal.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * Builds per-connection filter instances for a single virtual cluster's filter chain.
  *
@@ -185,16 +183,16 @@ public class FilterChainFactory implements AutoCloseable {
      */
     private final Map<String, Wrapper> initialized;
 
-    public FilterChainFactory(@Nullable PluginFactoryRegistry pfr, @Nullable List<NamedFilterDefinition> filterChain) {
-        if (filterChain == null || filterChain.isEmpty()) {
-            // Empty chain — no plugin lookups needed, so a null pfr is tolerated. Empty
-            // FCFs arise from VCs that opt out of the default filter chain (filters == [])
-            // and from test-only VirtualClusterModel constructors that don't supply a pfr.
+    public FilterChainFactory(PluginFactoryRegistry pfr, List<NamedFilterDefinition> filterChain) {
+        Objects.requireNonNull(pfr, "pfr must not be null");
+        Objects.requireNonNull(filterChain, "filterChain must not be null");
+        if (filterChain.isEmpty()) {
+            // Empty chain — no plugin lookups needed. Empty FCFs arise from virtual clusters
+            // that opt out of the default filter chain (filters == []).
             this.filterChain = List.of();
             this.initialized = Map.of();
         }
         else {
-            Objects.requireNonNull(pfr, "PluginFactoryRegistry must not be null when filterChain is non-empty");
             @SuppressWarnings({ "unchecked", "rawtypes" })
             Class<FilterFactory<? super Object, ? super Object>> type = (Class) FilterFactory.class;
             PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(type);
@@ -243,6 +241,26 @@ public class FilterChainFactory implements AutoCloseable {
                 throw e;
             }
         }
+    }
+
+    /**
+     * Returns a {@code FilterChainFactory} with an empty filter chain, for callers that have no
+     * filters to apply and therefore no {@link PluginFactoryRegistry} to supply (for example
+     * virtual clusters that opt out of the default chain, and tests that do not exercise the
+     * chain).
+     *
+     * @return an empty {@code FilterChainFactory}
+     */
+    public static FilterChainFactory empty() {
+        // A fresh instance per call rather than a shared constant: FilterChainFactory is
+        // AutoCloseable, so a shared empty instance could be closed by one caller while
+        // another still holds it.
+        return new FilterChainFactory();
+    }
+
+    private FilterChainFactory() {
+        this.filterChain = List.of();
+        this.initialized = Map.of();
     }
 
     @Override

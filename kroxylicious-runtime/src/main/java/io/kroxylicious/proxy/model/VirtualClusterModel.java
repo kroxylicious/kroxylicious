@@ -148,7 +148,7 @@ public class VirtualClusterModel implements AutoCloseable {
         this.routing = Objects.requireNonNull(routing);
         this.filterChainFactory = pluginFactoryRegistry != null
                 ? new FilterChainFactory(pluginFactoryRegistry, filters)
-                : new FilterChainFactory(null, List.of());
+                : FilterChainFactory.empty();
     }
 
     /**
