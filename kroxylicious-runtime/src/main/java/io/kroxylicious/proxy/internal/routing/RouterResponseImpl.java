@@ -97,10 +97,6 @@ sealed interface RouterResponseImpl extends RouterResponse
         }
     }
 
-    // -------------------------------------------------------------------------
-    // CloseStage — returned by withCloseConnection() (unused but satisfies interface)
-    // -------------------------------------------------------------------------
-
     static CloseOrTerminalStage builder(RouterResponseImpl prototype) {
         return new Builder(prototype);
     }

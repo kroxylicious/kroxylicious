@@ -120,7 +120,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *   <li>When the client channel becomes unwritable, reads are paused on all server channels (don't accept responses we can't deliver).</li>
  * </ul>
  */
-@SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller for multi-backend routing
+@SuppressWarnings({ "java:S1133", "java:S1172" }) // S1172: scsm params on ServerConnectionStateMachine callbacks identify the caller
 public class ClientConnectionStateMachine {
     private static final Logger LOGGER = getLogger(ClientConnectionStateMachine.class);
 
@@ -506,7 +506,7 @@ public class ClientConnectionStateMachine {
      * autoRead is disabled on entry to Draining, so no NEW requests can join the filter chain
      * after that point — the only messages reaching here in Draining are ones already mid-flight.
      *
-     * @param msg the RPC received from the upstream
+     * @param msg the RPC to be forwarded to the upstream node
      */
     void onDirectClientFilterChainComplete(Object msg) {
         if (virtualCluster().routing() instanceof DynamicRouting) {
@@ -1022,8 +1022,6 @@ public class ClientConnectionStateMachine {
 
     /**
      * A message has emerged from the filter chain and is ready to be forwarded to the upstream node.
-     * Used by {@link io.kroxylicious.proxy.internal.routing.RouterDispatchHandler} when a request
-     * does not match any dynamic or static route.
      */
     public void onClientFilterChainComplete(Object msg) {
         if (state() instanceof Forwarding || state() instanceof ClientConnectionState.Draining) {

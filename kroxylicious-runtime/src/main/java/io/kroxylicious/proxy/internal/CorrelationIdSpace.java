@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.internal;
 // A class that divides the correlation id space into ranges reserved for different internal purposes
 public class CorrelationIdSpace {
 
-    // use a correlation id outside the Routing range (Integer.MIN_VALUE/2, 0] to avoid collisions
+    // use a correlation id outside the routing range [Integer.MIN_VALUE/2, 0) to avoid collisions
     public static final int RESERVED_OUT_OF_BAND_CORRELATION_ID = Integer.MIN_VALUE;
     public static final int RESERVED_ROUTING_ID_RANGE_START_INC = Integer.MIN_VALUE / 2;
     public static final int RESERVED_ROUTING_ID_RANGE_END_EXC = 0;
