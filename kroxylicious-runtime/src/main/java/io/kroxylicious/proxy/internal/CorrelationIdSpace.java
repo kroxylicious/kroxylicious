@@ -15,6 +15,10 @@ public class CorrelationIdSpace {
     public static final int RESERVED_ROUTING_ID_RANGE_END_EXC = 0;
 
     private CorrelationIdSpace() {
+        // empty private constructor prevents instantiation
+    }
+
+    static {
         if (isRoutingCorrelationId(RESERVED_OUT_OF_BAND_CORRELATION_ID)) {
             throw new IllegalStateException("CorrelationId space is reserved for routing ids");
         }

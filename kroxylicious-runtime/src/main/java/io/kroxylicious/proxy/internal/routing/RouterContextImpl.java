@@ -56,6 +56,13 @@ class RouterContextImpl implements RouterContext {
         return Optional.of(new VirtualNodeImpl(ran.route(), ran.targetNodeId()));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Returns the upstream broker already connected to this session for the given route.
+     * Multiple calls on the same session always resolve to the same broker — this is not random
+     * selection per call.</p>
+     */
     @Override
     public VirtualNode anyNode(String route) {
         if (!handler.routes.containsKey(route)) {
@@ -74,14 +81,14 @@ class RouterContextImpl implements RouterContext {
     public CompletionStage<ApiMessage> sendRequest(VirtualNode node,
                                                    RequestHeaderData header,
                                                    ApiMessage request) {
-        if (!(node instanceof VirtualNodeImpl(String route, Integer nodeId))) {
+        if (!(node instanceof VirtualNodeImpl(String route, Integer virtualNodeId))) {
             throw new IllegalArgumentException("Unrecognised VirtualNode type: " + node.getClass().getName());
         }
-        if (nodeId == null) {
+        if (virtualNodeId == null) {
             return handler.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
         }
         else {
-            return handler.sendToSpecificNode(nodeId, route, header, request, sessionId, clientCorrelationId);
+            return handler.sendToSpecificNode(virtualNodeId, route, header, request, sessionId, clientCorrelationId);
         }
     }
 

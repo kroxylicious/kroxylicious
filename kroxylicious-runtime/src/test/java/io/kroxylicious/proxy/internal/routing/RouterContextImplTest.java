@@ -81,7 +81,7 @@ class RouterContextImplTest {
         // Then
         assertThat(node).isInstanceOf(VirtualNodeImpl.class);
         assertThat(((VirtualNodeImpl) node).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) node).nodeId()).isNull();
+        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isNull();
     }
 
     @Test
@@ -104,7 +104,7 @@ class RouterContextImplTest {
         // Then: IdentityNodeIdMapping: fromVirtual(0) → RouteAndNode(DEFAULT_ROUTE, 0)
         assertThat(vn).isPresent();
         assertThat(((VirtualNodeImpl) vn.get()).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) vn.get()).nodeId()).isZero();
+        assertThat(((VirtualNodeImpl) vn.get()).virtualNodeId()).isZero();
     }
 
     @Test
@@ -129,7 +129,7 @@ class RouterContextImplTest {
         // Then: IdentityNodeIdMapping maps virtual ID directly to target ID on the single route
         assertThat(node).isInstanceOf(VirtualNodeImpl.class);
         assertThat(((VirtualNodeImpl) node).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) node).nodeId()).isEqualTo(3);
+        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isEqualTo(3);
     }
 
     @Test

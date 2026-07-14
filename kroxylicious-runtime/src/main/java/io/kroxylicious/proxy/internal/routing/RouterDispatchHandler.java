@@ -406,6 +406,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 .addKeyValue("route", route);
     }
 
+    // post transformation of ids into virtual ids
     private void cacheNodeAddressesIfMetadata(Object body) {
         if (body instanceof MetadataResponseData md) {
             for (var broker : md.brokers()) {
