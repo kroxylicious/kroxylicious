@@ -9,9 +9,11 @@ package io.kroxylicious.proxy.internal.net;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 
 import io.netty.handler.ssl.SslContext;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -21,6 +23,21 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A gateway to an endpoint.
  */
 public interface EndpointGateway {
+    /**
+     * Target cluster associated with this listener.
+     * <p>
+     * Only meaningful for direct-routed virtual clusters, used by bindings that need an upstream
+     * bootstrap target for metadata discovery before broker topology is known. Not used by
+     * identity resolution ({@link AddressingSpec}/{@link BindingSpec}), which never needs to know
+     * where a connection is ultimately forwarded to.
+     *
+     * @return target cluster
+     * @throws UnsupportedOperationException if this gateway's virtual cluster uses dynamic routing
+     */
+    default TargetCluster targetCluster() {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * true if this listener uses TLS.
      *
@@ -103,5 +120,44 @@ public interface EndpointGateway {
      * @return name
      */
     String name();
+
+    /**
+     * The binding specification describing what sockets this gateway needs.
+     *
+     * @return the binding spec
+     */
+    default BindingSpec bindingSpec() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * The addressing specification used to identify the target of an incoming connection.
+     *
+     * @return the addressing spec
+     */
+    default AddressingSpec addressingSpec() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Resolves the actual bound port for the given virtual node.
+     *
+     * @param virtualNodeId the virtual node
+     * @return the actual bound port
+     * @throws IllegalStateException if the port cannot be resolved (e.g. port 0 before binding)
+     */
+    default int resolvePort(ProxyNodeId virtualNodeId) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Binds the port resolver used by {@link #resolvePort(ProxyNodeId)}.
+     * Called from {@code KafkaProxy.startup()} after endpoint registration.
+     *
+     * @param resolver maps a {@link ProxyNodeId} to its actual bound port
+     */
+    default void bindPortResolver(Function<ProxyNodeId, Integer> resolver) {
+        // no-op for implementations that predate port resolution
+    }
 
 }

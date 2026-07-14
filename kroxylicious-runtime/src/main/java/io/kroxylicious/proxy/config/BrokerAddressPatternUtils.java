@@ -21,7 +21,7 @@ final class BrokerAddressPatternUtils {
     static final String LITERAL_VIRTUAL_CLUSTER_NAME = "$(virtualClusterName)";
     static final String LITERAL_UNRESOLVED_ROUTE_HOST = "$(unresolvedRouteHost)";
     private static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
-    private static final Pattern PORT_SPECIFIER_RE = Pattern.compile("^(.*):([1-9]\\d*)$");
+    private static final Pattern PORT_SPECIFIER_RE = Pattern.compile("^(.*):(0|[1-9]\\d*)$");
     private static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
 
     private BrokerAddressPatternUtils() {

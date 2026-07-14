@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.net.URI;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -16,6 +17,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.internal.net.AddressingSpec;
+import io.kroxylicious.proxy.internal.net.AdvertisingSpec;
+import io.kroxylicious.proxy.internal.net.BindingSpec;
+import io.kroxylicious.proxy.internal.net.ProxyNodeId;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
@@ -62,6 +67,8 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     @JsonIgnore
     private final Integer advertisedPort;
     @JsonIgnore
+    private final boolean hasExplicitAdvertisedPort;
+    @JsonIgnore
     private final Integer bootstrapPort;
 
     @JsonIgnore
@@ -99,6 +106,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         bootstrapPort = maybeBootstrapPort.get();
         BrokerAddressPatternUtils.PatternAndPort patternAndPort = BrokerAddressPatternUtils.parse(advertisedBrokerAddressPattern);
         String brokerAddressPatternPart = patternAndPort.addressPattern();
+        hasExplicitAdvertisedPort = patternAndPort.port().isPresent();
         advertisedPort = patternAndPort.port().orElse(bootstrapPort);
 
         validatePortSpecifier(brokerAddressPatternPart, s -> {
@@ -165,7 +173,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         return new Strategy(clusterName);
     }
 
-    private class Strategy implements NodeIdentificationStrategy {
+    private class Strategy implements NodeIdentificationStrategy, BindingSpec, AdvertisingSpec, AddressingSpec {
 
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
@@ -239,24 +247,6 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         }
 
         @Override
-        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-            if (brokerAddress.port() != bootstrapAddress.port()) {
-                return null;
-            }
-            var matcher = brokerAddressNodeIdCapturingRegex.matcher(brokerAddress.host());
-            if (matcher.matches()) {
-                var nodeId = matcher.group(1);
-                try {
-                    return Integer.valueOf(nodeId);
-                }
-                catch (NumberFormatException e) {
-                    throw new IllegalStateException("unexpected exception parsing : '%s'".formatted(nodeId), e);
-                }
-            }
-            return null;
-        }
-
-        @Override
         public Set<Integer> getSharedPorts() {
             return Set.of(bootstrapAddress.port());
         }
@@ -264,6 +254,67 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         @Override
         public boolean requiresServerNameIndication() {
             return true;
+        }
+
+        // --- BindingSpec ---
+
+        @Override
+        public HostPort getBootstrapBindAddress() {
+            return bootstrapAddress;
+        }
+
+        @Override
+        public Map<Integer, HostPort> nodeBindAddresses() {
+            return Map.of();
+        }
+
+        @Override
+        public Set<Integer> getExclusivePorts() {
+            return Set.of();
+        }
+
+        @Override
+        public Optional<String> getBindAddress() {
+            return Optional.empty();
+        }
+
+        // --- AdvertisingSpec ---
+
+        @Override
+        public HostPort advertiseBootstrap(ProxyNodeId virtualNodeId) {
+            return new HostPort(bootstrapAddress.host(), virtualNodeId.gateway().resolvePort(virtualNodeId));
+        }
+
+        @Override
+        public HostPort advertiseBroker(ProxyNodeId virtualNodeId) throws IllegalArgumentException {
+            int nodeId = ((ProxyNodeId.Broker) virtualNodeId).nodeId();
+            String host = BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId);
+            if (hasExplicitAdvertisedPort) {
+                return new HostPort(host, advertisedPort);
+            }
+            return new HostPort(host, virtualNodeId.gateway().resolvePort(virtualNodeId));
+        }
+
+        // --- AddressingSpec ---
+
+        @Override
+        public Target identify(int port, @Nullable String sniHostname) {
+            if (sniHostname == null) {
+                return new Target.Bootstrap();
+            }
+            var matcher = brokerAddressNodeIdCapturingRegex.matcher(sniHostname);
+            if (matcher.matches()) {
+                try {
+                    return new Target.Node(Integer.parseInt(matcher.group(1)));
+                }
+                catch (NumberFormatException e) {
+                    throw new IllegalStateException("unexpected exception parsing nodeId from SNI: '" + sniHostname + "'", e);
+                }
+            }
+            if (sniHostname.equalsIgnoreCase(bootstrapAddress.host())) {
+                return new Target.Bootstrap();
+            }
+            return new Target.NotRecognised();
         }
 
     }
