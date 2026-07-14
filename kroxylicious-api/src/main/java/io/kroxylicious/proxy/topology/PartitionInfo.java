@@ -16,7 +16,7 @@ import java.util.List;
  * @param replicas all replicas of this partition
  * @param isr the in-sync replicas
  */
-public record PartitionInfo(VirtualNode leader, List<VirtualNode> replicas, List<VirtualNode> isr) {
+public record PartitionInfo(EndpointType.VirtualNode leader, List<EndpointType.VirtualNode> replicas, List<EndpointType.VirtualNode> isr) {
     /** Defensive-copies the replica and ISR lists. */
     public PartitionInfo {
         replicas = List.copyOf(replicas);

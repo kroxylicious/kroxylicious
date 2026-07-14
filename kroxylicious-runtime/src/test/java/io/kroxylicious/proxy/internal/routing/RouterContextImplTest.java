@@ -11,7 +11,6 @@ import java.util.Optional;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.UnknownServerException;
-import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -27,11 +26,10 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.router.RouterResponse;
-import io.kroxylicious.proxy.topology.VirtualNode;
+import io.kroxylicious.proxy.topology.EndpointType;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class RouterContextImplTest {
@@ -71,65 +69,49 @@ class RouterContextImplTest {
     }
 
     @Test
-    void anyNodeShouldReturnVirtualNodeForKnownRoute() {
+    void endpointShouldBeBootstrapForNullNodeId() {
         // Given
-        var ctx = createContext();
-
-        // When
-        var node = ctx.anyNode(DEFAULT_ROUTE);
-
-        // Then
-        assertThat(node).isInstanceOf(VirtualNodeImpl.class);
-        assertThat(((VirtualNodeImpl) node).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isNull();
-    }
-
-    @Test
-    void virtualNodeShouldBeEmptyForBootstrapConnection() {
-        // Given: no endpoint virtual node ID (bootstrap connection)
         var ctx = createContext(null);
 
         // When / Then
-        assertThat(ctx.virtualNode()).isEmpty();
+        assertThat(ctx.endpoint()).isInstanceOf(EndpointType.Bootstrap.class);
     }
 
     @Test
-    void virtualNodeShouldBePresentForBrokerConnection() {
-        // Given: endpoint virtual node ID 0 (broker-specific connection)
+    void endpointShouldBeVirtualNodeForBrokerConnection() {
+        // Given
         var ctx = createContext(0);
 
         // When
-        var vn = ctx.virtualNode();
+        var endpoint = ctx.endpoint();
 
-        // Then: IdentityNodeIdMapping: fromVirtual(0) → RouteAndNode(DEFAULT_ROUTE, 0)
-        assertThat(vn).isPresent();
-        assertThat(((VirtualNodeImpl) vn.get()).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) vn.get()).virtualNodeId()).isZero();
+        // Then
+        assertThat(endpoint).isInstanceOf(EndpointType.VirtualNode.class);
+        assertThat(((EndpointType.VirtualNode) endpoint).downstreamNodeId()).isZero();
     }
 
     @Test
-    void anyNodeShouldThrowForUnknownRoute() {
+    void sendToRouteShouldThrowForUnknownRoute() {
         // Given
         var ctx = createContext();
 
         // When / Then
-        assertThatThrownBy(() -> ctx.anyNode("no-such-route"))
+        assertThatThrownBy(() -> ctx.sendToRoute("no-such-route", new RequestHeaderData(), new MetadataRequestData()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unknown route");
     }
 
     @Test
-    void nodeForIdShouldConvertVirtualNodeIdToVirtualNode() {
+    void nodeForIdShouldReturnVirtualNodeWithDownstreamId() {
         // Given
         var ctx = createContext();
 
         // When
         var node = ctx.nodeForId(3);
 
-        // Then: IdentityNodeIdMapping maps virtual ID directly to target ID on the single route
-        assertThat(node).isInstanceOf(VirtualNodeImpl.class);
-        assertThat(((VirtualNodeImpl) node).route()).isEqualTo(DEFAULT_ROUTE);
-        assertThat(((VirtualNodeImpl) node).virtualNodeId()).isEqualTo(3);
+        // Then
+        assertThat(node).isInstanceOf(EndpointType.VirtualNode.class);
+        assertThat(node.downstreamNodeId()).isEqualTo(3);
     }
 
     @Test
@@ -203,20 +185,6 @@ class RouterContextImplTest {
         // When / Then
         assertThat(ctx.sessionId()).isEqualTo("test-session");
         assertThat(ctx.authenticatedSubject()).isEqualTo(Subject.anonymous());
-    }
-
-    @Test
-    void sendRequestShouldThrowForUnrecognisedVirtualNodeType() {
-        // Given
-        var ctx = createContext();
-        var unknownNode = mock(VirtualNode.class);
-        RequestHeaderData header = new RequestHeaderData();
-        FetchRequestData data = new FetchRequestData();
-
-        // When / Then
-        assertThatThrownBy(() -> ctx.sendRequest(unknownNode, header, data))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Unrecognised VirtualNode type");
     }
 
     @Test

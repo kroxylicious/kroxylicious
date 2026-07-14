@@ -372,16 +372,16 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         return future;
     }
 
-    CompletionStage<ApiMessage> sendToSpecificNode(int targetNodeId,
+    CompletionStage<ApiMessage> sendToSpecificNode(int virtualNodeId,
                                                    String route,
                                                    RequestHeaderData header,
                                                    ApiMessage request,
                                                    String sessionId,
                                                    int clientCorrelationId) {
-        return executeOnEventLoop(() -> doSendToSpecificNode(targetNodeId, route, header, request, sessionId, clientCorrelationId));
+        return executeOnEventLoop(() -> doSendToSpecificNode(virtualNodeId, route, header, request, sessionId, clientCorrelationId));
     }
 
-    private CompletableFuture<ApiMessage> doSendToSpecificNode(int targetNodeId,
+    private CompletableFuture<ApiMessage> doSendToSpecificNode(int virtualNodeId,
                                                                String route,
                                                                RequestHeaderData header,
                                                                ApiMessage request,
@@ -389,10 +389,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                                                                int clientCorrelationId) {
         RouteDescriptor rd = routes.get(route);
         if (rd == null || !rd.targetsCluster()) {
-            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
-                    .log("Target node resolved to invalid route");
+            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, virtualNodeId)
+                    .log("Virtual node resolved to invalid route");
             return CompletableFuture.failedFuture(
-                    new IllegalStateException("Node " + targetNodeId + " resolved to invalid route: " + route));
+                    new IllegalStateException("Virtual node " + virtualNodeId + " resolved to invalid route: " + route));
         }
 
         short requestApiVersion = header.requestApiVersion();
@@ -400,9 +400,9 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
         if (!frame.hasResponse()) {
-            ccsm.forwardToNode(targetNodeId, route, frame);
+            ccsm.forwardToNode(virtualNodeId, route, frame);
             withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
-                    .addKeyValue("targetNodeId", targetNodeId)
+                    .addKeyValue("virtualNodeId", virtualNodeId)
                     .addKeyValue("routingCorrelationId", routingCorrelationId)
                     .log("Fire-and-forget request sent to specific node (no response expected)");
             return CompletableFuture.completedFuture(null);
@@ -412,11 +412,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
 
         try {
-            ccsm.forwardToNode(targetNodeId, route, frame);
+            ccsm.forwardToNode(virtualNodeId, route, frame);
         }
         catch (Exception e) {
             pendingResponses.remove(routingCorrelationId);
-            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, targetNodeId)
+            withNodeContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, virtualNodeId)
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addKeyValue("error", e.getMessage())
                     .log(LOGGER.isDebugEnabled()
@@ -426,7 +426,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         }
 
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
-                .addKeyValue("targetNodeId", targetNodeId)
+                .addKeyValue("virtualNodeId", virtualNodeId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .log("Request sent to specific node");
         return future;
@@ -439,10 +439,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
                 .addKeyValue("clientCorrelationId", clientCorrelationId);
     }
 
-    private static LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String virtualClusterName, String sessionId, String route, int targetNodeId) {
+    private static LoggingEventBuilder withNodeContext(LoggingEventBuilder event, String virtualClusterName, String sessionId, String route, int virtualNodeId) {
         return event.addKeyValue("virtualCluster", virtualClusterName)
                 .addKeyValue("sessionId", sessionId)
-                .addKeyValue("targetNodeId", targetNodeId)
+                .addKeyValue("virtualNodeId", virtualNodeId)
                 .addKeyValue("route", route);
     }
 

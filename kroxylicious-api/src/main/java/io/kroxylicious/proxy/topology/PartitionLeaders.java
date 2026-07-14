@@ -28,5 +28,5 @@ public interface PartitionLeaders {
      * @param partitionIndex the partition index
      * @return the leader's virtual node, or empty
      */
-    Optional<VirtualNode> leaderOf(String topicName, int partitionIndex);
+    Optional<EndpointType.VirtualNode> leaderOf(String topicName, int partitionIndex);
 }

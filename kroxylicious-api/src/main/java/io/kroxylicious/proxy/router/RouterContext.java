@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.router;
 
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -15,7 +14,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.topology.VirtualNode;
+import io.kroxylicious.proxy.topology.EndpointType;
 
 /**
  * Context passed to {@link Router#onRequest} for issuing requests
@@ -46,44 +45,21 @@ import io.kroxylicious.proxy.topology.VirtualNode;
 public interface RouterContext {
 
     /**
-     * Returns the virtual node of the broker that the client connected to.
+     * Returns the endpoint type for this client connection.
      *
      * <p>When the client connected to a broker-specific endpoint (i.e. an
      * address that corresponds to a particular broker in the cluster topology),
-     * this returns that broker's virtual node. The router can use this to
-     * send requests — such as {@code API_VERSIONS} — to the specific broker
-     * the client believes it is talking to, rather than an arbitrary broker.</p>
+     * this returns a {@link EndpointType.VirtualNode} identifying that broker.
+     * When the client connected to a bootstrap address, this returns a
+     * {@link EndpointType.Bootstrap}.</p>
      *
-     * <p>When the client connected to a bootstrap address, this returns empty,
-     * because the proxy does not know which broker the client intended.
-     * In that case the router should use {@link #anyNode(String)} to obtain
-     * a node for sending requests.</p>
-     *
-     * @return the virtual node if the client connected to a broker-specific
-     *         endpoint, or empty if the client connected to a bootstrap address
+     * @return the endpoint type for this connection
      */
-    Optional<VirtualNode> virtualNode();
-
-    /**
-     * Returns a virtual node that, when passed to {@link #sendRequest},
-     * causes the runtime to send the request to an arbitrary broker on the
-     * named route's cluster.
-     *
-     * <p>This is used for initial discovery requests (e.g. {@code METADATA},
-     * {@code FIND_COORDINATOR}) before the router has learned the cluster
-     * topology, and for requests that are not broker-specific. The runtime
-     * selects which broker to use. Repeated calls with the same route
-     * may return different nodes.</p>
-     *
-     * @param route the name of the route
-     * @return a virtual node representing any broker on the route's cluster
-     * @throws IllegalArgumentException if the route name is not known
-     */
-    VirtualNode anyNode(String route);
+    EndpointType endpoint();
 
     /**
      * Converts an integer node ID from a protocol response body into a
-     * {@link VirtualNode}.
+     * {@link EndpointType.VirtualNode}.
      *
      * <p>This is the bridge between the Kafka wire protocol (which uses
      * integer node IDs) and the {@code VirtualNode} API. Routers need this
@@ -95,22 +71,20 @@ public interface RouterContext {
      * @param virtualNodeId the integer node ID from a protocol response
      * @return the corresponding virtual node
      */
-    VirtualNode nodeForId(int virtualNodeId);
+    EndpointType.VirtualNode nodeForId(int virtualNodeId);
 
     /**
      * Sends a request to a specific broker identified by virtual node.
      *
-     * <p>The runtime derives the route from the virtual node and resolves
-     * it to a specific upstream broker address, opening a new connection if
-     * necessary. The returned stage completes when the broker produces a
-     * response.</p>
+     * <p>The runtime resolves the virtual node to a specific upstream broker
+     * address, opening a new connection if necessary. The returned stage
+     * completes when the broker produces a response.</p>
      *
      * <p>The {@code node} can be:</p>
      * <ul>
-     *   <li>A value obtained from {@link #virtualNode()} — sends to the
-     *       broker the client connected to</li>
-     *   <li>A value obtained from {@link #anyNode(String)} — sends to an
-     *       arbitrary broker on a route</li>
+     *   <li>A {@link EndpointType.VirtualNode} obtained from
+     *       {@link #endpoint()} — sends to the broker the client
+     *       connected to</li>
      *   <li>A value obtained from {@link #nodeForId(int)} — sends to a
      *       broker whose ID was learned from a protocol response</li>
      *   <li>A value obtained from
@@ -128,7 +102,26 @@ public interface RouterContext {
      *         not yet known (metadata not yet reconciled)
      */
     CompletionStage<ApiMessage> sendRequest(
-                                            VirtualNode node,
+                                            EndpointType.VirtualNode node,
+                                            RequestHeaderData header,
+                                            ApiMessage request);
+
+    /**
+     * Sends a request to any broker on the named route's cluster.
+     *
+     * <p>This is used for initial discovery requests (e.g. {@code METADATA},
+     * {@code FIND_COORDINATOR}) before the router has learned the cluster
+     * topology, and for requests that are not broker-specific. The runtime
+     * selects which broker to use.</p>
+     *
+     * @param route the name of the route
+     * @param header the request header
+     * @param request the request body
+     * @return a stage that completes with the response body from the broker
+     * @throws IllegalArgumentException if the route name is not known
+     */
+    CompletionStage<ApiMessage> sendToRoute(
+                                            String route,
                                             RequestHeaderData header,
                                             ApiMessage request);
 

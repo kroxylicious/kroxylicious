@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal.routing;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -18,6 +17,8 @@ import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.router.CloseOrTerminalStage;
 import io.kroxylicious.proxy.router.RouterContext;
+import io.kroxylicious.proxy.topology.Bootstrap;
+import io.kroxylicious.proxy.topology.EndpointType;
 import io.kroxylicious.proxy.topology.VirtualNode;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -48,12 +49,11 @@ class RouterContextImpl implements RouterContext {
     }
 
     @Override
-    public Optional<VirtualNode> virtualNode() {
+    public EndpointType endpoint() {
         if (endpointVirtualNodeId == null) {
-            return Optional.empty();
+            return new EndpointType.Bootstrap();
         }
-        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(endpointVirtualNodeId);
-        return Optional.of(new VirtualNodeImpl(ran.route(), ran.targetNodeId()));
+        return new EndpointType.VirtualNode(endpointVirtualNodeId);
     }
 
     /**
@@ -64,32 +64,26 @@ class RouterContextImpl implements RouterContext {
      * selection per call.</p>
      */
     @Override
-    public VirtualNode anyNode(String route) {
+    public EndpointType.VirtualNode nodeForId(int virtualNodeId) {
+        return new EndpointType.VirtualNode(virtualNodeId);
+    }
+
+    @Override
+    public CompletionStage<ApiMessage> sendRequest(EndpointType.VirtualNode node,
+                                                   RequestHeaderData header,
+                                                   ApiMessage request) {
+        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(node.downstreamNodeId());
+        return handler.sendToSpecificNode(node.downstreamNodeId(), ran.route(), header, request, sessionId, clientCorrelationId);
+    }
+
+    @Override
+    public CompletionStage<ApiMessage> sendToRoute(String route,
+                                                   RequestHeaderData header,
+                                                   ApiMessage request) {
         if (!handler.routes.containsKey(route)) {
             throw new IllegalArgumentException("Unknown route: " + route);
         }
-        return new VirtualNodeImpl(route, null);
-    }
-
-    @Override
-    public VirtualNode nodeForId(int virtualNodeId) {
-        NodeIdMapping.RouteAndNode ran = handler.nodeIdMapping.fromVirtual(virtualNodeId);
-        return new VirtualNodeImpl(ran.route(), ran.targetNodeId());
-    }
-
-    @Override
-    public CompletionStage<ApiMessage> sendRequest(VirtualNode node,
-                                                   RequestHeaderData header,
-                                                   ApiMessage request) {
-        if (!(node instanceof VirtualNodeImpl(String route, Integer virtualNodeId))) {
-            throw new IllegalArgumentException("Unrecognised VirtualNode type: " + node.getClass().getName());
-        }
-        if (virtualNodeId == null) {
-            return handler.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
-        }
-        else {
-            return handler.sendToSpecificNode(virtualNodeId, route, header, request, sessionId, clientCorrelationId);
-        }
+        return handler.sendToAnyNode(route, header, request, sessionId, clientCorrelationId);
     }
 
     @Override
