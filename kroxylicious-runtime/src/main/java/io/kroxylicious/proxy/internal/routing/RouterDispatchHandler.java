@@ -346,7 +346,20 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();
         pendingResponses.put(routingCorrelationId, new PendingResponse(future, route));
 
-        ccsm.forwardToRoute(route, frame);
+        try {
+            ccsm.forwardToRoute(route, frame);
+        }
+        catch (Exception e) {
+            pendingResponses.remove(routingCorrelationId);
+            withSendContext(LOGGER.atWarn(), virtualClusterName, sessionId, route, clientCorrelationId)
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addKeyValue("error", e.getMessage())
+                    .log(LOGGER.isDebugEnabled()
+                            ? "Failed to forward request to route"
+                            : "Failed to forward request to route, increase log level to DEBUG for stacktrace");
+            return CompletableFuture.failedFuture(e);
+        }
+
         withSendContext(LOGGER.atTrace(), virtualClusterName, sessionId, route, clientCorrelationId)
                 .addKeyValue("routingCorrelationId", routingCorrelationId)
                 .addKeyValue("apiVersion", requestApiVersion)

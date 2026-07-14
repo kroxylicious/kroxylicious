@@ -590,6 +590,26 @@ class RouterDispatchHandlerTest {
     }
 
     @Test
+    void sendToAnyNodeShouldReturnFailedFutureWhenForwardThrows() {
+        // Given
+        doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToRoute(anyString(), any());
+        var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
+        channel = new EmbeddedChannel(handler);
+        var header = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.FETCH.id)
+                .setRequestApiVersion((short) 12);
+
+        // When
+        var future = handler.sendToAnyNode(DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
+
+        // Then
+        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
+        assertThatThrownBy(() -> future.toCompletableFuture().get())
+                .hasCauseInstanceOf(RuntimeException.class)
+                .cause().hasMessage("forward failed");
+    }
+
+    @Test
     void sendToSpecificNodeShouldReturnFailedFutureWhenForwardThrows() {
         // Given
         doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToNode(anyInt(), anyString(), any());
