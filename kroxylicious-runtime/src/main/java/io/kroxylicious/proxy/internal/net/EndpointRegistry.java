@@ -7,10 +7,7 @@
 package io.kroxylicious.proxy.internal.net;
 
 import java.net.InetSocketAddress;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -19,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -28,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
-import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.service.HostPort;
@@ -62,8 +59,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * {@link #deregisterVirtualCluster(EndpointGateway)} of virtual clusters.  The registry emits the required network binding
  * operations to expose the virtual cluster to the network.  These API calls return futures that will complete once
  * the underlying network operations are completed.</li>
- *    <li>The registry provides an {@link EndpointBindingResolver}.  The {@link EndpointBindingResolver#resolve(Endpoint, String)} method accepts
- * connection metadata (port, SNI etc) and resolves this to a @{@link BootstrapEndpointBinding}.  This allows
+ *    <li>The registry provides an {@link EndpointBindingResolver}.  The {@link EndpointBindingResolver#resolve(Channel, String)} method accepts
+ * a child channel and resolves it to an {@link EndpointBinding} via the acceptor channel's bindings.  This allows
  * Kroxylicious to determine the destination of any incoming connection.</li>
  *    <li>The registry provides a {@link EndpointReconciler}. The {@link EndpointReconciler#reconcile(EndpointGateway, Map)} method accepts a map describing
  *    the target cluster's broker topology.  The job of the reconciler is to make adjustments to the network bindings (binding/unbinding ports) to
@@ -75,7 +72,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *    <li>virtual cluster de-registration uses java.util.concurrent.atomic to ensure de-registration is single threaded.</li>
  *    <li>virtual cluster reconciliation uses java.util.concurrent.atomic to ensure reconciliation is single threaded.</li>
  *    <li>updates to the binding mapping (attached to channel) are made only whilst holding an intrinsic lock on the {@link ListeningChannelRecord}.</li>
- *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link EndpointBindingResolver#resolve(Endpoint, String)}).  This relies the
+ *    <li>updates to the binding mapping are published safely to readers (i.e. threads calling {@link EndpointBindingResolver#resolve(Channel, String)}).  This relies the
  *    fact that the binding map uses concurrency safe data structures ({@link ConcurrentHashMap} and the exclusive use of immutable objects within it.</li>
  * </ul>
  */
@@ -84,42 +81,16 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
 
-    /**
-     * Sentinel port value meaning "let the OS assign a free port at bind time".
-     * Use with {@link io.kroxylicious.proxy.KafkaProxy#listeningPort(String, int)} to discover
-     * the actual port after startup.
-     */
-    public static final int OS_ASSIGNED_PORT = 0;
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
 
-    interface RoutingKey {
-        RoutingKey NULL_ROUTING_KEY = new NullRoutingKey();
+    /**
+     * Allocates synthetic, distinct channel keys for OS-assigned (port 0) ports on gateways that
+     * don't require SNI. Each such binding needs its own acceptor channel, since the OS hasn't
+     * assigned a real port yet and port 0 can't itself serve as a distinguishing map key.
+     */
+    private static final AtomicInteger SYNTHETIC_PORT_COUNTER = new AtomicInteger(Integer.MIN_VALUE);
 
-        static RoutingKey createBindingKey(@Nullable String sniHostname) {
-            if (sniHostname == null || sniHostname.isEmpty()) {
-                return NULL_ROUTING_KEY;
-            }
-            return new SniRoutingKey(sniHostname);
-        }
-
-    }
-
-    private static class NullRoutingKey implements RoutingKey {
-        @Override
-        public String toString() {
-            return "NullRoutingKey[]";
-        }
-    }
-
-    private record SniRoutingKey(String sniHostname) implements RoutingKey {
-
-        private SniRoutingKey(String sniHostname) {
-            Objects.requireNonNull(sniHostname);
-            this.sniHostname = sniHostname.toLowerCase(Locale.ROOT);
-        }
-    }
-
-    protected static final AttributeKey<Map<RoutingKey, EndpointBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
+    protected static final AttributeKey<Map<ProxyNodeId, EndpointBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
     private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
         private ReconciliationRecord {
@@ -167,6 +138,13 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     /** Registry of endpoints and their underlying Netty Channel */
     private final Map<Endpoint, ListeningChannelRecord> listeningChannels = new ConcurrentHashMap<>();
 
+    /**
+     * Maps each virtual node to its {@link ListeningChannelRecord}, allowing
+     * {@link #resolvePort(ProxyNodeId)} to read the actual bound port directly
+     * from the channel (important when port=0 / OS-assigned was configured).
+     */
+    private final Map<ProxyNodeId, ListeningChannelRecord> virtualNodeIndex = new ConcurrentHashMap<>();
+
     public EndpointRegistry(NetworkBindingOperationProcessor bindingOperationProcessor) {
         this.bindingOperationProcessor = bindingOperationProcessor;
     }
@@ -195,23 +173,27 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             return current.registrationStage();
         }
 
-        var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
+        var bindingSpec = virtualClusterModel.bindingSpec();
+        var bootstrapBindAddress = bindingSpec.getBootstrapBindAddress();
+        var key = Endpoint.createEndpoint(bindingSpec.getBindAddress(), bootstrapBindAddress.port(), virtualClusterModel.isUseTls());
         var bootstrapEndpointFuture = registerBinding(key,
-                virtualClusterModel.getClusterBootstrapAddress().host(),
-                new BootstrapEndpointBinding(virtualClusterModel)).toCompletableFuture();
+                new BootstrapEndpointBinding(virtualClusterModel),
+                new ProxyNodeId.Bootstrap(virtualClusterModel)).toCompletableFuture();
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
-        // bind any discovery binding to the bootstrap address
-        var discoveryAddressesMapStage = allOfStage(virtualClusterModel.discoveryAddressMap()
+        // bind any discovery binding
+        var discoveryAddressesMapStage = allOfStage(bindingSpec.nodeBindAddresses()
                 .entrySet()
                 .stream()
                 .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
                 .map(e -> {
                     var nodeId = e.getKey();
                     var bhp = e.getValue();
-                    return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
-                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
+                    var discoveryEndpoint = new Endpoint(bindingSpec.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls());
+                    return registerBinding(discoveryEndpoint,
+                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId),
+                            new ProxyNodeId.Broker(virtualClusterModel, nodeId));
                 }));
 
         bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
@@ -260,6 +242,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                                 .log("Secondary error occurred whilst handling a previous registration error");
                     }
                     registeredVirtualClusters.remove(virtualClusterModel);
+                    removeVirtualNodeEntries(virtualClusterModel);
                     future.completeExceptionally(originalFailure);
                     return null;
                 });
@@ -301,6 +284,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .thenCompose(u -> deregisterBinding(virtualClusterModel, binding -> binding.endpointGateway().equals(virtualClusterModel))
                         .handle((unused1, t) -> {
                             registeredVirtualClusters.remove(virtualClusterModel);
+                            removeVirtualNodeEntries(virtualClusterModel);
                             if (t != null) {
                                 deregisterFuture.completeExceptionally(t);
                             }
@@ -379,7 +363,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         var creations = constructPossibleBindingsToCreate(virtualClusterModel, upstreamNodes);
 
         // first assemble the stream of de-registrations (and by side effect: update creations)
-        var deregs = allOfStage(listeningChannels.values().stream()
+        var deregs = allOfStage(allChannelRecords()
                 .filter(lcr -> lcr.unbindingStage.get() == null)
                 .map(lcr -> lcr.bindingStage()
                         .thenCompose(acceptorChannel -> {
@@ -397,6 +381,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                             nodeSpecificBindings.forEach(creations::remove);
                             return allOfStage(nodeSpecificBindings.stream()
                                     .filter(eb -> !allBrokerIds.contains(eb.nodeId()))
+                                    .peek(eb -> virtualNodeIndex.remove(new ProxyNodeId.Broker(virtualClusterModel, eb.nodeId())))
                                     .map(eb -> deregisterBinding(virtualClusterModel, eb::equals)));
                         })));
 
@@ -405,7 +390,8 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .map(vcbb -> {
                     var brokerAddress = virtualClusterModel.getBrokerAddress(vcbb.nodeId());
                     var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualClusterModel.isUseTls());
-                    return registerBinding(endpoint, brokerAddress.host(), vcbb);
+                    return registerBinding(endpoint, vcbb,
+                            new ProxyNodeId.Broker(virtualClusterModel, vcbb.nodeId()));
                 })))
                 .whenComplete((u2, t) -> {
                     if (t != null) {
@@ -456,26 +442,56 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         return listeningChannels.size();
     }
 
-    @VisibleForTesting
-    public int localPortFor(Endpoint endpoint) {
-        var record = listeningChannels.get(endpoint);
+    /**
+     * Returns the actual port the OS bound for a given virtual node.
+     * <p>
+     * For nodes configured with an explicit port this is the same as the configured port.
+     * For nodes configured with port=0 (OS-assigned), this returns the ephemeral port
+     * the OS selected at bind time.
+     *
+     * @param vn the virtual node whose bound port is needed
+     * @return the actual bound port
+     * @throws IllegalStateException if the virtual node has no recorded binding (not yet registered)
+     */
+    public int resolvePort(ProxyNodeId vn) {
+        var record = virtualNodeIndex.get(vn);
         if (record == null) {
-            throw new IllegalStateException("No listening channel for endpoint " + endpoint);
+            throw new IllegalStateException("No binding found for virtual node " + vn);
         }
         return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
     }
 
-    private CompletionStage<Endpoint> registerBinding(Endpoint key, String host, EndpointBinding virtualClusterBinding) {
+    private void removeVirtualNodeEntries(EndpointGateway gateway) {
+        virtualNodeIndex.entrySet().removeIf(e -> e.getKey().gateway().equals(gateway));
+    }
+
+    /**
+     * Returns the key to use in the {@link #listeningChannels} map for the given configured endpoint.
+     * This controls whether bindings share an acceptor channel: bindings that return the same key
+     * share one channel. Gateways requiring SNI always share a channel keyed by the configured
+     * endpoint (disambiguation happens later, via {@link ChannelAddressingSpec}). Gateways that
+     * don't require SNI get their own channel per OS-assigned (port 0) binding, since there's no
+     * other way to distinguish them once bound.
+     */
+    private static Endpoint channelKeyFor(Endpoint configured, boolean requiresServerNameIndication) {
+        if (requiresServerNameIndication || configured.port() != 0) {
+            return configured;
+        }
+        return Endpoint.createEndpoint(configured.bindingAddress(), SYNTHETIC_PORT_COUNTER.getAndDecrement(), configured.tls());
+    }
+
+    // ListeningChannelRecord instances are stable shared objects from the listeningChannels map, intentionally used as per-channel locks
+    @SuppressWarnings("java:S2445")
+    private CompletionStage<Endpoint> registerBinding(Endpoint key, EndpointBinding virtualClusterBinding, ProxyNodeId nodeId) {
         Objects.requireNonNull(key, "key cannot be null");
         Objects.requireNonNull(virtualClusterBinding, "virtualClusterBinding cannot be null");
         var virtualCluster = virtualClusterBinding.endpointGateway();
 
-        var lcr = listeningChannels.computeIfAbsent(key, k -> {
-            // the listening channel doesn't exist, atomically create a record to represent it and request its binding to the network.
+        var channelKey = channelKeyFor(key, virtualCluster.requiresServerNameIndication());
+        var lcr = listeningChannels.computeIfAbsent(channelKey, ck -> {
             var future = new CompletableFuture<Channel>();
             var r = ListeningChannelRecord.create(future.exceptionally(t -> {
-                // Handles the case where the network bind fails
-                listeningChannels.remove(key);
+                listeningChannels.remove(ck);
                 if (t instanceof RuntimeException re) {
                     throw re;
                 }
@@ -491,28 +507,47 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
         if (lcr.unbindingStage().get() != null) {
             // Listening channel already being unbound, chain this request to the unbind stage, so it completes later.
-            return lcr.unbindingStage().get().thenCompose(u -> registerBinding(key, host, virtualClusterBinding));
+            return lcr.unbindingStage().get().thenCompose(u -> registerBinding(key, virtualClusterBinding, nodeId));
         }
 
         return lcr.bindingStage().thenApply(acceptorChannel -> {
+            virtualNodeIndex.put(nodeId, lcr);
+            int actualPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
+            switch (nodeId) {
+                case ProxyNodeId.Broker broker -> broker.gateway().bindingSpec().registerBoundPort(broker.nodeId(), actualPort);
+                case ProxyNodeId.Bootstrap bootstrap -> bootstrap.gateway().bindingSpec().registerBoundBootstrapPort(actualPort);
+            }
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
+
                 var bindingMap = bindings.get();
-                var bindingKey = virtualCluster.requiresServerNameIndication() ? RoutingKey.createBindingKey(host) : RoutingKey.NULL_ROUTING_KEY;
+
+                // a channel not requiring SNI cannot disambiguate connections beyond the port they
+                // arrived on, so at most one gateway may ever occupy it.
+                if (!virtualCluster.requiresServerNameIndication()) {
+                    var foreignBinding = bindingMap.values().stream()
+                            .filter(b -> !b.endpointGateway().equals(virtualCluster))
+                            .findAny();
+                    if (foreignBinding.isPresent()) {
+                        throw new EndpointBindingException(
+                                "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, nodeId, virtualClusterBinding,
+                                        foreignBinding.get()));
+                    }
+                }
 
                 // we use a bindingMap attached to the channel to record the bindings to the channel. the #deregisterBinding path
                 // knows to tear down the acceptorChannel when the map becomes empty.
-                var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
+                var existing = bindingMap.putIfAbsent(nodeId, virtualClusterBinding);
 
                 if (existing instanceof NodeSpecificEndpointBinding existingVcbb && virtualClusterBinding instanceof NodeSpecificEndpointBinding vcbb
                         && existingVcbb.refersToSameVirtualClusterAndNode(vcbb)) {
                     // special case to support update of the upstream target
-                    bindingMap.put(bindingKey, virtualClusterBinding);
+                    bindingMap.put(nodeId, virtualClusterBinding);
                 }
                 else if (existing != null) {
                     throw new EndpointBindingException(
-                            "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding,
+                            "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, nodeId, virtualClusterBinding,
                                     existing));
                 }
 
@@ -521,123 +556,94 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         });
     }
 
+    @SuppressWarnings("java:S2445") // see registerBinding
     private CompletionStage<Void> deregisterBinding(EndpointGateway virtualClusterModel, Predicate<EndpointBinding> predicate) {
         Objects.requireNonNull(virtualClusterModel, VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE);
         Objects.requireNonNull(predicate, "predicate cannot be null");
 
-        // Search the listening channels for bindings matching the predicate. We could cache more information on the vcr to optimise.
-        var unbindStages = listeningChannels.entrySet().stream()
-                .map(e -> {
-                    var endpoint = e.getKey();
-                    var lcr = e.getValue();
-                    return lcr.bindingStage().thenCompose(acceptorChannel -> {
-                        synchronized (lcr) {
-                            var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
-                            var allEntries = bindingMap.entrySet();
-                            var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
-                            // If our removal leaves the channel without bindings, trigger its unbinding
-                            if (allEntries.removeAll(toRemove) && bindingMap.isEmpty()) {
-                                var unbindFuture = new CompletableFuture<Void>();
-                                var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.remove(endpoint));
-                                if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
-                                    bindingOperationProcessor
-                                            .enqueueNetworkBindingEvent(new NetworkUnbindRequest(virtualClusterModel.isUseTls(), acceptorChannel, unbindFuture));
-                                    return afterUnbind;
-                                }
-                                else {
-                                    return lcr.unbindingStage().get();
-                                }
+        var unbindStages = allChannelRecords()
+                .map(lcr -> lcr.bindingStage().thenCompose(acceptorChannel -> {
+                    synchronized (lcr) {
+                        var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
+                        var allEntries = bindingMap.entrySet();
+                        var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
+                        // If our removal leaves the channel without bindings, trigger its unbinding
+                        if (allEntries.removeAll(toRemove) && bindingMap.isEmpty()) {
+                            var unbindFuture = new CompletableFuture<Void>();
+                            var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.values().remove(lcr));
+                            if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
+                                bindingOperationProcessor
+                                        .enqueueNetworkBindingEvent(new NetworkUnbindRequest(virtualClusterModel.isUseTls(), acceptorChannel, unbindFuture));
+                                return afterUnbind;
                             }
                             else {
-                                return CompletableFuture.completedStage(null);
+                                return lcr.unbindingStage().get();
                             }
                         }
-                    });
-                });
+                        else {
+                            return CompletableFuture.completedStage(null);
+                        }
+                    }
+                }));
 
         return allOfStage(unbindStages);
     }
 
+    private Stream<ListeningChannelRecord> allChannelRecords() {
+        return listeningChannels.values().stream();
+    }
+
     /**
-     * Uses channel metadata (port, SNI name etc.) from the incoming connection to resolve a {@link BootstrapEndpointBinding}.
+     * Uses the acceptor channel (parent of the incoming connection) to resolve an {@link EndpointBinding}.
+     * The acceptor channel carries the bindings registered at bind time via the {@link #CHANNEL_BINDINGS}
+     * attribute. The candidate gateways sharing the channel are asked, via {@link ChannelAddressingSpec},
+     * to identify the connection; the resolved identity is then looked up (or, for a not-yet-reconciled
+     * broker, synthesized) against the registered bindings.
      *
-     * @param endpoint    endpoint being resolved
+     * @param channel     the child channel representing the accepted connection
      * @param sniHostname SNI hostname, may be null.
-     * @return completion stage yielding the {@link BootstrapEndpointBinding} or exceptionally a EndpointResolutionException.
+     * @return completion stage yielding the {@link EndpointBinding} or exceptionally a EndpointResolutionException.
      */
     @Override
-    public CompletionStage<EndpointBinding> resolve(Endpoint endpoint, @Nullable String sniHostname) {
-        var lcr = this.listeningChannels.get(endpoint);
-        if (lcr == null || lcr.unbindingStage().get() != null) {
-            return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching", endpoint, sniHostname));
+    public CompletionStage<EndpointBinding> resolve(Channel channel, @Nullable String sniHostname) {
+        var acceptorChannel = channel.parent();
+        if (acceptorChannel == null) {
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException("Channel has no parent (acceptor): " + channel));
         }
 
-        return lcr.bindingStage().thenApply(acceptorChannel -> {
-            var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
-            if (bindings == null || bindings.get() == null) {
-                throw buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname);
+        var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
+        if (bindings == null || bindings.get() == null) {
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel));
+        }
+
+        var bindingMap = bindings.get();
+        var acceptorPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
+
+        var candidateGateways = bindingMap.values().stream().map(EndpointBinding::endpointGateway).distinct().toList();
+        var match = new ChannelAddressingSpec(candidateGateways).identify(acceptorPort, sniHostname);
+        if (match.isEmpty()) {
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+        }
+
+        var gateway = match.get().gateway();
+        EndpointBinding binding = switch (match.get().target()) {
+            case AddressingSpec.Target.Bootstrap ignored -> bindingMap.get(new ProxyNodeId.Bootstrap(gateway));
+            case AddressingSpec.Target.Node(int nodeId) -> {
+                var existing = bindingMap.get(new ProxyNodeId.Broker(gateway, nodeId));
+                yield existing != null ? existing : new MetadataDiscoveryBrokerEndpointBinding(gateway, nodeId);
             }
-            // We first look for a binding matching by SNI name, then fallback to a null match.
-            var binding = bindings.get().getOrDefault(RoutingKey.createBindingKey(sniHostname), bindings.get().get(RoutingKey.NULL_ROUTING_KEY));
-            if (binding == null) {
-                // If there is an SNI name that matches against the virtual cluster broker address pattern, we generate
-                // a restricted broker binding that points at the virtual cluster's bootstrap.
-                if (sniHostname != null) {
-                    Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId = findBootstrapBindings(endpoint, sniHostname, bindings);
-                    var size = bootstrapToBrokerId.size();
-                    if (size > 1) {
-                        throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
-                                "as it matches the broker address pattern of more than one virtual cluster",
-                                buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname));
-                    }
-                    else if (size == 1) {
-                        return buildBootstrapBinding(bootstrapToBrokerId);
-                    }
-                }
-                throw buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname);
-            }
-            return binding;
-        });
-    }
+            case AddressingSpec.Target.NotRecognised ignored -> throw new IllegalStateException(
+                    "ChannelAddressingSpec matched a candidate with target NotRecognised, which should be impossible");
+        };
 
-    private static EndpointBinding buildBootstrapBinding(Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId) {
-        var e = bootstrapToBrokerId.entrySet().iterator().next();
-        var bootstrapBinding = e.getKey();
-        var nodeId = e.getValue();
-        return new MetadataDiscoveryBrokerEndpointBinding(bootstrapBinding.endpointGateway(), nodeId);
-    }
-
-    private HashMap<BootstrapEndpointBinding, Integer> findBootstrapBindings(Endpoint endpoint,
-                                                                             String sniHostname,
-                                                                             Attribute<Map<RoutingKey, EndpointBinding>> bindings) {
-        var allBindingsForPort = bindings.get().values();
-        var brokerAddress = new HostPort(sniHostname, endpoint.port());
-        var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
-        return allBootstrapBindings.stream()
-                .collect(HashMap::new, (m, b) -> {
-                    var nodeId = b.endpointGateway().getBrokerIdFromBrokerAddress(brokerAddress);
-                    if (nodeId != null) {
-                        m.put(b, nodeId);
-                    }
-                }, HashMap::putAll);
-    }
-
-    private List<BootstrapEndpointBinding> getAllBootstrapBindings(Collection<EndpointBinding> allBindingsForPort) {
-        return allBindingsForPort.stream()
-                .filter(BootstrapEndpointBinding.class::isInstance)
-                .map(BootstrapEndpointBinding.class::cast)
-                .toList();
-    }
-
-    private EndpointResolutionException buildEndpointResolutionException(String prefix,
-                                                                         Endpoint endpoint,
-                                                                         @Nullable String sniHostname) {
-        return new EndpointResolutionException(
-                "%s binding address: %s, port: %d, sniHostname: %s, tls: %b".formatted(prefix,
-                        endpoint.bindingAddress().orElse("<any>"),
-                        endpoint.port(),
-                        sniHostname == null ? "<none>" : sniHostname,
-                        endpoint.tls()));
+        if (binding == null) {
+            return CompletableFuture.failedStage(
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+        }
+        return CompletableFuture.completedStage(binding);
     }
 
     /**

@@ -64,9 +64,9 @@ import io.kroxylicious.proxy.internal.VirtualClusterRegistry;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
-import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
+import io.kroxylicious.proxy.internal.net.ProxyNodeId;
 import io.kroxylicious.proxy.internal.reload.ConfigurationReloadOrchestrator;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -346,11 +346,16 @@ public final class KafkaProxy implements AutoCloseable {
                     Stream.concat(Stream.of(managementFuture),
                             virtualClusterModels.stream()
                                     .flatMap(vc -> vc.gateways().values().stream())
-                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
+                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl)
+                                            .thenRun(() -> vcl.bindPortResolver(endpointRegistry::resolvePort))
+                                            .toCompletableFuture()))
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            virtualClusterModels.forEach(model -> virtualClusterRegistry.initializationSucceeded(model.getClusterName()));
+            virtualClusterModels.forEach(model -> {
+                model.logVirtualClusterSummary();
+                virtualClusterRegistry.initializationSucceeded(model.getClusterName());
+            });
 
             STARTUP_SHUTDOWN_LOGGER.atInfo()
                     .log("Kroxylicious is started");
@@ -645,18 +650,30 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
-     * Returns the actual local port that the proxy is listening on for the given bind address and configured port.
-     * Useful when the configured port is {@link EndpointRegistry#OS_ASSIGNED_PORT} (meaning the OS assigns an ephemeral port at startup).
-     * Must only be called after a successful {@link #startup()}.
+     * Returns the actual advertised bootstrap address for the given virtual cluster and gateway.
+     * When the gateway was configured with port 0 (OS-assigned), this returns the actual bound port
+     * rather than the configured port. Must only be called after a successful {@link #startup()}.
      *
-     * @param bindAddress the bind address used in the proxy configuration, or {@code null} for any-address bindings
-     * @param port the port number used in the proxy configuration (e.g. {@link EndpointRegistry#OS_ASSIGNED_PORT} for OS-assigned)
-     * @return the actual local port the proxy is listening on
+     * @param virtualClusterName name of the virtual cluster
+     * @param gatewayName name of the gateway within that cluster
+     * @return the bootstrap address as reported by the running gateway
+     * @throws IllegalArgumentException if the virtual cluster or gateway is not found
      */
-    @SuppressWarnings("SameParameterValue") // the parameters allow us to call idempotently
-    @VisibleForTesting
-    int listeningPort(@Nullable String bindAddress, int port) {
-        return endpointRegistry.localPortFor(Endpoint.createEndpoint(Optional.ofNullable(bindAddress), port, false));
+    public HostPort getBootstrapAddress(String virtualClusterName, String gatewayName) {
+        var model = virtualClusterRegistry.modelFor(virtualClusterName);
+        if (model == null) {
+            throw new IllegalArgumentException("Virtual cluster not found: " + virtualClusterName);
+        }
+        var gateway = model.gateways().get(gatewayName);
+        if (gateway == null) {
+            throw new IllegalArgumentException("Gateway '" + gatewayName + "' not found in virtual cluster '" + virtualClusterName + "'");
+        }
+        var address = gateway.getClusterBootstrapAddress();
+        if (address.port() == 0) {
+            int resolvedPort = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(gateway));
+            return new HostPort(address.host(), resolvedPort);
+        }
+        return address;
     }
 
     @Override

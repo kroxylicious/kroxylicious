@@ -47,7 +47,7 @@ public class PortConflictDetector {
 
     private record CandidateBinding(EndpointGateway gateway, int port, BindAddress bindAddress, BindingScope scope) {
         void validateNonConflicting(CandidateBinding other) {
-            if (this.port == other.port && bindAddress.overlaps(other.bindAddress)) {
+            if (this.port == other.port && this.port != 0 && bindAddress.overlaps(other.bindAddress)) {
                 if (scope == BindingScope.EXCLUSIVE || other.scope == BindingScope.EXCLUSIVE) {
                     throw conflictException(other, "exclusive port collision");
                 }

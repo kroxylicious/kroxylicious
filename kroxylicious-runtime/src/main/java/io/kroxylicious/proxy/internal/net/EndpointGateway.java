@@ -17,8 +17,6 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * A gateway to an endpoint.
  */
@@ -34,9 +32,7 @@ public interface EndpointGateway {
      * @return target cluster
      * @throws UnsupportedOperationException if this gateway's virtual cluster uses dynamic routing
      */
-    default TargetCluster targetCluster() {
-        throw new UnsupportedOperationException();
-    }
+    TargetCluster targetCluster();
 
     /**
      * true if this listener uses TLS.
@@ -102,20 +98,6 @@ public interface EndpointGateway {
     Map<Integer, HostPort> discoveryAddressMap();
 
     /**
-     * Generates the node id implied by the given broker address (advertised hostname and bind port).
-     * This method make sense only for implementation that embed node id information into the broker
-     * address.  This information is used at startup time to allow a client that already in possession
-     * of a broker address to reconnect to the cluster via Kroxylicious using only that address.
-     * <br/>
-     * This is an optional method. An implementation can return null.
-     *
-     * @param brokerAddress broker address
-     * @return broker id
-     */
-    @Nullable
-    Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress);
-
-    /**
      * Get the gateways name
      * @return name
      */
@@ -126,18 +108,14 @@ public interface EndpointGateway {
      *
      * @return the binding spec
      */
-    default BindingSpec bindingSpec() {
-        throw new UnsupportedOperationException();
-    }
+    BindingSpec bindingSpec();
 
     /**
      * The addressing specification used to identify the target of an incoming connection.
      *
      * @return the addressing spec
      */
-    default AddressingSpec addressingSpec() {
-        throw new UnsupportedOperationException();
-    }
+    AddressingSpec addressingSpec();
 
     /**
      * Resolves the actual bound port for the given virtual node.
@@ -146,9 +124,7 @@ public interface EndpointGateway {
      * @return the actual bound port
      * @throws IllegalStateException if the port cannot be resolved (e.g. port 0 before binding)
      */
-    default int resolvePort(ProxyNodeId virtualNodeId) {
-        throw new UnsupportedOperationException();
-    }
+    int resolvePort(ProxyNodeId virtualNodeId);
 
     /**
      * Binds the port resolver used by {@link #resolvePort(ProxyNodeId)}.
