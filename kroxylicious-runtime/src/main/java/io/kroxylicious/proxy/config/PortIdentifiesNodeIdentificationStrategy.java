@@ -105,8 +105,7 @@ public class PortIdentifiesNodeIdentificationStrategy
         this.computedAdvertisedBrokerAddressPattern = advertisedBrokerAddressPattern != null ? advertisedBrokerAddressPattern : bootstrapAddress.host();
         verifyNodeAddressPattern(this.computedAdvertisedBrokerAddressPattern);
         this.nodeStartPort = nodeStartPort;
-        this.computedNodeStartPort = nodeStartPort != null ? nodeStartPort
-                : (isOsAssigned(bootstrapAddress.port()) ? 0 : bootstrapAddress.port() + 1);
+        this.computedNodeStartPort = computeNodeStartPort(bootstrapAddress, nodeStartPort);
         if (this.computedNodeStartPort < 0) {
             throw new IllegalArgumentException("nodeStartPort cannot be negative");
         }
@@ -130,6 +129,10 @@ public class PortIdentifiesNodeIdentificationStrategy
         var allExclusivePorts = new HashSet<>(nodeIdToPort.values());
         allExclusivePorts.add(bootstrapAddress.port());
         this.exclusivePorts = Collections.unmodifiableSet(allExclusivePorts);
+    }
+
+    private static int computeNodeStartPort(HostPort bootstrapAddress, @Nullable Integer nodeStartPort) {
+        return Objects.requireNonNullElseGet(nodeStartPort, () -> isOsAssigned(bootstrapAddress.port()) ? 0 : bootstrapAddress.port() + 1);
     }
 
     private static void verifyNodeAddressPattern(String advertisedBrokerAddressPattern) {

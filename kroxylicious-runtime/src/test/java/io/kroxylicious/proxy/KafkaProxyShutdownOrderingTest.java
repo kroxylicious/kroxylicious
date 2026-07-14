@@ -126,7 +126,7 @@ class KafkaProxyShutdownOrderingTest {
     }
 
     @Test
-    void shouldBindPortResolverToGatewaysAfterStartup() throws Exception {
+    void shouldBindPortResolverToGatewaysAfterStartup() {
         // Given
         var config = """
                 virtualClusters:
@@ -163,7 +163,7 @@ class KafkaProxyShutdownOrderingTest {
     }
 
     @Test
-    void shouldReturnActualBoundPortFromGetBootstrapAddress() throws Exception {
+    void shouldReturnActualBoundPortFromGetBootstrapAddress() {
         // Given - proxy configured with OS-assigned port
         var config = """
                 virtualClusters:
@@ -194,7 +194,7 @@ class KafkaProxyShutdownOrderingTest {
     }
 
     @Test
-    void shouldThrowForUnknownVirtualClusterInGetBootstrapAddress() throws Exception {
+    void shouldThrowForUnknownVirtualClusterInGetBootstrapAddress() {
         // Given
         var config = """
                 virtualClusters:
@@ -224,7 +224,7 @@ class KafkaProxyShutdownOrderingTest {
     }
 
     @Test
-    void shouldThrowForUnknownGatewayInGetBootstrapAddress() throws Exception {
+    void shouldThrowForUnknownGatewayInGetBootstrapAddress() {
         // Given
         var config = """
                 virtualClusters:

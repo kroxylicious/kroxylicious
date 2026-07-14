@@ -295,16 +295,11 @@ class DefaultKroxyliciousTesterTest {
             tester.admin(VIRTUAL_CLUSTER_B);
             tester.admin(VIRTUAL_CLUSTER_C);
             // The doNothing is required so the try-with-resources block completes successfully
-            doThrow(new IllegalStateException(EXCEPTION_MESSAGE)).doNothing().when(kroxyliciousClientsA).close();
+            IllegalStateException failureReason = new IllegalStateException(EXCEPTION_MESSAGE);
+            doThrow(failureReason).doNothing().when(kroxyliciousClientsA).close();
 
             // When
-            try {
-                tester.close();
-                fail("Expected tester to re-throw");
-            }
-            catch (RuntimeException re) {
-                // not my problem
-            }
+            assertThatThrownBy(tester::close).hasCause(failureReason);
 
             // Then
             verify(kroxyliciousClientsA).close();
@@ -330,7 +325,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForEvictsOnlyTheNamedClustersClients() {
         // Given — touch every cluster so each has a cached KroxyliciousClients in the tester.
@@ -368,7 +362,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForIsNoOpWhenClusterHasNoCachedClient() {
         try (var tester = buildTester()) {
@@ -384,7 +377,6 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Test
     void closeClientsForSurfacesCloseFailureAsIllegalStateException() {
         // Given — cluster A's cached client throws on close. doNothing on the second
@@ -661,7 +653,7 @@ class DefaultKroxyliciousTesterTest {
     @Test
     void shouldReturnActualBoundPortFromGetBootstrapAddress() {
         // Given - embedded proxy with OS-assigned port (port=0)
-        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap))) {
+        try (var tester = KroxyliciousTesters.mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
             // When
             var address = tester.getBootstrapAddress();
 

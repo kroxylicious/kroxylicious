@@ -78,7 +78,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class EndpointRegistry implements EndpointReconciler, EndpointBindingResolver, AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(EndpointRegistry.class);
-    public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
+    public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for channel";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
 
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
@@ -381,8 +381,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                             nodeSpecificBindings.forEach(creations::remove);
                             return allOfStage(nodeSpecificBindings.stream()
                                     .filter(eb -> !allBrokerIds.contains(eb.nodeId()))
-                                    .peek(eb -> virtualNodeIndex.remove(new ProxyNodeId.Broker(virtualClusterModel, eb.nodeId())))
-                                    .map(eb -> deregisterBinding(virtualClusterModel, eb::equals)));
+                                    .map(eb -> {
+                                        virtualNodeIndex.remove(new ProxyNodeId.Broker(virtualClusterModel, eb.nodeId()));
+                                        return deregisterBinding(virtualClusterModel, eb::equals);
+                                    }));
                         })));
 
         // chain any binding registrations and organise for the reconciliations entry to complete
@@ -458,7 +460,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         if (record == null) {
             throw new IllegalStateException("No binding found for virtual node " + vn);
         }
-        return ((InetSocketAddress) record.bindingStage().toCompletableFuture().join().localAddress()).getPort();
+        return requireInetSocketAddress(record.bindingStage().toCompletableFuture().join()).getPort();
     }
 
     private void removeVirtualNodeEntries(EndpointGateway gateway) {
@@ -512,11 +514,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
         return lcr.bindingStage().thenApply(acceptorChannel -> {
             virtualNodeIndex.put(nodeId, lcr);
-            int actualPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
-            switch (nodeId) {
-                case ProxyNodeId.Broker broker -> broker.gateway().bindingSpec().registerBoundPort(broker.nodeId(), actualPort);
-                case ProxyNodeId.Bootstrap bootstrap -> bootstrap.gateway().bindingSpec().registerBoundBootstrapPort(actualPort);
-            }
+            notifyBoundPort(nodeId, acceptorChannel);
             synchronized (lcr) {
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
@@ -554,6 +552,14 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 return key;
             }
         });
+    }
+
+    private static void notifyBoundPort(ProxyNodeId nodeId, Channel acceptorChannel) {
+        int actualPort = requireInetSocketAddress(acceptorChannel).getPort();
+        switch (nodeId) {
+            case ProxyNodeId.Broker(var gateway, int brokerNodeId) -> gateway.bindingSpec().registerBoundPort(brokerNodeId, actualPort);
+            case ProxyNodeId.Bootstrap(var gateway) -> gateway.bindingSpec().registerBoundBootstrapPort(actualPort);
+        }
     }
 
     @SuppressWarnings("java:S2445") // see registerBinding
@@ -609,23 +615,23 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         var acceptorChannel = channel.parent();
         if (acceptorChannel == null) {
             return CompletableFuture.failedStage(
-                    new EndpointResolutionException("Channel has no parent (acceptor): " + channel));
+                    new EndpointResolutionException("Channel has no parent (acceptor): %s".formatted(channel)));
         }
 
         var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
         if (bindings == null || bindings.get() == null) {
             return CompletableFuture.failedStage(
-                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel));
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " %s".formatted(acceptorChannel)));
         }
 
         var bindingMap = bindings.get();
-        var acceptorPort = ((InetSocketAddress) acceptorChannel.localAddress()).getPort();
+        var acceptorPort = requireInetSocketAddress(acceptorChannel).getPort();
 
         var candidateGateways = bindingMap.values().stream().map(EndpointBinding::endpointGateway).distinct().toList();
         var match = new ChannelAddressingSpec(candidateGateways).identify(acceptorPort, sniHostname);
         if (match.isEmpty()) {
             return CompletableFuture.failedStage(
-                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel %s sniHostname %s".formatted(acceptorChannel, sniHostname)));
         }
 
         var gateway = match.get().gateway();
@@ -641,7 +647,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
         if (binding == null) {
             return CompletableFuture.failedStage(
-                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel " + acceptorChannel + " sniHostname " + sniHostname));
+                    new EndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE + " channel %s sniHostname %s".formatted(acceptorChannel, sniHostname)));
         }
         return CompletableFuture.completedStage(binding);
     }
@@ -659,6 +665,13 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     @Override
     public void close() throws Exception {
         shutdown().toCompletableFuture().get();
+    }
+
+    private static InetSocketAddress requireInetSocketAddress(Channel channel) {
+        if (!(channel.localAddress() instanceof InetSocketAddress inet)) {
+            throw new IllegalStateException("Expected InetSocketAddress but got " + channel.localAddress());
+        }
+        return inet;
     }
 
     private static <T> CompletableFuture<Void> allOfStage(Stream<CompletionStage<T>> stageStream) {

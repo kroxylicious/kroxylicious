@@ -73,6 +73,7 @@ class EndpointRegistryTest {
     private EndpointGateway virtualClusterModel1;
     @Mock(strictness = LENIENT)
     private EndpointGateway virtualClusterModel2;
+    private final ProxyNodeId.Bootstrap vc1BootstrapNodeId = new ProxyNodeId.Bootstrap(virtualClusterModel1);
 
     @Test
     void registerVirtualCluster() throws Exception {
@@ -866,15 +867,12 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
     }
 
-    // resolvePort
-
     @Test
-    void shouldResolveBootstrapPortAfterRegistration() throws Exception {
+    void shouldResolveBootstrapPortAfterRegistration() {
         // Given
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
-        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        endpointRegistry.registerVirtualCluster(virtualClusterModel1);
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
-        assertThat(rf).isDone();
 
         // When
         var port = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1));
@@ -884,17 +882,15 @@ class EndpointRegistryTest {
     }
 
     @Test
-    void shouldResolveBrokerPortAfterReconciliation() throws Exception {
+    void shouldResolveBrokerPortAfterReconciliation() {
         // Given
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
-        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        endpointRegistry.registerVirtualCluster(virtualClusterModel1);
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BOOTSTRAP.port(), false));
-        assertThat(rf).isDone();
 
         when(virtualClusterModel1.getBrokerAddress(0)).thenReturn(DOWNSTREAM_BROKER_0);
-        var recf = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0)).toCompletableFuture();
+        endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, UPSTREAM_BROKER_0));
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(DOWNSTREAM_BROKER_0.port(), false));
-        assertThat(recf).isDone();
 
         // When
         var port = endpointRegistry.resolvePort(new ProxyNodeId.Broker(virtualClusterModel1, 0));
@@ -904,28 +900,27 @@ class EndpointRegistryTest {
     }
 
     @Test
-    void shouldResolveOsAssignedBootstrapPort() throws Exception {
-        // Given - bootstrap configured with port=0; OS assigns the actual port at bind time
+    void shouldResolveOsAssignedBootstrapPort() {
+        // Given
         int osAssignedPort = 58392;
         var bootstrapWithOsPort = new HostPort("bootstrap.kafka", 0);
         configureVirtualClusterMock(virtualClusterModel1, bootstrapWithOsPort, UPSTREAM_BOOTSTRAP, false);
 
-        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        endpointRegistry.registerVirtualCluster(virtualClusterModel1);
         var channelWithActualPort = createMockNettyChannel(osAssignedPort);
         verifyAndProcessNetworkEventQueue(
                 createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(channelWithActualPort)));
-        assertThat(rf).isDone();
 
         // When
         var port = endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1));
 
-        // Then - registry returns the actual OS-assigned port, not the configured 0
+        // Then
         assertThat(port).isEqualTo(osAssignedPort);
     }
 
     @Test
-    void shouldResolveOsAssignedPortsForBootstrapAndBrokers() throws Exception {
-        // Given - bootstrap and discovery brokers all configured with port=0
+    void shouldResolveOsAssignedPortsForBootstrapAndBrokers() {
+        // Given
         int bootstrapOsPort = 58392;
         int broker0OsPort = 58393;
         int broker1OsPort = 58394;
@@ -935,41 +930,37 @@ class EndpointRegistryTest {
         configureVirtualClusterMock(virtualClusterModel1, bootstrapAddress, UPSTREAM_BOOTSTRAP, false, false,
                 Map.of(0, broker0Address, 1, broker1Address), new FixedBootstrapSelectionStrategy(0));
 
-        var rf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
+        endpointRegistry.registerVirtualCluster(virtualClusterModel1);
         verifyAndProcessNetworkEventQueue(
                 createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(bootstrapOsPort))),
                 createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker0OsPort))),
                 createTestNetworkBindRequest(Optional.empty(), 0, false, CompletableFuture.completedFuture(createMockNettyChannel(broker1OsPort))));
-        assertThat(rf).isDone();
 
-        // When / Then - each virtual node resolves to its own distinct OS-assigned port
+        // When / Then
         assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(bootstrapOsPort);
         assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Broker(virtualClusterModel1, 0))).isEqualTo(broker0OsPort);
         assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Broker(virtualClusterModel1, 1))).isEqualTo(broker1OsPort);
     }
 
     @Test
-    void shouldShareChannelForSniGatewaysWithPortZero() throws Exception {
-        // Given - two SNI gateways both configured with port=0
+    void shouldShareChannelForSniGatewaysWithPortZero() {
+        // Given
         var sniBootstrap1 = new HostPort("vc1.kafka", 0);
         var sniBootstrap2 = new HostPort("vc2.kafka", 0);
         configureVirtualClusterMock(virtualClusterModel1, sniBootstrap1, UPSTREAM_BOOTSTRAP, true);
         configureVirtualClusterMock(virtualClusterModel2, sniBootstrap2, UPSTREAM_BOOTSTRAP, true);
 
-        // When
         int osAssignedPort = 58400;
-        var rf1 = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
-        var rf2 = endpointRegistry.registerVirtualCluster(virtualClusterModel2).toCompletableFuture();
+        endpointRegistry.registerVirtualCluster(virtualClusterModel1);
+        endpointRegistry.registerVirtualCluster(virtualClusterModel2);
 
-        // Then - only ONE bind request (shared channel), not two
+        // When
         var sharedChannel = createMockNettyChannel(osAssignedPort);
         verifyAndProcessNetworkEventQueue(
                 createTestNetworkBindRequest(Optional.empty(), 0, true, CompletableFuture.completedFuture(sharedChannel)));
-        assertThat(rf1).isDone();
-        assertThat(rf2).isDone();
-        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
 
-        // Both resolve to the same OS-assigned port
+        // Then
+        assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(1);
         assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1))).isEqualTo(osAssignedPort);
         assertThat(endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel2))).isEqualTo(osAssignedPort);
     }
@@ -979,7 +970,7 @@ class EndpointRegistryTest {
         // Given - virtualClusterModel1 has never been registered
 
         // When / Then
-        assertThatThrownBy(() -> endpointRegistry.resolvePort(new ProxyNodeId.Bootstrap(virtualClusterModel1)))
+        assertThatThrownBy(() -> endpointRegistry.resolvePort(vc1BootstrapNodeId))
                 .isInstanceOf(IllegalStateException.class);
     }
 
