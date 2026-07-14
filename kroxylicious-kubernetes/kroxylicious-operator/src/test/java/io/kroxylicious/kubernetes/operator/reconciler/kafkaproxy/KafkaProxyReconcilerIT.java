@@ -30,8 +30,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -126,8 +124,6 @@ import static org.awaitility.Awaitility.await;
 @EnabledIf(value = "io.kroxylicious.testing.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 @SuppressWarnings("java:S8692") // ITs run against a live API server; a fixed clock would be misleading since time is not controlled
 public class KafkaProxyReconcilerIT {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconcilerIT.class);
 
     private static final String PROXY_A = "proxy-a";
     private static final String PROXY_B = "proxy-b";

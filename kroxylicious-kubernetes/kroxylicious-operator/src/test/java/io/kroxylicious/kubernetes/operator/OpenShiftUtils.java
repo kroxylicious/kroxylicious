@@ -41,8 +41,9 @@ public final class OpenShiftUtils {
      * <p>
      * Real OpenShift has the IngressController API and an instance called {@code default}
      * in the {@code openshift-ingress-operator} namespace. MicroShift has the API but no
-     * instances or namespace. Minikube has neither. Falls back to
-     * {@link #DEFAULT_INGRESS_CONTROLLER_DOMAIN} when detection fails.
+     * instances or namespace. Minikube has neither. The Fabric8 {@code #get} API treats
+     * absence of resource/namespace/API in the same manner (all return {@code null}).
+     * Falls back to {@link #DEFAULT_INGRESS_CONTROLLER_DOMAIN} when detection fails.
      */
     public static String getDefaultIngressControllerDomain() {
         IngressController defaultIngressController;
