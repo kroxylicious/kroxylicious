@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -53,6 +54,10 @@ public class DynamicProduceRouterFactory
                                                              ApiMessage request,
                                                              RouterContext ctx) {
                 var node = ctx.anyNode(route);
+                if (request instanceof ProduceRequestData pd && pd.acks() == 0) {
+                    return ctx.sendRequest(node, header, request)
+                            .thenCompose(ignored -> ctx.respondWithoutReply().completed());
+                }
                 return ctx.sendRequest(node, header, request)
                         .thenCompose(body -> ctx.respondWith(body).completed());
             }
