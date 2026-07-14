@@ -4,11 +4,13 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.routing;
+package io.kroxylicious.proxy.internal;
 
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -146,5 +148,23 @@ class CorrelationIdAllocatorTest {
 
         // Then
         assertThat(allocated).containsExactly(3, 4, 5, 3);
+    }
+
+    @CsvSource({
+            "1,2,1,true",
+            "1,2,2,false",
+            "1,2,0,false",
+            "-3,-1,-3,true",
+            "-3,-1,-4,false",
+            "-3,-1,-2,true",
+            "-3,-1,-1,false"
+    })
+    @ParameterizedTest
+    void inRange(int minInc, int maxExc, int candidate, boolean expected) {
+        // Given
+        CorrelationIdAllocator allocator = new CorrelationIdAllocator(minInc, maxExc);
+
+        // Then
+        assertThat(allocator.inRange(candidate)).isEqualTo(expected);
     }
 }

@@ -33,6 +33,8 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ClientConnectionStateMachine;
+import io.kroxylicious.proxy.internal.CorrelationIdAllocator;
+import io.kroxylicious.proxy.internal.CorrelationIdSpace;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 import io.kroxylicious.proxy.router.Router;
 import io.kroxylicious.proxy.service.HostPort;
@@ -47,10 +49,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <p>Statically-routed requests are forwarded directly to the
  * {@link ClientConnectionStateMachine}. Dynamically-routed requests are
  * deserialised and dispatched to {@link Router#onRequest}.
- *
- * <p>Implements {@link RoutingResponseCallback} so that the CCSM can deliver
- * backend responses to pending dynamic-routing futures before forwarding them
- * to the client.
  *
  * <p>The {@link #write} override applies node ID translation for statically-routed
  * API keys whose responses carry broker node IDs.
@@ -74,9 +72,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
             ApiKeys.SHARE_ACKNOWLEDGE,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
-    private static final int ROUTING_ID_RANGE_START_INC = Integer.MIN_VALUE / 2;
-    private static final int ROUTING_ID_RANGE_END_EXC = 0;
-
     private final Router router;
     final Map<String, RouteDescriptor> routes;
     private final Map<ApiKeys, String> staticRoutes;
@@ -92,13 +87,10 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     final Map<Integer, PendingResponse> pendingResponses = new HashMap<>();
 
-    private final CorrelationIdAllocator nextRoutingCorrelationId = new CorrelationIdAllocator(ROUTING_ID_RANGE_START_INC, ROUTING_ID_RANGE_END_EXC);
+    private final CorrelationIdAllocator correlationIdAllocator = CorrelationIdSpace.createRouterAllocator();
 
     @Nullable
     private ResponseSequencer responseSequencer;
-
-    @Nullable
-    private ChannelHandlerContext ctx;
 
     @Nullable
     private EventExecutor eventExecutor;
@@ -124,7 +116,6 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
-        this.ctx = ctx;
         this.eventExecutor = ctx.executor();
     }
 
@@ -256,15 +247,11 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         ccsm.onRoutedRequestComplete();
     }
 
-    public static boolean isRoutingCorrelationId(int correlationId) {
-        return correlationId >= ROUTING_ID_RANGE_START_INC && correlationId < ROUTING_ID_RANGE_END_EXC;
-    }
-
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof DecodedResponseFrame<?> frame) {
             int correlationId = frame.correlationId();
-            if (isRoutingCorrelationId(correlationId)) {
+            if (correlationIdAllocator.inRange(correlationId)) {
                 PendingResponse pendingResponse = pendingResponses.remove(correlationId);
                 if (pendingResponse != null) {
                     NodeIdResponseTranslator.translate(frame.body(), frame.apiVersion(), nodeIdMapping, pendingResponse.route());
@@ -335,7 +322,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         }
 
         short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = nextRoutingCorrelationId.allocateId();
+        int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
         if (!frame.hasResponse()) {
@@ -381,7 +368,7 @@ public class RouterDispatchHandler extends ChannelDuplexHandler {
         }
 
         short requestApiVersion = header.requestApiVersion();
-        int routingCorrelationId = nextRoutingCorrelationId.allocateId();
+        int routingCorrelationId = correlationIdAllocator.allocateId();
         var frame = new DecodedRequestFrame<>(requestApiVersion, routingCorrelationId, true, header, request);
 
         CompletableFuture<ApiMessage> future = new CompletableFuture<>();

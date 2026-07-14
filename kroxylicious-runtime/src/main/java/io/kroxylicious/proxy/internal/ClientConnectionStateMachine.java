@@ -461,7 +461,7 @@ public class ClientConnectionStateMachine {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
         if (!routerActive
                 || !(msg instanceof DecodedResponseFrame<?> frame)
-                || !RouterDispatchHandler.isRoutingCorrelationId(frame.correlationId())) {
+                || !CorrelationIdSpace.isRoutingCorrelationId(frame.correlationId())) {
             decrementInFlightCount();
         }
     }

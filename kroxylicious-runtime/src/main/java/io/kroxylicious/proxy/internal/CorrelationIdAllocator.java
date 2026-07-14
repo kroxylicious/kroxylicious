@@ -4,11 +4,12 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.routing;
+package io.kroxylicious.proxy.internal;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kroxylicious.proxy.tag.ThreadSafe;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
  * Allocates integer correlation IDs from a bounded circular range {@code [minInc, maxExc)}.
@@ -17,8 +18,8 @@ import io.kroxylicious.proxy.tag.ThreadSafe;
  * value reaches {@code maxExc - 1}, subsequent allocations wrap back to {@code minInc}.
  */
 @ThreadSafe
-class CorrelationIdAllocator {
-    private final AtomicInteger nextRoutingCorrelationId;
+public class CorrelationIdAllocator {
+    private final AtomicInteger nextCorrelationId;
     private final int minInc;
     private final int maxExc;
 
@@ -45,18 +46,18 @@ class CorrelationIdAllocator {
         this(new AtomicInteger(initial), minInc, maxExc);
     }
 
-    private CorrelationIdAllocator(AtomicInteger nextRoutingCorrelationId, int minInc, int maxExc) {
+    private CorrelationIdAllocator(AtomicInteger nextCorrelationId, int minInc, int maxExc) {
         if (minInc >= maxExc) {
             throw new IllegalArgumentException("Invalid min/max values: " + minInc + "/" + maxExc);
         }
-        int initial = nextRoutingCorrelationId.get();
+        int initial = nextCorrelationId.get();
         if (initial < minInc) {
             throw new IllegalArgumentException("start must be greater than or equal to " + minInc);
         }
         if (initial >= maxExc) {
             throw new IllegalArgumentException("start must be less than " + maxExc);
         }
-        this.nextRoutingCorrelationId = new AtomicInteger(initial);
+        this.nextCorrelationId = new AtomicInteger(initial);
         this.minInc = minInc;
         this.maxExc = maxExc;
     }
@@ -66,8 +67,31 @@ class CorrelationIdAllocator {
      *
      * @return the allocated correlation ID
      */
-    int allocateId() {
-        return nextRoutingCorrelationId.getAndUpdate(operand -> operand >= maxExc - 1 ? minInc : operand + 1);
+    public int allocateId() {
+        return nextCorrelationId.getAndUpdate(operand -> operand >= maxExc - 1 ? minInc : operand + 1);
     }
 
+    /**
+     * @param id id
+     * @return true if this id is part of the range this allocator will allocate from
+     */
+    public boolean inRange(int id) {
+        return minInc <= id && id < maxExc;
+    }
+
+    /**
+     * @return minimum allocatable id inclusive
+     */
+    @VisibleForTesting
+    int minInc() {
+        return minInc;
+    }
+
+    /**
+     * @return maximum allocatable id exclusive
+     */
+    @VisibleForTesting
+    int maxExc() {
+        return maxExc;
+    }
 }
