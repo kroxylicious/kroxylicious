@@ -69,7 +69,8 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
             }
             bind.addListener((ChannelFutureListener) channelFuture -> executorService.execute(() -> {
                 if (channelFuture.cause() != null) {
-                    future.completeExceptionally(channelFuture.cause());
+                    future.completeExceptionally(new RuntimeException(
+                            "bind to %s:%d failed".formatted(bindingAddress.orElse("<any>"), port), channelFuture.cause()));
                 }
                 else {
                     future.complete(channelFuture.channel());
