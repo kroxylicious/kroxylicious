@@ -57,9 +57,6 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.fabric8.openshift.api.model.Route;
-import io.fabric8.openshift.api.model.RouteBuilder;
-import io.fabric8.openshift.api.model.operator.v1.IngressController;
-import io.fabric8.openshift.api.model.operator.v1.IngressControllerStatus;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.CertificateRefBuilder;
@@ -91,7 +88,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
-import io.kroxylicious.kubernetes.operator.Annotations;
+import io.kroxylicious.kubernetes.operator.OpenShiftUtils;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.SecureConfigInterpolator;
 import io.kroxylicious.kubernetes.operator.TestKeyMaterial;
@@ -155,8 +152,6 @@ public class KafkaProxyReconcilerIT {
     public static final String TRUSTED_CAS_PEM = "trusted-cas.pem";
     public static final String PROTOCOL_TLS_V1_3 = "TLSv1.3";
     public static final String TLS_CIPHER_SUITE_AES256GCM_SHA384 = "TLS_AES_256_GCM_SHA384";
-    // Default ingress controller domain used if we can't detect it from the platform (CRC/MicroShift).
-    public static final String DEFAULT_INGRESS_CONTROLLER_DOMAIN = "apps.crc.testing";
 
     @RegisterExtension
     static LocalKroxyliciousOperatorExtension operator = LocalKroxyliciousOperatorExtension.builder()
@@ -905,10 +900,10 @@ public class KafkaProxyReconcilerIT {
 
     @Test
     void virtualClusterWithOpenshiftRouteIngress() {
-        assumeThat(supportsRoute()).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
+        assumeThat(OpenShiftUtils.supportsRoute()).withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
 
         // Given
-        var domain = getDefaultOpenShiftIngressControllerDomain();
+        var domain = OpenShiftUtils.getDefaultIngressControllerDomain();
         KafkaProxy proxy = clusterUser.create(kafkaProxy(PROXY_A));
         KafkaService kafkaService = updateStatusObservedGeneration(clusterUser.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
 
@@ -967,57 +962,6 @@ public class KafkaProxyReconcilerIT {
                 .sniHostIdentifiesNode()
                 .hasBootstrapAddress(new HostPort(routeBootstrap, proxyListenPort).toString())
                 .hasAdvertisedBrokerAddressPattern(new HostPort(routeBrokerAddressPattern, clientFacingPort).toString()));
-    }
-
-    @Test
-    void deploymentChecksumUpdatesWhenOpenshiftRouteHostAssigned() {
-        assumeThat(supportsRoute())
-                .withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
-
-        // Given
-        KafkaProxy proxy = clusterUser.create(kafkaProxy(PROXY_A));
-        KafkaService kafkaService = updateStatusObservedGeneration(
-                clusterUser.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)), CLUSTER_BAR_BOOTSTRAP);
-
-        String ingressName = "openshiftroute";
-        KafkaProxyIngress openshiftRouteIngress = updateStatusObservedGeneration(
-                clusterUser.create(openshiftRouteIngress(ingressName, proxy)));
-
-        Secret tlsCert = clusterUser.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
-
-        Ingresses clusterIngress = new IngressesBuilder()
-                .withIngressRef(toIngressRef(openshiftRouteIngress))
-                .withNewTls().withCertificateRef(toCertificateRef(tlsCert)).endTls()
-                .build();
-        VirtualKafkaCluster cluster = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService,
-                List.of(clusterIngress), Optional.empty());
-        updateStatusObservedGeneration(clusterUser.create(cluster));
-
-        String bootstrapRouteName = name(cluster) + "-bootstrap";
-        AWAIT.alias("bootstrap route created").untilAsserted(() -> assertThat(clusterUser.get(Route.class, bootstrapRouteName)).isNotNull());
-
-        String initialChecksum = deploymentPodTemplateChecksum(proxy);
-
-        // When - OpenShift assigns a host to the bootstrap route
-        // Use updateStatus to re-fetch the latest resourceVersion, because the OpenShift
-        // ingress controller may have modified the Route since we last read it.
-        externalOperator.updateStatus(Route.class, bootstrapRouteName, route -> new RouteBuilder(route)
-                .withNewStatus()
-                .addNewIngress().withHost(bootstrapRouteName + ".apps-crc.testing").endIngress()
-                .endStatus()
-                .build());
-
-        // Then - deployment pod template checksum should change so the proxy is restarted
-        AWAIT.alias("deployment checksum updated after route host assignment")
-                .untilAsserted(() -> assertThat(deploymentPodTemplateChecksum(proxy)).isNotEqualTo(initialChecksum));
-    }
-
-    private String deploymentPodTemplateChecksum(KafkaProxy proxy) {
-        var deployment = clusterUser.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
-        assertThat(deployment).isNotNull();
-        return Optional.ofNullable(deployment.getSpec().getTemplate().getMetadata().getAnnotations())
-                .map(annotations -> annotations.get(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY))
-                .orElse(null);
     }
 
     private void assertRouteManifested(String routeName, boolean isBootstrap, KafkaProxy proxy, String serviceName, int targetPort) {
@@ -1205,42 +1149,6 @@ public class KafkaProxyReconcilerIT {
                 .withIngressRef(toIngressRef(kafkaProxyIngress));
         Optional.ofNullable(serverCert).ifPresent(sc -> builder.withNewTls().withCertificateRef(toCertificateRef(sc)).endTls());
         return builder.build();
-    }
-
-    /**
-     * Gets the domain for the default openshift ingress controller.
-     * Assumes that tests are running on openshift and the cluster is running in the default state (single openshift ingress
-     * controller serving the entire cluster).
-     *
-     * @return ingress controller domain
-     */
-    private String getDefaultOpenShiftIngressControllerDomain() {
-        String ingressControllerName = "default";
-        String ingressControllerNamespace = "openshift-ingress-operator";
-
-        // Note: Real OpenShift has the IngressController API and an instance called `default` in the `openshift-ingress-operator` namespace
-        // MicroShift has the IngressController API, but no instances of the API, or a namespace of that name.
-        // Minikube has neither API nor namespace.
-        // The Fabric8 #get API treats absence of resource/namespace/api in the same manner (all return null).
-        IngressController defaultIngressController;
-        try (var client = new KubernetesClientBuilder().build()) {
-            defaultIngressController = client.resources(IngressController.class)
-                    .inNamespace(ingressControllerNamespace).withName(ingressControllerName).get();
-        }
-
-        return Optional.ofNullable(defaultIngressController)
-                .map(IngressController::getStatus)
-                .map(IngressControllerStatus::getDomain)
-                .orElseGet(() -> {
-                    LOGGER.warn("Couldn't programmatically determine OpenShiftIngressController domain, using test default: {}", DEFAULT_INGRESS_CONTROLLER_DOMAIN);
-                    return DEFAULT_INGRESS_CONTROLLER_DOMAIN;
-                });
-    }
-
-    private static boolean supportsRoute() {
-        try (var client = new KubernetesClientBuilder().build()) {
-            return client.supports(Route.class);
-        }
     }
 
     private void assertDeploymentBecomesReady(KafkaProxy proxy) {
