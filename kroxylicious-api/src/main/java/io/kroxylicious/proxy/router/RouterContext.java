@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.router;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -58,6 +59,36 @@ public interface RouterContext {
      * @return the endpoint type for this connection
      */
     EndpointType endpoint();
+
+    /**
+     * Returns the virtual node for this connection, if the client connected to a
+     * broker-specific endpoint.
+     *
+     * @return the virtual node, or empty if the client connected to a bootstrap address
+     * @deprecated since 0.23, use {@link #endpoint()} and pattern-match on
+     *     {@link io.kroxylicious.proxy.topology.VirtualNode VirtualNode} instead.
+     *     This method will be removed in a future release.
+     */
+    @Deprecated(since = "0.23", forRemoval = true)
+    default Optional<VirtualNode> virtualNode() {
+        EndpointType ep = endpoint();
+        return ep instanceof VirtualNode vn ? Optional.of(vn) : Optional.empty();
+    }
+
+    /**
+     * Returns a virtual node for dispatch to any broker on the named route.
+     *
+     * @param route the route name
+     * @return a virtual node (always throws — this method is removed)
+     * @deprecated since 0.23, use {@link #sendToRoute(String, RequestHeaderData, ApiMessage)}
+     *     instead. This method will be removed in a future release.
+     * @throws UnsupportedOperationException always
+     */
+    @Deprecated(since = "0.23", forRemoval = true)
+    default VirtualNode anyNode(String route) {
+        throw new UnsupportedOperationException(
+                "anyNode() is removed; use sendToRoute(route, header, request) instead");
+    }
 
     /**
      * Converts an integer node ID from a protocol response body into a
