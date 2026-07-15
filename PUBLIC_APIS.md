@@ -37,9 +37,7 @@ with Kroxylicious.
 
 ## 2. Kubernetes APIs (Custom Resource Definitions)
 
-Location: `kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/`
-
-The Kubernetes CRDs define the declarative API for operating Kroxylicious on Kubernetes. The schema structure defined in the YAML files and the corresponding Java model classes are public APIs.
+The Kubernetes CRDs define the declarative API for operating Kroxylicious on Kubernetes. The schema structure defined in the YAML files are public APIs.
 
 ### 2.1 CRDs (v1alpha1)
 
@@ -132,7 +130,7 @@ The following authorizer providers are maintained as first-party implementations
 
 ## 9. Management API
 
-The Proxy's (optional) management endpoint offers prometheus formatted metrics at `/metrics`
+The Proxy's (optional) management endpoint offers prometheus formatted metrics at `/metrics`. It also offers `/livez` and `/healthz` to detect application liveness/readiness.
 
 ---
 
