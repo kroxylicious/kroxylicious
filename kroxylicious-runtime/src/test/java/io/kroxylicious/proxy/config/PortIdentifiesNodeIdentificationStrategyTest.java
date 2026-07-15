@@ -121,7 +121,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
                 .buildStrategy("cluster");
 
         // Then - all node bind addresses use port 0 (OS-assigned)
-        assertThat(spec.nodeBindAddresses().values()).allSatisfy(hp -> assertThat(hp.port()).isEqualTo(0));
+        assertThat(spec.nodeBindAddresses().values()).isNotEmpty().allSatisfy(hp -> assertThat(hp.port()).isZero());
     }
 
     @Test
@@ -137,9 +137,9 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
         // Then - all nodes map to port 0 (OS-assigned independently)
         assertThat(addresses).containsOnlyKeys(0, 1, 2);
-        assertThat(addresses.get(0).port()).isEqualTo(0);
-        assertThat(addresses.get(1).port()).isEqualTo(0);
-        assertThat(addresses.get(2).port()).isEqualTo(0);
+        assertThat(addresses.get(0).port()).isZero();
+        assertThat(addresses.get(1).port()).isZero();
+        assertThat(addresses.get(2).port()).isZero();
     }
 
     @Test
