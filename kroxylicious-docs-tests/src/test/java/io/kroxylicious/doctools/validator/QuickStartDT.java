@@ -187,7 +187,7 @@ class QuickStartDT {
                     try (var reader = new BufferedReader(new StringReader(block.content()))) {
                         writer.println("""
                                 echo "##############"
-                                echo "Code block source: %s (line %s), started ${SECONDS}"
+                                echo "Executing script block from %s:%d"
                                 """.formatted(block.asciiDocFile(), block.lineNumber()));
                         String line;
                         while ((line = reader.readLine()) != null) {
@@ -212,7 +212,7 @@ class QuickStartDT {
     record Quickstart(String name, Path path, Predicate<StructuralNode> selector) {}
 
     public static boolean isEnvironmentValid() {
-        return ShellUtils.validateToolsOnPath("minikube") && ShellUtils.validateKubeContext("minikube");
+        return ShellUtils.validateToolsOnPath("minikube");
     }
 
     private record ExecutionResult(int exitValue, Exception e) {}
