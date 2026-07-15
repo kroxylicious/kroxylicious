@@ -34,7 +34,7 @@ public class KroxyliciousOperator {
 
     /**
      * Sets additional environment variables on the operator pod.
-     * Only applies to YAML-based installations.
+     * For bundle-image OLM installs, env vars are not supported and will throw at install time.
      *
      * @param envVars environment variables to set
      * @return this
@@ -63,7 +63,7 @@ public class KroxyliciousOperator {
 
     private InstallationMethod createInstallationMethod() {
         if (Environment.INSTALL_TYPE == InstallType.Olm) {
-            return new KroxyliciousOperatorOlmBundleInstaller(installationNamespace);
+            return new KroxyliciousOperatorOlmBundleInstaller(installationNamespace, operatorEnvVars);
         }
         else {
             return new KroxyliciousOperatorYamlInstaller(installationNamespace, operatorEnvVars);
