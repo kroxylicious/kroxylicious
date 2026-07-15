@@ -11,26 +11,54 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import io.kroxylicious.proxy.config.RouterDefinition;
+import io.kroxylicious.proxy.config.VirtualCluster;
 
 /**
- * Tests whether any node in a router DAG satisfies a caller-supplied predicate.
+ * Tests whether any node in a cluster graph satisfies a caller-supplied predicate.
  * <p>
- * Each concern (changed router names, changed cluster definition names, …) is expressed
- * as a predicate rather than re-implementing traversal. This keeps graph walking in one
- * place as the number of hot-reload concern types grows.
+ * A virtual cluster always has a graph: either a trivial one (a single named cluster) or a
+ * router DAG. Each concern (changed router names, changed cluster definition names, …) is
+ * expressed as a predicate rather than re-implementing traversal.
  */
-final class RouterGraphAnyMatch {
+final class ClusterGraphTester {
 
-    private RouterGraphAnyMatch() {
+    private ClusterGraphTester() {
+    }
+
+    /**
+     * Returns {@code true} if any node reachable from {@code vc} in its cluster graph
+     * satisfies either predicate.
+     * <p>
+     * Handles the trivial single-cluster case ({@code namedTargetCluster}) and the router-DAG
+     * case transparently, so callers do not need to branch on the VC's target type.
+     *
+     * @param vc                   the virtual cluster whose graph is walked
+     * @param routersByName        all router definitions indexed by name
+     * @param routerNamePredicate  test applied to each visited router name
+     * @param clusterNamePredicate test applied to each named cluster at a leaf
+     */
+    static boolean anyInClusterGraph(VirtualCluster vc,
+                                     Map<String, RouterDefinition> routersByName,
+                                     Predicate<String> routerNamePredicate,
+                                     Predicate<String> clusterNamePredicate) {
+        String namedCluster = vc.namedTargetCluster();
+        if (namedCluster != null) {
+            return clusterNamePredicate.test(namedCluster);
+        }
+        String router = vc.router();
+        if (router != null) {
+            return anyInRouterGraph(router, routersByName, routerNamePredicate, clusterNamePredicate);
+        }
+        return false;
     }
 
     /**
      * Returns {@code true} if any node reachable from {@code routerName} in the router DAG
      * given as {@code routersByName} satisfies either predicate.
      *
-     * @param routerName          name of the entry-point router
-     * @param routersByName       all router definitions indexed by name
-     * @param routerNamePredicate test applied to each visited router name
+     * @param routerName           name of the entry-point router
+     * @param routersByName        all router definitions indexed by name
+     * @param routerNamePredicate  test applied to each visited router name
      * @param clusterNamePredicate test applied to each cluster name found at a route leaf
      */
     static boolean anyInRouterGraph(String routerName,

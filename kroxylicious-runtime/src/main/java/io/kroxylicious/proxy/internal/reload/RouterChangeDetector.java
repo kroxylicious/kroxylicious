@@ -94,9 +94,6 @@ final class RouterChangeDetector implements ChangeDetector {
     private static boolean transitivelyReferencesChangedRouter(VirtualCluster vc,
                                                                Map<String, RouterDefinition> routersByName,
                                                                Set<String> changedRouterNames) {
-        if (vc.router() == null) {
-            return false;
-        }
-        return RouterGraphAnyMatch.anyInRouterGraph(vc.router(), routersByName, changedRouterNames::contains, name -> false);
+        return ClusterGraphTester.anyInClusterGraph(vc, routersByName, changedRouterNames::contains, name -> false);
     }
 }

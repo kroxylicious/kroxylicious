@@ -57,13 +57,7 @@ final class ClusterDefinitionChangeDetector implements ChangeDetector {
                 // Removed — VirtualClusterChangeDetector will flag this as clustersToRemove.
                 continue;
             }
-            String namedTarget = newCluster.namedTargetCluster();
-            if (namedTarget != null && changedClusterNames.contains(namedTarget)) {
-                toModify.add(newCluster.name());
-            }
-            else if (newCluster.router() != null
-                    && RouterGraphAnyMatch.anyInRouterGraph(newCluster.router(), newRoutersByName,
-                            name -> false, changedClusterNames::contains)) {
+            if (ClusterGraphTester.anyInClusterGraph(newCluster, newRoutersByName, name -> false, changedClusterNames::contains)) {
                 toModify.add(newCluster.name());
             }
         }
