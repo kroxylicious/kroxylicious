@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.config.RouterDefinition;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class RouterGraphWalkerTest {
+class RouterGraphAnyMatchTest {
 
     @Test
     void returnsFalseWhenNeitherPredicateMatches() {
@@ -26,7 +26,7 @@ class RouterGraphWalkerTest {
         var routers = Map.of("r1", rd);
 
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, name -> false, name -> false)).isFalse();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, name -> false, name -> false)).isFalse();
     }
 
     @Test
@@ -36,7 +36,7 @@ class RouterGraphWalkerTest {
         var routers = Map.of("r1", rd);
 
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, "r1"::equals, name -> false)).isTrue();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, "r1"::equals, name -> false)).isTrue();
     }
 
     @Test
@@ -46,7 +46,7 @@ class RouterGraphWalkerTest {
         var routers = Map.of("r1", rd);
 
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, name -> false, "cluster-a"::equals)).isTrue();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, name -> false, "cluster-a"::equals)).isTrue();
     }
 
     @Test
@@ -56,7 +56,7 @@ class RouterGraphWalkerTest {
         var routers = Map.of("r1", rd);
 
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, name -> false, "cluster-b"::equals)).isFalse();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, name -> false, "cluster-b"::equals)).isFalse();
     }
 
     @Test
@@ -67,14 +67,14 @@ class RouterGraphWalkerTest {
         var routers = Map.of("r1", r1, "r2", r2);
 
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, name -> false, "cluster-deep"::equals)).isTrue();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, name -> false, "cluster-deep"::equals)).isTrue();
     }
 
     @Test
     void returnsFalseForUnknownEntryPointRouter() {
         // Given: empty router map
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("unknown", Map.of(), name -> false, name -> false)).isFalse();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("unknown", Map.of(), name -> false, name -> false)).isFalse();
     }
 
     @Test
@@ -86,7 +86,7 @@ class RouterGraphWalkerTest {
 
         // When: neither predicate ever matches
         // Then: terminates without StackOverflowError
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, name -> false, name -> false)).isFalse();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, name -> false, name -> false)).isFalse();
     }
 
     @Test
@@ -97,7 +97,7 @@ class RouterGraphWalkerTest {
         var routers = Map.of("r1", r1, "r2", r2);
 
         // When / Then
-        assertThat(RouterGraphWalker.anyInRouterGraph("r1", routers, Set.of("r2")::contains, name -> false)).isTrue();
+        assertThat(RouterGraphAnyMatch.anyInRouterGraph("r1", routers, Set.of("r2")::contains, name -> false)).isTrue();
     }
 
     // ---- fixture helpers ----

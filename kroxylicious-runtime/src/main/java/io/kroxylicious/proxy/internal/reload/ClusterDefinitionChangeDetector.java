@@ -62,7 +62,7 @@ final class ClusterDefinitionChangeDetector implements ChangeDetector {
                 toModify.add(newCluster.name());
             }
             else if (newCluster.router() != null
-                    && RouterGraphWalker.anyInRouterGraph(newCluster.router(), newRoutersByName,
+                    && RouterGraphAnyMatch.anyInRouterGraph(newCluster.router(), newRoutersByName,
                             name -> false, changedClusterNames::contains)) {
                 toModify.add(newCluster.name());
             }

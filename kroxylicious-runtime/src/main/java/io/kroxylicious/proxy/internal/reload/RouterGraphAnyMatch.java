@@ -13,20 +13,20 @@ import java.util.function.Predicate;
 import io.kroxylicious.proxy.config.RouterDefinition;
 
 /**
- * Walks a router DAG and tests whether any node satisfies a caller-supplied predicate.
+ * Tests whether any node in a router DAG satisfies a caller-supplied predicate.
  * <p>
  * Each concern (changed router names, changed cluster definition names, …) is expressed
  * as a predicate rather than re-implementing traversal. This keeps graph walking in one
  * place as the number of hot-reload concern types grows.
  */
-final class RouterGraphWalker {
+final class RouterGraphAnyMatch {
 
-    private RouterGraphWalker() {
+    private RouterGraphAnyMatch() {
     }
 
     /**
      * Returns {@code true} if any node reachable from {@code routerName} in the router DAG
-     * satisfies either predicate.
+     * given as {@code routersByName} satisfies either predicate.
      *
      * @param routerName          name of the entry-point router
      * @param routersByName       all router definitions indexed by name

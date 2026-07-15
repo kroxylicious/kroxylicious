@@ -87,12 +87,16 @@ final class RouterChangeDetector implements ChangeDetector {
                 : defs.stream().collect(Collectors.toMap(RouterDefinition::name, Function.identity()));
     }
 
+    /**
+     * Returns {@code true} if the VC's router graph (traversed recursively from its root router)
+     * contains any router whose name is in {@code changedRouterNames}.
+     */
     private static boolean transitivelyReferencesChangedRouter(VirtualCluster vc,
                                                                Map<String, RouterDefinition> routersByName,
                                                                Set<String> changedRouterNames) {
         if (vc.router() == null) {
             return false;
         }
-        return RouterGraphWalker.anyInRouterGraph(vc.router(), routersByName, changedRouterNames::contains, name -> false);
+        return RouterGraphAnyMatch.anyInRouterGraph(vc.router(), routersByName, changedRouterNames::contains, name -> false);
     }
 }

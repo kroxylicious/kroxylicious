@@ -59,6 +59,10 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClusterDefinitionChangeHotReloadIT.class);
 
     private static final int PORT_BLOCK_BASE = 23000 + ThreadLocalRandom.current().nextInt(2000);
+    // Hot-reload tests reconfigure a running proxy, so the proxy must bind to a known port before
+    // and after reconfiguration. Most ITs let the framework allocate ports, but here each test
+    // scenario needs its own fixed port so concurrent test forks don't collide. Each block is
+    // spaced 100 ports apart to leave room for multi-broker topologies within a scenario.
     private static final int PORT_CLUSTER_DEF_CHANGE = PORT_BLOCK_BASE;
     private static final int PORT_CROSS_VC_A = PORT_BLOCK_BASE + 100;
     private static final int PORT_CROSS_VC_B = PORT_BLOCK_BASE + 110;
