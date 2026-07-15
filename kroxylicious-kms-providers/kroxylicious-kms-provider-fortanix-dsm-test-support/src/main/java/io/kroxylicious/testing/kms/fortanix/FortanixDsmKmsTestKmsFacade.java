@@ -183,7 +183,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
          * {@inheritDoc}
          *
          * @param alias kek alias
-         * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">Fortanix DSM API</a>
+         * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">"Generate a new security object" in the Fortanix DSM API</a>
          */
         @Override
         public void generateKek(String alias) {
@@ -197,7 +197,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
          * {@inheritDoc}
          *
          * @param alias kek alias
-         * @see <a href="https://support.fortanix.com/apidocs/lookup-a-security-object">Fortanix DSM API</a>
+         * @see <a href="https://support.fortanix.com/apidocs/lookup-a-security-object">"Lookup a security object" in the Fortanix DSM API</a>
          */
         @Override
         public SecurityObjectResponse read(String alias) {
@@ -214,7 +214,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
          * {@inheritDoc}
          *
          * @param alias kek alias
-         * @see <a href="https://support.fortanix.com/apidocs/delete-the-specified-security-object">Fortanix DSM API</a>
+         * @see <a href="https://support.fortanix.com/apidocs/delete-the-specified-security-object">"Delete the specified security object" in the Fortanix DSM API</a>
          */
         @Override
         public void deleteKek(String alias) {
@@ -239,7 +239,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
          * {@inheritDoc}
          *
          * @param alias kek alias
-         * @see <a href="https://support.fortanix.com/apidocs/rotate-a-security-object-to-an-existing-security-object">Fortanix DSM API</a>
+         * @see <a href="https://support.fortanix.com/apidocs/rotate-a-security-object-to-an-existing-security-object">"Rotate a security object to an existing security object" in the Fortanix DSM API</a>
          */
         @Override
         public void rotateKek(String alias) {
