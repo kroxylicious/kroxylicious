@@ -284,7 +284,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
         return switch (authMode) {
             case PASSWORD -> {
                 var userCredentials = new UserCredentials(Objects.requireNonNull(connectionConfig.username()),
-                        new InlinePassword(Objects.requireNonNull(connectionConfig.password())));
+                        new InlinePassword(Objects.requireNonNull(connectionConfig.password())), null);
                 yield new Config(cipherTrustUrl, userCredentials, null, connectionConfig.tls());
             }
             case CLIENT_CERT -> {
