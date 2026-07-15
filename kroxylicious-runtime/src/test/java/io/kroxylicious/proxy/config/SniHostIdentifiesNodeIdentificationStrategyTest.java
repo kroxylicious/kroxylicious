@@ -25,6 +25,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.ArgumentMatchers.any;
@@ -363,6 +364,26 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
 
         // When / Then
         assertThat(binding.getBindAddress()).isEmpty();
+    }
+
+    // BindingSpec defaults
+
+    @Test
+    void registerBoundPortIsNoOpOnSniStrategy() {
+        // Given - SNI strategy does not override registerBoundPort (default no-op from BindingSpec)
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When / Then - calling the default no-op should not throw
+        assertThatCode(() -> binding.registerBoundPort(0, 9093)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void registerBoundBootstrapPortIsNoOpOnSniStrategy() {
+        // Given - SNI strategy does not override registerBoundBootstrapPort (default no-op from BindingSpec)
+        var binding = buildBindingSpec("boot.kafka:1234", "broker-$(nodeId).kafka");
+
+        // When / Then - calling the default no-op should not throw
+        assertThatCode(() -> binding.registerBoundBootstrapPort(9092)).doesNotThrowAnyException();
     }
 
     // AdvertisingSpec

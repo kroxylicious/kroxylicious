@@ -539,16 +539,10 @@ public class VirtualClusterModel implements AutoCloseable {
             if (resolver != null) {
                 return resolver.apply(virtualNodeId);
             }
-            int configuredPort;
-            if (virtualNodeId instanceof ProxyNodeId.Bootstrap) {
-                configuredPort = getNodeIdentificationStrategy().getClusterBootstrapAddress().port();
-            }
-            else if (virtualNodeId instanceof ProxyNodeId.Broker broker) {
-                configuredPort = getNodeIdentificationStrategy().getBrokerAddress(broker.nodeId()).port();
-            }
-            else {
-                throw new IllegalArgumentException("Unknown ProxyNodeId type: " + virtualNodeId);
-            }
+            int configuredPort = switch (virtualNodeId) {
+                case ProxyNodeId.Bootstrap ignored -> getNodeIdentificationStrategy().getClusterBootstrapAddress().port();
+                case ProxyNodeId.Broker broker -> getNodeIdentificationStrategy().getBrokerAddress(broker.nodeId()).port();
+            };
             if (configuredPort == 0) {
                 throw new IllegalStateException("Port resolver not bound yet and configured port is 0 (OS-assigned)");
             }

@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.model;
 
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -24,8 +25,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBufAllocator;
 
+import io.kroxylicious.proxy.bootstrap.RouterChainFactory;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.internal.routing.DynamicRouting;
+import io.kroxylicious.proxy.internal.routing.RouteDescriptor;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
@@ -340,6 +345,51 @@ class VirtualClusterListenerModelTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
                         "Node Identification Strategy requires ServerNameIndication, but virtual cluster gateway 'mygateway' does not configure TLS and provide a certificate for the server");
+    }
+
+    @Test
+    void resolvePortForBrokerReturnsConfiguredPortWhenResolverNotBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+
+        // When
+        var port = listener.resolvePort(new ProxyNodeId.Broker(listener, 0));
+
+        // Then
+        assertThat(port).isEqualTo(9093);
+    }
+
+    @Test
+    void resolvePortThrowsWhenPortIsZeroAndResolverNotBound() {
+        // Given
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:0"), null, null, null).buildStrategy("cluster");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), strategy, Optional.empty(), "default");
+        ProxyNodeId.Bootstrap bootstrapNode = new ProxyNodeId.Bootstrap(listener);
+
+        // When / Then
+        assertThatThrownBy(() -> listener.resolvePort(bootstrapNode))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Port resolver not bound yet and configured port is 0");
+    }
+
+    @Test
+    void targetClusterThrowsWhenNotDirectRouting() {
+        // Given
+        var model = mock(VirtualClusterModel.class);
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(
+                HostPort.parse("broker:9092"), null, null, null).buildStrategy("cluster");
+        var route = new RouteDescriptor("r1", 0, new TargetCluster("localhost:9092", Optional.empty()), null, List.of());
+        when(model.routing()).thenReturn(new DynamicRouting("router", Map.of("r1", route), mock(RouterChainFactory.class)));
+        when(model.getClusterName()).thenReturn("my-vc");
+        var listener = new VirtualClusterGatewayModel(model, strategy, Optional.empty(), "default");
+
+        // When / Then
+        assertThatThrownBy(listener::targetCluster)
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("my-vc");
     }
 
     @Test
