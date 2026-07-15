@@ -237,17 +237,14 @@ class AllReconcilersIT {
                     .withClusterIP(null)
                 .endSpec()
                 .build();
-        // @formatter:on
         var tlsCert = new SecretBuilder()
                 .withNewMetadata()
-                .withName("downstream-tls-certificate")
+                    .withName("downstream-tls-certificate")
                 .endMetadata()
                 .withType("kubernetes.io/tls")
                 .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
                 .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
                 .build();
-
-        // @formatter:off
         var clusterIngress = new IngressesBuilder()
                 .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
                 .withNewTls()
