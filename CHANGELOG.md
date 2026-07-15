@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#4384](https://github.com/kroxylicious/kroxylicious/pull/4384): bump io.kiota:kiota-http-jdk from 0.0.36 to 0.0.37 (for CVE-2026-45292 fix in opentelemetry)
 * [#4342](https://github.com/kroxylicious/kroxylicious/pull/4342): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.22.0 to 2.22.1
 * [#4345](https://github.com/kroxylicious/kroxylicious/pull/4337): build(deps): bump netty.version from 4.2.15.Final to 4.2.16.Final
 * [#4345](https://github.com/kroxylicious/kroxylicious/pull/4345): feat(operator): expose JOSDK periodic reconciliation interval for configuration
