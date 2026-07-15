@@ -72,7 +72,7 @@ class CipherTrustKmsTest {
 
         var config = new Config(
                 URI.create(server.baseUrl()),
-                new UserCredentials("testuser", new InlinePassword("testpass")),
+                new UserCredentials("testuser", new InlinePassword("testpass"), null),
                 null,
                 null);
 

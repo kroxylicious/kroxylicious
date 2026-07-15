@@ -78,6 +78,10 @@ abstract class AbstractTokenService implements BearerTokenService {
      */
     protected CompletionStage<BearerToken> authenticate(AuthRequest authRequest, String operationType) {
         try {
+            LOGGER.atDebug()
+                    .addKeyValue("operation", operationType)
+                    .addKeyValue("authRequest", authRequest)
+                    .log("sending authentication request");
             String requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
 
             HttpRequest httpRequest = HttpRequest.newBuilder()

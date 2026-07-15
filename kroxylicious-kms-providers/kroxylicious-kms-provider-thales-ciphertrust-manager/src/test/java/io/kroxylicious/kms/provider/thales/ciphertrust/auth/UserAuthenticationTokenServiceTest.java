@@ -18,8 +18,11 @@ import org.junit.jupiter.api.Test;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.matching.StringValuePattern;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
+import static com.github.tomakehurst.wiremock.client.WireMock.not;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -55,13 +58,18 @@ class UserAuthenticationTokenServiceTest {
     @BeforeEach
     void beforeEach() {
         server.resetAll();
+        service = buildService(null);
+    }
+
+    private UserAuthenticationTokenService buildService(@Nullable String domain) {
         URI endpoint = URI.create(server.baseUrl());
-        service = new UserAuthenticationTokenService(
+        return new UserAuthenticationTokenService(
                 endpoint,
                 TEST_USERNAME,
                 TEST_PASSWORD,
+                domain,
                 Duration.ofSeconds(10),
-                builder -> builder); // No TLS configuration for test
+                builder -> builder);
     }
 
     @AfterEach
@@ -179,6 +187,60 @@ class UserAuthenticationTokenServiceTest {
     }
 
     @Test
+    void domainIsSentInPasswordAuthRequest() {
+        // Given
+        stubPasswordAuthWithDomain("my-domain", INITIAL_JWT, INITIAL_REFRESH_TOKEN);
+        service = buildService("my-domain");
+
+        // When
+        var tokenStage = service.getBearerToken();
+
+        // Then
+        assertThat(tokenStage)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .satisfies(token -> assertThat(token.token()).isEqualTo(INITIAL_JWT));
+
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/auth/tokens/"))
+                .withRequestBody(containing("\"domain\":\"my-domain\"")));
+    }
+
+    @Test
+    void domainIsAbsentFromPasswordAuthRequestWhenNotConfigured() {
+        // Given
+        stubPasswordAuth(INITIAL_JWT, INITIAL_REFRESH_TOKEN);
+
+        // When
+        var tokenStage = service.getBearerToken();
+
+        // Then
+        assertThat(tokenStage).succeedsWithin(Duration.ofSeconds(5));
+
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/auth/tokens/"))
+                .withRequestBody(containing("\"grant_type\":\"password\""))
+                .withRequestBody(not(containing("\"domain\""))));
+    }
+
+    @Test
+    void domainIsAbsentFromRefreshTokenRequest() {
+        // Given
+        stubPasswordAuthWithDomain("my-domain", INITIAL_JWT, INITIAL_REFRESH_TOKEN);
+        stubRefreshTokenAuth(INITIAL_REFRESH_TOKEN, REFRESHED_JWT, NEW_REFRESH_TOKEN);
+        service = buildService("my-domain");
+
+        // First call: password auth with domain
+        assertThat(service.getBearerToken()).succeedsWithin(Duration.ofSeconds(5));
+        server.resetRequests();
+
+        // When: second call uses refresh token
+        assertThat(service.getBearerToken()).succeedsWithin(Duration.ofSeconds(5));
+
+        // Then: refresh request must not contain domain
+        server.verify(postRequestedFor(urlPathEqualTo("/api/v1/auth/tokens/"))
+                .withRequestBody(containing("\"grant_type\":\"refresh_token\""))
+                .withRequestBody(not(containing("\"domain\""))));
+    }
+
+    @Test
     void authenticationFailsWithInvalidCredentials() {
         // Given - stub authentication failure
         stubPasswordAuthFailure();
@@ -208,6 +270,24 @@ class UserAuthenticationTokenServiceTest {
         server.stubFor(
                 post(urlPathEqualTo("/api/v1/auth/tokens/"))
                         .withRequestBody(matchingPasswordAuth())
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody(response)));
+    }
+
+    private void stubPasswordAuthWithDomain(String domain, String jwt, String refreshToken) {
+        String response = """
+                {
+                    "jwt": "%s",
+                    "duration": 300,
+                    "refresh_token": "%s"
+                }
+                """.formatted(jwt, refreshToken);
+
+        server.stubFor(
+                post(urlPathEqualTo("/api/v1/auth/tokens/"))
+                        .withRequestBody(matchingPasswordAuth().and(containing("\"domain\":\"" + domain + "\"")))
                         .willReturn(aResponse()
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")

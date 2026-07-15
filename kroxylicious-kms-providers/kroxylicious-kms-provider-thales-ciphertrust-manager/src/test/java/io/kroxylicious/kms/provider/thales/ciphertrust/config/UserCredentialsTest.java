@@ -25,7 +25,7 @@ class UserCredentialsTest {
     @MethodSource("invalidConstructorArguments")
     void constructorValidation(String username, PasswordProvider password, Class<? extends Exception> expectedExceptionType, String expectedMessage) {
         // When/Then
-        assertThatThrownBy(() -> new UserCredentials(username, password))
+        assertThatThrownBy(() -> new UserCredentials(username, password, null))
                 .isInstanceOf(expectedExceptionType)
                 .hasMessageContaining(expectedMessage);
     }
@@ -41,7 +41,7 @@ class UserCredentialsTest {
     @Test
     void toStringMasksPassword() {
         // Given
-        var credentials = new UserCredentials("testuser", new InlinePassword("secret"));
+        var credentials = new UserCredentials("testuser", new InlinePassword("secret"), null);
 
         // When
         String result = credentials.toString();
@@ -51,6 +51,24 @@ class UserCredentialsTest {
                 .contains("testuser")
                 .contains("***")
                 .doesNotContain("secret");
+    }
+
+    @Test
+    void domainIsNullByDefault() {
+        // Given
+        var credentials = new UserCredentials("testuser", new InlinePassword("secret"), null);
+
+        // When / Then
+        assertThat(credentials.domain()).isNull();
+    }
+
+    @Test
+    void domainIsStoredWhenProvided() {
+        // Given
+        var credentials = new UserCredentials("testuser", new InlinePassword("secret"), "my-domain");
+
+        // When / Then
+        assertThat(credentials.domain()).isEqualTo("my-domain");
     }
 
 }
