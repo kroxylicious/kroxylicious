@@ -426,6 +426,10 @@ public class VirtualClusterModel implements AutoCloseable {
          * which also pushes the resolver into the strategy's {@link AdvertisingSpec}.
          */
         @Nullable
+        // Write-once from startup thread, read from Netty event-loop threads. Volatile is
+        // needed because connections can arrive between bind completing and this being set.
+        // TODO: replace with constructor injection when EndpointGateway is decomposed.
+        @SuppressWarnings("java:S3077") // volatile reference: write-once/read-many, no compound operations
         private volatile Function<ProxyNodeId, Integer> portResolver = null;
 
         @VisibleForTesting
