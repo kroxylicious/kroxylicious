@@ -219,7 +219,7 @@ and wait for the virtual cluster to be ready for connections.
 
 [source,terminal]
 ----
-$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")]}'
+$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")]}' --timeout=300s
 ----
 
 Finally, let's assign a variable containing the virtual cluster's bootstrap address.
