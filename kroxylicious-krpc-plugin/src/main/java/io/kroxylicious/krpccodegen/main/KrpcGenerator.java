@@ -596,11 +596,22 @@ public class KrpcGenerator {
         }
 
         if (templateName != null) {
-            templateName = templateName.substring(Math.max(0, templateName.lastIndexOf(File.separator) + 1), templateName.indexOf(".ftl"));
-            pattern = pattern.replace("${templateName}", templateName);
+            pattern = pattern.replace("${templateName}", templateResourceBaseName(templateName));
         }
 
         return pattern;
+    }
+
+    /**
+     * Strips the directory prefix and the {@code .ftl} extension from a template name,
+     * e.g. {@code "Kproxy/KrpcRequestFilter.ftl"} yields {@code "KrpcRequestFilter"}.
+     * <p>
+     * Template names are FreeMarker resource names: path steps are separated by
+     * {@code '/'} on every operating system. They are not file system paths, so
+     * {@link File#separator} must not be used here (see issue #4228).
+     */
+    static String templateResourceBaseName(String templateName) {
+        return templateName.substring(Math.max(0, templateName.lastIndexOf('/') + 1), templateName.indexOf(".ftl"));
     }
 
     private Set<ApiSpec> toApiSpecs(Set<MessageSpec> messageSpecs) {
