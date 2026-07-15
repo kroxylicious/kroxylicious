@@ -77,7 +77,7 @@ public class UserAuthenticationTokenService extends AbstractTokenService {
     }
 
     private CompletionStage<BearerToken> authenticateWithPassword() {
-        AuthRequest request = AuthRequest.withPassword(username, password);
+        AuthRequest request = AuthRequest.withPassword(username, password, null);
         return authenticate(request, "password authentication");
     }
 

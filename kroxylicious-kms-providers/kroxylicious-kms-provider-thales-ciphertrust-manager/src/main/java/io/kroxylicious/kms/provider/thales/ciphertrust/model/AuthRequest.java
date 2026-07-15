@@ -57,10 +57,11 @@ public record AuthRequest(
      *
      * @param username the username
      * @param password the password
+     * @param domain   optional domain name; when non-null the token is scoped to that domain
      * @return auth request
      */
-    public static AuthRequest withPassword(String username, String password) {
-        return new AuthRequest(username, password, null, "password", null, null, null, null, null, null, null, null, null);
+    public static AuthRequest withPassword(String username, String password, @Nullable String domain) {
+        return new AuthRequest(username, password, null, "password", null, null, null, null, null, null, null, domain, null);
     }
 
     /**
