@@ -75,6 +75,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     private final String kroxyliciousOperatorName;
     private final String namespaceInstallTo;
     private Map<String, String> extraLabels;
+    private final Map<String, String> additionalEnvVars;
     private final int replicas;
 
     private String testClassName;
@@ -86,7 +87,12 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
             && ko.testClassName == null && ko.testMethodName == null;
 
     public KroxyliciousOperatorYamlInstaller(String namespaceInstallTo) {
+        this(namespaceInstallTo, Map.of());
+    }
+
+    public KroxyliciousOperatorYamlInstaller(String namespaceInstallTo, @NonNull Map<String, String> additionalEnvVars) {
         this.namespaceInstallTo = namespaceInstallTo;
+        this.additionalEnvVars = additionalEnvVars;
         this.replicas = 1;
         this.extensionContext = KubeResourceManager.get().getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
@@ -188,6 +194,9 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                                 .addToEnv(new EnvVarBuilder().withName("JAVA_OPTIONS")
                                         .withValue("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + DEBUG_PORT_NUMBER)
                                         .build())
+                                .addAllToEnv(additionalEnvVars.entrySet().stream()
+                                        .map(e -> new EnvVarBuilder().withName(e.getKey()).withValue(e.getValue()).build())
+                                        .toList())
                                 .addToPorts(new ContainerPortBuilder().withName(debugPortName).withContainerPort(DEBUG_PORT_NUMBER).build())
                             .endContainer()
                             .withImagePullSecrets(new LocalObjectReferenceBuilder()
