@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.it.testplugins.PassThroughRouterFactory;
+import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.RouteDefinition;
