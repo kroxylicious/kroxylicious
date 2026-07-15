@@ -22,10 +22,16 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.it.testplugins.router.PassThroughRouterFactory;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.RouteDefinition;
 import io.kroxylicious.proxy.config.RouteTarget;
+import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.integration.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils;
@@ -53,9 +59,17 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClusterDefinitionChangeHotReloadIT.class);
 
     private static final int PORT_BLOCK_BASE = 23000 + ThreadLocalRandom.current().nextInt(2000);
+    // Hot-reload tests reconfigure a running proxy, so the proxy must bind to a known port before
+    // and after reconfiguration. Most ITs let the framework allocate ports, but here each test
+    // scenario needs its own fixed port so concurrent test forks don't collide. Each block is
+    // spaced 100 ports apart to leave room for multi-broker topologies within a scenario.
     private static final int PORT_CLUSTER_DEF_CHANGE = PORT_BLOCK_BASE;
     private static final int PORT_CROSS_VC_A = PORT_BLOCK_BASE + 100;
     private static final int PORT_CROSS_VC_B = PORT_BLOCK_BASE + 110;
+    private static final int PORT_ROUTER_VIA_CLUSTER = PORT_BLOCK_BASE + 200;
+
+    private static final Features ROUTING_ENABLED = Features.builder().enable(Feature.ROUTING).build();
+    private static final String ROUTE_NAME = "backing-route";
 
     private static final Duration RECONFIGURE_TIMEOUT = Duration.ofSeconds(15);
 
@@ -197,6 +211,61 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
         }
     }
 
+    @Test
+    void shouldRestartVcWhenClusterDefinitionChangedViaRouter(@BrokerCluster KafkaCluster cluster) throws Exception {
+        // Changing a cluster definition's bootstrapServers triggers ClusterDefinitionChangeDetector
+        // to flag VCs that reach the definition through a router, not just direct references.
+        UUID filterId = UUID.randomUUID();
+        var filterDef = invocationCounterDef("counter", filterId);
+
+        var clusterDefV1 = new ClusterDefinition("upstream", cluster.getBootstrapServers(), null);
+        var clusterDefV2 = new ClusterDefinition("upstream", cluster.getBootstrapServers() + "," + cluster.getBootstrapServers(), null);
+
+        var routerDef = passThroughRouterDef("my-router", "upstream");
+        var vc = routerVc("vc-via-router", PORT_ROUTER_VIA_CLUSTER, "my-router", "counter");
+
+        var startingBuilder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToFilterDefinitions(filterDef)
+                .addToClusterDefinitions(clusterDefV1)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc);
+
+        var afterConfig = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addToFilterDefinitions(filterDef)
+                .addToClusterDefinitions(clusterDefV2)
+                .addToRouterDefinitions(routerDef)
+                .addToVirtualClusters(vc)
+                .build();
+
+        try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(startingBuilder)
+                .setFeatures(ROUTING_ENABLED)
+                .createDefaultKroxyliciousTester()) {
+
+            // Given: VC serving traffic via a router that targets the cluster definition
+            String topic = tester.createTopic("vc-via-router");
+            assertProduceConsumeRoundTrip(tester, "vc-via-router", topic, "before-reconfigure");
+
+            // When: the cluster definition's bootstrapServers changes
+            LOGGER.info("Reconfiguring: updating cluster definition bootstrapServers (router path)");
+            assertThat(tester.reconfigure(afterConfig))
+                    .succeedsWithin(RECONFIGURE_TIMEOUT)
+                    .satisfies(rr -> assertThat(rr.hasErrors())
+                            .as("ReconfigureResult should have no errors for a clean cluster definition update via router")
+                            .isFalse());
+
+            // Then: the VC was restarted — filter initialized at startup and again after the change
+            assertThat(InvocationCountingFilterFactory.initializationCountFor(filterId))
+                    .as("filter should have been initialized at startup and once more after the cluster def change via router")
+                    .isEqualTo(2);
+            assertThat(InvocationCountingFilterFactory.closeCountFor(filterId))
+                    .as("old filter init result should have been closed exactly once by ReplaceCluster")
+                    .isEqualTo(1);
+
+            // Then: traffic still flows after the reload
+            assertProduceConsumeRoundTrip(tester, "vc-via-router", topic, "after-reconfigure");
+        }
+    }
+
     // ---- fixture helpers ----
 
     private static VirtualCluster namedClusterVc(String name, int port, String clusterDefName, String... filterNames) {
@@ -211,6 +280,21 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
     private static NamedFilterDefinition invocationCounterDef(String name, UUID uuid) {
         return new NamedFilterDefinitionBuilder(name, InvocationCountingFilterFactory.class.getSimpleName())
                 .withConfig("configInstanceId", uuid)
+                .build();
+    }
+
+    private static RouterDefinition passThroughRouterDef(String name, String clusterDefName) {
+        var route = new RouteDefinition(ROUTE_NAME, 0, List.of(), new RouteTarget(clusterDefName, null));
+        var routerConfig = new PassThroughRouterFactory.Config(ROUTE_NAME);
+        return new RouterDefinition(name, PassThroughRouterFactory.class.getName(), routerConfig, List.of(route));
+    }
+
+    private static VirtualCluster routerVc(String name, int port, String routerName, String... filterNames) {
+        return new VirtualClusterBuilder()
+                .withName(name)
+                .withTarget(new RouteTarget(null, routerName))
+                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(new HostPort("localhost", port)).build())
+                .addToFilters(filterNames)
                 .build();
     }
 
