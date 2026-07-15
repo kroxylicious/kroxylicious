@@ -70,7 +70,7 @@ class QuickStartDT {
         return IntStream.rangeClosed(1, 3)
                 .boxed()
                 .flatMap(run -> extracted.stream()
-                        .map(nb -> Arguments.argumentSet(nb.name() + " [run " + run + "]", nb.blocks())))
+                        .map(nb -> (Arguments) Arguments.argumentSet(nb.name() + " [run " + run + "]", nb.blocks())))
                 .toList();
     }
 
