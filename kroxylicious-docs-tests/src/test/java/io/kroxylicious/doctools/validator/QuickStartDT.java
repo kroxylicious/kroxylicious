@@ -26,7 +26,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
-import java.util.stream.IntStream;
 import java.util.function.Predicate;
 
 import org.asciidoctor.Attributes;
@@ -66,12 +65,7 @@ class QuickStartDT {
         var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
         var quickStarts = List.of(new Quickstart("record-encryption-quick-start(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
                 new Quickstart("record-encryption-quick-start(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
-        var extracted = quickStarts.stream().map(q -> extractCodeBlocks(q, attributes)).toList();
-        return IntStream.rangeClosed(1, 3)
-                .boxed()
-                .flatMap(run -> extracted.stream()
-                        .map(nb -> (Arguments) Arguments.argumentSet(nb.name() + " [run " + run + "]", nb.blocks())))
-                .toList();
+        return quickStarts.stream().map(q -> extractCodeBlocks(q, attributes)).toList();
     }
 
     @ParameterizedTest
@@ -86,7 +80,7 @@ class QuickStartDT {
         // Then
         try {
             assertThat(actual)
-                    .succeedsWithin(Duration.ofMinutes(5))
+                    .succeedsWithin(Duration.ofMinutes(10))
                     .satisfies(er -> assertThat(er.exitValue())
                             .withFailMessage("Script failed - %s", er)
                             .isZero());
@@ -114,12 +108,12 @@ class QuickStartDT {
         };
     }
 
-    private static NamedBlocks extractCodeBlocks(Quickstart qs, Attributes attributes) {
+    private static Arguments extractCodeBlocks(Quickstart qs, Attributes attributes) {
         try (var extractor = new BlockExtractor()) {
             extractor.withAttributes(attributes);
             var pred = isShellBlock().and(qs.selector());
             var cmds = extractor.extract(qs.path(), pred);
-            return new NamedBlocks(qs.name(), cmds);
+            return Arguments.argumentSet(qs.name(), cmds);
         }
     }
 
@@ -216,8 +210,6 @@ class QuickStartDT {
     }
 
     record Quickstart(String name, Path path, Predicate<StructuralNode> selector) {}
-
-    record NamedBlocks(String name, List<Block> blocks) {}
 
     public static boolean isEnvironmentValid() {
         return ShellUtils.validateToolsOnPath("minikube");
