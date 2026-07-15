@@ -275,4 +275,6 @@ ksctl groups adduser \
 
 IMPORTANT: Store the password securely. In production, use the `passwordFile` option in the filter configuration rather than embedding the password in the configuration file.
 
-Record the username and password. You will need these for the filter configuration.
+NOTE: If the user account belongs to a specific domain in your CipherTrust Manager hierarchy, you must also specify that domain in the filter configuration using the `domain` field. When omitted, authentication targets the root domain.
+
+Record the username, password, and domain (if applicable). You will need these for the filter configuration.
