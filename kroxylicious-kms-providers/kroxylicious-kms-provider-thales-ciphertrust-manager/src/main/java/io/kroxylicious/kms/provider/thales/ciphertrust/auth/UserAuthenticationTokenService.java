@@ -18,6 +18,8 @@ import java.util.function.UnaryOperator;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthRequest;
 import io.kroxylicious.kms.provider.thales.ciphertrust.model.AuthResponse;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Bearer token service for CipherTrust Manager user authentication.
  * <p>
@@ -30,6 +32,8 @@ public class UserAuthenticationTokenService extends AbstractTokenService {
 
     private final String username;
     private final String password;
+    @Nullable
+    private final String domain;
     private final AtomicReference<String> refreshToken = new AtomicReference<>();
 
     /**
@@ -38,12 +42,14 @@ public class UserAuthenticationTokenService extends AbstractTokenService {
      * @param endpointUrl base URL of CipherTrust Manager instance
      * @param username username for authentication
      * @param password password for authentication
+     * @param domain optional domain to scope the token; null means the root domain
      * @param timeout HTTP request timeout
      * @param tlsConfigurator TLS configuration for HTTP client
      */
     public UserAuthenticationTokenService(URI endpointUrl,
                                           String username,
                                           String password,
+                                          @Nullable String domain,
                                           Duration timeout,
                                           UnaryOperator<HttpClient.Builder> tlsConfigurator) {
         super(endpointUrl, timeout, tlsConfigurator);
@@ -53,6 +59,7 @@ public class UserAuthenticationTokenService extends AbstractTokenService {
 
         this.username = username;
         this.password = password;
+        this.domain = domain;
     }
 
     @Override
@@ -77,7 +84,7 @@ public class UserAuthenticationTokenService extends AbstractTokenService {
     }
 
     private CompletionStage<BearerToken> authenticateWithPassword() {
-        AuthRequest request = AuthRequest.withPassword(username, password, null);
+        AuthRequest request = AuthRequest.withPassword(username, password, domain);
         return authenticate(request, "password authentication");
     }
 
