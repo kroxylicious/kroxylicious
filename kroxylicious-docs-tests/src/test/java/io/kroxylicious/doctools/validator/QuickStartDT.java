@@ -56,20 +56,16 @@ class QuickStartDT {
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
     private static List<Arguments> quickStarts() {
-        try (var blockExtractor = new BlockExtractor()) {
+        Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
 
-            Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
+        var attributes = Attributes.builder()
+                .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
+                .build();
 
-            // Some quick starts rely on the {OperatorAssetZipLink} variable
-            blockExtractor.withAttributes(Attributes.builder()
-                    .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
-                    .build());
-
-            var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
-            var quickStarts = List.of(new Quickstart("record-encryption-quick-start(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
-                    new Quickstart("record-encryption-quick-start(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
-            return quickStarts.stream().map(q -> extractCodeBlocks(blockExtractor, q)).toList();
-        }
+        var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quick-start").resolve("index.adoc");
+        var quickStarts = List.of(new Quickstart("record-encryption-quick-start(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
+                new Quickstart("record-encryption-quick-start(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
+        return quickStarts.stream().map(q -> extractCodeBlocks(q, attributes)).toList();
     }
 
     @ParameterizedTest
@@ -112,10 +108,13 @@ class QuickStartDT {
         };
     }
 
-    private static Arguments extractCodeBlocks(BlockExtractor extractor, Quickstart qs) {
-        var pred = isShellBlock().and(qs.selector());
-        var cmds = extractor.extract(qs.path(), pred);
-        return Arguments.argumentSet(qs.name(), cmds);
+    private static Arguments extractCodeBlocks(Quickstart qs, Attributes attributes) {
+        try (var extractor = new BlockExtractor()) {
+            extractor.withAttributes(attributes);
+            var pred = isShellBlock().and(qs.selector());
+            var cmds = extractor.extract(qs.path(), pred);
+            return Arguments.argumentSet(qs.name(), cmds);
+        }
     }
 
     private static Predicate<StructuralNode> isShellBlock() {
@@ -128,7 +127,7 @@ class QuickStartDT {
             var builder = new ProcessBuilder(shellScript.toAbsolutePath().toString());
 
             try (var stdoutExecutor = Executors.newSingleThreadExecutor();
-                var stderrExecutor = Executors.newSingleThreadExecutor()) {
+                    var stderrExecutor = Executors.newSingleThreadExecutor()) {
                 var p = builder.start();
                 return awaitScript(p, CompletableFuture.runAsync(() -> streamAndLog(p.getInputStream(), "stdout"), stdoutExecutor),
                         CompletableFuture.runAsync(() -> streamAndLog(p.getErrorStream(), "stderr"), stderrExecutor));
