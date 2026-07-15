@@ -142,30 +142,33 @@ class HotReloadIT extends BaseIT {
 
             String topic = tester.createTopic(VC_BASELINE_NAME);
 
-            // Phase 1: both SNI-addressed VCs serve produce + consume on the shared port.
-            LOGGER.info("Phase 1: producing + consuming through baseline + outgoing VCs");
+            // Given
+            // both SNI-addressed VCs serve produce + consume on the shared port.
+            LOGGER.info("producing + consuming through baseline + outgoing VCs");
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase1-baseline");
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, topic, "phase1-outgoing");
 
-            // Phase 2: reconfigure removes vc-outgoing. The acceptor channel stays alive
+            // When
+            // reconfigure removes vc-outgoing. The acceptor channel stays alive
             // (vc-baseline still needs it); vc-outgoing transitions to STOPPED.
-            LOGGER.info("Phase 2: reconfiguring to remove '{}'", VC_OUTGOING_NAME);
+            LOGGER.info("reconfiguring to remove '{}'", VC_OUTGOING_NAME);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean pure-remove")
                             .isFalse());
 
-            // Phase 3: vc-baseline continues to serve on the same port + cert. An unaffected
+            // Then
+            // vc-baseline continues to serve on the same port + cert. An unaffected
             // VC is genuinely undisturbed by the reconfigure.
-            LOGGER.info("Phase 3: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
+            LOGGER.info("verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase3-baseline");
 
-            // Phase 4: new connections with vc-outgoing's SNI hostname are rejected. TLS
+            // new connections with vc-outgoing's SNI hostname are rejected. TLS
             // handshake succeeds (cert is wildcard, covers both hostnames), but the Kafka
             // session is closed because the VC behind that SNI binding is now STOPPED —
             // the SERVING-state guard rejects registration.
-            LOGGER.info("Phase 4: verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
+            LOGGER.info("verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
             assertProducerFailure(tester, VC_OUTGOING_NAME, topic);
         }
     }
@@ -189,25 +192,28 @@ class HotReloadIT extends BaseIT {
 
             String baselineTopic = tester.createTopic(VC_BASELINE_NAME);
 
-            // Phase 1: only vc-baseline is configured and serving. vc-incoming is not yet known.
-            LOGGER.info("Phase 1: producing + consuming through '{}' (only configured VC)", VC_BASELINE_NAME);
+            // Given
+            // only vc-baseline is configured and serving. vc-incoming is not yet known.
+            LOGGER.info("producing + consuming through '{}' (only configured VC)", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase1-baseline");
 
-            // Phase 2: reconfigure adds vc-incoming.
-            LOGGER.info("Phase 2: reconfiguring to add '{}'", VC_INCOMING_NAME);
+            // When
+            // reconfigure adds vc-incoming.
+            LOGGER.info("reconfiguring to add '{}'", VC_INCOMING_NAME);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean pure-add")
                             .isFalse());
 
-            // Phase 3: the newly-added vc-incoming is reachable end-to-end.
-            LOGGER.info("Phase 3: verifying '{}' serves produce + consume after add", VC_INCOMING_NAME);
+            // Then
+            // the newly-added vc-incoming is reachable end-to-end.
+            LOGGER.info("verifying '{}' serves produce + consume after add", VC_INCOMING_NAME);
             String incomingTopic = tester.createTopic(VC_INCOMING_NAME);
             assertProduceConsumeRoundTrip(tester, VC_INCOMING_NAME, incomingTopic, "phase3-incoming");
 
-            // Phase 4: vc-baseline remains undisturbed by the add.
-            LOGGER.info("Phase 4: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
+            // vc-baseline remains undisturbed by the add.
+            LOGGER.info("verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase4-baseline");
         }
     }
@@ -228,31 +234,34 @@ class HotReloadIT extends BaseIT {
 
             String baselineTopic = tester.createTopic(VC_BASELINE_NAME);
 
-            // Phase 1: starting state — baseline + outgoing both serve.
-            LOGGER.info("Phase 1: producing + consuming through baseline + outgoing VCs");
+            // Given
+            // starting state — baseline + outgoing both serve.
+            LOGGER.info("producing + consuming through baseline + outgoing VCs");
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase1-baseline");
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, baselineTopic, "phase1-outgoing");
 
-            // Phase 2: a single reconfigure both removes vc-outgoing AND adds vc-incoming.
-            LOGGER.info("Phase 2: reconfiguring to remove '{}' and add '{}' in one call", VC_OUTGOING_NAME, VC_INCOMING_NAME);
+            // When
+            // a single reconfigure both removes vc-outgoing AND adds vc-incoming.
+            LOGGER.info("reconfiguring to remove '{}' and add '{}' in one call", VC_OUTGOING_NAME, VC_INCOMING_NAME);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
                     .satisfies(rr -> assertThat(rr.hasErrors())
                             .as("ReconfigureResult should have no errors for a clean mixed add+remove")
                             .isFalse());
 
-            // Phase 3: vc-baseline is undisturbed by the mixed reconfigure.
-            LOGGER.info("Phase 3: verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
+            // Then
+            // vc-baseline is undisturbed by the mixed reconfigure.
+            LOGGER.info("verifying '{}' still serves produce + consume", VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, baselineTopic, "phase3-baseline");
 
-            // Phase 4: vc-outgoing's SNI hostname no longer accepts traffic — the binding may
+            // vc-outgoing's SNI hostname no longer accepts traffic — the binding may
             // still be alive (shared acceptor channel) but the SERVING-state guard rejects
             // new connections because vc-outgoing is now STOPPED.
-            LOGGER.info("Phase 4: verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
+            LOGGER.info("verifying '{}' no longer accepts traffic on its SNI hostname", VC_OUTGOING_NAME);
             assertProducerFailure(tester, VC_OUTGOING_NAME, baselineTopic);
 
-            // Phase 5: vc-incoming is reachable end-to-end.
-            LOGGER.info("Phase 5: verifying '{}' serves produce + consume after the mixed reconfigure", VC_INCOMING_NAME);
+            // vc-incoming is reachable end-to-end.
+            LOGGER.info("verifying '{}' serves produce + consume after the mixed reconfigure", VC_INCOMING_NAME);
             String incomingTopic = tester.createTopic(VC_INCOMING_NAME);
             assertProduceConsumeRoundTrip(tester, VC_INCOMING_NAME, incomingTopic, "phase5-incoming");
         }
@@ -279,13 +288,15 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
-            // Both VCs serve initially — the phase-1 round-trips prove the proxy holds both
+            // Given
+            // Both VCs serve initially — the round-trips prove the proxy holds both
             // ports (clients couldn't connect otherwise).
             String retainTopic = tester.createTopic("vc-retain");
             String releaseTopic = tester.createTopic("vc-release");
             assertProduceConsumeRoundTrip(tester, "vc-retain", retainTopic, "phase1-retain");
             assertProduceConsumeRoundTrip(tester, "vc-release", releaseTopic, "phase1-release");
 
+            // When
             LOGGER.info("Reconfiguring to remove port-addressed VC bound to port {}", releasedPort);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -293,6 +304,7 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean port-addressed remove")
                             .isFalse());
 
+            // Then
             // The released port is reclaimable from outside the proxy. NetworkUnbindRequest is
             // queued on the binding-operation processor; the reconfigure future completes when
             // the unbind future does, but the OS-level socket release can lag — poll briefly.
@@ -317,9 +329,11 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given
             String initialTopic = tester.createTopic("vc-initial");
             assertProduceConsumeRoundTrip(tester, "vc-initial", initialTopic, "phase1-initial");
 
+            // When
             LOGGER.info("Reconfiguring to add port-addressed VC on port {}", addedPort);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -327,6 +341,7 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean port-addressed add")
                             .isFalse());
 
+            // Then
             // New VC reachable end-to-end on its freshly bound port.
             String addedTopic = tester.createTopic("vc-added");
             assertProduceConsumeRoundTrip(tester, "vc-added", addedTopic, "phase3-added");
@@ -356,6 +371,7 @@ class HotReloadIT extends BaseIT {
                     .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
             try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+                // When
                 LOGGER.info("Reconfiguring to add vc-good (port {}) and vc-blocked (port {}, held externally)", goodPort, contestedPort);
                 assertThat(tester.reconfigure(afterConfig))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -368,6 +384,7 @@ class HotReloadIT extends BaseIT {
                                     .containsExactly("vc-blocked");
                         });
 
+                // Then
                 // vc-good came up on its own port — a per-VC failure does not block other adds.
                 String goodTopic = tester.createTopic("vc-good");
                 assertProduceConsumeRoundTrip(tester, "vc-good", goodTopic, "phase3-good");
@@ -394,6 +411,7 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given
             assertProduceConsumeRoundTrip(tester, "vc-original", tester.createTopic("vc-original"), "phase1-original");
 
             LOGGER.info("First reconfigure: removing vc-original from port {}", reusedPort);
@@ -404,6 +422,7 @@ class HotReloadIT extends BaseIT {
             // binding from the test would leave it in TIME_WAIT and prevent the proxy's
             // subsequent rebind. The second reconfigure's success IS the port-released proof.
 
+            // When
             LOGGER.info("Second reconfigure: adding vc-new on the same port {}", reusedPort);
             assertThat(tester.reconfigure(afterReadd))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -411,6 +430,7 @@ class HotReloadIT extends BaseIT {
                             .as("Second reconfigure should rebind cleanly on the freed port")
                             .isFalse());
 
+            // Then
             // The newly-added VC on the reused port is fully functional.
             String newTopic = tester.createTopic("vc-new");
             assertProduceConsumeRoundTrip(tester, "vc-new", newTopic, "phase3-new");
@@ -435,6 +455,7 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given
             String keepTopic = tester.createTopic("vc-keep");
             assertProduceConsumeRoundTrip(tester, "vc-keep", keepTopic, "phase1-keep");
 
@@ -448,6 +469,7 @@ class HotReloadIT extends BaseIT {
             String runtimeTopic = tester.createTopic("vc-runtime-added");
             assertProduceConsumeRoundTrip(tester, "vc-runtime-added", runtimeTopic, "phase2-runtime-added");
 
+            // When
             LOGGER.info("Reconfigure 2: removing the runtime-added vc-runtime-added");
             assertThat(tester.reconfigure(afterRemove))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -457,6 +479,7 @@ class HotReloadIT extends BaseIT {
                                     + "runtime-added VCs so RemoveCluster can resolve their gateways")
                             .isFalse());
 
+            // Then
             // The port the runtime-added VC was bound to is released.
             assertPortIsBindable(runtimeAddedPort);
 
@@ -479,9 +502,11 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given
             String topic = tester.createTopic("vc-modify");
             assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "phase1-pre-modify");
 
+            // When
             LOGGER.info("Reconfiguring to modify vc-modify (same port {}, logNetwork=true)", port);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -489,6 +514,7 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean same-port modify")
                             .isFalse());
 
+            // Then
             // The same port is now serving the new shape of the VC. Tight unbind-then-rebind
             // worked: clients connecting after the reconfigure are accepted on the same port.
             assertProduceConsumeRoundTrip(tester, "vc-modify", topic, "phase2-post-modify");
@@ -512,9 +538,11 @@ class HotReloadIT extends BaseIT {
                 .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
         try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+            // Given
             String topicBefore = tester.createTopic("vc-relocate");
             assertProduceConsumeRoundTrip(tester, "vc-relocate", topicBefore, "phase1-old-port");
 
+            // When
             LOGGER.info("Reconfiguring to modify vc-relocate from port {} to port {}", oldPort, newPort);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -522,6 +550,7 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a port-relocation modify")
                             .isFalse());
 
+            // Then
             // The old port is reclaimable from outside the proxy — the remove half of the
             // replace freed the binding.
             assertPortIsBindable(oldPort);
@@ -555,6 +584,7 @@ class HotReloadIT extends BaseIT {
                     .addToVirtualClusters(startingConfig.virtualClusters().toArray(new VirtualCluster[0]));
             try (KroxyliciousTester tester = KroxyliciousTesters.newBuilder(testerBuilder).createDefaultKroxyliciousTester()) {
 
+                // When
                 LOGGER.info("Reconfiguring vc-fail-modify from port {} to port {} (held externally)", oldPort, contestedPort);
                 assertThat(tester.reconfigure(afterConfig))
                         .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -566,6 +596,7 @@ class HotReloadIT extends BaseIT {
                                     .extracting(ReconfigureError::humanReadableIdentifier)
                                     .containsExactly("vc-fail-modify");
                         });
+                // Then
                 // Old port is freed (the remove half of the replace ran cleanly).
                 assertPortIsBindable(oldPort);
             }
@@ -593,10 +624,12 @@ class HotReloadIT extends BaseIT {
                 .setTrustStorePassword(certs.password())
                 .createDefaultKroxyliciousTester()) {
 
+            // Given
             String topic = tester.createTopic(VC_BASELINE_NAME);
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase1-baseline");
             assertProduceConsumeRoundTrip(tester, VC_OUTGOING_NAME, topic, "phase1-modify");
 
+            // When
             LOGGER.info("Reconfiguring to modify '{}' (flip logNetwork)", VC_OUTGOING_NAME);
             assertThat(tester.reconfigure(afterConfig))
                     .succeedsWithin(RECONFIGURE_TIMEOUT)
@@ -604,6 +637,7 @@ class HotReloadIT extends BaseIT {
                             .as("ReconfigureResult should have no errors for a clean SNI modify")
                             .isFalse());
 
+            // Then
             // Baseline is undisturbed.
             assertProduceConsumeRoundTrip(tester, VC_BASELINE_NAME, topic, "phase3-baseline");
             // Modified VC continues to serve.
