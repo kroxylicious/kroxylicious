@@ -1,0 +1,93 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-record-encryption-filter
+
+[id='con-thales-ctm-plugin-configuration-{context}']
+= Thales CipherTrust Manager plugin configuration
+
+[role="_abstract"]
+For Thales CipherTrust Manager, the KMS configuration depends on the authentication method you chose during setup.
+
+== Client certificate authentication
+
+For client certificate authentication (recommended for production), use the client ID, certificate, and private key from the KMS setup:
+
+[source, yaml]
+----
+kms: CipherTrustKmsService
+kmsConfig:
+  endpointUrl: https://ctm.example.com
+  clientCredentials:
+    clientId: <client-id>
+  tls:
+    key:
+      privateKeyFile: /opt/kroxylicious/ctm-client.key
+      certificateFile: /opt/kroxylicious/ctm-client.crt
+----
+
+where:
+
+* `kms` specifies the name of the KMS provider. Use `CipherTrustKmsService`.
+* `endpointUrl` provides the CipherTrust Manager endpoint URL including the protocol, such as `https://ctm.example.com`.
+* `clientId` is the client ID returned when you registered the client certificate.
+* `privateKeyFile` references the PEM-encoded private key file for the client certificate.
+* `certificateFile` references the PEM-encoded client certificate file.
+
+== Username and password authentication
+
+For username and password authentication, use the credentials from the KMS setup:
+
+[source, yaml]
+----
+kms: CipherTrustKmsService
+kmsConfig:
+  endpointUrl: https://ctm.example.com
+  userCredentials:
+    username: kroxylicious-service
+    password:
+      passwordFile: /opt/kroxylicious/ctm-password
+----
+
+where:
+
+* `kms` specifies the name of the KMS provider. Use `CipherTrustKmsService`.
+* `endpointUrl` provides the CipherTrust Manager endpoint URL including the protocol, such as `https://ctm.example.com`.
+* `username` is the CipherTrust Manager username.
+* `passwordFile` references a file containing the password.
+
+IMPORTANT: In production deployments, always use `passwordFile` to reference a password stored in a file rather than embedding the password directly in the configuration.
+
+== Optional TLS trust configuration
+
+If your CipherTrust Manager instance uses a certificate signed by an internal CA or a self-signed certificate, you can configure a custom trust store:
+
+[source, yaml]
+----
+kms: CipherTrustKmsService
+kmsConfig:
+  endpointUrl: https://ctm.example.com
+  clientCredentials:
+    clientId: <client-id>
+  tls:
+    key:
+      privateKeyFile: /opt/kroxylicious/ctm-client.key
+      certificateFile: /opt/kroxylicious/ctm-client.crt
+    trust:
+      storeFile: /opt/kroxylicious/ctm-server-ca.pem
+      storeType: PEM
+----
+
+where:
+
+* `storeFile` references a PEM-encoded CA certificate file, or a Java trust store (JKS or PKCS12 format).
+* `storeType` specifies the trust store format (`PEM`, `PKCS12`, or `JKS`).
+
+If the `tls.trust` configuration is omitted, the filter uses the Java default trust store, which includes well-known certificate authorities.

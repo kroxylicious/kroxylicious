@@ -19,3 +19,6 @@
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix and Data Security Manager are trademarks of Fortanix, Inc.
 endif::[]
+ifdef::include-thales-ctm-kms[]
+* Thales and CipherTrust Manager are trademarks of Thales Group.
+endif::[]

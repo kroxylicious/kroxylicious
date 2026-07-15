@@ -124,6 +124,7 @@
 // Conditional inclusion flags
 // (note: we control optional inclusion with ifdefs/ifndefs directives, so the value of the attribute is irrelevant)
 :include-fortanix-dsm-kms: 1
+:include-thales-ctm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
 :include-aws-kms-service-config-identity-irsa: 1
 :include-aws-kms-service-config-identity-pod-identity: 1
