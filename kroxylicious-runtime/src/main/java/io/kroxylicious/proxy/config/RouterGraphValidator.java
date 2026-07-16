@@ -5,12 +5,12 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Validates that router definitions form a directed acyclic graph (DAG).
@@ -43,19 +43,12 @@ class RouterGraphValidator {
     private static void validateReferences(List<RouterDefinition> routerDefinitions,
                                            Map<String, RouterDefinition> routersByName,
                                            Set<String> targetClusterNames) {
-        for (var router : routerDefinitions) {
-            for (var route : router.routes()) {
-                if (route.cluster() != null && !targetClusterNames.contains(route.cluster())) {
-                    throw new IllegalConfigurationException(
-                            "Route '" + route.name() + "' in router '" + router.name()
-                                    + "' references unknown cluster '" + route.cluster() + "'");
-                }
-                if (route.router() != null && !routersByName.containsKey(route.router())) {
-                    throw new IllegalConfigurationException(
-                            "Route '" + route.name() + "' in router '" + router.name()
-                                    + "' references unknown router '" + route.router() + "'");
-                }
-            }
+        // Build a presence-only lookup for the walker; a null result means dangling reference.
+        Map<String, ClusterDefinition> clustersByName = targetClusterNames.stream()
+                .collect(Collectors.toMap(k -> k, k -> new ClusterDefinition(k, "kafka:9092", null)));
+        for (var rd : routerDefinitions) {
+            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, clustersByName,
+                    ReferenceValidationVisitor::new);
         }
     }
 
@@ -84,55 +77,54 @@ class RouterGraphValidator {
 
     private static void detectCycles(List<RouterDefinition> routerDefinitions,
                                      Map<String, RouterDefinition> routersByName) {
-        Set<String> visited = new HashSet<>();
-        Set<String> inStack = new HashSet<>();
-
-        for (var router : routerDefinitions) {
-            if (!visited.contains(router.name())) {
-                List<String> path = new ArrayList<>();
-                // When hasCycle returns true, path ends with the repeated node that closes
-                // the cycle (e.g. [A, B, C, A]). formatCycle uses this to extract and
-                // format just the cycle portion.
-                if (hasCycle(router.name(), routersByName, visited, inStack, path)) {
-                    throw new IllegalConfigurationException(
-                            "Router definitions contain a cycle: " + formatCycle(path));
-                }
-            }
+        for (var rd : routerDefinitions) {
+            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
+                    CycleDetectionVisitor::new);
         }
     }
 
-    private static boolean hasCycle(String routerName,
-                                    Map<String, RouterDefinition> routersByName,
-                                    Set<String> visited,
-                                    Set<String> inStack,
-                                    List<String> path) {
-        visited.add(routerName);
-        inStack.add(routerName);
-        path.add(routerName);
+    private static final class ReferenceValidationVisitor implements RoutingGraphVisitor<Void> {
 
-        RouterDefinition router = routersByName.get(routerName);
-        if (router != null) {
-            for (var route : router.routes()) {
-                String target = route.router();
-                if (target != null) {
-                    if (inStack.contains(target)) {
-                        path.add(target);
-                        return true;
-                    }
-                    if (!visited.contains(target) && hasCycle(target, routersByName, visited, inStack, path)) {
-                        return true;
-                    }
-                }
+        @Override
+        public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
+            if (rd == null && ctx.currentRoute() != null && ctx.sourceRouter() != null) {
+                throw new IllegalConfigurationException(
+                        "Route '" + ctx.currentRoute().name() + "' in router '" + ctx.sourceRouter().name()
+                                + "' references unknown router '" + ctx.currentRoute().router() + "'");
             }
+            return true;
         }
 
-        inStack.remove(routerName);
-        path.remove(path.size() - 1);
-        return false;
+        @Override
+        public boolean visitClusterName(@Nullable ClusterDefinition cd, WalkContext ctx) {
+            if (cd == null && ctx.currentRoute() != null && ctx.sourceRouter() != null) {
+                throw new IllegalConfigurationException(
+                        "Route '" + ctx.currentRoute().name() + "' in router '" + ctx.sourceRouter().name()
+                                + "' references unknown cluster '" + ctx.currentRoute().cluster() + "'");
+            }
+            return true;
+        }
+
+        @Override
+        public Void result() {
+            return null;
+        }
     }
 
-    private static String formatCycle(List<String> path) {
-        int cycleStart = path.indexOf(path.getLast());
-        return String.join(" -> ", path.subList(cycleStart, path.size()));
+    private static final class CycleDetectionVisitor implements RoutingGraphVisitor<Void> {
+
+        @Override
+        public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
+            if (!ctx.isFirstVisit()) {
+                throw new IllegalConfigurationException(
+                        "Router definitions contain a cycle: " + String.join(" -> ", ctx.path()));
+            }
+            return true;
+        }
+
+        @Override
+        public Void result() {
+            return null;
+        }
     }
 }

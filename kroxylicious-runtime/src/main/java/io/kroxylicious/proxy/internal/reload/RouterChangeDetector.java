@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.RouterDefinition;
+import io.kroxylicious.proxy.config.RoutingGraphWalker;
 import io.kroxylicious.proxy.config.VirtualCluster;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -98,6 +99,6 @@ final class RouterChangeDetector implements ChangeDetector {
                                                                Map<String, RouterDefinition> routersByName,
                                                                Map<String, ClusterDefinition> clustersByName,
                                                                Set<String> changedRouterNames) {
-        return ClusterGraphWalker.anyInClusterGraph(vc, routersByName, clustersByName, changedRouterNames::contains, name -> false);
+        return RoutingGraphWalker.anyInClusterGraph(vc, routersByName, clustersByName, changedRouterNames::contains, name -> false);
     }
 }
