@@ -782,14 +782,14 @@ public class ClientConnectionStateMachine {
     }
 
     /**
-     * @return Return the session ID which connects a frontend channel with a backend channel
+     * Returns the session ID which connects a frontend channel with a backend channel.
      */
     public String sessionId() {
         return kafkaSession.sessionId();
     }
 
     /**
-     * @return Return the session for this connection.
+     * Returns the session for this connection.
      */
     public KafkaSession kafkaSession() {
         return kafkaSession;

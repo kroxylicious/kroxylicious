@@ -191,6 +191,8 @@ public abstract class AuthzIT extends BaseIT {
         }
 
         /**
+         * Checks whether a retry is needed because the broker was not in the expected state.
+         *
          * @param response The response to a test request.
          * @return Determine whether the test request that resulted in the given response should be retried.
          * (This can be necessary if the broker is not initially in the needed state, for example
@@ -433,6 +435,8 @@ public abstract class AuthzIT extends BaseIT {
     }
 
     /**
+     * Creates a KafkaClient connected to the given cluster.
+     *
      * @param bootstrapServers The cluster to connect to.
      * @return A KafkaClient connected to the given cluster.
      */

@@ -36,7 +36,8 @@ public class DekManager<K, E> {
     }
 
     /**
-     * @return The KMS's serde for encrypted DEKs
+     * Returns the KMS's serde for encrypted DEKs.
+     *
      * @see Kms#edekSerde()
      */
     public Serde<E> edekSerde() {

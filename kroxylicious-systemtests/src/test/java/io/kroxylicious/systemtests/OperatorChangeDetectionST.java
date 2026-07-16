@@ -401,7 +401,8 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
 
     @BeforeAll
     void setupBefore() {
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE)
+                .withOperatorEnvVars(Map.of("KROXYLICIOUS_OPERATOR_RESYNC_INTERVAL_SECONDS", "30"));
         kroxyliciousOperator.deploy();
     }
 

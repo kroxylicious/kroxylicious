@@ -13,7 +13,9 @@ This document gives a detailed breakdown of the various build processes and opti
 
 > :warning: **If you are using Podman please see [these notes](#running-integration-tests-on-podman) below**
 
+If you are developing the **Kroxylicious Operator**, you'll need a Kubernetes environment. [minikube](https://minikube.sigs.k8s.io/docs/) is sufficient).
 
+A few optional operator features target OpenShift. If developing these features [Red Hat OpenShift Local](https://developers.redhat.com/products/openshift-local) is sufficient.
 
 ## Build
 

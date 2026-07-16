@@ -28,7 +28,7 @@ import java.util.function.Function;
 public interface FilterDispatchExecutor extends ScheduledExecutorService {
 
     /**
-     * @return Return true if {@link Thread#currentThread()} is this Filter Dispatch Thread, false otherwise
+     * Returns true if {@link Thread#currentThread()} is this Filter Dispatch Thread.
      */
     boolean isInFilterDispatchThread();
 

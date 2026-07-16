@@ -204,7 +204,7 @@ public final class Dek<E> {
         }
 
         /**
-         * @return The encrypted DEK
+         * Returns the encrypted DEK.
          */
         public @NonNull E edek() {
             return Dek.this.edek();

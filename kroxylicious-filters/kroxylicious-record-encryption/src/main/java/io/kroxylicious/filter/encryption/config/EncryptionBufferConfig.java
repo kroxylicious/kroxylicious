@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.config;
 
 /**
+ * Configuration for encryption buffer size limits.
  *
  * @param minSizeBytes the minimum size of the encryption buffer
  * @param maxSizeBytes the maximum size of the encryption buffer

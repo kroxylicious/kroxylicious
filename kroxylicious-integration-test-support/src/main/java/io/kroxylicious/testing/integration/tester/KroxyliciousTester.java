@@ -414,18 +414,20 @@ public interface KroxyliciousTester extends Closeable {
     Map<String, Object> clientConfiguration();
 
     /**
-     * @return the bootstrap address of the only virtual cluster
+     * Returns the bootstrap address of the only virtual cluster.
+     *
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
      */
     String getBootstrapAddress();
 
     /**
-     * @return the bootstrap address of the named virtual cluster
+     * Returns the bootstrap address of the named virtual cluster.
      */
     String getBootstrapAddress(String clusterName, String gateway);
 
     /**
-     * @return the Admin Http Client
+     * Returns the admin HTTP client.
+     *
      * @throws IllegalStateException admin interface not available
      */
     ManagementClient getManagementClient();

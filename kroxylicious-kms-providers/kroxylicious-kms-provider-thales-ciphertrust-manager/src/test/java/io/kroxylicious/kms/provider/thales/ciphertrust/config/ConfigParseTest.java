@@ -49,6 +49,49 @@ class ConfigParseTest {
     }
 
     @Test
+    void endpointUrlAndUserCredentialsWithDomain() throws IOException {
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com",
+                    "userCredentials": {
+                        "username": "testuser",
+                        "password": { "password": "testpass" },
+                        "domain": "my-domain"
+                    }
+                }
+                """;
+
+        // When
+        Config config = readConfig(json);
+
+        // Then
+        assertThat(config.userCredentials()).isNotNull();
+        assertThat(config.userCredentials().domain()).isEqualTo("my-domain");
+    }
+
+    @Test
+    void userCredentialsDomainIsOptional() throws IOException {
+        // Given
+        String json = """
+                {
+                    "endpointUrl": "https://ctm.example.com",
+                    "userCredentials": {
+                        "username": "testuser",
+                        "password": { "password": "testpass" }
+                    }
+                }
+                """;
+
+        // When
+        Config config = readConfig(json);
+
+        // Then
+        assertThat(config.userCredentials()).isNotNull();
+        assertThat(config.userCredentials().domain()).isNull();
+    }
+
+    @Test
     void endpointUrlRequired() {
         // Given
         String json = """

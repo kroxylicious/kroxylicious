@@ -83,6 +83,7 @@ public class CipherTrustKmsService implements KmsService<Config, WrappingKey, Ci
                     config.endpointUrl(),
                     userCreds.username(),
                     userCreds.password().getProvidedPassword(),
+                    userCreds.domain(),
                     DEFAULT_TIMEOUT,
                     tlsConfigurator);
         }

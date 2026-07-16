@@ -6,12 +6,24 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+## 0.23.0
 
-* [#4345](https://github.com/kroxylicious/kroxylicious/pull/4337): build(deps): bump netty.version from 4.2.15.Final to 4.2.16.Final
+* [#4307](https://github.com/kroxylicious/kroxylicious/pull/4307): feat(routing): **Preview** — dynamic routing API. Implement `RouterFactory` to dispatch requests to multiple upstream clusters based on request content, with fan-out via `RouterContext.sendRequest()` and in-order response delivery. Wire routers into virtual clusters via the new top-level `routerDefinitions` configuration. Router and cluster definitions are hot-reload compatible ([#4242](https://github.com/kroxylicious/kroxylicious/pull/4242)). Enable with `KROXYLICIOUS_UNLOCK_ROUTING=true` (see Changes section below).
+* [#4309](https://github.com/kroxylicious/kroxylicious/pull/4309): fix(runtime): channels that had not yet reached the Forwarding state were leaked when a virtual cluster drained on shutdown.
+* [#4324](https://github.com/kroxylicious/kroxylicious/pull/4324): fix(runtime): outbound connections are now correctly closed when the channel is already inactive at close time.
+* [#4118](https://github.com/kroxylicious/kroxylicious/issues/4118): feat(kms): CipherTrust Manager `userCredentials` now supports an optional `domain` field. When set, the password-grant token request is scoped to that domain, enabling multi-tenant CipherTrust deployments.
+* [#4384](https://github.com/kroxylicious/kroxylicious/pull/4384): bump io.kiota:kiota-http-jdk from 0.0.36 to 0.0.37 (for CVE-2026-45292 fix in opentelemetry)
+* [#4342](https://github.com/kroxylicious/kroxylicious/pull/4342): build(deps): bump com.fasterxml.jackson:jackson-bom from 2.22.0 to 2.22.1
+* [#4337](https://github.com/kroxylicious/kroxylicious/pull/4337): build(deps): bump netty.version from 4.2.15.Final to 4.2.16.Final
 * [#4345](https://github.com/kroxylicious/kroxylicious/pull/4345): feat(operator): expose JOSDK periodic reconciliation interval for configuration
 * [#4196](https://github.com/kroxylicious/kroxylicious/pull/4196): build(deps): bump apicurio-schema-validation from 0.1.4 to 3.3.0, version aligning with the rest of the component.
 * [#933](https://github.com/kroxylicious/kroxylicious/issues/933): feat(pem-support): Support PEM format key material in the KMS integrations.
 * [#3970](https://github.com/kroxylicious/kroxylicious/issues/3970): feat(operator): allow `KafkaService.spec.strimziKafkaRef.namespace` to reference Strimzi `Kafka` clusters in watched namespaces other than the `KafkaService` namespace
+
+### Changes, deprecations and removals
+
+* [#4307](https://github.com/kroxylicious/kroxylicious/pull/4307): **Preview feature** — the runtime now supports a single Router per Virtual Cluster configured via `routerDefinitions` and `virtualCluster.target.router`, note that we do not yet offer any Router implementation, so this is only relevant if you are development your own `Router`. Set `KROXYLICIOUS_UNLOCK_ROUTING=true` environment variable to opt in. A warning is emitted at proxy startup when the feature is active.
+* [#4290](https://github.com/kroxylicious/kroxylicious/pull/4290): BouncyCastle is no longer a production dependency of the proxy. It was an inadvertent transitive dependency and is now test-scope only. Plugins or deployments that relied on BouncyCastle being present on the proxy classpath at runtime must add it explicitly.
 
 ## 0.22.0
 
