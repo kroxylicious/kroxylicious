@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,12 +44,9 @@ class RouterGraphValidator {
     private static void validateReferences(List<RouterDefinition> routerDefinitions,
                                            Map<String, RouterDefinition> routersByName,
                                            Set<String> targetClusterNames) {
-        // Build a presence-only lookup for the walker; a null result means dangling reference.
-        Map<String, ClusterDefinition> clustersByName = targetClusterNames.stream()
-                .collect(Collectors.toMap(k -> k, k -> new ClusterDefinition(k, "kafka:9092", null)));
         for (var rd : routerDefinitions) {
-            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, clustersByName,
-                    ReferenceValidationVisitor::new);
+            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
+                    () -> new ReferenceValidationVisitor(targetClusterNames));
         }
     }
 
@@ -77,13 +75,22 @@ class RouterGraphValidator {
 
     private static void detectCycles(List<RouterDefinition> routerDefinitions,
                                      Map<String, RouterDefinition> routersByName) {
+        Set<String> explored = new HashSet<>();
         for (var rd : routerDefinitions) {
-            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
-                    CycleDetectionVisitor::new);
+            if (explored.add(rd.name())) {
+                explored.addAll(RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
+                        CycleDetectionVisitor::new));
+            }
         }
     }
 
     private static final class ReferenceValidationVisitor implements RoutingGraphVisitor<Void> {
+
+        private final Set<String> targetClusterNames;
+
+        ReferenceValidationVisitor(Set<String> targetClusterNames) {
+            this.targetClusterNames = targetClusterNames;
+        }
 
         @Override
         public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
@@ -97,7 +104,8 @@ class RouterGraphValidator {
 
         @Override
         public boolean visitClusterName(@Nullable ClusterDefinition cd, WalkContext ctx) {
-            if (cd == null && ctx.currentRoute() != null && ctx.sourceRouter() != null) {
+            if (ctx.currentRoute() != null && ctx.sourceRouter() != null
+                    && !targetClusterNames.contains(ctx.currentRoute().cluster())) {
                 throw new IllegalConfigurationException(
                         "Route '" + ctx.currentRoute().name() + "' in router '" + ctx.sourceRouter().name()
                                 + "' references unknown cluster '" + ctx.currentRoute().cluster() + "'");
@@ -111,7 +119,9 @@ class RouterGraphValidator {
         }
     }
 
-    private static final class CycleDetectionVisitor implements RoutingGraphVisitor<Void> {
+    private static final class CycleDetectionVisitor implements RoutingGraphVisitor<Set<String>> {
+
+        private final Set<String> visited = new HashSet<>();
 
         @Override
         public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
@@ -119,12 +129,15 @@ class RouterGraphValidator {
                 throw new IllegalConfigurationException(
                         "Router definitions contain a cycle: " + String.join(" -> ", ctx.path()));
             }
+            if (rd != null) {
+                visited.add(rd.name());
+            }
             return true;
         }
 
         @Override
-        public Void result() {
-            return null;
+        public Set<String> result() {
+            return visited;
         }
     }
 }
