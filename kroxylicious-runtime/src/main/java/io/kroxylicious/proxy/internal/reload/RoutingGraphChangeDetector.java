@@ -23,17 +23,18 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Identifies virtual clusters that need to be restarted because a router definition they
- * depend on has changed.
+ * Identifies virtual clusters that need to be restarted because a router definition or
+ * cluster definition they depend on has changed.
  * <p>
- * A cluster is affected if any router in its router graph (starting from the cluster's
- * {@code target.router} and following nested route targets recursively) changed between
- * old and new configuration — i.e. the router's type, config, or routes differ.
+ * Pre-computes the sets of changed router and cluster definition names, then performs a
+ * single walk of each VC's routing graph testing both predicates at once. This avoids the
+ * redundant per-concern walks that would result from separate router and cluster-definition
+ * detectors each independently traversing the same graph.
  * <p>
  * This detector only produces {@code clustersToModify} entries. Added and removed clusters
  * are the concern of {@link VirtualClusterChangeDetector}.
  */
-final class RouterChangeDetector implements ChangeDetector {
+final class RoutingGraphChangeDetector implements ChangeDetector {
 
     @Override
     public ChangeResult detect(ConfigurationChangeContext context) {
@@ -41,24 +42,25 @@ final class RouterChangeDetector implements ChangeDetector {
         Configuration newConfig = context.newConfig();
 
         Set<String> changedRouterNames = changedRouterNames(oldConfig, newConfig);
-        if (changedRouterNames.isEmpty()) {
+        Set<String> changedClusterNames = changedClusterNames(oldConfig, newConfig);
+
+        if (changedRouterNames.isEmpty() && changedClusterNames.isEmpty()) {
             return ChangeResult.EMPTY;
         }
 
         Map<String, VirtualCluster> newByName = newConfig.virtualClusters().stream()
                 .collect(Collectors.toMap(VirtualCluster::name, Function.identity()));
         Map<String, RouterDefinition> newRoutersByName = indexRouterDefinitionsByName(newConfig.routerDefinitions());
-        Map<String, ClusterDefinition> newClustersByName = newConfig.clusterDefinitions() == null ? Map.of()
-                : newConfig.clusterDefinitions().stream().collect(Collectors.toMap(ClusterDefinition::name, Function.identity()));
+        Map<String, ClusterDefinition> newClustersByName = indexClusterDefinitionsByName(newConfig.clusterDefinitions());
 
         Set<String> toModify = new HashSet<>();
         for (VirtualCluster oldCluster : oldConfig.virtualClusters()) {
             VirtualCluster newCluster = newByName.get(oldCluster.name());
             if (newCluster == null) {
-                // Removed — VirtualClusterChangeDetector will flag this as clustersToRemove.
                 continue;
             }
-            if (transitivelyReferencesChangedRouter(newCluster, newRoutersByName, newClustersByName, changedRouterNames)) {
+            if (RoutingGraphWalker.anyInClusterGraph(newCluster, newRoutersByName, newClustersByName,
+                    changedRouterNames::contains, changedClusterNames::contains)) {
                 toModify.add(newCluster.name());
             }
         }
@@ -66,15 +68,19 @@ final class RouterChangeDetector implements ChangeDetector {
         return new ChangeResult(Set.of(), Set.of(), toModify);
     }
 
-    /**
-     * Names of router definitions whose content changed between old and new config.
-     * Additions and removals are treated as changes because any VC referencing that
-     * name needs to be restarted to pick up the updated router state.
-     */
     private static Set<String> changedRouterNames(Configuration oldConfig, Configuration newConfig) {
         Map<String, RouterDefinition> oldByName = indexRouterDefinitionsByName(oldConfig.routerDefinitions());
         Map<String, RouterDefinition> newByName = indexRouterDefinitionsByName(newConfig.routerDefinitions());
+        return changedNames(oldByName, newByName);
+    }
 
+    private static Set<String> changedClusterNames(Configuration oldConfig, Configuration newConfig) {
+        Map<String, ClusterDefinition> oldByName = indexClusterDefinitionsByName(oldConfig.clusterDefinitions());
+        Map<String, ClusterDefinition> newByName = indexClusterDefinitionsByName(newConfig.clusterDefinitions());
+        return changedNames(oldByName, newByName);
+    }
+
+    private static <T> Set<String> changedNames(Map<String, T> oldByName, Map<String, T> newByName) {
         Set<String> changed = new HashSet<>();
         Stream.concat(oldByName.keySet().stream(), newByName.keySet().stream())
                 .distinct()
@@ -91,14 +97,8 @@ final class RouterChangeDetector implements ChangeDetector {
                 : defs.stream().collect(Collectors.toMap(RouterDefinition::name, Function.identity()));
     }
 
-    /**
-     * Returns {@code true} if the VC's router graph (traversed recursively from its root router)
-     * contains any router whose name is in {@code changedRouterNames}.
-     */
-    private static boolean transitivelyReferencesChangedRouter(VirtualCluster vc,
-                                                               Map<String, RouterDefinition> routersByName,
-                                                               Map<String, ClusterDefinition> clustersByName,
-                                                               Set<String> changedRouterNames) {
-        return RoutingGraphWalker.anyInClusterGraph(vc, routersByName, clustersByName, changedRouterNames::contains, name -> false);
+    private static Map<String, ClusterDefinition> indexClusterDefinitionsByName(@Nullable List<ClusterDefinition> defs) {
+        return defs == null ? Map.of()
+                : defs.stream().collect(Collectors.toMap(ClusterDefinition::name, Function.identity()));
     }
 }

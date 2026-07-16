@@ -49,7 +49,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * cluster definition, then asserts on the observable lifecycle effects via
  * {@link InvocationCountingFilterFactory}'s per-UUID initialize/close counters.
  * <p>
- * A cluster definition change is detected by {@code ClusterDefinitionChangeDetector} as a
+ * A cluster definition change is detected by {@code RoutingGraphChangeDetector} as a
  * virtual cluster {@code modify}, planned as a {@code ReplaceCluster} operation, and executed
  * as {@code RemoveCluster + AddCluster}. The affected VC's filter chain is torn down and
  * rebuilt, producing an observable increment in the filter's initialize and close counters.
@@ -87,7 +87,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
 
     @Test
     void shouldRestartVcWhenNamedClusterDefinitionChanges(@BrokerCluster KafkaCluster cluster) throws Exception {
-        // Changing a cluster definition's bootstrapServers triggers ClusterDefinitionChangeDetector
+        // Changing a cluster definition's bootstrapServers triggers RoutingGraphChangeDetector
         // to flag the referencing VC as modified. ReplaceCluster tears down and rebuilds the VC,
         // which is observable via the filter's initialize/close counts.
         UUID filterId = UUID.randomUUID();
@@ -213,7 +213,7 @@ class ClusterDefinitionChangeHotReloadIT extends BaseIT {
 
     @Test
     void shouldRestartVcWhenClusterDefinitionChangedViaRouter(@BrokerCluster KafkaCluster cluster) throws Exception {
-        // Changing a cluster definition's bootstrapServers triggers ClusterDefinitionChangeDetector
+        // Changing a cluster definition's bootstrapServers triggers RoutingGraphChangeDetector
         // to flag VCs that reach the definition through a router, not just direct references.
         UUID filterId = UUID.randomUUID();
         var filterDef = invocationCounterDef("counter", filterId);
