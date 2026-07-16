@@ -18,7 +18,7 @@ public interface ByteBufferTransformationFactory<C> {
     void validateConfiguration(C config) throws PluginConfigurationException;
 
     default C requireConfig(C config) {
-        if (config == null) {
+        if (null == config) {
             throw new PluginConfigurationException(this.getClass().getSimpleName() + " requires configuration, but config object is null");
         }
         return config;
