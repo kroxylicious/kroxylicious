@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal.reload;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -425,6 +426,63 @@ class RoutingGraphChangeDetectorTest {
         assertThat(result.clustersToModify()).containsExactlyInAnyOrder("vc-a", "vc-b");
     }
 
+    // -------------------------------------------------------------------------
+    // anyInClusterGraph
+    // -------------------------------------------------------------------------
+
+    @Test
+    void vcWithNamedClusterReturnsTrueWhenClusterPredicateMatches() {
+        // Given
+        var vc = vcWithNamedCluster("vc1", "cluster-a");
+        var clusters = Map.of("cluster-a", clusterDef("cluster-a"));
+
+        // When / Then
+        assertThat(RoutingGraphChangeDetector.anyInClusterGraph(vc, Map.of(), clusters, name -> false, "cluster-a"::equals)).isTrue();
+    }
+
+    @Test
+    void vcWithNamedClusterReturnsFalseWhenClusterPredicateDoesNotMatch() {
+        // Given
+        var vc = vcWithNamedCluster("vc1", "cluster-a");
+        var clusters = Map.of("cluster-a", clusterDef("cluster-a"));
+
+        // When / Then
+        assertThat(RoutingGraphChangeDetector.anyInClusterGraph(vc, Map.of(), clusters, name -> false, "cluster-b"::equals)).isFalse();
+    }
+
+    @Test
+    void vcWithRouterReturnsTrueWhenRouterGraphContainsMatchingCluster() {
+        // Given
+        var routers = Map.of("r1", routerDef("r1", "cluster-a"));
+        var clusters = Map.of("cluster-a", clusterDef("cluster-a"));
+        var vc = vcWithRouter("vc1", "r1");
+
+        // When / Then
+        assertThat(RoutingGraphChangeDetector.anyInClusterGraph(vc, routers, clusters, name -> false, "cluster-a"::equals)).isTrue();
+    }
+
+    @Test
+    void vcWithRouterReturnsFalseWhenRouterGraphContainsNoMatchingCluster() {
+        // Given
+        var routers = Map.of("r1", routerDef("r1", "cluster-a"));
+        var clusters = Map.of("cluster-a", clusterDef("cluster-a"));
+        var vc = vcWithRouter("vc1", "r1");
+
+        // When / Then
+        assertThat(RoutingGraphChangeDetector.anyInClusterGraph(vc, routers, clusters, name -> false, "cluster-b"::equals)).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    void vcWithInlineTargetClusterReturnsFalse() {
+        // Given
+        var vc = new VirtualCluster("vc1", new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway()), false, false, null);
+
+        // When / Then
+        assertThat(RoutingGraphChangeDetector.anyInClusterGraph(vc, Map.of(), Map.of(), name -> true, name -> true)).isFalse();
+    }
+
     // ---- fixture helpers ----
 
     private static ConfigurationChangeContext ctx(Configuration oldConfig, Configuration newConfig) {
@@ -480,4 +538,14 @@ class RoutingGraphChangeDetectorTest {
         return new Configuration(null, null, null, null, null, List.of(clusters), null, false,
                 Optional.empty(), null, null);
     }
+
+    private static ClusterDefinition clusterDef(String name) {
+        return new ClusterDefinition(name, "kafka:9092", null);
+    }
+
+    private static RouterDefinition routerDef(String name, String clusterTarget) {
+        var route = new RouteDefinition("route", 0, null, new RouteTarget(clusterTarget, null));
+        return new RouterDefinition(name, "SomeRouterType", "cfg", List.of(route));
+    }
+
 }

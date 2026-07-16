@@ -10,7 +10,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -46,6 +45,7 @@ public final class RoutingGraphWalker {
      * @param <T>            the result type produced by the visitor
      * @return the value returned by {@link RoutingGraphVisitor#result()} after the walk
      */
+    @Nullable
     public static <T> T walkClusterGraph(VirtualCluster vc,
                                          Map<String, RouterDefinition> routersByName,
                                          Map<String, ClusterDefinition> clustersByName,
@@ -67,87 +67,48 @@ public final class RoutingGraphWalker {
      * @param <T>            the result type produced by the visitor
      * @return the value returned by {@link RoutingGraphVisitor#result()} after the walk
      */
+    @Nullable
     public static <T> T walkRouterGraph(String routerName,
                                         Map<String, RouterDefinition> routersByName,
                                         Map<String, ClusterDefinition> clustersByName,
                                         Supplier<RoutingGraphVisitor<T>> visitorFactory) {
         var visitor = visitorFactory.get();
-        traverseRouterGraph(routerName, null, null, routersByName, clustersByName, visitor);
+        traverseRouterGraph(routerName, routersByName, clustersByName, visitor);
         return visitor.result();
     }
 
-    /**
-     * Returns {@code true} if any node reachable from {@code vc} in its routing graph
-     * satisfies either predicate.
-     *
-     * @param vc                   the virtual cluster whose graph is walked
-     * @param routersByName        all router definitions indexed by name
-     * @param clustersByName       all cluster definitions indexed by name
-     * @param routerNamePredicate  test applied to each visited router definition's name
-     * @param clusterNamePredicate test applied to each cluster definition's name at a leaf
-     */
-    public static boolean anyInClusterGraph(VirtualCluster vc,
-                                            Map<String, RouterDefinition> routersByName,
-                                            Map<String, ClusterDefinition> clustersByName,
-                                            Predicate<String> routerNamePredicate,
-                                            Predicate<String> clusterNamePredicate) {
-        return walkClusterGraph(vc, routersByName, clustersByName,
-                () -> new AnyMatchVisitor(routerNamePredicate, clusterNamePredicate));
-    }
-
-    /**
-     * Returns {@code true} if any node reachable from {@code routerName} in the router DAG
-     * satisfies either predicate.
-     *
-     * @param routerName           name of the entry-point router
-     * @param routersByName        all router definitions indexed by name
-     * @param clustersByName       all cluster definitions indexed by name
-     * @param routerNamePredicate  test applied to each visited router definition's name
-     * @param clusterNamePredicate test applied to each cluster definition's name at a leaf
-     */
-    public static boolean anyInRouterGraph(String routerName,
-                                           Map<String, RouterDefinition> routersByName,
-                                           Map<String, ClusterDefinition> clustersByName,
-                                           Predicate<String> routerNamePredicate,
-                                           Predicate<String> clusterNamePredicate) {
-        return walkRouterGraph(routerName, routersByName, clustersByName,
-                () -> new AnyMatchVisitor(routerNamePredicate, clusterNamePredicate));
-    }
-
-    private static boolean traverseClusterGraph(VirtualCluster vc,
-                                                Map<String, RouterDefinition> routersByName,
-                                                Map<String, ClusterDefinition> clustersByName,
-                                                RoutingGraphVisitor<?> visitor) {
+    private static void traverseClusterGraph(VirtualCluster vc,
+                                             Map<String, RouterDefinition> routersByName,
+                                             Map<String, ClusterDefinition> clustersByName,
+                                             RoutingGraphVisitor<?> visitor) {
         WalkContext entryCtx = new WalkContext(null, null, true, List.of());
         if (!visitor.visitVirtualCluster(vc, entryCtx)) {
-            return false;
+            return;
         }
         String namedCluster = vc.namedTargetCluster();
         if (namedCluster != null) {
             ClusterDefinition cd = clustersByName.get(namedCluster);
             if (cd != null) {
                 WalkContext clusterCtx = new WalkContext(null, null, true, List.of());
-                return visitor.visitClusterDefinition(cd, clusterCtx);
+                visitor.visitClusterDefinition(cd, clusterCtx);
             }
-            return true;
+            return;
         }
         String router = vc.router();
         if (router != null) {
-            return traverseRouterGraph(router, null, null, routersByName, clustersByName, visitor);
+            traverseRouterGraph(router, routersByName, clustersByName, visitor);
         }
-        return true;
     }
 
-    private static boolean traverseRouterGraph(String routerName,
-                                               @Nullable RouteDefinition incomingRoute,
-                                               @Nullable RouterDefinition sourceRouter,
-                                               Map<String, RouterDefinition> routersByName,
-                                               Map<String, ClusterDefinition> clustersByName,
-                                               RoutingGraphVisitor<?> visitor) {
-        return traverseGraph(routerName, incomingRoute, sourceRouter, routersByName, clustersByName, visitor,
+    private static void traverseRouterGraph(String routerName,
+                                            Map<String, RouterDefinition> routersByName,
+                                            Map<String, ClusterDefinition> clustersByName,
+                                            RoutingGraphVisitor<?> visitor) {
+        traverseGraph(routerName, null, null, routersByName, clustersByName, visitor,
                 new HashSet<>(), new HashSet<>(), new ArrayList<>());
     }
 
+    @SuppressWarnings({ "java:S107", "java:S3776" }) // DFS traversal inherently needs this state threaded through recursion
     private static boolean traverseGraph(String routerName,
                                          @Nullable RouteDefinition incomingRoute,
                                          @Nullable RouterDefinition sourceRouter,
@@ -173,7 +134,7 @@ public final class RoutingGraphWalker {
         WalkContext ctx = new WalkContext(incomingRoute, sourceRouter, firstVisit, List.copyOf(currentPath));
 
         if (!visitor.enterRouter(rd, ctx)) {
-            currentPath.remove(currentPath.size() - 1);
+            currentPath.removeLast();
             if (firstVisit) {
                 inPath.remove(routerName);
             }
@@ -182,7 +143,7 @@ public final class RoutingGraphWalker {
 
         if (!firstVisit) {
             // Revisit: already on the DFS path (cycle). Don't recurse.
-            currentPath.remove(currentPath.size() - 1);
+            currentPath.removeLast();
             return true;
         }
 
@@ -195,56 +156,21 @@ public final class RoutingGraphWalker {
                     WalkContext clusterCtx = new WalkContext(route, rd, true, List.copyOf(currentPath));
                     if (!visitor.visitClusterDefinition(cd, clusterCtx)) {
                         result = false;
-                        break;
                     }
                 }
             }
-            if (route.router() != null) {
-                if (!traverseGraph(route.router(), route, rd, routersByName, clustersByName, visitor, visited, inPath, currentPath)) {
-                    result = false;
-                    break;
-                }
+            if (route.router() != null && !traverseGraph(route.router(), route, rd, routersByName, clustersByName, visitor, visited, inPath, currentPath)) {
+                result = false;
+            }
+            if (!result) {
+                break;
             }
         }
 
-        currentPath.remove(currentPath.size() - 1);
+        currentPath.removeLast();
         inPath.remove(routerName);
         visited.add(routerName);
         return result;
     }
 
-    private static final class AnyMatchVisitor implements RoutingGraphVisitor<Boolean> {
-
-        private final Predicate<String> routerNamePredicate;
-        private final Predicate<String> clusterNamePredicate;
-        private boolean found;
-
-        AnyMatchVisitor(Predicate<String> routerNamePredicate, Predicate<String> clusterNamePredicate) {
-            this.routerNamePredicate = routerNamePredicate;
-            this.clusterNamePredicate = clusterNamePredicate;
-        }
-
-        @Override
-        public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
-            if (ctx.isFirstVisit() && routerNamePredicate.test(rd.name())) {
-                found = true;
-                return false;
-            }
-            return true;
-        }
-
-        @Override
-        public boolean visitClusterDefinition(ClusterDefinition cd, WalkContext ctx) {
-            if (clusterNamePredicate.test(cd.name())) {
-                found = true;
-                return false;
-            }
-            return true;
-        }
-
-        @Override
-        public Boolean result() {
-            return found;
-        }
-    }
 }

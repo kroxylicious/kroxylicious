@@ -11,14 +11,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.RouterDefinition;
+import io.kroxylicious.proxy.config.RoutingGraphVisitor;
 import io.kroxylicious.proxy.config.RoutingGraphWalker;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.WalkContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -59,13 +62,67 @@ final class RoutingGraphChangeDetector implements ChangeDetector {
             if (newCluster == null) {
                 continue;
             }
-            if (RoutingGraphWalker.anyInClusterGraph(newCluster, newRoutersByName, newClustersByName,
+            if (anyInClusterGraph(newCluster, newRoutersByName, newClustersByName,
                     changedRouterNames::contains, changedClusterNames::contains)) {
                 toModify.add(newCluster.name());
             }
         }
 
         return new ChangeResult(Set.of(), Set.of(), toModify);
+    }
+
+    /**
+     * Returns {@code true} if any node reachable from {@code vc} in its routing graph
+     * satisfies either predicate.
+     *
+     * @param vc                   the virtual cluster whose graph is walked
+     * @param routersByName        all router definitions indexed by name
+     * @param clustersByName       all cluster definitions indexed by name
+     * @param routerNamePredicate  test applied to each visited router definition's name
+     * @param clusterNamePredicate test applied to each cluster definition's name at a leaf
+     */
+    public static boolean anyInClusterGraph(VirtualCluster vc,
+                                            Map<String, RouterDefinition> routersByName,
+                                            Map<String, ClusterDefinition> clustersByName,
+                                            Predicate<String> routerNamePredicate,
+                                            Predicate<String> clusterNamePredicate) {
+        return Objects.requireNonNull(RoutingGraphWalker.walkClusterGraph(vc, routersByName, clustersByName,
+                () -> new AnyMatchVisitor(routerNamePredicate, clusterNamePredicate)));
+    }
+
+    private static final class AnyMatchVisitor implements RoutingGraphVisitor<Boolean> {
+
+        private final Predicate<String> routerNamePredicate;
+        private final Predicate<String> clusterNamePredicate;
+        private boolean found;
+
+        AnyMatchVisitor(Predicate<String> routerNamePredicate, Predicate<String> clusterNamePredicate) {
+            this.routerNamePredicate = routerNamePredicate;
+            this.clusterNamePredicate = clusterNamePredicate;
+        }
+
+        @Override
+        public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+            if (ctx.isFirstVisit() && routerNamePredicate.test(rd.name())) {
+                found = true;
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public boolean visitClusterDefinition(ClusterDefinition cd, WalkContext ctx) {
+            if (clusterNamePredicate.test(cd.name())) {
+                found = true;
+                return false;
+            }
+            return true;
+        }
+
+        @Override
+        public Boolean result() {
+            return found;
+        }
     }
 
     private static Set<String> changedRouterNames(Configuration oldConfig, Configuration newConfig) {
