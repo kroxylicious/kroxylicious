@@ -93,7 +93,7 @@ public class InMemoryKms implements
     }
 
     /**
-     * @return the number of DEKs that have been generated.
+     * Returns the number of DEKs that have been generated.
      */
     public int numDeksGenerated() {
         return edeksGenerated.size();

@@ -35,6 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class InvocationCountingRouterFactory implements RouterFactory<InvocationCountingRouterFactory.Config, InvocationCountingRouterFactory.Config> {
 
     /**
+     * Configuration for the invocation-counting router factory.
+     *
      * @param configInstanceId unique identifier for this config instance, used to correlate
      *        initialize/close events across hot-reload cycles
      * @param route the route name to which all requests are forwarded statically

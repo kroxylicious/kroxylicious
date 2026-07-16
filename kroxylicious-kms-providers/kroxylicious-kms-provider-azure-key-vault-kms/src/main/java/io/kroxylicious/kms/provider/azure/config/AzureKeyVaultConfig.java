@@ -27,6 +27,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 /**
+ * Configuration for connecting to an Azure Key Vault.
+ *
  * @param oauth2ClientCredentials optional credentials for authenticating with Entra via OAuth2. Exactly one of either {@code oauth2ClientCredentials} or {@code managedIdentityCredentials} must be specified.
  * @param managedIdentityCredentials optional service details for authenticating with Entra via Azure Managed Identity. Exactly one of either {@code oauth2ClientCredentials} or {@code managedIdentityCredentials} must be specified.
  * @param keyVaultName required name of the key vault to use for encryption, e.g. my-key-vault

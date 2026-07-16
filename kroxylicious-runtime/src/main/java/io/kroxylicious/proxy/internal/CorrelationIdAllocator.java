@@ -72,6 +72,8 @@ public class CorrelationIdAllocator {
     }
 
     /**
+     * Checks whether the given id falls within this allocator's range.
+     *
      * @param id id
      * @return true if this id is part of the range this allocator will allocate from
      */
@@ -80,7 +82,7 @@ public class CorrelationIdAllocator {
     }
 
     /**
-     * @return minimum allocatable id inclusive
+     * Returns the minimum allocatable id, inclusive.
      */
     @VisibleForTesting
     int minInc() {
@@ -88,7 +90,7 @@ public class CorrelationIdAllocator {
     }
 
     /**
-     * @return maximum allocatable id exclusive
+     * Returns the maximum allocatable id, exclusive.
      */
     @VisibleForTesting
     int maxExc() {

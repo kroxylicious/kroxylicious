@@ -97,6 +97,8 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     /**
+     * Configuration for the request-response marking filter.
+     *
      * @param forwardingStyle
      * If true, forward will occur after an asynchronous request is made and a response received from the broker. */
     public record RequestResponseMarkingFilterConfig(String name, Set<ApiKeys> keysToMark, Set<RequestResponseMarkingFilterFactory.Direction> direction,

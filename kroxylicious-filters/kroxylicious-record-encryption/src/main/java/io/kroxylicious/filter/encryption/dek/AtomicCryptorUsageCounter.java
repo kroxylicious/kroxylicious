@@ -52,6 +52,8 @@ class AtomicCryptorUsageCounter {
     private final AtomicLong state = new AtomicLong(START);
 
     /**
+     * Attempts to acquire an encryptor usage.
+     *
      * @return true if encryptor usage acquired
      */
     public boolean acquireEncryptorUsage() {
@@ -60,6 +62,8 @@ class AtomicCryptorUsageCounter {
     }
 
     /**
+     * Attempts to acquire a decryptor usage.
+     *
      * @return true if decryptor usage acquired
      */
     public boolean acquireDecryptorUsage() {
@@ -68,6 +72,8 @@ class AtomicCryptorUsageCounter {
     }
 
     /**
+     * Releases one encryptor usage.
+     *
      * @return true if this counter is in the ended state after applying the release
      * @throws IllegalStateException if we have zero outstanding Encryptor usages
      */
@@ -76,6 +82,8 @@ class AtomicCryptorUsageCounter {
     }
 
     /**
+     * Releases one decryptor usage.
+     *
      * @return true if this counter is in the ended state after applying the release
      * @throws IllegalStateException if we have zero outstanding Decryptor usages
      */

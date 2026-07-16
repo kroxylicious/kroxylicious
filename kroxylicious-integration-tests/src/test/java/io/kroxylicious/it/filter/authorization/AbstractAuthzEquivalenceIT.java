@@ -145,6 +145,8 @@ abstract class AbstractAuthzEquivalenceIT extends BaseIT {
     }
 
     /**
+     * Creates a KafkaClient connected to the given cluster.
+     *
      * @param bootstrapServers The cluster to connect to.
      * @return A KafkaClient connected to the given cluster.
      */

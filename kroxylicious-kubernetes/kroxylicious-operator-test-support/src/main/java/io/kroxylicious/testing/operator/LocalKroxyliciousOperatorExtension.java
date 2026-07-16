@@ -261,7 +261,7 @@ public class LocalKroxyliciousOperatorExtension implements BeforeAllCallback, Af
     }
 
     /**
-     * @return the Kubernetes namespace created for this test.
+     * Returns the Kubernetes namespace created for this test.
      */
     public String getNamespace() {
         return localOperatorExtension.getNamespace();
