@@ -5,13 +5,10 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Validates that router definitions form a directed acyclic graph (DAG).
@@ -44,9 +41,19 @@ class RouterGraphValidator {
     private static void validateReferences(List<RouterDefinition> routerDefinitions,
                                            Map<String, RouterDefinition> routersByName,
                                            Set<String> targetClusterNames) {
-        for (var rd : routerDefinitions) {
-            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
-                    () -> new ReferenceValidationVisitor(targetClusterNames));
+        for (var router : routerDefinitions) {
+            for (var route : router.routes()) {
+                if (route.cluster() != null && !targetClusterNames.contains(route.cluster())) {
+                    throw new IllegalConfigurationException(
+                            "Route '" + route.name() + "' in router '" + router.name()
+                                    + "' references unknown cluster '" + route.cluster() + "'");
+                }
+                if (route.router() != null && !routersByName.containsKey(route.router())) {
+                    throw new IllegalConfigurationException(
+                            "Route '" + route.name() + "' in router '" + router.name()
+                                    + "' references unknown router '" + route.router() + "'");
+                }
+            }
         }
     }
 
@@ -75,40 +82,19 @@ class RouterGraphValidator {
 
     private static void detectCycles(List<RouterDefinition> routerDefinitions,
                                      Map<String, RouterDefinition> routersByName) {
-        Set<String> explored = new HashSet<>();
         for (var rd : routerDefinitions) {
-            if (explored.add(rd.name())) {
-                explored.addAll(RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
-                        CycleDetectionVisitor::new));
-            }
+            RoutingGraphWalker.walkRouterGraph(rd.name(), routersByName, Map.of(),
+                    CycleDetectionVisitor::new);
         }
     }
 
-    private static final class ReferenceValidationVisitor implements RoutingGraphVisitor<Void> {
-
-        private final Set<String> targetClusterNames;
-
-        ReferenceValidationVisitor(Set<String> targetClusterNames) {
-            this.targetClusterNames = targetClusterNames;
-        }
+    private static final class CycleDetectionVisitor implements RoutingGraphVisitor<Void> {
 
         @Override
-        public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
-            if (rd == null && ctx.currentRoute() != null && ctx.sourceRouter() != null) {
+        public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+            if (!ctx.isFirstVisit()) {
                 throw new IllegalConfigurationException(
-                        "Route '" + ctx.currentRoute().name() + "' in router '" + ctx.sourceRouter().name()
-                                + "' references unknown router '" + ctx.currentRoute().router() + "'");
-            }
-            return true;
-        }
-
-        @Override
-        public boolean visitClusterName(@Nullable ClusterDefinition cd, WalkContext ctx) {
-            if (ctx.currentRoute() != null && ctx.sourceRouter() != null
-                    && !targetClusterNames.contains(ctx.currentRoute().cluster())) {
-                throw new IllegalConfigurationException(
-                        "Route '" + ctx.currentRoute().name() + "' in router '" + ctx.sourceRouter().name()
-                                + "' references unknown cluster '" + ctx.currentRoute().cluster() + "'");
+                        "Router definitions contain a cycle: " + String.join(" -> ", ctx.path()));
             }
             return true;
         }
@@ -116,28 +102,6 @@ class RouterGraphValidator {
         @Override
         public Void result() {
             return null;
-        }
-    }
-
-    private static final class CycleDetectionVisitor implements RoutingGraphVisitor<Set<String>> {
-
-        private final Set<String> visited = new HashSet<>();
-
-        @Override
-        public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
-            if (!ctx.isFirstVisit()) {
-                throw new IllegalConfigurationException(
-                        "Router definitions contain a cycle: " + String.join(" -> ", ctx.path()));
-            }
-            if (rd != null) {
-                visited.add(rd.name());
-            }
-            return true;
-        }
-
-        @Override
-        public Set<String> result() {
-            return visited;
         }
     }
 }

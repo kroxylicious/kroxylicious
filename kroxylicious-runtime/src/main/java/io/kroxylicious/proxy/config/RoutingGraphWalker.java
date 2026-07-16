@@ -124,8 +124,12 @@ public final class RoutingGraphWalker {
         }
         String namedCluster = vc.namedTargetCluster();
         if (namedCluster != null) {
-            WalkContext clusterCtx = new WalkContext(null, null, true, List.of());
-            return visitor.visitClusterName(clustersByName.get(namedCluster), clusterCtx);
+            ClusterDefinition cd = clustersByName.get(namedCluster);
+            if (cd != null) {
+                WalkContext clusterCtx = new WalkContext(null, null, true, List.of());
+                return visitor.visitClusterDefinition(cd, clusterCtx);
+            }
+            return true;
         }
         String router = vc.router();
         if (router != null) {
@@ -159,15 +163,18 @@ public final class RoutingGraphWalker {
         }
 
         RouterDefinition rd = routersByName.get(routerName);
-        boolean addedToInPath = inPath.add(routerName);
-        boolean firstVisit = addedToInPath;
+        if (rd == null) {
+            return true;
+        }
+
+        boolean firstVisit = inPath.add(routerName);
 
         currentPath.add(routerName);
         WalkContext ctx = new WalkContext(incomingRoute, sourceRouter, firstVisit, List.copyOf(currentPath));
 
         if (!visitor.enterRouter(rd, ctx)) {
             currentPath.remove(currentPath.size() - 1);
-            if (addedToInPath) {
+            if (firstVisit) {
                 inPath.remove(routerName);
             }
             return false;
@@ -181,21 +188,21 @@ public final class RoutingGraphWalker {
 
         // Fresh node: recurse into routes.
         boolean result = true;
-        if (rd != null) {
-            outer: for (var route : rd.routes()) {
-                if (route.cluster() != null) {
-                    ClusterDefinition cd = clustersByName.get(route.cluster());
+        for (var route : rd.routes()) {
+            if (route.cluster() != null) {
+                ClusterDefinition cd = clustersByName.get(route.cluster());
+                if (cd != null) {
                     WalkContext clusterCtx = new WalkContext(route, rd, true, List.copyOf(currentPath));
-                    if (!visitor.visitClusterName(cd, clusterCtx)) {
+                    if (!visitor.visitClusterDefinition(cd, clusterCtx)) {
                         result = false;
-                        break outer;
+                        break;
                     }
                 }
-                if (route.router() != null) {
-                    if (!traverseGraph(route.router(), route, rd, routersByName, clustersByName, visitor, visited, inPath, currentPath)) {
-                        result = false;
-                        break outer;
-                    }
+            }
+            if (route.router() != null) {
+                if (!traverseGraph(route.router(), route, rd, routersByName, clustersByName, visitor, visited, inPath, currentPath)) {
+                    result = false;
+                    break;
                 }
             }
         }
@@ -218,8 +225,8 @@ public final class RoutingGraphWalker {
         }
 
         @Override
-        public boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
-            if (rd != null && ctx.isFirstVisit() && routerNamePredicate.test(rd.name())) {
+        public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+            if (ctx.isFirstVisit() && routerNamePredicate.test(rd.name())) {
                 found = true;
                 return false;
             }
@@ -227,8 +234,8 @@ public final class RoutingGraphWalker {
         }
 
         @Override
-        public boolean visitClusterName(@Nullable ClusterDefinition cd, WalkContext ctx) {
-            if (cd != null && clusterNamePredicate.test(cd.name())) {
+        public boolean visitClusterDefinition(ClusterDefinition cd, WalkContext ctx) {
+            if (clusterNamePredicate.test(cd.name())) {
                 found = true;
                 return false;
             }

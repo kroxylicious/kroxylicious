@@ -63,7 +63,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walksThroughNestedRouters() {
-        // Given: r1 -> r2 -> cluster-deep
+        // Given
         var r2 = routerDef("r2", "cluster-deep");
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -81,19 +81,19 @@ class RoutingGraphWalkerTest {
 
     @Test
     void doesNotLoopOnCycle() {
-        // Given: r1 -> r2 -> r1 (cycle)
+        // Given
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var r2 = routerDefWithRouterTarget("r2", "r1");
         var routers = Map.of("r1", r1, "r2", r2);
 
-        // When: neither predicate ever matches
-        // Then: terminates without StackOverflowError
+        // When
+        // Then
         assertThat(RoutingGraphWalker.anyInRouterGraph("r1", routers, Map.of(), name -> false, name -> false)).isFalse();
     }
 
     @Test
     void returnsTrueWhenNestedRouterNameMatchesPredicate() {
-        // Given: r1 -> r2; r2 is in changedRouterNames
+        // Given
         var r2 = routerDef("r2", "cluster-a");
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -151,7 +151,7 @@ class RoutingGraphWalkerTest {
     @Test
     @SuppressWarnings("deprecation")
     void vcWithInlineTargetClusterReturnsFalse() {
-        // Given: inline targetCluster is not tracked by named-cluster detectors
+        // Given
         var vc = new VirtualCluster("vc1", new TargetCluster("kafka:9092", Optional.empty()),
                 List.of(gateway()), false, false, null);
 
@@ -199,7 +199,7 @@ class RoutingGraphWalkerTest {
             final List<ClusterDefinition> visited = new ArrayList<>();
 
             @Override
-            public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+            public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                 visited.add(c);
                 return true;
             }
@@ -215,8 +215,8 @@ class RoutingGraphWalkerTest {
     }
 
     @Test
-    void walkClusterGraphPassesNullClusterDefinitionWhenClusterNotInMap() {
-        // Given: cluster name is referenced but not in clustersByName
+    void walkClusterGraphSkipsClusterWhenNotInMap() {
+        // Given
         var vc = vcWithNamedCluster("vc1", "cluster-a");
 
         // When
@@ -224,7 +224,7 @@ class RoutingGraphWalkerTest {
             final List<ClusterDefinition> visited = new ArrayList<>();
 
             @Override
-            public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+            public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                 visited.add(c);
                 return true;
             }
@@ -236,7 +236,7 @@ class RoutingGraphWalkerTest {
         });
 
         // Then
-        assertThat(result).containsExactly((ClusterDefinition) null);
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -281,7 +281,7 @@ class RoutingGraphWalkerTest {
                     }
 
                     @Override
-                    public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+                    public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                         clustersVisited.add(c);
                         return true;
                     }
@@ -298,7 +298,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkClusterGraphStopsAtClusterWhenVisitClusterNameReturnsFalse() {
-        // Given: vc with named cluster; visitor stops at the cluster
+        // Given
         var cd = clusterDef("cluster-a");
         var vc = vcWithNamedCluster("vc1", "cluster-a");
 
@@ -308,7 +308,7 @@ class RoutingGraphWalkerTest {
                     final List<ClusterDefinition> clustersVisited = new ArrayList<>();
 
                     @Override
-                    public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+                    public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                         clustersVisited.add(c);
                         return false;
                     }
@@ -319,13 +319,13 @@ class RoutingGraphWalkerTest {
                     }
                 });
 
-        // Then: the cluster was visited (the stop is signalled after visiting it)
+        // Then
         assertThat(result).containsExactly(cd);
     }
 
     @Test
     void walkClusterGraphVisitsAllRoutersWhenTraversalCompletes() {
-        // Given: r1 -> r2 -> cluster-deep
+        // Given
         var r2 = routerDef("r2", "cluster-deep");
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -337,7 +337,7 @@ class RoutingGraphWalkerTest {
 
             @Override
             public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
-                if (rd != null && ctx.isFirstVisit()) {
+                if (ctx.isFirstVisit()) {
                     routersVisited.add(rd);
                 }
                 return true;
@@ -378,7 +378,7 @@ class RoutingGraphWalkerTest {
             }
 
             @Override
-            public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+            public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                 clustersVisited.add(c);
                 return true;
             }
@@ -396,7 +396,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkRouterGraphVisitsAllNodesInNestedRouterChain() {
-        // Given: r1 -> r2 -> cluster-deep
+        // Given
         var r2 = routerDef("r2", "cluster-deep");
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -416,7 +416,7 @@ class RoutingGraphWalkerTest {
             }
 
             @Override
-            public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+            public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                 clustersVisited.add(c);
                 return true;
             }
@@ -434,7 +434,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkRouterGraphSkipsSubgraphWhenEnterRouterReturnsFalse() {
-        // Given: r1 -> r2 -> cluster-deep; visitor stops at r1
+        // Given
         var r2 = routerDef("r2", "cluster-deep");
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -453,7 +453,7 @@ class RoutingGraphWalkerTest {
             }
 
             @Override
-            public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+            public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                 clustersVisited.add(c);
                 return true;
             }
@@ -471,7 +471,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkRouterGraphStopsAtFirstClusterWhenVisitClusterNameReturnsFalse() {
-        // Given: r1 has two cluster routes; visitor stops on first
+        // Given
         var r1 = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(
                 new RouteDefinition("route1", 0, null, new RouteTarget("cluster-a", null)),
                 new RouteDefinition("route2", 1, null, new RouteTarget("cluster-b", null))));
@@ -485,7 +485,7 @@ class RoutingGraphWalkerTest {
             final List<ClusterDefinition> clustersVisited = new ArrayList<>();
 
             @Override
-            public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+            public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                 clustersVisited.add(c);
                 return false;
             }
@@ -501,7 +501,7 @@ class RoutingGraphWalkerTest {
     }
 
     @Test
-    void walkRouterGraphPassesNullDefinitionForUnknownRouter() {
+    void walkRouterGraphSkipsUnknownRouter() {
         // When
         var result = RoutingGraphWalker.walkRouterGraph("unknown", Map.of(), Map.of(), () -> new RoutingGraphVisitor<List<RouterDefinition>>() {
             final List<RouterDefinition> visited = new ArrayList<>();
@@ -519,23 +519,23 @@ class RoutingGraphWalkerTest {
         });
 
         // Then
-        assertThat(result).containsExactly((RouterDefinition) null);
+        assertThat(result).isEmpty();
     }
 
     @Test
     void walkRouterGraphDoesNotLoopOnCycle() {
-        // Given: r1 -> r2 -> r1 (cycle)
+        // Given
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var r2 = routerDefWithRouterTarget("r2", "r1");
         var routers = Map.of("r1", r1, "r2", r2);
 
-        // When: traversal terminates without StackOverflowError
+        // When
         var result = RoutingGraphWalker.walkRouterGraph("r1", routers, Map.of(), () -> new RoutingGraphVisitor<List<RouterDefinition>>() {
             final List<RouterDefinition> routersVisited = new ArrayList<>();
 
             @Override
             public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
-                if (rd != null && ctx.isFirstVisit()) {
+                if (ctx.isFirstVisit()) {
                     routersVisited.add(rd);
                 }
                 return true;
@@ -547,7 +547,7 @@ class RoutingGraphWalkerTest {
             }
         });
 
-        // Then: each router visited as first-visit exactly once
+        // Then
         assertThat(result).containsExactlyInAnyOrder(r1, r2);
     }
 
@@ -557,7 +557,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkContextPathContainsCorrectRouterSequenceForChain() {
-        // Given: r1 -> r2 -> cluster-deep
+        // Given
         var r2 = routerDef("r2", "cluster-deep");
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -570,9 +570,7 @@ class RoutingGraphWalkerTest {
 
                     @Override
                     public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
-                        if (rd != null) {
-                            steps.add(new Step(rd.name(), ctx.path()));
-                        }
+                        steps.add(new Step(rd.name(), ctx.path()));
                         return true;
                     }
 
@@ -592,7 +590,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkContextCarriesEdgeContextForClusterVisit() {
-        // Given: r1 has a route "route1" targeting cluster-a
+        // Given
         var rd = routerDef("r1", "cluster-a");
         var cd = clusterDef("cluster-a");
 
@@ -603,7 +601,7 @@ class RoutingGraphWalkerTest {
                     final List<ClusterStep> steps = new ArrayList<>();
 
                     @Override
-                    public boolean visitClusterName(ClusterDefinition c, WalkContext ctx) {
+                    public boolean visitClusterDefinition(ClusterDefinition c, WalkContext ctx) {
                         steps.add(new ClusterStep(ctx.currentRoute(), ctx.sourceRouter()));
                         return true;
                     }
@@ -622,7 +620,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkContextIsFirstVisitFalseAndPathShowsFullCycleOnRevisit() {
-        // Given: r1 -> r2 -> r1 (cycle)
+        // Given
         var r1 = routerDefWithRouterTarget("r1", "r2");
         var r2 = routerDefWithRouterTarget("r2", "r1");
         var routers = Map.of("r1", r1, "r2", r2);
@@ -647,7 +645,7 @@ class RoutingGraphWalkerTest {
                     }
                 });
 
-        // Then: exactly one revisit, path shows the full cycle r1 -> r2 -> r1
+        // Then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).isFirstVisit()).isFalse();
         assertThat(result.get(0).path()).containsExactly("r1", "r2", "r1");
@@ -655,7 +653,7 @@ class RoutingGraphWalkerTest {
 
     @Test
     void walkContextEntryPointHasNullRouteAndRouter() {
-        // Given: single router with a cluster route
+        // Given
         var rd = routerDef("r1", "cluster-a");
 
         // When
@@ -675,7 +673,7 @@ class RoutingGraphWalkerTest {
                     }
                 });
 
-        // Then: entry-point router has null currentRoute and sourceRouter
+        // Then
         assertThat(result).hasSize(1);
         assertThat(result.get(0).currentRoute()).isNull();
         assertThat(result.get(0).sourceRouter()).isNull();

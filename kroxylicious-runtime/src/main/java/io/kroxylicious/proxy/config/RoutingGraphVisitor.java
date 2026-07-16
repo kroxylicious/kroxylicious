@@ -20,6 +20,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Implementations can accumulate state in fields and expose a {@link #result()} once
  * the walk has finished. The walker calls methods in traversal order; visitor state is
  * never reset between callbacks.
+ * <p>
+ * The walker assumes that all router and cluster references have been validated
+ * (e.g. via {@link RouterGraphValidator#validate}); definition parameters are non-null.
  *
  * @param <T> the type of value produced by this visitor after the walk completes
  * @see RoutingGraphWalker
@@ -44,35 +47,26 @@ public interface RoutingGraphVisitor<T> {
     /**
      * Called for each router node encountered during traversal.
      * <p>
-     * {@code rd} is {@code null} when the router name is referenced but not present in
-     * the router map; the visitor may read the referenced name from
-     * {@link WalkContext#currentRoute()}.
-     * <p>
      * When {@link WalkContext#isFirstVisit()} is {@code false}, the walker will not recurse
      * into this router's children — the router is already on the current DFS path, forming
      * a cycle.
      *
-     * @param rd  the router's definition, or {@code null} if the referenced name is not
-     *            in the router map
+     * @param rd  the router's definition
      * @param ctx context for this traversal step
      * @return {@code true} to continue traversal, {@code false} to terminate early
      */
-    default boolean enterRouter(@Nullable RouterDefinition rd, WalkContext ctx) {
+    default boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
         return true;
     }
 
     /**
      * Called for each named cluster at a route leaf.
-     * <p>
-     * {@code cd} is {@code null} when the cluster name is referenced but not present in
-     * the cluster map.
      *
-     * @param cd  the cluster's definition, or {@code null} if the referenced name is not
-     *            in the cluster map
+     * @param cd  the cluster's definition
      * @param ctx context for this traversal step
      * @return {@code true} to continue traversal, {@code false} to terminate early
      */
-    default boolean visitClusterName(@Nullable ClusterDefinition cd, WalkContext ctx) {
+    default boolean visitClusterDefinition(ClusterDefinition cd, WalkContext ctx) {
         return true;
     }
 
