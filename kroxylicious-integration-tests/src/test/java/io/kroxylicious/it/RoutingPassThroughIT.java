@@ -63,6 +63,7 @@ import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.testing.integration.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests verifying that routing via a pass-through router
@@ -417,14 +418,16 @@ class RoutingPassThroughIT {
 
         try (var tester = KroxyliciousTesters.newBuilder(config).setFeatures(ROUTING_ENABLED).createDefaultKroxyliciousTester();
                 var admin = tester.admin()) {
+            // Given
             admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get(10, TimeUnit.SECONDS);
-            // When
-            var descriptions = admin.describeTopics(List.of(topicName)).allTopicNames().get(10, TimeUnit.SECONDS);
 
-            // Then: leader ID is the virtual ID (1), not the upstream broker ID (0)
-            assertThat(descriptions.get(topicName).partitions())
-                    .singleElement()
-                    .satisfies(p -> assertThat(p.leader().id()).isEqualTo(1));
+            // When / Then
+            await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+                var descriptions = admin.describeTopics(List.of(topicName)).allTopicNames().get(10, TimeUnit.SECONDS);
+                assertThat(descriptions.get(topicName).partitions())
+                        .singleElement()
+                        .satisfies(p -> assertThat(p.leader().id()).isEqualTo(1));
+            });
         }
     }
 
