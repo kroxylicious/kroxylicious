@@ -634,7 +634,7 @@ User-facing changes must be documented. Instead of editing `CHANGELOG.md` direct
 **Entry format:**
 ```yaml
 title: "feat(runtime): add graceful shutdown with configurable drain timeout"
-type: added
+type: feat
 merge_requests:    # use for PRs
   - 1234
 # or:
@@ -642,12 +642,18 @@ issues:            # use for issues
   - 5678
 ```
 
-**Available types** - controls which section the entry appears in:
+**Available types** - pick the one that best describes the change (ideally follow [Conventional Commits](https://www.conventionalcommits.org/)); this also controls which section the entry appears in:
 
-| Type                                                       | Section                                         |
-|------------------------------------------------------------|-------------------------------------------------|
-| `added`, `fixed`, `security`, `dependency_update`, `other` | Main version section                            |
-| `changed`, `deprecated`, `removed`                         | "Changes, deprecations and removals" subsection |
+| Type         | Use for                                                                          | Section                              |
+|--------------|----------------------------------------------------------------------------------|--------------------------------------|
+| `feat`       | New features, capabilities, or configuration options (`feat`)                    | Main (under version number)          |
+| `fix`        | Bug fixes                                                                        | Main (under version number)          |
+| Other text   | Anything that cannot be well described using Conventional Commits                | Main (under version number)          |
+| `changed`    | Behaviour changes that require user action; include migration steps in the title | "Changes, deprecations and removals" |
+| `deprecated` | APIs or features being phased out; note the replacement                          | "Changes, deprecations and removals" |
+| `removed`    | APIs or features that have been deleted                                          | "Changes, deprecations and removals" |
+
+Not every commit needs a changelog entry e.g. documentation fixes, internal build tooling changes, etc.
 
 The same issue/PR can appear in **both** sections:
 
@@ -662,7 +668,7 @@ For example:
 ```yaml
 # changelog/unreleased/1038-enforce-minimum-file-permissions.yaml
 title: "feat(security): enforce minimum file permissions on confidential files."
-type: added
+type: feat
 issues:
   - 1038
 ```
