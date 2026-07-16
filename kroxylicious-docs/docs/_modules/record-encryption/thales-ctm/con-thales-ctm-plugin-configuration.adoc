@@ -54,7 +54,9 @@ kmsConfig:
     username: kroxylicious-service
     password:
       passwordFile: /opt/kroxylicious/ctm-password
+    domain: my-domain # <1>
 ----
+<1> Optional. Omit if domains are not in use.
 
 where:
 
@@ -62,6 +64,7 @@ where:
 * `endpointUrl` provides the CipherTrust Manager endpoint URL including the protocol, such as `https://ctm.example.com`.
 * `username` is the CipherTrust Manager username.
 * `passwordFile` references a file containing the password.
+* `domain` (optional) is the CipherTrust Manager domain to authenticate into. CipherTrust Manager domains provide multi-tenancy by segregating keys between teams or applications. When omitted, authentication targets the root domain.
 
 IMPORTANT: In production deployments, always use `passwordFile` to reference a password stored in a file rather than embedding the password directly in the configuration.
 

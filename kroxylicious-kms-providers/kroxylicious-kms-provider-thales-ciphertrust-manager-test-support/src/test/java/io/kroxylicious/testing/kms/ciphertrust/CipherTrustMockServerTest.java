@@ -86,7 +86,7 @@ class CipherTrustMockServerTest {
     private String authenticate() throws Exception {
         var authRequest = AuthRequest.withPassword(
                 CipherTrustMockServer.TEST_USERNAME,
-                CipherTrustMockServer.TEST_PASSWORD);
+                CipherTrustMockServer.TEST_PASSWORD, null);
         var requestBody = OBJECT_MAPPER.writeValueAsString(authRequest);
 
         var request = HttpRequest.newBuilder()
@@ -167,7 +167,7 @@ class CipherTrustMockServerTest {
         // Already tested in setUp via authenticate(), but let's verify the structure
         var authRequest = AuthRequest.withPassword(
                 CipherTrustMockServer.TEST_USERNAME,
-                CipherTrustMockServer.TEST_PASSWORD);
+                CipherTrustMockServer.TEST_PASSWORD, null);
 
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/v1/auth/tokens/"))
@@ -770,7 +770,7 @@ class CipherTrustMockServerTest {
                 // Authenticate
                 var authReq = AuthRequest.withPassword(
                         CipherTrustMockServer.TEST_USERNAME,
-                        CipherTrustMockServer.TEST_PASSWORD);
+                        CipherTrustMockServer.TEST_PASSWORD, null);
                 var request = HttpRequest.newBuilder()
                         .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
                         .header("Content-Type", "application/json")
@@ -801,7 +801,7 @@ class CipherTrustMockServerTest {
                 // Authenticate
                 var authReq = AuthRequest.withPassword(
                         CipherTrustMockServer.TEST_USERNAME,
-                        CipherTrustMockServer.TEST_PASSWORD);
+                        CipherTrustMockServer.TEST_PASSWORD, null);
                 var authRequest = HttpRequest.newBuilder()
                         .uri(URI.create(tlsBaseUrl + "/api/v1/auth/tokens/"))
                         .header("Content-Type", "application/json")

@@ -29,7 +29,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param refreshTokenLifetime optional refresh token lifetime
  * @param refreshTokenRevokeUnusedIn optional refresh token revoke unused duration
  * @param renewRefreshToken optional flag to renew refresh token
- * @param authDomain optional auth domain
  * @param clientId client ID for client certificate authentication
  * @param connection optional connection
  * @param cookies optional cookies flag
@@ -45,7 +44,6 @@ public record AuthRequest(
                           @JsonProperty("refresh_token_lifetime") @Nullable Integer refreshTokenLifetime,
                           @JsonProperty("refresh_token_revoke_unused_in") @Nullable Integer refreshTokenRevokeUnusedIn,
                           @JsonProperty("renew_refresh_token") @Nullable Boolean renewRefreshToken,
-                          @JsonProperty("auth_domain") @Nullable String authDomain,
                           @JsonProperty("client_id") @Nullable String clientId,
                           @JsonProperty("connection") @Nullable String connection,
                           @JsonProperty("cookies") @Nullable Boolean cookies,
@@ -57,10 +55,11 @@ public record AuthRequest(
      *
      * @param username the username
      * @param password the password
+     * @param domain   optional domain name; when non-null the token is scoped to that domain
      * @return auth request
      */
-    public static AuthRequest withPassword(String username, String password) {
-        return new AuthRequest(username, password, null, "password", null, null, null, null, null, null, null, null, null);
+    public static AuthRequest withPassword(String username, String password, @Nullable String domain) {
+        return new AuthRequest(username, password, null, "password", null, null, null, null, null, null, domain, null);
     }
 
     /**
@@ -70,7 +69,7 @@ public record AuthRequest(
      * @return auth request
      */
     public static AuthRequest withRefreshToken(String refreshToken) {
-        return new AuthRequest(null, null, refreshToken, "refresh_token", null, null, null, null, null, null, null, null, null);
+        return new AuthRequest(null, null, refreshToken, "refresh_token", null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -84,7 +83,7 @@ public record AuthRequest(
      * @return auth request
      */
     public static AuthRequest withClientCredential(String clientId) {
-        return new AuthRequest(null, null, null, "client_credential", null, null, null, null, clientId, null, null, null, null);
+        return new AuthRequest(null, null, null, "client_credential", null, null, null, clientId, null, null, null, null);
     }
 
     @Override
@@ -98,7 +97,6 @@ public record AuthRequest(
                 ", refreshTokenLifetime=" + refreshTokenLifetime +
                 ", refreshTokenRevokeUnusedIn=" + refreshTokenRevokeUnusedIn +
                 ", renewRefreshToken=" + renewRefreshToken +
-                ", authDomain='" + authDomain + '\'' +
                 ", clientId='" + clientId + '\'' +
                 ", connection='" + connection + '\'' +
                 ", cookies=" + cookies +

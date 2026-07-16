@@ -41,6 +41,7 @@ import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Protocol;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
@@ -77,6 +78,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.STRIMZI_CLUSTER_
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
@@ -216,6 +218,69 @@ class AllReconcilersIT {
                                 .extracting(Ingresses::getBootstrapServer, as(InstanceOfAssertFactories.STRING))
                                 .isNotEmpty()));
 
+    }
+
+    @Test
+    void downstreamOpenShiftRouteIngress() {
+        assumeThat(OpenShiftUtils.supportsRoute())
+                .withFailMessage("kubernetes server is missing support for resource kind Route").isTrue();
+
+        // Given
+        var domain = OpenShiftUtils.getDefaultIngressControllerDomain();
+        var myProxy = editableProxy(PROXY_A).build();
+        var myService = editableService(CLUSTER_FOO_SERVICE).build();
+        // @formatter:off
+        var myIngress = editableIngress(CLUSTER_FOO_CLUSTER_IP_INGRESS, myProxy)
+                .editOrNewSpec()
+                    .withNewOpenShiftRoute()
+                    .endOpenShiftRoute()
+                    .withClusterIP(null)
+                .endSpec()
+                .build();
+        var tlsCert = new SecretBuilder()
+                .withNewMetadata()
+                    .withName("downstream-tls-certificate")
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
+                .build();
+        var clusterIngress = new IngressesBuilder()
+                .withIngressRef(new IngressRefBuilder().withName(name(myIngress)).build())
+                .withNewTls()
+                    .withNewCertificateRef()
+                        .withName(name(tlsCert))
+                    .endCertificateRef()
+                .endTls()
+                .build();
+        var myCluster = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                    .withName(CLUSTER_FOO)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewProxyRef()
+                        .withName(name(myProxy))
+                    .endProxyRef()
+                    .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName(name(myService)).build())
+                    .withIngresses(List.of(clusterIngress))
+                .endSpec()
+                .build();
+        // @formatter:on
+
+        // When
+        createAll(myProxy, myIngress, myService, tlsCert, myCluster);
+
+        // Then
+        assertResourceAttainsCondition(AllReconcilersIT::resourceAccepted, myCluster);
+        AWAIT.alias("cluster %s has route-based bootstrap server".formatted(CLUSTER_FOO))
+                .untilAsserted(() -> assertThat(clusterUser.get(VirtualKafkaCluster.class, CLUSTER_FOO))
+                        .isNotNull()
+                        .extracting(VirtualKafkaCluster::getStatus)
+                        .satisfies(vcs -> assertThat(vcs)
+                                .extracting(VirtualKafkaClusterStatus::getIngresses, as(InstanceOfAssertFactories.list(Ingresses.class)))
+                                .singleElement()
+                                .extracting(Ingresses::getBootstrapServer, as(InstanceOfAssertFactories.STRING))
+                                .endsWith("." + domain + ":443")));
     }
 
     static Stream<Arguments> upstreamTlsScenarios() {

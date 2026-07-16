@@ -238,7 +238,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
                 // Username/password authentication
                 var username = Objects.requireNonNull(connectionConfig.username());
                 var password = Objects.requireNonNull(connectionConfig.password());
-                yield AuthRequest.withPassword(username, password);
+                yield AuthRequest.withPassword(username, password, null);
             }
             case CLIENT_CERT -> {
                 // Client certificate authentication
@@ -284,7 +284,7 @@ public class CipherTrustTestKmsFacade implements TestKmsFacade<Config, WrappingK
         return switch (authMode) {
             case PASSWORD -> {
                 var userCredentials = new UserCredentials(Objects.requireNonNull(connectionConfig.username()),
-                        new InlinePassword(Objects.requireNonNull(connectionConfig.password())));
+                        new InlinePassword(Objects.requireNonNull(connectionConfig.password())), null);
                 yield new Config(cipherTrustUrl, userCredentials, null, connectionConfig.tls());
             }
             case CLIENT_CERT -> {
