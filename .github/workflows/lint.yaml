@@ -63,12 +63,9 @@ jobs:
       - name: 'Validate POM metadata for Central Portal'
         run: |
           mvn --batch-mode --quiet help:effective-pom -Doutput=target/effective-pom.xml
-          python3 scripts/validate_pom_metadata.py
-      - name: 'Validate BOM POM metadata for Central Portal'
-        working-directory: kroxylicious-bom
-        run: |
-          mvn --batch-mode --quiet help:effective-pom -Doutput=target/effective-pom.xml
-          python3 ../scripts/validate_pom_metadata.py
+          mvn --batch-mode --quiet -pl kroxylicious-bom help:effective-pom -Doutput=kroxylicious-bom/target/effective-pom.xml
+          python3 scripts/validate_pom_metadata.py target/effective-pom.xml
+          python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number

@@ -78,11 +78,11 @@ def validate_project(project):
 
 
 def main():
-    pom_file = pathlib.Path("target/effective-pom.xml")
+    pom_file = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path("target/effective-pom.xml")
     if not pom_file.exists():
         print(
-            "target/effective-pom.xml not found.\n"
-            "Run: mvn --batch-mode help:effective-pom -Doutput=target/effective-pom.xml",
+            f"{pom_file} not found.\n"
+            f"Run: mvn --batch-mode help:effective-pom -Doutput={pom_file}",
             file=sys.stderr,
         )
         sys.exit(1)
