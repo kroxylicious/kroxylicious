@@ -64,7 +64,9 @@ jobs:
         run: |
           mvn --batch-mode --quiet help:effective-pom -Doutput=target/effective-pom.xml
           mvn --batch-mode --quiet -pl kroxylicious-bom help:effective-pom -Doutput=kroxylicious-bom/target/effective-pom.xml
-          python3 scripts/validate_pom_metadata.py target/effective-pom.xml
+          # +1 for the root reactor pom, which appears in the effective-pom but is not declared as a <module> anywhere
+          expected=$(( $(grep -h -r --include="pom.xml" "<module>" . | grep -v target | sort | uniq | wc -l) + 1 ))
+          python3 scripts/validate_pom_metadata.py target/effective-pom.xml "$expected"
           python3 scripts/validate_pom_metadata.py kroxylicious-bom/target/effective-pom.xml
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt

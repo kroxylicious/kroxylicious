@@ -79,6 +79,7 @@ def validate_project(project):
 
 def main():
     pom_file = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else pathlib.Path("target/effective-pom.xml")
+    expected_count = int(sys.argv[2]) if len(sys.argv) > 2 else None
     if not pom_file.exists():
         print(
             f"{pom_file} not found.\n"
@@ -112,6 +113,14 @@ def main():
         artifact_id, errors = validate_project(project)
         if errors:
             failures.append((artifact_id, errors))
+
+    if expected_count is not None and len(projects) != expected_count:
+        print(
+            f"POM metadata validation FAILED: expected {expected_count} module(s) but found {len(projects)}.\n"
+            "A module may have been added or removed from the reactor.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if failures:
         print(f"POM metadata validation FAILED for {len(failures)} module(s):\n")
