@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.23.0
 
 * [#4307](https://github.com/kroxylicious/kroxylicious/pull/4307): feat(routing): **Preview** — dynamic routing API. Implement `RouterFactory` to dispatch requests to multiple upstream clusters based on request content, with fan-out via `RouterContext.sendRequest()` and in-order response delivery. Wire routers into virtual clusters via the new top-level `routerDefinitions` configuration. Router and cluster definitions are hot-reload compatible ([#4242](https://github.com/kroxylicious/kroxylicious/pull/4242)). Enable with `KROXYLICIOUS_UNLOCK_ROUTING=true` (see Changes section below).
