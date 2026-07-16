@@ -26,8 +26,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param path          unmodifiable list of router names from the walk entry point to the
  *                      current node, inclusive; empty at the virtual-cluster entry point
  */
-record WalkContext(
-                   @Nullable RouteDefinition currentRoute,
-                   @Nullable RouterDefinition sourceRouter,
-                   boolean isFirstVisit,
-                   List<String> path) {}
+public record WalkContext(
+                          @Nullable RouteDefinition currentRoute,
+                          @Nullable RouterDefinition sourceRouter,
+                          boolean isFirstVisit,
+                          List<String> path) {}

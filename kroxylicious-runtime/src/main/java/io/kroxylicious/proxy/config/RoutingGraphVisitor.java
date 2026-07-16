@@ -10,20 +10,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * Visitor for nodes in a virtual cluster's routing graph (VirtualCluster → Router DAG → ClusterDefinitions).
  * <p>
- * Naming convention: {@code visit*} methods are one-shot notifications (the node has no
- * children to recurse into); {@code enterRouter} is the recursive router callback.
- * There is no matching {@code leaveRouter} — it was omitted because a partially-called
- * leave (not called on revisits) would break the enter/leave contract.
- * <p>
  * Each method returns {@code true} to continue traversal or {@code false} to terminate
- * early. Default implementations return {@code true}, so only the node types of interest
- * need to be overridden.
+ * early. Default implementations return {@code true}.
  * <p>
  * A {@link WalkContext} is supplied to every callback, carrying the edge that led to the
  * current node, whether this is a {@linkplain WalkContext#isFirstVisit() first or revisit},
  * and the {@linkplain WalkContext#path() router-name path} from the walk entry point.
  * <p>
- * Implementations accumulate state in fields and expose it via {@link #result()} once
+ * Implementations can accumulate state in fields and expose a {@link #result()} once
  * the walk has finished. The walker calls methods in traversal order; visitor state is
  * never reset between callbacks.
  *
