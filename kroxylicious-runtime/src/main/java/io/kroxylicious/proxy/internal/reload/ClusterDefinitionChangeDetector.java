@@ -49,6 +49,7 @@ final class ClusterDefinitionChangeDetector implements ChangeDetector {
         Map<String, VirtualCluster> newByName = newConfig.virtualClusters().stream()
                 .collect(Collectors.toMap(VirtualCluster::name, Function.identity()));
         Map<String, RouterDefinition> newRoutersByName = indexRouterDefinitionsByName(newConfig.routerDefinitions());
+        Map<String, ClusterDefinition> newClustersByName = indexByName(newConfig.clusterDefinitions());
 
         Set<String> toModify = new HashSet<>();
         for (VirtualCluster oldCluster : oldConfig.virtualClusters()) {
@@ -57,7 +58,7 @@ final class ClusterDefinitionChangeDetector implements ChangeDetector {
                 // Removed — VirtualClusterChangeDetector will flag this as clustersToRemove.
                 continue;
             }
-            if (ClusterGraphTester.anyInClusterGraph(newCluster, newRoutersByName, name -> false, changedClusterNames::contains)) {
+            if (ClusterGraphWalker.anyInClusterGraph(newCluster, newRoutersByName, newClustersByName, name -> false, changedClusterNames::contains)) {
                 toModify.add(newCluster.name());
             }
         }

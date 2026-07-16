@@ -14,6 +14,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.kroxylicious.proxy.config.ClusterDefinition;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.RouterDefinition;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -46,6 +47,8 @@ final class RouterChangeDetector implements ChangeDetector {
         Map<String, VirtualCluster> newByName = newConfig.virtualClusters().stream()
                 .collect(Collectors.toMap(VirtualCluster::name, Function.identity()));
         Map<String, RouterDefinition> newRoutersByName = indexRouterDefinitionsByName(newConfig.routerDefinitions());
+        Map<String, ClusterDefinition> newClustersByName = newConfig.clusterDefinitions() == null ? Map.of()
+                : newConfig.clusterDefinitions().stream().collect(Collectors.toMap(ClusterDefinition::name, Function.identity()));
 
         Set<String> toModify = new HashSet<>();
         for (VirtualCluster oldCluster : oldConfig.virtualClusters()) {
@@ -54,7 +57,7 @@ final class RouterChangeDetector implements ChangeDetector {
                 // Removed — VirtualClusterChangeDetector will flag this as clustersToRemove.
                 continue;
             }
-            if (transitivelyReferencesChangedRouter(newCluster, newRoutersByName, changedRouterNames)) {
+            if (transitivelyReferencesChangedRouter(newCluster, newRoutersByName, newClustersByName, changedRouterNames)) {
                 toModify.add(newCluster.name());
             }
         }
@@ -93,7 +96,8 @@ final class RouterChangeDetector implements ChangeDetector {
      */
     private static boolean transitivelyReferencesChangedRouter(VirtualCluster vc,
                                                                Map<String, RouterDefinition> routersByName,
+                                                               Map<String, ClusterDefinition> clustersByName,
                                                                Set<String> changedRouterNames) {
-        return ClusterGraphTester.anyInClusterGraph(vc, routersByName, changedRouterNames::contains, name -> false);
+        return ClusterGraphWalker.anyInClusterGraph(vc, routersByName, clustersByName, changedRouterNames::contains, name -> false);
     }
 }
