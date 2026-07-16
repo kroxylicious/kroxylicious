@@ -23,6 +23,6 @@ record AllValidTopicValidationResult(String topicName) implements TopicValidatio
 
     @Override
     public PartitionValidationResult getPartitionResult(int index) {
-        return new PartitionValidationResult(index, List.of());
+        return new PartitionValidationResult(index, java.util.Collections.emptyList());
     }
 }
