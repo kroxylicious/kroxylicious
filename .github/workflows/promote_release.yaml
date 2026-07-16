@@ -50,6 +50,8 @@ on:
         required: true
       KROXYLICIOUS_RELEASE_TOKEN:
         required: true
+      REGISTRY_TOKEN:
+        required: true
 
 jobs:
   promote-release:
@@ -221,12 +223,64 @@ jobs:
         run: |
           gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
 
+      - name: Login to container registry
+        if: ${{ vars.REGISTRY_SERVER != '' }}
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0
+        with:
+          registry: ${{ vars.REGISTRY_SERVER }}
+          username: ${{ vars.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: 'Tag release container images'
+        if: ${{ inputs.command == 'promote-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          RELEASE_SHA=$(git rev-parse "v${{ env.RELEASE_VERSION }}^{}")
+          SHA_TAG="commit-${RELEASE_SHA:0:7}"
+
+          PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
+          LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
+          OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
+          ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
+
+          # Re-tag the SHA-tagged staging images as the release version.
+          # --all copies all platform manifests (preserves multi-arch).
+          # Note: 'latest' is intentionally not published. If the project decides to
+          # resume a 'latest' tag, add additional skopeo copy lines here.
+          skopeo copy --all \
+            "docker://${PROXY_IMAGE}:${SHA_TAG}" \
+            "docker://${PROXY_IMAGE}:${{ env.RELEASE_VERSION }}"
+          skopeo copy --all \
+            "docker://${PROXY_IMAGE}:${SHA_TAG}" \
+            "docker://${LEGACY_PROXY_IMAGE}:${{ env.RELEASE_VERSION }}"
+          skopeo copy --all \
+            "docker://${OPERATOR_IMAGE}:${SHA_TAG}" \
+            "docker://${OPERATOR_IMAGE}:${{ env.RELEASE_VERSION }}"
+          skopeo copy --all \
+            "docker://${ADMISSION_IMAGE}:${SHA_TAG}" \
+            "docker://${ADMISSION_IMAGE}:${{ env.RELEASE_VERSION }}"
+
       - name: 'Drop PR'
         if: ${{ inputs.command == 'drop-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }} 
+          gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }}
+
+      - name: 'Delete staging container images'
+        if: ${{ inputs.command == 'drop-release' && vars.REGISTRY_SERVER != '' }}
+        run: |
+          RELEASE_SHA=$(git rev-parse "v${{ env.RELEASE_VERSION }}^{}")
+          SHA_TAG="commit-${RELEASE_SHA:0:7}"
+
+          PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
+          LEGACY_PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/kroxylicious"
+          OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
+          ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
+
+          skopeo delete "docker://${PROXY_IMAGE}:${SHA_TAG}"
+          skopeo delete "docker://${LEGACY_PROXY_IMAGE}:${SHA_TAG}"
+          skopeo delete "docker://${OPERATOR_IMAGE}:${SHA_TAG}"
+          skopeo delete "docker://${ADMISSION_IMAGE}:${SHA_TAG}"
 
       - name: 'Drop run label used to tag release PR'
         env:

@@ -151,6 +151,28 @@ jobs:
           # Deployment id is the id known to Central Publishing Portal
           echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> $GITHUB_ENV
 
+      - name: 'Build and verify release container images'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          RELEASE_SHA=$(git rev-parse "v${{ github.event.inputs.release-version }}^{}")
+          gh workflow run docker.yaml --ref "v${{ github.event.inputs.release-version }}"
+
+          # Poll until the triggered run appears (dispatch registration can take a few seconds)
+          RUN_ID=""
+          for i in $(seq 1 12); do
+            sleep 10
+            RUN_ID=$(gh api \
+              "/repos/${{ github.repository }}/actions/workflows/docker.yaml/runs?head_sha=${RELEASE_SHA}" \
+              --jq '.workflow_runs[0].id // empty')
+            [[ -n "${RUN_ID}" ]] && break
+          done
+          if [[ -z "${RUN_ID}" ]]; then
+            echo "Timed out waiting for docker workflow run to appear for ${RELEASE_SHA}"
+            exit 1
+          fi
+          gh run watch "${RUN_ID}" --exit-status
+
       - name: 'Build release state'
         run: |
           jq -n --arg deploymentId "${{ env.DEPLOYMENT_ID }}" \
