@@ -63,6 +63,14 @@ You'll need the following software installed:
 
 == Start Minikube
 
+We'll use a Minikube profile to keep it separate from any other work you are doing in Minikube.
+We use a profile called `quickstart-nnnnn`
+
+[source,terminal]
+----
+$ export MINIKUBE_PROFILE=quickstart-${RANDOM}
+----
+
 Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this quickstart.
 
 [source,terminal]
@@ -109,7 +117,7 @@ And enable the Transit Secrets Engine.
 
 [source,terminal,kms="vault"]
 ----
-$ kubectl wait -n kms --for=condition=Ready pod/vault-0 && kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
+$ kubectl wait -n kms --for=condition=Ready pod/vault-0 --timeout=300s && kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
 ----
 ====
 
@@ -219,7 +227,7 @@ and wait for the virtual cluster to be ready for connections.
 
 [source,terminal]
 ----
-$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")]}'
+$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")]}' --timeout=300s
 ----
 
 Finally, let's assign a variable containing the virtual cluster's bootstrap address.
@@ -336,11 +344,19 @@ $ helm uninstall -n kms vault --ignore-not-found
 ----
 ====
 
-And finally remove the namespaces.
+Remove the namespaces.
 
 [source,terminal]
 ----
 $ kubectl delete ns kafka kms
+----
+
+Finally clean up the Minikube profile.
+
+[source,terminal]
+----
+$ minikube stop
+$ minikube delete
 ----
 
 == What next?
