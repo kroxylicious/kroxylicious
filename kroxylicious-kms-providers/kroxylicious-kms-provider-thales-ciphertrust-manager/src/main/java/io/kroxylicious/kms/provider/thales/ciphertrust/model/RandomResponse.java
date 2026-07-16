@@ -26,6 +26,6 @@ public record RandomResponse(
      * Constructs a random response.
      */
     public RandomResponse {
-        Objects.requireNonNull(bytes, "bytes cannot be null");
+        if (bytes == null) { throw new NullPointerException("bytes cannot be null"); }
     }
 }
