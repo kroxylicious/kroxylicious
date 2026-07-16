@@ -625,6 +625,71 @@ environments.
 
 To help simplify local testing we also have a simple composefile in `compose/kafka-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
 
+## Changelog Entries
+
+User-facing changes must be documented. Instead of editing `CHANGELOG.md` directly, add a YAML entry file to `changelog/unreleased/`. This avoids merge conflicts when multiple PRs are open.
+
+**File naming:** `<issue-or-pr-number>-<short-slug>.yaml` (e.g. `1234-add-record-encryption.yaml`)
+
+**Entry format:**
+```yaml
+title: "feat(runtime): add graceful shutdown with configurable drain timeout"
+type: added
+merge_requests:    # use for PRs
+  - 1234
+# or:
+issues:            # use for issues
+  - 5678
+```
+
+**Available types** - controls which section the entry appears in:
+
+| Type                                                       | Section                                         |
+|------------------------------------------------------------|-------------------------------------------------|
+| `added`, `fixed`, `security`, `dependency_update`, `other` | Main version section                            |
+| `changed`, `deprecated`, `removed`                         | "Changes, deprecations and removals" subsection |
+
+The same issue/PR can appear in **both** sections:
+
+- Add one YAML file with a short `type: added` summary.
+
+  _...and..._
+
+- A second with `type: changed` for the detailed breaking-change explanation.
+
+For example:
+
+```yaml
+# changelog/unreleased/1038-enforce-minimum-file-permissions.yaml
+title: "feat(security): enforce minimum file permissions on confidential files."
+type: added
+issues:
+  - 1038
+```
+
+```yaml
+# changelog/unreleased/1038-file-permissions-changes.yaml
+title: |
+  Kroxylicious now validates that confidential files (TLS private keys, keystores, truststores, password files, KMS credential files, and AWS IRSA/Pod Identity token files) are not excessively permissive before reading them.
+    * Control enforcement via `security.filePermissions.policy` in the proxy configuration:
+      * `STRICT` (owner-only access, like SSH)
+# ... more text ...
+# ... more text ...
+# ... more text ...
+type: changed
+issues:
+  - 1038
+```
+
+For complex "Changes" entries with nested bullet points, use a YAML literal block scalar (`|`) in the `title` field.
+
+After adding your entry file, commit it:
+```shell
+git add changelog/unreleased/<your-entry>.yaml
+```
+
+`CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The CI lint step runs `mvn logchange:lint` on every PR to catch malformed YAML.
+
 # Deprecation Policy
 
 We want to let users know about upcoming changes to APIs and give them sufficient time to adapt. The following policy

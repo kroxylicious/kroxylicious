@@ -60,6 +60,8 @@ jobs:
             -DskipTests \
             -Djapicmp.skip=true \
             verify
+      - name: 'Lint changelog entries'
+        run: mvn --batch-mode logchange:lint
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number

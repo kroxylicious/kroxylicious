@@ -133,6 +133,9 @@ jobs:
                           --description "Used by release workflow to identify the PR for release candidate (${{ github.event.inputs.release-version }}). Do not modify." \
                           --force
 
+      - name: 'Lint changelog entries'
+        run: mvn --batch-mode logchange:lint
+
       - name: 'Stage Release'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}

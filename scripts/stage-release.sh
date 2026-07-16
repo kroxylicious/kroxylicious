@@ -148,8 +148,9 @@ fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
-#Set the release version in the Changelog
-replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+# Move unreleased changelog entries to the release version and regenerate CHANGELOG.md
+mvn -q logchange:release
+git add changelog/ CHANGELOG.md
 
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
 replaceInFile "s_:KroxyliciousGitRef:.*_:KroxyliciousGitRef: v${RELEASE_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc
@@ -194,8 +195,6 @@ PREPARE_DEVELOPMENT_BRANCH="${WORK_BRANCH_NAME}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
 updateVersions "${RELEASE_VERSION}" "${NEXT_VERSION}"
-# bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 # bump the docs for the development version
 replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${NEXT_VERSION}_g" kroxylicious-docs/docs/_assets/attributes.adoc

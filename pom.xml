@@ -678,6 +678,7 @@
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>**/goal.txt</exclude>
                                     <exclude>**/.jbang/**</exclude>
+                                    <exclude>changelog/**</exclude>
                                     <exclude>src/main/resources/archetype-resources/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
@@ -854,6 +855,11 @@
                     <configuration>
                         <jbangVersion>0.139.3</jbangVersion>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>dev.logchange</groupId>
+                    <artifactId>logchange-maven-plugin</artifactId>
+                    <version>1.19.15</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
