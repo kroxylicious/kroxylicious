@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
 """Validate POM metadata required by Maven Central Portal for all reactor modules.
+
+Maven Central Portal requires each published POM to carry:
+  - <name>, <description>, <url>
+  - <licenses> with at least one <license> containing <name> and <url>
+  - <developers> with at least one <developer> containing <name> or <organization>
+  - <scm> with <connection>, <developerConnection>, and <url>
+
+See: https://central.sonatype.org/publish/requirements/
 
 Generate the effective POM first with:
 
