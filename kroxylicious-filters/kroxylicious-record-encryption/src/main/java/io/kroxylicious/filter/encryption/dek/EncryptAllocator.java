@@ -15,6 +15,8 @@ import java.nio.ByteBuffer;
 @FunctionalInterface
 public interface EncryptAllocator {
     /**
+     * Allocates a buffer of the requested size for encryption.
+     *
      * @param size The size of the required buffer
      * @return A buffer. If this has less than {@code size} bytes remaining
      * then the encryption will ultimately fail with {@link BufferTooSmallException}

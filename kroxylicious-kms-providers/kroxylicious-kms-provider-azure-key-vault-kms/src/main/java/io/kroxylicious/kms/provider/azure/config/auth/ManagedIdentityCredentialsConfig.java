@@ -21,6 +21,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 /**
+ * Configuration for authenticating with Entra via Azure Managed Identity.
+ *
  * @param targetResource required App ID URI of the target resource
  * @param identityServiceEndpoint optional base URI for Managed Identity Service endpoint (should only be configured for testing), defaults to "http://169.254.169.254" which is the Azure Instance Metadata Service (IMDS)
  */

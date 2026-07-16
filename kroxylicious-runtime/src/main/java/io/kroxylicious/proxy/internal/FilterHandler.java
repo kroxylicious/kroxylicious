@@ -195,8 +195,10 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     /**
+     * Produces a short descriptor for the given message, suitable for logging.
+     *
      * @param obj A message
-     * @return A descriptor for the message (for logging purposes). Does not include the message contents.
+     * @return A descriptor for the message. Does not include the message contents.
      */
     static String msgDescriptor(@Nullable Object obj) {
         return switch (obj) {

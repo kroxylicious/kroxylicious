@@ -17,12 +17,12 @@ import io.kroxylicious.proxy.filter.FilterContext;
  */
 public interface ClientTlsContext {
     /**
-     * @return The TLS server certificate that the proxy presented to the client during TLS handshake.
+     * Returns the TLS server certificate that the proxy presented to the client during TLS handshake.
      */
     X509Certificate proxyServerCertificate();
 
     /**
-     * @return the client's certificate, or empty if no TLS client certificate was presented during TLS handshake.
+     * Returns the client's certificate, or empty if no TLS client certificate was presented during TLS handshake.
      */
     Optional<X509Certificate> clientCertificate();
 

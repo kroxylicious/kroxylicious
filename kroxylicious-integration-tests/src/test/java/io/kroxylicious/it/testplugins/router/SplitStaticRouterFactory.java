@@ -32,6 +32,8 @@ import io.kroxylicious.proxy.router.RouterResponse;
 public class SplitStaticRouterFactory implements RouterFactory<SplitStaticRouterFactory.Config, SplitStaticRouterFactory.Config> {
 
     /**
+     * Configuration for the split static router factory.
+     *
      * @param defaultRoute route name for all API keys not listed in {@code splitApiKeys}
      * @param splitRoute   route name for API keys listed in {@code splitApiKeys}
      * @param splitApiKeys names of {@link ApiKeys} constants to send to {@code splitRoute}

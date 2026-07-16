@@ -89,7 +89,7 @@ public class KafkaProxyFrontendHandler
     private @Nullable String sniHostname;
 
     /**
-     * @return the SSL session, or null if a session does not (currently) exist.
+     * Returns the SSL session, or null if a session does not currently exist.
      */
     @Nullable
     SSLSession sslSession() {

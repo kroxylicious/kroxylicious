@@ -73,6 +73,8 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     }
 
     /**
+     * Configuration for the rejecting create-topic filter.
+     *
      * @param withCloseConnection If true, rejection will also close the connection
      * @param forwardingStyle forward style to use, allows the response to be delayed
      * @param respondWithError if true, a response containing an error will be returned to the client, otherwise
