@@ -60,6 +60,10 @@ jobs:
             -DskipTests \
             -Djapicmp.skip=true \
             verify
+      - name: 'Validate POM metadata for Central Portal'
+        run: |
+          mvn --batch-mode --quiet help:effective-pom -Doutput=target/effective-pom.xml
+          python3 scripts/validate_pom_metadata.py
       - name: Save PR number to file
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
       - name: Archive PR number

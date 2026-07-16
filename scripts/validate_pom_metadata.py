@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Validate POM metadata required by Maven Central Portal for all reactor modules.
+
+Generate the effective POM first with:
+
+    mvn --batch-mode help:effective-pom -Doutput=target/effective-pom.xml
+
+In a multi-module build Maven writes all effective POMs into that single file
+wrapped in a <projects> root element.
+"""
+
+import pathlib
+import sys
+import xml.etree.ElementTree as ET
+
+NS = "http://maven.apache.org/POM/4.0.0"
+ns = {"m": NS}
+
+
+def _text(element, xpath):
+    node = element.find(xpath, ns)
+    return node.text.strip() if node is not None and node.text else ""
+
+
+def validate_project(project):
+    """Return (artifact_id, [error_messages]) for one <project> element."""
+    artifact_id = _text(project, "m:artifactId") or "(unknown)"
+    errors = []
+
+    for field in ("name", "description", "url"):
+        if not _text(project, f"m:{field}"):
+            errors.append(f"<{field}> is missing or empty")
+
+    licenses = project.find("m:licenses", ns)
+    if licenses is None:
+        errors.append("<licenses> is missing")
+    else:
+        valid = any(
+            _text(lic, "m:name") and _text(lic, "m:url")
+            for lic in licenses.findall("m:license", ns)
+        )
+        if not valid:
+            errors.append("<licenses> has no <license> with both <name> and <url>")
+
+    developers = project.find("m:developers", ns)
+    if developers is None:
+        errors.append("<developers> is missing")
+    else:
+        valid = any(
+            _text(dev, "m:name") or _text(dev, "m:organization")
+            for dev in developers.findall("m:developer", ns)
+        )
+        if not valid:
+            errors.append("<developers> has no <developer> with <name> or <organization>")
+
+    scm = project.find("m:scm", ns)
+    if scm is None:
+        errors.append("<scm> is missing")
+    else:
+        for field in ("connection", "developerConnection", "url"):
+            if not _text(scm, f"m:{field}"):
+                errors.append(f"<scm><{field}> is missing or empty")
+
+    return artifact_id, errors
+
+
+def main():
+    pom_file = pathlib.Path("target/effective-pom.xml")
+    if not pom_file.exists():
+        print(
+            "target/effective-pom.xml not found.\n"
+            "Run: mvn --batch-mode help:effective-pom -Doutput=target/effective-pom.xml",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    try:
+        tree = ET.parse(pom_file)
+    except ET.ParseError as e:
+        print(f"Failed to parse {pom_file}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    root = tree.getroot()
+
+    # Multi-module: <projects> wrapper (no namespace) containing <project> children.
+    # Single-module: root is <project> directly.
+    project_tag = f"{{{NS}}}project"
+    if root.tag == project_tag:
+        projects = [root]
+    else:
+        projects = root.findall(project_tag)
+
+    if not projects:
+        print(f"No <project> elements found in {pom_file}", file=sys.stderr)
+        sys.exit(1)
+
+    failures = []
+    for project in projects:
+        artifact_id, errors = validate_project(project)
+        if errors:
+            failures.append((artifact_id, errors))
+
+    if failures:
+        print(f"POM metadata validation FAILED for {len(failures)} module(s):\n")
+        for artifact_id, errors in failures:
+            print(f"  {artifact_id}:")
+            for error in errors:
+                print(f"    - {error}")
+        sys.exit(1)
+
+    print(f"POM metadata validation passed: {len(projects)} module(s) checked.")
+
+
+if __name__ == "__main__":
+    main()
