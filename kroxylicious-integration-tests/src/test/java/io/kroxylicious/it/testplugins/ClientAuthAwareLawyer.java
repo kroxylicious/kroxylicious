@@ -18,7 +18,7 @@ public class ClientAuthAwareLawyer
 
     @Override
     public Void initialize(FilterFactoryContext context, Void config) throws PluginConfigurationException {
-        return config;
+        return null;
     }
 
     @Override
