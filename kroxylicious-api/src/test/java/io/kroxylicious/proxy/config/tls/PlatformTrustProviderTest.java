@@ -8,11 +8,13 @@ package io.kroxylicious.proxy.config.tls;
 
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
+
 class PlatformTrustProviderTest {
     @Test
     void testAccept() {
         TrustProvider trustProvider = PlatformTrustProvider.INSTANCE;
-        trustProvider.accept(new TrustProviderVisitor<Void>() {
+        assertThatCode(() -> trustProvider.accept(new TrustProviderVisitor<Void>() {
             @Override
             public Void visit(TrustStore trustStore) {
                 throw new RuntimeException("unexpected call to visit(TrustStore)");
@@ -28,6 +30,6 @@ class PlatformTrustProviderTest {
                 return null;
             }
 
-        });
+        })).doesNotThrowAnyException();
     }
 }
