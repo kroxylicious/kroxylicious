@@ -1,0 +1,39 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-termination-approach-{context}']
+= SASL Termination approach
+
+[role="_abstract"]
+The SASL Termination filter performs SASL authentication at the proxy layer, authenticating clients against pluggable credential stores without forwarding credentials to brokers.
+
+== How it works
+
+When using SASL Termination:
+
+1. The client initiates SASL authentication with the proxy
+2. The proxy looks up the user's credentials from a credential store
+3. The proxy validates the client's authentication challenge
+4. On success, the proxy establishes an authenticated connection to the broker on behalf of the client
+5. The proxy makes the authenticated subject available to other filters in the chain
+
+The proxy controls authentication; the broker sees the proxy's identity, not the client's.
+
+== Key characteristics
+
+*Centralized authentication*:: The proxy performs authentication using centrally managed credential stores.
+
+*Credential isolation*:: Client credentials are managed at the proxy layer and isolated from broker access.
+
+*Identity creation*:: The proxy performs authentication and creates the authenticated subject for downstream filters.
+
+*Broker perspective*:: The broker sees the proxy's identity; client identity is available to proxy filters but not to the broker.
+
+== Use cases
+
+SASL Termination is suitable when:
+
+* You need centralized credential management across multiple Kafka clusters
+* You want to isolate client credentials from broker access
+* Your security or compliance requirements mandate authentication termination at a security boundary
+* You want to simplify broker configuration by centralizing credential management
+* You need credential rotation without broker reconfiguration

@@ -1,0 +1,51 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-termination-mechanisms-{context}']
+= Supported SASL mechanisms
+
+[role="_abstract"]
+The SASL Termination filter supports SCRAM (Salted Challenge Response Authentication Mechanism) authentication mechanisms that provide secure password-based authentication without transmitting passwords in plaintext.
+
+== SCRAM mechanisms
+
+[id='supported-mechanisms-termination-{context}']
+.Table of supported SASL mechanisms for termination
+|===
+|SASL mechanism|Hash algorithm|Minimum iterations
+
+|https://datatracker.ietf.org/doc/html/rfc7677[SCRAM-SHA-256]
+|SHA-256
+|4096 (10000 recommended)
+
+|https://datatracker.ietf.org/doc/html/draft-melnikov-scram-sha-512-00[SCRAM-SHA-512]
+|SHA-512
+|4096 (10000 recommended)
+|===
+
+Both mechanisms use salted password hashing with PBKDF2 (Password-Based Key Derivation Function 2) to derive cryptographic keys from passwords.
+This provides strong protection against password cracking attempts.
+
+== How SCRAM authentication works
+
+SCRAM provides challenge-response authentication without exposing passwords:
+
+1. The client sends a username and random nonce
+2. The proxy retrieves the stored credential (salt, iterations, server key, stored key) from the credential store
+3. The proxy and client exchange challenges using the SCRAM algorithm
+4. Both sides prove knowledge of the password without transmitting it
+5. The proxy verifies the client's response and authenticates the connection
+
+SCRAM-SHA-256 and SCRAM-SHA-512 differ only in the hash algorithm used.
+SCRAM-SHA-512 provides stronger cryptographic properties but requires slightly more computational resources.
+
+== Security properties
+
+*No plaintext passwords*:: Passwords are never transmitted over the network or stored in plaintext.
+
+*Salt randomization*:: Each credential uses a random salt to prevent rainbow table attacks.
+
+*Iteration count*:: Multiple PBKDF2 iterations slow down brute-force attacks. Higher iteration counts provide stronger security.
+
+*Replay protection*:: Random nonces in each authentication attempt prevent replay attacks.
+
+For production deployments, use at least 10000 iterations for stronger security, balancing protection with authentication latency requirements.

@@ -1,0 +1,91 @@
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-sasl-inspection-{context}']
+= SASL Inspection filter
+
+[role="_abstract"]
+The SASL Inspection filter extracts the authenticated identity from a successful SASL exchange between the Kafka client and broker.
+The broker controls authentication; the proxy observes and extracts the identity for use by other filters.
+
+== Overview
+
+The SASL Inspection filter inspects the SASL exchange between Kafka client and broker and extracts the authorization ID.
+If the client's authentication with the broker is successful, the filter uses the SASL subject builder to construct an authenticated subject.
+The subject is made available to the other filters in the chain, so that they may know on whose behalf they are acting.
+
+NOTE: The SASL Inspection filter plays no part in deciding if the authentication is successful or not.
+That role remains the exclusive responsibility of the broker.
+
+To use this filter, the Kafka cluster's listener must be configured to authenticate using SASL, and it must use a SASL mechanism that is enabled by this filter.
+If the Kafka client is configured to use a SASL mechanism that is not supported by the proxy, or the proxy and Kafka cluster do not have the same mechanism available,
+the client will be disconnected with an unsupported SASL mechanism error.
+
+== Supported mechanisms
+
+This filter supports the following SASL mechanisms:
+
+[id='supported-mechanisms-inspection-{context}']
+.Table of supported SASL mechanisms for inspection
+|===
+|SASL mechanism|Enabled by default
+
+|https://tools.ietf.org/html/rfc4616[PLAIN]
+|No
+
+|https://datatracker.ietf.org/doc/html/rfc7677[SCRAM-SHA-256]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/draft-melnikov-scram-sha-512-00[SCRAM-SHA-512]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/rfc7628[OAUTHBEARER]
+|Yes
+|===
+
+Mechanisms that transmit credentials in plain text are disabled by default.
+This is done to avoid the plaintext passwords existing in the proxy's memory.
+To use such a mechanism, you must enable it in the filter's configuration.
+
+For the `OAUTHBEARER` inspection, only JWT tokens that use signatures (JWS) are supported.
+JWT tokens that use encryption (JWE) are not supported.
+Unsigned JWT tokens are supported but not recommended for production use.
+
+If an attempt is made to use an unsupported token type, the authentication will fail with a SASL error.
+
+.Sequence diagram showing the SASL inspection filter extracting an authenticated principal from an SASL negotiation.
+image::{realimagesdir}/sasl-inspection-seq.svg["Sequence diagram showing SASL inspection."]
+
+== Configuring SASL Inspection
+
+[role="_abstract"]
+This procedure describes how to set up the SASL Inspection filter by configuring it in Kroxylicious.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
+
+.Procedure
+
+. Configure a `SaslInspection` type filter.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-sasl-inspection-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProtocolFilter` resource. See <<con-sasl-inspection-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+
+ifdef::include-platform-bare-metal[]
+include::../../_modules/authentication/con-sasl-inspection-example-proxy-config.adoc[leveloffset=+2]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../../_modules/authentication/con-sasl-inspection-example-kafkaprotocolfilter-resource.adoc[leveloffset=+2]
+endif::[]
+
+include::../../_modules/authentication/con-configuring-sasl-subject-builder.adoc[leveloffset=+1]
