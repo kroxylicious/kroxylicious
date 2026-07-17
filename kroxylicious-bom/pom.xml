@@ -180,6 +180,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-sasl-credential-store</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-record-encryption</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -187,6 +193,12 @@
             <dependency>
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-sasl-inspection</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-sasl-termination</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
