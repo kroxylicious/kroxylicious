@@ -471,6 +471,33 @@ class RoutingGraphWalkerTest {
         assertThat(result).containsExactlyInAnyOrder(r1, r2);
     }
 
+    @Test
+    void walkRouterGraphTerminatesEarlyWhenEnterRouterReturnsFalseOnRevisit() {
+        // Given: r1 → r2 → r1 (cycle); visitor refuses on revisit
+        var r1 = routerDefWithRouterTarget("r1", "r2");
+        var r2 = routerDefWithRouterTarget("r2", "r1");
+        var routers = Map.of("r1", r1, "r2", r2);
+
+        // When
+        var result = RoutingGraphWalker.walkRouterGraph("r1", routers, Map.of(), () -> new RoutingGraphVisitor<List<RouterDefinition>>() {
+            final List<RouterDefinition> routersVisited = new ArrayList<>();
+
+            @Override
+            public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+                routersVisited.add(rd);
+                return ctx.isFirstVisit();
+            }
+
+            @Override
+            public List<RouterDefinition> result() {
+                return routersVisited;
+            }
+        });
+
+        // Then: r1 (first), r2 (first), r1 (revisit — visitor refuses here, walk terminates)
+        assertThat(result).containsExactly(r1, r2, r1);
+    }
+
     // -------------------------------------------------------------------------
     // WalkContext — path, edge context, and revisit detection
     // -------------------------------------------------------------------------
