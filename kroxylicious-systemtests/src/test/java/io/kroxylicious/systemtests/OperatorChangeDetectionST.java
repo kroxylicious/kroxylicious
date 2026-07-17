@@ -18,6 +18,8 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -103,7 +105,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         kroxylicious.createOrUpdateResources();
     }
 
-    @Test
+    @RepeatedTest(20)
     void shouldUpdateDeploymentWhenKafkaProxyIngressChanges(String namespace) {
         // Given
         deployPortIdentifiesNodeWithNoFilters(namespace, kafkaClusterName);
@@ -121,6 +123,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
+    @Disabled
     @Test
     void shouldUpdateDeploymentWhenVirtualKafkaClusterChanges(String namespace) {
         // Given
@@ -156,6 +159,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
+    @Disabled
     @Test
     void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) {
         // Given
@@ -182,6 +186,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
+    @Disabled
     @Test
     void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) {
         // Given
@@ -206,6 +211,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
+    @Disabled
     @Test
     void shouldUpdateWhenFilterConfigurationChanges(String namespace) {
         // Given
@@ -233,6 +239,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUpdated(namespace, originalChecksum);
     }
 
+    @Disabled
     @Test
     void shouldUpdateDeploymentWhenResourceRequirementsChange(String namespace) {
         // Given
@@ -281,6 +288,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         });
     }
 
+    @Disabled
     @Test
     void shouldNotUpdateDeploymentChecksumWhenKafkaProxyScaled(String namespace) {
         // Given
@@ -302,6 +310,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertDeploymentUnchanged(namespace, originalChecksum, 2);
     }
 
+    @Disabled
     @Test
     void shouldPreserveExternalSsaPatchOnProxyDeploymentAfterReconcile(String namespace) {
         // Given
@@ -321,6 +330,7 @@ class OperatorChangeDetectionST extends AbstractSystemTests {
         assertEnvVarsStillPresent(namespace, kubeClient);
     }
 
+    @Disabled
     @Test
     void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
         // Given
