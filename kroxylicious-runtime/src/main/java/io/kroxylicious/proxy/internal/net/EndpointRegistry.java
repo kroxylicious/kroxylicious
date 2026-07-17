@@ -291,7 +291,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                     deregisterFuture.completeExceptionally(t);
                 }
                 else {
-                    deregisterFuture.complete(u);
+                    deregisterFuture.complete(null);
                 }
             });
             return deregisterFuture;
