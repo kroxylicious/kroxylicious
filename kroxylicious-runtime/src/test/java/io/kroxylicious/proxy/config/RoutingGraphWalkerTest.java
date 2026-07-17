@@ -212,6 +212,44 @@ class RoutingGraphWalkerTest {
         assertThat(result).containsExactlyInAnyOrder(r1, r2);
     }
 
+    @Test
+    @SuppressWarnings("deprecation")
+    void walkClusterGraphOnlyVisitsVcWhenVcHasLegacyInlineTarget() {
+        // Given: deprecated inline targetCluster — namedTargetCluster() and router() both return null
+        var vc = vcWithInlineTarget("vc1");
+
+        // When
+        var result = RoutingGraphWalker.walkClusterGraph(vc, Map.of(), Map.of(), () -> new RoutingGraphVisitor<List<String>>() {
+            final List<String> callLog = new ArrayList<>();
+
+            @Override
+            public boolean visitVirtualCluster(VirtualCluster v, WalkContext ctx) {
+                callLog.add("vc");
+                return true;
+            }
+
+            @Override
+            public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+                callLog.add("router");
+                return true;
+            }
+
+            @Override
+            public boolean visitClusterDefinition(ClusterDefinition cd, WalkContext ctx) {
+                callLog.add("cluster");
+                return true;
+            }
+
+            @Override
+            public List<String> result() {
+                return callLog;
+            }
+        });
+
+        // Then: only visitVirtualCluster is called; no router or cluster is reachable
+        assertThat(result).containsExactly("vc");
+    }
+
     // -------------------------------------------------------------------------
     // walkRouterGraph — visitor is called for routers and cluster leaves
     // -------------------------------------------------------------------------
@@ -654,6 +692,12 @@ class RoutingGraphWalkerTest {
     private static VirtualCluster vcWithRouter(String name, String routerName) {
         return new VirtualCluster(name, null, new RouteTarget(null, routerName),
                 List.of(gateway()), false, false, null, null, null, null);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static VirtualCluster vcWithInlineTarget(String name) {
+        return new VirtualCluster(name, new TargetCluster("kafka:9092", Optional.empty()),
+                List.of(gateway()), false, false, null);
     }
 
     private static VirtualClusterGateway gateway() {
