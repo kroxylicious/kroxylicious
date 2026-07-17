@@ -1,0 +1,192 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-choosing-authentication-approach-{context}']
+= Choosing an authentication approach
+
+[role="_abstract"]
+Kroxylicious supports two approaches to SASL authentication: SASL Inspection and SASL Termination.
+Choose the approach that best fits your security, operational, and compliance requirements.
+
+== Comparison
+
+[cols="2,3,3",options="header"]
+|===
+|Aspect
+|SASL Inspection
+|SASL Termination
+
+|*Authentication location*
+|Broker authenticates clients
+|Proxy authenticates clients
+
+|*Credential management*
+|Credentials managed on broker
+|Credentials managed at proxy (credential store)
+
+|*Identity extraction*
+|Observes and extracts from broker authentication
+|Performs authentication and creates identity
+
+|*Broker visibility*
+|Broker sees client identity
+|Broker sees proxy identity (client identity available to filters)
+
+|*TLS requirement*
+|Optional (but recommended)
+|Required for client-to-proxy connections
+
+|*Use case*
+|Extract identity from existing broker authentication
+|Centralise authentication, isolate credentials
+
+|*Credential rotation*
+|Update credentials on broker
+|Update credentials in credential store
+
+|*Security isolation*
+|Client credentials known to broker
+|Client credentials isolated from broker
+
+|*Latency*
+|Low (passthrough)
+|Slightly higher (credential lookup + crypto)
+
+|*Complexity*
+|Lower (leverages broker auth)
+|Higher (manages credentials)
+
+|*Supported mechanisms*
+|PLAIN, SCRAM-SHA-256, SCRAM-SHA-512, OAUTHBEARER
+|SCRAM-SHA-256, SCRAM-SHA-512
+|===
+
+== When to use SASL Inspection
+
+Use SASL Inspection when:
+
+* Your Kafka brokers already handle client authentication
+* You want to extract authenticated identity for use by other filters (like Authorization)
+* You want minimal proxy involvement in authentication
+* You don't need to isolate client credentials from broker access
+* Performance is critical (lower latency)
+* You need OAUTHBEARER or PLAIN mechanism support
+
+*Example scenarios:*
+
+* Adding authorization at the proxy layer to existing broker-authenticated clusters
+* Multi-tenancy with broker-managed credentials
+* Extracting identity from OAuth-authenticated clients for audit logging
+* Minimal changes to existing Kafka infrastructure
+
+== When to use SASL Termination
+
+Use SASL Termination when:
+
+* You need centralised credential management across multiple clusters
+* You want to isolate client credentials from broker access
+* Your security or compliance requirements mandate authentication at a security boundary
+* You want to simplify broker configuration by centralising credential management
+* You need credential rotation without broker reconfiguration
+* You want to support different authentication mechanisms between clients and brokers
+
+*Example scenarios:*
+
+* Multi-tenant environments with centralised credential management
+* Security architectures requiring authentication termination at the perimeter
+* Compliance scenarios requiring audit of authentication at proxy layer
+* Simplifying broker deployment by removing client credential management
+* Credential rotation workflows managed centrally
+
+== Can I use both?
+
+No. A single virtual cluster must use either SASL Inspection or SASL Termination, not both simultaneously.
+
+However, different virtual clusters within the same proxy instance can use different authentication approaches.
+For example, one virtual cluster could use SASL Inspection whilst another uses SASL Termination.
+
+.Example: Different approaches per virtual cluster
+[source,yaml]
+----
+virtualClusters:
+  production-cluster:
+    targetCluster:
+      bootstrap_servers: prod-kafka:9092
+    filters:
+      - sasl-inspection-filter  <1>
+
+  development-cluster:
+    targetCluster:
+      bootstrap_servers: dev-kafka:9092
+    filters:
+      - sasl-termination-filter  <2>
+----
+<1> Production uses SASL Inspection (broker authentication)
+<2> Development uses SASL Termination (proxy authentication)
+
+== Decision matrix
+
+Use this matrix to help choose the appropriate approach:
+
+[cols="3,1,1",options="header"]
+|===
+|Requirement
+|SASL Inspection
+|SASL Termination
+
+|Existing broker authentication infrastructure
+|✓
+|
+
+|Centralised credential management needed
+|
+|✓
+
+|Credential isolation from brokers required
+|
+|✓
+
+|Minimal latency overhead required
+|✓
+|
+
+|OAUTHBEARER mechanism required
+|✓
+|
+
+|Simplified broker configuration desired
+|
+|✓
+
+|Compliance requires authentication at perimeter
+|
+|✓
+
+|Frequent credential rotation required
+|
+|✓
+
+|Multi-cluster credential consistency needed
+|
+|✓
+|===
+
+== Migration considerations
+
+*From broker authentication to SASL Termination:*
+
+1. Create credential keystore with user credentials
+2. Configure SASL Termination filter
+3. Configure TLS for client-to-proxy connections
+4. Test authentication with a subset of clients
+5. Gradually migrate clients to proxy authentication
+6. Optionally remove client credentials from brokers
+
+*From SASL Termination to SASL Inspection:*
+
+1. Configure broker with client credentials
+2. Replace SASL Termination filter with SASL Inspection filter
+3. Test authentication with a subset of clients
+4. Gradually migrate clients
+5. Optionally remove credential keystore and SASL Termination configuration
+
+NOTE: Changing authentication approaches requires coordination with client applications and may require credential provisioning on the target system (broker or proxy).

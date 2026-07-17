@@ -1,0 +1,112 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-termination-example-kafkaprotocolfilter-resource-{context}']
+= Example KafkaProtocolFilter resource
+
+[role="_abstract"]
+If you deploy Kroxylicious using the Kubernetes operator, configure the SASL Termination filter using a `KafkaProtocolFilter` custom resource.
+
+Here's a complete example:
+
+.Example SASL Termination KafkaProtocolFilter
+[source,yaml,subs="+quotes"]
+----
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProtocolFilter
+metadata:
+  name: sasl-termination
+  namespace: kroxylicious
+spec:
+  type: SaslTermination  <1>
+  configTemplate:  <2>
+    mechanisms:
+      SCRAM-SHA-256:  <3>
+        credentialStore: KeystoreScramCredentialStore  <4>
+        credentialStoreConfig:
+          file: /mnt/credentials/credentials.p12  <5>
+          storePassword:
+            passwordFile: /mnt/secrets/keystore-password.txt  <6>
+          storeType: PKCS12
+----
+<1> Filter type: `SaslTermination`
+<2> Filter configuration template
+<3> SASL mechanism (`SCRAM-SHA-256` or `SCRAM-SHA-512`)
+<4> Credential store implementation
+<5> Path to credential keystore (mounted from volume)
+<6> Path to keystore password file (mounted from Secret)
+
+== Mounting credential keystore
+
+Mount the credential keystore file using a ConfigMap or Secret:
+
+.Example ConfigMap for credential keystore
+[source,yaml,subs="+quotes"]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sasl-credentials
+  namespace: kroxylicious
+binaryData:
+  credentials.p12: <base64-encoded-keystore-data>  <1>
+----
+<1> Base64-encoded PKCS12 keystore file
+
+.Example Secret for keystore password
+[source,yaml,subs="+quotes"]
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sasl-keystore-password
+  namespace: kroxylicious
+type: Opaque
+stringData:
+  keystore-password.txt: "your-secure-keystore-password"  <1>
+----
+<1> Keystore password (use a strong, randomly generated password)
+
+Reference these in your KafkaProxy resource:
+
+.Example KafkaProxy with mounted credentials
+[source,yaml,subs="+quotes"]
+----
+apiVersion: kroxylicious.io/v1alpha1
+kind: KafkaProxy
+metadata:
+  name: my-proxy
+  namespace: kroxylicious
+spec:
+  filters:
+    - name: sasl-termination  <1>
+  deployment:
+    volumes:  <2>
+      - name: credentials
+        configMap:
+          name: sasl-credentials
+      - name: keystore-password
+        secret:
+          secretName: sasl-keystore-password
+    volumeMounts:  <3>
+      - name: credentials
+        mountPath: /mnt/credentials
+        readOnly: true
+      - name: keystore-password
+        mountPath: /mnt/secrets
+        readOnly: true
+----
+<1> Reference to the KafkaProtocolFilter
+<2> Volume definitions for credentials and password
+<3> Mount points for volumes
+
+== Security considerations
+
+IMPORTANT: When deploying on Kubernetes:
+
+* Use Secrets for keystore passwords, not ConfigMaps
+* Use ConfigMaps or Secrets for credential keystores
+* Set `readOnly: true` on volume mounts
+* Use Kubernetes RBAC to restrict access to Secrets
+* Consider using external secret management (e.g., HashiCorp Vault, sealed-secrets)
+
+Refer to the {OperatorGuide} for more information about deploying the proxy on Kubernetes.

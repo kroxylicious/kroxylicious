@@ -1,0 +1,38 @@
+:_mod-docs-content-type: CONCEPT
+
+[id='con-sasl-inspection-approach-{context}']
+= SASL Inspection approach
+
+[role="_abstract"]
+The SASL Inspection filter observes the SASL authentication exchange between Kafka clients and brokers, extracting the authenticated identity after the broker has successfully authenticated the client.
+
+== How it works
+
+When using SASL Inspection:
+
+1. The client initiates SASL authentication with the broker through the proxy
+2. The proxy forwards the authentication exchange between client and broker
+3. The broker authenticates the client using its own credential management
+4. On successful authentication, the proxy extracts the authenticated identity from the SASL exchange
+5. The proxy makes the authenticated subject available to other filters in the chain
+
+The broker controls authentication; the proxy observes and extracts identity.
+
+== Key characteristics
+
+*Passthrough authentication*:: The proxy does not perform authentication. It observes the broker's authentication process.
+
+*Broker-managed credentials*:: Client credentials are managed and validated by the Kafka broker.
+
+*Identity extraction*:: The proxy extracts the authorization ID from a successful SASL exchange for use by other filters.
+
+*Broker visibility*:: The broker sees the client's actual identity.
+
+== Use cases
+
+SASL Inspection is suitable when:
+
+* Your Kafka brokers already handle client authentication
+* You want to add proxy-layer features (like authorization) to existing broker-authenticated clusters
+* You need minimal proxy involvement in authentication
+* You don't require credential isolation between clients and brokers
