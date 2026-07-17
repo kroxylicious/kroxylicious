@@ -329,6 +329,67 @@ class RoutingGraphWalkerTest {
     }
 
     @Test
+    void walkRouterGraphSiblingRouterNotVisitedWhenFirstChildRouterRefuses() {
+        // Given: r1 has two child routers (r2, r3); r2 refuses traversal
+        var r2 = routerDef("r2", "cluster-a");
+        var r3 = routerDef("r3", "cluster-b");
+        var r1 = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(
+                new RouteDefinition("route1", 0, null, new RouteTarget(null, "r2")),
+                new RouteDefinition("route2", 1, null, new RouteTarget(null, "r3"))));
+        var routers = Map.of("r1", r1, "r2", r2, "r3", r3);
+
+        // When
+        var result = RoutingGraphWalker.walkRouterGraph("r1", routers, Map.of(), () -> new RoutingGraphVisitor<List<RouterDefinition>>() {
+            final List<RouterDefinition> routersVisited = new ArrayList<>();
+
+            @Override
+            public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+                routersVisited.add(rd);
+                return !rd.name().equals("r2");
+            }
+
+            @Override
+            public List<RouterDefinition> result() {
+                return routersVisited;
+            }
+        });
+
+        // Then: r2 is visited (and refuses), r3 is never reached
+        assertThat(result).containsExactly(r1, r2);
+    }
+
+    @Test
+    void walkRouterGraphVisitsSharedRouterOnceInDiamondTopology() {
+        // Given: r1 → r2 → r4, r1 → r3 → r4 (r4 reachable via two paths)
+        var r4 = routerDef("r4", "cluster-deep");
+        var r2 = routerDefWithRouterTarget("r2", "r4");
+        var r3 = routerDefWithRouterTarget("r3", "r4");
+        var r1 = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(
+                new RouteDefinition("route1", 0, null, new RouteTarget(null, "r2")),
+                new RouteDefinition("route2", 1, null, new RouteTarget(null, "r3"))));
+        var routers = Map.of("r1", r1, "r2", r2, "r3", r3, "r4", r4);
+
+        // When
+        var result = RoutingGraphWalker.walkRouterGraph("r1", routers, Map.of(), () -> new RoutingGraphVisitor<List<RouterDefinition>>() {
+            final List<RouterDefinition> routersVisited = new ArrayList<>();
+
+            @Override
+            public boolean enterRouter(RouterDefinition rd, WalkContext ctx) {
+                routersVisited.add(rd);
+                return true;
+            }
+
+            @Override
+            public List<RouterDefinition> result() {
+                return routersVisited;
+            }
+        });
+
+        // Then: r4 appears exactly once; the cross-edge from r3 is skipped silently
+        assertThat(result).containsExactlyInAnyOrder(r1, r2, r3, r4);
+    }
+
+    @Test
     void walkRouterGraphStopsAtFirstClusterWhenVisitClusterNameReturnsFalse() {
         // Given
         var r1 = new RouterDefinition("r1", "SomeRouterType", "cfg", List.of(
