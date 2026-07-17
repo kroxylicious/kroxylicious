@@ -42,7 +42,7 @@ class CipherTrustKmsServiceTest {
         service = new CipherTrustKmsService();
         var config = new Config(
                 URI.create("https://ctm.example.com"),
-                new UserCredentials("user", new InlinePassword("pass")),
+                new UserCredentials("user", new InlinePassword("pass"), null),
                 null,
                 null);
         service.initialize(config);
@@ -69,7 +69,7 @@ class CipherTrustKmsServiceTest {
         service = new CipherTrustKmsService();
         var config = new Config(
                 URI.create("https://ctm.example.com"),
-                new UserCredentials("user", new InlinePassword("pass")),
+                new UserCredentials("user", new InlinePassword("pass"), null),
                 null,
                 null);
         service.initialize(config);
@@ -87,7 +87,7 @@ class CipherTrustKmsServiceTest {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV";
         var config = new Config(
                 URI.create("https://ctm.example.com"),
-                new UserCredentials("user", new InlinePassword("pass")),
+                new UserCredentials("user", new InlinePassword("pass"), null),
                 null,
                 new Tls(null, null, new AllowDeny<>(
                         List.of(validButUnusualCipherSuite), null), null, null));

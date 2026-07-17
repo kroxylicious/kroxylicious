@@ -8,6 +8,7 @@
 package io.kroxylicious.systemtests.resources.operator;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -16,10 +17,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1.OperatorGroupBuilder;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.Subscription;
 import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionBuilder;
+import io.fabric8.openshift.api.model.operatorhub.v1alpha1.SubscriptionConfigBuilder;
 import io.skodjob.testframe.TestFrameConstants;
 import io.skodjob.testframe.installation.InstallationMethod;
 import io.skodjob.testframe.olm.OperatorSdkRun;
@@ -51,9 +55,11 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     private final String kroxyliciousOperatorName;
     private final String bundleImageRef;
     private final String operatorNamespace;
+    private final Map<String, String> additionalEnvVars;
 
-    public KroxyliciousOperatorOlmBundleInstaller(String operatorNamespace) {
+    public KroxyliciousOperatorOlmBundleInstaller(String operatorNamespace, Map<String, String> additionalEnvVars) {
         this.operatorNamespace = operatorNamespace;
+        this.additionalEnvVars = additionalEnvVars;
         this.extensionContext = KubeResourceManager.get().getTestContext();
         this.kroxyliciousOperatorName = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME;
         this.bundleImageRef = Environment.KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE;
@@ -72,12 +78,13 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
         return Objects.equals(kroxyliciousOperatorName, otherInstallation.kroxyliciousOperatorName) &&
                 Objects.equals(operatorNamespace, otherInstallation.operatorNamespace) &&
                 Objects.equals(bundleImageRef, otherInstallation.bundleImageRef) &&
-                Objects.equals(extensionContext, otherInstallation.extensionContext);
+                Objects.equals(extensionContext, otherInstallation.extensionContext) &&
+                Objects.equals(additionalEnvVars, otherInstallation.additionalEnvVars);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(extensionContext, kroxyliciousOperatorName, operatorNamespace, bundleImageRef);
+        return Objects.hash(extensionContext, kroxyliciousOperatorName, operatorNamespace, bundleImageRef, additionalEnvVars);
     }
 
     @Override
@@ -87,6 +94,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                 ", kroxyliciousOperatorName='" + kroxyliciousOperatorName + '\'' +
                 ", operatorNamespace='" + operatorNamespace + '\'' +
                 ", bundleImageRef='" + bundleImageRef + '\'' +
+                ", additionalEnvVars=" + additionalEnvVars +
                 '}';
     }
 
@@ -130,6 +138,10 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
             LOGGER.info("OperatorGroup already exists.");
         }
 
+        List<EnvVar> envVars = additionalEnvVars.entrySet().stream()
+                .map(e -> new EnvVarBuilder().withName(e.getKey()).withValue(e.getValue()).build())
+                .toList();
+
         // @formatter:off
         Subscription subscription = new SubscriptionBuilder()
                 .editOrNewMetadata()
@@ -142,6 +154,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                     .withSource(source)
                     .withSourceNamespace(catalogNs)
                     .withInstallPlanApproval("Automatic")
+                    .withConfig(new SubscriptionConfigBuilder().withEnv(envVars).build())
                 .endSpec()
                 .build();
         // @formatter:on
@@ -152,6 +165,9 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     }
 
     private CompletableFuture<Void> install(String operatorName, String operatorNamespace, String bundleImageRef) {
+        if (!additionalEnvVars.isEmpty()) {
+            throw new UnsupportedOperationException("Additional env vars are not supported for bundle-image OLM installs");
+        }
         OperatorSdkRun osr = new OperatorSdkRunBuilder()
                 .withBundleImage(bundleImageRef)
                 .withInstallMode("AllNamespaces")

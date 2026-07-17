@@ -21,7 +21,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Plugin {
     /**
-     * @return The type of configuration associated with the plugin implementation.
+     * Returns the type of configuration associated with the plugin implementation.
      */
     Class<?> configType();
 }

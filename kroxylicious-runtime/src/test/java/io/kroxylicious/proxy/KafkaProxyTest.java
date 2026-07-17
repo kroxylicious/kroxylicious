@@ -201,7 +201,7 @@ class KafkaProxyTest {
                             "exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"));
         }
 
-        @ParameterizedTest()
+        @ParameterizedTest
         @MethodSource
         void detectsConflictingPorts(String config, String expectedMessage) {
             try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {

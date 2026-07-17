@@ -41,6 +41,7 @@ public class Features {
     }
 
     /**
+     * Tests whether the given feature is enabled.
      *
      * @param feature feature to test
      * @return true if feature enabled, else false

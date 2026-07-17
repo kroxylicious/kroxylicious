@@ -22,7 +22,7 @@ import java.lang.annotation.Target;
 public @interface PluginImplConfig {
 
     /**
-     * @return The name of the {@link PluginImplName @PluginImplName}-annotated sibling property.
+     * Returns the name of the {@link PluginImplName @PluginImplName}-annotated sibling property.
      */
     String implNameProperty();
 }

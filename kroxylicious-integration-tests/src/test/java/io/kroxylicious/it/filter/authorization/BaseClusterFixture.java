@@ -24,7 +24,7 @@ public interface BaseClusterFixture extends AutoCloseable {
     String name();
 
     /**
-     * @return The bootstrap server for test clients to use
+     * Returns the bootstrap server for test clients to use.
      */
     String clientBootstrap();
 
@@ -36,7 +36,7 @@ public interface BaseClusterFixture extends AutoCloseable {
     KafkaCluster backingCluster();
 
     /**
-     * @return authenticated clients, ready for making requests, for each of the given usernames.
+     * Returns authenticated clients, ready for making requests, for each of the given usernames.
      */
     default Map<String, KafkaClient> authenticatedClients(Set<String> usernames) {
         return usernames.stream().collect(Collectors.toMap(Function.identity(),

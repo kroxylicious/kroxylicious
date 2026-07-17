@@ -51,7 +51,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @ParameterizedTest
-    @MethodSource()
+    @MethodSource
     void validJson(String json, boolean validateDuplicates) {
         Record jsonRecord = record("a", json);
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(validateDuplicates);
@@ -84,7 +84,7 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @ParameterizedTest
-    @MethodSource()
+    @MethodSource
     void invalidJson(String json, boolean validateDuplicates, String expectedError) {
         Record jsonRecord = record("a", json);
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(validateDuplicates);

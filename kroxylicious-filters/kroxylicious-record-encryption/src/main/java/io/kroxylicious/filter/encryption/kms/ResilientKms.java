@@ -95,7 +95,7 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         Duration delay = strategy.getDelay(attempt);
         return schedule(operation, delay)
                 .exceptionallyCompose(e -> {
-                    if (isUnknownEntityException(e) || (e instanceof CompletionException ce && (isUnknownEntityException(ce.getCause())))) {
+                    if (isUnknownEntityException(e) || (e instanceof CompletionException ce && isUnknownEntityException(ce.getCause()))) {
                         LOGGER.atDebug()
                                 .log("Not retrying unknown entity exception");
                         return CompletableFuture.failedFuture(e);

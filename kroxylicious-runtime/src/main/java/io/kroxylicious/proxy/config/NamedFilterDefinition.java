@@ -21,8 +21,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * A named filter definition
  * @param name The name of the filter instance.
- * @param type
- * @param config
+ * @param type The name of the {@link FilterFactory} plugin implementation providing the filter.
+ * @param config The filter's configuration, or {@code null} if the filter requires none.
  * @see Configuration#filterDefinitions()
  */
 public record NamedFilterDefinition(

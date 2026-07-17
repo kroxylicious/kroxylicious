@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
+import java.util.Map;
+
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 
@@ -17,8 +19,9 @@ import io.kroxylicious.systemtests.resources.operator.KroxyliciousOperatorYamlIn
  * The type Kroxylicious operator.
  */
 public class KroxyliciousOperator {
-    private final InstallationMethod installationMethod;
+    private InstallationMethod installationMethod;
     private final String installationNamespace;
+    private Map<String, String> operatorEnvVars = Map.of();
 
     /**
      * Instantiates a new Kroxylicious operator.
@@ -27,13 +30,25 @@ public class KroxyliciousOperator {
      */
     public KroxyliciousOperator(String deploymentNamespace) {
         this.installationNamespace = deploymentNamespace;
-        this.installationMethod = getInstallationMethod();
+    }
+
+    /**
+     * Sets additional environment variables on the operator pod.
+     * For bundle-image OLM installs, env vars are not supported and will throw at install time.
+     *
+     * @param envVars environment variables to set
+     * @return this
+     */
+    public KroxyliciousOperator withOperatorEnvVars(Map<String, String> envVars) {
+        this.operatorEnvVars = envVars;
+        return this;
     }
 
     /**
      * Deploy.
      */
     public void deploy() {
+        this.installationMethod = createInstallationMethod();
         installationMethod.install();
     }
 
@@ -41,15 +56,17 @@ public class KroxyliciousOperator {
      * Delete.
      */
     public void delete() {
-        installationMethod.delete();
+        if (installationMethod != null) {
+            installationMethod.delete();
+        }
     }
 
-    private InstallationMethod getInstallationMethod() {
+    private InstallationMethod createInstallationMethod() {
         if (Environment.INSTALL_TYPE == InstallType.Olm) {
-            return new KroxyliciousOperatorOlmBundleInstaller(installationNamespace);
+            return new KroxyliciousOperatorOlmBundleInstaller(installationNamespace, operatorEnvVars);
         }
         else {
-            return new KroxyliciousOperatorYamlInstaller(installationNamespace);
+            return new KroxyliciousOperatorYamlInstaller(installationNamespace, operatorEnvVars);
         }
     }
 }

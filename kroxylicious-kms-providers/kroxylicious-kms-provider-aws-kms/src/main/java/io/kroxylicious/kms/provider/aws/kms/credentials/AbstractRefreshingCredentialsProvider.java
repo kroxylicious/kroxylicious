@@ -87,6 +87,8 @@ abstract class AbstractRefreshingCredentialsProvider<C extends Credentials> impl
     protected abstract CompletionStage<C> fetchCredentials();
 
     /**
+     * Determines when the given credential expires.
+     *
      * @param credentials a credential previously returned by {@link #fetchCredentials()}
      * @return the instant at which the credential will expire
      */

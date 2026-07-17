@@ -20,6 +20,8 @@ import io.kroxylicious.proxy.tag.ThreadSafe;
 @ThreadSafe
 public interface ApiVersionsResponseTransformer {
     /**
+     * Transforms the given ApiVersionsResponse data.
+     *
      * @param data data
      * @return data, may be the same object passed to the method, or a new instance
      * @throws ApiVersionsTransformationException if there are any problems

@@ -148,6 +148,16 @@ class KrpcGeneratorTest {
         assertFileHasExpectedContents(file, "Kproxy/KrpcRequestFilter-expected.txt");
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "Kproxy/KrpcRequestFilter.ftl, KrpcRequestFilter",
+            "KrpcRequestFilter.ftl,        KrpcRequestFilter",
+            "deeply/nested/Template.ftl,   Template",
+    })
+    void templateResourceBaseNameStripsDirectoryPrefixAndFtlExtension(String templateName, String expected) {
+        assertThat(KrpcGenerator.templateResourceBaseName(templateName)).isEqualTo(expected);
+    }
+
     @Test
     void messageSpecsFilteredWithInputSpecFilter(@TempDir File tempDir) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()

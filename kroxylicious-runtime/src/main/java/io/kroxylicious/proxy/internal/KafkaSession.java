@@ -65,7 +65,7 @@ public class KafkaSession {
     }
 
     /**
-     * @return the HaProxy message received for this session, or {@code null} if none.
+     * Returns the HA Proxy context received for this session, or {@code null} if none.
      */
     @Nullable
     public HaProxyContext haProxyContext() {

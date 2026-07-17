@@ -28,6 +28,8 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     }
 
     /**
+     * Preconditions for a test scenario, including mocked upstream responses and authorizer rules.
+     *
      * @param mockedUpstreamResponses response for mock upstream to respond with, empty if expect no requests to be sent upstream
      * @param authorizerRules rules
      * @param topicNames topic id to topic name map
@@ -36,6 +38,8 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
                         @Nullable Map<Uuid, String> topicNames) {}
 
     /**
+     * The action under test, specifying who sends what request.
+     *
      * @param subject subject sending the request
      * @param requestHeader header to send
      * @param request request to send
@@ -60,8 +64,10 @@ public record ScenarioDefinition(Metadata metadata, Given given, When when, Then
     }
 
     /**
-     * @param expectedResponseHeader
-     * @param expectedResponse
+     * Expected outcomes of the test scenario.
+     *
+     * @param expectedResponseHeader the expected response header as JSON, or null if not asserted
+     * @param expectedResponse the expected response body as JSON, or null if not asserted
      * @param expectedErrorResponse in the case that we expect an error response (the message generation is a framework responsibility)
      * @param hasResponse true if we expect a response (zero-ack produce request is the only case known with no response). default true
      * @param expectRequestDropped true if we expect the request to be dropped. default false

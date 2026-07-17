@@ -537,7 +537,7 @@ class ExpositionIT extends BaseIT {
      * @param clientSecurityProtocolConfig addition client configuration
      * @param cluster kafka cluster
      */
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource(value = "virtualClusterConfigurations")
     void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(VirtualClusterBuilder virtualClusterBuilder,
                                                                          Map<String, Object> clientSecurityProtocolConfig,
@@ -551,7 +551,7 @@ class ExpositionIT extends BaseIT {
      * @param clientSecurityProtocolConfig addition client configuration
      * @param cluster kafka cluster
      */
-    @ParameterizedTest()
+    @ParameterizedTest
     @MethodSource(value = "virtualClusterConfigurations")
     void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart_Sasl(VirtualClusterBuilder virtualClusterBuilder,
                                                                               Map<String, Object> clientSecurityProtocolConfig,

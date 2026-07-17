@@ -1,0 +1,15 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+
+:_mod-docs-content-type: ASSEMBLY
+
+[id='assembly-key-creation-thales-ctm-{context}']
+= Creating keys in Thales CipherTrust Manager
+
+[role="_abstract"]
+To create AES-256 symmetric encryption keys in Thales CipherTrust Manager for the Record Encryption filter, use the ksctl command-line tool.
+
+include::../../../_modules/record-encryption/thales-ctm/proc-thales-ctm-key-creation.adoc[leveloffset=+1]

@@ -3,9 +3,11 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.it.testplugins;
+package io.kroxylicious.it.testplugins.router;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -22,29 +24,36 @@ import io.kroxylicious.proxy.router.RouterFactoryContext;
 import io.kroxylicious.proxy.router.RouterResponse;
 
 /**
- * A router that forwards every request to a single named route, delivering
- * the response back to the client unchanged.
+ * A router that statically routes a named subset of API keys to one route and
+ * everything else to a default route. Useful for testing multi-upstream static
+ * routing without a real Kafka client.
  */
-@Plugin(configType = PassThroughRouterFactory.Config.class)
-public class PassThroughRouterFactory implements RouterFactory<PassThroughRouterFactory.Config, PassThroughRouterFactory.Config> {
+@Plugin(configType = SplitStaticRouterFactory.Config.class)
+public class SplitStaticRouterFactory implements RouterFactory<SplitStaticRouterFactory.Config, SplitStaticRouterFactory.Config> {
 
-    public record Config(String route) {}
-
-    private Map<ApiKeys, String> allStatic;
+    /**
+     * Configuration for the split static router factory.
+     *
+     * @param defaultRoute route name for all API keys not listed in {@code splitApiKeys}
+     * @param splitRoute   route name for API keys listed in {@code splitApiKeys}
+     * @param splitApiKeys names of {@link ApiKeys} constants to send to {@code splitRoute}
+     */
+    public record Config(String defaultRoute, String splitRoute, List<String> splitApiKeys) {}
 
     @Override
     public Config initialize(RouterFactoryContext context, Config config) {
-        allStatic = Arrays.stream(ApiKeys.values())
-                .collect(Collectors.toUnmodifiableMap(k -> k, k -> config.route()));
         return config;
     }
 
     @Override
     public Router createRouter(RouterFactoryContext context, Config config) {
+        var split = new HashSet<>(config.splitApiKeys());
+        Map<ApiKeys, String> routes = Arrays.stream(ApiKeys.values())
+                .collect(Collectors.toUnmodifiableMap(k -> k,
+                        k -> split.contains(k.name()) ? config.splitRoute() : config.defaultRoute()));
         return new Router() {
             @Override
-            public CompletionStage<RouterResponse> onRequest(
-                                                             ApiKeys apiKey,
+            public CompletionStage<RouterResponse> onRequest(ApiKeys apiKey,
                                                              short apiVersion,
                                                              RequestHeaderData header,
                                                              ApiMessage request,
@@ -54,8 +63,12 @@ public class PassThroughRouterFactory implements RouterFactory<PassThroughRouter
 
             @Override
             public Map<ApiKeys, String> staticRoutes() {
-                return allStatic;
+                return routes;
             }
         };
+    }
+
+    @Override
+    public void close(Config config) {
     }
 }

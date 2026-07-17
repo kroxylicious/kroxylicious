@@ -38,6 +38,9 @@ endif::OpenShiftOnly[]
 ifdef::include-fortanix-dsm-kms[]
 * <<con-fortanix-dsm-plugin-configuration-{context},Fortanix DSM plugin configuration>>
 endif::[]
+ifdef::include-thales-ctm-kms[]
+* <<con-thales-ctm-plugin-configuration-{context},Thales CipherTrust Manager plugin configuration>>
+endif::[]
 
 . Create a filter configuration that references the configured KMS plugins.
 +
@@ -60,6 +63,10 @@ include::../../_modules/record-encryption/azure-key-vault/con-azure-key-vault-pl
 
 ifdef::include-fortanix-dsm-kms[]
 include::../../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-plugin-configuration.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-thales-ctm-kms[]
+include::../../_modules/record-encryption/thales-ctm/con-thales-ctm-plugin-configuration.adoc[leveloffset=+1]
 endif::[]
 
 include::../../_modules/record-encryption/con-record-encryption-filter-config.adoc[leveloffset=+1]

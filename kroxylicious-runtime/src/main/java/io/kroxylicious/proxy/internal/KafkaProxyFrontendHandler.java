@@ -89,7 +89,7 @@ public class KafkaProxyFrontendHandler
     private @Nullable String sniHostname;
 
     /**
-     * @return the SSL session, or null if a session does not (currently) exist.
+     * Returns the SSL session, or null if a session does not currently exist.
      */
     @Nullable
     SSLSession sslSession() {
@@ -365,10 +365,11 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
-        int i = 0;
+        int filterIndex = 0;
         String addNextFilterAfter = clientCtx().name();
         for (FilterAndInvoker protocolFilter : filters) {
-            String handlerName = "filter-" + (++i) + "-" + protocolFilter.filterName();
+            ++filterIndex;
+            String handlerName = "filter-" + filterIndex + "-" + protocolFilter.filterName();
             pipeline.addAfter(addNextFilterAfter,
                     handlerName,
                     new FilterHandler(

@@ -13,15 +13,39 @@ import java.util.Properties;
 import org.slf4j.LoggerFactory;
 
 public interface VersionInfo {
+
+    /**
+     * Version information loaded from the default Kroxylicious runtime metadata
+     * resource, {@code META-INF/metadata.properties}.
+     *
+     * <p>
+     * Other Kroxylicious artifacts should use {@link #fromResource(String)}
+     * when their version metadata is stored in an artifact-specific resource.
+     */
     VersionInfo VERSION_INFO = getVersionInfo();
 
     String version();
 
     String commitId();
 
-    private static VersionInfo getVersionInfo() {
+    /**
+     * Loads version information from the supplied classpath resource.
+     *
+     * @param resourceName the classpath resource containing version metadata
+     * @return the version information, or unknown values if the resource cannot be
+     *         loaded
+     */
+    static VersionInfo fromResource(String resourceName) {
+        return getVersionInfo(resourceName);
+    }
 
-        try (var resource = Info.class.getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
+    private static VersionInfo getVersionInfo() {
+        return fromResource("META-INF/metadata.properties");
+    }
+
+    private static VersionInfo getVersionInfo(String resourceName) {
+
+        try (var resource = Info.class.getClassLoader().getResourceAsStream(resourceName)) {
             if (resource != null) {
                 Properties properties = new Properties();
                 properties.load(resource);

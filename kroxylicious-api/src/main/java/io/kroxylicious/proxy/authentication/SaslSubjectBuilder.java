@@ -45,12 +45,12 @@ public interface SaslSubjectBuilder {
      */
     interface Context {
         /**
-         * @return The TLS context for the client connection, or empty if the client connection is not TLS.
+         * Returns the TLS context for the client connection, or empty if the client connection is not TLS.
          */
         Optional<ClientTlsContext> clientTlsContext();
 
         /**
-         * @return The SASL context for the client connection.
+         * Returns the SASL context for the client connection.
          */
         ClientSaslContext clientSaslContext();
     }

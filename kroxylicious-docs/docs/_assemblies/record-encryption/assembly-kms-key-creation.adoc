@@ -21,4 +21,7 @@ include::azure-key-vault/assembly-key-creation-azure-key-vault.adoc[leveloffset=
 ifdef::include-fortanix-dsm-kms[]
 include::fortanix-dsm/assembly-key-creation-fortanix-dsm.adoc[leveloffset=+1]
 endif::[]
+ifdef::include-thales-ctm-kms[]
+include::thales-ctm/assembly-key-creation-thales-ctm.adoc[leveloffset=+1]
+endif::[]
 

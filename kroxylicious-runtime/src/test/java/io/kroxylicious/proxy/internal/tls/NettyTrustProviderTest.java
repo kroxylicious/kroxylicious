@@ -42,7 +42,7 @@ class NettyTrustProviderTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @MethodSource()
+    @MethodSource
     void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
         var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType, null));
         trustStore.apply(sslContextBuilder);

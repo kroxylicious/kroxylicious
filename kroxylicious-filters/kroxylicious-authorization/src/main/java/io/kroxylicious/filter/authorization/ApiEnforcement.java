@@ -46,12 +46,12 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 abstract class ApiEnforcement<Q extends ApiMessage, S extends ApiMessage> {
 
     /**
-     * @return The inclusive minimum version of the range of versions supported
+     * Returns the inclusive minimum version of the supported version range.
      */
     abstract short minSupportedVersion();
 
     /**
-     * @return The inclusive maximum version of the range of versions supported
+     * Returns the inclusive maximum version of the supported version range.
      */
     abstract short maxSupportedVersion();
 

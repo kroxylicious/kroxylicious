@@ -41,18 +41,24 @@ public interface RecordTransform<S> {
     void resetAfterTransform(S state, Record record);
 
     /**
+     * Computes the offset for the transformed record.
+     *
      * @param record The operand record.
      * @return The offset of the new record.
      */
     long transformOffset(Record record);
 
     /**
+     * Computes the timestamp for the transformed record.
+     *
      * @param record The operand record.
      * @return The timestamp of the new record.
      */
     long transformTimestamp(Record record);
 
     /**
+     * Computes the key for the transformed record.
+     *
      * @param record The operand record.
      * @return The key of the new record.
      */
@@ -60,6 +66,8 @@ public interface RecordTransform<S> {
     ByteBuffer transformKey(Record record);
 
     /**
+     * Computes the value for the transformed record.
+     *
      * @param record The operand record.
      * @return The value of the new record.
      */
@@ -67,6 +75,8 @@ public interface RecordTransform<S> {
     ByteBuffer transformValue(Record record);
 
     /**
+     * Computes the headers for the transformed record.
+     *
      * @param record The operand record.
      * @return The headers of the new record. This may be null:
      * If the caller wants to create a new record from the result it must handle the fact that in

@@ -30,12 +30,12 @@ package io.kroxylicious.filter.encryption.common;
 public interface PersistedIdentifiable<E extends Enum<E>> {
 
     /**
-     * @return The id to be used when serializing a reference to an implementation.
+     * Returns the id to be used when serializing a reference to an implementation.
      */
     byte serializedId();
 
     /**
-     * @return The name to be used to refer to the implementation.
+     * Returns the name to be used to refer to the implementation.
      */
     E name();
 }

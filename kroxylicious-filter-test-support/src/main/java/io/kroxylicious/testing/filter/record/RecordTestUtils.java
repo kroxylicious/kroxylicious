@@ -92,8 +92,8 @@ public class RecordTestUtils {
 
     /**
      * Return a record with the given value and header.
-     * @param value
-     * @param headers
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(byte[] value,
@@ -103,8 +103,8 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given value and headers
-     * @param value
-     * @param headers
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(ByteBuffer value,
@@ -114,9 +114,9 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given value, offset and headers
-     * @param offset
-     * @param value
-     * @param headers
+     * @param offset the record offset
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(long offset,
@@ -127,8 +127,8 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given value and headers
-     * @param value
-     * @param headers
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(String value,
@@ -138,9 +138,9 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given key, value and headers
-     * @param key
-     * @param value
-     * @param headers
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(byte[] key,
@@ -151,9 +151,9 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given key, value and headers
-     * @param key
-     * @param value
-     * @param headers
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(String key,
@@ -164,10 +164,10 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given key, value, offset and headers
-     * @param offset
-     * @param key
-     * @param value
-     * @param headers
+     * @param offset the record offset
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(long offset,
@@ -179,9 +179,9 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given key, value and headers
-     * @param key
-     * @param value
-     * @param headers
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(ByteBuffer key,
@@ -192,12 +192,12 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given properties
-     * @param magic
-     * @param offset
-     * @param timestamp
-     * @param key
-     * @param value
-     * @param headers
+     * @param magic the record batch magic byte
+     * @param offset the record offset
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(byte magic,
@@ -214,12 +214,12 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given properties
-     * @param magic
-     * @param offset
-     * @param timestamp
-     * @param key
-     * @param value
-     * @param headers
+     * @param magic the record batch magic byte
+     * @param offset the record offset
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(byte magic,
@@ -236,12 +236,12 @@ public class RecordTestUtils {
 
     /**
      * Return a Record with the given properties
-     * @param magic
-     * @param offset
-     * @param timestamp
-     * @param key
-     * @param value
-     * @param headers
+     * @param magic the record batch magic byte
+     * @param offset the record offset
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static Record record(byte magic,
@@ -283,9 +283,9 @@ public class RecordTestUtils {
      * Return a singleton RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
      * @param offset baseOffset of the single batch and offset of the single record within it
-     * @param key
-     * @param value
-     * @param headers
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record batch
      */
     public static MutableRecordBatch singleElementRecordBatch(long offset, String key, String value, Header[] headers) {
@@ -305,7 +305,7 @@ public class RecordTestUtils {
      * @param recordTimestamp timestamp of the record, note that this can determine whether a segment
      * is eligible for deletion, relative to the current system time. This depends on the TimestampType.
      * @param baseOffset baseOffset of the single batch and offset of the single record within it
-     * @param compression
+     * @param compression the compression type of the batch
      * @return The record batch
      */
     public static MutableRecordBatch singleElementRecordBatch(byte magic,
@@ -342,9 +342,9 @@ public class RecordTestUtils {
     /**
      * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
-     * @param key
-     * @param value
-     * @param headers
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(String key, String value, Header... headers) {
@@ -359,9 +359,9 @@ public class RecordTestUtils {
     /**
      * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
-     * @param key
-     * @param value
-     * @param headers
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(byte[] key, byte[] value, Header... headers) {
@@ -393,12 +393,12 @@ public class RecordTestUtils {
     /**
      * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
-     * @param magic
-     * @param offset
-     * @param timestamp
-     * @param key
-     * @param value
-     * @param headers
+     * @param magic the record batch magic byte
+     * @param offset baseOffset of the single batch and offset of the single record within it
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(byte magic, long offset, long timestamp, ByteBuffer key, ByteBuffer value, Header... headers) {
@@ -408,12 +408,12 @@ public class RecordTestUtils {
     /**
      * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
-     * @param magic
-     * @param offset
-     * @param timestamp
-     * @param key
-     * @param value
-     * @param headers
+     * @param magic the record batch magic byte
+     * @param offset baseOffset of the single batch and offset of the single record within it
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(byte magic, long offset, long timestamp, String key, String value, Header... headers) {
@@ -425,12 +425,12 @@ public class RecordTestUtils {
     /**
      * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
-     * @param magic
-     * @param offset
-     * @param timestamp
-     * @param key
-     * @param value
-     * @param headers
+     * @param magic the record batch magic byte
+     * @param offset baseOffset of the single batch and offset of the single record within it
+     * @param timestamp the record timestamp
+     * @param key the record key
+     * @param value the record value
+     * @param headers the record headers
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(byte magic, long offset, long timestamp, byte[] key, byte[] value, Header... headers) {
@@ -470,7 +470,7 @@ public class RecordTestUtils {
     /**
      * Return a MemoryRecords containing a single RecordBatch containing multiple Records.
      * The batch will use the current magic.
-     * @param records
+     * @param records the records to include
      * @return The MemoryRecords
      */
     public static MemoryRecords memoryRecords(@NonNull List<Record> records) {

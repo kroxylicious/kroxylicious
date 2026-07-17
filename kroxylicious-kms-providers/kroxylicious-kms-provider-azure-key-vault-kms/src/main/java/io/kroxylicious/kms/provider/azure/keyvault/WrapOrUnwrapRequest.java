@@ -12,6 +12,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
+ * Request body for Azure Key Vault wrap or unwrap operations.
+ *
  * @param algorithm wrap/unwrap algorithm
  * @param value base64 urlencoded bytes to wrap or unwrap
  */
