@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.config.RoutingGraphVisitor;
 import io.kroxylicious.proxy.config.RoutingGraphWalker;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.WalkContext;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -81,7 +82,8 @@ final class RoutingGraphChangeDetector implements ChangeDetector {
      * @param routerNamePredicate  test applied to each visited router definition's name
      * @param clusterNamePredicate test applied to each cluster definition's name at a leaf
      */
-    public static boolean anyInClusterGraph(VirtualCluster vc,
+    @VisibleForTesting
+    static boolean anyInClusterGraph(VirtualCluster vc,
                                             Map<String, RouterDefinition> routersByName,
                                             Map<String, ClusterDefinition> clustersByName,
                                             Predicate<String> routerNamePredicate,
