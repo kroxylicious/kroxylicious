@@ -84,10 +84,10 @@ final class RoutingGraphChangeDetector implements ChangeDetector {
      */
     @VisibleForTesting
     static boolean anyInClusterGraph(VirtualCluster vc,
-                                            Map<String, RouterDefinition> routersByName,
-                                            Map<String, ClusterDefinition> clustersByName,
-                                            Predicate<String> routerNamePredicate,
-                                            Predicate<String> clusterNamePredicate) {
+                                     Map<String, RouterDefinition> routersByName,
+                                     Map<String, ClusterDefinition> clustersByName,
+                                     Predicate<String> routerNamePredicate,
+                                     Predicate<String> clusterNamePredicate) {
         return Objects.requireNonNull(RoutingGraphWalker.walkClusterGraph(vc, routersByName, clustersByName,
                 () -> new AnyMatchVisitor(routerNamePredicate, clusterNamePredicate)));
     }
