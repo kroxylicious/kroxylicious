@@ -15,7 +15,7 @@ import org.testcontainers.vault.VaultContainer;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
-    private static final String IMAGE = "hashicorp/vault:2.0.0@sha256:e40c741ed95bb271425e3e6ca6c222d620cf8682f6f7a1b1e7c9d49d0aba484b";
+    private static final String IMAGE = "hashicorp/vault:2.0.3@sha256:a296a888b118615dc01d5f1a6846e6d4a7277946caaed5b447008fff5fe06b54";
     private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse(IMAGE)
             .asCompatibleSubstituteFor(DockerImageName.parse(IMAGE.substring(0, IMAGE.indexOf("@"))));
 
