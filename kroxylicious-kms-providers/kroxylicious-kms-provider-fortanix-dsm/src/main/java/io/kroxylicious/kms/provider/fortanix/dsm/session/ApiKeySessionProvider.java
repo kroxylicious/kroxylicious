@@ -248,6 +248,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             }
 
             @Override
+            @SuppressWarnings("ReferenceEquality")
             public void invalidate() {
                 // Need to check that we still are the current session.
                 try {

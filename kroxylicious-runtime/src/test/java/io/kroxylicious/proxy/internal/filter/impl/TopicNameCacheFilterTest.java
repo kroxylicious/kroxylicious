@@ -303,6 +303,27 @@ class TopicNameCacheFilterTest {
     }
 
     @Test
+    void onMetadataResponseWithDistinctZeroUuidInstanceNotCached() {
+        // Given
+        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
+        ResponseHeaderData header = new ResponseHeaderData();
+        MetadataResponseData response = new MetadataResponseData();
+        MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
+        Uuid distinctZero = new Uuid(0L, 0L);
+        topic.setTopicId(distinctZero);
+        topic.setName(TOPIC_NAME);
+        response.topics().add(topic);
+        CompletableFuture<ResponseFilterResult> result = CompletableFuture.completedFuture(null);
+        when(filterContext.forwardResponse(header, response)).thenReturn(result);
+        // When
+        CompletionStage<ResponseFilterResult> responseFilterResultCompletionStage = topicNameCacheFilter.onMetadataResponse(ApiKeys.METADATA.latestVersion(), header,
+                response, filterContext);
+        // Then
+        assertThat(responseFilterResultCompletionStage).isSameAs(result);
+        assertThat(topicNameCacheFilter.topicName(distinctZero)).isEmpty();
+    }
+
+    @Test
     void maxSizeConfig() {
         // given
         CacheConfiguration cacheConfig = new CacheConfiguration(5, null, null);

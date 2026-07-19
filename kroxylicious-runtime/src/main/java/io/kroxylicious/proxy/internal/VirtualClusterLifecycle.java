@@ -191,6 +191,7 @@ public class VirtualClusterLifecycle {
         return Set.copyOf(activeConnections);
     }
 
+    @SuppressWarnings("ReferenceEquality")
     private synchronized void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
         VirtualClusterLifecycleState previous = state;
         state = transitionFn.apply(state);
