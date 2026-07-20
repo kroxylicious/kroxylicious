@@ -627,7 +627,8 @@ To help simplify local testing we also have a simple composefile in `compose/kaf
 
 ## Changelog Entries
 
-User-facing changes must be documented by adding a YAML entry file to `changelog/unreleased/`. 
+User-facing changes must be documented by adding a YAML entry file to `changelog/unreleased/`.
+Not every commit needs a changelog entry e.g. documentation fixes, internal build tooling changes, etc.
 
 **File naming:** `<issue-or-pr-number>-<short-slug>.yaml` (e.g. `1234-add-record-encryption.yaml`)
 
@@ -652,8 +653,6 @@ issues:            # use for issues
 | `changed`    | Behaviour changes that require user action; include migration steps in the title | "Changes, deprecations and removals" |
 | `deprecated` | APIs or features being phased out; note the replacement                          | "Changes, deprecations and removals" |
 | `removed`    | APIs or features that have been deleted                                          | "Changes, deprecations and removals" |
-
-Not every commit needs a changelog entry e.g. documentation fixes, internal build tooling changes, etc.
 
 The same issue/PR can appear in **both** sections:
 
