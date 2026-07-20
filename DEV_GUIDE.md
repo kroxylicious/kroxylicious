@@ -627,7 +627,7 @@ To help simplify local testing we also have a simple composefile in `compose/kaf
 
 ## Changelog Entries
 
-User-facing changes must be documented. Instead of editing `CHANGELOG.md` directly, add a YAML entry file to `changelog/unreleased/`. This avoids merge conflicts when multiple PRs are open.
+User-facing changes must be documented by adding a YAML entry file to `changelog/unreleased/`. 
 
 **File naming:** `<issue-or-pr-number>-<short-slug>.yaml` (e.g. `1234-add-record-encryption.yaml`)
 
