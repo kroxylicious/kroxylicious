@@ -224,6 +224,7 @@ class TopicNameCacheFilterTest {
         return Stream.of(Arguments.argumentSet("null topic name", TOPIC_ID, null),
                 Arguments.argumentSet("empty topic name", TOPIC_ID, ""),
                 Arguments.argumentSet("zero topic id", Uuid.ZERO_UUID, TOPIC_NAME),
+                Arguments.argumentSet("zero topic id (distinct instance)", new Uuid(0L, 0L), TOPIC_NAME),
                 Arguments.argumentSet("null topic id", null, TOPIC_NAME));
     }
 
@@ -262,7 +263,7 @@ class TopicNameCacheFilterTest {
                 response, filterContext);
         // then
         assertThat(responseFilterResultCompletionStage).isSameAs(result);
-        assertThat(topicNameCacheFilter.topicName(TOPIC_ID)).isEmpty();
+        assertThat(topicNameCacheFilter.topicNameCache.asMap()).isEmpty();
     }
 
     @Test
@@ -300,27 +301,6 @@ class TopicNameCacheFilterTest {
         assertThat(filter.topicNameCache.policy().expireAfterWrite()).hasValueSatisfying(expiration -> {
             assertThat(expiration.getExpiresAfter()).isEqualTo(Duration.ofSeconds(10));
         });
-    }
-
-    @Test
-    void onMetadataResponseWithDistinctZeroUuidInstanceNotCached() {
-        // Given
-        TopicNameCacheFilter topicNameCacheFilter = new TopicNameCacheFilter(DEFAULT, CLUSTER_NAME);
-        ResponseHeaderData header = new ResponseHeaderData();
-        MetadataResponseData response = new MetadataResponseData();
-        MetadataResponseData.MetadataResponseTopic topic = new MetadataResponseData.MetadataResponseTopic();
-        Uuid distinctZero = new Uuid(0L, 0L);
-        topic.setTopicId(distinctZero);
-        topic.setName(TOPIC_NAME);
-        response.topics().add(topic);
-        CompletableFuture<ResponseFilterResult> result = CompletableFuture.completedFuture(null);
-        when(filterContext.forwardResponse(header, response)).thenReturn(result);
-        // When
-        CompletionStage<ResponseFilterResult> responseFilterResultCompletionStage = topicNameCacheFilter.onMetadataResponse(ApiKeys.METADATA.latestVersion(), header,
-                response, filterContext);
-        // Then
-        assertThat(responseFilterResultCompletionStage).isSameAs(result);
-        assertThat(topicNameCacheFilter.topicName(distinctZero)).isEmpty();
     }
 
     @Test
