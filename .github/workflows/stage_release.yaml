@@ -150,6 +150,7 @@ jobs:
                                      -b ${{ github.event.inputs.branch }} \
                                      -w ${{ env.WORK_BRANCH }} \
                                      -l ${{ env.RELCAND_ID_LABEL }} \
+                                     -c "${{ github.server_url }}/${{ github.repository }}" \
                                      ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
           # Deployment id is the id known to Central Publishing Portal
           echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> $GITHUB_ENV
