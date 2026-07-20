@@ -29,11 +29,12 @@ You will need to upload your GPG **public** key to some keyservers. You can foll
 
 Create-or-update the following repository secrets:
 
-| Secret                                        | Description                                                                                                                               |
-|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release.                                                                |
-| `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                                                                                |
-| `KROXYLICIOUS_RELEASE_TOKEN`                  | GitHub PAT with write permissions for content, commit status, pull-requests for this repository and the kroxylicious.github.io repository |
+| Secret                                        | Description                                                                                                                                           |
+|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release.                                                                            |
+| `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                                                                                            |
+| `KROXYLICIOUS_RELEASE_TOKEN`                  | GitHub PAT with write permissions for content, commit status, pull-requests for this repository and the kroxylicious.github.io repository             |
+| `KROXYLICIOUS_CHANGELOG_TOKEN`                | GitHub PAT with write (contents) permission for this repository. Used to commit logchange entry files to Renovate/Dependabot PRs. |
 
 
 To export your key run something like
