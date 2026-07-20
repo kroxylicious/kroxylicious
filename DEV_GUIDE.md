@@ -688,11 +688,6 @@ issues:
 
 For complex "Changes" entries with nested bullet points, use a YAML literal block scalar (`|`) in the `title` field.
 
-After adding your entry file, commit it:
-```shell
-git add changelog/unreleased/<your-entry>.yaml
-```
-
 `CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The CI lint step runs `mvn logchange:lint` on every PR to catch malformed YAML.
 
 # Deprecation Policy
