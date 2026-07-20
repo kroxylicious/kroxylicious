@@ -640,10 +640,10 @@ authors:
   - name: Your Name
     nick: yourhandle
     url: https://github.com/yourhandle
-merge_requests:    # use for PRs
+merge_requests:    # use for PRs (only the first is rendered as a link prefix)
   - 1234
 # or:
-issues:            # use for issues
+issues:            # use for issues (only the first is rendered as a link prefix)
   - 5678
 links:             # optional: link to external resources
   - name: Design doc
