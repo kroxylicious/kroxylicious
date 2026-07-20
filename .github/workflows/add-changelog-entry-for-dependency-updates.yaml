@@ -32,13 +32,21 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: 'Check for changelog token'
+        env:
+          KROXYLICIOUS_CHANGELOG_TOKEN: ${{ secrets.KROXYLICIOUS_CHANGELOG_TOKEN }}
+        run: |
+          echo "CHANGELOG_TOKEN_SET=$(test ${KROXYLICIOUS_CHANGELOG_TOKEN} && echo true)" >> $GITHUB_ENV
+
       - name: 'Check out repository'
+        if: env.CHANGELOG_TOKEN_SET == 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.KROXYLICIOUS_CHANGELOG_TOKEN }}
 
       - name: 'Create logchange entry'
+        if: env.CHANGELOG_TOKEN_SET == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -51,6 +59,7 @@ jobs:
           EOF
 
       - name: 'Commit entry'
+        if: env.CHANGELOG_TOKEN_SET == 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
