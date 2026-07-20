@@ -709,7 +709,8 @@ class VirtualKafkaClusterReconcilerTest {
 
         when(reconcilerContext.getSecondaryResources(KafkaProxy.class)).thenReturn(setOfOrEmpty(proxy));
         when(reconcilerContext.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(setOfOrEmpty(ingress));
-        when(reconcilerContext.getSecondaryResource(eq(KafkaProxyIngress.class), eq(VirtualKafkaClusterReconciler.INGRESSES_EVENT_SOURCE_NAME), any())).thenReturn(Optional.ofNullable(ingress));
+        when(reconcilerContext.getSecondaryResource(eq(KafkaProxyIngress.class), eq(VirtualKafkaClusterReconciler.INGRESSES_EVENT_SOURCE_NAME), any()))
+                .thenReturn(Optional.ofNullable(ingress));
         when(reconcilerContext.getSecondaryResources(KafkaService.class)).thenReturn(setOfOrEmpty(service));
         when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.ofNullable(proxyConfigMap));
         when(reconcilerContext.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(filters);
