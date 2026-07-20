@@ -549,6 +549,12 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcutil-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>io.github.nettyplus</groupId>
                 <artifactId>netty-leak-detector-junit-extension</artifactId>
                 <version>${netty-leak-detector-junit-extension.version}</version>
