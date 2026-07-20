@@ -665,25 +665,30 @@ The `title` always appears in the main version section. If the change also requi
 | `dependency_update`| Runtime dependency upgrades visible to users                       |
 | `other`            | Performance improvements or user-visible refactoring               |
 
-For example:
+Simple example (no migration notes):
 
 ```yaml
-# changelog/unreleased/1038-enforce-minimum-file-permissions.yaml
-title: "feat(security): enforce minimum file permissions on confidential files."
-type: added
-issues:
-    - 1038
+# changelog/unreleased/1234-add-cool-feature.yaml
+title: "feat(runtime): add cool new feature"
+type: feat
+merge_requests:
+  - 1234
+```
+
+Example with migration notes:
+
+```yaml
+# changelog/unreleased/1234-add-cool-feature.yaml
+title: "feat(runtime): add cool new feature"
+type: feat
+merge_requests:
+  - 1234
 important_notes:
-    - |
-        Kroxylicious now validates that confidential files (TLS private keys, keystores, truststores, password files, KMS credential files, and AWS IRSA/Pod Identity token files) are not excessively permissive before reading them.
-        * Control enforcement via `security.filePermissions.policy` in the proxy configuration:
-          * `STRICT` (owner-only access, like SSH)
-          * `RELAXED` (group-readable, suitable for Kubernetes `fsGroup` deployments)
-          * `DISABLED` (warn only).
-            * This is the default for backward compatibility - existing deployments with world-readable files continue to work but emit warnings.
-        * **Behaviour change**: `FilePassword.getProvidedPassword()` now validates file permissions before reading; with a non-`DISABLED` policy it can throw `IllegalStateException` if the file has group or other read bits set.
-          * The Kubernetes operator defaults to `RELAXED` and mounts all secret volumes with `defaultMode: 0440`
-          * The `KafkaProxy` CRD exposes `spec.security.filePermissions.policy` (default `RELAXED`) to override the policy for operator-managed deployments.
+  - |
+    The new feature changes how X behaves. Users relying on the old behaviour should migrate by doing Y.
+    * Option A: does this
+    * Option B: does that
+  - "**Behaviour change**: `OldClass.method()` now throws `SomeException` if Z."
 ```
 
 `CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The CI lint step runs `mvn logchange:lint` on every PR to catch malformed YAML.
