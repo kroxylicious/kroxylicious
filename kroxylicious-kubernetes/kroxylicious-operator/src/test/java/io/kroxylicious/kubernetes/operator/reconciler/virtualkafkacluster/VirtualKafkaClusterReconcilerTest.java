@@ -70,6 +70,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.OPTIONAL;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -707,6 +709,7 @@ class VirtualKafkaClusterReconcilerTest {
 
         when(reconcilerContext.getSecondaryResources(KafkaProxy.class)).thenReturn(setOfOrEmpty(proxy));
         when(reconcilerContext.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(setOfOrEmpty(ingress));
+        when(reconcilerContext.getSecondaryResource(eq(KafkaProxyIngress.class), eq(VirtualKafkaClusterReconciler.INGRESSES_EVENT_SOURCE_NAME), any())).thenReturn(Optional.ofNullable(ingress));
         when(reconcilerContext.getSecondaryResources(KafkaService.class)).thenReturn(setOfOrEmpty(service));
         when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.ofNullable(proxyConfigMap));
         when(reconcilerContext.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(filters);
