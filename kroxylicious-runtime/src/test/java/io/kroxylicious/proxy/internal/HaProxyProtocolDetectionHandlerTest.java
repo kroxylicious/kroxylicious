@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.nio.charset.StandardCharsets;
+
 import org.junit.jupiter.api.Test;
 
 import io.netty.buffer.ByteBuf;
@@ -49,7 +51,7 @@ class HaProxyProtocolDetectionHandlerTest {
         var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.REQUIRED, kafkaSession);
         var channel = new EmbeddedChannel(handler);
 
-        channel.writeInbound(Unpooled.wrappedBuffer("not a proxy header at all!".getBytes()));
+        channel.writeInbound(Unpooled.wrappedBuffer("not a proxy header at all!".getBytes(StandardCharsets.UTF_8)));
 
         // Channel should be closed
         assertThat(channel.isOpen()).isFalse();
@@ -84,7 +86,7 @@ class HaProxyProtocolDetectionHandlerTest {
         var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, kafkaSession);
         var channel = new EmbeddedChannel(handler);
 
-        byte[] kafkaBytes = "some kafka data!".getBytes();
+        byte[] kafkaBytes = "some kafka data!".getBytes(StandardCharsets.UTF_8);
         channel.writeInbound(Unpooled.wrappedBuffer(kafkaBytes));
 
         // Channel should remain open
@@ -111,7 +113,7 @@ class HaProxyProtocolDetectionHandlerTest {
         var handler = new HaProxyProtocolDetectionHandler(ProxyProtocolMode.ALLOWED, kafkaSession);
         var channel = new EmbeddedChannel(handler);
 
-        channel.writeInbound(Unpooled.wrappedBuffer("kafka bytes here".getBytes()));
+        channel.writeInbound(Unpooled.wrappedBuffer("kafka bytes here".getBytes(StandardCharsets.UTF_8)));
 
         assertThat(kafkaSession.haProxyContext()).isNull();
     }
@@ -140,7 +142,7 @@ class HaProxyProtocolDetectionHandlerTest {
 
         // PROXY v1 text header
         String v1Header = "PROXY TCP4 192.168.1.100 10.0.0.1 54321 9092\r\n";
-        channel.writeInbound(Unpooled.wrappedBuffer(v1Header.getBytes()));
+        channel.writeInbound(Unpooled.wrappedBuffer(v1Header.getBytes(StandardCharsets.UTF_8)));
 
         // Should have detected PROXY header (decoder auto-removes after decoding)
         assertThat(channel.pipeline().get(HaProxyProtocolDetectionHandler.class)).isNull();

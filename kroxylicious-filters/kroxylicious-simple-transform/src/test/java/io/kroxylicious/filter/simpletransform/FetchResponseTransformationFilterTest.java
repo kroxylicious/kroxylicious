@@ -281,7 +281,7 @@ class FetchResponseTransformationFilterTest {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         try (MemoryRecordsBuilder builder = MemoryRecords.builder(buffer, RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
-            builder.append(0L, FetchResponseTransformationFilterTest.RECORD_KEY.getBytes(), FetchResponseTransformationFilterTest.ORIGINAL_RECORD_VALUE.getBytes());
+            builder.append(0L, RECORD_KEY.getBytes(StandardCharsets.UTF_8), ORIGINAL_RECORD_VALUE.getBytes(StandardCharsets.UTF_8));
             return builder.build();
         }
     }
