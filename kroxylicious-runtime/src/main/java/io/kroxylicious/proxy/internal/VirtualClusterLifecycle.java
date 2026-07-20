@@ -191,6 +191,7 @@ public class VirtualClusterLifecycle {
         return Set.copyOf(activeConnections);
     }
 
+    // identity check: idempotent no-op transitions return the same state instance — detect with == to avoid phantom self-transitions
     @SuppressWarnings("ReferenceEquality")
     private synchronized void transition(UnaryOperator<VirtualClusterLifecycleState> transitionFn) {
         VirtualClusterLifecycleState previous = state;
