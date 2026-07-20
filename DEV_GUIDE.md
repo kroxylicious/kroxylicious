@@ -644,7 +644,7 @@ issues:            # use for issues
 
 **Available types** - pick the one that best describes the change (ideally follow [Conventional Commits](https://www.conventionalcommits.org/)); this also controls which section the entry appears in:
 
-| Type         | Use for                                                                          | Section                              |
+| Type         | Use for                                                                          | `CHANGELOG` Section                  |
 |--------------|----------------------------------------------------------------------------------|--------------------------------------|
 | `feat`       | New features, capabilities, or configuration options (`feat`)                    | Main (under version number)          |
 | `fix`        | Bug fixes                                                                        | Main (under version number)          |
