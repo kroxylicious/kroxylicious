@@ -636,57 +636,55 @@ Not every commit needs a changelog entry e.g. documentation fixes, internal buil
 ```yaml
 title: "feat(runtime): add graceful shutdown with configurable drain timeout"
 type: feat
+authors:
+  - name: Your Name
+    nick: yourhandle
+    url: https://github.com/yourhandle
 merge_requests:    # use for PRs
   - 1234
 # or:
 issues:            # use for issues
   - 5678
+links:             # optional: link to external resources
+  - name: Design doc
+    url: https://example.com
+important_notes:   # optional: appear under "Changes, deprecations and removals"
+  - "Migration required: replace `oldConfig` with `newConfig`."
+  - "`OldClass` is deprecated; use `NewClass` instead."
 ```
 
-**Available types** - pick the one that best describes the change (ideally follow [Conventional Commits](https://www.conventionalcommits.org/)); this also controls which section the entry appears in:
+The `title` always appears in the main version section. If the change also requires a migration note or deprecation callout, add one or more `important_notes` - these appear as sub-bullets under the same entry in the "Changes, deprecations and removals" section.
 
-| Type         | Use for                                                                          | `CHANGELOG` Section                  |
-|--------------|----------------------------------------------------------------------------------|--------------------------------------|
-| `feat`       | New features, capabilities, or configuration options (`feat`)                    | Main (under version number)          |
-| `fix`        | Bug fixes                                                                        | Main (under version number)          |
-| Other text   | Anything that cannot be well described using Conventional Commits                | Main (under version number)          |
-| `changed`    | Behaviour changes that require user action; include migration steps in the title | "Changes, deprecations and removals" |
-| `deprecated` | APIs or features being phased out; note the replacement                          | "Changes, deprecations and removals" |
-| `removed`    | APIs or features that have been deleted                                          | "Changes, deprecations and removals" |
+**`type`** - pick the one that best describes the change, ideally following [Conventional Commits](https://www.conventionalcommits.org/):
 
-The same issue/PR can appear in **both** sections:
-
-- Add one YAML file with a short `type: added` summary.
-
-  _...and..._
-
-- A second with `type: changed` for the detailed breaking-change explanation.
+| Type               | Use for                                                            |
+|--------------------|--------------------------------------------------------------------|
+| `feat`             | New features, capabilities, or configuration options               |
+| `fix`              | Bug fixes                                                          |
+| `security`         | Security fixes                                                     |
+| `dependency_update`| Runtime dependency upgrades visible to users                       |
+| `other`            | Performance improvements or user-visible refactoring               |
 
 For example:
 
 ```yaml
 # changelog/unreleased/1038-enforce-minimum-file-permissions.yaml
 title: "feat(security): enforce minimum file permissions on confidential files."
-type: feat
+type: added
 issues:
-  - 1038
+    - 1038
+important_notes:
+    - |
+        Kroxylicious now validates that confidential files (TLS private keys, keystores, truststores, password files, KMS credential files, and AWS IRSA/Pod Identity token files) are not excessively permissive before reading them.
+        * Control enforcement via `security.filePermissions.policy` in the proxy configuration:
+          * `STRICT` (owner-only access, like SSH)
+          * `RELAXED` (group-readable, suitable for Kubernetes `fsGroup` deployments)
+          * `DISABLED` (warn only).
+            * This is the default for backward compatibility - existing deployments with world-readable files continue to work but emit warnings.
+        * **Behaviour change**: `FilePassword.getProvidedPassword()` now validates file permissions before reading; with a non-`DISABLED` policy it can throw `IllegalStateException` if the file has group or other read bits set.
+          * The Kubernetes operator defaults to `RELAXED` and mounts all secret volumes with `defaultMode: 0440`
+          * The `KafkaProxy` CRD exposes `spec.security.filePermissions.policy` (default `RELAXED`) to override the policy for operator-managed deployments.
 ```
-
-```yaml
-# changelog/unreleased/1038-file-permissions-changes.yaml
-title: |
-  Kroxylicious now validates that confidential files (TLS private keys, keystores, truststores, password files, KMS credential files, and AWS IRSA/Pod Identity token files) are not excessively permissive before reading them.
-    * Control enforcement via `security.filePermissions.policy` in the proxy configuration:
-      * `STRICT` (owner-only access, like SSH)
-# ... more text ...
-# ... more text ...
-# ... more text ...
-type: changed
-issues:
-  - 1038
-```
-
-For complex "Changes" entries with nested bullet points, use a YAML literal block scalar (`|`) in the `title` field.
 
 `CHANGELOG.md` is regenerated automatically during the release process - contributors do not need to update it. The CI lint step runs `mvn logchange:lint` on every PR to catch malformed YAML.
 

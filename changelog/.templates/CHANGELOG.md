@@ -6,33 +6,41 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 {% set repo = "https://github.com/kroxylicious/kroxylicious" %}
-{% set change_types = ["changed", "deprecated", "removed"] %}
 {% for v in changelog.versions %}
 ## {{ "SNAPSHOT" if v.version.unreleased else v.version.value }}
 
 {% for group in v.entriesGroups %}
-{% if group.notEmpty and group.type.key not in change_types %}
+{% if group.notEmpty %}
 {% for entry in group.entries %}
 {% if entry.mergeRequests %}{% set link_prefix = "[#" ~ entry.mergeRequests[0].value ~ "](" ~ repo ~ "/pull/" ~ entry.mergeRequests[0].value ~ "): " %}{% elif entry.issues %}{% set link_prefix = "[#" ~ entry.issues[0] ~ "](" ~ repo ~ "/issues/" ~ entry.issues[0] ~ "): " %}{% else %}{% set link_prefix = "" %}{% endif %}
 * {{ link_prefix }}{{ entry.title.value | trim }}
 {% endfor %}
 {% endif %}
 {% endfor %}
-{% set ns = namespace(has_changes=false) %}
+{% set ns = namespace(has_notes=false) %}
 {% for group in v.entriesGroups %}
-{% if group.notEmpty and group.type.key in change_types %}
-{% set ns.has_changes = true %}
+{% if group.notEmpty %}
+{% for entry in group.entries %}
+{% if entry.importantNotes %}
+{% set ns.has_notes = true %}
 {% endif %}
 {% endfor %}
-{% if ns.has_changes %}
+{% endif %}
+{% endfor %}
+{% if ns.has_notes %}
 
 ### Changes, deprecations and removals
 
 {% for group in v.entriesGroups %}
-{% if group.notEmpty and group.type.key in change_types %}
+{% if group.notEmpty %}
 {% for entry in group.entries %}
+{% if entry.importantNotes %}
 {% if entry.mergeRequests %}{% set link_prefix = "[#" ~ entry.mergeRequests[0].value ~ "](" ~ repo ~ "/pull/" ~ entry.mergeRequests[0].value ~ "): " %}{% elif entry.issues %}{% set link_prefix = "[#" ~ entry.issues[0] ~ "](" ~ repo ~ "/issues/" ~ entry.issues[0] ~ "): " %}{% else %}{% set link_prefix = "" %}{% endif %}
-* {{ link_prefix }}{{ entry.title.value | trim }}
+* {{ link_prefix }}{{ entry.importantNotes[0].value | trim | replace('\n', '\n  ') }}
+{% for note in entry.importantNotes[1:] %}
+  * {{ note.value | trim | replace('\n', '\n    ') }}
+{% endfor %}
+{% endif %}
 {% endfor %}
 {% endif %}
 {% endfor %}
