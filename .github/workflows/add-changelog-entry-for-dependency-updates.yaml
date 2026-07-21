@@ -49,7 +49,22 @@ jobs:
         if: env.CHANGELOG_TOKEN_SET == 'true'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
         run: |
+          # Label overrides — a maintainer can force the outcome by adding a label:
+          #   changelog/skip   — always skip, even for production deps
+          #   changelog/create — always create, even for test-only deps
+          if echo "${PR_LABELS}" | jq -e 'contains(["changelog/skip"])' > /dev/null; then
+            echo "Skipping changelog entry: 'changelog/skip' label is set."
+            echo "SKIP_ENTRY=true" >> $GITHUB_ENV
+            exit 0
+          fi
+          if echo "${PR_LABELS}" | jq -e 'contains(["changelog/create"])' > /dev/null; then
+            echo "Creating changelog entry: 'changelog/create' label is set."
+            echo "SKIP_ENTRY=false" >> $GITHUB_ENV
+            exit 0
+          fi
+
           # Extract the bumped package from the Dependabot PR title.
           # Two formats exist:
           #   Artifact form:  "bump groupId:artifactId from X to Y"
