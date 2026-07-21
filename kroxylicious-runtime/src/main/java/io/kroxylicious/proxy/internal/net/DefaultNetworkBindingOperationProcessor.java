@@ -60,6 +60,8 @@ public class DefaultNetworkBindingOperationProcessor implements NetworkBindingOp
     }
 
     @Override
+    // identity check: POISON_PILL shutdown signal must match by instance
+    @SuppressWarnings("ReferenceEquality")
     public void start(ServerBootstrap plainServerBootstrap, ServerBootstrap tlsServerBootstrap) {
         if (!running.compareAndSet(false, true)) {
             return;

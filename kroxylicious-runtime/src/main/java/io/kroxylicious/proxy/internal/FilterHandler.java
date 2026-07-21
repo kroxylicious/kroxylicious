@@ -216,6 +216,8 @@ public class FilterHandler extends ChannelDuplexHandler {
      * @throws Exception if an error occurs
      */
     @Override
+    // identity check: Netty's shared Unpooled.EMPTY_BUFFER close-on-flush signal; ByteBuf.equals compares content
+    @SuppressWarnings("ReferenceEquality")
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         switch (msg) {
             case InternalRequestFrame<?> decodedFrame -> handleDecodedRequest(decodedFrame); // jump the queue, internal request must flow!
@@ -461,6 +463,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         });
     }
 
+    // identity check: invariant that the filter forwarded the exact frame body/header instances (in-place mutation contract), not copies
+    @SuppressWarnings("ReferenceEquality")
     private void forwardRequest(DecodedRequestFrame<?> decodedFrame,
                                 RequestFilterResult requestFilterResult) {
         var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
@@ -524,6 +528,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
+    // identity check: invariant that the filter forwarded the exact frame body/header instances (in-place mutation contract), not copies
+    @SuppressWarnings("ReferenceEquality")
     private void handleUpstreamResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message, @NonNull ChannelPromise promise) {
         if (decodedFrame.body() != message) {
             throw new AssertionError();
