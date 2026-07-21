@@ -18,7 +18,7 @@ name: Add changelog entry for dependency updates
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
 
 jobs:
   add-changelog-entry:
@@ -51,18 +51,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          cat > changelog/unreleased/${PR_NUMBER}-dependency-update.yaml <<EOF
+          ENTRY="changelog/unreleased/${PR_NUMBER}-dependency-update.yaml"
+          if [[ -f "${ENTRY}" ]]; then
+            echo "Changelog entry already exists, skipping."
+            exit 0
+          fi
+          cat > "${ENTRY}" <<EOF
           title: "${PR_TITLE}"
           type: build
           merge_requests:
             - ${PR_NUMBER}
           EOF
-
-      - name: 'Commit entry'
-        if: env.CHANGELOG_TOKEN_SET == 'true'
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add changelog/unreleased/
