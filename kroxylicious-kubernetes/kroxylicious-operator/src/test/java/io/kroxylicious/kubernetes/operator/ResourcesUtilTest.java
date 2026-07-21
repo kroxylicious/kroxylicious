@@ -71,7 +71,6 @@ import io.kroxylicious.testing.operator.assertj.VirtualKafkaClusterStatusAssert;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -123,35 +122,6 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.isDnsLabel("-1", false)).isFalse();
         assertThat(ResourcesUtil.isDnsLabel("a".repeat(63), false)).isTrue();
         assertThat(ResourcesUtil.isDnsLabel("a".repeat(64), false)).isFalse();
-    }
-
-    @Test
-    void findOnlyResourceNamedWithEmptyCollection() {
-        Optional<HasMetadata> resource = findOnlyResourceNamed(RESOURCE_NAME, Set.of());
-        assertThat(resource).isEmpty();
-    }
-
-    @Test
-    void findOnlyResourceNamedWithNoMatches() {
-        Secret other = new SecretBuilder().withNewMetadata().withName("other").endMetadata().build();
-        Optional<HasMetadata> resource = findOnlyResourceNamed(RESOURCE_NAME, Set.of(other));
-        assertThat(resource).isEmpty();
-    }
-
-    @Test
-    void findOnlyResourceNamedWithMatch() {
-        Secret other = new SecretBuilder().withNewMetadata().withName(RESOURCE_NAME).endMetadata().build();
-        Optional<HasMetadata> resource = findOnlyResourceNamed(RESOURCE_NAME, Set.of(other));
-        assertThat(resource).isNotEmpty().contains(other);
-    }
-
-    @Test
-    void findOnlyResourceNamedWithMultipleMatch() {
-        Secret other = new SecretBuilder().withNewMetadata().withName(RESOURCE_NAME).endMetadata().build();
-        List<HasMetadata> withMultipleSameName = List.of(other, other);
-        assertThatThrownBy(() -> {
-            findOnlyResourceNamed(RESOURCE_NAME, withMultipleSameName);
-        }).isInstanceOf(IllegalStateException.class).hasMessage("collection contained more than one resource named " + RESOURCE_NAME);
     }
 
     @Test
