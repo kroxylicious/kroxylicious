@@ -287,12 +287,15 @@ class KafkaServiceBootstrapReconcilerIT {
         AWAIT.untilAsserted(() -> {
             final KafkaService kafkaService = clusterUser.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
-            Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
             assertThat(kafkaService.getStatus())
                     .isNotNull()
-                    .conditionList()
-                    .singleElement()
-                    .isResolvedRefsTrue();
+                    .satisfies(status -> {
+                        Assertions.assertThat(status.getBootstrapServers()).isEqualTo(expectedBootstrap);
+                        assertThat(status)
+                                .conditionList()
+                                .singleElement()
+                                .isResolvedRefsTrue();
+                    });
             String checksum = getReferentChecksum(kafkaService);
             if (hasReferents) {
                 Assertions.assertThat(checksum).isNotEqualTo(NO_CHECKSUM_SPECIFIED);
