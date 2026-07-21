@@ -45,8 +45,33 @@ jobs:
           ref: ${{ github.head_ref }}
           token: ${{ secrets.KROXYLICIOUS_CHANGELOG_TOKEN }}
 
-      - name: 'Create logchange entry'
+      - name: 'Check whether changelog entry is needed'
         if: env.CHANGELOG_TOKEN_SET == 'true'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Extract the bumped package from the Dependabot PR title.
+          # Two formats exist:
+          #   Artifact form:  "bump groupId:artifactId from X to Y"
+          #   Property form:  "bump lowkey.version from X to Y"
+          PACKAGE=$(echo "${PR_TITLE}" | grep -oP 'bump \K\S+(?= from)' || true)
+          if [[ -z "${PACKAGE}" ]]; then
+            echo "SKIP_ENTRY=false" >> $GITHUB_ENV
+            exit 0
+          fi
+          if [[ "${PACKAGE}" == *"/"* ]]; then
+            echo "Skipping changelog entry: ${PACKAGE} is a GitHub Actions version update."
+            echo "SKIP_ENTRY=true" >> $GITHUB_ENV
+            exit 0
+          fi
+          if python3 .github/scripts/is-user-facing-dependency.py "${PACKAGE}"; then
+            echo "SKIP_ENTRY=false" >> $GITHUB_ENV
+          else
+            echo "SKIP_ENTRY=true" >> $GITHUB_ENV
+          fi
+
+      - name: 'Create logchange entry'
+        if: env.CHANGELOG_TOKEN_SET == 'true' && env.SKIP_ENTRY != 'true'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
