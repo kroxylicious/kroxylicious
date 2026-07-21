@@ -4,6 +4,7 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 """Validate POM metadata required by Maven Central Portal for all reactor modules.
 
 Maven Central Portal requires each published POM to carry:
