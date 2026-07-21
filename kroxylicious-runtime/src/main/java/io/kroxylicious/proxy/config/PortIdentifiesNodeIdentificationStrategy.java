@@ -220,7 +220,10 @@ public class PortIdentifiesNodeIdentificationStrategy
         return new Strategy();
     }
 
+    // Distinct NodeIdentificationStrategyFactory implementations must never compare equal. getClass()
+    // enforces that; instanceof would not if this class were ever subclassed.
     @Override
+    @SuppressWarnings("EqualsGetClass")
     public boolean equals(Object obj) {
         if (obj == this) {
             return true;

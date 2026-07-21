@@ -36,7 +36,8 @@ class InMemoryEdekTest {
         assertNotEquals(edek3, edek1);
         assertNotEquals(edek2, edek3);
         assertNotEquals(edek3, edek2);
-        assertNotEquals("bob", edek1);
+        assertNotEquals(edek1, "bob");
+        assertNotEquals(edek1, null);
 
         assertEquals(edek1.hashCode(), edek2.hashCode());
         assertNotEquals(edek1.hashCode(), edek3.hashCode());

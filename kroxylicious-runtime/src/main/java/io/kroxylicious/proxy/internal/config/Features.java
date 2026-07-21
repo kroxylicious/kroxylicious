@@ -25,6 +25,7 @@ public class Features {
     private static final Features DEFAULT_FEATURES = new Features(Map.of());
     private final Map<Feature, Boolean> featureToEnabled;
 
+    // equals() relies on this class not being subclassed; widening this constructor means revisiting equals()
     private Features(Map<Feature, Boolean> featureToEnabled) {
         this.featureToEnabled = featureToEnabled;
     }
@@ -88,10 +89,9 @@ public class Features {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Features features1)) {
             return false;
         }
-        Features features1 = (Features) o;
         return Objects.equals(featureToEnabled, features1.featureToEnabled);
     }
 

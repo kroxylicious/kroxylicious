@@ -36,7 +36,10 @@ public class SyntacticallyCorrectJsonConfig {
         return validateObjectKeysUnique;
     }
 
+    // Jackson-bound config type, and not final. Exact-type equality is deliberate: a subclass adding
+    // further JSON options must not compare equal to this one.
     @Override
+    @SuppressWarnings("EqualsGetClass")
     public boolean equals(Object o) {
         if (this == o) {
             return true;

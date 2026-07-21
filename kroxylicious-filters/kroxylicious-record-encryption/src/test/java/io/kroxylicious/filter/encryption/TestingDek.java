@@ -15,10 +15,9 @@ public record TestingDek(byte[] serializedEdek) {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof TestingDek that)) {
             return false;
         }
-        TestingDek that = (TestingDek) o;
         return Arrays.equals(serializedEdek, that.serializedEdek);
     }
 

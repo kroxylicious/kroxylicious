@@ -56,7 +56,11 @@ public abstract class ConsumerRecord {
         return offset;
     }
 
+    // Four subclasses wrap the output formats of different CLI clients. Records consumed via different
+    // clients are intentionally never equal, and a future subclass carrying extra state would silently
+    // break an instanceof-based equals().
     @Override
+    @SuppressWarnings("EqualsGetClass")
     public boolean equals(Object o) {
         if (this == o) {
             return true;

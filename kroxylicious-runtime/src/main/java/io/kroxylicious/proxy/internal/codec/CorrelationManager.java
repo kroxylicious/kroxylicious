@@ -100,6 +100,7 @@ public class CorrelationManager {
         private final @Nullable Filter recipient;
         private final @Nullable CompletableFuture<?> promise;
 
+        // equals() relies on this class not being subclassed; widening this constructor means revisiting equals()
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,
@@ -135,10 +136,9 @@ public class CorrelationManager {
             if (this == o) {
                 return true;
             }
-            if (o == null || getClass() != o.getClass()) {
+            if (!(o instanceof Correlation that)) {
                 return false;
             }
-            Correlation that = (Correlation) o;
             return apiKey == that.apiKey && apiVersion == that.apiVersion && downstreamCorrelationId == that.downstreamCorrelationId
                     && decodeResponse == that.decodeResponse;
         }

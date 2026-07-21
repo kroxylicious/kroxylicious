@@ -38,10 +38,9 @@ public record AwsKmsEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof AwsKmsEdek that)) {
             return false;
         }
-        AwsKmsEdek that = (AwsKmsEdek) o;
         return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek);
     }
 
