@@ -154,6 +154,8 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
      * other components (including any added in the future) are compared by the record's
      * auto-equals, so this method extends automatically.
      */
+    // identity check: reflexivity fast-path, same idiom as equals()
+    @SuppressWarnings("ReferenceEquality")
     public boolean sameAs(@Nullable VirtualCluster other) {
         if (this == other) {
             return true;

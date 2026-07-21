@@ -126,7 +126,7 @@ public class TopicNameCacheFilter implements MetadataRequestFilter, MetadataResp
                                                                     FilterContext context) {
         if (response.topics() != null) {
             response.topics().forEach(topic -> {
-                if (topic.name() != null && !topic.name().isEmpty() && topic.topicId() != null && topic.topicId() != Uuid.ZERO_UUID) {
+                if (topic.name() != null && !topic.name().isEmpty() && topic.topicId() != null && !Uuid.ZERO_UUID.equals(topic.topicId())) {
                     topicNameCache.put(topic.topicId(), topic.name());
                 }
             });

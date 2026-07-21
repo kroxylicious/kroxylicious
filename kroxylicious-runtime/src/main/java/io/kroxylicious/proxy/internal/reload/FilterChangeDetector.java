@@ -96,7 +96,7 @@ final class FilterChangeDetector implements ChangeDetector {
                     NamedFilterDefinition oldDef = oldByName.get(name);
                     NamedFilterDefinition newDef = newByName.get(name);
                     if (oldDef == null || newDef == null) {
-                        if (oldDef != newDef) {
+                        if (oldDef == null ^ newDef == null) {
                             changed.add(name);
                         }
                     }
