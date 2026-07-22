@@ -113,7 +113,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
 import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1009,15 +1008,15 @@ public class KafkaProxyReconcilerIT {
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> services, Set<KafkaProxyIngress> ingresses) {
 
         VirtualKafkaCluster cluster() {
-            return findOnlyResourceNamed(KafkaProxyReconcilerIT.CLUSTER_BAR, clusters).orElseThrow();
+            return clusters.stream().filter(r -> CLUSTER_BAR.equals(r.getMetadata().getName())).findFirst().orElseThrow();
         }
 
         KafkaService kafkaService() {
-            return findOnlyResourceNamed(KafkaProxyReconcilerIT.CLUSTER_BAR_REF, services).orElseThrow();
+            return services.stream().filter(r -> CLUSTER_BAR_REF.equals(r.getMetadata().getName())).findFirst().orElseThrow();
         }
 
         KafkaProxyIngress ingress() {
-            return findOnlyResourceNamed(KafkaProxyReconcilerIT.CLUSTER_BAR_CLUSTERIP_INGRESS, ingresses).orElseThrow();
+            return ingresses.stream().filter(r -> CLUSTER_BAR_CLUSTERIP_INGRESS.equals(r.getMetadata().getName())).findFirst().orElseThrow();
         }
 
     }

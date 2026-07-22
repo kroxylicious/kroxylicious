@@ -43,8 +43,4 @@ Units can be combined, for example `1m30s`.
 * The `workerThreadCount` setting allows tuning for high-concurrency deployments. Increasing this value can improve throughput when handling many simultaneous client connections.
 * The `shutdownQuietPeriod` and `shutdownTimeout` settings together control graceful shutdown behaviour. `shutdownQuietPeriod` should always be less than or equal to `shutdownTimeout`.
 
-[NOTE]
-====
-The `shutdownQuietPeriodSeconds` property (an integer number of seconds) is deprecated and will be removed in a future release.
-Use `shutdownQuietPeriod` with a Go-style duration string instead (for example, `shutdownQuietPeriod: 2s`).
-====
+

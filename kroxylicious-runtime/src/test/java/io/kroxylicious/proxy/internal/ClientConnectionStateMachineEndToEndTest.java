@@ -811,6 +811,8 @@ class ClientConnectionStateMachineEndToEndTest {
     /**
      * Find the index of the handler instance in the pipeline.
      */
+    // identity check: locating a specific handler instance in the pipeline
+    @SuppressWarnings("ReferenceEquality")
     private int findHandlerIndex(List<String> handlerNames, KafkaProxyFrontendHandler handler) {
         ChannelPipeline pipeline = inboundChannel.pipeline();
         for (int i = 0; i < handlerNames.size(); i++) {

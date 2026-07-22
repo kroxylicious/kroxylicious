@@ -174,25 +174,6 @@ public class ResourcesUtil {
     }
 
     /**
-     * Find the only element in the collection with metadata.name matching the search name.
-     *
-     * @param <T> resource type
-     * @param name name to search for
-     * @param collection collection to search
-     * @return an Optional containing the only element matching, empty if there is no matching element
-     * @throws IllegalStateException if there are multiple elements matching
-     */
-    public static <T extends HasMetadata> Optional<T> findOnlyResourceNamed(String name, Collection<T> collection) {
-        Objects.requireNonNull(collection);
-        Objects.requireNonNull(name);
-        List<T> list = collection.stream().filter(item -> name(item).equals(name)).toList();
-        if (list.size() > 1) {
-            throw new IllegalStateException("collection contained more than one resource named " + name);
-        }
-        return list.isEmpty() ? Optional.empty() : Optional.of(list.getFirst());
-    }
-
-    /**
      * Collector that collects elements of stream to a map keyed by name of the element
      *
      * @param <T> resource type

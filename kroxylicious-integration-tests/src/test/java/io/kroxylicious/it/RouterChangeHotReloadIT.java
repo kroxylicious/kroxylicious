@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * then asserts on the observable lifecycle effects via
  * {@link InvocationCountingRouterFactory}'s per-UUID initialize/close counters.
  * <p>
- * A router definition change is detected by {@code RouterChangeDetector} as a virtual cluster
+ * A router definition change is detected by {@code RoutingGraphChangeDetector} as a virtual cluster
  * {@code modify}, planned as a {@code ReplaceCluster} operation, and executed as
  * {@code RemoveCluster + AddCluster}. The affected VC's old {@code RouterChainFactory} is closed
  * (firing {@code RouterFactory.close()} on the old initResult) and a new one is built (firing
@@ -212,7 +212,7 @@ class RouterChangeHotReloadIT extends BaseIT {
                                                                                                        @BrokerCluster KafkaCluster cluster)
             throws Exception {
         // routerDefinitions is in the RECONCILABLE set, so the static-section differ permits
-        // the change. RouterChangeDetector detects the new router, but since no VC references
+        // the change. RoutingGraphChangeDetector detects the new router, but since no VC references
         // it, no VC operations are planned and the reconfigure completes without errors.
         // The factory is never initialized.
         UUID routerId = UUID.randomUUID();

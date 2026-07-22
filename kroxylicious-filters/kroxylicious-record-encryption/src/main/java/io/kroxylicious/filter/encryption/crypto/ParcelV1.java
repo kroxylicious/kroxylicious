@@ -61,6 +61,8 @@ public class ParcelV1 implements Parcel {
     }
 
     @Override
+    // identity check: ABSENT_HEADERS/ABSENT_VALUE are identity sentinels distinguishing "not parcelled" from "parcelled but empty"
+    @SuppressWarnings("ReferenceEquality")
     public void readParcel(@NonNull ByteBuffer parcel,
                            @NonNull Record encryptedRecord,
                            @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {

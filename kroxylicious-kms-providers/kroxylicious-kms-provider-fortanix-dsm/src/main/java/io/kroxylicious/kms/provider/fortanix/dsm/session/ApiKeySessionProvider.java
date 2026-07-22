@@ -248,6 +248,8 @@ public class ApiKeySessionProvider implements SessionProvider {
             }
 
             @Override
+            // identity check: cs == this guards that we only clear the current session, not a replacement — Session has no value-semantic equals
+            @SuppressWarnings("ReferenceEquality")
             public void invalidate() {
                 // Need to check that we still are the current session.
                 try {

@@ -224,6 +224,7 @@ class TopicNameCacheFilterTest {
         return Stream.of(Arguments.argumentSet("null topic name", TOPIC_ID, null),
                 Arguments.argumentSet("empty topic name", TOPIC_ID, ""),
                 Arguments.argumentSet("zero topic id", Uuid.ZERO_UUID, TOPIC_NAME),
+                Arguments.argumentSet("zero topic id (distinct instance)", new Uuid(0L, 0L), TOPIC_NAME),
                 Arguments.argumentSet("null topic id", null, TOPIC_NAME));
     }
 
@@ -262,7 +263,7 @@ class TopicNameCacheFilterTest {
                 response, filterContext);
         // then
         assertThat(responseFilterResultCompletionStage).isSameAs(result);
-        assertThat(topicNameCacheFilter.topicName(TOPIC_ID)).isEmpty();
+        assertThat(topicNameCacheFilter.topicNameCache.asMap()).isEmpty();
     }
 
     @Test

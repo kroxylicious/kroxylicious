@@ -526,7 +526,7 @@ public final class VirtualKafkaClusterReconciler implements
     @Nullable
     private VirtualKafkaCluster checkTlsConfigConsistency(Context<VirtualKafkaCluster> context, VirtualKafkaCluster cluster, Ingresses clusterIngress) {
         var ingressName = Objects.requireNonNull(clusterIngress.getIngressRef().getName());
-        var proxyIngressOpt = ResourcesUtil.findOnlyResourceNamed(ingressName, context.getSecondaryResources(KafkaProxyIngress.class));
+        var proxyIngressOpt = context.getSecondaryResource(KafkaProxyIngress.class, INGRESSES_EVENT_SOURCE_NAME, ingressName);
 
         if (proxyIngressOpt.isPresent()) {
             KafkaProxyIngress proxyIngress = proxyIngressOpt.get();

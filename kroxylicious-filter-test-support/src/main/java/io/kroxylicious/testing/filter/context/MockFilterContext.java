@@ -173,7 +173,7 @@ public class MockFilterContext implements FilterContext {
         public MockFilterContextBuilder withTopicName(Uuid topicId, String topicName) {
             Objects.requireNonNull(topicId);
             Objects.requireNonNull(topicName);
-            if (topicId == Uuid.ZERO_UUID) {
+            if (Uuid.ZERO_UUID.equals(topicId)) {
                 throw new IllegalArgumentException("avoid using ZERO_UUID as a topicId because it is often used to represent unset");
             }
             if (topicNames.containsKey(topicId)) {
