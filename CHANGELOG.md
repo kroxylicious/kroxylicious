@@ -7,7 +7,13 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-* [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): fix(config): remove deprecated `shutdownQuietPeriodSeconds` field from `NettySettings`. Use `shutdownQuietPeriod` with a Go-style duration string instead.
+* [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): fix(config): remove deprecated `shutdownQuietPeriodSeconds` field from `NettySettings`.
+
+### Changes, deprecations and removals
+
+* [#3783](https://github.com/kroxylicious/kroxylicious/issues/3783): The `shutdownQuietPeriodSeconds` field under `network.proxy` and `network.management` is removed.
+  Use the new `shutdownQuietPeriod` field instead, which accepts Go-style durations (e.g. `"2s"`, `"500ms"`) and adds support for sub-second precision.
+  A new `shutdownTimeout` field is also available to configure the previously hardcoded 15-second Netty shutdown timeout.
 
 ## 0.23.0
 
