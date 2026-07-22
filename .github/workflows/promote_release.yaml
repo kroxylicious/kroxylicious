@@ -269,6 +269,20 @@ jobs:
       - name: 'Delete staging container images'
         if: ${{ inputs.command == 'drop-release' && vars.REGISTRY_SERVER != '' }}
         run: |
+          skopeo_delete_if_exists() {
+            local ref="$1"
+            skopeo inspect "docker://${ref}" > /dev/null 2>&1
+            local exit_code=$?
+            if [[ $exit_code -eq 2 ]]; then
+              echo "Image not found, skipping: docker://${ref}"
+              return 0
+            elif [[ $exit_code -ne 0 ]]; then
+              echo "Error inspecting docker://${ref}" >&2
+              return 1
+            fi
+            skopeo delete "docker://${ref}"
+          }
+
           RELEASE_SHA=$(git rev-parse "v${{ env.RELEASE_VERSION }}^{}")
           SHA_TAG="commit-${RELEASE_SHA:0:7}"
 
@@ -277,10 +291,10 @@ jobs:
           OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
           ADMISSION_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.ADMISSION_IMAGE_NAME }}"
 
-          skopeo delete "docker://${PROXY_IMAGE}:${SHA_TAG}"
-          skopeo delete "docker://${LEGACY_PROXY_IMAGE}:${SHA_TAG}"
-          skopeo delete "docker://${OPERATOR_IMAGE}:${SHA_TAG}"
-          skopeo delete "docker://${ADMISSION_IMAGE}:${SHA_TAG}"
+          skopeo_delete_if_exists "${PROXY_IMAGE}:${SHA_TAG}"
+          skopeo_delete_if_exists "${LEGACY_PROXY_IMAGE}:${SHA_TAG}"
+          skopeo_delete_if_exists "${OPERATOR_IMAGE}:${SHA_TAG}"
+          skopeo_delete_if_exists "${ADMISSION_IMAGE}:${SHA_TAG}"
 
       - name: 'Drop run label used to tag release PR'
         env:
