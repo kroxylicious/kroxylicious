@@ -29,21 +29,21 @@ set -euo pipefail
 # Required environment variables (set automatically by GitHub Actions):
 #   GITHUB_OUTPUT       Path to the step-output file
 #   GITHUB_EVENT_NAME   Event that triggered the workflow (pull_request / push / …)
-#   GITHUB_BASE_REF     Base branch name (set automatically for pull_request events)
 
 readonly PATTERN="${1:?PATTERN argument is required}"
 
 # Change detection is only performed for pull_request events. For other events
 # (push, workflow_dispatch, …) the workflow always runs. Limiting detection to
-# pull requests means we can use git diff against the already-fetched base ref
-# rather than calling the GitHub API, which avoids needing pull-requests: read
-# permission in the token for push-triggered workflows.
+# pull requests means we can use git diff against HEAD^1 (the base branch tip,
+# which is the first parent of the synthetic merge commit that actions/checkout
+# creates for PRs) rather than calling the GitHub API, which avoids needing
+# pull-requests: read permission in the token for push-triggered workflows.
 if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
   echo "only_matching_files_changed=false" >> "${GITHUB_OUTPUT}"
   exit 0
 fi
 
-changed_files=$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD")
+changed_files=$(git diff --name-only "HEAD^1...HEAD")
 
 if [[ -z "${changed_files}" ]]; then
   # Nothing changed - no reason to run
