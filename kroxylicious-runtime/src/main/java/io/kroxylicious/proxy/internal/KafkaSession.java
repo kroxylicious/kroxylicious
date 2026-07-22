@@ -72,10 +72,9 @@ public class KafkaSession {
         return haProxyContext;
     }
 
-    // Internal session value type, and not final. Keeping getClass() means a future subclass can never
-    // compare equal to a plain KafkaSession, which preserves the symmetry of equals().
     @Override
-    @SuppressWarnings("EqualsGetClass")
+    @SuppressWarnings("EqualsGetClass") // Internal session value type, and not final. Keeping getClass() means a future subclass can never
+    // compare equal to a plain KafkaSession, which preserves the symmetry of equals().
     public boolean equals(Object obj) {
         if (obj == this) {
             return true;

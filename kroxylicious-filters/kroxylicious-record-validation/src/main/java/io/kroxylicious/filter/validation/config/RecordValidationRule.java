@@ -58,11 +58,10 @@ public class RecordValidationRule {
         return Optional.ofNullable(valueRule);
     }
 
-    // TopicMatchingRecordValidationRule extends this class and adds topicNames to equals(). Relaxing to
+    @Override
+    @SuppressWarnings("EqualsGetClass") // TopicMatchingRecordValidationRule extends this class and adds topicNames to equals(). Relaxing to
     // instanceof would make base.equals(topicMatching) true while the reverse stays false, breaking the
     // symmetry requirement of Object#equals.
-    @Override
-    @SuppressWarnings("EqualsGetClass")
     public boolean equals(Object o) {
         if (this == o) {
             return true;

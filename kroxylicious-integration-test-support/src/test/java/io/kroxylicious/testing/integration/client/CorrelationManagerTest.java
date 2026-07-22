@@ -56,13 +56,19 @@ class CorrelationManagerTest {
         var sameFieldsDifferentFuture = new CorrelationManager.Correlation((short) 1, (short) 2, future2, (short) 3);
 
         // Then
-        assertThat(baseline).isEqualTo(sameFieldsDifferentFuture);
-        assertThat(baseline).hasSameHashCodeAs(sameFieldsDifferentFuture);
-        assertThat(baseline).isNotEqualTo(new CorrelationManager.Correlation((short) 9, (short) 2, future1, (short) 3));
-        assertThat(baseline).isNotEqualTo(new CorrelationManager.Correlation((short) 1, (short) 9, future1, (short) 3));
-        assertThat(baseline).isNotEqualTo(new CorrelationManager.Correlation((short) 1, (short) 2, future1, (short) 9));
-        assertThat(baseline).isNotEqualTo(null);
-        assertThat(baseline).isNotEqualTo("unrelated type");
+        assertThat(baseline)
+                .isNotEqualTo(new Object())
+                .isNotEqualTo(null);
+
+        assertThat(baseline)
+                .isEqualTo(sameFieldsDifferentFuture)
+                .hasSameHashCodeAs(sameFieldsDifferentFuture);
+        assertThat(sameFieldsDifferentFuture).isEqualTo(baseline);
+
+        assertThat(baseline)
+                .isNotEqualTo(new CorrelationManager.Correlation((short) 9, (short) 2, future1, (short) 3))
+                .isNotEqualTo(new CorrelationManager.Correlation((short) 1, (short) 9, future1, (short) 3))
+                .isNotEqualTo(new CorrelationManager.Correlation((short) 1, (short) 2, future1, (short) 9));
     }
 
     @Test

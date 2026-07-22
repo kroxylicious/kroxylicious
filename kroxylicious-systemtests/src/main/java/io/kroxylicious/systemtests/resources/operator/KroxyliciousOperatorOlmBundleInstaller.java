@@ -65,10 +65,9 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
         this.bundleImageRef = Environment.KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE;
     }
 
-    // Installation identity: an OLM bundle installation is never the same installation as any other
-    // type, including a subclass of this one.
     @Override
-    @SuppressWarnings("EqualsGetClass")
+    @SuppressWarnings("EqualsGetClass") // Installation identity: an OLM bundle installation is never the same installation as any other
+    // type, including a subclass of this one.
     public boolean equals(Object other) {
         if (this == other) {
             return true;

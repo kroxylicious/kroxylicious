@@ -38,10 +38,10 @@ public record AwsKmsEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (!(o instanceof AwsKmsEdek that)) {
+        if (!(o instanceof AwsKmsEdek(String otherKekRef, byte[] otherEdek))) {
             return false;
         }
-        return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek);
+        return Objects.equals(kekRef, otherKekRef) && Arrays.equals(edek, otherEdek);
     }
 
     /**

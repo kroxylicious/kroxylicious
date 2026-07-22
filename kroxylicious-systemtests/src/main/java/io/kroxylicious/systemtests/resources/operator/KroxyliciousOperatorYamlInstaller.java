@@ -280,10 +280,9 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         }
     }
 
-    // Installation identity: a YAML installation is never the same installation as any other type,
-    // including a subclass of this one.
     @Override
-    @SuppressWarnings("EqualsGetClass")
+    @SuppressWarnings("EqualsGetClass") // Installation identity: a YAML installation is never the same installation as any other type,
+    // including a subclass of this one.
     public boolean equals(Object other) {
         if (this == other) {
             return true;

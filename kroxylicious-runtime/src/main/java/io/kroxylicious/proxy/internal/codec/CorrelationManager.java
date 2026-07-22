@@ -91,7 +91,7 @@ public class CorrelationManager {
      * API key and version.
      */
     // TODO a perfect value type
-    public static class Correlation {
+    public static final class Correlation {
         private final short apiKey;
         private final short apiVersion;
 
@@ -100,7 +100,6 @@ public class CorrelationManager {
         private final @Nullable Filter recipient;
         private final @Nullable CompletableFuture<?> promise;
 
-        // equals() relies on this class not being subclassed; widening this constructor means revisiting equals()
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,

@@ -83,10 +83,9 @@ public class JwsSignatureValidationConfig {
      * {@link AllowDeny#allowed()} (after sorting) and {@link AllowDeny#denied()} respectively.</li>
      * </ul>
      */
-    // Jackson-bound config type, and not final. equals() already normalises the algorithm lists before
-    // comparing; exact-type comparison is what keeps that meaningful.
     @Override
-    @SuppressWarnings("EqualsGetClass")
+    @SuppressWarnings("EqualsGetClass") // Jackson-bound config type, and not final. equals() already normalises the algorithm lists before
+    // comparing; exact-type comparison is what keeps that meaningful.
     public boolean equals(Object o) {
         if (this == o) {
             return true;

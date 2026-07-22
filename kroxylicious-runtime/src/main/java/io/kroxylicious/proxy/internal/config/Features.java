@@ -20,12 +20,11 @@ import static java.util.Arrays.stream;
 /**
  * Represents the entire set of proxy features.
  */
-public class Features {
+public final class Features {
 
     private static final Features DEFAULT_FEATURES = new Features(Map.of());
     private final Map<Feature, Boolean> featureToEnabled;
 
-    // equals() relies on this class not being subclassed; widening this constructor means revisiting equals()
     private Features(Map<Feature, Boolean> featureToEnabled) {
         this.featureToEnabled = featureToEnabled;
     }
@@ -89,10 +88,10 @@ public class Features {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Features features1)) {
+        if (!(o instanceof Features other)) {
             return false;
         }
-        return Objects.equals(featureToEnabled, features1.featureToEnabled);
+        return Objects.equals(featureToEnabled, other.featureToEnabled);
     }
 
     @Override

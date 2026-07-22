@@ -42,10 +42,10 @@ public record VaultEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (!(o instanceof VaultEdek that)) {
+        if (!(o instanceof VaultEdek(String otherKekRef, byte[] otherEdek))) {
             return false;
         }
-        return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek);
+        return Objects.equals(kekRef, otherKekRef) && Arrays.equals(edek, otherEdek);
     }
 
     /**
