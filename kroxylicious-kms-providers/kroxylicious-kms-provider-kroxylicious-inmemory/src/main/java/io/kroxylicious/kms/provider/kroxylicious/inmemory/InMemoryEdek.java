@@ -37,10 +37,9 @@ public record InMemoryEdek(
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof InMemoryEdek that)) {
             return false;
         }
-        InMemoryEdek that = (InMemoryEdek) o;
         return numAuthBits == that.numAuthBits && Arrays.equals(iv, that.iv) && Arrays.equals(edek, that.edek);
     }
 

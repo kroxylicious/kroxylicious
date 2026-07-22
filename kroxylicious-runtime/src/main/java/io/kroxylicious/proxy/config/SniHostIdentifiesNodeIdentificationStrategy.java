@@ -128,6 +128,8 @@ public class SniHostIdentifiesNodeIdentificationStrategy
     }
 
     @Override
+    @SuppressWarnings("EqualsGetClass") // Config value type for SNI-based node identification. Exact-type equality is intended: a subclass
+    // carrying extra configuration must not compare equal to a plain instance of this class.
     public boolean equals(Object obj) {
         if (obj == this) {
             return true;

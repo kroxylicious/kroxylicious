@@ -44,6 +44,8 @@ public class TopicMatchingRecordValidationRule extends RecordValidationRule {
     }
 
     @Override
+    @SuppressWarnings("EqualsGetClass") // Paired with RecordValidationRule: both classes contribute state to equality at their own level, so
+    // both compare exact runtime type.
     public boolean equals(Object o) {
         if (this == o) {
             return true;

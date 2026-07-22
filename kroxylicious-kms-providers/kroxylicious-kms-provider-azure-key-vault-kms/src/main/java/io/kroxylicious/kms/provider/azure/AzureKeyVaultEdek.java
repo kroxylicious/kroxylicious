@@ -90,10 +90,9 @@ public record AzureKeyVaultEdek(String keyName,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof AzureKeyVaultEdek that)) {
             return false;
         }
-        AzureKeyVaultEdek that = (AzureKeyVaultEdek) o;
         return Objects.equals(keyName, that.keyName) && Objects.equals(vaultName, that.vaultName) && Objects.equals(supportedKeyType, that.supportedKeyType)
                 && Objects.equals(keyVersion, that.keyVersion) && Arrays.equals(edek, that.edek);
     }

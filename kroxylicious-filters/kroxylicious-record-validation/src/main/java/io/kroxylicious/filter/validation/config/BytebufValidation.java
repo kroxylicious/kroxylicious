@@ -86,6 +86,8 @@ public class BytebufValidation {
     }
 
     @Override
+    @SuppressWarnings("EqualsGetClass") // Jackson-bound config type, and not final. getClass() keeps equals() symmetric if a subclass ever
+    // adds further validation state.
     public boolean equals(Object o) {
         if (this == o) {
             return true;

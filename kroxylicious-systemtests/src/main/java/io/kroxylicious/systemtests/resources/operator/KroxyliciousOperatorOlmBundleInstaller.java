@@ -66,6 +66,8 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     }
 
     @Override
+    @SuppressWarnings("EqualsGetClass") // Installation identity: an OLM bundle installation is never the same installation as any other
+    // type, including a subclass of this one.
     public boolean equals(Object other) {
         if (this == other) {
             return true;

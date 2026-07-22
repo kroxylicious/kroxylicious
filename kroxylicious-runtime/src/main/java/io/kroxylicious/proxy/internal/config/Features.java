@@ -20,7 +20,7 @@ import static java.util.Arrays.stream;
 /**
  * Represents the entire set of proxy features.
  */
-public class Features {
+public final class Features {
 
     private static final Features DEFAULT_FEATURES = new Features(Map.of());
     private final Map<Feature, Boolean> featureToEnabled;
@@ -88,11 +88,10 @@ public class Features {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof Features other)) {
             return false;
         }
-        Features features1 = (Features) o;
-        return Objects.equals(featureToEnabled, features1.featureToEnabled);
+        return Objects.equals(featureToEnabled, other.featureToEnabled);
     }
 
     @Override

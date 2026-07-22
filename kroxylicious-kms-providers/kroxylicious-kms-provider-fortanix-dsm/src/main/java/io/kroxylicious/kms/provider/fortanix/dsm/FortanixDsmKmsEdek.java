@@ -47,10 +47,9 @@ public record FortanixDsmKmsEdek(String kekRef,
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof FortanixDsmKmsEdek that)) {
             return false;
         }
-        FortanixDsmKmsEdek that = (FortanixDsmKmsEdek) o;
         return Objects.equals(kekRef, that.kekRef) && Arrays.equals(iv, that.iv) && Arrays.equals(edek, that.edek);
     }
 

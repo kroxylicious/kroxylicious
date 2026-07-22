@@ -22,10 +22,9 @@ public record BytesEdek(byte[] edek) {
         if (this == o) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
+        if (!(o instanceof BytesEdek bytesEdek)) {
             return false;
         }
-        BytesEdek bytesEdek = (BytesEdek) o;
         return Objects.deepEquals(edek, bytesEdek.edek);
     }
 
