@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-name: "Build Kroxylicious Proxy"
+name: "Unit Test All"
 
 on:
   push:
@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_proxy:
+  unittest_all:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -73,7 +73,7 @@ jobs:
           echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
         uses: ./.github/actions/common/cache-maven-packages
-      - name: 'Build & unit test Kroxylicious proxy'
+      - name: 'Unit test all modules'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
