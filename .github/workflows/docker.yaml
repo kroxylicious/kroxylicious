@@ -72,6 +72,8 @@ jobs:
 
       - name: Determine Build Configuration
         id: build_configuration
+        env:
+          ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
         run: |
           POMS_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           echo "release_version=${POMS_VERSION}" >> $GITHUB_OUTPUT
@@ -108,8 +110,8 @@ jobs:
             if [[ "${{ github.event_name }}" == "push" ]]; then
               TAG_SUFFIXES+=("${POMS_VERSION}")
             fi
-            if [[ -n "${{ inputs.additional-tags }}" ]]; then
-              IFS=',' read -ra EXTRA_TAGS <<< "${{ inputs.additional-tags }}"
+            if [[ -n "${ADDITIONAL_TAGS}" ]]; then
+              IFS=',' read -ra EXTRA_TAGS <<< "${ADDITIONAL_TAGS}"
               for extra_tag in "${EXTRA_TAGS[@]}"; do
                 TAG_SUFFIXES+=("${extra_tag// /}")
               done
