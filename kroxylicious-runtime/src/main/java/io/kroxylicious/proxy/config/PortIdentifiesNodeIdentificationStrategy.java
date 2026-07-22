@@ -346,8 +346,8 @@ public class PortIdentifiesNodeIdentificationStrategy
         }
 
         @Override
-        public HostPort advertiseBootstrap(ProxyNodeId virtualNodeId) {
-            return new HostPort(bootstrapAddress.host(), virtualNodeId.gateway().resolvePort(virtualNodeId));
+        public HostPort advertiseBootstrap(ProxyNodeId.Bootstrap bootstrap) {
+            return new HostPort(bootstrapAddress.host(), bootstrap.gateway().resolvePort(bootstrap));
         }
 
         @Override

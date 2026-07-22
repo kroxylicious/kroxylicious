@@ -19,10 +19,10 @@ public interface AdvertisingSpec {
     /**
      * The full advertised bootstrap address (host and port).
      *
-     * @param virtualNodeId the bootstrap virtual node
+     * @param bootstrap the bootstrap virtual node
      * @return the bootstrap address to advertise to clients
      */
-    HostPort advertiseBootstrap(ProxyNodeId virtualNodeId);
+    HostPort advertiseBootstrap(ProxyNodeId.Bootstrap bootstrap);
 
     /**
      * The full advertised broker address (host and port) for the given node.
