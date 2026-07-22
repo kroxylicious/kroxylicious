@@ -93,6 +93,10 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # workflow_run triggers run with the base repo's token and secrets, so checking out
+          # fork code carries risk. The mitigation here is requiring maintainer approval before
+          # this workflow runs for contributions from new contributors.
+          allow-unsafe-pr-checkout: true
 
       - name: Setup Java
         uses: ./.github/actions/common/setup-java
