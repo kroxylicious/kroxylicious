@@ -11,6 +11,9 @@ import java.io.UncheckedIOException;
 import java.util.Objects;
 import java.util.Properties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.environment.TestEnvironmentVariables;
 
@@ -18,6 +21,7 @@ import io.skodjob.testframe.environment.TestEnvironmentVariables;
  * The type Environment.
  */
 public class Environment {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Environment.class);
 
     private Environment() {
     }
@@ -213,5 +217,15 @@ public class Environment {
 
     private static String determineStrimziVersion() {
         return readMetadataProperty("strimzi.version");
+    }
+
+    static {
+        ENVIRONMENT_VARIABLES.logEnvironmentVariables();
+        try {
+            ENVIRONMENT_VARIABLES.saveConfigurationFile(CLUSTER_DUMP_DIR);
+        }
+        catch (IOException e) {
+            LOGGER.error("Failed to write environment configuration to {}: {}", CLUSTER_DUMP_DIR, e.getMessage());
+        }
     }
 }
