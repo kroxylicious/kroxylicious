@@ -396,7 +396,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(1234);
 
         // When
-        var result = advertising.advertiseBootstrap(new ProxyNodeId.Bootstrap(gateway));
+        var result = advertising.advertisedBootstrapAddress(new ProxyNodeId.Bootstrap(gateway));
 
         // Then — delegates port resolution to the gateway
         assertThat(result).isEqualTo(new HostPort("boot.kafka", 1234));
@@ -410,7 +410,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(55555);
 
         // When
-        var result = advertising.advertiseBootstrap(new ProxyNodeId.Bootstrap(gateway));
+        var result = advertising.advertisedBootstrapAddress(new ProxyNodeId.Bootstrap(gateway));
 
         // Then
         assertThat(result).isEqualTo(new HostPort("boot.kafka", 55555));
@@ -424,7 +424,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(1234);
 
         // When
-        var result = advertising.advertiseBroker(new ProxyNodeId.Broker(gateway, 5));
+        var result = advertising.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 5));
 
         // Then — delegates port resolution to the gateway
         assertThat(result).isEqualTo(new HostPort("broker-5.kafka", 1234));
@@ -441,7 +441,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         });
 
         // When
-        var result = advertising.advertiseBroker(new ProxyNodeId.Broker(gateway, 5));
+        var result = advertising.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 5));
 
         // Then — resolver provides the port, not the bootstrap port
         assertThat(result).isEqualTo(new HostPort("broker-5.kafka", 45005));
@@ -455,7 +455,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(88888);
 
         // When
-        var result = advertising.advertiseBroker(new ProxyNodeId.Broker(gateway, 5));
+        var result = advertising.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 5));
 
         // Then — explicit port from pattern takes precedence over resolver
         assertThat(result).isEqualTo(new HostPort("broker-5.kafka", 9999));
@@ -468,7 +468,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
         var gateway = mock(EndpointGateway.class);
 
         // When
-        var result = advertising.advertiseBroker(new ProxyNodeId.Broker(gateway, 3));
+        var result = advertising.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 3));
 
         // Then
         assertThat(result.host()).isEqualTo("broker-mycluster-3.kafka");

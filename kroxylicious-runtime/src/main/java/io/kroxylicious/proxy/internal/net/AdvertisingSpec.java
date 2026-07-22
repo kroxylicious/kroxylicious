@@ -22,7 +22,7 @@ public interface AdvertisingSpec {
      * @param bootstrap the bootstrap virtual node
      * @return the bootstrap address to advertise to clients
      */
-    HostPort advertiseBootstrap(ProxyNodeId.Bootstrap bootstrap);
+    HostPort advertisedBootstrapAddress(ProxyNodeId.Bootstrap bootstrap);
 
     /**
      * The full advertised broker address (host and port) for the given node.
@@ -31,5 +31,5 @@ public interface AdvertisingSpec {
      * @return the broker address to advertise to clients for this node
      * @throws IllegalArgumentException if no address can be produced for the given node
      */
-    HostPort advertiseBroker(ProxyNodeId virtualNodeId) throws IllegalArgumentException;
+    HostPort advertisedBrokerAddress(ProxyNodeId virtualNodeId) throws IllegalArgumentException;
 }

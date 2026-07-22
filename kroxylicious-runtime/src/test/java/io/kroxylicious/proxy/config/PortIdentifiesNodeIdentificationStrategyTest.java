@@ -353,7 +353,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(1236);
 
         // When
-        HostPort result = spec.advertiseBroker(new ProxyNodeId.Broker(gateway, 0));
+        HostPort result = spec.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 0));
 
         // Then — delegates port resolution to the gateway
         assertThat(result.host()).isEqualTo("broker0.kafka.example.com");
@@ -369,9 +369,9 @@ class PortIdentifiesNodeIdentificationStrategyTest {
         var gateway = mock(EndpointGateway.class);
 
         // When / Then
-        assertThat(spec.advertiseBroker(new ProxyNodeId.Broker(gateway, 0)).host()).isEqualTo("broker0.kafka.example.com");
-        assertThat(spec.advertiseBroker(new ProxyNodeId.Broker(gateway, 1)).host()).isEqualTo("broker1.kafka.example.com");
-        assertThat(spec.advertiseBroker(new ProxyNodeId.Broker(gateway, 2)).host()).isEqualTo("broker2.kafka.example.com");
+        assertThat(spec.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 0)).host()).isEqualTo("broker0.kafka.example.com");
+        assertThat(spec.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 1)).host()).isEqualTo("broker1.kafka.example.com");
+        assertThat(spec.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 2)).host()).isEqualTo("broker2.kafka.example.com");
     }
 
     @Test
@@ -385,7 +385,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(resolvedPort);
 
         // When
-        HostPort result = spec.advertiseBroker(new ProxyNodeId.Broker(gateway, 0));
+        HostPort result = spec.advertisedBrokerAddress(new ProxyNodeId.Broker(gateway, 0));
 
         // Then
         assertThat(result.host()).isEqualTo("broker0.kafka.example.com");
@@ -401,7 +401,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(1235);
 
         // When
-        HostPort result = spec.advertiseBootstrap(new ProxyNodeId.Bootstrap(gateway));
+        HostPort result = spec.advertisedBootstrapAddress(new ProxyNodeId.Bootstrap(gateway));
 
         // Then — delegates port resolution to the gateway
         assertThat(result.host()).isEqualTo(BOOTSTRAP_HOST);
@@ -418,7 +418,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
         when(gateway.resolvePort(any())).thenReturn(resolvedPort);
 
         // When
-        HostPort result = spec.advertiseBootstrap(new ProxyNodeId.Bootstrap(gateway));
+        HostPort result = spec.advertisedBootstrapAddress(new ProxyNodeId.Bootstrap(gateway));
 
         // Then
         assertThat(result.host()).isEqualTo(BOOTSTRAP_HOST);

@@ -346,12 +346,12 @@ public class PortIdentifiesNodeIdentificationStrategy
         }
 
         @Override
-        public HostPort advertiseBootstrap(ProxyNodeId.Bootstrap bootstrap) {
+        public HostPort advertisedBootstrapAddress(ProxyNodeId.Bootstrap bootstrap) {
             return new HostPort(bootstrapAddress.host(), bootstrap.gateway().resolvePort(bootstrap));
         }
 
         @Override
-        public HostPort advertiseBroker(ProxyNodeId virtualNodeId) throws IllegalArgumentException {
+        public HostPort advertisedBrokerAddress(ProxyNodeId virtualNodeId) throws IllegalArgumentException {
             int nodeId = ((ProxyNodeId.Broker) virtualNodeId).nodeId();
             String host = BrokerAddressPatternUtils.replaceLiteralNodeId(computedAdvertisedBrokerAddressPattern, nodeId);
             return new HostPort(host, virtualNodeId.gateway().resolvePort(virtualNodeId));

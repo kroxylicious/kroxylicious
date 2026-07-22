@@ -483,7 +483,7 @@ public class VirtualClusterModel implements AutoCloseable {
         @Override
         public HostPort getClusterBootstrapAddress() {
             if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
-                return advertisingSpec.advertiseBootstrap(new ProxyNodeId.Bootstrap(this));
+                return advertisingSpec.advertisedBootstrapAddress(new ProxyNodeId.Bootstrap(this));
             }
             return getNodeIdentificationStrategy().getClusterBootstrapAddress();
         }
@@ -562,7 +562,7 @@ public class VirtualClusterModel implements AutoCloseable {
         @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
             if (nodeIdentificationStrategy instanceof AdvertisingSpec advertisingSpec) {
-                return advertisingSpec.advertiseBroker(new ProxyNodeId.Broker(this, nodeId));
+                return advertisingSpec.advertisedBrokerAddress(new ProxyNodeId.Broker(this, nodeId));
             }
             return getNodeIdentificationStrategy().getAdvertisedBrokerAddress(nodeId);
         }
