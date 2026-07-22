@@ -52,6 +52,10 @@ public abstract class BaseOauthBearerIT extends BaseIT {
     private static final URI OAUTH_ENDPOINT_URL = URI.create(JWKS_ENDPOINT_URL).resolve("/");
     protected static final URI TOKEN_ENDPOINT_URL = OAUTH_ENDPOINT_URL.resolve("default/token");
     protected static final String EXPECTED_AUDIENCE = "default";
+    protected static final String EXPECTED_ISSUER = "http://localhost:" + OAUTH_SERVER_PORT + "/default";
+
+    protected static final String JWKS_ENDPOINT_URL_OTHER_ISSUER = "http://localhost:" + OAUTH_SERVER_PORT + "/other-issuer/jwks";
+    protected static final URI TOKEN_ENDPOINT_URL_OTHER_ISSUER = OAUTH_ENDPOINT_URL.resolve("other-issuer/token");
     protected static final String ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG = "org.apache.kafka.sasl.oauthbearer.allowed.urls";
     protected static final String CLIENT_ID = "clientId-" + UUID.randomUUID();
     protected static final String CLIENT_SECRET = "clientSecret";
@@ -66,7 +70,9 @@ public abstract class BaseOauthBearerIT extends BaseIT {
         // Kafka 4.0 requires that the org.apache.kafka.sasl.oauthbearer.allowed.urls sys property is set in order to use Oauth Bearer.
         // The Kafka Broker and Proxy requires that JWKS_ENDPOINT_URL is in the allow list.
         // The Kafka Client requires that TOKEN_ENDPOINT_URL is in the allow list.
-        System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, JWKS_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL);
+        System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG,
+                JWKS_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL + ","
+                        + JWKS_ENDPOINT_URL_OTHER_ISSUER + "," + TOKEN_ENDPOINT_URL_OTHER_ISSUER);
 
         oauthServer = new OauthServerContainer(BaseOauthBearerIT.DOCKER_IMAGE_NAME);
         oauthServer.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*started server on address.*"));
