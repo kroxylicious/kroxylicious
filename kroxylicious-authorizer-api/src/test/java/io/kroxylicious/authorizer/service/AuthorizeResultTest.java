@@ -12,8 +12,8 @@ import java.util.Map;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.authentication.User;
+import io.kroxylicious.identity.SingularPrincipal;
+import io.kroxylicious.identity.Subject;
 
 class AuthorizeResultTest {
 
@@ -23,7 +23,10 @@ class AuthorizeResultTest {
         AETHERIFY
     }
 
-    Subject subject = new Subject(new User("alice"));
+    @SingularPrincipal
+    record TestUser(String name) implements io.kroxylicious.identity.Principal {}
+
+    Subject subject = new Subject(new TestUser("alice"));
     Action foo = new Action(TestResource.SQUIDGE, "foo");
     Action bar = new Action(TestResource.SQUIDGE, "bar");
     Action baz = new Action(TestResource.TESSELLATE, "baz");
@@ -31,7 +34,7 @@ class AuthorizeResultTest {
     AuthorizeResult result = new AuthorizeResult(subject, List.of(foo, baz), List.of(bar));
 
     @Test
-    void shouldReturnSameSubject() {
+    void shouldReturnSameIdentity() {
         Assertions.assertThat(result.subject()).isSameAs(subject);
     }
 

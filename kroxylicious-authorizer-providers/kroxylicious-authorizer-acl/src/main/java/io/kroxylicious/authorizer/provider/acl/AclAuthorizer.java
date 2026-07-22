@@ -24,8 +24,8 @@ import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.authorizer.service.ResourceType;
-import io.kroxylicious.proxy.authentication.Principal;
-import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.identity.Identity;
+import io.kroxylicious.identity.Principal;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -294,9 +294,10 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static @Nullable Decision authorizeInternal(
                                                         TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
-                                                        Subject subject,
+                                                        Identity subject,
                                                         Action action,
                                                         Decision whenFound,
                                                         @Nullable Decision whenNotFound) {
@@ -364,8 +365,9 @@ public class AclAuthorizer implements Authorizer {
         return operations != null && operations.contains(op);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
-    public CompletionStage<AuthorizeResult> authorize(Subject subject, List<Action> actions) {
+    public CompletionStage<AuthorizeResult> authorize(Identity subject, List<Action> actions) {
         List<Action> allowedActions = new ArrayList<>();
         List<Action> deniedActions = new ArrayList<>();
         for (var action : actions) {

@@ -40,6 +40,10 @@
             <artifactId>kroxylicious-authorizer-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-identity-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.re2j</groupId>
             <artifactId>re2j</artifactId>
         </dependency>

@@ -5,7 +5,7 @@
  */
 
 /**
- * <p>An abstract API for making access control decisions about {@link io.kroxylicious.proxy.authentication.Subject Subjects}
+ * <p>An abstract API for making access control decisions about subjects
  * wanting to perform {@link io.kroxylicious.authorizer.service.Action Actions}.</p>
  *
  * <p>The {@link io.kroxylicious.authorizer.service.AuthorizerService} interface is implemented by

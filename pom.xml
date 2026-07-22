@@ -624,6 +624,7 @@
         <module>kroxylicious-filters</module>
         <module>kroxylicious-kubernetes</module>
         <module>kroxylicious-docs</module>
+        <module>kroxylicious-identity-api</module>
         <module>kroxylicious-authorizer-api</module>
         <module>kroxylicious-authorizer-providers</module>
         <module>kroxylicious-openmessaging-benchmarks</module>

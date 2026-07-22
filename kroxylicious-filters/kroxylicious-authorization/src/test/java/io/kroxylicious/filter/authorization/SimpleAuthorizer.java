@@ -18,9 +18,9 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.ResourceType;
-import io.kroxylicious.proxy.authentication.Principal;
-import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.identity.Identity;
 
+@SuppressWarnings("deprecation")
 class SimpleAuthorizer implements Authorizer {
 
     private final Set<AllowedOperation> allowedOperations;
@@ -33,12 +33,12 @@ class SimpleAuthorizer implements Authorizer {
     }
 
     @Override
-    public CompletionStage<AuthorizeResult> authorize(Subject subject, List<io.kroxylicious.authorizer.service.Action> actions) {
-        Set<Principal> principals = subject.principals();
+    public CompletionStage<AuthorizeResult> authorize(Identity subject, List<io.kroxylicious.authorizer.service.Action> actions) {
+        Set<? extends io.kroxylicious.identity.Principal> principals = subject.principals();
         if (principals.size() != 1) {
             throw new IllegalStateException("Subject must have exactly one principal");
         }
-        String principal = principals.stream().findFirst().map(Principal::name).orElseThrow();
+        String principal = principals.stream().findFirst().map(io.kroxylicious.identity.Principal::name).orElseThrow();
         Map<Boolean, List<Action>> collect = actions.stream().collect(Collectors.partitioningBy(action -> {
             AllowedOperation operation = new AllowedOperation(principal, action.resourceName(), action.operation());
             return allowedOperations.contains(operation);

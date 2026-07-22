@@ -114,6 +114,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-identity-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-authorizer-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
