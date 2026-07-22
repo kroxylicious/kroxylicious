@@ -64,11 +64,15 @@ class RouterDispatchHandlerTest {
                 router, Map.of(), staticRoutes, ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
     }
 
+    private EmbeddedChannel channelWithTerminal(RouterDispatchHandler handler) {
+        return new EmbeddedChannel(handler, new RoutingTerminalHandler(ccsm));
+    }
+
     @Test
     void shouldForwardNonFrameMessageToCcsm() {
         // Given
         var handler = handlerWithIdentityMapping(Map.of());
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         // When
         channel.writeInbound("not-a-frame");
@@ -103,7 +107,7 @@ class RouterDispatchHandlerTest {
         // Given
         var staticRoutes = Map.of(ApiKeys.PRODUCE, DEFAULT_ROUTE);
         var handler = handlerWithIdentityMapping(staticRoutes);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         var buf = Unpooled.buffer();
         var opaqueFrame = new OpaqueRequestFrame(buf, ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
@@ -121,7 +125,7 @@ class RouterDispatchHandlerTest {
         // Given
         var staticRoutes = Map.of(ApiKeys.FETCH, DEFAULT_ROUTE);
         var handler = handlerWithIdentityMapping(staticRoutes);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         var frame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
                 new RequestHeaderData(), new FetchRequestData());
@@ -131,6 +135,7 @@ class RouterDispatchHandlerTest {
 
         // Then
         verify(ccsm).forwardToRoute(DEFAULT_ROUTE, frame);
+        assertThat(frame.routeName()).isEqualTo(DEFAULT_ROUTE);
     }
 
     @Test
@@ -138,7 +143,7 @@ class RouterDispatchHandlerTest {
         // Given
         var staticRoutes = Map.of(ApiKeys.FETCH, DEFAULT_ROUTE);
         var handler = handlerWithIdentityMapping(staticRoutes);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         var buf = Unpooled.buffer();
         var opaqueFrame = new OpaqueRequestFrame(buf, ApiKeys.FETCH.id, (short) 12, CORRELATION_ID, false, 0, true);
@@ -148,6 +153,7 @@ class RouterDispatchHandlerTest {
 
         // Then
         verify(ccsm).forwardToRoute(DEFAULT_ROUTE, opaqueFrame);
+        assertThat(opaqueFrame.routeName()).isEqualTo(DEFAULT_ROUTE);
         buf.release();
     }
 
@@ -157,7 +163,7 @@ class RouterDispatchHandlerTest {
         var mapping = new BijectiveNodeIdMapping(Map.of("route-a", 0, "route-b", 1), 2);
         var handler = new RouterDispatchHandler(
                 router, Map.of(), Map.of(ApiKeys.METADATA, "route-a"), ccsm, "test-cluster", mapping, null);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         // Record the pending METADATA request
         var requestFrame = new DecodedRequestFrame<>((short) 12, CORRELATION_ID, true,
@@ -441,7 +447,7 @@ class RouterDispatchHandlerTest {
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
                 Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
@@ -468,7 +474,7 @@ class RouterDispatchHandlerTest {
         var handler = new RouterDispatchHandler(
                 router, Map.of(DEFAULT_ROUTE, new RouteDescriptor(DEFAULT_ROUTE, 0, new TargetCluster("localhost:9092", null), null, List.of())),
                 Map.of(), ccsm, "test-cluster", new IdentityNodeIdMapping(DEFAULT_ROUTE), null);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
 
         int routingCorrelationId = Integer.MIN_VALUE / 2;
         var frame = new DecodedResponseFrame<>((short) 9, routingCorrelationId,
@@ -486,7 +492,7 @@ class RouterDispatchHandlerTest {
     void sendToAnyNodeShouldForwardToRouteForKnownRoute() {
         // Given
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion((short) 12);
@@ -544,7 +550,7 @@ class RouterDispatchHandlerTest {
     void sendToAnyNodeShouldReturnCompletedNullFutureForFireAndForget() {
         // Given: PRODUCE with acks=0 has hasResponse()=false, so no response is expected
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
                 .setRequestApiVersion((short) 9);
@@ -561,7 +567,7 @@ class RouterDispatchHandlerTest {
     void sendToSpecificNodeShouldForwardToNode() {
         // Given
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion((short) 12);
@@ -597,7 +603,7 @@ class RouterDispatchHandlerTest {
     void sendToSpecificNodeShouldNotRegisterPendingResponseForFireAndForgetRequest() {
         // Given: PRODUCE with acks=0 has hasResponse()=false, so no response is expected
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)
                 .setRequestApiVersion((short) 9);
@@ -616,7 +622,7 @@ class RouterDispatchHandlerTest {
         // Given
         doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToRoute(anyString(), any());
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion((short) 12);
@@ -625,10 +631,8 @@ class RouterDispatchHandlerTest {
         var future = handler.sendToAnyNode(DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
 
         // Then
-        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
-        assertThatThrownBy(() -> future.toCompletableFuture().get())
-                .hasCauseInstanceOf(RuntimeException.class)
-                .cause().hasMessage("forward failed");
+        assertThat(future.toCompletableFuture()).isNotDone();
+        assertThat(handler.pendingResponses).hasSize(1);
     }
 
     @Test
@@ -636,7 +640,7 @@ class RouterDispatchHandlerTest {
         // Given
         doThrow(new RuntimeException("forward failed")).when(ccsm).forwardToNode(anyInt(), anyString(), any());
         var handler = handlerWithRouteForSendTests(DEFAULT_ROUTE);
-        channel = new EmbeddedChannel(handler);
+        channel = channelWithTerminal(handler);
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.FETCH.id)
                 .setRequestApiVersion((short) 12);
@@ -645,9 +649,7 @@ class RouterDispatchHandlerTest {
         var future = handler.sendToSpecificNode(3, DEFAULT_ROUTE, header, new FetchRequestData(), "test-session", 100);
 
         // Then
-        assertThat(future.toCompletableFuture()).isCompletedExceptionally();
-        assertThatThrownBy(() -> future.toCompletableFuture().get())
-                .hasCauseInstanceOf(RuntimeException.class)
-                .cause().hasMessage("forward failed");
+        assertThat(future.toCompletableFuture()).isNotDone();
+        assertThat(handler.pendingResponses).hasSize(1);
     }
 }

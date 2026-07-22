@@ -42,6 +42,8 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
     private @Nullable ObjectSerializationCache serializationCache;
+    private @Nullable String routeName;
+    private int targetVirtualNodeId = NO_TARGET_VIRTUAL_NODE_ID;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
         this.apiVersion = apiVersion;
@@ -146,6 +148,24 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
     @Override
     protected void deallocate() {
         buffers.forEach(ByteBuf::release);
+    }
+
+    @Override
+    public @Nullable String routeName() {
+        return routeName;
+    }
+
+    @Override
+    public void setRouteName(@Nullable String routeName) {
+        this.routeName = routeName;
+    }
+
+    public int targetVirtualNodeId() {
+        return targetVirtualNodeId;
+    }
+
+    public void setTargetVirtualNodeId(int targetVirtualNodeId) {
+        this.targetVirtualNodeId = targetVirtualNodeId;
     }
 
     public void transferBuffersTo(DecodedFrame<?, ?> frame) {

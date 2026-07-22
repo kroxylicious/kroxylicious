@@ -252,12 +252,38 @@ public class KafkaProxyFrontendHandler
                 .log("ChannelActive");
         // install filters before first read
         List<FilterAndInvoker> filters = buildFilters();
-        addFiltersToPipeline(filters, clientCtx().pipeline(), clientCtx().channel());
-        // Set the decode predicate now that we have the filters
-        dp.setDelegate(DecodePredicate.forFilters(filters));
+        addFiltersToPipeline(filters, clientCtx().pipeline(), clientChannel);
+
+        var allFilters = new ArrayList<>(filters);
+        allFilters.addAll(installRouteFilters(clientCtx().pipeline(), clientChannel));
+
+        // Set the decode predicate now that we have all filters (VC + per-route)
+        dp.setDelegate(DecodePredicate.forFilters(allFilters));
         // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
+    }
+
+    private List<FilterAndInvoker> installRouteFilters(ChannelPipeline pipeline, Channel clientChannel) {
+        var vc = clientConnectionStateMachine.virtualCluster();
+        if (!(vc.routing() instanceof io.kroxylicious.proxy.internal.routing.DynamicRouting dr)) {
+            return List.of();
+        }
+        var filterContext = new NettyFilterContext(clientChannel.eventLoop(), pfr);
+        var allRouteFilters = new ArrayList<FilterAndInvoker>();
+        for (var entry : dr.routeDescriptors().entrySet()) {
+            String routeName = entry.getKey();
+            List<FilterAndInvoker> routeFilters = vc.createRouteFilters(routeName, filterContext);
+            allRouteFilters.addAll(routeFilters);
+            for (int i = 0; i < routeFilters.size(); i++) {
+                FilterAndInvoker fi = routeFilters.get(i);
+                String handlerName = "routeFilter-" + routeName + "-" + i + "-" + fi.filterName();
+                pipeline.addBefore("routingTerminalHandler", handlerName,
+                        new RouteFilterHandler(fi, 20000, sniHostname, clientChannel,
+                                clientConnectionStateMachine, routeName));
+            }
+        }
+        return allRouteFilters;
     }
 
     private List<FilterAndInvoker> buildFilters() {
