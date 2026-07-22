@@ -19,21 +19,34 @@ name: "Run Kroxylicious Proxy Integration Tests"
 on:
   push:
     branches: [ main, 'release/**' ]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.adoc'
   pull_request:
     types: [ opened, synchronize, reopened ]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.adoc'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  check_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      only_docs_changed: ${{ steps.check.outputs.only_matching_files_changed }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: 'Check out repository'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+
+      - name: 'Detect non-documentation changes'
+        id: check
+        run: scripts/only-matching-files-changed.sh '\.(md|adoc)$'
+
   discover_integration_test_chunks:
+    needs: check_changes
+    if: needs.check_changes.outputs.only_docs_changed == 'false'
     runs-on: ubuntu-latest
     outputs:
       test_chunks: ${{ steps.discover.outputs.test_chunks }}
