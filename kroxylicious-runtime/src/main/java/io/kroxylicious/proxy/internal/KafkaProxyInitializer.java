@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.routing.DirectRouting;
 import io.kroxylicious.proxy.internal.routing.DynamicRouting;
 import io.kroxylicious.proxy.internal.routing.RouterDispatchHandler;
+import io.kroxylicious.proxy.internal.routing.RoutingTerminalHandler;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.router.Router;
@@ -278,6 +279,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 .or(() -> endpointReconciler.upstreamAddress(
                                         clientConnectionStateMachine.endpointGateway(), virtualNodeId)));
                 pipeline.addLast("routerDispatchHandler", dispatchHandler);
+                pipeline.addLast("routingTerminalHandler", new RoutingTerminalHandler(clientConnectionStateMachine));
             }
             case DirectRouting ignored -> pipeline.addLast("filterChainCompletionHandler",
                     new FilterChainCompletionHandler(clientConnectionStateMachine));
