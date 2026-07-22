@@ -856,7 +856,7 @@ class RecordEncryptionFilterTest {
     }
 
     private static MemoryRecords makeRecord(byte[] payload) {
-        return makeRecords(LongStream.of(0), u -> RecordTestUtils.record(ByteBuffer.wrap(payload), new RecordHeader("myKey", "myValue".getBytes())));
+        return makeRecords(LongStream.of(0), u -> RecordTestUtils.record(ByteBuffer.wrap(payload), new RecordHeader("myKey", "myValue".getBytes(UTF_8))));
     }
 
     private static MemoryRecords makeRecords(LongStream offsets, Function<Long, Record> messageFunc) {

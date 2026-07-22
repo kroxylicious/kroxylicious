@@ -161,14 +161,16 @@ class PemParserTest {
 
         @Test
         void rejectsEmptyPemData() {
-            assertThatThrownBy(() -> PemParser.parsePrivateKey("".getBytes()))
+            var bytes = "".getBytes(StandardCharsets.US_ASCII);
+            assertThatThrownBy(() -> PemParser.parsePrivateKey(bytes))
                     .isInstanceOf(IOException.class)
                     .hasMessageContaining("No private key found");
         }
 
         @Test
         void rejectsGarbageData() {
-            assertThatThrownBy(() -> PemParser.parsePrivateKey("not a pem file".getBytes()))
+            var bytes = "not a pem file".getBytes(StandardCharsets.US_ASCII);
+            assertThatThrownBy(() -> PemParser.parsePrivateKey(bytes))
                     .isInstanceOf(IOException.class)
                     .hasMessageContaining("No private key found");
         }
@@ -176,17 +178,19 @@ class PemParserTest {
         @Test
         void rejectsInvalidKeyData() {
             String pem = "-----BEGIN PRIVATE KEY-----\nYWJj\n-----END PRIVATE KEY-----\n";
-            assertThatThrownBy(() -> PemParser.parsePrivateKey(pem.getBytes()))
+            var bytes = pem.getBytes(StandardCharsets.US_ASCII);
+            assertThatThrownBy(() -> PemParser.parsePrivateKey(bytes))
                     .isInstanceOf(IOException.class);
         }
 
         @Test
         void handlesWhitespaceInPemBody() throws Exception {
             String pemWithExtraSpace = "-----BEGIN PRIVATE KEY-----\n\n  "
-                    + Base64.getMimeEncoder(64, "\n".getBytes())
+                    + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII))
                             .encodeToString(rsaKeyPair.getPrivate().getEncoded())
                     + "\n  \n-----END PRIVATE KEY-----\n";
-            PrivateKey parsed = PemParser.parsePrivateKey(pemWithExtraSpace.getBytes());
+            var bytes = pemWithExtraSpace.getBytes(StandardCharsets.US_ASCII);
+            PrivateKey parsed = PemParser.parsePrivateKey(bytes);
             assertThat(parsed.getAlgorithm()).isEqualTo("RSA");
         }
     }
@@ -246,14 +250,16 @@ class PemParserTest {
 
         @Test
         void rejectsEmptyData() {
-            assertThatThrownBy(() -> PemParser.parseCertificateChain("".getBytes()))
+            var bytes = "".getBytes(StandardCharsets.US_ASCII);
+            assertThatThrownBy(() -> PemParser.parseCertificateChain(bytes))
                     .isInstanceOf(IOException.class)
                     .hasMessageContaining("No certificates found");
         }
 
         @Test
         void rejectsGarbageData() {
-            assertThatThrownBy(() -> PemParser.parseCertificateChain("not a cert".getBytes()))
+            var bytes = "not a cert".getBytes(StandardCharsets.US_ASCII);
+            assertThatThrownBy(() -> PemParser.parseCertificateChain(bytes))
                     .isInstanceOf(IOException.class)
                     .hasMessageContaining("No certificates found");
         }
