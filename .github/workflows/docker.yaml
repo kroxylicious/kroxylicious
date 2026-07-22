@@ -33,8 +33,14 @@ on:
       - 'release/**'
     tags:
       - 'v*.*.*'
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.adoc'
   pull_request:
     types: [ opened, synchronize, reopened ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.adoc'
 
 jobs:
   build:

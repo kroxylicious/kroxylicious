@@ -19,6 +19,9 @@ name: "Lint Pull Request"
 on:
   pull_request:
     types: [ opened, synchronize, reopened ]
+    # licence:check reads .adoc files
+    paths-ignore:
+      - '**/*.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

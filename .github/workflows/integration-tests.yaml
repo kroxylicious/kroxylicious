@@ -19,8 +19,14 @@ name: "Run Kroxylicious Proxy Integration Tests"
 on:
   push:
     branches: [ main, 'release/**' ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.adoc'
   pull_request:
     types: [ opened, synchronize, reopened ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.adoc'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
