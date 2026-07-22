@@ -1,2 +1,3 @@
 io.kroxylicious.filter.sasl.termination.mechanism.ScramSha256HandlerFactory
 io.kroxylicious.filter.sasl.termination.mechanism.ScramSha512HandlerFactory
+io.kroxylicious.filter.sasl.termination.mechanism.OauthBearerHandlerFactory
